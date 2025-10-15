@@ -364,7 +364,9 @@ class ConflictResolver {
 
 ### 4a. Conflict Resolution Matrix (Explicit Rules)
 
-Based on Decision #78, here's the deterministic conflict resolution strategy for each entity type:
+**⚠️ Phase C Implementation Note (Decision #85)**: Field-level merge functionality documented below is deferred to Phase C or "when needed" to reduce Phase B complexity. Phase B will use record-level LWW with vector clocks for conflict detection. Field-level merge will be implemented only if real multi-party edit conflicts emerge.
+
+Based on Decision #77 and #85, here's the deterministic conflict resolution strategy for each entity type:
 
 ```typescript
 interface ConflictResolutionRules {

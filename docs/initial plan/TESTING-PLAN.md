@@ -466,6 +466,14 @@ test.describe("PWA Features", () => {
 
 ### 4. Property-Based Testing for Sync Conflicts
 
+**⚠️ CI Strategy (Decision #85)**: Property-based tests run nightly only to keep PR CI fast.
+
+**Test Schedule**:
+
+- **PR CI**: Unit + integration + E2E (~3 min) - property tests excluded
+- **Nightly CI**: All tests including property-based (~15 min)
+- **Manual**: `RUN_PROPERTY_TESTS=1 npm test`
+
 Using fast-check for property-based testing to ensure sync convergence:
 
 ```typescript

@@ -78,6 +78,16 @@ pnpm add -D lighthouse bundlesize2
 - Initialize Git repository
 - Setup GitHub repository
 - Configure GitHub Actions with Playwright and Lighthouse CI
+- **Setup CI Testing Secrets**:
+  - Create separate Supabase project for CI (`household-hub-test`)
+  - Store `SUPABASE_TEST_URL` and `SUPABASE_TEST_ANON_KEY` in GitHub Secrets
+  - Create seed script for test data
+  - Configure GitHub Actions to run migrations on test project
+- **Configure Lighthouse CI budgets** (.lighthouserc.json):
+  - Performance: ≥90
+  - Accessibility: ≥95
+  - FCP: <1500ms
+  - TBT: <200ms
 
 **Deliverables:**
 
@@ -85,6 +95,8 @@ pnpm add -D lighthouse bundlesize2
 - [ ] Base project structure
 - [ ] Git repository with initial commit
 - [ ] CI/CD pipeline configured
+- [ ] CI testing Supabase project provisioned
+- [ ] Lighthouse CI configured with budgets
 
 ### Day 2: Backend Setup
 
@@ -155,6 +167,11 @@ class HouseholdDatabase extends Dexie {
 - Implement device fingerprinting
 - Setup idempotency key generation
 - Create basic event creation logic
+- **Implement logout data retention** (Decision #84):
+  - Check for unsynced data before logout
+  - Prompt user: "You have offline data. Export before logout?"
+  - Offer CSV export option
+  - Clear IndexedDB after confirmation
 
 **Deliverables:**
 
@@ -163,6 +180,7 @@ class HouseholdDatabase extends Dexie {
 - [ ] Event sourcing initialized
 - [ ] Device fingerprinting working
 - [ ] Idempotency keys functional
+- [ ] Logout with data retention prompt working
 
 ### Day 4: Accounts & Categories Setup
 
@@ -272,57 +290,59 @@ class HouseholdDatabase extends Dexie {
 
 This phase enhances the event sourcing with vector clocks, advanced conflict resolution, and R2 backups.
 
-### Day 8: Vector Clocks & Advanced Sync
+### Day 8: Vector Clocks & Event Compaction
+
+**Note**: Field-level merge deferred to Phase C (Decision #86) to reduce complexity
 
 #### Morning (4 hours)
 
 - Upgrade to per-entity vector clocks
 - Add lamport clock optimization
 - Implement vector clock compaction
-- Build field-level merge logic
-- Create conflict detection
+- Create conflict detection (record-level LWW resolution)
+- Test vector clock comparison logic
 
 #### Afternoon (4 hours)
 
 - Build event replay mechanism
-- Implement event compaction strategy
-- Add deterministic conflict resolution
+- Implement event compaction strategy (100 events OR monthly)
+- Add deterministic record-level LWW resolution
 - Test multi-device scenarios
 - Optimize sync performance
 
 **Deliverables:**
 
 - [ ] Vector clocks working per-entity
-- [ ] Compaction strategy functional
-- [ ] Field-level merges working
+- [ ] Compaction strategy functional (100 events trigger)
+- [ ] Record-level LWW conflict resolution working
 - [ ] Conflict resolution deterministic
 - [ ] Multi-device sync tested
 
-### Day 9: Advanced Sync Engine
+### Day 9: Sync State Machine & Realtime
 
 #### Morning (4 hours)
 
-- Implement field-level conflict resolution
-- Build deterministic merge algorithm
-- Create sync state machine (draft→queued→syncing→acked)
+- Create sync state machine (draft→queued→syncing→acked→confirmed)
 - Add retry with exponential backoff
 - Implement jitter for retry timing
+- Build sync queue processor
+- Test failure scenarios (network errors, timeouts)
 
 #### Afternoon (4 hours)
 
 - Build realtime subscription with Supabase
 - Create background sync worker
 - Add sync progress indicators
-- Implement conflict UI (if needed)
-- Test multi-device scenarios
+- Test multi-device concurrent scenarios
+- Optimize batch sync operations
 
 **Deliverables:**
 
-- [ ] Conflict resolution working
-- [ ] State machine implemented
+- [ ] State machine implemented and tested
+- [ ] Retry logic robust (exponential backoff + jitter)
 - [ ] Realtime sync functional
 - [ ] Multi-device tested
-- [ ] Retry logic robust
+- [ ] Sync progress UI working
 
 ### Day 10: Cloudflare R2 Integration
 
@@ -354,6 +374,12 @@ export default {
 - [ ] Upload to R2 functional
 - [ ] Checksums validating
 - [ ] Progress tracking smooth
+- [ ] **Staging deploy** to `staging.household-hub.pages.dev`:
+  - Deploy to Cloudflare Pages staging environment
+  - Verify Auth redirects work
+  - Test CORS configuration
+  - Validate JWT flow end-to-end
+  - Fix any integration issues early
 
 ### Day 11: Backup Management
 
@@ -396,14 +422,21 @@ export default {
 - Implement CSV import with validation
 - Add import error handling with row numbers
 - Create import preview UI
-- Test large dataset imports
+- **Build import deduplication UX** (Decision #81):
+  - Column mapping UI (auto-detect + manual override)
+  - Duplicate detection display (hash-based fingerprinting)
+  - Per-duplicate action: Skip | Keep Both | Replace
+  - Progress indicator with row-by-row feedback
+  - Error summary with downloadable error report
+- Test large dataset imports (50k rows)
 - Performance profiling and optimization
 
 **Deliverables:**
 
 - [ ] Query performance optimized with indexes
 - [ ] Caching strategy implemented
-- [ ] CSV import working
+- [ ] CSV import working with deduplication UX
+- [ ] Column mapping UI functional
 - [ ] Performance metrics tracking
 - [ ] Phase B complete
 
@@ -458,9 +491,16 @@ export default {
 
 #### Morning (4 hours)
 
+- **Setup Web Push with VAPID keys**:
+  - Generate VAPID keys: `npx web-push generate-vapid-keys`
+  - Store keys in Cloudflare Worker secrets:
+    - `wrangler secret put VAPID_PUBLIC_KEY`
+    - `wrangler secret put VAPID_PRIVATE_KEY`
+  - Create `push_subscriptions` table (DATABASE.md)
+  - Build subscription registration flow
 - Setup Web Push with Cloudflare Worker
 - Create notification permission flow
-- Implement budget threshold alerts
+- Implement budget threshold alerts (Supabase cron trigger)
 - Add transaction reminders (pending items)
 - Build notification preferences UI
 
@@ -492,19 +532,37 @@ export default {
 
 #### Afternoon (4 hours)
 
-- Deploy to Cloudflare Pages
+- Deploy to Cloudflare Pages (production)
 - Configure custom domain
-- Setup monitoring (Sentry)
-- Create user documentation
+- **Setup monitoring with Sentry**:
+  - Configure PII scrubbing (Decision #84):
+    ```typescript
+    Sentry.init({
+      beforeSend(event) {
+        // Scrub sensitive fields
+        if (event.request?.data) {
+          delete event.request.data.amount_cents;
+          delete event.request.data.description;
+          delete event.request.data.notes;
+        }
+        return event;
+      },
+      // Disable session replay for finance screens
+      replaysSessionSampleRate: 0,
+    });
+    ```
+- Create user documentation (getting started guide)
 - Final performance optimization
+- Verify Lighthouse CI passing all budgets
 
 **Deliverables:**
 
 - [ ] All tests passing
 - [ ] Production deployed
-- [ ] Monitoring active
+- [ ] Monitoring active with PII scrubbing
 - [ ] Documentation complete
 - [ ] System live and stable
+- [ ] Lighthouse scores: Performance ≥90, Accessibility ≥95
 
 ## Daily Routine
 
@@ -598,11 +656,12 @@ test("create transaction offline and sync", async ({ page }) => {
 ### Phase B Completion (Day 12)
 
 - [ ] Vector clocks enhanced (per-entity)
-- [ ] Advanced conflict resolution working
-- [ ] R2 backups functional
-- [ ] Conflict resolution tested
-- [ ] CSV import with validation
+- [ ] Record-level LWW conflict resolution working (field-level deferred to Phase C)
+- [ ] R2 backups functional with client-side encryption
+- [ ] Event compaction tested (100 events OR monthly)
+- [ ] CSV import with deduplication UX
 - [ ] Transfer detection working
+- [ ] Staging environment validated
 
 ### Phase C Completion (Day 15)
 

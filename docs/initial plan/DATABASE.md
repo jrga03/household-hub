@@ -6,6 +6,41 @@ The database uses PostgreSQL via Supabase with a focus on data integrity, audit 
 
 ## Core Tables
 
+### Push Subscriptions
+
+Web Push notification subscriptions per user device (Phase C).
+
+```sql
+CREATE TABLE push_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  device_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+
+  UNIQUE(user_id, device_id)
+);
+
+CREATE INDEX idx_push_subscriptions_user ON push_subscriptions(user_id);
+CREATE INDEX idx_push_subscriptions_device ON push_subscriptions(device_id);
+```
+
+**Purpose**: Store Web Push subscription endpoints and keys for sending budget alerts and transaction reminders (Day 14).
+
+**Key Fields**:
+
+- `endpoint`: Push service URL
+- `p256dh`: Public key for message encryption (P-256 ECDH)
+- `auth`: Authentication secret
+- `device_id`: Links subscription to specific device
+
+**RLS**: Users can only manage their own subscriptions (see RLS-POLICIES.md).
+
+**Related**: IMPLEMENTATION-PLAN.md Day 14 for VAPID key generation and subscription flow.
+
 ### Users & Profiles
 
 ```sql
@@ -869,6 +904,36 @@ CREATE POLICY "Create snapshots"
 ```
 
 ## Migration Safety
+
+### Migration Discipline
+
+All schema changes must be managed through `supabase/migrations` folder:
+
+```bash
+# Project structure
+supabase/
+├── migrations/
+│   ├── 20240101000000_initial_schema.sql
+│   ├── 20240102000000_add_push_subscriptions.sql
+│   └── ...
+└── seed.sql  # Test data separate from migrations
+```
+
+**Rules**:
+
+1. Create migrations via `npx supabase migration new <name>`
+2. Never edit deployed migrations - create new ones
+3. Test migrations in local Supabase before deploying
+4. Keep seed data in separate `seed.sql` file
+5. Use transactions for all migrations (`BEGIN` / `COMMIT`)
+
+**CI/CD**:
+
+- GitHub Actions runs migrations on test Supabase project
+- Manual verification before production deploy
+- See IMPLEMENTATION-PLAN.md Day 1 for CI testing project setup
+
+### Migration Template
 
 ```sql
 -- Migration template for safe schema changes

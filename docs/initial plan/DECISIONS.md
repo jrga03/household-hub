@@ -1043,6 +1043,157 @@ This document captures all key decisions made during the planning of Household H
 - MIGRATION.md - Manual export functionality
 - DECISIONS.md #69 - Backup encryption strategy
 
+### 84. IndexedDB Data Retention on Logout
+
+**Decision**: Prompt user before clearing IndexedDB data on logout
+**Date**: 2025-01-15
+**Context**: Feedback review identified gap in offline data handling when user logs out
+**Options Considered**:
+
+- Option A: Always clear IndexedDB on logout (secure but loses offline data)
+- Option B: Keep encrypted IndexedDB (complex, requires encryption setup)
+- Option C: Prompt user with export option (chosen)
+
+**Rationale**: Balance security with user experience
+
+- Users may have unsynced offline changes
+- Automatic deletion causes data loss
+- Prompt gives user control: "You have offline data. Export before logout?"
+
+**Implementation** (Day 3 - Auth flow):
+
+```typescript
+async function handleLogout() {
+  const hasOfflineData = await checkUnsynced Data();
+
+  if (hasOfflineData) {
+    const shouldExport = await confirm(
+      "You have unsynced offline data. Export before logging out?"
+    );
+
+    if (shouldExport) {
+      await exportToCSV();
+    }
+  }
+
+  await clearIndexedDB();
+  await supabase.auth.signOut();
+}
+```
+
+**Trade-offs**:
+
+- Pro: Prevents accidental data loss
+- Pro: User maintains control
+- Con: Extra step in logout flow
+- Con: User might ignore prompt (acceptable - their choice)
+
+**Related**:
+
+- IMPLEMENTATION-PLAN.md Day 3 - Auth flow implementation
+- SYNC-ENGINE.md - Offline data management
+
+### 85. Property-Based Testing Strategy
+
+**Decision**: Run property-based sync tests nightly only, not on every PR
+**Date**: 2025-01-15
+**Context**: Feedback recommended property-based testing but warned of slow CI times
+**Options Considered**:
+
+- Option A: Run on every PR (thorough but slow ~5-10 min)
+- Option B: Nightly on main branch + feature flag (chosen)
+- Option C: Skip for MVP (risky for sync correctness)
+
+**Rationale**: Property-based tests are valuable for sync convergence but too slow for PR feedback loop
+
+**Implementation**:
+
+```typescript
+// vitest.config.ts
+const runPropertyTests = process.env.RUN_PROPERTY_TESTS === "1";
+
+export default defineConfig({
+  test: {
+    include: runPropertyTests
+      ? ["**/*.test.ts"] // All tests including property-based
+      : ["**/*.test.ts", "!**/*property*.test.ts"], // Exclude property tests
+  },
+});
+```
+
+**Schedule**:
+
+- PR CI: Unit + integration + E2E (fast feedback ~3 min)
+- Nightly on main: All tests including property-based (~15 min)
+- Manual trigger: `RUN_PROPERTY_TESTS=1 npm test`
+
+**Coverage**: Property tests verify:
+
+1. Sync convergence regardless of event order (1000 runs)
+2. Deterministic conflict resolution (1000 runs)
+3. Transfer integrity across sync (500 runs)
+4. No data loss under concurrent modifications (100 runs)
+
+**Trade-offs**:
+
+- Pro: Fast PR feedback loop maintained
+- Pro: Still get thorough sync testing nightly
+- Con: Sync bugs might not be caught until nightly run (acceptable - rare)
+
+**Related**:
+
+- TESTING-PLAN.md - Property-based testing section (lines 467-679)
+- SYNC-ENGINE.md - Convergence guarantees
+- .github/workflows/nightly-tests.yml (to be created)
+
+### 86. Field-Level Merge Deferral
+
+**Decision**: Defer field-level merge to Phase C or "when needed"
+**Date**: 2025-01-15
+**Context**: Feedback review recommended staged sync approach to reduce Phase B risk
+**Previous**: Decision #77 originally specified field-level merge in Phase B
+
+**Revised Phase B Scope**:
+
+- ✅ Per-entity vector clocks
+- ✅ Event compaction (100 events OR monthly)
+- ✅ R2 backups with encryption
+- ✅ CSV import
+- ❌ Field-level merge (deferred to Phase C)
+
+**Rationale**: Phase B is already complex with 4 major features
+
+- Vector clocks + R2 + encryption + import = substantial work
+- Field-level merge adds significant complexity
+- Real multi-party edit conflicts rare in household finance app
+- Record-level LWW sufficient for MVP and Phase B
+
+**Implementation**:
+
+- **Phase A**: Simple LWW with server timestamps
+- **Phase B**: Vector clocks for conflict detection, still use LWW for resolution
+- **Phase C**: Implement field-level merge if conflicts emerge in usage
+
+**When to implement field-level merge**:
+
+1. User reports losing edits due to LWW
+2. Analytics show >5% conflict rate
+3. Multi-user concurrent editing becomes common pattern
+
+**Code Impact**: Field-level merge logic remains documented in SYNC-ENGINE.md lines 365-511 for future implementation, but not built in Phase B
+
+**Trade-offs**:
+
+- Pro: Simpler Phase B implementation (reduced risk)
+- Pro: Focus on encryption and backups (higher user value)
+- Con: Some edits might be overwritten by LWW (rare in practice)
+
+**Related**:
+
+- SYNC-ENGINE.md - Phase C implementation note added at line 367
+- IMPLEMENTATION-PLAN.md - Days 8-9 scope adjusted
+- Decision #77 - Original conflict resolution matrix (still valid for Phase C)
+
 ## Key Trade-offs Made
 
 1. **Complexity vs Simplicity**: Chose simpler single-app architecture over microservices
