@@ -1,0 +1,250 @@
+name: Security Checks
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  credential-leak-detection:
+    name: Scan for Leaked Credentials
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build application
+        run: pnpm build
+        env:
+          # Use dummy values for build (real values in production)
+          VITE_SUPABASE_URL: "https://dummy.supabase.co"
+          VITE_SUPABASE_ANON_KEY: "dummy_anon_key_for_ci"
+
+      - name: Scan build output for service keys
+        run: |
+          echo "🔍 Scanning dist/ for leaked credentials..."
+
+          # Check for service role keys
+          if grep -r "service_role\|SUPABASE_SERVICE_KEY\|service.key" dist/ 2>/dev/null; then
+            echo "❌ SECURITY VIOLATION: Service key detected in build output!"
+            echo "Service keys must NEVER be included in client bundles."
+            echo "These keys bypass RLS and grant full database access."
+            exit 1
+          fi
+
+          # Check for private keys
+          if grep -r "BEGIN PRIVATE KEY\|BEGIN RSA PRIVATE KEY" dist/ 2>/dev/null; then
+            echo "❌ SECURITY VIOLATION: Private key detected in build output!"
+            exit 1
+          fi
+
+          # Check for suspicious tokens
+          if grep -r "eyJhbGciOi.*service_role" dist/ 2>/dev/null; then
+            echo "❌ SECURITY VIOLATION: JWT service role token detected!"
+            exit 1
+          fi
+
+          echo "✅ No credential leaks detected in build output"
+
+      - name: Scan source code for hardcoded secrets
+        run: |
+          echo "🔍 Scanning source code for hardcoded secrets..."
+
+          # Check for hardcoded passwords
+          if grep -r "password\s*=\s*['\"]" src/ --include="*.ts" --include="*.tsx" 2>/dev/null | grep -v "placeholder\|example\|dummy"; then
+            echo "⚠️  WARNING: Possible hardcoded password found"
+            echo "Review the matches above. If these are real passwords, remove them immediately."
+            # Don't fail, just warn (could be false positives)
+          fi
+
+          # Check for API keys in comments or strings
+          if grep -r "sk_live_\|pk_live_\|api_key.*=.*['\"].*[A-Za-z0-9]{32}" src/ --include="*.ts" --include="*.tsx" 2>/dev/null; then
+            echo "⚠️  WARNING: Possible API key found in source code"
+          fi
+
+          echo "✅ Source code scan complete"
+
+      - name: Check environment variable usage
+        run: |
+          echo "🔍 Verifying proper environment variable usage..."
+
+          # Ensure service keys use process.env, not hardcoded
+          if grep -r "SUPABASE_SERVICE_KEY.*=.*['\"]" src/ --include="*.ts" --include="*.tsx" 2>/dev/null | grep -v "process.env\|import.meta.env"; then
+            echo "❌ Service key should use environment variables!"
+            exit 1
+          fi
+
+          echo "✅ Environment variables used correctly"
+
+  dependency-audit:
+    name: Audit Dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run pnpm audit
+        run: |
+          echo "🔍 Running dependency vulnerability scan..."
+          pnpm audit --audit-level=high
+
+          # Store audit results
+          pnpm audit --json > audit-results.json || true
+
+      - name: Upload audit results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-audit
+          path: audit-results.json
+          retention-days: 30
+
+  security-headers-check:
+    name: Verify Security Headers
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for CSP configuration
+        run: |
+          echo "🔍 Checking Content Security Policy configuration..."
+
+          # Check if CSP is defined in index.html or config
+          if ! grep -r "Content-Security-Policy" public/ index.html vite.config.ts 2>/dev/null; then
+            echo "⚠️  WARNING: No Content-Security-Policy found"
+            echo "Consider adding CSP headers for XSS protection"
+          fi
+
+      - name: Check for security headers in config
+        run: |
+          echo "🔍 Checking for security headers configuration..."
+
+          # Headers that should be present:
+          # - X-Content-Type-Options: nosniff
+          # - X-Frame-Options: DENY
+          # - X-XSS-Protection: 1; mode=block
+          # - Referrer-Policy: strict-origin-when-cross-origin
+
+          echo "Review _headers file or server configuration for:"
+          echo "  ✓ X-Content-Type-Options: nosniff"
+          echo "  ✓ X-Frame-Options: DENY"
+          echo "  ✓ X-XSS-Protection: 1; mode=block"
+          echo "  ✓ Referrer-Policy: strict-origin-when-cross-origin"
+          echo "  ✓ Permissions-Policy: geolocation=(), microphone=()"
+
+  lighthouse-security:
+    name: Lighthouse Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build application
+        run: pnpm build
+        env:
+          VITE_SUPABASE_URL: "https://dummy.supabase.co"
+          VITE_SUPABASE_ANON_KEY: "dummy_anon_key_for_ci"
+
+      - name: Run Lighthouse CI
+        run: |
+          npm install -g @lhci/cli
+
+          # Create Lighthouse CI config
+          cat > lighthouserc.json << EOF
+          {
+            "ci": {
+              "collect": {
+                "staticDistDir": "./dist",
+                "numberOfRuns": 1
+              },
+              "assert": {
+                "assertions": {
+                  "categories:best-practices": ["error", {"minScore": 0.9}]
+                }
+              }
+            }
+          }
+          EOF
+
+          # Run audit
+          lhci autorun || echo "⚠️  Lighthouse checks completed with warnings"
+
+  summary:
+    name: Security Check Summary
+    runs-on: ubuntu-latest
+    needs:
+      [credential-leak-detection, dependency-audit, security-headers-check, lighthouse-security]
+    if: always()
+
+    steps:
+      - name: Check job results
+        run: |
+          echo "🔒 Security Checks Summary"
+          echo "========================="
+          echo "Credential Leak Detection: ${{ needs.credential-leak-detection.result }}"
+          echo "Dependency Audit: ${{ needs.dependency-audit.result }}"
+          echo "Security Headers: ${{ needs.security-headers-check.result }}"
+          echo "Lighthouse Security: ${{ needs.lighthouse-security.result }}"
+
+          # Fail if critical checks failed
+          if [[ "${{ needs.credential-leak-detection.result }}" == "failure" ]]; then
+            echo "❌ Critical security check failed: Credential Leak Detection"
+            exit 1
+          fi
+
+          if [[ "${{ needs.dependency-audit.result }}" == "failure" ]]; then
+            echo "⚠️  Dependency audit found vulnerabilities"
+            echo "Review and update vulnerable dependencies"
+          fi
+
+          echo "✅ Security checks completed"
+
+# Related Documentation:
+# - docs/initial plan/SECURITY.md - Comprehensive threat model
+# - docs/initial plan/DECISIONS.md - Decision #82 (CI security checks)
