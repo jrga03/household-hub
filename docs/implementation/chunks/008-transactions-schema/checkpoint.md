@@ -46,6 +46,40 @@ FROM transactions;
 
 ---
 
+## 2.5. Performance Indexes Created ✓
+
+```sql
+-- Count indexes on transactions table
+SELECT COUNT(*) as index_count
+FROM pg_indexes
+WHERE tablename = 'transactions'
+  AND indexname NOT LIKE '%pkey%';  -- Exclude primary key
+```
+
+**Expected**: 16 indexes (not including primary key)
+
+**List all indexes:**
+
+```sql
+SELECT indexname, indexdef
+FROM pg_indexes
+WHERE tablename = 'transactions'
+ORDER BY indexname;
+```
+
+**Verify critical indexes exist:**
+
+- [ ] idx_transactions_account_date (compound)
+- [ ] idx_transactions_category_date (compound)
+- [ ] idx_transactions_date (single, DESC)
+- [ ] idx_transactions_month (functional index)
+- [ ] idx_transactions_tagged_users (GIN index)
+- [ ] idx_transactions_transfer (partial index)
+
+**Why this matters**: Without proper indexes, queries will be slow with >1000 transactions. These indexes support the hot queries defined in DATABASE.md lines 1071-1213.
+
+---
+
 ## 3. RLS Policies Active ✓
 
 ```sql
@@ -63,6 +97,53 @@ WHERE tablename = 'transactions';
 - [ ] "Create transactions" (INSERT)
 - [ ] "Update transactions" (UPDATE)
 - [ ] "Delete transactions" (DELETE)
+
+---
+
+## 3.5. Transfer Integrity Triggers Active ✓
+
+```sql
+-- Verify transfer integrity triggers
+SELECT
+  trigger_name,
+  event_manipulation,
+  action_statement
+FROM information_schema.triggers
+WHERE event_object_table = 'transactions'
+  AND trigger_name IN ('ensure_transfer_integrity', 'handle_transfer_deletion_trigger');
+```
+
+**Expected triggers:**
+
+- [ ] ensure_transfer_integrity (BEFORE INSERT OR UPDATE)
+- [ ] handle_transfer_deletion_trigger (BEFORE DELETE)
+
+**Test transfer integrity:**
+
+```sql
+-- This should FAIL (same type in transfer)
+DO $$
+DECLARE
+  test_transfer_id UUID := gen_random_uuid();
+  test_account_1 UUID := (SELECT id FROM accounts LIMIT 1);
+  test_account_2 UUID := (SELECT id FROM accounts LIMIT 1 OFFSET 1);
+BEGIN
+  -- Try to create invalid transfer (both expenses)
+  INSERT INTO transactions (transfer_group_id, type, amount_cents, date, description, account_id)
+  VALUES (test_transfer_id, 'expense', 100000, CURRENT_DATE, 'Test 1', test_account_1);
+
+  INSERT INTO transactions (transfer_group_id, type, amount_cents, date, description, account_id)
+  VALUES (test_transfer_id, 'expense', 100000, CURRENT_DATE, 'Test 2', test_account_2);
+
+  RAISE EXCEPTION 'Test failed: Invalid transfer was allowed';
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE NOTICE 'Good: Transfer integrity working - %', SQLERRM;
+    ROLLBACK;
+END $$;
+```
+
+**Expected**: Error message about "opposite types" - confirms trigger is working.
 
 ---
 
@@ -240,6 +321,8 @@ LIMIT 5;
 ## Success Criteria
 
 - [ ] Transactions table exists with correct schema
+- [ ] 16 performance indexes created
+- [ ] 2 transfer integrity triggers active
 - [ ] 20+ test transactions seeded
 - [ ] RLS policies active
 - [ ] TypeScript types complete
@@ -261,4 +344,4 @@ Once verified:
 
 ---
 
-**Time**: 10 minutes to verify
+**Time**: 15 minutes to verify (includes index and trigger checks)
