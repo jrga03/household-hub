@@ -1060,11 +1060,23 @@ This document captures all key decisions made during the planning of Household H
 - Automatic deletion causes data loss
 - Prompt gives user control: "You have offline data. Export before logout?"
 
-**Implementation** (Day 3 - Auth flow):
+**Implementation** (Phased across chunks):
+
+**Chunk 002 (Auth Flow)**: Basic logout without data check
+
+```typescript
+signOut: async () => {
+  // TODO: Enhanced in chunk 036 with data retention check
+  await supabase.auth.signOut();
+  set({ user: null, session: null });
+};
+```
+
+**Chunk 036 (CSV Export)**: Add logout data retention prompt
 
 ```typescript
 async function handleLogout() {
-  const hasOfflineData = await checkUnsynced Data();
+  const hasOfflineData = await checkUnsyncedData(); // Requires chunk 023
 
   if (hasOfflineData) {
     const shouldExport = await confirm(
@@ -1072,7 +1084,7 @@ async function handleLogout() {
     );
 
     if (shouldExport) {
-      await exportToCSV();
+      await exportToCSV(); // From chunk 036
     }
   }
 
@@ -1080,6 +1092,12 @@ async function handleLogout() {
   await supabase.auth.signOut();
 }
 ```
+
+**Rationale**: Logout data retention requires:
+
+- Sync queue to check for unsynced data (chunk 023)
+- CSV export functionality (chunk 036)
+- Both dependencies not available in chunk 002
 
 **Trade-offs**:
 
@@ -1090,7 +1108,10 @@ async function handleLogout() {
 
 **Related**:
 
-- IMPLEMENTATION-PLAN.md Day 3 - Auth flow implementation
+- IMPLEMENTATION-PLAN.md Day 3 - Auth flow initialization
+- Chunk 002 - Basic auth flow
+- Chunk 023 - Sync queue (enables unsynced data check)
+- Chunk 036 - CSV export (full implementation of logout data retention)
 - SYNC-ENGINE.md - Offline data management
 
 ### 85. Property-Based Testing Strategy
