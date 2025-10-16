@@ -1,6 +1,33 @@
 # Instructions: Transactions Schema
 
-Follow these steps in order. Estimated time: 60 minutes.
+Follow these steps in order. Estimated time: 85 minutes.
+
+---
+
+## Step 0.5: Verify Prerequisites (5 min)
+
+Ensure these are complete before proceeding:
+
+**Check accounts exist:**
+
+```sql
+SELECT COUNT(*) FROM accounts;  -- Should return at least 2
+```
+
+**Check categories exist:**
+
+```sql
+SELECT COUNT(*) FROM categories WHERE parent_id IS NOT NULL;  -- Should return at least 5 child categories
+```
+
+**Check currency utilities exist:**
+
+```bash
+# Verify file exists with required functions
+grep -E "(formatPHP|parsePHP|validateAmount)" src/lib/currency.ts
+```
+
+All three checks must pass before continuing.
 
 ---
 
@@ -24,6 +51,7 @@ ORDER BY ordinal_position;
 - description (text)
 - amount_cents (bigint) ← Always positive
 - type (text) ← CHECK: 'income' or 'expense'
+- currency_code (text) ← CHECK: 'PHP' only for MVP
 - account_id (uuid, nullable)
 - category_id (uuid, nullable)
 - transfer_group_id (uuid, nullable)
@@ -38,6 +66,72 @@ ORDER BY ordinal_position;
 - updated_at (timestamptz)
 
 If table doesn't exist, create it from DATABASE.md lines 160-219.
+
+---
+
+## Step 1.5: Create Performance Indexes (10 min)
+
+Add indexes for query performance (per Decision #64).
+
+Run in Supabase SQL Editor:
+
+```sql
+-- Single-column indexes
+CREATE INDEX idx_transactions_household ON transactions(household_id);
+CREATE INDEX idx_transactions_date ON transactions(date DESC);
+CREATE INDEX idx_transactions_month ON transactions(DATE_TRUNC('month', date));
+CREATE INDEX idx_transactions_category ON transactions(category_id);
+CREATE INDEX idx_transactions_account ON transactions(account_id);
+CREATE INDEX idx_transactions_status ON transactions(status);
+CREATE INDEX idx_transactions_visibility ON transactions(visibility);
+CREATE INDEX idx_transactions_created_by ON transactions(created_by_user_id);
+CREATE INDEX idx_transactions_type ON transactions(type);
+
+-- Partial indexes (filtered)
+CREATE INDEX idx_transactions_transfer
+  ON transactions(transfer_group_id)
+  WHERE transfer_group_id IS NOT NULL;
+
+CREATE INDEX idx_transactions_import_key
+  ON transactions(import_key)
+  WHERE import_key IS NOT NULL;
+
+-- GIN index for array column
+CREATE INDEX idx_transactions_tagged_users
+  ON transactions USING GIN (tagged_user_ids);
+
+-- Compound indexes for common filter combinations
+CREATE INDEX idx_transactions_account_date
+  ON transactions(account_id, date DESC);
+
+CREATE INDEX idx_transactions_category_date
+  ON transactions(category_id, date DESC);
+
+CREATE INDEX idx_transactions_status_date
+  ON transactions(status, date DESC);
+
+CREATE INDEX idx_transactions_household_visibility
+  ON transactions(household_id, visibility);
+```
+
+Verify indexes created:
+
+```sql
+SELECT indexname
+FROM pg_indexes
+WHERE tablename = 'transactions'
+ORDER BY indexname;
+```
+
+**Expected**: 16 indexes listed (not including primary key index).
+
+**Why these indexes**: Per DATABASE.md Query Index Map (lines 1071-1213), these indexes support:
+
+- Hot Query #1: Transaction list with date range
+- Hot Query #2: Category totals (monthly)
+- Hot Query #3: Account balance calculation
+- Hot Query #4: Budget vs actual comparison
+- Hot Query #5: Tagged transactions (@mentions)
 
 ---
 
@@ -348,7 +442,122 @@ SELECT * FROM pg_policies WHERE tablename = 'transactions';
 
 ---
 
+## Step 4.5: Create Transfer Integrity Triggers (10 min)
+
+Add database-level transfer validation (Decision #60).
+
+Run in Supabase SQL Editor:
+
+```sql
+-- Function: Ensure transfer transactions maintain integrity on INSERT/UPDATE
+CREATE OR REPLACE FUNCTION check_transfer_integrity()
+RETURNS TRIGGER AS $$
+DECLARE
+  transfer_count INT;
+  opposite_type TEXT;
+  total_amount BIGINT;
+BEGIN
+  -- Only check if this is part of a transfer
+  IF NEW.transfer_group_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  -- Count existing transactions in this transfer group
+  SELECT COUNT(*), SUM(amount_cents)
+  INTO transfer_count, total_amount
+  FROM transactions
+  WHERE transfer_group_id = NEW.transfer_group_id
+    AND id != NEW.id;
+
+  -- Ensure maximum 2 transactions per transfer group
+  IF transfer_count >= 2 THEN
+    RAISE EXCEPTION 'Transfer group can only have 2 transactions';
+  END IF;
+
+  -- If this is the second transaction, verify opposite types
+  IF transfer_count = 1 THEN
+    -- Get the type of the other transaction
+    SELECT type INTO opposite_type
+    FROM transactions
+    WHERE transfer_group_id = NEW.transfer_group_id
+      AND id != NEW.id;
+
+    -- Ensure opposite types (one income, one expense)
+    IF NEW.type = opposite_type THEN
+      RAISE EXCEPTION 'Transfer must have opposite types (income/expense)';
+    END IF;
+
+    -- Ensure same amount
+    IF NEW.amount_cents != total_amount THEN
+      RAISE EXCEPTION 'Transfer transactions must have same amount';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function: Handle transfer deletion (nullify paired transaction)
+CREATE OR REPLACE FUNCTION handle_transfer_deletion()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- If deleting a transfer transaction, nullify the pair's transfer_group_id
+  IF OLD.transfer_group_id IS NOT NULL THEN
+    UPDATE transactions
+    SET transfer_group_id = NULL
+    WHERE transfer_group_id = OLD.transfer_group_id
+      AND id != OLD.id;
+
+    -- Log for potential review
+    RAISE NOTICE 'Transfer deleted: paired transaction converted to regular transaction';
+  END IF;
+
+  RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Apply triggers to transactions table
+CREATE TRIGGER ensure_transfer_integrity
+  BEFORE INSERT OR UPDATE ON transactions
+  FOR EACH ROW
+  EXECUTE FUNCTION check_transfer_integrity();
+
+CREATE TRIGGER handle_transfer_deletion_trigger
+  BEFORE DELETE ON transactions
+  FOR EACH ROW
+  EXECUTE FUNCTION handle_transfer_deletion();
+```
+
+Verify triggers exist:
+
+```sql
+SELECT trigger_name, event_manipulation, event_object_table
+FROM information_schema.triggers
+WHERE event_object_table = 'transactions'
+ORDER BY trigger_name;
+```
+
+**Expected**: At least 2 triggers listed (ensure_transfer_integrity, handle_transfer_deletion_trigger).
+
+**Note**: When a transfer transaction is deleted, the paired transaction is automatically converted to a regular transaction (transfer_group_id set to NULL). User can then re-categorize or delete it separately.
+
+---
+
 ## Step 5: Seed Test Transactions (10 min)
+
+**⚠️ Important**: The seed script uses `auth.uid()` which returns NULL when run in SQL Editor. Replace `auth.uid()` with your actual user UUID:
+
+```sql
+-- Get your user ID first
+SELECT id FROM auth.users LIMIT 1;
+-- Copy the UUID
+```
+
+Then replace all instances of `(SELECT user_id FROM seed_data)` in the seed script below with `'your-copied-uuid'::uuid`.
+
+**Alternative**: Run the seed script from your application code where authentication context is available.
+
+---
 
 Create `scripts/seed-transactions.sql`:
 
