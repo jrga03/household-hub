@@ -4,7 +4,28 @@ Follow these steps in order. Estimated time: 60 minutes.
 
 ---
 
+## Prerequisites Verification (2 min)
+
+Before starting, verify chunk 005 is complete:
+
+```bash
+# 1. Check currency utilities exist
+ls src/lib/currency.ts
+
+# 2. Verify functions are exported (should show formatPHP, parsePHP, validateAmount)
+grep "export" src/lib/currency.ts
+
+# 3. Run any existing tests from chunk 005
+npm test src/lib/currency.test.ts 2>/dev/null || echo "No tests yet from chunk 005 - OK to proceed"
+```
+
+If `currency.ts` doesn't exist, **complete chunk 005 first**.
+
+---
+
 ## Step 1: Create Currency Type Definitions (5 min)
+
+**Note**: This step creates **branded types** as an enhancement over the base specification for additional type safety.
 
 Create `src/types/currency.ts`:
 
@@ -46,9 +67,15 @@ export function amountCents(value: number): AmountCents {
 
 **Verify**: No TypeScript errors
 
+**Why branded types?** The `AmountCents` branded type prevents accidentally mixing cent values with peso float values at compile time - an enhancement beyond the DATABASE.md spec for extra safety.
+
+**JavaScript Number Safety**: Our maximum (999,999,999 cents = ₱9,999,999.99) is only ~0.000011% of JavaScript's `MAX_SAFE_INTEGER` (9,007,199,254,740,991). No need for BigInt - standard numbers are perfectly safe for household finances. See DATABASE.md lines 1177-1193 for full analysis.
+
 ---
 
 ## Step 2: Create Comprehensive Unit Tests (20 min)
+
+**Important**: When testing `formatPHP`, ensure it uses the `'en-PH'` locale for Philippine peso formatting with correct thousand separators. The implementation in chunk 005 should use `toLocaleString('en-PH')` per DATABASE.md line 1099.
 
 Create `src/lib/currency.test.ts`:
 
@@ -316,9 +343,11 @@ CurrencyInput.displayName = "CurrencyInput";
 
 ## Step 4: Create React Hook Form Integration Example (10 min)
 
-Create `src/components/ui/currency-input.test.tsx` (manual testing helper):
+Create `src/components/ui/currency-input.example.tsx` (manual testing helper):
 
 ```typescript
+// Manual testing helper for CurrencyInput component
+// This is NOT an automated test - rename to .example.tsx to avoid confusion
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -539,7 +568,7 @@ Create a temporary test page `src/routes/test-currency.tsx`:
 
 ```typescript
 import { createFileRoute } from "@tanstack/react-router";
-import { CurrencyInputExample } from "@/components/ui/currency-input.test";
+import { CurrencyInputExample } from "@/components/ui/currency-input.example";
 
 export const Route = createFileRoute("/test-currency")({
   component: TestCurrency,

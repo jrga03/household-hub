@@ -84,7 +84,7 @@ CREATE TABLE accounts (
 
   -- Visibility
   visibility TEXT DEFAULT 'household' CHECK (visibility IN ('household', 'personal')),
-  owner_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  owner_user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
 
   -- UI customization
   color TEXT DEFAULT '#3B82F6',
@@ -113,42 +113,59 @@ ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
 
--- View accounts: household visible to all, personal to owner only
-CREATE POLICY "View accounts"
+-- View accounts: household accounts or own personal accounts (within same household)
+CREATE POLICY "accounts_select"
   ON accounts FOR SELECT
   TO authenticated
   USING (
-    visibility = 'household'
-    OR owner_user_id = auth.uid()
+    household_id = (SELECT household_id FROM profiles WHERE id = auth.uid())
+    AND (
+      visibility = 'household'
+      OR owner_user_id = auth.uid()
+    )
   );
 
--- Create accounts: set owner_user_id if personal
-CREATE POLICY "Create accounts"
+-- Create accounts: in user's household only
+CREATE POLICY "accounts_insert"
   ON accounts FOR INSERT
   TO authenticated
   WITH CHECK (
-    CASE
-      WHEN visibility = 'personal' THEN owner_user_id = auth.uid()
-      ELSE true
-    END
+    household_id = (SELECT household_id FROM profiles WHERE id = auth.uid())
+    AND (
+      visibility = 'household'
+      OR owner_user_id = auth.uid()
+    )
   );
 
--- Update accounts: household editable by all, personal by owner only
-CREATE POLICY "Update accounts"
+-- Update accounts: household accounts or own personal accounts (within same household)
+CREATE POLICY "accounts_update"
   ON accounts FOR UPDATE
   TO authenticated
   USING (
-    visibility = 'household'
-    OR owner_user_id = auth.uid()
+    household_id = (SELECT household_id FROM profiles WHERE id = auth.uid())
+    AND (
+      visibility = 'household'
+      OR owner_user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    household_id = (SELECT household_id FROM profiles WHERE id = auth.uid())
+    AND (
+      visibility = 'household'
+      OR owner_user_id = auth.uid()
+    )
   );
 
--- Delete accounts: household by anyone, personal by owner only
-CREATE POLICY "Delete accounts"
+-- Delete accounts: household accounts or own personal accounts (within same household)
+CREATE POLICY "accounts_delete"
   ON accounts FOR DELETE
   TO authenticated
   USING (
-    visibility = 'household'
-    OR owner_user_id = auth.uid()
+    household_id = (SELECT household_id FROM profiles WHERE id = auth.uid())
+    AND (
+      visibility = 'household'
+      OR owner_user_id = auth.uid()
+    )
   );
 
 -- Auto-update updated_at timestamp

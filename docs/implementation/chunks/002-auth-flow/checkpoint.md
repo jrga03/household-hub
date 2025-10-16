@@ -174,6 +174,20 @@ VITE_SUPABASE_ANON_KEY=eyJ...
 
 ---
 
+### 8. Test User Cleanup (Optional)
+
+**Steps**:
+
+1. Go to Supabase Dashboard → **Authentication → Users**
+2. Find test users you created (e.g., test-user@example.com)
+3. Click on user → Delete (if desired)
+
+**Note**: This is optional. Test users don't affect functionality.
+
+**Status**: [ ] Pass / [ ] Skipped
+
+---
+
 ## Code Quality Checks
 
 ### 1. No Hardcoded Credentials

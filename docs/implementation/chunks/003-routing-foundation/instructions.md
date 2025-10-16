@@ -1,10 +1,22 @@
 # Instructions: Routing Foundation
 
-Follow these steps in order. Estimated time: 60 minutes.
+Follow these steps in order. Estimated time: 70 minutes.
 
 ---
 
 ## Step 1: Configure TanStack Router Plugin (5 min)
+
+First, verify the TanStack Router plugin is installed (should be from chunk 001):
+
+```bash
+npm list @tanstack/router-vite-plugin
+```
+
+If not installed, add it:
+
+```bash
+npm install -D @tanstack/router-vite-plugin
+```
 
 Update `vite.config.ts`:
 

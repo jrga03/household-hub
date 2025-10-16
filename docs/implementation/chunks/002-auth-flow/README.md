@@ -14,9 +14,11 @@ A complete authentication system with:
 - Supabase Auth integration
 - Email/password signup and login
 - Session management with Zustand
-- Protected route guards
-- Logout with data retention prompt
+- Basic auth gating (show LoginForm when logged out)
+- Logout with data retention prompt (enhanced in chunk 036)
 - Auth state persistence
+
+**Note**: Full route protection with TanStack Router guards added in chunk 003.
 
 ## Why This Matters
 
@@ -26,9 +28,29 @@ Authentication is the gateway to the app. Everything else (accounts, transaction
 
 Make sure you have:
 
-- Chunk 001 completed (project setup)
+- **Chunk 001 completed**, specifically:
+  - ✅ shadcn/ui CLI initialized (`npx shadcn-ui@latest init`)
+  - ✅ Components installed: `button`, `card`, `input`
+  - ✅ Path aliases working (`@/*` resolves to `./src/*`)
+  - ✅ TypeScript compiling without errors (`npx tsc --noEmit`)
+  - ✅ Dev server runs successfully (`npm run dev`)
 - A Supabase account (free tier is fine)
 - Email address for testing
+
+**Verify Components Exist**:
+
+```bash
+# These files should exist from chunk 001:
+ls src/components/ui/button.tsx
+ls src/components/ui/card.tsx
+ls src/components/ui/input.tsx
+```
+
+If any components are missing, install them:
+
+```bash
+npx shadcn-ui@latest add button card input
+```
 
 ## What Happens Next
 
@@ -36,8 +58,9 @@ After this chunk:
 
 - Users can sign up and create accounts
 - Login persists across page refreshes
-- Protected routes redirect unauthenticated users
+- Basic auth gating (logged-out users see login form)
 - You can test with real user sessions
+- **Next**: Chunk 003 adds proper route protection with TanStack Router
 - Ready to add user-specific data (accounts, transactions)
 
 ## Key Files Created
@@ -69,8 +92,8 @@ src/
 
 - **Original**: `docs/initial plan/IMPLEMENTATION-PLAN.md` Day 3 (lines 133-183)
 - **Decisions**:
-  - Decision #84: Logout data retention prompt
-  - Decision #75: Hybrid device ID strategy (fingerprinting comes later)
+  - Decision #84: Logout data retention prompt (implemented in chunk 036)
+  - Decision #75: Hybrid device ID strategy (implemented in chunk 026)
 - **Architecture**: `docs/initial plan/ARCHITECTURE.md` Auth section
 
 ## Security Notes
@@ -78,7 +101,7 @@ src/
 - Passwords never stored in app code
 - Session tokens managed by Supabase
 - RLS policies protect user data
-- Device fingerprinting added in chunk 006 (event sourcing)
+- Device fingerprinting added in chunk 026 (Device Hybrid ID)
 
 ---
 

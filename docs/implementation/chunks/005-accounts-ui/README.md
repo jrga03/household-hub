@@ -41,7 +41,7 @@ After this chunk:
 - Edit account details
 - Archive unused accounts
 - See initial balances in PHP format
-- Ready to add transactions (chunk 007)
+- Ready for categories (chunk 007) and transactions (chunks 008-010)
 
 ## Key Files Created
 
@@ -78,7 +78,7 @@ src/
 - Initial balance input (PHP currency format)
 - Visibility toggle (household vs personal)
 - Color picker (8 preset colors)
-- Icon selector (10+ Lucide icons)
+- Default icon (hardcoded to 'building-2' for MVP)
 
 ### Edit Account
 
@@ -93,6 +93,14 @@ src/
 - Doesn't actually delete (preserves transaction history)
 - Hidden from list by default
 - Can restore if needed (future feature)
+
+## Known Limitations (MVP)
+
+The following features are intentionally simplified for the MVP and will be enhanced in later chunks or phases:
+
+- **Icon picker not implemented**: All accounts use default 'building-2' icon. Icon selection UI can be added as an enhancement.
+- **Sort order managed programmatically**: No UI for manual drag-and-drop reordering. Accounts are ordered by `sort_order` field which defaults to 0.
+- **Balance calculation basic**: Shows only `initial_balance_cents`. Current balance calculation (initial balance + transactions) is deferred to chunk 009 (transactions).
 
 ## Related Documentation
 

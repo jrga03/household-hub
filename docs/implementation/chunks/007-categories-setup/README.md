@@ -2,9 +2,9 @@
 
 ## At a Glance
 
-- **Time**: 45 minutes
+- **Time**: 45-60 minutes
 - **Milestone**: MVP (4 of 10)
-- **Prerequisites**: Chunks 001-004 (schema must exist)
+- **Prerequisites**: Chunks 001-006 (categories schema + currency utilities must exist)
 - **Can Skip**: No - required for transaction categorization
 
 ## What You're Building
@@ -27,8 +27,9 @@ Categories are the foundation of expense tracking and budgeting. The **two-level
 
 Make sure you have:
 
-- Chunks 001-004 completed
-- Categories table exists in Supabase
+- Chunks 001-006 completed
+- Categories table exists in Supabase (created in chunk 004)
+- Currency utilities exist (formatPHP, parsePHP from chunk 006)
 - shadcn/ui components installed
 - TanStack Query configured
 
@@ -50,9 +51,8 @@ src/
 ├── routes/
 │   └── categories.tsx              # Category management page
 ├── components/
-│   ├── CategoryList.tsx            # Hierarchical category list
-│   ├── CategoryForm.tsx            # Create/edit form
-│   ├── CategorySelector.tsx        # Dropdown for forms
+│   ├── CategoryFormDialog.tsx      # Create/edit form dialog
+│   ├── CategorySelector.tsx        # Dropdown for transaction forms
 │   └── ui/
 │       ├── color-picker.tsx        # Color selection component
 │       └── icon-picker.tsx         # Icon selection component

@@ -4,6 +4,27 @@ Run these verifications to ensure everything works correctly.
 
 ---
 
+## Prerequisites Check ✓
+
+Before running checkpoint, verify chunk 005 is complete:
+
+```bash
+# 1. Check currency utilities exist from chunk 005
+test -f src/lib/currency.ts && echo "✓ currency.ts exists" || echo "✗ currency.ts missing - complete chunk 005 first"
+
+# 2. Verify required functions are exported
+grep -q "formatPHP" src/lib/currency.ts && echo "✓ formatPHP found" || echo "✗ formatPHP missing"
+grep -q "parsePHP" src/lib/currency.ts && echo "✓ parsePHP found" || echo "✗ parsePHP missing"
+grep -q "validateAmount" src/lib/currency.ts && echo "✓ validateAmount found" || echo "✗ validateAmount missing"
+
+# 3. Verify Vitest is configured
+npm test --version 2>/dev/null && echo "✓ Vitest configured" || echo "✗ Vitest not configured"
+```
+
+**All checks must pass** before proceeding with the checkpoint verifications below.
+
+---
+
 ## 1. Unit Tests Pass ✓
 
 ```bash

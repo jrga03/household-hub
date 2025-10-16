@@ -44,7 +44,10 @@ After this chunk:
 - `npm run dev` will start a dev server
 - You'll have a "Hello World" React app
 - TypeScript will compile without errors
-- You can proceed to chunk 002 (Auth)
+- shadcn/ui components (button, card, input) installed
+- Development environment ready
+- **Ready for chunk 002**: Auth flow (requires these components)
+- Ready to add more shadcn components as needed
 
 ## Key Files Created
 

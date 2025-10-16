@@ -135,6 +135,40 @@ const IconComponent =
 
 Also ensure all icon names in CATEGORY_ICONS array match available Lucide icons.
 
+**Verify Icon Names**:
+
+```typescript
+// Test all CATEGORY_ICONS map correctly
+import * as LucideIcons from "lucide-react";
+import { CATEGORY_ICONS } from "@/types/categories";
+
+CATEGORY_ICONS.forEach((iconName) => {
+  const pascalCase = iconName
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join("");
+
+  if (!LucideIcons[pascalCase as keyof typeof LucideIcons]) {
+    console.error(`Icon not found: ${iconName} → ${pascalCase}`);
+  }
+});
+```
+
+Valid icon names from current CATEGORY_ICONS:
+
+- `folder` → `Folder` ✓
+- `shopping-cart` → `ShoppingCart` ✓
+- `utensils` → `Utensils` ✓
+- `car` → `Car` ✓
+- `home` → `Home` ✓
+- `zap` → `Zap` ✓
+- `tv` → `Tv` ✓
+- `heart` → `Heart` ✓
+- `briefcase` → `Briefcase` ✓
+- `gift` → `Gift` ✓
+- `coffee` → `Coffee` ✓
+- `smartphone` → `Smartphone` ✓
+
 ---
 
 ## Color Picker Issues

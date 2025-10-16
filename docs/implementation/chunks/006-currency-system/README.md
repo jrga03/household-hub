@@ -23,12 +23,17 @@ Currency handling is **critical for financial data integrity**. Even small bugs 
 
 ## Before You Start
 
-Make sure you have:
+Verify these prerequisites from Chunk 005:
 
-- Chunk 005 completed
-- Currency utilities exist in `src/lib/currency.ts`
-- Vitest configured for testing
-- React Hook Form and Zod installed
+- [ ] **Chunk 005 checkpoint passed** - All accounts UI tests passing
+- [ ] **Currency utilities exist** in `src/lib/currency.ts`:
+  - `formatPHP(cents: number): string` function implemented
+  - `parsePHP(input: string | number): number` function implemented
+  - `validateAmount(cents: number): boolean` function implemented
+- [ ] **Vitest configured** - Can run `npm test` successfully
+- [ ] **React Hook Form and Zod installed** - Dependencies available
+
+**How to verify**: Run `npm test src/lib/currency.test.ts` from chunk 005. If tests don't exist, complete chunk 005 first.
 
 ## What Happens Next
 
@@ -83,11 +88,13 @@ src/
 ## Related Documentation
 
 - **Original**: `docs/initial plan/DATABASE.md` lines 1005-1160 (currency spec)
-- **Original**: `docs/initial plan/CLAUDE.md` lines 26-35 (currency handling)
+- **Original**: `/CLAUDE.md` - Project instructions (currency handling section)
 - **Decisions**:
-  - #51: PHP currency only for MVP
-  - #9: Positive amounts with type field
+  - #51: PHP currency only for MVP (DECISIONS.md lines 556-564)
+  - #9: Positive amounts with type field (DECISIONS.md lines 123-129)
 - **Architecture**: Three-layer state with currency precision
+
+**Note**: This chunk focuses on **testing existing utilities** and **creating reusable components**. The core currency utilities (`formatPHP`, `parsePHP`, `validateAmount`) are implemented in Chunk 005.
 
 ## Technical Stack
 

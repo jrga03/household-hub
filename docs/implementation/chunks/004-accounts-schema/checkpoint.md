@@ -157,16 +157,43 @@ Supabase Dashboard → **Authentication** → **Policies**
 
 Check these policies exist for `accounts`:
 
-- [ ] "View accounts" (SELECT)
-- [ ] "Create accounts" (INSERT)
-- [ ] "Update accounts" (UPDATE)
-- [ ] "Delete accounts" (DELETE)
+- [ ] "accounts_select" (SELECT)
+- [ ] "accounts_insert" (INSERT)
+- [ ] "accounts_update" (UPDATE)
+- [ ] "accounts_delete" (DELETE)
 
 **Status**: [ ] Pass / [ ] Fail
 
 ---
 
-### 3. RLS Works - Household Accounts Visible
+### 3. RLS Policies Include Household Isolation
+
+Supabase Dashboard → **Authentication** → **Policies** → View `accounts` policies
+
+**Expected**:
+
+- [ ] All policies check: `household_id = (SELECT household_id FROM profiles WHERE id = auth.uid())`
+- [ ] This prevents cross-household data access (critical security check)
+
+**Status**: [ ] Pass / [ ] Fail
+
+---
+
+### 4. Foreign Key References Correct Table
+
+Check the `owner_user_id` foreign key:
+
+Supabase Dashboard → **Table Editor** → `accounts` → View table definition
+
+**Expected**:
+
+- [ ] `owner_user_id` references `profiles(id)` (NOT auth.users)
+
+**Status**: [ ] Pass / [ ] Fail
+
+---
+
+### 5. RLS Works - Household Accounts Visible
 
 Supabase Dashboard → **SQL Editor** → Run:
 
@@ -185,7 +212,7 @@ SELECT * FROM accounts WHERE visibility = 'household';
 
 ---
 
-### 4. RLS Works - Personal Accounts Protected
+### 6. RLS Works - Personal Accounts Protected
 
 Supabase Dashboard → **SQL Editor** → Run as different user:
 

@@ -154,7 +154,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   signOut: async () => {
     set({ loading: true });
     try {
-      // TODO (Chunk 006): Check for unsynced data before logout
+      // TODO (Chunk 036): Check for unsynced data before logout
+      // Will add prompt: "You have unsynced data. Export before logout?"
+      // Requires: sync queue (chunk 023) + CSV export (chunk 036)
       // For now, just sign out
       await supabase.auth.signOut();
       set({
@@ -505,6 +507,8 @@ export default App;
 
 **Note**: For testing, you can disable email confirmations to skip the verification step.
 
+⚠️ **Warning**: This setting affects ALL users in your Supabase project, not just test accounts. Re-enable for production.
+
 ---
 
 ## Step 9: Test Signup Flow (10 min)
@@ -553,5 +557,5 @@ When you can successfully sign up, log in, and log out, you're ready for the che
 - **Email Confirmation**: Disabled for local testing, enable for production
 - **Password Reset**: Will add in future chunk (Phase C)
 - **OAuth Providers**: Can add Google/GitHub later
-- **Device Fingerprinting**: Added in chunk 006 (event sourcing setup)
-- **Logout Data Retention**: Basic signOut now, enhanced prompt added in chunk 006
+- **Device Fingerprinting**: Added in chunk 026 (Device Hybrid ID)
+- **Logout Data Retention**: Basic signOut now, enhanced prompt added in chunk 036 (CSV Export)
