@@ -2,9 +2,9 @@
 
 ## At a Glance
 
-- **Time**: 60 minutes
+- **Time**: 85 minutes (includes indexes, triggers, and verification)
 - **Milestone**: MVP (5 of 10)
-- **Prerequisites**: Chunks 004 (accounts), 007 (categories)
+- **Prerequisites**: Chunks 004 (accounts), 006 (currency-system), 007 (categories)
 - **Can Skip**: No - core data model
 
 ## What You're Building
@@ -38,6 +38,7 @@ Make sure you have:
 - Chunks 004-007 completed
 - Accounts table exists with seed data
 - Categories table exists with seed data
+- Currency utilities exist (formatPHP, parsePHP, validateAmount)
 - Understanding of DATABASE.md transaction schema
 
 ## What Happens Next
@@ -99,13 +100,17 @@ src/
 
 ## Related Documentation
 
-- **Original**: `docs/initial plan/DATABASE.md` lines 160-219 (transactions)
-- **Original**: `docs/initial plan/CLAUDE.md` lines 26-35 (transaction patterns)
+- **Original**: `docs/initial plan/DATABASE.md`
+  - Lines 160-198: transactions table schema
+  - Lines 200-218: performance indexes (12 single + 4 compound)
+  - Lines 389-471: transfer integrity constraints
+  - Lines 1071-1213: query index map (hot queries)
 - **Decisions**:
-  - #9: Positive amounts with type field
-  - #60: Transfer representation
-  - #71: Date vs timestamp strategy
-- **Patterns**: Always exclude transfers from analytics
+  - #9: Positive amounts with type field (DECISIONS.md lines 123-129)
+  - #60: Transfer representation as linked pairs (DECISIONS.md lines 659-670)
+  - #64: Use indexes (not materialized views) for MVP performance
+  - DATABASE.md lines 999-1010: Date vs timestamp strategy (DATE type rationale)
+- **Patterns**: Always exclude transfers from analytics (`WHERE transfer_group_id IS NULL`)
 
 ## Technical Stack
 
