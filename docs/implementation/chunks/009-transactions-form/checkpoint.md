@@ -128,7 +128,46 @@ Visit `http://localhost:3000/transactions`
 
 ---
 
-## 9. Edit Transaction ✓
+## 9. Visibility Selector Works ✓
+
+1. Open form
+2. Check visibility dropdown appears
+3. **Expected**: Shows "Household" and "Personal" options
+4. **Expected**: Default value is "Household"
+5. Create transaction with "Household" visibility
+
+**Test Case 1: Household Transaction**
+
+1. Leave visibility as "Household" (default)
+2. Fill form and submit
+3. **Expected**: Transaction created
+4. **Verify**: Transaction visible in list
+5. **RLS Check**: If multi-user, verify transaction visible to other household users
+
+**Test Case 2: Personal Transaction**
+
+1. Open form
+2. Change visibility to "Personal"
+3. Fill form and submit
+4. **Expected**: Transaction created with visibility = "personal"
+5. **RLS Check**: If multi-user, verify transaction NOT visible to other users (only to creator)
+
+**Test Case 3: Edit Preserves Visibility**
+
+1. Edit an existing personal transaction
+2. **Expected**: Visibility selector shows "Personal"
+3. Change description, keep visibility
+4. Save
+5. **Expected**: Visibility remains "Personal"
+
+**Help Text Check**:
+
+- [ ] Help text displays: "Household transactions visible to all users. Personal only to you."
+- [ ] Text is muted and positioned below dropdown
+
+---
+
+## 10. Edit Transaction ✓
 
 1. Find a transaction in list
 2. Click Edit button
@@ -139,6 +178,7 @@ Visit `http://localhost:3000/transactions`
    - Date correct
    - Category selected
    - Account selected
+   - Visibility selected
 5. Change description
 6. Click "Update"
 7. **Expected**:
@@ -148,7 +188,7 @@ Visit `http://localhost:3000/transactions`
 
 ---
 
-## 10. Delete Transaction ✓
+## 11. Delete Transaction ✓
 
 1. Click delete button on a test transaction
 2. Confirmation dialog appears
@@ -159,7 +199,7 @@ Visit `http://localhost:3000/transactions`
 
 ---
 
-## 11. Status Toggle ✓
+## 12. Status Toggle ✓
 
 1. Find a pending transaction (empty circle)
 2. Click the status icon
@@ -173,7 +213,7 @@ Visit `http://localhost:3000/transactions`
 
 ---
 
-## 12. Transaction List Display ✓
+## 13. Transaction List Display ✓
 
 **Check all columns**:
 
@@ -188,7 +228,7 @@ Visit `http://localhost:3000/transactions`
 
 ---
 
-## 13. Form Clears After Save ✓
+## 14. Form Clears After Save ✓
 
 1. Open form
 2. Fill all fields
@@ -198,7 +238,7 @@ Visit `http://localhost:3000/transactions`
 
 ---
 
-## 14. Keyboard Navigation ✓
+## 15. Keyboard Navigation ✓
 
 **Tab order**:
 
@@ -209,9 +249,10 @@ Visit `http://localhost:3000/transactions`
 5. Account
 6. Category
 7. Status
-8. Notes
-9. Cancel button
-10. Submit button
+8. Visibility
+9. Notes
+10. Cancel button
+11. Submit button
 
 **Test**:
 
@@ -221,7 +262,7 @@ Visit `http://localhost:3000/transactions`
 
 ---
 
-## 15. Loading States ✓
+## 16. Loading States ✓
 
 **While submitting**:
 
@@ -236,7 +277,7 @@ Visit `http://localhost:3000/transactions`
 
 ---
 
-## 16. Error Handling ✓
+## 17. Error Handling ✓
 
 **Test Case 1: Network error**
 
@@ -251,7 +292,7 @@ Visit `http://localhost:3000/transactions`
 
 ---
 
-## 17. Notes Field Works ✓
+## 18. Notes Field Works ✓
 
 1. Open form
 2. Enter notes in textarea
@@ -274,6 +315,7 @@ Visit `http://localhost:3000/transactions`
 - [ ] Date picker functional
 - [ ] Category selector shows hierarchy
 - [ ] Account selector populated
+- [ ] Visibility selector works (household/personal)
 - [ ] Form validation catches errors
 - [ ] List displays all columns
 - [ ] Loading states show

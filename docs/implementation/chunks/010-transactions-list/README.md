@@ -12,7 +12,7 @@
 Advanced transaction list view with comprehensive filtering capabilities:
 
 - **Filter UI**: Date range, account, category, status, type, search
-- **Sorting**: Click column headers to sort by any field
+- **Sorting**: Default date DESC ordering (interactive column sorting in Chunk 013)
 - **Search**: Full-text search across description and notes
 - **URL State**: Filters persist in URL for bookmarking/sharing
 - **Infinite Scroll**: TanStack Virtual for smooth scrolling through thousands of transactions
@@ -110,12 +110,14 @@ By default, transfers are **excluded** from the list. This prevents double-count
 ## Related Documentation
 
 - **Original**: `docs/initial plan/IMPLEMENTATION-PLAN.md` Day 6 (lines 237-262)
-- **Original**: `docs/initial plan/DATABASE.md` lines 863-878 (Hot Query #1)
+- **Original**: `docs/initial plan/DATABASE.md` lines 1230-1257 (Hot Query #1: Transaction List)
 - **Decisions**:
   - #60: Transfer representation (must exclude from analytics)
-  - #80: Infinite scroll vs pagination
+  - #80: Infinite scroll implementation (TanStack Virtual)
   - #64: Indexes for query performance
-- **Queries**: Account balance, category totals (chunks 011-012)
+- **Related Chunks**:
+  - Chunk 011: Running account balances with cleared/pending splits
+  - Chunk 012: Parent category rollups and spending aggregations
 
 ## Technical Stack
 

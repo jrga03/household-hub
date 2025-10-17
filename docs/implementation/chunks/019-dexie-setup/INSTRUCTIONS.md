@@ -90,16 +90,36 @@ export interface TransactionEvent {
   entity_id: string;
   op: "create" | "update" | "delete";
   payload: any;
+
+  // Idempotency to prevent duplicate processing
+  idempotency_key: string; // Format: ${deviceId}-${entityType}-${entityId}-${lamportClock}
+  event_version: number; // Schema version for forward compatibility
+
+  // Conflict resolution
   lamport_clock: number;
   vector_clock: any;
+
+  // Tracking
   device_id: string;
   actor_user_id: string;
   timestamp: string;
+
+  // Data integrity
+  checksum?: string; // Optional for Phase A, required in Phase B
 }
 
 export interface MetaEntry {
   key: string;
   value: any;
+}
+
+export interface LogEntry {
+  id: string;
+  timestamp: string;
+  level: "debug" | "info" | "warn" | "error";
+  message: string;
+  device_id: string;
+  context?: any;
 }
 
 export class HouseholdHubDB extends Dexie {
@@ -109,6 +129,7 @@ export class HouseholdHubDB extends Dexie {
   syncQueue!: Table<SyncQueueItem, string>;
   events!: Table<TransactionEvent, string>;
   meta!: Table<MetaEntry, string>;
+  logs!: Table<LogEntry, string>;
 
   constructor() {
     super("HouseholdHubDB");
@@ -121,6 +142,7 @@ export class HouseholdHubDB extends Dexie {
       syncQueue: "id, status, entity_type, entity_id, device_id, created_at",
       events: "id, entity_id, lamport_clock, timestamp, device_id",
       meta: "key",
+      logs: "id, timestamp, level, device_id",
     });
 
     // Version 2: Add tagged_user_ids support (future migration example)
@@ -155,6 +177,7 @@ Create `src/lib/dexie/deviceManager.ts`:
 import FingerprintJS from "@fingerprintjs/fingerprintjs";
 import { db } from "./db";
 import { nanoid } from "nanoid";
+import { supabase } from "@/lib/supabase";
 
 class DeviceManager {
   private deviceId: string | null = null;
@@ -221,12 +244,103 @@ class DeviceManager {
     }
 
     localStorage.setItem("deviceId", deviceId);
+
+    // Register device with Supabase (Decision #82)
+    await this.updateUserDevice();
   }
 
   async clearDeviceId(): Promise<void> {
     this.deviceId = null;
     await db.meta.delete("deviceId");
     localStorage.removeItem("deviceId");
+  }
+
+  private async updateUserDevice(): Promise<void> {
+    // Register device in devices table (Decision #82 - devices promoted to MVP)
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user?.user) return;
+
+      const deviceId = await this.getDeviceId();
+
+      // Check if device already exists
+      const { data: existing } = await supabase
+        .from("devices")
+        .select("id")
+        .eq("id", deviceId)
+        .single();
+
+      if (!existing) {
+        // Register new device
+        await supabase.from("devices").insert({
+          id: deviceId,
+          user_id: user.user.id,
+          household_id: "00000000-0000-0000-0000-000000000001", // Default household
+          name: this.detectDeviceName(), // e.g., "Chrome on macOS"
+          platform: this.detectPlatform(), // e.g., "pwa-ios", "web"
+          fingerprint: deviceId, // Store for continuity
+          is_active: true,
+        });
+
+        console.log("Device registered:", deviceId);
+      } else {
+        // Update last_seen timestamp
+        await supabase
+          .from("devices")
+          .update({ last_seen: new Date().toISOString() })
+          .eq("id", deviceId);
+      }
+    } catch (error) {
+      console.warn("Failed to register device:", error);
+    }
+  }
+
+  private detectDeviceName(): string {
+    const ua = navigator.userAgent;
+    const browser = this.detectBrowser(ua);
+    const os = this.detectOS(ua);
+    return `${browser} on ${os}`;
+  }
+
+  private detectPlatform(): string {
+    // Check if PWA
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+    if (isStandalone) {
+      if (/iPhone|iPad|iPod/.test(navigator.userAgent)) return "pwa-ios";
+      if (/Android/.test(navigator.userAgent)) return "pwa-android";
+      return "pwa-desktop";
+    }
+    return "web";
+  }
+
+  private detectBrowser(ua: string): string {
+    if (ua.includes("Firefox")) return "Firefox";
+    if (ua.includes("Safari") && !ua.includes("Chrome")) return "Safari";
+    if (ua.includes("Chrome")) return "Chrome";
+    if (ua.includes("Edge")) return "Edge";
+    return "Unknown Browser";
+  }
+
+  private detectOS(ua: string): string {
+    if (ua.includes("Mac")) return "macOS";
+    if (ua.includes("Windows")) return "Windows";
+    if (ua.includes("Linux")) return "Linux";
+    if (ua.includes("Android")) return "Android";
+    if (/iPhone|iPad|iPod/.test(ua)) return "iOS";
+    return "Unknown OS";
+  }
+
+  // Method to handle device ID migration/merge if needed
+  async mergeDeviceHistory(oldDeviceId: string, newDeviceId: string): Promise<void> {
+    // This can be used to merge vector clocks if device ID changes
+    console.log(`Merging device history from ${oldDeviceId} to ${newDeviceId}`);
+
+    // Update all events with old device ID to new one
+    // This maintains vector clock continuity
+    await supabase
+      .from("transaction_events")
+      .update({ device_id: newDeviceId })
+      .eq("device_id", oldDeviceId);
   }
 }
 

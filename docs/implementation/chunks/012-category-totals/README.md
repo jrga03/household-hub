@@ -34,11 +34,11 @@ Without category analytics, users can't understand spending behavior.
 
 Make sure you have:
 
-- Chunks 001-010 completed
+- Chunks 005, 009, 010 completed (categories, transactions, filtering)
 - Category hierarchy (parent → child)
 - Transactions with category_id
 - Transfer exclusion pattern understood
-- formatPHP utility working
+- formatPHP utility working (created in lib/currency.ts per DATABASE.md:595-750)
 
 ## What Happens Next
 
@@ -60,7 +60,7 @@ src/
 │       └── categories.tsx          # Category totals page
 ├── components/
 │   ├── CategoryTotalCard.tsx       # Individual category display
-│   ├── CategoryTotalsList.tsx      # List with rollups
+│   ├── CategoryTotalsGroup.tsx     # List with rollups
 │   └── MonthSelector.tsx           # Month navigation
 └── lib/
     └── supabaseQueries.ts          # useCategoryTotals hook
@@ -113,6 +113,17 @@ src/
 - **formatPHP**: Currency display
 - **shadcn/ui**: Card, Select components
 - **Recharts**: Optional spending chart
+
+## Date Handling
+
+Transaction dates use `DATE` type (user's local date is canonical) rather than `TIMESTAMPTZ`. This means:
+
+- Month boundaries are straightforward (no timezone conversion needed)
+- Budget calculations work directly on DATE fields
+- Users think in dates: "I spent ₱1,500 on July 15" (not timestamps)
+- Queries are simpler and more performant
+
+**Architectural Rationale**: See DATABASE.md lines 522-594 for complete DATE vs TIMESTAMPTZ analysis and why DATE is correct for financial transactions.
 
 ## Design Patterns
 

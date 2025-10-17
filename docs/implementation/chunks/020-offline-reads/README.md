@@ -31,9 +31,9 @@ Offline-first reads ensure the app remains usable without internet:
 
 Make sure you have:
 
-- Chunk 019 completed (Dexie database set up)
-- TanStack Query configured
-- Device ID persistence working
+- Chunk 001 completed (@tanstack/react-query and date-fns installed, QueryClient configured)
+- Chunk 002 completed (Supabase client available at @/lib/supabase)
+- Chunk 019 completed (Dexie database set up, device ID persistence working)
 - Basic understanding of offline-first patterns
 
 ## What Happens Next
@@ -98,9 +98,9 @@ src/
 
 ## Related Documentation
 
-- **Original**: `docs/initial plan/SYNC-ENGINE.md` lines 544-741 (offline reads)
-- **Original**: `docs/initial plan/SYNC-ENGINE.md` lines 1782-1885 (cache strategy)
-- **Decisions**: #64 (indexes over materialized views), #68 (online detection)
+- **Original**: `docs/initial plan/CLAUDE.md` lines 86-95 (three-layer state architecture)
+- **Original**: `docs/initial plan/SYNC-ENGINE.md` lines 75-95 (three-layer storage pattern)
+- **Decisions**: #41 (caching strategy), #64 (background sync fallbacks)
 - **Architecture**: Three-layer read pattern (IndexedDB → TanStack Query → Supabase)
 
 ## Technical Stack

@@ -1,6 +1,30 @@
 # Instructions: Offline Writes Queue
 
-Follow these steps in order. Estimated time: 2 hours.
+Follow these steps in order. Estimated time: 2.5 hours.
+
+---
+
+## Step 0: Create Type Definitions (10 min)
+
+Create `src/types/sync.ts`:
+
+```typescript
+/**
+ * Entity types that can be synced
+ */
+export type EntityType = "transaction" | "account" | "category" | "budget";
+
+/**
+ * Sync queue operation structure
+ */
+export interface SyncQueueOperation {
+  op: "create" | "update" | "delete";
+  payload: any;
+  idempotencyKey: string;
+  lamportClock: number;
+  vectorClock: Record<string, number>;
+}
+```
 
 ---
 
@@ -26,6 +50,8 @@ export async function generateIdempotencyKey(
 
 /**
  * Parse idempotency key into components
+ * Format: ${deviceId}-${entityType}-${entityId}-${lamportClock}
+ * Note: entityId may contain hyphens (e.g., "temp-abc-123")
  */
 export function parseIdempotencyKey(key: string): {
   deviceId: string;
@@ -36,10 +62,14 @@ export function parseIdempotencyKey(key: string): {
   const parts = key.split("-");
   if (parts.length < 4) return null;
 
-  const [deviceId, entityType, entityId, ...clockParts] = parts;
-  const lamportClock = parseInt(clockParts.join("-"), 10);
-
+  // Parse from the end since lamport clock is always last
+  const lamportClock = parseInt(parts[parts.length - 1], 10);
   if (isNaN(lamportClock)) return null;
+
+  const deviceId = parts[0];
+  const entityType = parts[1];
+  // Rejoin middle parts to handle hyphens in entity IDs
+  const entityId = parts.slice(2, -1).join("-");
 
   return {
     deviceId,
@@ -123,19 +153,6 @@ import { db } from "@/lib/dexie/db";
 import { deviceManager } from "@/lib/dexie/deviceManager";
 
 export type VectorClock = Record<string, number>;
-
-/**
- * Initialize vector clock for new entity
- */
-export async function initializeVectorClock(entityId: string): Promise<VectorClock> {
-  const deviceId = await deviceManager.getDeviceId();
-  const vectorClock: VectorClock = {
-    [deviceId]: 1,
-  };
-
-  await storeVectorClock(entityId, vectorClock);
-  return vectorClock;
-}
 
 /**
  * Get current vector clock for entity
@@ -375,15 +392,107 @@ export async function createOfflineTransaction(
 
 ---
 
+## Step 5b: Modify Account Mutations (10 min)
+
+Update `src/lib/offline/accounts.ts` to add to queue:
+
+```typescript
+import { addToSyncQueue } from "./syncQueue";
+
+export async function createOfflineAccount(
+  input: AccountInput,
+  userId: string
+): Promise<OfflineOperationResult<Account>> {
+  try {
+    // ... existing code to create account ...
+
+    // Write to IndexedDB
+    await db.accounts.add(account);
+
+    // Add to sync queue
+    const queueResult = await addToSyncQueue("account", account.id, "create", account, userId);
+
+    if (!queueResult.success) {
+      // Rollback IndexedDB write
+      await db.accounts.delete(account.id);
+      return {
+        success: false,
+        error: `Failed to queue for sync: ${queueResult.error}`,
+        isTemporary: false,
+      };
+    }
+
+    return {
+      success: true,
+      data: account,
+      isTemporary: true,
+    };
+  } catch (error) {
+    // ... existing error handling ...
+  }
+}
+
+// Similar updates for updateOfflineAccount and deleteOfflineAccount
+```
+
+---
+
+## Step 5c: Modify Category Mutations (10 min)
+
+Update `src/lib/offline/categories.ts` to add to queue:
+
+```typescript
+import { addToSyncQueue } from "./syncQueue";
+
+export async function createOfflineCategory(
+  input: CategoryInput,
+  userId: string
+): Promise<OfflineOperationResult<Category>> {
+  try {
+    // ... existing code to create category ...
+
+    // Write to IndexedDB
+    await db.categories.add(category);
+
+    // Add to sync queue
+    const queueResult = await addToSyncQueue("category", category.id, "create", category, userId);
+
+    if (!queueResult.success) {
+      // Rollback IndexedDB write
+      await db.categories.delete(category.id);
+      return {
+        success: false,
+        error: `Failed to queue for sync: ${queueResult.error}`,
+        isTemporary: false,
+      };
+    }
+
+    return {
+      success: true,
+      data: category,
+      isTemporary: true,
+    };
+  } catch (error) {
+    // ... existing error handling ...
+  }
+}
+
+// Similar updates for updateOfflineCategory
+```
+
+---
+
 ## Step 6: Test Queue Integration (20 min)
 
 Create `src/lib/offline/syncQueue.test.ts`:
 
 ```typescript
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { db } from "@/lib/dexie/db";
 import { supabase } from "@/lib/supabase";
 import { createOfflineTransaction } from "./transactions";
+import { createOfflineAccount } from "./accounts";
+import { createOfflineCategory } from "./categories";
 import { getQueueCount } from "./syncQueue";
 
 describe("Sync Queue Integration", () => {

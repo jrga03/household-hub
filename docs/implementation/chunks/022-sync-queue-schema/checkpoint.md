@@ -39,18 +39,19 @@ ORDER BY ordinal_position;
 **Expected columns**:
 
 - id (uuid, not null)
+- household_id (uuid, not null, default '00000000-0000-0000-0000-000000000001')
 - entity_type (text, not null)
-- entity_id (text, not null)
+- entity_id (text, not null) -- TEXT type (not UUID) for temp offline IDs
 - operation (jsonb, not null)
 - device_id (text, not null)
-- user_id (uuid, not null)
+- user_id (uuid, not null) -- Added for RLS policies
 - status (text, not null, default 'queued')
 - retry_count (integer, not null, default 0)
-- max_retries (integer, not null, default 3)
+- max_retries (integer, not null, default 3) -- Enhancement beyond DATABASE.md
 - error_message (text, nullable)
 - created_at (timestamptz, not null, default now())
 - updated_at (timestamptz, not null, default now())
-- synced_at (timestamptz, nullable)
+- synced_at (timestamptz, nullable) -- Enhancement for cleanup function
 
 ---
 
@@ -115,11 +116,26 @@ WHERE tablename = 'sync_queue';
 
 **Expected policies**:
 
-- Users see own device queue (SELECT)
-- Users insert for own devices (INSERT)
-- Users update own queue items (UPDATE)
-- Users delete own completed items (DELETE)
-- Service role full access (ALL)
+- Users see own sync queue (SELECT)
+- Users insert own sync queue (INSERT)
+- Users update own sync queue (UPDATE)
+- Users delete completed sync queue (DELETE)
+
+**Note**: Policies are simplified for Milestone 3. After chunk 027 (devices table exists), these will be upgraded in chunk 028 to include device ownership verification.
+
+---
+
+## 6.5. Verify household_id Default ✓
+
+```sql
+-- Check household_id has correct default
+SELECT column_default
+FROM information_schema.columns
+WHERE table_name = 'sync_queue'
+  AND column_name = 'household_id';
+```
+
+**Expected**: `'00000000-0000-0000-0000-000000000001'::uuid`
 
 ---
 
@@ -171,6 +187,7 @@ SELECT cleanup_old_sync_queue();
 ```sql
 -- Insert with all fields
 INSERT INTO sync_queue (
+  household_id,
   entity_type,
   entity_id,
   operation,
@@ -178,8 +195,9 @@ INSERT INTO sync_queue (
   user_id,
   status
 ) VALUES (
+  '00000000-0000-0000-0000-000000000001',  -- Default household
   'transaction',
-  'temp-test-123',
+  'temp-test-123',  -- Temporary offline ID (TEXT type)
   '{"op": "create", "payload": {"description": "Test"}}'::jsonb,
   'device-test',
   auth.uid(),
@@ -232,21 +250,38 @@ DELETE FROM sync_queue WHERE entity_id = 'test-update';
 **Test in Supabase SQL Editor as authenticated user**:
 
 ```sql
--- This should work (own device)
+-- This should work (own user_id)
 INSERT INTO sync_queue (
-  entity_type, entity_id, operation, device_id, user_id
+  household_id,
+  entity_type,
+  entity_id,
+  operation,
+  device_id,
+  user_id
 ) VALUES (
-  'transaction', 'test-rls', '{}'::jsonb,
-  (SELECT id FROM devices WHERE user_id = auth.uid() LIMIT 1),
-  auth.uid()
+  '00000000-0000-0000-0000-000000000001',
+  'transaction',
+  'test-rls',
+  '{}'::jsonb,
+  'device-test',
+  auth.uid()  -- Current user
 );
 
 -- This should fail (different user_id)
 INSERT INTO sync_queue (
-  entity_type, entity_id, operation, device_id, user_id
+  household_id,
+  entity_type,
+  entity_id,
+  operation,
+  device_id,
+  user_id
 ) VALUES (
-  'transaction', 'test-rls-fail', '{}'::jsonb, 'device-1',
-  '00000000-0000-0000-0000-000000000000' -- Different user
+  '00000000-0000-0000-0000-000000000001',
+  'transaction',
+  'test-rls-fail',
+  '{}'::jsonb,
+  'device-test',
+  '00000000-0000-0000-0000-000000000000'  -- Different user
 );
 -- Expected error: new row violates row-level security policy
 
@@ -306,7 +341,7 @@ Then run migration again.
 
 ### RLS policies block inserts
 
-**Solution**: Ensure `devices` table exists and has user's device registered (chunk 019).
+**Solution**: Ensure you're authenticated and using `auth.uid()` for user_id. The simplified RLS policies (Milestone 3) only require matching user_id. Device ownership verification is added in chunk 028 after the devices table exists.
 
 ### Trigger doesn't update timestamp
 

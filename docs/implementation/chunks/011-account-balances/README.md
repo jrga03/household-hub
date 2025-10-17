@@ -104,6 +104,7 @@ src/
 - **Original**: `docs/initial plan/DATABASE.md` lines 356-395 (Account Balance Query)
 - **Original**: `docs/initial plan/DATABASE.md` lines 736-776 (Calculate Running Total Function)
 - **Original**: `docs/initial plan/IMPLEMENTATION-PLAN.md` Day 6 (lines 237-262)
+  - **Note**: This chunk implements the "Calculate running totals per account" portion of Day 6. Other Day 6 features (views, filtering, sorting, search) are distributed across chunks 009-010, 012-014 per the chunked implementation approach.
 - **Decisions**: #9 (amount storage - positive with type field)
 
 ## Technical Stack

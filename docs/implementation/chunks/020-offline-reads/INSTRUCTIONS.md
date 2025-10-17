@@ -27,7 +27,7 @@ export function useOnlineStatus() {
     const interval = setInterval(async () => {
       try {
         // Simple query to check Supabase connectivity
-        const { error } = await supabase.from("profiles").select("id").limit(1).single();
+        const { error } = await supabase.from("profiles").select("id").limit(1).maybeSingle();
 
         setIsOnline(!error);
       } catch {
@@ -153,7 +153,7 @@ export const cacheManager = new CacheManager();
 Create `src/hooks/useOfflineTransactions.ts`:
 
 ```typescript
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { cacheManager } from "@/lib/offline/cacheManager";
 import { useOnlineStatus } from "./useOnlineStatus";
@@ -169,6 +169,7 @@ import type { LocalTransaction } from "@/lib/dexie/db";
  */
 export function useOfflineTransactions() {
   const isOnline = useOnlineStatus();
+  const queryClient = useQueryClient();
 
   // Query 1: Offline-first read (instant)
   const offlineQuery = useQuery({
@@ -219,7 +220,7 @@ export function useOfflineTransactions() {
       await cacheManager.cacheTransactions(transactions);
 
       // Invalidate offline query to trigger re-render with fresh data
-      offlineQuery.refetch();
+      await queryClient.invalidateQueries({ queryKey: ["transactions", "offline"] });
 
       return transactions;
     },
@@ -246,7 +247,7 @@ export function useOfflineTransactions() {
 Create `src/hooks/useOfflineAccounts.ts`:
 
 ```typescript
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { cacheManager } from "@/lib/offline/cacheManager";
 import { useOnlineStatus } from "./useOnlineStatus";
@@ -254,6 +255,7 @@ import type { LocalAccount } from "@/lib/dexie/db";
 
 export function useOfflineAccounts() {
   const isOnline = useOnlineStatus();
+  const queryClient = useQueryClient();
 
   const offlineQuery = useQuery({
     queryKey: ["accounts", "offline"],
@@ -290,7 +292,7 @@ export function useOfflineAccounts() {
       }));
 
       await cacheManager.cacheAccounts(accounts);
-      offlineQuery.refetch();
+      await queryClient.invalidateQueries({ queryKey: ["accounts", "offline"] });
       return accounts;
     },
     enabled: isOnline,
@@ -315,7 +317,7 @@ export function useOfflineAccounts() {
 Create `src/hooks/useOfflineCategories.ts`:
 
 ```typescript
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { cacheManager } from "@/lib/offline/cacheManager";
 import { useOnlineStatus } from "./useOnlineStatus";
@@ -323,6 +325,7 @@ import type { LocalCategory } from "@/lib/dexie/db";
 
 export function useOfflineCategories() {
   const isOnline = useOnlineStatus();
+  const queryClient = useQueryClient();
 
   const offlineQuery = useQuery({
     queryKey: ["categories", "offline"],
@@ -355,7 +358,7 @@ export function useOfflineCategories() {
       }));
 
       await cacheManager.cacheCategories(categories);
-      offlineQuery.refetch();
+      await queryClient.invalidateQueries({ queryKey: ["categories", "offline"] });
       return categories;
     },
     enabled: isOnline,
@@ -381,15 +384,19 @@ Create `src/components/OfflineBanner.tsx`:
 
 ```typescript
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useQueryClient } from '@tanstack/react-query';
 import { WifiOff, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function OfflineBanner() {
   const isOnline = useOnlineStatus();
+  const queryClient = useQueryClient();
 
-  // Handle manual retry
-  const handleRetry = () => {
-    window.location.reload();
+  // Handle manual retry - trigger background sync instead of full reload
+  const handleRetry = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['transactions', 'sync'] });
+    await queryClient.invalidateQueries({ queryKey: ['accounts', 'sync'] });
+    await queryClient.invalidateQueries({ queryKey: ['categories', 'sync'] });
   };
 
   // Don't show banner when online

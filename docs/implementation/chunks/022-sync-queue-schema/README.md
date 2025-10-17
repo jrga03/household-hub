@@ -31,10 +31,15 @@ The sync queue is the durable storage layer that ensures no data loss:
 
 Make sure you have:
 
+- **Chunk 019 completed** (Dexie setup - device ID persistence working)
+- **Chunk 020 completed** (offline reads functional)
+- **Chunk 021 completed** (offline write functions created)
 - Supabase project set up
-- Database migration tooling configured
+- Database migration tooling configured (`npx supabase migration new` working)
 - Access to Supabase SQL editor
-- Understanding of PostgreSQL basics
+- Understanding of PostgreSQL basics (indexes, RLS policies, triggers)
+
+**Important**: The devices table is created in chunk 027 (Milestone 4). This chunk uses simplified RLS policies that will be upgraded in chunk 028.
 
 ## What Happens Next
 
@@ -175,6 +180,113 @@ USING (
 - Each device maintains its own queue
 - No cross-device queue visibility
 - Prevents accidental conflict
+
+---
+
+## Technical Notes
+
+### Schema Enhancements Beyond DATABASE.md
+
+This chunk implements the sync_queue schema with intentional improvements:
+
+**Fields Added**:
+
+1. **household_id**: Not strictly necessary (sync queue is device-scoped), but included for consistency with other tables and future multi-household support (Decision #61)
+
+2. **user_id**: Added beyond DATABASE.md spec to enable:
+   - RLS policies scoped to user's queue items
+   - Cascade deletion when user deleted (ON DELETE CASCADE)
+   - Faster queries (avoid JOIN to devices table via device_id)
+   - This field is technically redundant with `device_id → devices.user_id`, but improves query performance and RLS clarity
+
+3. **max_retries**: Allows per-item retry configuration (DATABASE.md only has retry_count). Default is 3, but can be increased for critical operations
+
+4. **synced_at**: Timestamp when item completed sync. Enables the cleanup function to identify old completed items. DATABASE.md has created_at/updated_at but not synced_at
+
+**Type Differences**:
+
+- **entity_id**: TEXT instead of UUID (DATABASE.md has UUID)
+  - **Rationale**: Offline-created entities use temporary IDs like `"temp-abc123"` (not UUIDs)
+  - sync_queue must store these temp IDs before sync
+  - Chunk 024 (sync processor) remaps temp IDs to server UUIDs after successful sync
+  - See chunk 021 troubleshooting.md for temp ID format specification
+
+**Additional Constraints**:
+
+- `sync_queue_entity_type_check`: Validates entity_type values
+- `sync_queue_retry_check`: Ensures retry_count ≤ max_retries
+- More comprehensive than DATABASE.md for data integrity
+
+### RLS Policy Evolution
+
+**Milestone 3 (This Chunk)**:
+
+Simplified RLS policies scoped to `user_id` only:
+
+```sql
+USING (user_id = auth.uid())
+```
+
+**Why Simplified?** The devices table doesn't exist until chunk 027 (Milestone 4). Cannot reference tables from future chunks.
+
+**Milestone 4 (Chunk 028)**:
+
+After devices table exists, policies will be upgraded to device-scoped:
+
+```sql
+USING (
+  user_id = auth.uid()
+  AND device_id IN (SELECT id FROM devices WHERE user_id = auth.uid())
+)
+```
+
+This adds device ownership verification, preventing one user device from accessing another user's queue.
+
+### Cleanup Strategy
+
+The `cleanup_old_sync_queue()` function (step 6) removes completed items older than 7 days:
+
+- **Keep completed**: 7 days (for debugging and audit trail)
+- **Keep failed**: Indefinitely (manual review required)
+- **Execution**: Manual via `SELECT cleanup_old_sync_queue()` OR automated cron (Phase C)
+
+**Why 7 days?** Balances:
+
+- Short enough to prevent bloat (1000 transactions/week = ~7k items)
+- Long enough for debugging sync issues
+- Users typically resolve sync issues within 1-2 days
+
+### Index Strategy
+
+This chunk uses **partial indexes** for better performance:
+
+```sql
+CREATE INDEX idx_sync_queue_status
+ON sync_queue(status)
+WHERE status IN ('queued', 'failed');  -- Only index active items
+```
+
+**Benefits**:
+
+- Smaller index size (ignores completed items)
+- Faster queries (PostgreSQL optimizer chooses index more often)
+- Less maintenance (completed items don't bloat index)
+
+See DATABASE.md lines 1161-1346 for complete indexing patterns.
+
+### Relationship to Other Chunks
+
+**Depends On**:
+
+- Chunk 019: Dexie schema with syncQueue table
+- Chunk 021: Offline write functions that will populate this queue
+
+**Used By**:
+
+- Chunk 023: Offline writes queue (adds items to sync_queue)
+- Chunk 024: Sync processor (processes queued items)
+- Chunk 025: Online detection (triggers sync processor)
+- Chunk 028: RLS policy upgrade (after devices table exists)
 
 ---
 

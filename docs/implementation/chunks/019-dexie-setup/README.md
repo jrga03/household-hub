@@ -30,8 +30,9 @@ IndexedDB is the foundation of offline-first architecture. It provides:
 
 Make sure you have:
 
-- Dexie and Dexie React Hooks installed
-- FingerprintJS for device identification
+- Dexie and Dexie React Hooks installed (`dexie`, `dexie-react-hooks`)
+- FingerprintJS for device identification (`@fingerprintjs/fingerprintjs`)
+- Device manager utility (`src/lib/dexie/deviceManager.ts` with `deviceManager.getDeviceId()`)
 - Basic understanding of IndexedDB concepts
 
 ## What Happens Next
@@ -65,6 +66,7 @@ src/
 - **events**: Event sourcing log
 - **syncQueue**: Pending sync operations
 - **meta**: Key-value storage (device ID, last sync time)
+- **logs**: Debug and observability logs (correlation IDs, sync events)
 
 ### Device Identification
 

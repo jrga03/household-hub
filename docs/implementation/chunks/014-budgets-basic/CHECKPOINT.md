@@ -4,6 +4,76 @@ Verify the complete budget system works correctly.
 
 ---
 
+## 0. Database Prerequisites ✓
+
+**Before testing the UI, verify the database is ready:**
+
+### Check Budgets Table Schema
+
+Open Supabase SQL Editor and run:
+
+```sql
+-- Verify budgets table structure
+SELECT column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_name = 'budgets'
+ORDER BY ordinal_position;
+```
+
+**Expected columns:**
+
+- id (uuid)
+- household_id (uuid)
+- category_id (uuid)
+- month (date)
+- month_key (integer, generated)
+- amount_cents (bigint)
+- currency_code (text)
+- created_at (timestamp with time zone)
+- updated_at (timestamp with time zone)
+
+### Check Required Indexes
+
+```sql
+-- Verify performance indexes exist
+SELECT indexname, indexdef
+FROM pg_indexes
+WHERE tablename IN ('budgets', 'transactions')
+AND indexname IN (
+  'idx_budgets_household_month',
+  'idx_budgets_month_key',
+  'idx_transactions_category_date',
+  'idx_transactions_month'
+)
+ORDER BY tablename, indexname;
+```
+
+**Expected:** All 4 indexes present
+
+### Check Unique Constraint
+
+```sql
+-- Verify unique constraint on (household_id, category_id, month)
+SELECT conname, contype, pg_get_constraintdef(oid)
+FROM pg_constraint
+WHERE conrelid = 'budgets'::regclass
+AND contype = 'u';
+```
+
+**Expected:** Unique constraint on `(household_id, category_id, month)`
+
+**Check**:
+
+- [ ] Budgets table exists with correct schema
+- [ ] month_key computed column present
+- [ ] All 4 required indexes exist
+- [ ] Unique constraint enforced
+- [ ] No database errors
+
+**If any checks fail:** Review `DATABASE.md` lines 265-294 and create missing migrations.
+
+---
+
 ## 1. Page Loads ✓
 
 Visit `http://localhost:3000/budgets`

@@ -27,7 +27,7 @@ console.log(
 **Expected**:
 
 ```
-['transactions', 'accounts', 'categories', 'syncQueue', 'events', 'meta']
+['transactions', 'accounts', 'categories', 'syncQueue', 'events', 'meta', 'logs']
 ```
 
 ---
@@ -153,13 +153,41 @@ if (navigator.storage && navigator.storage.estimate) {
 
 ---
 
+## 9. Device Registration Works ✓
+
+```javascript
+import { deviceManager } from "@/lib/dexie/deviceManager";
+import { supabase } from "@/lib/supabase";
+
+// Get device ID
+const deviceId = await deviceManager.getDeviceId();
+console.log("Device ID:", deviceId);
+
+// Check device registration in Supabase (requires auth)
+const { data: device } = await supabase.from("devices").select("*").eq("id", deviceId).single();
+
+console.log("Registered device:", device);
+console.log("Device name:", device?.name); // e.g., "Chrome on macOS"
+console.log("Platform:", device?.platform); // e.g., "web" or "pwa-ios"
+```
+
+**Expected**:
+
+- Device ID returned consistently
+- Device registered in `devices` table with name and platform
+- `last_seen` timestamp updates on subsequent calls
+
+---
+
 ## Success Criteria
 
 - [ ] Database opens without errors
-- [ ] All 6 tables created
+- [ ] All 7 tables created (including logs)
 - [ ] Can add/retrieve data
 - [ ] Device ID persists across reloads
 - [ ] Device ID in both IndexedDB and localStorage
+- [ ] Device registration creates entry in Supabase devices table
+- [ ] Device name and platform detected correctly
 - [ ] Data persists after page refresh
 - [ ] Index queries work efficiently
 - [ ] Storage quota accessible

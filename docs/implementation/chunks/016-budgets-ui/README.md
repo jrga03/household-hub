@@ -32,11 +32,19 @@ This visualization helps users make informed financial decisions.
 
 Make sure you have:
 
-- Chunk 015 completed (budgets table exists)
-- Chunk 007 completed (categories exist)
-- Currency utilities working (formatPHP, parsePHP)
-- Basic UI components installed (shadcn/ui)
+- **Chunk 015 completed** (budgets table exists in Supabase)
+- **Chunk 007 completed** (categories setup with `useCategories` hook)
+- **Chunk 006 completed** (CurrencyInput component exists)
+- Currency utilities working (formatPHP, parsePHP from lib/currency.ts)
+- shadcn/ui components installed: Progress, Dialog, Select, Card, Button, Input
 - TanStack Query configured
+
+**How to verify**:
+
+- Run `npm test` - currency tests should pass
+- Check `src/components/ui/currency-input.tsx` exists
+- Check `src/hooks/useCategories.ts` (or equivalent) exists
+- Verify budgets table: `npx supabase db shell` then `\d budgets`
 
 ## What Happens Next
 
@@ -47,6 +55,7 @@ After this chunk:
 - Visual feedback on budget health
 - Easy budget copying between months
 - Ready for production budget tracking
+- **Note**: Budget threshold alerts deferred to Phase C (Day 14 - Notifications)
 
 ## Key Files Created
 

@@ -789,4 +789,4 @@ console.log("Querying range:", format(monthStart, "yyyy-MM-dd"), "to", format(mo
 - DATABASE.md lines 265-294 (Budgets table schema)
 - DATABASE.md lines 227-239 (Budget vs Actual query)
 - IMPLEMENTATION-PLAN.md Day 7 (Budget UI requirements)
-- DECISIONS.md #80 (Budgets are reference targets)
+- DECISIONS.md #79 (Budgets are reference targets), #12 (Budget system clarified)

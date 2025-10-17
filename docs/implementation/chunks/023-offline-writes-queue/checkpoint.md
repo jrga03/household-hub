@@ -125,28 +125,49 @@ console.log(data.operation.vectorClock);
 
 ## 6. Rollback Works on Queue Failure ✓
 
-**Test**: Simulate queue failure
+**Test**: Simulate queue failure using Vitest mocking
 
 ```typescript
-// Mock Supabase to fail
-const originalInsert = supabase.from("sync_queue").insert;
-supabase.from("sync_queue").insert = () => {
-  throw new Error("Simulated failure");
-};
+import { vi } from "vitest";
+import { supabase } from "@/lib/supabase";
+import { createOfflineTransaction } from "@/lib/offline/transactions";
+import { db } from "@/lib/dexie/db";
 
-const result = await createOfflineTransaction({...}, userId);
+// Mock Supabase insert to fail
+const insertSpy = vi.spyOn(supabase.from("sync_queue"), "insert");
+insertSpy.mockResolvedValueOnce({
+  data: null,
+  error: { message: "Simulated failure", code: "MOCK_ERROR" } as any,
+});
+
+const result = await createOfflineTransaction(
+  {
+    date: "2024-01-15",
+    description: "Test rollback",
+    amount_cents: 100000,
+    type: "expense",
+    status: "pending",
+    visibility: "household",
+  },
+  userId
+);
 
 console.log(result.success); // false
+console.log(result.error); // "Failed to queue for sync: Simulated failure"
 
 // Check IndexedDB - should NOT have transaction
 const stored = await db.transactions.get(result.data?.id);
 console.log(stored); // undefined (rolled back)
 
 // Restore mock
-supabase.from("sync_queue").insert = originalInsert;
+insertSpy.mockRestore();
 ```
 
-**Expected**: Transaction NOT in IndexedDB (rolled back)
+**Expected**:
+
+- `result.success` is `false`
+- Transaction NOT in IndexedDB (rolled back)
+- Error message indicates queue failure
 
 ---
 
@@ -205,17 +226,82 @@ ORDER BY created_at ASC;
 
 ## 9. Account and Category Mutations Queue ✓
 
-**Test**: Create account and category
+**Test Case 1: Create account**
 
 ```typescript
-const account = await createOfflineAccount({...}, userId);
-const category = await createOfflineCategory({...});
+import { createOfflineAccount } from "@/lib/offline/accounts";
+import { getQueueCount } from "@/lib/offline/syncQueue";
 
-const queueCount = await getQueueCount(userId);
-// Should include account and category
+const accountInput = {
+  name: "Test Checking",
+  type: "checking" as const,
+  visibility: "household" as const,
+  initial_balance_cents: 0,
+};
+
+const result = await createOfflineAccount(accountInput, userId);
+
+expect(result.success).toBe(true);
+
+// Check IndexedDB
+const storedAccount = await db.accounts.get(result.data!.id);
+expect(storedAccount).toBeDefined();
+expect(storedAccount!.name).toBe("Test Checking");
+
+// Check sync queue
+const { data: queueItem } = await supabase
+  .from("sync_queue")
+  .select("*")
+  .eq("entity_type", "account")
+  .eq("entity_id", result.data!.id)
+  .single();
+
+expect(queueItem).toBeDefined();
+expect(queueItem!.operation.op).toBe("create");
 ```
 
-**Expected**: Queue includes all entity types
+**Test Case 2: Create category**
+
+```typescript
+import { createOfflineCategory } from "@/lib/offline/categories";
+
+const categoryInput = {
+  name: "Test Groceries",
+  parent_id: null, // Root category
+  color: "#10B981",
+};
+
+const result = await createOfflineCategory(categoryInput, userId);
+
+expect(result.success).toBe(true);
+
+// Check IndexedDB
+const storedCategory = await db.categories.get(result.data!.id);
+expect(storedCategory).toBeDefined();
+expect(storedCategory!.name).toBe("Test Groceries");
+
+// Check sync queue
+const { data: queueItem } = await supabase
+  .from("sync_queue")
+  .select("*")
+  .eq("entity_type", "category")
+  .eq("entity_id", result.data!.id)
+  .single();
+
+expect(queueItem).toBeDefined();
+expect(queueItem!.operation.op).toBe("create");
+```
+
+**Test Case 3: Queue count includes all types**
+
+```typescript
+// After creating transactions, accounts, and categories
+const queueCount = await getQueueCount(userId);
+// Should be 3 (1 transaction + 1 account + 1 category)
+expect(queueCount).toBe(3);
+```
+
+**Expected**: Queue includes transactions, accounts, and categories
 
 ---
 

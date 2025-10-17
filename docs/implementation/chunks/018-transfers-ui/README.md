@@ -25,6 +25,14 @@ Transfers are different from regular transactions - they represent money movemen
 - Show the connection between paired transactions
 - Handle deletion gracefully (convert to regular transactions)
 
+## Before You Start
+
+Make sure you have:
+
+- Chunk 017 completed (transfers schema with triggers)
+- Chunk 005 completed (accounts UI with CurrencyInput, formatPHP)
+- Device ID utility exists (`src/lib/device.ts` with `getDeviceId()` function)
+
 ## Key Files Created
 
 ```

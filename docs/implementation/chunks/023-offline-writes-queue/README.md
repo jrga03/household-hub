@@ -2,7 +2,7 @@
 
 ## At a Glance
 
-- **Time**: 2 hours
+- **Time**: 2.5 hours
 - **Milestone**: Offline (5 of 7)
 - **Prerequisites**: Chunk 021 (offline writes), Chunk 022 (sync queue schema)
 - **Can Skip**: No - required for sync functionality
@@ -51,6 +51,8 @@ After this chunk:
 
 ```
 src/
+├── types/
+│   └── sync.ts                  # NEW: Type definitions
 ├── lib/
 │   ├── offline/
 │   │   ├── transactions.ts      # Modified: add to queue
@@ -105,6 +107,15 @@ interface SyncQueueOperation {
   vectorClock: Record<string, number>;
 }
 ```
+
+**Phase A Event Structure (Simplified)**:
+
+This chunk implements a simplified event structure for Phase A MVP. Compared to the full event structure in SYNC-ENGINE.md (lines 102-122), we defer these fields to Phase B:
+
+- ✅ **Included in Phase A**: op, payload, entityType, entityId, idempotencyKey, lamportClock, vectorClock, deviceId, actorUserId
+- ⏸️ **Deferred to Phase B**: Event ID, timestamp, eventVersion, checksum (for data integrity verification)
+
+This simplification allows faster MVP delivery while maintaining the core event sourcing architecture.
 
 ## Related Documentation
 

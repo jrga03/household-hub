@@ -4,6 +4,43 @@ Follow these steps in order. Estimated time: 1.5 hours.
 
 ---
 
+## Prerequisites Setup (5 min)
+
+Before starting, verify prerequisites and install required shadcn/ui components:
+
+### 1. Install shadcn Components
+
+```bash
+npx shadcn-ui@latest add progress
+npx shadcn-ui@latest add dialog
+npx shadcn-ui@latest add select
+npx shadcn-ui@latest add card
+npx shadcn-ui@latest add button
+npx shadcn-ui@latest add input
+```
+
+### 2. Verify Dependencies Exist
+
+Run these checks to ensure prerequisites are met:
+
+```bash
+# Check currency utilities exist
+test -f src/lib/currency.ts && echo "✓ Currency utilities found" || echo "✗ Missing - complete Chunk 006"
+
+# Check CurrencyInput component exists
+test -f src/components/ui/currency-input.tsx && echo "✓ CurrencyInput found" || echo "✗ Missing - complete Chunk 006"
+
+# Check categories hook exists (path may vary)
+test -f src/hooks/useCategories.ts && echo "✓ useCategories found" || echo "✗ Check Chunk 007"
+
+# Verify budgets table exists in Supabase
+npx supabase db shell -c "SELECT COUNT(*) FROM budgets;" && echo "✓ Budgets table exists" || echo "✗ Run Chunk 015 migration"
+```
+
+**If any checks fail**, complete the corresponding prerequisite chunk first.
+
+---
+
 ## Step 1: Create Budget Hooks (20 min)
 
 Create `src/hooks/useBudgets.ts`:
@@ -117,7 +154,7 @@ export function useCopyBudgets() {
         .from("budgets")
         .select("category_id, amount_cents")
         .eq("household_id", householdId)
-        .eq("month", fromMonth);
+        .eq("month", fromMonth); // Note: Using month string here works but month_key would be more performant
 
       if (fetchError) throw fetchError;
 
@@ -619,6 +656,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useCategories } from '@/hooks/useCategories'; // Or wherever defined in chunk 007
 
 export const Route = createFileRoute('/budgets')({
   component: BudgetsPage,
@@ -632,6 +670,12 @@ function BudgetsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   const householdId = '00000000-0000-0000-0000-000000000001'; // Default household
+
+  // Fetch categories for budget form
+  const { data: allCategories = [] } = useCategories();
+
+  // Only allow budgets for child categories (parents are groupings)
+  const childCategories = allCategories.filter(c => c.parent_id !== null);
 
   const handlePreviousMonth = () => {
     const date = new Date(selectedMonth);
@@ -682,7 +726,7 @@ function BudgetsPage() {
           <BudgetForm
             householdId={householdId}
             month={selectedMonth}
-            categories={[]} // TODO: Fetch from categories hook
+            categories={childCategories}
             onSuccess={() => setIsAddDialogOpen(false)}
           />
         </DialogContent>

@@ -97,6 +97,42 @@ try {
 
 ## Idempotency Key Issues
 
+### Problem: Can't parse idempotency key with hyphenated entity IDs
+
+**Symptoms**: `parseIdempotencyKey` returns incorrect entityId or null
+
+**Cause**: Entity IDs contain hyphens (e.g., `temp-abc-123`), breaking naive split logic
+
+**Example**:
+
+```typescript
+const key = "device-xyz-transaction-temp-abc-123-5";
+// Naive split: ["device", "xyz", "transaction", "temp", "abc", "123", "5"]
+// Wrong entityId: "temp" (should be "temp-abc-123")
+```
+
+**Solution**: Parse from the end since lamport clock is always last
+
+```typescript
+export function parseIdempotencyKey(key: string) {
+  const parts = key.split("-");
+  if (parts.length < 4) return null;
+
+  // Parse from the end
+  const lamportClock = parseInt(parts[parts.length - 1], 10);
+  if (isNaN(lamportClock)) return null;
+
+  const deviceId = parts[0];
+  const entityType = parts[1];
+  // Rejoin middle parts to handle hyphens
+  const entityId = parts.slice(2, -1).join("-");
+
+  return { deviceId, entityType, entityId, lamportClock };
+}
+```
+
+---
+
 ### Problem: Idempotency keys not unique
 
 **Symptoms**: Two different operations have same key
@@ -258,6 +294,71 @@ const v2 = { "device-1": 4, "device-3": 2 };
 const merged = mergeVectorClocks(v1, v2);
 console.log(merged);
 // Expected: { "device-1": 5, "device-2": 3, "device-3": 2 }
+```
+
+---
+
+## Entity Type Issues
+
+### Problem: Accounts or categories not appearing in sync queue
+
+**Symptoms**: Transactions sync but accounts/categories don't
+
+**Cause**: Forgot to add `addToSyncQueue` calls in account/category mutation functions
+
+**Solution**: Verify queue integration in all entity types
+
+```typescript
+// Check account mutations
+import { addToSyncQueue } from "./syncQueue";
+
+export async function createOfflineAccount(input, userId) {
+  await db.accounts.add(account);
+
+  // THIS LINE IS REQUIRED
+  const queueResult = await addToSyncQueue("account", account.id, "create", account, userId);
+
+  if (!queueResult.success) {
+    await db.accounts.delete(account.id); // Rollback
+    return { success: false, error: queueResult.error };
+  }
+
+  return { success: true, data: account };
+}
+```
+
+**Verification**:
+
+```sql
+-- Check queue for different entity types
+SELECT entity_type, COUNT(*)
+FROM sync_queue
+GROUP BY entity_type;
+
+-- Expected: transactions, accounts, categories
+```
+
+---
+
+### Problem: Missing type definitions
+
+**Symptoms**: TypeScript errors for `EntityType` or `SyncQueueOperation`
+
+**Cause**: `src/types/sync.ts` not created
+
+**Solution**: Create type definitions file (Step 0 in instructions)
+
+```typescript
+// src/types/sync.ts
+export type EntityType = "transaction" | "account" | "category" | "budget";
+
+export interface SyncQueueOperation {
+  op: "create" | "update" | "delete";
+  payload: any;
+  idempotencyKey: string;
+  lamportClock: number;
+  vectorClock: Record<string, number>;
+}
 ```
 
 ---

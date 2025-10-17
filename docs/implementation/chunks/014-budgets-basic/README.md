@@ -32,14 +32,40 @@ This is the **final piece of the MVP** - completing core financial tracking!
 
 ## Before You Start
 
-Make sure you have:
+### Required Chunks
 
-- Chunks 001-013 completed
-- Budgets table in database
-- useCategoryTotals hook working
-- Child categories with hierarchy
-- formatPHP utility functioning
-- Transfer exclusion pattern understood
+**Core Dependencies:**
+
+- **Chunk 005**: `formatPHP()` and `parsePHP()` utilities in `src/lib/currency.ts`
+- **Chunk 005**: Accounts data layer and UI components
+- **Chunk 007**: Categories with two-level hierarchy (parent → child)
+- **Chunk 007**: `CategorySelector` component in `src/components/CategorySelector.tsx` (filters to child categories only)
+- **Chunk 009**: Transaction form (establishes transfer exclusion pattern)
+- **Chunk 012**: `MonthSelector` component in `src/components/MonthSelector.tsx`
+- **Chunk 012**: Category totals query patterns (for reference)
+
+### Database Prerequisites
+
+**Verify budgets table exists** with schema from `DATABASE.md` lines 265-294:
+
+- `month` DATE field with `month_key` computed column
+- `amount_cents` BIGINT for budget amounts
+- Unique constraint: `(household_id, category_id, month)`
+
+**Required indexes must exist:**
+
+```sql
+-- Check these indexes exist
+idx_budgets_household_month  -- (household_id, month_key)
+idx_transactions_category_date  -- (category_id, date DESC)
+idx_transactions_month  -- (DATE_TRUNC('month', date))
+```
+
+### Knowledge Prerequisites
+
+- **Transfer exclusion pattern**: `WHERE transfer_group_id IS NULL` for analytics
+- **Budget philosophy**: Reference targets only, no rollover (Decision #79)
+- **Child categories only**: Only leaf categories can have budgets
 
 ## What Happens Next
 
@@ -112,7 +138,7 @@ src/
 - **Original**: `docs/initial plan/DATABASE.md` lines 265-294 (Budgets table)
 - **Original**: `docs/initial plan/DATABASE.md` lines 227-239 (Budget vs Actual query)
 - **Original**: `docs/initial plan/IMPLEMENTATION-PLAN.md` Day 7 (lines 273-287)
-- **Decisions**: #80 (budgets are reference targets, no rollover)
+- **Decisions**: #79 (budgets are reference targets, no rollover), #12 (budget system clarified)
 
 ## Technical Stack
 

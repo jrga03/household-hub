@@ -107,7 +107,7 @@ export async function createOfflineTransaction(
       notes: input.notes || null,
       tagged_user_ids: input.tagged_user_ids || [],
       transfer_group_id: input.transfer_group_id || null,
-      household_id: "00000000-0000-0000-0000-000000000001", // Default household
+      household_id: "00000000-0000-0000-0000-000000000001", // Default household (Decision #61: Multi-household architecture ready but hardcoded for MVP)
       created_by_user_id: userId,
       owner_user_id: input.visibility === "personal" ? userId : null,
       device_id: deviceId,
@@ -233,7 +233,7 @@ export async function createOfflineTransactionsBatch(
       notes: input.notes || null,
       tagged_user_ids: input.tagged_user_ids || [],
       transfer_group_id: input.transfer_group_id || null,
-      household_id: "00000000-0000-0000-0000-000000000001",
+      household_id: "00000000-0000-0000-0000-000000000001", // Default household (Decision #61)
       created_by_user_id: userId,
       owner_user_id: input.visibility === "personal" ? userId : null,
       device_id: deviceId,
@@ -289,7 +289,7 @@ export async function createOfflineAccount(
 
     const account: Account = {
       id: tempId,
-      household_id: "00000000-0000-0000-0000-000000000001",
+      household_id: "00000000-0000-0000-0000-000000000001", // Default household (Decision #61)
       name: input.name,
       type: input.type,
       visibility: input.visibility,
@@ -398,7 +398,7 @@ export async function createOfflineCategory(
 
     const category: Category = {
       id: tempId,
-      household_id: "00000000-0000-0000-0000-000000000001",
+      household_id: "00000000-0000-0000-0000-000000000001", // Default household (Decision #61)
       name: input.name,
       parent_id: input.parent_id || null,
       color: input.color || null,
@@ -561,12 +561,238 @@ export function useDeleteOfflineTransaction() {
 }
 ```
 
-**Repeat similar hooks** for accounts and categories in:
+**Create similar hooks for accounts**: `src/hooks/useOfflineAccount.ts`
 
-- `src/hooks/useOfflineAccount.ts`
-- `src/hooks/useOfflineCategory.ts`
+```typescript
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { useAuthStore } from "@/stores/authStore";
+import {
+  createOfflineAccount,
+  updateOfflineAccount,
+  deactivateOfflineAccount,
+} from "@/lib/offline/accounts";
+import type { AccountInput } from "@/lib/offline/types";
+
+export function useCreateOfflineAccount() {
+  const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+
+  return useMutation({
+    mutationFn: (input: AccountInput) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      return createOfflineAccount(input, user.id);
+    },
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ["accounts", "offline"] });
+        toast.success("Account created (offline)");
+      } else {
+        toast.error(result.error || "Failed to create account");
+      }
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Unknown error");
+    },
+  });
+}
+
+export function useUpdateOfflineAccount() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<AccountInput> }) => {
+      return updateOfflineAccount(id, updates);
+    },
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ["accounts", "offline"] });
+        toast.success("Account updated (offline)");
+      } else {
+        toast.error(result.error || "Failed to update account");
+      }
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Unknown error");
+    },
+  });
+}
+
+export function useDeactivateOfflineAccount() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => deactivateOfflineAccount(id),
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ["accounts", "offline"] });
+        toast.success("Account deactivated (offline)");
+      } else {
+        toast.error(result.error || "Failed to deactivate account");
+      }
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Unknown error");
+    },
+  });
+}
+```
+
+**Create similar hooks for categories**: `src/hooks/useOfflineCategory.ts`
+
+```typescript
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import {
+  createOfflineCategory,
+  updateOfflineCategory,
+  deactivateOfflineCategory,
+} from "@/lib/offline/categories";
+import type { CategoryInput } from "@/lib/offline/types";
+
+export function useCreateOfflineCategory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CategoryInput) => {
+      return createOfflineCategory(input);
+    },
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ["categories", "offline"] });
+        toast.success("Category created (offline)");
+      } else {
+        toast.error(result.error || "Failed to create category");
+      }
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Unknown error");
+    },
+  });
+}
+
+export function useUpdateOfflineCategory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<CategoryInput> }) => {
+      return updateOfflineCategory(id, updates);
+    },
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ["categories", "offline"] });
+        toast.success("Category updated (offline)");
+      } else {
+        toast.error(result.error || "Failed to update category");
+      }
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Unknown error");
+    },
+  });
+}
+
+export function useDeactivateOfflineCategory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => deactivateOfflineCategory(id),
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ["categories", "offline"] });
+        toast.success("Category deactivated (offline)");
+      } else {
+        toast.error(result.error || "Failed to deactivate category");
+      }
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Unknown error");
+    },
+  });
+}
+```
 
 **Verify**: No TypeScript errors
+
+---
+
+### Optional Enhancement: True Optimistic Updates
+
+The hooks above use cache invalidation (refetch after success). For instant UI feedback, you can implement true optimistic updates with `onMutate`:
+
+```typescript
+export function useCreateOfflineTransaction() {
+  const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+
+  return useMutation({
+    mutationFn: (input: TransactionInput) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      return createOfflineTransaction(input, user.id);
+    },
+
+    // Optimistic update: Update UI before mutation completes
+    onMutate: async (input) => {
+      // Cancel outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ["transactions", "offline"] });
+
+      // Snapshot previous value for rollback
+      const previousTransactions = queryClient.getQueryData(["transactions", "offline"]);
+
+      // Optimistically update cache with temporary transaction
+      queryClient.setQueryData(["transactions", "offline"], (old: Transaction[] = []) => {
+        const tempTransaction: Transaction = {
+          id: `temp-${Date.now()}`, // Temporary ID for UI
+          ...input,
+          device_id: "pending",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        return [tempTransaction, ...old];
+      });
+
+      // Return context for rollback
+      return { previousTransactions };
+    },
+
+    onSuccess: (result, input, context) => {
+      if (result.success) {
+        // Replace optimistic transaction with real one from IndexedDB
+        queryClient.setQueryData(["transactions", "offline"], (old: Transaction[] = []) => {
+          return old.map((tx) =>
+            tx.id.startsWith("temp-") && tx.description === input.description ? result.data : tx
+          );
+        });
+        toast.success("Transaction created (offline)");
+      } else {
+        // Rollback on business logic failure
+        queryClient.setQueryData(["transactions", "offline"], context?.previousTransactions);
+        toast.error(result.error || "Failed to create transaction");
+      }
+    },
+
+    onError: (error, input, context) => {
+      // Rollback on error
+      queryClient.setQueryData(["transactions", "offline"], context?.previousTransactions);
+      toast.error(error instanceof Error ? error.message : "Unknown error");
+    },
+  });
+}
+```
+
+**Benefits**:
+
+- UI updates instantly (no perceived latency)
+- Better user experience for offline operations
+- Automatic rollback on failure
+
+**Trade-offs**:
+
+- More complex code
+- Requires careful cache key management
+- Can cause UI flicker if rollback occurs
+
+**Recommendation**: Start with simple cache invalidation (as shown in main hooks). Add optimistic updates later if UI feels sluggish.
 
 ---
 

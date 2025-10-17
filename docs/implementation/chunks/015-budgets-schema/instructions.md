@@ -1,6 +1,107 @@
 # Instructions: Budgets Schema
 
-Follow these steps in order. Estimated time: 30 minutes.
+Follow these steps in order. Estimated time: 35 minutes.
+
+---
+
+## Step 0: Prerequisites Verification (5 min)
+
+Before creating the budgets schema, verify all dependencies are in place.
+
+### Check 1: Categories Table Exists
+
+Chunk 007 (categories setup) must be completed:
+
+```sql
+-- Verify categories table exists
+SELECT COUNT(*) as category_count FROM categories;
+
+-- Expected output: At least 1 category exists
+-- If 0: Complete chunk 007 first
+```
+
+**Verify**: Categories table accessible with data
+
+---
+
+### Check 2: Supabase CLI Installed
+
+```bash
+npx supabase --version
+```
+
+**Expected output**: `supabase version 1.x.x` or higher
+
+**If missing**: Install Supabase CLI:
+
+```bash
+npm install supabase --save-dev
+```
+
+---
+
+### Check 3: Database Connection Working
+
+```bash
+npx supabase db ls
+```
+
+**Expected output**: List of existing migrations
+
+**If fails**:
+
+- Check `.env` file has correct `SUPABASE_URL` and `SUPABASE_ANON_KEY`
+- Run `npx supabase link` if using remote project
+- Run `npx supabase start` if using local development
+
+---
+
+### Check 4: Previous Migrations Applied
+
+```bash
+npx supabase migration list
+```
+
+**Expected**: Shows migrations including categories setup
+
+**Sample output**:
+
+```
+✓ 20240101000000_initial_schema.sql (Applied)
+✓ 20240102000000_create_categories.sql (Applied)
+```
+
+**If missing**: Run migrations first:
+
+```bash
+npx supabase db reset
+# or
+npx supabase db push
+```
+
+---
+
+### Check 5: Timestamp Trigger Function Exists
+
+The `update_updated_at_column()` function should exist from earlier migrations:
+
+```sql
+-- Check if timestamp trigger function exists
+SELECT EXISTS (
+  SELECT 1 FROM pg_proc
+  WHERE proname = 'update_updated_at_column'
+) as function_exists;
+
+-- Expected: function_exists = true
+```
+
+**If false**: See Step 4 in instructions for function creation SQL
+
+---
+
+**All checks passed?** → Proceed to Step 1
+
+**Any check failed?** → Resolve issues before continuing
 
 ---
 

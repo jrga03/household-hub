@@ -89,6 +89,54 @@ VALUES (
 
 ---
 
+### Problem: RLS policy references non-existent table "devices"
+
+**Symptoms**:
+
+```
+ERROR: relation "devices" does not exist
+LINE 5:   SELECT id FROM devices WHERE user_id = auth.uid()
+```
+
+**Cause**: Using RLS policies from DATABASE.md which reference devices table (created in chunk 027)
+
+**Solution**:
+
+This chunk uses simplified RLS policies (before devices table exists):
+
+```sql
+-- Drop incorrect policies if they were created
+DROP POLICY IF EXISTS "Users see own device queue" ON sync_queue;
+DROP POLICY IF EXISTS "Users insert for own devices" ON sync_queue;
+DROP POLICY IF EXISTS "Users update own queue items" ON sync_queue;
+DROP POLICY IF EXISTS "Users delete own completed items" ON sync_queue;
+
+-- Create correct simplified policies (from instructions.md Step 5)
+CREATE POLICY "Users see own sync queue"
+ON sync_queue FOR SELECT
+USING (user_id = auth.uid());
+
+CREATE POLICY "Users insert own sync queue"
+ON sync_queue FOR INSERT
+WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users update own sync queue"
+ON sync_queue FOR UPDATE
+USING (user_id = auth.uid())
+WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users delete completed sync queue"
+ON sync_queue FOR DELETE
+USING (
+  user_id = auth.uid()
+  AND status IN ('completed', 'failed')
+);
+```
+
+**Note**: After chunk 027 (devices table exists), upgrade to device-scoped policies in chunk 028.
+
+---
+
 ### Problem: Can't see own queue items
 
 **Symptoms**: SELECT returns empty even though items exist
@@ -164,6 +212,69 @@ SELECT * FROM sync_queue WHERE status = 'completed';
 -- Will use partial index
 SELECT * FROM sync_queue WHERE status = 'queued';
 ```
+
+---
+
+## Schema Issues
+
+### Problem: Missing household_id column
+
+**Symptoms**: Migration creates table but queries fail
+
+```sql
+INSERT INTO sync_queue (...) VALUES (...);
+ERROR: column "household_id" does not exist
+```
+
+**Cause**: Used old schema without household_id field
+
+**Solution**:
+
+Check schema includes household_id:
+
+```sql
+SELECT column_name, data_type, column_default
+FROM information_schema.columns
+WHERE table_name = 'sync_queue'
+  AND column_name = 'household_id';
+```
+
+If missing, recreate table:
+
+```sql
+DROP TABLE IF EXISTS sync_queue CASCADE;
+```
+
+Then re-run migration with correct schema (instructions.md Step 2).
+
+---
+
+### Problem: entity_id type mismatch (UUID vs TEXT)
+
+**Symptoms**: Can't insert temporary IDs
+
+```sql
+INSERT INTO sync_queue (entity_id) VALUES ('temp-abc123');
+ERROR: invalid input syntax for type uuid: "temp-abc123"
+```
+
+**Cause**: entity_id defined as UUID instead of TEXT
+
+**Solution**:
+
+The sync_queue must use TEXT for entity_id (not UUID) to support temporary offline IDs:
+
+```sql
+-- Check current type
+SELECT data_type
+FROM information_schema.columns
+WHERE table_name = 'sync_queue'
+  AND column_name = 'entity_id';
+```
+
+**Expected**: `text` (not `uuid`)
+
+If wrong, recreate table with correct schema.
 
 ---
 

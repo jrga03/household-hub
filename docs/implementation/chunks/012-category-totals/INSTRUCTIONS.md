@@ -31,6 +31,8 @@ export interface CategoryTotalGroup {
   parentColor: string;
   totalExpenseCents: number;
   children: CategoryTotal[];
+  // Note: Child categories track incomeCents, but MVP displays expense-focused analytics only.
+  // Income analysis can be added in Phase B by utilizing the incomeCents field.
 }
 
 export function useCategoryTotals(month: Date) {
@@ -296,9 +298,8 @@ export function CategoryTotalCard({ category, previousExpenseCents }: Props) {
           value={category.percentOfTotal}
           className="h-2"
           style={{
-            // @ts-ignore
             "--progress-background": category.color,
-          }}
+          } as React.CSSProperties}
         />
         <div className="text-xs text-muted-foreground mt-1">
           {category.percentOfTotal.toFixed(1)}% of total spending
@@ -404,6 +405,22 @@ function CategoryAnalyticsPage() {
     selectedMonth,
     previousMonth
   );
+
+  // Handle error states
+  if (current.isError || previous.isError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-lg font-medium text-destructive">
+            Failed to load category data
+          </p>
+          <p className="text-sm text-muted-foreground mt-2">
+            {current.error?.message || previous.error?.message}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Calculate total spending for the month
   const totalSpending = current.data?.reduce(

@@ -254,6 +254,29 @@ const { data } = useQuery({
 });
 ```
 
+### Performance: Optimize Month Queries (Phase B)
+
+**Current Implementation**: Hooks use `month` (DATE string) for queries
+**Future Optimization**: Use `month_key` (INT) for better performance
+
+```typescript
+// Phase A (current - acceptable):
+.eq('month', '2024-01-01')
+
+// Phase B optimization:
+.eq('month_key', 202401)  // Faster with integer index
+```
+
+This is a **minor optimization** deferred to Phase B. Current implementation is correct and performant for MVP (<10k transactions).
+
+**When to optimize**:
+
+- Query performance degrades (>200ms for budget queries)
+- Database contains >50k transactions
+- Users report slow budget page loading
+
+**Implementation effort**: ~15 minutes to update all hooks to use month_key
+
 ---
 
 ## UI Issues

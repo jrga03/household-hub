@@ -4,6 +4,28 @@ Follow these steps in order. Estimated time: 60 minutes.
 
 ---
 
+## Prerequisites Verification
+
+Before starting, verify these prerequisites are met:
+
+- [ ] Chunk 006 completed - `src/lib/currency.ts` exists with `formatPHP` function
+- [ ] `src/lib/supabaseQueries.ts` exists (create if needed - see note below)
+- [ ] Accounts table has `initial_balance_cents` field (chunk 005)
+- [ ] Transactions table has `account_id`, `amount_cents`, `type`, `status` fields (chunk 009)
+- [ ] RLS policies are active on accounts and transactions tables (chunk 002)
+- [ ] Run `npm run build` to verify no TypeScript errors from previous chunks
+
+**Note**: If `src/lib/supabaseQueries.ts` doesn't exist, create it with:
+
+```typescript
+// src/lib/supabaseQueries.ts
+export * from "./supabase";
+```
+
+Then you'll add the hooks in Step 1 below.
+
+---
+
 ## Step 1: Create Account Balance Query Hook (15 min)
 
 Add to `src/lib/supabaseQueries.ts`:
@@ -395,6 +417,7 @@ import { Button } from "@/components/ui/button";
 import { AccountBalance } from "@/components/AccountBalance";
 import { TransactionList } from "@/components/TransactionList";
 import { useAccountBalance } from "@/lib/supabaseQueries";
+import { formatPHP } from "@/lib/currency";
 
 export const Route = createFileRoute("/accounts/$accountId")({
   component: AccountDetailPage,
@@ -497,3 +520,5 @@ When account balances display correctly with cleared/pending split, you're ready
 **CRITICAL**: Unlike analytics queries, balance calculations MUST include transfer transactions. Transfers affect account balances (money moving between accounts).
 
 **Performance**: With the `idx_transactions_account_date` index, balance queries should complete in <30ms even with 1000+ transactions per account.
+
+**Running Balance Feature**: The README mentions a running balance column for transaction lists. This chunk focuses on **account-level balances** (current, cleared, pending). The **transaction-level running balance** (showing balance after each transaction) is implemented in **chunk 010 (Transactions List)** as part of the `TransactionList` component. The pattern shown in README lines 136-147 demonstrates the calculation approach for that feature.

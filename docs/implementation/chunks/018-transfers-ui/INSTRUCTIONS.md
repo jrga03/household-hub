@@ -12,6 +12,7 @@ Create `src/hooks/useTransfers.ts`:
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { v4 as uuid } from "uuid";
+import { getDeviceId } from "@/lib/device";
 
 export function useCreateTransfer() {
   const queryClient = useQueryClient();
@@ -20,6 +21,8 @@ export function useCreateTransfer() {
     mutationFn: async ({
       from_account_id,
       to_account_id,
+      from_account_name,
+      to_account_name,
       amount_cents,
       date,
       description,
@@ -28,6 +31,8 @@ export function useCreateTransfer() {
     }: {
       from_account_id: string;
       to_account_id: string;
+      from_account_name: string;
+      to_account_name: string;
       amount_cents: number;
       date: string;
       description: string;
@@ -35,18 +40,19 @@ export function useCreateTransfer() {
       user_id: string;
     }) => {
       const transfer_group_id = uuid();
+      const device_id = await getDeviceId(); // Use hybrid device ID strategy
 
       // Create expense (from account)
       const { error: expenseError } = await supabase.from("transactions").insert({
         household_id,
         account_id: from_account_id,
         date,
-        description: `Transfer to ${to_account_id}`,
+        description: `Transfer to ${to_account_name}`,
         amount_cents,
         type: "expense",
         transfer_group_id,
         created_by_user_id: user_id,
-        device_id: "web",
+        device_id,
       });
 
       if (expenseError) throw expenseError;
@@ -56,12 +62,12 @@ export function useCreateTransfer() {
         household_id,
         account_id: to_account_id,
         date,
-        description: `Transfer from ${from_account_id}`,
+        description: `Transfer from ${from_account_name}`,
         amount_cents,
         type: "income",
         transfer_group_id,
         created_by_user_id: user_id,
-        device_id: "web",
+        device_id,
       });
 
       if (incomeError) throw incomeError;
@@ -75,16 +81,29 @@ export function useCreateTransfer() {
   });
 }
 
+// NOTE: Transaction Atomicity
+// This implementation uses sequential inserts without explicit transaction wrapping.
+// The database triggers from chunk 017 (handle_transfer_deletion) will clean up
+// orphaned transactions if the second insert fails by setting transfer_group_id to NULL.
+//
+// For production enhancement, consider:
+// - Option A: PostgreSQL function with BEGIN/COMMIT transaction wrapper
+// - Option B: Supabase RPC function that atomically creates both transactions
+//
+// Current approach is acceptable for MVP as database triggers provide eventual consistency.
+
 export function useTransfers(householdId: string) {
   return useQuery({
     queryKey: ["transfers", householdId],
     queryFn: async () => {
+      // Query pattern matches DATABASE.md lines 522-535
+      // Fetch expense side with "from" account details
       const { data, error } = await supabase
         .from("transactions")
         .select(
           `
           *,
-          accounts (id, name)
+          from_account:accounts!transactions_account_id_fkey(id, name)
         `
         )
         .eq("household_id", householdId)
@@ -93,7 +112,32 @@ export function useTransfers(householdId: string) {
         .order("date", { ascending: false });
 
       if (error) throw error;
-      return data;
+
+      // For each transfer, fetch the paired transaction to get destination account
+      const transfersWithPairs = await Promise.all(
+        (data || []).map(async (transfer) => {
+          const { data: paired } = await supabase
+            .from("transactions")
+            .select(
+              `
+              id,
+              account_id,
+              to_account:accounts!transactions_account_id_fkey(id, name)
+            `
+            )
+            .eq("transfer_group_id", transfer.transfer_group_id)
+            .eq("type", "income")
+            .single();
+
+          return {
+            ...transfer,
+            from_account_name: transfer.from_account?.name || "Unknown",
+            to_account_name: paired?.to_account?.name || "Unknown",
+          };
+        })
+      );
+
+      return transfersWithPairs;
     },
   });
 }
@@ -150,8 +194,19 @@ export function TransferForm({
 
   const onSubmit = async (data: FormData) => {
     try {
+      // Find account names from accounts array
+      const fromAccount = accounts.find(a => a.id === data.from_account_id);
+      const toAccount = accounts.find(a => a.id === data.to_account_id);
+
+      if (!fromAccount || !toAccount) {
+        toast.error('Invalid account selection');
+        return;
+      }
+
       await createTransfer.mutateAsync({
         ...data,
+        from_account_name: fromAccount.name,
+        to_account_name: toAccount.name,
         description: data.description || `Transfer between accounts`,
         household_id: householdId,
         user_id: userId,
@@ -263,9 +318,9 @@ export function TransferList({ householdId }: { householdId: string }) {
         <Card key={transfer.id}>
           <CardContent className="flex items-center justify-between p-4">
             <div className="flex items-center gap-4">
-              <span className="font-medium">{transfer.accounts.name}</span>
+              <span className="font-medium">{transfer.from_account_name}</span>
               <ArrowRight className="w-4 h-4 text-muted-foreground" />
-              <span className="font-medium">To Account</span>
+              <span className="font-medium">{transfer.to_account_name}</span>
             </div>
             <div className="text-right">
               <div className="font-bold">{formatPHP(transfer.amount_cents)}</div>

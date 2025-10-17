@@ -4,7 +4,7 @@
 
 - **Time**: 120 minutes
 - **Milestone**: MVP (6 of 10)
-- **Prerequisites**: Chunks 005-008 (accounts, currency, categories, schema)
+- **Prerequisites**: Chunks 001-008 (complete foundation required; focus on 005-008 for direct dependencies)
 - **Can Skip**: No - core data entry interface
 
 ## What You're Building
@@ -27,6 +27,25 @@ Complete transaction entry system:
 
 This is the **primary data entry interface** for the entire app. Users will interact with this form daily to track their expenses and income. It must be intuitive, fast, and error-free. This chunk brings together all previous components into a cohesive user experience.
 
+## Scope of This Chunk
+
+**Included in Chunk 009**:
+
+- ✅ Complete transaction form UI
+- ✅ Online-only CRUD operations (via Supabase)
+- ✅ Basic transaction list display
+- ✅ Form validation and error handling
+
+**Deferred to Later Chunks** (by design):
+
+- ❌ Offline transaction creation → **Chunk 021** (Offline Writes)
+- ❌ Virtual scrolling for 10k+ rows → **Chunk 010** (Advanced Filtering)
+- ❌ Advanced filters (search, date range) → **Chunk 010** (Advanced Filtering)
+- ❌ Event sourcing integration → **Chunk 030** (Event Generation)
+- ❌ Sync queue for offline changes → **Chunk 023** (Offline Writes Queue)
+
+**Why This Separation?** The chunking strategy builds features layer-by-layer. Chunk 009 validates the UI and online data flow before adding offline complexity. This makes debugging easier: if something breaks, you know whether it's a UI issue or a sync issue.
+
 ## Before You Start
 
 Make sure you have:
@@ -37,6 +56,13 @@ Make sure you have:
 - Accounts seeded (chunk 005)
 - Transactions schema ready (chunk 008)
 - shadcn/ui components installed
+
+**Full Dependency Chain**:
+
+- Chunks 001-004: Project setup, auth, routing, accounts schema (foundational)
+- Chunks 005-008: Accounts UI, currency system, categories, transactions schema (direct dependencies)
+
+If you've been following chunks sequentially, all prerequisites are met.
 
 ## What Happens Next
 

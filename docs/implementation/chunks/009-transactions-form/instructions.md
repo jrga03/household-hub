@@ -461,6 +461,29 @@ export function TransactionFormDialog({
             />
           </div>
 
+          {/* Visibility */}
+          <div>
+            <Label htmlFor="visibility">Visibility</Label>
+            <Controller
+              name="visibility"
+              control={form.control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="household">Household</SelectItem>
+                    <SelectItem value="personal">Personal</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Household transactions visible to all users. Personal only to you.
+            </p>
+          </div>
+
           {/* Notes */}
           <div>
             <Label htmlFor="notes">Notes (optional)</Label>

@@ -33,6 +33,11 @@ export interface DashboardData {
     totalBalanceCents: number;
     previousMonthIncomeCents: number;
     previousMonthExpenseCents: number;
+    // Enhanced metrics (per DATABASE.md Monthly Summary Query spec)
+    activeDays: number; // COUNT(DISTINCT date)
+    uniqueCategories: number; // COUNT(DISTINCT category_id)
+    clearedCount: number; // Cleared transaction count
+    pendingCount: number; // Pending transaction count
   };
   monthlyTrend: Array<{
     month: string;
@@ -40,7 +45,7 @@ export interface DashboardData {
     expenseCents: number;
   }>;
   categoryBreakdown: Array<{
-    categoryId: string;
+    categoryId: string; // For click navigation to filtered transactions
     categoryName: string;
     color: string;
     amountCents: number;
@@ -145,6 +150,14 @@ export function useDashboardData(currentMonth: Date) {
         .filter((t) => t.type === "expense")
         .reduce((sum, t) => sum + t.amount_cents, 0);
 
+      // Enhanced metrics per DATABASE.md Monthly Summary Query spec
+      const uniqueDates = new Set(currentTransactions.map((t) => t.date));
+      const uniqueCategoryIds = new Set(
+        currentTransactions.filter((t) => t.category_id).map((t) => t.category_id)
+      );
+      const clearedTransactions = currentTransactions.filter((t) => t.status === "cleared");
+      const pendingTransactions = currentTransactions.filter((t) => t.status === "pending");
+
       // Calculate total balance across all accounts
       const totalBalance = accounts.reduce((sum, account) => {
         const accountTransactions = allTransactions.filter((t) => t.account_id === account.id);
@@ -191,7 +204,7 @@ export function useDashboardData(currentMonth: Date) {
         .map(([categoryId, amount]) => {
           const category = categories.find((c) => c.id === categoryId);
           return {
-            categoryId,
+            categoryId, // Include for click navigation
             categoryName: category?.name || "Unknown",
             color: category?.color || "#6B7280",
             amountCents: amount,
@@ -211,6 +224,11 @@ export function useDashboardData(currentMonth: Date) {
           totalBalanceCents: totalBalance,
           previousMonthIncomeCents: previousIncome,
           previousMonthExpenseCents: previousExpense,
+          // Enhanced metrics
+          activeDays: uniqueDates.size,
+          uniqueCategories: uniqueCategoryIds.size,
+          clearedCount: clearedTransactions.length,
+          pendingCount: pendingTransactions.length,
         },
         monthlyTrend,
         categoryBreakdown,
@@ -459,15 +477,19 @@ export function MonthlyChart({ data }: Props) {
 
 ## Step 5: Create Category Breakdown Chart (10 min)
 
+**Note**: This component includes click handlers to navigate to filtered transaction view per category.
+
 Create `src/components/dashboard/CategoryChart.tsx`:
 
 ```typescript
 import { formatPHP } from "@/lib/currency";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Card } from "@/components/ui/card";
+import { useNavigate } from "@tanstack/react-router";
 
 interface Props {
   data: Array<{
+    categoryId: string;
     categoryName: string;
     color: string;
     amountCents: number;
@@ -494,6 +516,16 @@ function CustomTooltip({ active, payload }: any) {
 }
 
 export function CategoryChart({ data }: Props) {
+  const navigate = useNavigate();
+
+  const handleCategoryClick = (categoryId: string) => {
+    // Navigate to transactions page filtered by category
+    navigate({
+      to: "/transactions",
+      search: { category: categoryId },
+    });
+  };
+
   if (!data || data.length === 0) {
     return (
       <Card className="p-6">
@@ -521,6 +553,8 @@ export function CategoryChart({ data }: Props) {
                 cy="50%"
                 outerRadius={80}
                 label={({ percentOfTotal }) => `${percentOfTotal.toFixed(0)}%`}
+                onClick={(entry) => handleCategoryClick(entry.categoryId)}
+                cursor="pointer"
               >
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
@@ -531,12 +565,13 @@ export function CategoryChart({ data }: Props) {
           </ResponsiveContainer>
         </div>
 
-        {/* Legend */}
+        {/* Legend with click handlers */}
         <div className="w-full md:w-1/2 space-y-2">
           {data.slice(0, 5).map((category) => (
             <div
               key={category.categoryName}
-              className="flex items-center justify-between"
+              className="flex items-center justify-between cursor-pointer hover:bg-accent p-2 rounded transition-colors"
+              onClick={() => handleCategoryClick(category.categoryId)}
             >
               <div className="flex items-center gap-2">
                 <div
@@ -664,13 +699,15 @@ export function RecentTransactions({ transactions }: Props) {
 
 ## Step 7: Create Dashboard Page (15 min)
 
+**Note**: MonthSelector component was created in chunk 012, step 2. If not yet implemented, complete chunk 012 first.
+
 Create or update `src/routes/index.tsx`:
 
 ```typescript
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { startOfMonth } from "date-fns";
-import { MonthSelector } from "@/components/MonthSelector";
+import { MonthSelector } from "@/components/MonthSelector"; // Created in chunk 012
 import { SummaryCards } from "@/components/dashboard/SummaryCards";
 import { MonthlyChart } from "@/components/dashboard/MonthlyChart";
 import { CategoryChart } from "@/components/dashboard/CategoryChart";

@@ -94,7 +94,7 @@ src/
 ## Related Documentation
 
 - **Original**: `docs/initial plan/SYNC-ENGINE.md` lines 100-277 (Event Structure)
-- **Original**: `docs/initial plan/SYNC-ENGINE.md` lines 1782-1885 (offline cache strategy)
+- **Original**: `docs/initial plan/SYNC-ENGINE.md` lines 946-1030 (Offline Detection & Recovery)
 - **Decisions**:
   - #62: Event sourcing from Phase A
   - #75: Hybrid device ID for tracking changes
@@ -186,6 +186,66 @@ try {
 - Transactions reference accounts/categories by ID
 - Must handle temporary IDs for newly created parents
 - Queue maintains reference chain for sync
+
+## Technical Notes
+
+### owner_user_id Pattern
+
+The `owner_user_id` field controls data visibility via RLS policies:
+
+- **Household visibility** (`visibility: "household"`):
+  - `owner_user_id` set to `null`
+  - RLS allows all authenticated household users to access
+  - Example: Shared groceries transaction
+- **Personal visibility** (`visibility: "personal"`):
+  - `owner_user_id` set to `userId`
+  - RLS filters data to specific user only
+  - Example: Personal shopping transaction
+
+This pattern appears in all mutation functions and enables the security model defined in RLS-POLICIES.md.
+
+### Temporary ID Relationships
+
+When creating entities offline that reference each other:
+
+```typescript
+// Create account offline → gets temp-abc123
+const account = await createOfflineAccount({ name: "Checking" });
+
+// Create transaction referencing temp account
+const transaction = await createOfflineTransaction({
+  account_id: account.id, // temp-abc123
+  // ...
+});
+```
+
+**Important**: Temp ID relationships work locally but require remapping during sync:
+
+1. **Chunk 021**: References stored as-is (e.g., `account_id: "temp-abc123"`)
+2. **Chunk 024**: Sync processor remaps temp IDs to server UUIDs
+3. **Database**: Final state has real UUIDs (e.g., `account_id: "550e8400-..."`)
+
+**Test Coverage**: Checkpoint test case 10 verifies temp ID relationship handling.
+
+### Batch Operations for CSV Import
+
+The `createOfflineTransactionsBatch` function optimizes bulk imports:
+
+- **Purpose**: CSV/Excel import in chunk 036
+- **Performance**: Uses `bulkAdd` instead of individual `add` calls
+- **Atomicity**: All transactions succeed or all fail together
+- **Usage**: Import 100s of transactions efficiently
+
+Example:
+
+```typescript
+const csvData = parseCSV(file); // From chunk 036
+const result = await createOfflineTransactionsBatch(csvData, userId);
+
+if (result.success) {
+  console.log(`Imported ${result.data.length} transactions`);
+}
+```
 
 ---
 

@@ -26,16 +26,19 @@ CREATE TABLE sync_queue (
   -- Identity
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
+  -- Household (for consistency with other tables - Decision #61)
+  household_id UUID DEFAULT '00000000-0000-0000-0000-000000000001' NOT NULL,
+
   -- Entity reference
   entity_type TEXT NOT NULL,
-  entity_id TEXT NOT NULL,
+  entity_id TEXT NOT NULL,  -- TEXT (not UUID) to support temporary offline IDs like "temp-abc123"
 
   -- Operation details
   operation JSONB NOT NULL,
 
   -- Tracking
   device_id TEXT NOT NULL,
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE, -- Added for RLS policies and cascade deletion
 
   -- Queue state
   status TEXT NOT NULL DEFAULT 'queued',
@@ -63,12 +66,16 @@ CREATE TABLE sync_queue (
 COMMENT ON TABLE sync_queue IS 'Queue of offline changes waiting to sync to server';
 
 -- Add column comments
+COMMENT ON COLUMN sync_queue.household_id IS 'Household scope (hardcoded for MVP - Decision #61)';
 COMMENT ON COLUMN sync_queue.entity_type IS 'Type of entity: transaction, account, category, budget';
-COMMENT ON COLUMN sync_queue.entity_id IS 'ID of entity being synced (may be temporary)';
+COMMENT ON COLUMN sync_queue.entity_id IS 'ID of entity being synced (may be temporary offline ID like "temp-abc123")';
 COMMENT ON COLUMN sync_queue.operation IS 'JSONB containing: op, payload, idempotencyKey, lamportClock, vectorClock';
 COMMENT ON COLUMN sync_queue.device_id IS 'Device that created this queue item';
+COMMENT ON COLUMN sync_queue.user_id IS 'User who owns this queue item (enables RLS policies)';
 COMMENT ON COLUMN sync_queue.status IS 'Queue state: queued → syncing → completed OR failed';
 COMMENT ON COLUMN sync_queue.retry_count IS 'Number of sync attempts';
+COMMENT ON COLUMN sync_queue.max_retries IS 'Maximum retry attempts before permanent failure';
+COMMENT ON COLUMN sync_queue.synced_at IS 'Timestamp when sync completed (enables cleanup)';
 ```
 
 ---
@@ -140,37 +147,31 @@ Enable RLS and create policies:
 -- Enable Row Level Security
 ALTER TABLE sync_queue ENABLE ROW LEVEL SECURITY;
 
--- Policy: Users can see queue items from their devices
-CREATE POLICY "Users see own device queue"
+-- NOTE: These are simplified RLS policies for Milestone 3 (Offline).
+-- The devices table doesn't exist until chunk 027 (Milestone 4).
+-- In chunk 028, these policies will be upgraded to include device ownership verification.
+
+-- Policy: Users can see their own queue items
+CREATE POLICY "Users see own sync queue"
 ON sync_queue
 FOR SELECT
-USING (
-  user_id = auth.uid()
-  AND device_id IN (
-    SELECT id FROM devices WHERE user_id = auth.uid()
-  )
-);
+USING (user_id = auth.uid());
 
--- Policy: Users can insert queue items for their devices
-CREATE POLICY "Users insert for own devices"
+-- Policy: Users can insert queue items for themselves
+CREATE POLICY "Users insert own sync queue"
 ON sync_queue
 FOR INSERT
-WITH CHECK (
-  user_id = auth.uid()
-  AND device_id IN (
-    SELECT id FROM devices WHERE user_id = auth.uid()
-  )
-);
+WITH CHECK (user_id = auth.uid());
 
 -- Policy: Users can update their own queue items
-CREATE POLICY "Users update own queue items"
+CREATE POLICY "Users update own sync queue"
 ON sync_queue
 FOR UPDATE
 USING (user_id = auth.uid())
 WITH CHECK (user_id = auth.uid());
 
 -- Policy: Users can delete their own completed/failed items
-CREATE POLICY "Users delete own completed items"
+CREATE POLICY "Users delete completed sync queue"
 ON sync_queue
 FOR DELETE
 USING (
@@ -178,10 +179,11 @@ USING (
   AND status IN ('completed', 'failed')
 );
 
--- Policy: Service role has full access (for cron jobs)
-CREATE POLICY "Service role full access"
-ON sync_queue
-USING (auth.role() = 'service_role');
+-- NOTE: After chunk 027 (devices table exists), upgrade to device-scoped policies:
+-- USING (
+--   user_id = auth.uid()
+--   AND device_id IN (SELECT id FROM devices WHERE user_id = auth.uid())
+-- )
 ```
 
 ---
@@ -279,6 +281,7 @@ Insert test data via SQL Editor:
 ```sql
 -- Test: Insert sample queue item
 INSERT INTO sync_queue (
+  household_id,
   entity_type,
   entity_id,
   operation,
@@ -286,8 +289,9 @@ INSERT INTO sync_queue (
   user_id,
   status
 ) VALUES (
+  '00000000-0000-0000-0000-000000000001',  -- Default household
   'transaction',
-  'temp-abc123',
+  'temp-abc123',  -- Temporary offline ID (TEXT type)
   '{"op": "create", "payload": {"description": "Test", "amount_cents": 100000}}'::jsonb,
   'device-test-123',
   auth.uid(), -- Current user

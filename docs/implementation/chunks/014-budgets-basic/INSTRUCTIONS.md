@@ -244,6 +244,12 @@ export function useCopyBudgets() {
 
 ## Step 2: Create Budget Progress Component (15 min)
 
+**First, install shadcn/ui Progress component:**
+
+```bash
+npx shadcn-ui@latest add progress
+```
+
 Create `src/components/budgets/BudgetProgress.tsx`:
 
 ```typescript
@@ -778,6 +784,6 @@ When budgets display correctly with progress tracking and all CRUD operations wo
 
 **Unique Constraint**: Database enforces unique (category_id, month) per household. Attempting to create duplicate budgets will fail - handle this gracefully in UI.
 
-**No Rollover**: Budgets are independent per month. Copying previous month is a convenience feature but each month stands alone (Decision #80).
+**No Rollover**: Budgets are independent per month. Copying previous month is a convenience feature but each month stands alone (Decision #79).
 
 **Only Child Categories**: Only child categories should have budgets. Parent categories are for grouping only.

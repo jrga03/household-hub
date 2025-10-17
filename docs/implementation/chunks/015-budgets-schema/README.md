@@ -2,7 +2,7 @@
 
 ## At a Glance
 
-- **Time**: 30 minutes
+- **Time**: 35 minutes
 - **Milestone**: MVP (Optional)
 - **Prerequisites**: Chunk 007 (categories setup)
 - **Can Skip**: Yes - budgets are optional

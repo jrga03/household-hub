@@ -13,10 +13,12 @@ Comprehensive financial dashboard with at-a-glance insights:
 
 - **Summary Cards**: Total income, expenses, net amount, account count
 - **Monthly Chart**: Income vs expenses trend (last 6 months)
-- **Category Breakdown**: Spending distribution pie/bar chart
+- **Category Breakdown**: Spending distribution pie/bar chart with click navigation
 - **Recent Transactions**: Last 10 transactions with quick actions
 - **Account Summaries**: Current balances for all accounts
-- **Quick Stats**: Transaction counts, average spending, trending categories
+- **Quick Stats**: Transaction counts, active days, unique categories
+
+**Note**: Static display only in this chunk. Interactive column sorting for tables is handled in advanced table components from earlier chunks.
 
 ## Why This Matters
 
@@ -35,9 +37,10 @@ Without a dashboard, users must dig through multiple views to understand their f
 Make sure you have:
 
 - Chunks 001-012 completed
-- useAccountBalances hook working
-- useCategoryTotals hook working
-- useTransactions hook with filters
+- useAccountBalances hook working (chunk 011)
+- useCategoryTotals hook working (chunk 012)
+- useTransactions hook with filters (chunk 010)
+- **MonthSelector component created** (chunk 012, step 2)
 - Recharts library installed
 - formatPHP utility functioning
 
@@ -85,6 +88,8 @@ src/
 - Color-coded (green income, red expenses)
 - Interactive tooltips
 - Month labels on X-axis
+
+**Note**: Year-over-year comparison (mentioned in IMPLEMENTATION-PLAN.md Day 14) is intentionally deferred to a future advanced analytics chunk. The 6-month trend provides sufficient insight for the MVP while keeping the dashboard focused and performant.
 
 ### Category Breakdown
 
