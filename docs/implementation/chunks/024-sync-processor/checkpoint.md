@@ -542,11 +542,194 @@ Complete this checklist:
 - [ ] Queue status transitions (queued → syncing → completed)
 - [ ] Failed items marked with error messages
 - [ ] Max retries respected (no infinite loops)
+- [ ] Non-retryable errors fail immediately (validation errors)
 - [ ] Related entity references maintained
 - [ ] Performance acceptable (1000 items <60s)
 - [ ] No memory leaks on logout
 - [ ] Query cache invalidates after sync
 - [ ] UI updates reflect synced data
+- [ ] **End-to-end flow tested** (offline write → queue → sync → Supabase)
+
+---
+
+## 12. End-to-End Integration Test ✓
+
+### Verify Complete Flow: Offline Write → Queue → Sync
+
+This test verifies that chunks 021, 023, and 024 work together correctly.
+
+**Scenario**: Create a transaction offline, verify it enters queue, then syncs to Supabase
+
+**Step 1**: Create offline transaction (requires chunk 021)
+
+```typescript
+// Ensure you're using the offline write function from chunk 021
+import { createOfflineTransaction } from "@/lib/offline/transactions";
+
+const userId = "your-user-id"; // From auth store
+
+const transactionInput = {
+  date: "2024-01-15",
+  description: "End-to-end test transaction",
+  amount_cents: 250000,
+  type: "expense",
+  account_id: "your-account-id",
+  category_id: "your-category-id",
+  status: "pending",
+  visibility: "household",
+};
+
+const result = await createOfflineTransaction(transactionInput, userId);
+const tempId = result.data.id;
+
+console.log("Created transaction with temp ID:", tempId);
+```
+
+**Step 2**: Verify in sync queue (chunk 023 integration)
+
+```typescript
+// Check that chunk 023 added it to queue
+const { data: queueItem } = await supabase
+  .from("sync_queue")
+  .select("*")
+  .eq("entity_id", tempId)
+  .single();
+
+// Verify queue item properties
+expect(queueItem).toBeDefined();
+expect(queueItem.entity_type).toBe("transaction");
+expect(queueItem.status).toBe("queued");
+expect(queueItem.retry_count).toBe(0);
+expect(queueItem.operation.op).toBe("create");
+expect(queueItem.operation.payload.description).toBe("End-to-end test transaction");
+expect(queueItem.operation.idempotencyKey).toMatch(/^device-.+-transaction-.+-\d+$/);
+
+console.log("✓ Queue item created correctly");
+```
+
+**Step 3**: Process queue (chunk 024)
+
+```typescript
+// Trigger sync processor
+import { syncProcessor } from "@/lib/sync/processor";
+
+const syncResult = await syncProcessor.processQueue(userId);
+
+console.log("Sync result:", syncResult);
+// Expected: { synced: 1, failed: 0 }
+
+expect(syncResult.synced).toBeGreaterThan(0);
+expect(syncResult.failed).toBe(0);
+
+console.log("✓ Queue processed successfully");
+```
+
+**Step 4**: Verify transaction in Supabase
+
+```typescript
+// Check that transaction was created with real UUID
+const { data: syncedTransaction } = await supabase
+  .from("transactions")
+  .select("*")
+  .eq("description", "End-to-end test transaction")
+  .single();
+
+expect(syncedTransaction).toBeDefined();
+expect(syncedTransaction.id).not.toMatch(/^temp-/); // Real UUID, not temp
+expect(syncedTransaction.amount_cents).toBe(250000);
+expect(syncedTransaction.description).toBe("End-to-end test transaction");
+expect(syncedTransaction.device_id).toBeDefined();
+
+console.log("✓ Transaction synced to Supabase with ID:", syncedTransaction.id);
+```
+
+**Step 5**: Verify ID mapping
+
+```typescript
+// Check that temp ID was mapped to server ID
+import { idMapping } from "@/lib/sync/idMapping";
+
+const serverIds = idMapping.getAll();
+console.log("ID mappings:", Array.from(serverIds.entries()));
+
+// Temp ID should be mapped to server ID
+const mappedServerId = idMapping.get(tempId);
+expect(mappedServerId).toBe(syncedTransaction.id);
+
+console.log("✓ ID mapping correct:", tempId, "→", mappedServerId);
+```
+
+**Step 6**: Verify queue item marked completed
+
+```typescript
+const { data: completedQueueItem } = await supabase
+  .from("sync_queue")
+  .select("*")
+  .eq("entity_id", tempId)
+  .single();
+
+expect(completedQueueItem.status).toBe("completed");
+expect(completedQueueItem.synced_at).toBeDefined();
+
+console.log("✓ Queue item marked as completed");
+```
+
+**Step 7**: Verify IndexedDB updated with server ID (optional)
+
+```typescript
+// If your implementation updates IndexedDB with server IDs
+import { db } from "@/lib/dexie";
+
+const localTransaction = await db.transactions.get(syncedTransaction.id);
+
+// Local should now have server ID
+expect(localTransaction).toBeDefined();
+expect(localTransaction.id).toBe(syncedTransaction.id); // Server ID, not temp
+
+console.log("✓ IndexedDB updated with server ID");
+```
+
+**Expected Full Flow**:
+
+```
+1. createOfflineTransaction()
+   ↓ (chunk 021)
+   - Writes to IndexedDB with temp ID
+   - Calls addToSyncQueue()
+   ↓ (chunk 023)
+   - Creates sync queue item with idempotency key
+   - Status: 'queued'
+   ↓ (chunk 024)
+2. syncProcessor.processQueue()
+   - Fetches pending items
+   - Updates status: 'syncing'
+   - Sends to Supabase
+   - Receives server ID
+   - Updates status: 'completed'
+   - Stores ID mapping
+   ↓
+3. Transaction exists in Supabase with real UUID
+4. Queue item marked completed
+5. Temp ID → Server ID mapping stored
+```
+
+**Success Criteria**:
+
+- [ ] Offline transaction creates temp ID
+- [ ] Queue item created with correct structure
+- [ ] Idempotency key generated correctly
+- [ ] Processor syncs item to Supabase
+- [ ] Real UUID assigned by server
+- [ ] ID mapping tracked (temp → server)
+- [ ] Queue item marked completed
+- [ ] No duplicate entries in Supabase
+
+**Common Issues**:
+
+- **Queue item not found**: Chunk 023 might not be wired correctly
+- **Sync fails with RLS error**: Check RLS policies allow device_id insertion
+- **Temp ID not mapped**: Check `idMapping.add()` is called after successful sync
+- **Duplicate entries**: Idempotency key not being used or not unique
 
 ---
 

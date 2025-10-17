@@ -110,7 +110,36 @@ export const idMapping = new IDMappingManager();
 
 ---
 
-## Step 3: Create Sync Processor (30 min)
+## Step 3: Create Queue Helper Functions (5 min)
+
+Create `src/lib/offline/syncQueue.ts`:
+
+```typescript
+import { supabase } from "@/lib/supabase";
+import type { SyncQueueItem } from "@/types/sync";
+
+/**
+ * Get all pending sync queue items for a user
+ */
+export async function getPendingQueueItems(userId: string): Promise<SyncQueueItem[]> {
+  const { data, error } = await supabase
+    .from("sync_queue")
+    .select("*")
+    .eq("status", "queued")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Failed to fetch pending queue items:", error);
+    throw error;
+  }
+
+  return data || [];
+}
+```
+
+---
+
+## Step 4: Create Sync Processor (30 min)
 
 Create `src/lib/sync/processor.ts`:
 
@@ -124,6 +153,7 @@ import type { SyncQueueItem } from "@/types/sync";
 
 export class SyncProcessor {
   private isProcessing = false;
+  private readonly MAX_RETRIES = 3;
 
   /**
    * Process all pending queue items
@@ -234,9 +264,30 @@ export class SyncProcessor {
     error: any
   ): Promise<{ success: boolean; error: string }> {
     const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Check if error is non-retryable (validation/constraint errors)
+    const nonRetryableErrors = [
+      "violates check constraint",
+      "violates foreign key constraint",
+      "violates unique constraint",
+      "invalid input syntax",
+      "value too long",
+      "invalid type",
+    ];
+
+    const isNonRetryable = nonRetryableErrors.some((msg) =>
+      errorMessage.toLowerCase().includes(msg)
+    );
+
+    if (isNonRetryable) {
+      console.log("Non-retryable error - failing immediately:", errorMessage);
+      await this.updateQueueStatus(item.id, "failed", errorMessage);
+      return { success: false, error: errorMessage };
+    }
+
     const retryCount = item.retry_count + 1;
 
-    if (retryCount >= item.max_retries) {
+    if (retryCount >= this.MAX_RETRIES) {
       // Max retries reached - mark as failed
       await this.updateQueueStatus(item.id, "failed", errorMessage);
       return { success: false, error: `Max retries reached: ${errorMessage}` };
@@ -244,7 +295,7 @@ export class SyncProcessor {
 
     // Retry with exponential backoff
     const delay = calculateRetryDelay(retryCount);
-    console.log(`Retry ${retryCount}/${item.max_retries} in ${delay}ms`);
+    console.log(`Retry ${retryCount}/${this.MAX_RETRIES} in ${delay}ms`);
 
     await sleep(delay);
 
@@ -293,7 +344,7 @@ export const syncProcessor = new SyncProcessor();
 
 ---
 
-## Step 4: Create React Hook (10 min)
+## Step 5: Create React Hook (10 min)
 
 Create `src/hooks/useSyncProcessor.ts`:
 
@@ -331,7 +382,7 @@ export function useSyncProcessor() {
 
 ---
 
-## Step 5: Add Auto-Sync Triggers (10 min)
+## Step 6: Add Auto-Sync Triggers (10 min)
 
 Create `src/lib/sync/autoSync.ts`:
 
@@ -416,17 +467,43 @@ export class AutoSyncManager {
 export const autoSyncManager = new AutoSyncManager();
 ```
 
-Initialize in App:
+---
+
+## Step 7: Integrate Auto-Sync into App (5 min)
+
+Add auto-sync initialization to your main App component:
 
 ```typescript
-// In App.tsx or main entry
-useEffect(() => {
-  if (user?.id) {
-    autoSyncManager.start(user.id);
-    return () => autoSyncManager.stop();
-  }
-}, [user]);
+// In App.tsx or src/routes/__root.tsx (depending on TanStack Router setup)
+import { autoSyncManager } from "@/lib/sync/autoSync";
+import { useAuthStore } from "@/stores/authStore";
+import { useEffect } from "react";
+
+export function App() {
+  const user = useAuthStore((state) => state.user);
+
+  useEffect(() => {
+    if (user?.id) {
+      console.log("Starting auto-sync for user:", user.id);
+      autoSyncManager.start(user.id);
+
+      return () => {
+        console.log("Stopping auto-sync");
+        autoSyncManager.stop();
+      };
+    }
+  }, [user]);
+
+  return <>{/* your app content */}</>;
+}
 ```
+
+**Verification**:
+
+1. Log in to the app
+2. Check console for "Starting auto-sync for user: [userId]"
+3. Create an offline transaction
+4. Observe auto-sync triggering on visibility/focus/online events
 
 ---
 
