@@ -43,7 +43,64 @@ npx supabase db dump --data-only --table devices
 
 ---
 
-## 3. Indexes Exist ✓
+## 3. Platform CHECK Constraint Works ✓
+
+Test that invalid platform values are rejected:
+
+```sql
+-- This should FAIL with constraint violation
+INSERT INTO devices (id, user_id, household_id, name, platform, fingerprint)
+VALUES (
+  'test-invalid-platform',
+  auth.uid(),
+  '00000000-0000-0000-0000-000000000001',
+  'Test Device',
+  'invalid-platform',  -- Invalid value
+  'test-fp'
+);
+```
+
+**Expected**: Error message like:
+
+```
+ERROR: new row for relation "devices" violates check constraint "devices_platform_check"
+DETAIL: Failing row contains (test-invalid-platform, ..., invalid-platform, ...)
+```
+
+**Valid platforms**: `web`, `pwa-ios`, `pwa-android`, `pwa-desktop`
+
+---
+
+## 4. Trigger Function Exists ✓
+
+Verify the `update_updated_at_column()` function exists:
+
+```sql
+SELECT proname, prosrc
+FROM pg_proc
+WHERE proname = 'update_updated_at_column';
+```
+
+**Expected**: One row returned with function definition
+
+Test that the trigger works:
+
+```sql
+-- Get current updated_at for a device
+SELECT id, updated_at FROM devices LIMIT 1;
+
+-- Update a device (any field)
+UPDATE devices SET last_seen = NOW() WHERE id = (SELECT id FROM devices LIMIT 1);
+
+-- Check updated_at changed
+SELECT id, updated_at FROM devices LIMIT 1;
+```
+
+**Expected**: `updated_at` timestamp should be newer after the update
+
+---
+
+## 5. Indexes Exist ✓
 
 Run in Supabase SQL Editor:
 
@@ -64,7 +121,7 @@ idx_devices_last_seen
 
 ---
 
-## 4. RLS Policies Active ✓
+## 6. RLS Policies Active ✓
 
 Run in Supabase SQL Editor:
 
@@ -88,7 +145,7 @@ WHERE relname = 'devices';
 
 ---
 
-## 5. Device Registration Works ✓
+## 7. Device Registration Works ✓
 
 **Test Case 1: Login and register**
 
@@ -105,7 +162,7 @@ WHERE relname = 'devices';
 
 ---
 
-## 6. Device Metadata Correct ✓
+## 8. Device Metadata Correct ✓
 
 Open DevTools Console:
 
@@ -127,7 +184,7 @@ console.log("Fingerprint matches:", info.fingerprint === data.fingerprint);
 
 ---
 
-## 7. Duplicate Registration Idempotent ✓
+## 9. Duplicate Registration Idempotent ✓
 
 **Test Case 2: Register twice**
 
@@ -154,7 +211,7 @@ console.log("Device count:", count); // Should be 1
 
 ---
 
-## 8. last_seen Updates ✓
+## 10. last_seen Updates ✓
 
 **Test Case 3: Focus window**
 
@@ -168,7 +225,7 @@ console.log("Device count:", count); // Should be 1
 
 ---
 
-## 9. RLS Policies Enforced ✓
+## 11. RLS Policies Enforced ✓
 
 **Test Case 4: Cannot access other users' devices**
 
@@ -198,7 +255,7 @@ console.log("Devices:", data);
 
 ---
 
-## 10. Device Deactivation Works ✓
+## 12. Device Deactivation Works ✓
 
 **Test Case 5: Deactivate device**
 
@@ -218,7 +275,7 @@ console.log("is_active:", data.is_active); // Should be false
 
 ---
 
-## 11. Device Status Check Works ✓
+## 13. Device Status Check Works ✓
 
 ```javascript
 const deviceId = await deviceManager.getDeviceId();
@@ -237,7 +294,7 @@ console.log("Active:", await isDeviceActive(deviceId)); // false
 
 ---
 
-## 12. Multiple Tabs Share Device ✓
+## 14. Multiple Tabs Share Device ✓
 
 **Test Case 6: Multi-tab consistency**
 
@@ -252,6 +309,8 @@ console.log("Active:", await isDeviceActive(deviceId)); // false
 
 - [ ] Migration applied successfully
 - [ ] Devices table schema correct
+- [ ] Platform CHECK constraint validated
+- [ ] Trigger function exists and works
 - [ ] Indexes created properly
 - [ ] RLS policies active and enforced
 - [ ] Device registration creates record

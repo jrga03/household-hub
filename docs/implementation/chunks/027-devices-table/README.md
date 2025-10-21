@@ -97,12 +97,19 @@ CREATE TABLE devices (
 
 ## Related Documentation
 
-- **Original**: `docs/initial plan/DATABASE.md` lines 1-100 (devices table schema)
+- **Original**: `docs/initial plan/DATABASE.md` lines 80-99 (devices table schema)
 - **Original**: `docs/initial plan/SYNC-ENGINE.md` lines 1209-1245 (device registration)
 - **Decisions**:
   - #82: Devices table promoted to MVP (avoid migration pain)
   - #52: Device fingerprinting for continuity
 - **Architecture**: Multi-device sync with device attribution
+
+**Note on Schema Enhancements**: This implementation improves upon the initial DATABASE.md schema with:
+
+- NOT NULL constraints on critical fields (name, platform, fingerprint)
+- CHECK constraint for platform validation
+- user_id references auth.users(id) instead of profiles(id) for direct auth integration
+- household_id references households(id) explicitly instead of using DEFAULT
 
 ## Technical Stack
 

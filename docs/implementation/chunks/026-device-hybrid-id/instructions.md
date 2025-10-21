@@ -177,6 +177,8 @@ class DeviceManager {
 export const deviceManager = new DeviceManager();
 ```
 
+**Note**: The `updateUserDevice()` method shown in the initial plan (SYNC-ENGINE.md) is intentionally deferred to chunk 027. This chunk focuses solely on local device ID generation and persistence. Device registration in the Supabase devices table will be implemented in the next chunk.
+
 **Verify**: No TypeScript errors, imports resolve correctly.
 
 ---

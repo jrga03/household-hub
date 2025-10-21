@@ -4,7 +4,7 @@
 
 - **Time**: 1 hour
 - **Milestone**: Multi-Device Sync (1 of 10)
-- **Prerequisites**: Chunk 025 (sync UI indicators)
+- **Prerequisites**: Chunk 025-a (sync UI indicators) - Note: Chunk 025-b (sync issues panel) is not required
 - **Can Skip**: No - required for event sourcing and multi-device sync
 
 ## Context from Earlier Chunks
@@ -42,7 +42,8 @@ The hybrid approach ensures device ID persistence even when users clear browser 
 
 Make sure you have:
 
-- Chunk 025 completed (Dexie with meta table exists)
+- Chunk 025-a completed (sync UI indicators implemented)
+- Chunk 019 completed (Dexie with meta table exists)
 - FingerprintJS installed: `npm install @fingerprintjs/fingerprintjs`
 - IndexedDB meta table ready
 - localStorage available
@@ -57,6 +58,8 @@ After this chunk:
 - Device metadata (name, platform) detected automatically
 - Ready to implement devices table registration (chunk 027)
 - Foundation for idempotency keys (chunk 029)
+
+**Note**: The `updateUserDevice()` method shown in the initial plan (SYNC-ENGINE.md) is intentionally deferred to chunk 027, where device registration in the Supabase devices table will be implemented. This chunk focuses solely on local device ID generation and persistence.
 
 ## Key Files Created
 
@@ -93,8 +96,8 @@ src/
 
 ## Related Documentation
 
-- **Original**: `docs/initial plan/SYNC-ENGINE.md` lines 1125-1305 (hybrid device ID)
-- **Original**: `docs/initial plan/CLAUDE.md` lines 107-115 (device fingerprinting)
+- **Original**: `docs/initial plan/SYNC-ENGINE.md` lines 1126-181 (hybrid device ID implementation)
+- **Original**: `CLAUDE.md` lines 107-108 (device fingerprinting reference)
 - **Decisions**:
   - #52: Device fingerprinting with hybrid fallback
   - #75: Hybrid strategy (IndexedDB → localStorage → FingerprintJS)

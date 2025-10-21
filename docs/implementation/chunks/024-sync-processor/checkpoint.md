@@ -769,7 +769,11 @@ Once all checkpoints pass:
 
 1. Clear test data from IndexedDB and Supabase
 2. Commit sync processor code
-3. Move to **Chunk 025: Sync UI Indicators**
+3. Move to **Chunk 025: Sync UI Indicators** (required for MVP)
+   - Provides user-facing sync status, offline detection, sync button
+4. Optionally add **Chunk 025-b: Sync Issues Panel** (recommended for transparency)
+   - Advanced conflict logging and retry UI for power users
+   - Can be deferred to Phase 2 if time-constrained
 
 ---
 

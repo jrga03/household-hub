@@ -20,11 +20,22 @@ Open the migration file and add:
 -- Devices table for multi-device sync
 -- Decision #82: Promoted to MVP to avoid migration pain later
 
+-- Ensure trigger function exists (defensive - may already exist from other tables)
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE TABLE devices (
   -- Device ID from browser fingerprint/localStorage
   id TEXT PRIMARY KEY,
 
   -- Ownership
+  -- Note: Using auth.users(id) directly instead of profiles(id) for immediate auth integration
+  -- If your setup uses profiles table, change to: REFERENCES profiles(id)
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   household_id UUID NOT NULL REFERENCES households(id) ON DELETE CASCADE,
 
@@ -111,6 +122,66 @@ npx supabase db diff
 ```
 
 Should show no diff (migration already applied).
+
+**If Step 2 Fails**:
+
+- Check that `households` table exists (required foreign key)
+- Check that `update_updated_at_column()` function exists (see troubleshooting.md)
+- Review error message and check troubleshooting.md for common issues
+
+---
+
+## Step 2b: Rollback Procedure (Optional, if migration fails)
+
+If you need to rollback the migration:
+
+**Option 1: Reset entire database** (⚠️ loses all data):
+
+```bash
+npx supabase db reset
+```
+
+**Option 2: Manual rollback** (preserves other data):
+
+Create a down migration:
+
+```bash
+npx supabase migration new rollback_devices_table
+```
+
+Add rollback SQL:
+
+```sql
+BEGIN;
+
+-- Drop policies
+DROP POLICY IF EXISTS "Users can delete their own devices" ON devices;
+DROP POLICY IF EXISTS "Users can update their own devices" ON devices;
+DROP POLICY IF EXISTS "Users can register their own devices" ON devices;
+DROP POLICY IF EXISTS "Users can view their own devices" ON devices;
+
+-- Drop trigger
+DROP TRIGGER IF EXISTS update_devices_updated_at ON devices;
+
+-- Drop indexes
+DROP INDEX IF EXISTS idx_devices_last_seen;
+DROP INDEX IF EXISTS idx_devices_active;
+DROP INDEX IF EXISTS idx_devices_household_id;
+DROP INDEX IF EXISTS idx_devices_user_id;
+
+-- Drop table
+DROP TABLE IF EXISTS devices;
+
+COMMIT;
+```
+
+Apply rollback:
+
+```bash
+npx supabase migration up
+```
+
+**Note**: Only use rollback if migration fails. Once the table has data, rollback will lose that data.
 
 ---
 
@@ -263,15 +334,72 @@ export async function isDeviceActive(deviceId: string): Promise<boolean> {
 
 **Verify**: No TypeScript errors.
 
+**If Step 3 Fails**:
+
+- Ensure `supabase` is properly imported: `import { supabase } from "./supabase"`
+- Check that Supabase client is configured correctly (from chunk 002)
+- Verify all exports are named exports (not default exports)
+- Run `npm run build` to check for type errors
+
 ---
 
-## Step 4: Add Device Registration to App Mount (5 min)
+## Step 4: Add Device Registration to App Mount (8 min)
 
-Update your main app component (e.g., `src/App.tsx` or `src/routes/__root.tsx`):
+**Important**: This step includes fetching the household_id from the user's profile. If you don't have a profiles table yet, you can temporarily use the default household ID `"00000000-0000-0000-0000-000000000001"`.
+
+First, create a helper to fetch household_id in `src/lib/device-registration.ts` (add to existing file):
+
+```typescript
+/**
+ * Get household ID for current user
+ *
+ * Fetches from profiles table. If user has no profile or household_id is missing,
+ * returns the default household ID.
+ *
+ * @param userId Current user ID
+ * @returns Household ID
+ */
+async function getHouseholdId(userId: string): Promise<string> {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("household_id")
+      .eq("id", userId)
+      .single();
+
+    if (error) {
+      console.warn("Failed to fetch household_id from profile:", error);
+      // Fall back to default household
+      return "00000000-0000-0000-0000-000000000001";
+    }
+
+    return data?.household_id || "00000000-0000-0000-0000-000000000001";
+  } catch (error) {
+    console.warn("Error fetching household_id:", error);
+    return "00000000-0000-0000-0000-000000000001";
+  }
+}
+
+/**
+ * Register device with automatic household_id fetching
+ *
+ * This is the recommended function to call from your app.
+ * It handles household_id fetching automatically.
+ *
+ * @param userId Current user ID
+ * @returns Device ID
+ */
+export async function registerDeviceAuto(userId: string): Promise<string> {
+  const householdId = await getHouseholdId(userId);
+  return registerDevice(userId, householdId);
+}
+```
+
+Now update your main app component (e.g., `src/App.tsx` or `src/routes/__root.tsx`):
 
 ```typescript
 import { useEffect } from "react";
-import { registerDevice, updateDeviceLastSeenThrottled } from "@/lib/device-registration";
+import { registerDeviceAuto, updateDeviceLastSeenThrottled } from "@/lib/device-registration";
 import { useAuthStore } from "@/stores/authStore";
 
 function App() {
@@ -283,10 +411,8 @@ function App() {
 
     async function register() {
       try {
-        // Get household ID (you may need to fetch this from user profile)
-        const householdId = "00000000-0000-0000-0000-000000000001"; // Replace with actual
-
-        await registerDevice(user.id, householdId);
+        await registerDeviceAuto(user.id);
+        console.log("Device registered successfully");
       } catch (error) {
         console.error("Device registration failed:", error);
         // Don't block app if registration fails
@@ -313,6 +439,12 @@ function App() {
 ```
 
 **Verify**: No TypeScript errors, app compiles.
+
+**If Step 4 Fails**:
+
+- Check that supabase client is properly exported in `device-registration.ts`
+- Verify `profiles` table exists (may not exist yet - use default household ID)
+- Check browser console for detailed error messages
 
 ---
 
@@ -354,6 +486,14 @@ console.log("Error:", error);
 ```
 
 **Expected**: Device record found with matching ID and metadata.
+
+**If Step 5 Fails**:
+
+- Check browser console for errors (F12 → Console tab)
+- Verify user is authenticated before device registration runs
+- Check that DeviceManager exists and `getDeviceId()` works
+- Verify Supabase connection is working (check Network tab)
+- Review troubleshooting.md for common registration issues
 
 ---
 
