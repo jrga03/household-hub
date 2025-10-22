@@ -48,19 +48,23 @@ op TEXT NOT NULL CHECK (...)  -- ❌ Missing comma above
 **Solution**: Ensure all NOT NULL fields provided:
 
 ```typescript
-// Required fields
+// Required fields (entity_id is UUID, not TEXT!)
 {
-  (entity_type, // ✓
-    entity_id, // ✓
-    op, // ✓
-    payload, // ✓
-    actor_user_id, // ✓
-    device_id, // ✓
-    idempotency_key, // ✓
-    lamport_clock, // ✓
-    vector_clock, // ✓
-    checksum); // ✓
+  (entity_type, // TEXT with DEFAULT 'transaction'
+    entity_id, // UUID (not TEXT!)
+    op, // TEXT
+    payload, // JSONB
+    device_id, // TEXT (references devices)
+    idempotency_key, // TEXT UNIQUE
+    lamport_clock, // BIGINT
+    vector_clock, // JSONB
+    checksum); // TEXT
 }
+// Optional fields with defaults:
+// household_id (has default UUID)
+// actor_user_id (nullable, references profiles)
+// event_version (default 1)
+// created_at (default NOW())
 ```
 
 ---
@@ -95,6 +99,21 @@ If empty, register device first (chunk 027):
 ```typescript
 await registerDevice(userId, householdId);
 ```
+
+---
+
+### Problem: Foreign key violation on actor_user_id
+
+**Symptoms**: `violates foreign key constraint "transaction_events_actor_user_id_fkey"`
+
+**Solution**: Ensure actor_user_id references profiles table, not auth.users:
+
+```sql
+-- Check profile exists
+SELECT id FROM profiles WHERE id = auth.uid();
+```
+
+Note: The foreign key points to `profiles(id)`, not `auth.users(id)`. Ensure user has a profile record.
 
 ---
 
@@ -167,13 +186,14 @@ SELECT auth.uid();  -- Should not be NULL
 **Solution**: Check SELECT policy:
 
 ```sql
--- Policy should allow user to see their events
+-- Policy should allow all authenticated household members
 CREATE POLICY "Users can view events for their household"
   ON transaction_events FOR SELECT
-  USING (actor_user_id = auth.uid());
+  TO authenticated
+  USING (true);
 ```
 
-Note: Current policy only shows events created by current user. To see all household events, need join with household membership.
+Note: For single-household MVP, all authenticated users should see all events (audit trail transparency). The USING (true) clause allows this.
 
 ---
 
@@ -188,7 +208,7 @@ Note: Current policy only shows events created by current user. To see all house
 ```sql
 EXPLAIN ANALYZE
 SELECT * FROM transaction_events
-WHERE entity_id = 'tx-123'
+WHERE entity_id = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'::uuid
 ORDER BY lamport_clock;
 ```
 
@@ -197,9 +217,21 @@ Should show `Index Scan using idx_events_entity`.
 If using Seq Scan, indexes may not be created:
 
 ```sql
--- Recreate indexes
+-- Recreate missing indexes
+CREATE INDEX IF NOT EXISTS idx_events_household
+  ON transaction_events(household_id);
+
 CREATE INDEX IF NOT EXISTS idx_events_entity
   ON transaction_events(entity_type, entity_id, lamport_clock);
+
+CREATE INDEX IF NOT EXISTS idx_events_device
+  ON transaction_events(device_id, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_events_actor
+  ON transaction_events(actor_user_id, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_events_lamport
+  ON transaction_events(entity_id, lamport_clock DESC);
 ```
 
 ---
@@ -282,7 +314,7 @@ function normalizePayload(obj: any): any {
 // Create new event with correction
 // ✓ await createEvent({
 //     entity_type: 'transaction',
-//     entity_id: 'tx-123',
+//     entity_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', // UUID, not string
 //     op: 'update',
 //     payload: { amount_cents: 2000 }, // Corrected value
 //   })
@@ -308,8 +340,9 @@ npm test
 Or delete test events after each test:
 
 ```sql
+-- Use idempotency_key pattern matching for cleanup
 DELETE FROM transaction_events
-WHERE entity_id LIKE 'test-%';
+WHERE idempotency_key LIKE 'test-%';
 ```
 
 ---

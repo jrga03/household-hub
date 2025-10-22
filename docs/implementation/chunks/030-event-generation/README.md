@@ -2,9 +2,9 @@
 
 ## At a Glance
 
-- **Time**: 1.5 hours
+- **Time**: 2.5 hours
 - **Milestone**: Multi-Device Sync (5 of 10)
-- **Prerequisites**: Chunk 029 (idempotency key generation)
+- **Prerequisites**: Chunk 026 (device types), Chunk 029 (idempotency key generation)
 - **Can Skip**: No - enables event sourcing for all mutations
 
 ## What You're Building
@@ -34,6 +34,7 @@ Without event generation, the infrastructure is useless. This is where it all co
 
 Make sure you have:
 
+- Chunk 026 completed (DevicePlatform type defined in src/types/device.ts)
 - Chunk 029 completed (idempotency keys working)
 - transaction_events table in Supabase
 - Dexie events table ready
@@ -88,7 +89,9 @@ await deleteTransaction("tx-123");
 Events stored in both:
 
 1. **Dexie** (offline, immediate)
-2. **Supabase** (cloud, sync queue)
+2. **Supabase** (cloud, via sync queue)
+
+**Note**: If Supabase insert fails (offline), event remains in Dexie and will be synced later by the sync processor (chunk 024)
 
 ## Related Documentation
 

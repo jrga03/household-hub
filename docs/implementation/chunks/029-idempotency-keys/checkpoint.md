@@ -87,6 +87,7 @@ console.log("Multi-device:", multi); // { "device-abc": 2, "device-xyz": 1 }
 - [ ] Vector clock initialization works
 - [ ] Vector clock updates correctly
 - [ ] Type checking passes
+- [ ] Test route deleted (src/routes/test-idempotency.tsx removed)
 
 ---
 

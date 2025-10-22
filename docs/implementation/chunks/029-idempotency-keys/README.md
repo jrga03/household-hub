@@ -33,10 +33,13 @@ The deterministic key format ensures the same mutation always generates the same
 
 Make sure you have:
 
-- Chunk 028 completed (transaction_events table exists)
+- Chunk 026 completed (device types defined - DevicePlatform required)
+- Chunk 027 completed (devices table with device registration)
+- Chunk 028 completed (transaction_events table exists in Supabase)
+- Dexie events table added to schema (see chunk 028 or Dexie schema setup)
 - DeviceManager returning device IDs
 - Understanding of lamport clocks (logical timestamps)
-- Dexie events table ready
+- Development environment using localhost or HTTPS (required for Web Crypto API)
 
 ## What Happens Next
 

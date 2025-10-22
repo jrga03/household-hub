@@ -542,4 +542,118 @@ npx tsc --noEmit src/lib/vector-clock.ts
 
 ---
 
+## Missing Dependencies
+
+### Problem: "Cannot find module '@/lib/device-manager'"
+
+**Symptoms**:
+
+```typescript
+Error: Cannot resolve module '@/lib/device-manager'
+```
+
+**Cause**: Chunk 029 (Device Manager) not completed
+
+**Solution**:
+
+Complete chunk 029 first, which provides:
+
+- `DeviceManager` class with `getDeviceId()` method
+- Hybrid device identification (IndexedDB → localStorage → FingerprintJS)
+- Device registration in database
+
+Check that `src/lib/device-manager.ts` exists and exports:
+
+```typescript
+export class DeviceManager {
+  async getDeviceId(): Promise<string> {
+    // Implementation from chunk 029
+  }
+}
+
+export const deviceManager = new DeviceManager();
+```
+
+---
+
+### Problem: "Table 'meta' does not exist in Dexie"
+
+**Symptoms**:
+
+```javascript
+Dexie.MissingTableError: Table meta does not exist
+```
+
+**Cause**: Dexie schema missing meta table
+
+**Solution**:
+
+Add to Dexie schema definition in `src/lib/dexie.ts`:
+
+```typescript
+this.version(N).stores({
+  // ... other tables
+  meta: "key", // Add this line
+});
+```
+
+Then delete and reinitialize database:
+
+```javascript
+await db.delete();
+await db.open();
+```
+
+**Verify**: Open browser DevTools → Application → IndexedDB → Check `meta` table exists
+
+---
+
+### Problem: "Cannot find module '@/lib/event-generator'"
+
+**Symptoms**:
+
+```typescript
+Error: Cannot resolve module '@/lib/event-generator'
+```
+
+**Cause**: Chunk 030 (Event Generation) not completed
+
+**Solution**:
+
+Complete chunk 030 first, which provides:
+
+- `createEvent()` function with event structure
+- Idempotency key generation
+- Event persistence to IndexedDB and sync queue
+
+If you have a different event generation implementation, adapt Step 4 to integrate vector clocks into your existing system.
+
+---
+
+### Problem: Supabase query fails with "column 'lamport_clock' does not exist"
+
+**Symptoms**:
+
+```
+PostgreSQL error: column "lamport_clock" of relation "transaction_events" does not exist
+```
+
+**Cause**: Supabase schema not updated with vector clock columns
+
+**Solution**:
+
+Run migration in Supabase SQL Editor:
+
+```sql
+ALTER TABLE transaction_events
+ADD COLUMN lamport_clock BIGINT NOT NULL DEFAULT 0,
+ADD COLUMN vector_clock JSONB NOT NULL DEFAULT '{}';
+
+CREATE INDEX idx_events_lamport ON transaction_events(entity_id, lamport_clock);
+```
+
+**Verify**: Run Step 6.5 verification query to confirm columns exist
+
+---
+
 **Remember**: Vector clocks are the foundation of conflict detection. When in doubt, add more logging and unit tests.

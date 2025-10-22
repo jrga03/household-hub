@@ -40,9 +40,11 @@ This chunk implements the algorithm from SYNC-ENGINE.md lines 279-363.
 Make sure you have:
 
 - Chunk 030 completed (event generation hooks in place)
+- Chunk 029 completed (DeviceManager with stable getDeviceId())
 - transaction_events table with lamport_clock and vector_clock columns
 - Dexie events table includes vector_clock field
-- DeviceManager providing stable device IDs
+- Dexie schema includes `meta` table: `meta: "key"`
+- Supabase `transaction_events` table has `lamport_clock BIGINT` and `vector_clock JSONB` columns
 - TypeScript knowledge of Record types and comparisons
 
 ## What Happens Next

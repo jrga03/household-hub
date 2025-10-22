@@ -19,9 +19,11 @@ npx supabase db diff
 In Supabase Dashboard → Table Editor:
 
 - [ ] `transaction_events` table visible
-- [ ] All 14 columns present (id, entity_type, entity_id, op, payload, timestamp, actor_user_id, device_id, idempotency_key, event_version, lamport_clock, vector_clock, checksum, created_at)
+- [ ] All 14 columns present (id, household_id, entity_type, entity_id, op, payload, actor_user_id, device_id, idempotency_key, event_version, lamport_clock, vector_clock, checksum, created_at)
 - [ ] Primary key on `id`
 - [ ] UNIQUE constraint on `idempotency_key`
+- [ ] `entity_id` is UUID type (not TEXT)
+- [ ] `actor_user_id` references `profiles(id)` (not auth.users)
 
 ---
 
@@ -34,7 +36,7 @@ INSERT INTO transaction_events (
   actor_user_id, device_id, idempotency_key,
   lamport_clock, vector_clock, checksum
 ) VALUES (
-  'invalid', 'test', 'create', '{}'::jsonb,
+  'invalid', gen_random_uuid(), 'create', '{}'::jsonb,
   auth.uid(),
   (SELECT id FROM devices WHERE user_id = auth.uid() LIMIT 1),
   'test-check-1', 1, '{}'::jsonb, 'check'
@@ -50,7 +52,7 @@ INSERT INTO transaction_events (
   actor_user_id, device_id, idempotency_key,
   lamport_clock, vector_clock, checksum
 ) VALUES (
-  'transaction', 'test', 'invalid_op', '{}'::jsonb,
+  'transaction', gen_random_uuid(), 'invalid_op', '{}'::jsonb,
   auth.uid(),
   (SELECT id FROM devices WHERE user_id = auth.uid() LIMIT 1),
   'test-check-2', 1, '{}'::jsonb, 'check'
@@ -76,6 +78,7 @@ ORDER BY indexname;
 - idx_events_created_at
 - idx_events_device
 - idx_events_entity
+- idx_events_household
 - idx_events_lamport
 - transaction_events_idempotency_key_key
 - transaction_events_pkey
@@ -91,14 +94,14 @@ INSERT INTO transaction_events (
   actor_user_id, device_id, idempotency_key,
   lamport_clock, vector_clock, checksum
 ) VALUES (
-  'transaction', 'test', 'create', '{}'::jsonb,
+  'transaction', gen_random_uuid(), 'create', '{}'::jsonb,
   auth.uid(),
   'nonexistent-device-id',  -- Invalid
   'test-fk-1', 1, '{}'::jsonb, 'check'
 );
 ```
 
-**Expected**: Error `violates foreign key constraint`
+**Expected**: Error `violates foreign key constraint` (device_id must exist in devices table)
 
 ---
 
@@ -111,7 +114,7 @@ INSERT INTO transaction_events (
   actor_user_id, device_id, idempotency_key,
   lamport_clock, vector_clock, checksum
 ) VALUES (
-  'transaction', 'test-dup-1', 'create', '{}'::jsonb,
+  'transaction', gen_random_uuid(), 'create', '{}'::jsonb,
   auth.uid(),
   (SELECT id FROM devices WHERE user_id = auth.uid() LIMIT 1),
   'duplicate-key-test', 1, '{}'::jsonb, 'check'
@@ -123,7 +126,7 @@ INSERT INTO transaction_events (
   actor_user_id, device_id, idempotency_key,
   lamport_clock, vector_clock, checksum
 ) VALUES (
-  'transaction', 'test-dup-2', 'create', '{}'::jsonb,
+  'transaction', gen_random_uuid(), 'create', '{}'::jsonb,
   auth.uid(),
   (SELECT id FROM devices WHERE user_id = auth.uid() LIMIT 1),
   'duplicate-key-test',  -- Same key
@@ -179,7 +182,7 @@ INSERT INTO transaction_events (
   checksum
 ) VALUES (
   'transaction',
-  'checkpoint-test-tx',
+  gen_random_uuid(),
   'create',
   '{"amount_cents": 50000, "description": "Checkpoint test"}'::jsonb,
   auth.uid(),
@@ -191,15 +194,25 @@ INSERT INTO transaction_events (
     1
   ),
   encode(sha256('checkpoint-test'::bytea), 'hex')
-);
+)
+RETURNING id, entity_id;
 ```
 
-**Expected**: Success, 1 row inserted
+**Expected**: Success, 1 row inserted, returns event ID and entity ID
 
 **Verify**:
 
 ```sql
-SELECT * FROM transaction_events WHERE entity_id = 'checkpoint-test-tx';
+SELECT
+  entity_type,
+  entity_id,
+  op,
+  payload->>'description' as description,
+  lamport_clock
+FROM transaction_events
+WHERE idempotency_key LIKE 'checkpoint-test-key-%'
+ORDER BY created_at DESC
+LIMIT 1;
 ```
 
 ---
@@ -227,7 +240,9 @@ SELECT
   vector_clock,
   jsonb_typeof(vector_clock) as clock_type
 FROM transaction_events
-WHERE entity_id = 'checkpoint-test-tx';
+WHERE idempotency_key LIKE 'checkpoint-test-key-%'
+ORDER BY created_at DESC
+LIMIT 1;
 ```
 
 **Expected**:
@@ -257,23 +272,23 @@ WHERE proname = 'cleanup_old_events';
 ## 12. UPDATE and DELETE Blocked ✓
 
 ```sql
--- Should FAIL (no UPDATE policy)
+-- Should FAIL (no UPDATE policy - events are immutable)
 UPDATE transaction_events
-SET payload = '{}'::jsonb
-WHERE entity_id = 'checkpoint-test-tx';
+SET payload = '{"modified": true}'::jsonb
+WHERE idempotency_key LIKE 'checkpoint-test-key-%';
 ```
 
-**Expected**: Error (RLS policy violation or permission denied)
+**Expected**: 0 rows affected (RLS denies UPDATE) or permission denied error
 
 ```sql
--- Should FAIL (no DELETE policy)
+-- Should FAIL (no DELETE policy - events are immutable)
 DELETE FROM transaction_events
-WHERE entity_id = 'checkpoint-test-tx';
+WHERE idempotency_key LIKE 'checkpoint-test-key-%';
 ```
 
-**Expected**: Error (RLS policy violation or permission denied)
+**Expected**: 0 rows affected (RLS denies DELETE) or permission denied error
 
-**Note**: Admin users can still UPDATE/DELETE via SQL Editor (bypasses RLS). In production, these should be blocked at database role level.
+**Note**: In Supabase SQL Editor with service role, UPDATE/DELETE may succeed (bypasses RLS). Test with actual app client to verify RLS enforcement.
 
 ---
 

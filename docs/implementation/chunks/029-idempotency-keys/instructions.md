@@ -475,13 +475,17 @@ npm test src/lib/idempotency.test.ts
 
 ## Step 4: Export Utilities (2 min)
 
-Update `src/lib/index.ts`:
+Create or update `src/lib/index.ts`:
 
 ```typescript
 // Idempotency
 export { idempotencyGenerator, IdempotencyKeyGenerator } from "./idempotency";
 export type { EntityType, EventOp, VectorClock, TransactionEvent } from "@/types/event";
 ```
+
+**If the file doesn't exist**, create it with the above content.
+
+**If the file already exists**, add the exports above to the existing exports.
 
 ---
 

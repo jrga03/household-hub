@@ -21,20 +21,20 @@ Open the migration file and add:
 CREATE TABLE transaction_events (
   -- Event identity
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  household_id UUID DEFAULT '00000000-0000-0000-0000-000000000001' NOT NULL,
 
   -- What changed
-  entity_type TEXT NOT NULL CHECK (
+  entity_type TEXT NOT NULL DEFAULT 'transaction' CHECK (
     entity_type IN ('transaction', 'account', 'category', 'budget')
   ),
-  entity_id TEXT NOT NULL,           -- ID of the specific entity
+  entity_id UUID NOT NULL,           -- ID of the specific entity
   op TEXT NOT NULL CHECK (
     op IN ('create', 'update', 'delete')
   ),
   payload JSONB NOT NULL,            -- Changed data (full for create, delta for update)
 
   -- When and by whom
-  timestamp TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-  actor_user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  actor_user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   device_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
 
   -- Idempotency and versioning
@@ -53,17 +53,20 @@ CREATE TABLE transaction_events (
 );
 
 -- Indexes for common query patterns
+-- Query events for household
+CREATE INDEX idx_events_household ON transaction_events(household_id);
+
 -- Query events for specific entity in chronological order
 CREATE INDEX idx_events_entity ON transaction_events(entity_type, entity_id, lamport_clock);
 
 -- Query events from specific device
-CREATE INDEX idx_events_device ON transaction_events(device_id, timestamp);
+CREATE INDEX idx_events_device ON transaction_events(device_id, created_at);
 
 -- Query events by timestamp (for sync and retention)
 CREATE INDEX idx_events_created_at ON transaction_events(created_at);
 
 -- Query events by actor (audit trail)
-CREATE INDEX idx_events_actor ON transaction_events(actor_user_id, timestamp);
+CREATE INDEX idx_events_actor ON transaction_events(actor_user_id, created_at);
 
 -- Lamport clock lookups for next value
 CREATE INDEX idx_events_lamport ON transaction_events(entity_id, lamport_clock DESC);
@@ -73,31 +76,30 @@ ALTER TABLE transaction_events ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
 
--- SELECT: Users can view events for entities they can access
--- This uses household_id from the entity being modified
--- For simplicity in Phase A, allow users to see all household events
+-- SELECT: All authenticated household members can view events
+-- Audit trail is visible to everyone in the household for transparency
 CREATE POLICY "Users can view events for their household"
   ON transaction_events FOR SELECT
-  USING (
-    actor_user_id IN (
-      SELECT id FROM auth.users WHERE id = auth.uid()
-    )
-  );
+  TO authenticated
+  USING (true);
 
 -- INSERT: Users can create events (via app logic, not direct inserts)
 CREATE POLICY "Users can create events"
   ON transaction_events FOR INSERT
-  WITH CHECK (actor_user_id = auth.uid());
+  TO authenticated
+  WITH CHECK (true);
 
 -- UPDATE/DELETE: Prohibited (events are immutable)
 -- No policies needed - default deny
 
 -- Comments for documentation
 COMMENT ON TABLE transaction_events IS 'Immutable event log for event sourcing. Every mutation generates an event for audit trail and multi-device sync.';
+COMMENT ON COLUMN transaction_events.household_id IS 'Household this event belongs to. Default UUID for MVP single-household mode.';
 COMMENT ON COLUMN transaction_events.entity_type IS 'Type of entity being modified (transaction, account, category, budget).';
-COMMENT ON COLUMN transaction_events.entity_id IS 'ID of the specific entity. Scopes lamport_clock and vector_clock to this entity.';
+COMMENT ON COLUMN transaction_events.entity_id IS 'UUID of the specific entity. Scopes lamport_clock and vector_clock to this entity.';
 COMMENT ON COLUMN transaction_events.op IS 'Operation type: create (full record), update (changed fields only), delete (mark as deleted).';
 COMMENT ON COLUMN transaction_events.payload IS 'JSONB payload. For create: full record. For update: only changed fields. For delete: deletion metadata.';
+COMMENT ON COLUMN transaction_events.actor_user_id IS 'Profile ID of user who performed the action. References profiles table, not auth.users directly.';
 COMMENT ON COLUMN transaction_events.idempotency_key IS 'Unique key to prevent duplicate event processing. Format: ${deviceId}-${entityType}-${entityId}-${lamportClock}';
 COMMENT ON COLUMN transaction_events.lamport_clock IS 'Logical timestamp scoped to this entity. Increments with each event for the entity. Used for ordering and conflict resolution.';
 COMMENT ON COLUMN transaction_events.vector_clock IS 'Per-device clock values for this entity. Format: {"device-abc": 5, "device-xyz": 3}. Used in Phase B for advanced conflict detection.';
@@ -151,15 +153,15 @@ Should show no diff (migration applied).
 1. Navigate to Table Editor → transaction_events
 2. Verify columns exist:
    - id (uuid, primary key)
-   - entity_type (text with CHECK constraint)
-   - entity_id (text)
+   - household_id (uuid with default)
+   - entity_type (text with CHECK constraint and DEFAULT)
+   - entity_id (uuid)
    - op (text with CHECK constraint)
    - payload (jsonb)
-   - timestamp (timestamptz)
-   - actor_user_id (uuid, foreign key)
-   - device_id (text, foreign key)
+   - actor_user_id (uuid, foreign key to profiles)
+   - device_id (text, foreign key to devices)
    - idempotency_key (text, unique)
-   - event_version (int)
+   - event_version (int with default 1)
    - lamport_clock (bigint)
    - vector_clock (jsonb)
    - checksum (text)
@@ -176,12 +178,14 @@ ORDER BY indexname;
 
 **Expected**:
 
+- idx_events_household
 - idx_events_entity
 - idx_events_device
 - idx_events_created_at
 - idx_events_actor
 - idx_events_lamport
 - transaction_events_idempotency_key_key (UNIQUE)
+- transaction_events_pkey (PRIMARY KEY)
 
 ---
 
@@ -208,22 +212,36 @@ INSERT INTO transaction_events (
   checksum
 ) VALUES (
   'transaction',
-  'test-tx-001',
+  gen_random_uuid(),  -- entity_id is UUID
   'create',
   '{"amount_cents": 100000, "description": "Test transaction"}'::jsonb,
   auth.uid(),
   (SELECT id FROM devices WHERE user_id = auth.uid() LIMIT 1),
-  'test-device-transaction-test-tx-001-1',
+  'test-device-transaction-' || gen_random_uuid()::text || '-1',
   1,
-  '{"test-device": 1}'::jsonb,
+  jsonb_build_object(
+    (SELECT id FROM devices WHERE user_id = auth.uid() LIMIT 1),
+    1
+  ),
   encode(sha256('test-payload'::bytea), 'hex')
-);
+)
+RETURNING id, entity_id;
 ```
 
 **Verify**:
 
 ```sql
-SELECT * FROM transaction_events WHERE entity_id = 'test-tx-001';
+-- Use the entity_id returned from the insert
+SELECT
+  entity_type,
+  entity_id,
+  op,
+  payload,
+  lamport_clock,
+  vector_clock
+FROM transaction_events
+ORDER BY created_at DESC
+LIMIT 1;
 ```
 
 Should return the inserted event.
@@ -231,7 +249,9 @@ Should return the inserted event.
 **Clean up**:
 
 ```sql
-DELETE FROM transaction_events WHERE entity_id = 'test-tx-001';
+-- Delete the most recent test event
+DELETE FROM transaction_events
+WHERE idempotency_key LIKE 'test-device-transaction-%';
 ```
 
 ---
@@ -247,7 +267,7 @@ INSERT INTO transaction_events (
   actor_user_id, device_id, idempotency_key,
   lamport_clock, vector_clock, checksum
 ) VALUES (
-  'transaction', 'test-dup', 'create', '{}'::jsonb,
+  'transaction', gen_random_uuid(), 'create', '{}'::jsonb,
   auth.uid(),
   (SELECT id FROM devices WHERE user_id = auth.uid() LIMIT 1),
   'unique-key-123',
@@ -260,7 +280,7 @@ INSERT INTO transaction_events (
   actor_user_id, device_id, idempotency_key,
   lamport_clock, vector_clock, checksum
 ) VALUES (
-  'transaction', 'test-dup-2', 'create', '{}'::jsonb,
+  'transaction', gen_random_uuid(), 'create', '{}'::jsonb,
   auth.uid(),
   (SELECT id FROM devices WHERE user_id = auth.uid() LIMIT 1),
   'unique-key-123',  -- Same key!
@@ -296,27 +316,27 @@ INSERT INTO transaction_events (
   actor_user_id, device_id, idempotency_key,
   lamport_clock, vector_clock, checksum
 ) VALUES (
-  'transaction', 'rls-test', 'create', '{}'::jsonb,
+  'transaction', gen_random_uuid(), 'create', '{}'::jsonb,
   auth.uid(),  -- Own user ID
   (SELECT id FROM devices WHERE user_id = auth.uid() LIMIT 1),
-  'rls-test-key',
+  'rls-test-key-' || extract(epoch from now())::text,
   1, '{}'::jsonb, 'checksum'
 );
 
 -- Clean up
-DELETE FROM transaction_events WHERE idempotency_key = 'rls-test-key';
+DELETE FROM transaction_events WHERE idempotency_key LIKE 'rls-test-key-%';
 ```
 
 **Test UPDATE blocked**:
 
 ```sql
--- Should fail (no UPDATE policy exists)
+-- Should fail (no UPDATE policy exists - events are immutable)
 UPDATE transaction_events
-SET payload = '{}'::jsonb
-WHERE entity_id = 'any-id';
+SET payload = '{"modified": true}'::jsonb
+WHERE created_at > NOW() - INTERVAL '1 minute';
 ```
 
-**Expected**: RLS policy violation.
+**Expected**: 0 rows affected (RLS policy denies UPDATE) or permission denied error.
 
 ---
 
@@ -332,7 +352,7 @@ INSERT INTO transaction_events (
   lamport_clock, vector_clock, checksum
 ) VALUES (
   'invalid_type',  -- Not in allowed list
-  'test', 'create', '{}'::jsonb,
+  gen_random_uuid(), 'create', '{}'::jsonb,
   auth.uid(),
   (SELECT id FROM devices WHERE user_id = auth.uid() LIMIT 1),
   'check-test-1',
@@ -351,7 +371,7 @@ INSERT INTO transaction_events (
   actor_user_id, device_id, idempotency_key,
   lamport_clock, vector_clock, checksum
 ) VALUES (
-  'transaction', 'test', 'invalid_op',  -- Not in allowed list
+  'transaction', gen_random_uuid(), 'invalid_op',  -- Not in allowed list
   '{}'::jsonb,
   auth.uid(),
   (SELECT id FROM devices WHERE user_id = auth.uid() LIMIT 1),

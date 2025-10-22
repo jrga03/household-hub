@@ -1,6 +1,6 @@
 # Instructions: Event Generation
 
-Follow these steps in order. Estimated time: 1.5 hours.
+Follow these steps in order. Estimated time: 2.5 hours.
 
 ---
 
@@ -58,6 +58,7 @@ export class EventGenerator {
     // Create event object
     const event: TransactionEvent = {
       id: nanoid(),
+      householdId: "00000000-0000-0000-0000-000000000001", // Default household for MVP
       entityType,
       entityId,
       op,
@@ -79,6 +80,7 @@ export class EventGenerator {
     try {
       await supabase.from("transaction_events").insert({
         id: event.id,
+        household_id: event.householdId,
         entity_type: event.entityType,
         entity_id: event.entityId,
         op: event.op,
@@ -94,7 +96,7 @@ export class EventGenerator {
       });
     } catch (error) {
       console.warn("Failed to store event in Supabase, will sync later:", error);
-      // Event is in Dexie, sync queue will retry
+      // Event is in Dexie, sync queue (chunk 024) will retry
     }
 
     return event;
@@ -104,16 +106,19 @@ export class EventGenerator {
    * Get current vector clock for entity
    */
   private async getVectorClock(entityId: string, deviceId: string): Promise<any> {
-    // Query latest event for this entity
-    const events = await db.events.where("entityId").equals(entityId).reverse().limit(1).toArray();
+    // Query latest event for this entity (sorted by lamport clock)
+    const events = await db.events.where("entityId").equals(entityId).sortBy("lamportClock");
 
     if (events.length === 0) {
       // First event for this entity
       return idempotencyGenerator.initVectorClock(deviceId);
     }
 
+    // Get the latest event (last in sorted array)
+    const latestEvent = events[events.length - 1];
+
     // Update existing vector clock
-    return idempotencyGenerator.updateVectorClock(events[0].vectorClock, deviceId);
+    return idempotencyGenerator.updateVectorClock(latestEvent.vectorClock, deviceId);
   }
 
   /**
@@ -215,7 +220,7 @@ export async function createBudgetEvent(
 Update your transaction creation function (e.g., `src/lib/transactions.ts`):
 
 ```typescript
-import { createTransactionEvent } from "./event-generator";
+import { createTransactionEvent, eventGenerator } from "./event-generator";
 import { useAuthStore } from "@/stores/authStore";
 
 export async function createTransaction(data: TransactionInput): Promise<Transaction> {
@@ -256,14 +261,15 @@ export async function updateTransaction(
 
   // 3. Get new value
   const newTransaction = await db.transactions.get(id);
+  if (!newTransaction) throw new Error("Transaction not found after update");
 
   // 4. Calculate delta (only changed fields)
-  const delta = eventGenerator.calculateDelta(oldTransaction, changes);
+  const delta = eventGenerator.calculateDelta(oldTransaction, newTransaction);
 
   // 5. Generate event
   await createTransactionEvent("update", id, delta, userId);
 
-  return newTransaction!;
+  return newTransaction;
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
@@ -280,7 +286,178 @@ export async function deleteTransaction(id: string): Promise<void> {
 
 ---
 
-## Step 3: Create Unit Tests (20 min)
+## Step 3: Hook into Account Mutations (15 min)
+
+Update your account CRUD functions (e.g., `src/lib/accounts.ts`):
+
+```typescript
+import { createAccountEvent, eventGenerator } from "./event-generator";
+import { useAuthStore } from "@/stores/authStore";
+import { nanoid } from "nanoid";
+
+export async function createAccount(data: AccountInput): Promise<Account> {
+  const userId = useAuthStore.getState().user?.id;
+  if (!userId) throw new Error("Not authenticated");
+
+  // 1. Create account
+  const account = await db.accounts.add({
+    ...data,
+    id: nanoid(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+
+  // 2. Generate event
+  await createAccountEvent("create", account.id, account, userId);
+
+  return account;
+}
+
+export async function updateAccount(id: string, changes: Partial<Account>): Promise<Account> {
+  const userId = useAuthStore.getState().user?.id;
+  if (!userId) throw new Error("Not authenticated");
+
+  const oldAccount = await db.accounts.get(id);
+  if (!oldAccount) throw new Error("Account not found");
+
+  await db.accounts.update(id, {
+    ...changes,
+    updated_at: new Date().toISOString(),
+  });
+
+  const newAccount = await db.accounts.get(id);
+  if (!newAccount) throw new Error("Account not found after update");
+
+  const delta = eventGenerator.calculateDelta(oldAccount, newAccount);
+  await createAccountEvent("update", id, delta, userId);
+
+  return newAccount;
+}
+
+export async function deleteAccount(id: string): Promise<void> {
+  const userId = useAuthStore.getState().user?.id;
+  if (!userId) throw new Error("Not authenticated");
+
+  await db.accounts.delete(id);
+  await createAccountEvent("delete", id, { deleted: true }, userId);
+}
+```
+
+---
+
+## Step 4: Hook into Category Mutations (15 min)
+
+Update your category CRUD functions (e.g., `src/lib/categories.ts`):
+
+```typescript
+import { createCategoryEvent, eventGenerator } from "./event-generator";
+import { useAuthStore } from "@/stores/authStore";
+import { nanoid } from "nanoid";
+
+export async function createCategory(data: CategoryInput): Promise<Category> {
+  const userId = useAuthStore.getState().user?.id;
+  if (!userId) throw new Error("Not authenticated");
+
+  const category = await db.categories.add({
+    ...data,
+    id: nanoid(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+
+  await createCategoryEvent("create", category.id, category, userId);
+  return category;
+}
+
+export async function updateCategory(id: string, changes: Partial<Category>): Promise<Category> {
+  const userId = useAuthStore.getState().user?.id;
+  if (!userId) throw new Error("Not authenticated");
+
+  const oldCategory = await db.categories.get(id);
+  if (!oldCategory) throw new Error("Category not found");
+
+  await db.categories.update(id, {
+    ...changes,
+    updated_at: new Date().toISOString(),
+  });
+
+  const newCategory = await db.categories.get(id);
+  if (!newCategory) throw new Error("Category not found after update");
+
+  const delta = eventGenerator.calculateDelta(oldCategory, newCategory);
+  await createCategoryEvent("update", id, delta, userId);
+
+  return newCategory;
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  const userId = useAuthStore.getState().user?.id;
+  if (!userId) throw new Error("Not authenticated");
+
+  await db.categories.delete(id);
+  await createCategoryEvent("delete", id, { deleted: true }, userId);
+}
+```
+
+---
+
+## Step 5: Hook into Budget Mutations (15 min)
+
+Update your budget CRUD functions (e.g., `src/lib/budgets.ts`):
+
+```typescript
+import { createBudgetEvent, eventGenerator } from "./event-generator";
+import { useAuthStore } from "@/stores/authStore";
+import { nanoid } from "nanoid";
+
+export async function createBudget(data: BudgetInput): Promise<Budget> {
+  const userId = useAuthStore.getState().user?.id;
+  if (!userId) throw new Error("Not authenticated");
+
+  const budget = await db.budgets.add({
+    ...data,
+    id: nanoid(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+
+  await createBudgetEvent("create", budget.id, budget, userId);
+  return budget;
+}
+
+export async function updateBudget(id: string, changes: Partial<Budget>): Promise<Budget> {
+  const userId = useAuthStore.getState().user?.id;
+  if (!userId) throw new Error("Not authenticated");
+
+  const oldBudget = await db.budgets.get(id);
+  if (!oldBudget) throw new Error("Budget not found");
+
+  await db.budgets.update(id, {
+    ...changes,
+    updated_at: new Date().toISOString(),
+  });
+
+  const newBudget = await db.budgets.get(id);
+  if (!newBudget) throw new Error("Budget not found after update");
+
+  const delta = eventGenerator.calculateDelta(oldBudget, newBudget);
+  await createBudgetEvent("update", id, delta, userId);
+
+  return newBudget;
+}
+
+export async function deleteBudget(id: string): Promise<void> {
+  const userId = useAuthStore.getState().user?.id;
+  if (!userId) throw new Error("Not authenticated");
+
+  await db.budgets.delete(id);
+  await createBudgetEvent("delete", id, { deleted: true }, userId);
+}
+```
+
+---
+
+## Step 6: Create Unit Tests (20 min)
 
 Create `src/lib/event-generator.test.ts`:
 
@@ -360,7 +537,7 @@ describe("EventGenerator", () => {
 
 ---
 
-## Step 4: Test Event Generation (10 min)
+## Step 7: Test Event Generation (10 min)
 
 ```javascript
 // In browser console
@@ -385,7 +562,7 @@ console.log("Events in Supabase:", data);
 
 ---
 
-## Step 5: Verify in Supabase Dashboard (10 min)
+## Step 8: Verify in Supabase Dashboard (10 min)
 
 1. Go to Supabase Dashboard → Table Editor → transaction_events
 2. Find recent event

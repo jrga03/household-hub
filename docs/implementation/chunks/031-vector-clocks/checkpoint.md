@@ -4,6 +4,19 @@ Run these verifications to ensure everything works correctly.
 
 ---
 
+## Prerequisites Check ✓
+
+Before running these checkpoints, verify:
+
+- [ ] Chunk 030 completed (event generation hooks exist)
+- [ ] Chunk 029 completed (DeviceManager.getDeviceId() available)
+- [ ] Dexie schema includes `meta` table
+- [ ] Supabase `transaction_events` has `lamport_clock` and `vector_clock` columns
+
+If any prerequisite is missing, complete it first or tests will fail.
+
+---
+
 ## 1. Unit Tests Pass ✓
 
 ```bash

@@ -65,26 +65,26 @@ supabase/
 ```sql
 CREATE TABLE transaction_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  household_id UUID DEFAULT '00000000-0000-0000-0000-000000000001' NOT NULL,
 
   -- What changed
-  entity_type TEXT NOT NULL,         -- 'transaction' | 'account' | 'category' | 'budget'
-  entity_id TEXT NOT NULL,           -- ID of the entity that changed
-  op TEXT NOT NULL,                  -- 'create' | 'update' | 'delete'
-  payload JSONB NOT NULL,            -- Changed fields (full record for create, delta for update)
+  entity_type TEXT NOT NULL DEFAULT 'transaction',  -- 'transaction' | 'account' | 'category' | 'budget'
+  entity_id UUID NOT NULL,                          -- ID of the entity that changed
+  op TEXT NOT NULL,                                 -- 'create' | 'update' | 'delete'
+  payload JSONB NOT NULL,                           -- Changed fields (full record for create, delta for update)
 
   -- When and by whom
-  timestamp TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-  actor_user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  actor_user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   device_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
 
   -- Idempotency and conflict resolution
   idempotency_key TEXT UNIQUE NOT NULL,  -- Prevents duplicate event processing
-  event_version INT DEFAULT 1 NOT NULL,   -- Schema version for forward compatibility
-  lamport_clock BIGINT NOT NULL,          -- Logical timestamp per entity
-  vector_clock JSONB NOT NULL,            -- Per-device clocks for conflict detection
+  event_version INT DEFAULT 1 NOT NULL,  -- Schema version for forward compatibility
+  lamport_clock BIGINT NOT NULL,         -- Logical timestamp per entity
+  vector_clock JSONB NOT NULL,           -- Per-device clocks for conflict detection
 
   -- Data integrity
-  checksum TEXT NOT NULL,                 -- SHA-256 of payload for verification
+  checksum TEXT NOT NULL,                -- SHA-256 of payload for verification
 
   -- Timestamps
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
@@ -93,15 +93,17 @@ CREATE TABLE transaction_events (
 
 ### Indexes for Performance
 
-- **entity_id + lamport_clock**: Query events for specific entity in order
-- **device_id + timestamp**: Query events from specific device
+- **household_id**: Query events for household
+- **entity_type + entity_id + lamport_clock**: Query events for specific entity in order
+- **device_id + created_at**: Query events from specific device
+- **actor_user_id + created_at**: Query events by user
 - **idempotency_key**: Fast duplicate detection (UNIQUE constraint)
 - **created_at**: Event retention cleanup
-- **entity_type + entity_id**: Entity-specific event queries
+- **entity_id + lamport_clock DESC**: Look up next lamport clock value
 
 ### Row-Level Security
 
-- Users can view events for their household data
+- All authenticated household members can view events (complete audit trail)
 - Users can create events (via app, not directly)
 - Events are immutable (no UPDATE or DELETE)
 

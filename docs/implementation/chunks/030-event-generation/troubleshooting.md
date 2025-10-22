@@ -65,6 +65,75 @@ function calculateDelta(oldValue: any, newValue: any): any {
 
 ---
 
+## Household ID Issues
+
+### Problem: household_id missing in events
+
+**Solution**: Ensure event creation includes household_id:
+
+```typescript
+const event: TransactionEvent = {
+  // ...
+  householdId: "00000000-0000-0000-0000-000000000001", // MVP default
+  // ...
+};
+```
+
+Also verify Supabase insert includes the field:
+
+```typescript
+await supabase.from("transaction_events").insert({
+  id: event.id,
+  household_id: event.householdId, // Must be included
+  // ... rest of fields
+});
+```
+
+---
+
+## Entity-Specific Event Issues
+
+### Problem: Account/category/budget events not generated
+
+**Solution**: Ensure all entity CRUD functions call event generators:
+
+```typescript
+// After createAccount
+await createAccountEvent("create", account.id, account, userId);
+
+// After createCategory
+await createCategoryEvent("create", category.id, category, userId);
+
+// After createBudget
+await createBudgetEvent("create", budget.id, budget, userId);
+```
+
+### Problem: Import errors for eventGenerator
+
+**Solution**: Import both helper and class:
+
+```typescript
+import { createTransactionEvent, eventGenerator } from "./event-generator";
+```
+
+The `eventGenerator` class instance is needed for `calculateDelta()`.
+
+---
+
+## Vector Clock Issues
+
+### Problem: Vector clock query returns wrong event
+
+**Solution**: Use explicit sort by lamportClock:
+
+```typescript
+const events = await db.events.where("entityId").equals(entityId).sortBy("lamportClock"); // Explicit sort
+
+const latestEvent = events[events.length - 1]; // Last = latest
+```
+
+---
+
 ## Quick Fixes
 
 ```bash

@@ -55,7 +55,81 @@ console.log("Lamport clock:", updateEvent.lamportClock); // 2
 
 ---
 
-## 4. Events in Supabase ✓
+## 4. Events Created on Delete ✓
+
+```javascript
+// Delete transaction
+await deleteTransaction(tx.id);
+
+// Check events
+const events = await db.events.where("entityId").equals(tx.id).toArray();
+console.log("Events:", events.length); // Should be 3 (create, update, delete)
+
+// Check delete event
+const deleteEvent = events[2];
+console.log("Operation:", deleteEvent.op); // "delete"
+console.log("Lamport clock:", deleteEvent.lamportClock); // 3
+```
+
+---
+
+## 5. Account Events Generated ✓
+
+```javascript
+// Create account
+const account = await createAccount({
+  name: "Test Checking",
+  type: "checking",
+  initial_balance_cents: 100000,
+});
+
+// Check events
+const accountEvents = await db.events.where("entityId").equals(account.id).toArray();
+console.log("Account events:", accountEvents.length); // Should be 1
+console.log("Entity type:", accountEvents[0].entityType); // "account"
+console.log("Operation:", accountEvents[0].op); // "create"
+```
+
+---
+
+## 6. Category Events Generated ✓
+
+```javascript
+// Create category
+const category = await createCategory({
+  name: "Test Groceries",
+  color: "#4CAF50",
+});
+
+// Check events
+const categoryEvents = await db.events.where("entityId").equals(category.id).toArray();
+console.log("Category events:", categoryEvents.length); // Should be 1
+console.log("Entity type:", categoryEvents[0].entityType); // "category"
+console.log("Operation:", categoryEvents[0].op); // "create"
+```
+
+---
+
+## 7. Budget Events Generated ✓
+
+```javascript
+// Create budget
+const budget = await createBudget({
+  category_id: category.id,
+  month: "2025-01-01",
+  amount_cents: 50000,
+});
+
+// Check events
+const budgetEvents = await db.events.where("entityId").equals(budget.id).toArray();
+console.log("Budget events:", budgetEvents.length); // Should be 1
+console.log("Entity type:", budgetEvents[0].entityType); // "budget"
+console.log("Operation:", budgetEvents[0].op); // "create"
+```
+
+---
+
+## 8. Events in Supabase ✓
 
 Check Supabase Dashboard → transaction_events table:
 
@@ -68,7 +142,7 @@ Check Supabase Dashboard → transaction_events table:
 
 ---
 
-## 5. Delta Payload Correct ✓
+## 9. Delta Payload Correct ✓
 
 ```javascript
 const delta = eventGenerator.calculateDelta(
@@ -84,11 +158,13 @@ console.log("Delta:", delta); // Should be { amount: 2000 } only
 ## Success Criteria
 
 - [ ] All unit tests pass
-- [ ] Events created on transaction create
-- [ ] Events created on transaction update
-- [ ] Events created on transaction delete
+- [ ] Events created on transaction create/update/delete
+- [ ] Events created on account create/update/delete
+- [ ] Events created on category create/update/delete
+- [ ] Events created on budget create/update/delete
 - [ ] Events stored in Dexie
 - [ ] Events synced to Supabase
+- [ ] household_id included in all events
 - [ ] Lamport clock increments per entity
 - [ ] Delta payloads contain only changed fields
 - [ ] Idempotency keys prevent duplicates
@@ -100,7 +176,7 @@ console.log("Delta:", delta); // Should be { amount: 2000 } only
 Once all checkpoints pass:
 
 1. Commit event generation code
-2. **Milestone 4 (Device & Events) COMPLETE!** 🎉
+2. **Milestone 4 (Multi-Device Sync Foundation) COMPLETE!** 🎉
 3. Move to **Chunk 031: Vector Clocks** (Phase B - Conflict Resolution)
 
 ---

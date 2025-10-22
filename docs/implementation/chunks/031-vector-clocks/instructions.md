@@ -252,12 +252,13 @@ export class LamportClockManager {
   async updateVectorClock(entityId: string, deviceId: string): Promise<VectorClock> {
     const current = await this.getCurrentVectorClock(entityId);
     const updated = incrementVectorClock(current, deviceId);
+    const lamportClock = await this.getNextLamportClock(entityId);
 
     // Store updated vector clock
     await db.meta.put({
       key: `clock:${entityId}`,
       value: {
-        lamportClock: (current[deviceId] || 0) + 1,
+        lamportClock,
         vectorClock: updated,
         updatedAt: new Date().toISOString(),
       },
@@ -295,6 +296,20 @@ export const lamportClockManager = new LamportClockManager();
 ---
 
 ## Step 4: Update Event Generation with Vector Clocks (20 min)
+
+⚠️ **Note**: This example assumes you have event generation from chunk 030. The following code requires these imports:
+
+```typescript
+import { nanoid } from "nanoid";
+import type { TransactionEvent } from "@/types/sync";
+import { getCurrentUserId } from "@/lib/auth";
+import { calculateChecksum } from "@/lib/checksum";
+import { syncQueue } from "@/lib/sync-queue";
+```
+
+If your event generation structure differs from chunk 030, adapt the vector clock integration (lamport clock + vector clock calls) to your existing implementation.
+
+---
 
 Update `src/lib/event-generator.ts` (or wherever you generate events):
 
@@ -535,9 +550,13 @@ npm test src/lib/vector-clock.test.ts
 
 All tests should pass.
 
+**Note**: These are standard unit tests. Property-based tests for vector clock convergence run nightly only (Decision #85), not on every test run. They're located in `src/lib/vector-clock.property.test.ts` (to be created in Phase B).
+
 ---
 
-## Step 6: Update Dexie Schema (If Needed) (10 min)
+## Step 6: Update Dexie Schema (Required for New Installs) (10 min)
+
+⚠️ **When to do this**: If you're adding vector clocks to an existing Dexie schema with data, increment the version number and add upgrade logic. For new installs, ensure the schema includes these fields from the start.
 
 Ensure `src/lib/dexie.ts` includes vector clock support:
 
@@ -570,6 +589,38 @@ this.version(N).stores({
 ```
 
 **Verify**: No schema conflicts
+
+---
+
+## Step 6.5: Verify Supabase Schema (5 min)
+
+Ensure your Supabase `transaction_events` table has vector clock columns.
+
+Open Supabase SQL Editor and run:
+
+```sql
+-- Check columns exist
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_name = 'transaction_events'
+  AND column_name IN ('lamport_clock', 'vector_clock');
+
+-- Should return:
+-- lamport_clock | bigint
+-- vector_clock  | jsonb
+```
+
+If columns are missing, create migration:
+
+```sql
+ALTER TABLE transaction_events
+ADD COLUMN lamport_clock BIGINT NOT NULL DEFAULT 0,
+ADD COLUMN vector_clock JSONB NOT NULL DEFAULT '{}';
+
+CREATE INDEX idx_events_lamport ON transaction_events(entity_id, lamport_clock);
+```
+
+**Verify**: Query returns both columns with correct types
 
 ---
 
