@@ -712,8 +712,8 @@ Once all verifications pass:
 
 ---
 
-**Verification completed by**: ********\_********
-**Date**: ********\_********
+**Verification completed by**: **\*\*\*\***\_**\*\*\*\***
+**Date**: **\*\*\*\***\_**\*\*\*\***
 **Browsers tested**: Chrome ☐ Firefox ☐ Safari ☐ iOS Safari ☐
 **All checks passed**: YES ☐ NO ☐ PARTIAL ☐
 

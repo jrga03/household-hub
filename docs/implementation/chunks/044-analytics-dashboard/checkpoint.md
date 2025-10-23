@@ -616,8 +616,8 @@ Once all checkpoints pass:
 
 ---
 
-**Checkpoint completed by**: ********\_********
-**Date**: ********\_********
+**Checkpoint completed by**: **\*\*\*\***\_**\*\*\*\***
+**Date**: **\*\*\*\***\_**\*\*\*\***
 **All items verified**: YES ☐ NO ☐ PARTIAL ☐
 
 **Issues found**:

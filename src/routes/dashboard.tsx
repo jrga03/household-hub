@@ -1,6 +1,7 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
 import { useEffect } from "react";
+import { Header } from "@/components/Header";
 
 export const Route = createFileRoute("/dashboard")({
   component: Dashboard,
@@ -8,43 +9,25 @@ export const Route = createFileRoute("/dashboard")({
 
 function Dashboard() {
   const user = useAuthStore((state) => state.user);
-  const signOut = useAuthStore((state) => state.signOut);
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!user) {
-      navigate({ to: "/login" });
+      navigate({ to: "/login" }).catch(console.error);
     }
-  }, [user, navigate]);
+  }, [user]);
 
   if (!user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="mt-4 text-sm text-muted-foreground">Loading...</p>
-        </div>
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b">
-        <div className="container mx-auto flex items-center justify-between px-4 py-4">
-          <h1 className="text-xl font-bold">Household Hub</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">{user.email}</span>
-            <button
-              onClick={signOut}
-              className="rounded-md bg-destructive px-4 py-2 text-sm text-destructive-foreground hover:bg-destructive/90"
-            >
-              Sign Out
-            </button>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Content */}
       <main className="container mx-auto px-4 py-8">
@@ -59,7 +42,12 @@ function Dashboard() {
             <p className="mt-2 text-sm text-muted-foreground">
               Manage your bank accounts and balances
             </p>
-            <p className="mt-4 text-2xl font-bold text-muted-foreground">Coming in Chunk 005</p>
+            <Link
+              to="/accounts"
+              className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
+            >
+              View Accounts →
+            </Link>
           </div>
 
           <div className="rounded-lg border p-6">
