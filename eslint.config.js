@@ -21,6 +21,8 @@ export default [
       globals: {
         console: "readonly",
         process: "readonly",
+        __dirname: "readonly",
+        __filename: "readonly",
         window: "readonly",
         document: "readonly",
         navigator: "readonly",
