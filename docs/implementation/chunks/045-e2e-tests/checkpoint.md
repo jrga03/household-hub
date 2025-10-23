@@ -21,16 +21,22 @@ npm run test:e2e
 **Expected**:
 
 ```
-Running 25 tests using 4 workers
+Running 28 tests using 5 workers
 
   ✓ auth.spec.ts (4 tests) - 12s
   ✓ transactions.spec.ts (4 tests) - 18s
   ✓ offline.spec.ts (2 tests) - 15s
-  ✓ accessibility.spec.ts (3 tests) - 8s
+  ✓ sync.spec.ts (2 tests) - 22s
+  ✓ pwa.spec.ts (4 tests) - 18s
+  ✓ accessibility.spec.ts (5 tests) - 15s
+  ✓ keyboard-nav.spec.ts (3 tests) - 10s
   ✓ performance.spec.ts (2 tests) - 25s
+  ✓ visual-regression.spec.ts (2 tests) - 12s (optional)
 
-25 passed (78s)
+26-28 passed (135-147s)
 ```
+
+**Note**: Test counts may vary based on which optional tests you include (sync, PWA, visual regression).
 
 ---
 

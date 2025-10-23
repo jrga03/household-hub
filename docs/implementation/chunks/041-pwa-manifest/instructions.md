@@ -32,29 +32,39 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["icons/*.png", "splash/*.jpg"],
       manifest: {
-        name: "Household Hub",
-        short_name: "HHub",
+        name: "Household Hub - Financial Tracker",
+        short_name: "HouseholdHub",
         description: "Offline-first household financial tracker",
-        theme_color: "#ffffff",
+        theme_color: "#1e40af",
         background_color: "#ffffff",
         display: "standalone",
-        orientation: "portrait",
+        display_override: ["window-controls-overlay", "standalone", "minimal-ui"],
+        orientation: "any",
+        lang: "en-US",
+        dir: "ltr",
         scope: "/",
-        start_url: "/",
+        start_url: "/?source=pwa",
         categories: ["finance", "productivity"],
         icons: [
           {
             src: "/icons/icon-192x192.png",
             sizes: "192x192",
             type: "image/png",
-            purpose: "any maskable",
+            purpose: "any",
           },
           {
             src: "/icons/icon-512x512.png",
             sizes: "512x512",
             type: "image/png",
-            purpose: "any maskable",
+            purpose: "any",
           },
+          // Optional: Add separate maskable icons for better Android adaptive icon support
+          // {
+          //   src: "/icons/icon-maskable-512x512.png",
+          //   sizes: "512x512",
+          //   type: "image/png",
+          //   purpose: "maskable"
+          // }
         ],
         shortcuts: [
           {
@@ -133,6 +143,15 @@ npx sharp -i logo.png -o public/icons/icon-512x512.png resize 512 512
 npx sharp -i logo.png -o public/icons/icon-16x16.png resize 16 16
 npx sharp -i logo.png -o public/icons/icon-32x32.png resize 32 32
 npx sharp -i logo.png -o public/icons/apple-touch-icon.png resize 180 180
+
+# Generate shortcut icons (96x96) - REQUIRED for shortcuts to display properly
+npx sharp -i logo.png -o public/icons/shortcut-add.png resize 96 96
+npx sharp -i logo.png -o public/icons/shortcut-dashboard.png resize 96 96
+
+# Optional: Generate separate maskable icons for better Android adaptive icon support
+# Maskable icons need content in center 80% (safe zone) - outer 20% may be cropped
+# npx sharp -i logo-maskable.png -o public/icons/icon-maskable-192x192.png resize 192 192
+# npx sharp -i logo-maskable.png -o public/icons/icon-maskable-512x512.png resize 512 512
 ```
 
 **Option B: Use placeholder** (for testing):
@@ -229,6 +248,24 @@ Update `index.html` in `<head>`:
 <meta name="msapplication-TileImage" content="/icons/icon-192x192.png" />
 ```
 
+**Note on iOS Splash Screens**:
+
+The single splash screen meta tag above is sufficient for MVP. iOS will display a white splash screen, which is acceptable for initial launch.
+
+For production-ready iOS splash screens:
+
+- You need 8+ device-specific images (iPhone X, XR, 12, 13, 14, iPad variants)
+- Each device has different resolutions and aspect ratios
+- Total adds ~2-5MB to deployment size
+
+**Options**:
+
+1. **Use generator** (recommended): https://progressier.com/pwa-screenshots-generator
+2. **Generate manually**: Create images for each device size (see reference PWA-MANIFEST.md lines 229-284)
+3. **Defer to chunk 046**: Add splash screens during final deployment polish
+
+For this MVP chunk, we'll stick with the basic single splash tag to keep the task within 1 hour.
+
 ---
 
 ## Step 5: Create Install Prompt Hook (10 min)
@@ -251,11 +288,23 @@ export function useInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    return localStorage.getItem("install-prompt-dismissed") === "true";
+  });
 
   useEffect(() => {
+    // Increment visit counter (for showing prompt after 3+ visits)
+    const visits = parseInt(localStorage.getItem("visits") || "0");
+    localStorage.setItem("visits", String(visits + 1));
+
     // Check if already installed
     if (window.matchMedia("(display-mode: standalone)").matches) {
       setIsInstalled(true);
+      return;
+    }
+
+    // Check if user dismissed prompt
+    if (dismissed) {
       return;
     }
 
@@ -263,7 +312,10 @@ export function useInstallPrompt() {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setIsInstallable(true);
+      // Only show prompt after 3+ visits
+      if (visits >= 3) {
+        setIsInstallable(true);
+      }
     };
 
     // Listen for app installed
@@ -280,7 +332,7 @@ export function useInstallPrompt() {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       window.removeEventListener("appinstalled", handleAppInstalled);
     };
-  }, []);
+  }, [dismissed]);
 
   const promptInstall = async () => {
     if (!deferredPrompt) {
@@ -302,13 +354,20 @@ export function useInstallPrompt() {
 
   // Detect iOS
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const showIOSInstructions = isIOS && !isInstalled;
+  const showIOSInstructions = isIOS && !isInstalled && !dismissed;
+
+  const dismissPrompt = () => {
+    localStorage.setItem("install-prompt-dismissed", "true");
+    setDismissed(true);
+    setIsInstallable(false);
+  };
 
   return {
-    isInstallable: isInstallable || showIOSInstructions,
+    isInstallable: (isInstallable || showIOSInstructions) && !dismissed,
     isInstalled,
     isIOS: showIOSInstructions,
     promptInstall,
+    dismissPrompt,
   };
 }
 ```
@@ -333,10 +392,10 @@ import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { useState } from 'react';
 
 export function InstallPrompt() {
-  const { isInstallable, isInstalled, isIOS, promptInstall } = useInstallPrompt();
+  const { isInstallable, isInstalled, isIOS, promptInstall, dismissPrompt } = useInstallPrompt();
   const [isOpen, setIsOpen] = useState(false);
 
-  // Don't show if already installed
+  // Don't show if already installed or not installable
   if (isInstalled || !isInstallable) {
     return null;
   }
@@ -356,17 +415,49 @@ export function InstallPrompt() {
 
   return (
     <>
-      {/* Floating install button */}
-      <div className="fixed bottom-4 right-4 z-50 md:bottom-8 md:right-8">
-        <Button
-          onClick={handleInstall}
-          size="lg"
-          className="shadow-lg"
-          aria-label="Install Household Hub"
-        >
-          <Download className="w-5 h-5 mr-2" />
-          Install App
-        </Button>
+      {/* Floating install banner with app icon */}
+      <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-50">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0">
+              <img src="/icons/icon-192x192.png" alt="App icon" className="w-12 h-12 rounded-lg" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                Install Household Hub
+              </h3>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                Install our app for offline access and a better experience
+              </p>
+              <div className="mt-3 flex space-x-2">
+                <Button
+                  onClick={handleInstall}
+                  size="sm"
+                  className="shadow-sm"
+                  aria-label="Install Household Hub"
+                >
+                  <Download className="w-4 h-4 mr-1" />
+                  Install
+                </Button>
+                <Button
+                  onClick={dismissPrompt}
+                  size="sm"
+                  variant="outline"
+                  aria-label="Dismiss install prompt"
+                >
+                  Not now
+                </Button>
+              </div>
+            </div>
+            <button
+              onClick={dismissPrompt}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              aria-label="Close install prompt"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* iOS Instructions Dialog */}

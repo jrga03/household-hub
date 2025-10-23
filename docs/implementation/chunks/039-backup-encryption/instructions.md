@@ -4,6 +4,160 @@ Follow these steps in order. Estimated time: 2 hours.
 
 ---
 
+## Step 0: Verify Prerequisites (5 min)
+
+Before beginning implementation, verify all prerequisites are met to avoid mid-task failures.
+
+### 0.1 Verify Chunk 038 Complete ✓
+
+Check that R2 Worker is deployed and configured:
+
+```bash
+# Verify R2 Worker directory exists
+ls workers/r2-proxy/
+
+# Check wrangler.toml has R2 bucket binding
+grep "R2_BUCKET" workers/r2-proxy/wrangler.toml
+
+# Check Worker was deployed successfully
+cd workers/r2-proxy && npx wrangler deployments list
+```
+
+**Expected Output**:
+
+- R2 Worker files present
+- `R2_BUCKET` binding configured in wrangler.toml
+- Recent successful deployment shown
+
+**If Failed**: Complete chunk 038 first before proceeding.
+
+---
+
+### 0.2 Verify WebCrypto API Available ✓
+
+Test WebCrypto API in your development environment:
+
+```javascript
+// Run in browser console (npm run dev, then open http://localhost:3000)
+console.log("WebCrypto API Check:", {
+  crypto: !!window.crypto,
+  subtle: !!window.crypto?.subtle,
+  getRandomValues: typeof window.crypto?.getRandomValues === "function",
+  encrypt: typeof window.crypto?.subtle?.encrypt === "function",
+  decrypt: typeof window.crypto?.subtle?.decrypt === "function",
+  deriveKey: typeof window.crypto?.subtle?.deriveKey === "function",
+});
+```
+
+**Expected Output**: All values should be `true`
+
+**If Failed**:
+
+- Ensure you're running on HTTPS or localhost (WebCrypto requires secure context)
+- Update browser to latest version (Chrome 60+, Firefox 60+, Safari 11+)
+
+---
+
+### 0.3 Verify Supabase Auth Working ✓
+
+Test that authentication and session retrieval works:
+
+```typescript
+// Run in browser console after logging in
+import { supabase } from "@/lib/supabase";
+
+const {
+  data: { session },
+  error,
+} = await supabase.auth.getSession();
+
+console.log("Auth Check:", {
+  hasSession: !!session,
+  hasAccessToken: !!session?.access_token,
+  hasUserId: !!session?.user?.id,
+  error: error,
+});
+```
+
+**Expected Output**:
+
+```javascript
+{
+  hasSession: true,
+  hasAccessToken: true,
+  hasUserId: true,
+  error: null
+}
+```
+
+**If Failed**:
+
+- Log in to the application first
+- Check Supabase configuration in `.env`
+- Verify `src/lib/supabase.ts` is properly configured
+
+---
+
+### 0.4 Verify Test Environment Ready ✓
+
+Ensure crypto operations work in your test environment:
+
+```bash
+# Create temporary test file
+cat > src/lib/__tests__/crypto-basic.test.ts << 'EOF'
+import { describe, it, expect } from 'vitest';
+
+describe('WebCrypto Basic Test', () => {
+  it('should generate random values', () => {
+    const array = new Uint8Array(12);
+    crypto.getRandomValues(array);
+
+    // Check that values are not all zeros
+    const sum = Array.from(array).reduce((a, b) => a + b, 0);
+    expect(sum).toBeGreaterThan(0);
+  });
+
+  it('should support AES-GCM key generation', async () => {
+    const key = await crypto.subtle.generateKey(
+      { name: 'AES-GCM', length: 256 },
+      true,
+      ['encrypt', 'decrypt']
+    );
+
+    expect(key).toBeDefined();
+    expect(key.type).toBe('secret');
+  });
+});
+EOF
+
+# Run test
+npm test src/lib/__tests__/crypto-basic.test.ts
+```
+
+**Expected Output**: Both tests pass
+
+**If Failed**:
+
+- Check vitest configuration includes `environment: 'jsdom'`
+- Ensure test environment has WebCrypto polyfill if needed
+
+---
+
+### 0.5 Prerequisites Checklist ✓
+
+Before proceeding to Step 1, confirm:
+
+- [ ] Chunk 038 complete (R2 Worker deployed and accessible)
+- [ ] WebCrypto API available in browser (all 6 checks pass)
+- [ ] Supabase Auth working (can retrieve valid session)
+- [ ] Test environment supports crypto operations (2 basic tests pass)
+
+**All checks passed?** → Proceed to Step 1
+
+**Any check failed?** → Resolve the issue before continuing. Encryption implementation depends on all prerequisites being functional.
+
+---
+
 ## Step 1: Create Backup Types (10 min)
 
 Create `src/types/backup.ts`:
@@ -32,6 +186,8 @@ export interface BackupMetadata {
 Create `src/lib/crypto-utils.ts`:
 
 ```typescript
+import type { EncryptedBackup } from "@/types/backup";
+
 /**
  * Generate random IV for AES-GCM
  */
@@ -635,7 +791,7 @@ export function useBackupEncryption() {
 }
 ```
 
-**Test the hook** by creating `src/hooks/useBackupEncryption.test.tsx`:
+**Test the hook** by creating `src/hooks/useBackupEncryption.test.ts`:
 
 ```typescript
 import { renderHook, act, waitFor } from "@testing-library/react";
@@ -1164,15 +1320,38 @@ export async function withEncryptionErrorRecovery<T>(
 
 **Update BackupEncryption class** to use custom errors:
 
-```typescript
-import { SessionError, DecryptionError } from './encryption-errors';
+Now modify `src/lib/backup-encryption.ts` (created in Step 3) to use the custom error classes:
 
-// In deriveKeyFromAuth method:
+**Add import at the top of the file:**
+
+```typescript
+import { SessionError, DecryptionError } from "./encryption-errors";
+import { supabase } from "./supabase";
+```
+
+**Update the `deriveKeyFromAuth` method** (replace line ~111):
+
+```typescript
+// BEFORE:
+if (!session?.data?.session) {
+  throw new Error("No active session. Please log in.");
+}
+
+// AFTER:
 if (!session?.data?.session) {
   throw new SessionError("No active session. Please log in.");
 }
+```
 
-// In decryptBackup method:
+**Update the `decryptBackup` method** (replace catch block around line ~192):
+
+```typescript
+// BEFORE:
+catch (error) {
+  throw new Error("Decryption failed. Data may be corrupted or key is incorrect.");
+}
+
+// AFTER:
 catch (error) {
   throw new DecryptionError(
     "Decryption failed. Data may be corrupted or key is incorrect.",
@@ -1181,10 +1360,502 @@ catch (error) {
 }
 ```
 
+This provides better error typing and error recovery capabilities.
+
+---
+
+## Common Implementation Mistakes
+
+Before moving to verification, review these common pitfalls to avoid debugging time.
+
+### Mistake #1: Forgetting to await async functions ⚠️
+
+```typescript
+// ❌ WRONG - Missing await (returns Promise, not data)
+const encrypted = encryption.encryptBackup(data);
+console.log(encrypted.iv); // undefined! It's a Promise!
+
+// ✅ CORRECT - Always await async operations
+const encrypted = await encryption.encryptBackup(data);
+console.log(encrypted.iv); // Uint8Array(12)
+```
+
+**Symptom:**
+
+- Tests fail with "Cannot read property 'iv' of undefined"
+- Type errors: "encrypted is not a valid EncryptedBackup"
+- Promises show up in console logs instead of values
+
+**Fix:** Add `await` before all async function calls. Enable ESLint rule `@typescript-eslint/no-floating-promises` to catch this automatically.
+
+---
+
+### Mistake #2: Reusing IV across encryptions 🔴 SECURITY
+
+```typescript
+// ❌ WRONG - Reusing same IV (CRITICAL security vulnerability!)
+const iv = crypto.getRandomValues(new Uint8Array(12));
+for (let i = 0; i < 100; i++) {
+  const encrypted = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv }, // Same IV every time!
+    key,
+    data
+  );
+}
+
+// ✅ CORRECT - Generate fresh IV for EVERY encryption
+for (let i = 0; i < 100; i++) {
+  const iv = crypto.getRandomValues(new Uint8Array(12)); // Fresh IV each time
+  const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, data);
+}
+```
+
+**Symptom:**
+
+- IV uniqueness tests fail (expects 100 unique, gets 1)
+- Security vulnerability (attackers can deduce key material)
+- Multiple encryptions of same data produce identical ciphertext
+
+**Fix:** **ALWAYS** call `crypto.getRandomValues()` inside the encryption function. Never cache or reuse IVs. See `generateIV()` function in crypto-utils.ts.
+
+---
+
+### Mistake #3: Not clearing key after use 💾
+
+```typescript
+// ❌ WRONG - Key stays in memory indefinitely
+const encryption = new BackupEncryption();
+await encryption.encryptBackup(data);
+// encryptionKey still cached in memory!
+
+// Later, somewhere else in the app:
+await encryption.encryptBackup(moreData); // Still using old key
+
+// ✅ CORRECT - Clear key when done with operations
+const encryption = new BackupEncryption();
+await encryption.encryptBackup(data);
+encryption.clearKey(); // Explicitly clear from memory
+
+// Or use try-finally pattern:
+try {
+  const encrypted = await encryption.encryptBackup(data);
+  return encrypted;
+} finally {
+  encryption.clearKey(); // Always clear, even on error
+}
+```
+
+**Symptom:**
+
+- Memory leaks in long-running apps
+- Stale keys after session refresh
+- Increased memory usage over time
+
+**Fix:** Call `clearKey()` after completing encryption operations, especially before user logout or session refresh.
+
+---
+
+### Mistake #4: Catching errors too broadly 🎯
+
+```typescript
+// ❌ WRONG - Swallows all error information
+try {
+  await encryption.encryptBackup(data);
+} catch {
+  console.log("Failed"); // Lost valuable debugging info!
+  return null; // Silent failure
+}
+
+// ✅ CORRECT - Preserve and handle specific error types
+try {
+  await encryption.encryptBackup(data);
+} catch (error) {
+  console.error("Encryption failed:", error); // Log full error
+
+  // Handle specific error types
+  if (error instanceof SessionError) {
+    toast.error("Please log in to encrypt backups");
+    router.push("/login");
+  } else if (error instanceof BrowserCompatibilityError) {
+    toast.error("Your browser does not support encryption. Please update.");
+  } else {
+    toast.error("Encryption failed. Please try again.");
+  }
+
+  throw error; // Re-throw for upstream error handling
+}
+```
+
+**Symptom:**
+
+- Silent failures (user doesn't know what went wrong)
+- Lost error stack traces (can't debug)
+- Generic "something went wrong" messages
+
+**Fix:** Always log the full error object. Use custom error types (SessionError, DecryptionError) to provide specific user feedback. Re-throw errors unless you're at a boundary.
+
+---
+
+### Mistake #5: Mixing Buffer and Uint8Array (Node.js) 🌐
+
+```typescript
+// ❌ WRONG - Buffer is Node.js only (fails in browser)
+const data = Buffer.from("test data"); // ReferenceError: Buffer is not defined
+const encrypted = await encryption.encryptBackup(data);
+
+// ✅ CORRECT - Uint8Array is universal (works everywhere)
+const data = new TextEncoder().encode("test data"); // Browser + Node.js
+const encrypted = await encryption.encryptBackup(data);
+```
+
+**Symptom:**
+
+- "Buffer is not defined" in browser tests
+- "TextEncoder is not defined" in old Node.js versions
+- Tests pass locally (Node.js) but fail in CI (browser)
+
+**Fix:** Always use `TextEncoder`/`TextDecoder` for string conversion and `Uint8Array` for binary data. Never use `Buffer` in code that runs in browsers.
+
+---
+
+### Mistake #6: Incorrect pack/unpack ordering 📦
+
+```typescript
+// ❌ WRONG - Unpacking without proper metadata
+const packed = packEncryptedBackup(encrypted);
+// ... store and retrieve ...
+const unpacked = unpackEncryptedBackup(packed, {}); // Missing IV metadata!
+
+// ✅ CORRECT - Store IV metadata with packed data
+const packed = packEncryptedBackup(encrypted);
+
+// Store metadata separately
+const metadata = {
+  iv: Array.from(encrypted.iv), // Convert Uint8Array to JSON-serializable array
+  algorithm: encrypted.algorithm,
+  keyDerivation: encrypted.keyDerivation,
+};
+
+// ... store both packed data and metadata ...
+
+// Retrieve and unpack with metadata
+const unpacked = unpackEncryptedBackup(packed, metadata);
+```
+
+**Symptom:**
+
+- "Cannot unpack encrypted backup" errors
+- Decryption fails with "Invalid IV"
+- Data corruption after storage/retrieval
+
+**Fix:** Always store IV metadata alongside packed data. The IV is required for decryption and must be preserved exactly.
+
+---
+
+### Mistake #7: Testing with mock session instead of real auth 🔐
+
+```typescript
+// ❌ WRONG - Mocking session bypasses key derivation
+vi.mock("@/lib/supabase", () => ({
+  supabase: {
+    auth: {
+      getSession: () => ({ data: { session: { access_token: "fake" } } }),
+    },
+  },
+}));
+
+// ✅ CORRECT - Use real session or mock with proper JWT structure
+const mockSession = {
+  access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", // Valid JWT format
+  user: {
+    id: "a1b2c3d4-e5f6-7890-1234-567890abcdef", // Valid UUID
+  },
+};
+
+vi.mock("@/lib/supabase", () => ({
+  supabase: {
+    auth: {
+      getSession: vi.fn().mockResolvedValue({
+        data: { session: mockSession },
+      }),
+    },
+  },
+}));
+```
+
+**Symptom:**
+
+- Key derivation returns different keys in tests vs production
+- Tests pass but real implementation fails
+- "Invalid key material" errors in production
+
+**Fix:** Mock sessions must have realistic structure (valid JWT format, proper user ID). Better yet, use real test accounts with Supabase test project.
+
+---
+
+## Quick Debug Checklist ✓
+
+If your tests are failing, check these in order:
+
+### Compilation/Import Errors
+
+- [ ] All imports use correct paths (`@/lib/...` not `./lib/...`)?
+- [ ] TypeScript types imported with `import type` for type-only imports?
+- [ ] No circular dependencies between files?
+
+### Runtime Errors
+
+- [ ] All async functions have `await`?
+- [ ] Session is active (user logged in)?
+- [ ] WebCrypto API available (HTTPS or localhost)?
+- [ ] Using `Uint8Array`, not `Buffer`?
+
+### Encryption Failures
+
+- [ ] Fresh IV generated for each encryption (not reused)?
+- [ ] Key derived successfully (no "No active session" errors)?
+- [ ] Data is `Uint8Array` (not string or Buffer)?
+- [ ] Encryption key not null before encrypt/decrypt?
+
+### Decryption Failures
+
+- [ ] Using same key that encrypted the data?
+- [ ] IV passed correctly to decrypt?
+- [ ] Data not corrupted during storage?
+- [ ] Session still active (not expired)?
+
+### Test Failures
+
+- [ ] Mock session has proper structure (access_token + user.id)?
+- [ ] Test environment has WebCrypto support?
+- [ ] No test isolation issues (shared state between tests)?
+- [ ] Async tests properly awaited?
+
+### Performance Issues
+
+- [ ] PBKDF2 iterations not too high for hardware?
+- [ ] Key caching working (not re-deriving every time)?
+- [ ] Large data not causing memory issues?
+
+**Still stuck?** See `troubleshooting.md` for detailed runtime error solutions.
+
+---
+
+## Rollback Strategy
+
+If you need to abort or restart implementation:
+
+### Scenario 1: Tests Failing After Steps 1-3 (Types, Utils, Engine) 🔧
+
+**Keep:** Types and utilities - they're harmless and reusable
+**Remove:** Encryption engine causing test failures
+
+```bash
+# Remove only the failing encryption implementation
+rm src/lib/backup-encryption.ts
+rm src/lib/backup-encryption.test.ts
+
+# Keep types and utils (they're fine)
+# src/types/backup.ts - KEEP
+# src/lib/crypto-utils.ts - KEEP
+
+# Clean up git if needed
+git checkout -- src/lib/backup-encryption.ts
+```
+
+**When to use:** Encryption logic has fundamental issues, start Step 3 from scratch.
+
+---
+
+### Scenario 2: Performance Issues (Step 7 Benchmarks) ⏱️
+
+**Don't remove code** - Adjust expectations for your hardware instead:
+
+```typescript
+// In src/lib/backup-encryption.ts
+// Temporarily reduce iterations for development/testing
+const PBKDF2_ITERATIONS =
+  process.env.NODE_ENV === "test"
+    ? 10000 // Fast for tests
+    : process.env.NODE_ENV === "development"
+      ? 50000 // Moderate for dev (faster key derivation)
+      : 100000; // Full security for production
+```
+
+**Update vitest.config.ts** to set test environment:
+
+```typescript
+export default defineConfig({
+  test: {
+    env: {
+      NODE_ENV: "test",
+    },
+  },
+});
+```
+
+**When to use:** Performance tests failing on slower hardware, but implementation is correct.
+
+---
+
+### Scenario 3: Hook Integration Issues (Step 5) ⚛️
+
+**Keep:** Core encryption engine (it works)
+**Remove:** React hook wrapper
+
+```bash
+# Remove only the hook and its tests
+rm src/hooks/useBackupEncryption.ts
+rm src/hooks/useBackupEncryption.test.ts
+
+# Keep core encryption
+# src/lib/backup-encryption.ts - KEEP
+```
+
+**When to use:** Hook has React-specific issues (state management, re-renders), but core encryption works fine.
+
+---
+
+### Scenario 4: Integration Test Failures (Step 6) 🔗
+
+**Keep:** All implementation files
+**Fix:** Integration test setup instead
+
+```bash
+# Don't delete implementation - fix test mocks
+# Check these files:
+# src/lib/__tests__/backup-encryption-integration.test.ts
+
+# Common fixes:
+# 1. Update Supabase mock structure
+# 2. Add missing test dependencies
+# 3. Fix async test patterns
+```
+
+**When to use:** Implementation works in manual testing, but integration tests fail due to mock/setup issues.
+
+---
+
+### Scenario 5: Complete Abort (Nuclear Option) ☢️
+
+**Use only if:** Implementation is fundamentally broken and starting over is faster than debugging.
+
+```bash
+# Remove ALL files created in this chunk
+rm src/types/backup.ts
+rm src/lib/crypto-utils.ts
+rm src/lib/backup-encryption.ts
+rm src/lib/backup-encryption.test.ts
+rm src/lib/encryption-errors.ts
+rm src/hooks/useBackupEncryption.ts
+rm src/hooks/useBackupEncryption.test.ts
+rm -rf src/lib/__tests__/backup-encryption-*.test.ts
+
+# Reset to clean state
+git checkout -- src/
+git clean -fd src/
+
+# Restart from Step 0 (Prerequisites)
+```
+
+**When to use:** Multiple systems broken, faster to restart than debug.
+
+---
+
+### Scenario 6: Partial Completion (Pause and Resume) ⏸️
+
+**If pausing mid-implementation:**
+
+```bash
+# Commit what works so far
+git add src/types/backup.ts src/lib/crypto-utils.ts
+git commit -m "WIP: chunk 039 - types and utilities complete"
+
+# Document where you stopped
+echo "Stopped at: Step 4 - Unit Tests" > CHUNK-039-PROGRESS.txt
+git add CHUNK-039-PROGRESS.txt
+git commit -m "docs: track chunk 039 progress"
+```
+
+**When resuming:**
+
+```bash
+# Check where you left off
+cat CHUNK-039-PROGRESS.txt
+
+# Continue from that step
+```
+
+**When to use:** Need to pause implementation for >1 day, want clean checkpoint.
+
+---
+
+### When to Rollback vs Debug
+
+**Rollback if:**
+
+- Stuck for >30 minutes with no progress
+- Multiple test categories failing (suggests fundamental issue)
+- Prerequisites check failed (wrong foundation)
+- Hardware can't meet performance targets (need to adjust, not fix)
+
+**Debug if:**
+
+- Only 1-2 specific tests failing (isolated issue)
+- Error messages are clear and actionable
+- Implementation worked before recent change
+- Just need to adjust configuration (like PBKDF2 iterations)
+
+---
+
+### Rollback Safety Checks ✅
+
+Before executing rollback:
+
+1. **Check git status:**
+
+   ```bash
+   git status
+   # Ensure no unrelated changes will be lost
+   ```
+
+2. **Stash any good work:**
+
+   ```bash
+   git stash push -m "chunk-039-partial-work"
+   # Can restore later: git stash pop
+   ```
+
+3. **Verify backup exists:**
+
+   ```bash
+   git log --oneline | head -5
+   # Check recent commits exist
+   ```
+
+4. **Execute rollback:**
+
+   ```bash
+   # Use specific scenario commands above
+   ```
+
+5. **Verify clean state:**
+   ```bash
+   npm run lint
+   npm run build
+   # Should succeed with no chunk 039 code
+   ```
+
 ---
 
 ## Done!
 
 When all tests pass and encryption works across different scenarios, you're ready for the checkpoint.
+
+**Before proceeding:**
+
+- [ ] Review common mistakes above (avoid them in your implementation)
+- [ ] Know which rollback scenario applies if you get stuck
+- [ ] Have git commits for incremental progress
 
 **Next**: `checkpoint.md` to verify the complete encryption system.

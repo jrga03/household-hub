@@ -535,7 +535,7 @@ export default {
 - Deploy to Cloudflare Pages (production)
 - Configure custom domain
 - **Setup monitoring with Sentry**:
-  - Configure PII scrubbing (Decision #84):
+  - Configure PII scrubbing (Decision #87):
     ```typescript
     Sentry.init({
       beforeSend(event) {

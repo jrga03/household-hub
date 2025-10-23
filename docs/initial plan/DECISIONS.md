@@ -1215,6 +1215,93 @@ export default defineConfig({
 - IMPLEMENTATION-PLAN.md - Days 8-9 scope adjusted
 - Decision #77 - Original conflict resolution matrix (still valid for Phase C)
 
+### 87. Sentry PII Scrubbing for Financial Data
+
+**Decision**: Client-side PII scrubbing in Sentry `beforeSend` hook with complete financial data removal
+**Date**: 2025-01-22
+**Context**: Finance app requires strict privacy controls; Sentry free tier doesn't support server-side data scrubbing
+
+**Options Considered**:
+
+- **Option A**: No scrubbing (trust Sentry's data handling)
+  - Rejected: Exposes sensitive financial data
+- **Option B**: Server-side scrubbing via Sentry data scrubbing rules
+  - Rejected: Not available in free tier
+- **Option C**: Client-side `beforeSend` hook (chosen)
+  - Accepted: Full control, works with free tier, no sensitive data leaves device
+
+**Implementation**:
+
+```typescript
+Sentry.init({
+  dsn: import.meta.env.VITE_SENTRY_DSN,
+  beforeSend(event) {
+    // Scrub financial data from request payload
+    if (event.request?.data) {
+      const data = event.request.data as any;
+      delete data.amount_cents;
+      delete data.description;
+      delete data.notes;
+      delete data.account_number;
+    }
+
+    // Remove sensitive breadcrumbs
+    if (event.breadcrumbs) {
+      event.breadcrumbs = event.breadcrumbs.filter(
+        (breadcrumb) => !breadcrumb.message?.includes("amount")
+      );
+    }
+
+    // Remove PII from user context
+    if (event.user) {
+      delete event.user.email;
+    }
+
+    return event;
+  },
+
+  // Disable session replay for financial screens
+  replaysSessionSampleRate: 0,
+  replaysOnErrorSampleRate: 0,
+});
+```
+
+**Fields to Scrub**:
+
+1. **Transaction data**: `amount_cents`, `description`, `notes`
+2. **Account data**: `account_number`, `balance`
+3. **User data**: `email` (keep user ID for tracking)
+4. **Breadcrumbs**: Any containing "amount" or financial keywords
+
+**Rationale**:
+
+- Privacy-first: Financial data never leaves user's device in error reports
+- Compliance: Reduces risk of accidental PII exposure
+- Free tier compatible: No server-side features required
+- Debugging remains effective: Stack traces and errors still captured
+
+**Trade-offs**:
+
+- Pro: Complete control over data scrubbing
+- Pro: Works with Sentry free tier (5K errors/month)
+- Pro: Privacy-first approach for finance app
+- Con: Can't see actual values in error reports (may need reproduction steps)
+- Con: Must maintain scrubbing list as data model evolves
+
+**Testing**:
+
+```typescript
+// Test in production
+throw new Error("Test error with amount: 1500.50");
+// Verify in Sentry: amount should be scrubbed from breadcrumbs
+```
+
+**Related**:
+
+- Chunk 046 (deployment) - Sentry integration implementation
+- IMPLEMENTATION-PLAN.md Day 15 - Production monitoring setup
+- Decision #45 - Monitoring strategy (Sentry for error tracking)
+
 ## Key Trade-offs Made
 
 1. **Complexity vs Simplicity**: Chose simpler single-app architecture over microservices

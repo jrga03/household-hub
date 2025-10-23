@@ -2,9 +2,9 @@
 
 ## At a Glance
 
-- **Time**: 2 hours
+- **Time**: 3-4 hours
 - **Milestone**: Multi-Device Sync (Backups - optional but recommended)
-- **Prerequisites**: Chunk 036 (CSV export working)
+- **Prerequisites**: Chunks 006, 019, 036 (see detailed list below)
 - **Can Skip**: Yes - but recommended for data portability
 
 ## What You're Building
@@ -32,14 +32,42 @@ CSV import is **critical for data portability**. It enables:
 
 Per Decision #81, this includes a comprehensive deduplication UX to prevent duplicate entries.
 
-## Before You Start
+## Prerequisites
 
-Make sure you have:
+Before starting, verify these chunks are complete:
 
-- Chunk 036 completed (CSV export working)
-- Transaction/account/category CRUD functional
-- Currency utilities (formatPHP, parsePHP) working
-- Basic understanding of hash-based fingerprinting
+### Required Chunks
+
+- [ ] **Chunk 006** (Currency System): `formatPHP`, `parsePHP`, `validateAmount` functions
+  - Verify: `import { formatPHP, parsePHP, validateAmount } from '@/lib/currency'` works
+  - Test: `formatPHP(150050)` returns `"₱1,500.50"`
+
+- [ ] **Chunk 019** (Dexie Setup): IndexedDB schema with tables
+  - Verify: `import { db } from '@/lib/dexie'` works
+  - Tables exist: `db.transactions`, `db.accounts`, `db.categories`
+  - Transaction interface has: `id`, `description`, `amount_cents`, `date`, `account_id`, `category_id`, `type`, `status`, `created_at`, `created_by_user_id`
+
+- [ ] **Chunk 036** (CSV Export): Export functionality working
+  - Verify: Can export transactions to CSV
+  - CSV contains all fields: date, type, description, amount, category, account, status, notes, created_at, created_by
+
+- [ ] **Chunk ???** (Transactions CRUD): Transaction create/read operations functional
+  - Verify: Can create and query transactions via `db.transactions.add()` and `db.transactions.toArray()`
+
+- [ ] **Chunk ???** (Accounts CRUD): Account management functional
+  - Verify: `db.accounts.toArray()` returns list of accounts with `id` and `name` fields
+
+- [ ] **Chunk ???** (Categories CRUD): Category management functional
+  - Verify: `db.categories.toArray()` returns list of categories with `id` and `name` fields
+
+### Framework Dependencies (should already exist)
+
+- shadcn/ui components: Button, Select, RadioGroup, Progress, Label
+- Zustand for state management
+- TanStack Router for routing
+- Sonner for toast notifications
+
+**How to verify**: Run `npm test` - if chunk 006 tests pass and Dexie imports work, you're ready.
 
 ## What Happens Next
 
@@ -79,11 +107,11 @@ src/
 
 ### Duplicate Detection
 
-- Hash fingerprinting (description + amount + date)
+- Hash fingerprinting (description + amount + date + account) per Decision #81
 - Configurable threshold (exact match or fuzzy)
 - Visual duplicate comparison
 - Bulk actions (Skip All | Keep All)
-- Individual per-duplicate actions
+- Individual per-duplicate actions (Skip | Keep Both | Replace)
 
 ### Validation
 
@@ -104,9 +132,11 @@ src/
 ## Related Documentation
 
 - **Original**: `docs/initial plan/IMPLEMENTATION-PLAN.md` lines 410-432 (CSV import)
+- **Original**: `docs/initial plan/FEATURES.md` lines 315-384 (Import/Export specification, Round-Trip Guarantee)
 - **Decisions**:
-  - #81: Import deduplication UX
-  - #84: Data retention on logout
+  - #81: Import deduplication UX (hash-based fingerprinting with account field)
+  - #84: Data retention on logout (provides context for CSV as Phase A backup strategy)
+  - #57: CSV import strategy (reject entire import on error)
 - **Technical**: PapaParse library documentation
 
 ## Technical Stack
@@ -122,11 +152,19 @@ src/
 ### Hash-Based Fingerprinting
 
 ```typescript
+// Per Decision #81: Include account to prevent false duplicates
+// Example: "Groceries ₱500 2025-01-15" in Cash vs Credit Card are DIFFERENT transactions
 function generateFingerprint(transaction: Partial<Transaction>): string {
-  const key = `${transaction.description}-${transaction.amount_cents}-${transaction.date}`;
+  const key = `${transaction.description}-${transaction.amount_cents}-${transaction.date}-${transaction.account_id}`;
   return hashCode(key);
 }
 ```
+
+**Important**: Accounts/categories can be matched by either ID or name:
+
+- CSV can use IDs: `"acc_123"` or `"cat_456"`
+- CSV can use names: `"Checking Account"` or `"Food & Dining"`
+- Validation will find by either field
 
 ### Column Mapping Strategy
 

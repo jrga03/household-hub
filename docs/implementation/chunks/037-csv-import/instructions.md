@@ -24,13 +24,19 @@ import type { Transaction } from "@/types";
 
 /**
  * Generate fingerprint hash for duplicate detection
- * Uses description + amount + date as unique key
+ * Per Decision #81: Uses description + amount + date + account as unique key
+ *
+ * IMPORTANT: Must include account to prevent false duplicates
+ * Example: "Groceries ₱500 2025-01-15" in Cash vs Credit Card are DIFFERENT
+ *
+ * Note: Using simple hashCode instead of sha256 for MVP (faster, sufficient for dedup)
  */
 export function generateFingerprint(transaction: Partial<Transaction>): string {
   const parts = [
     transaction.description?.trim().toLowerCase() || "",
     transaction.amount_cents?.toString() || "",
     transaction.date || "",
+    transaction.account_id || "", // CRITICAL: Include account per Decision #81
   ];
 
   const key = parts.join("|");
@@ -124,6 +130,8 @@ export interface ColumnMapping {
   type: number | null;
   notes: number | null;
   status: number | null;
+  created_at: number | null; // Round-Trip Guarantee: preserve metadata
+  created_by: number | null; // Round-Trip Guarantee: preserve metadata
 }
 
 export interface ParseResult {
@@ -182,12 +190,14 @@ export function detectColumnMappings(headers: string[]): ColumnMapping {
   const patterns: Record<keyof ColumnMapping, RegExp[]> = {
     description: [/description/i, /name/i, /title/i, /memo/i],
     amount: [/amount/i, /value/i, /price/i, /total/i],
-    date: [/date/i, /day/i, /time/i, /when/i],
+    date: [/^date$/i, /day/i, /when/i], // Exclude "created_at" from matching
     account: [/account/i, /bank/i, /wallet/i],
-    category: [/category/i, /type/i, /class/i],
+    category: [/category/i, /class/i],
     type: [/^type$/i, /income|expense/i, /direction/i],
     notes: [/notes/i, /comment/i, /remark/i],
     status: [/status/i, /cleared/i, /pending/i],
+    created_at: [/created_at/i, /created.*at/i, /timestamp/i],
+    created_by: [/created_by/i, /created.*by/i, /author/i, /user/i],
   };
 
   for (let i = 0; i < headers.length; i++) {
@@ -208,9 +218,12 @@ export function detectColumnMappings(headers: string[]): ColumnMapping {
 
 /**
  * Map CSV row to Transaction object using column mapping
+ *
+ * IMPORTANT: Preserves created_at and created_by for Round-Trip Guarantee
+ * (FEATURES.md lines 378-384: Export → Import should produce identical data)
  */
 export function mapRowToTransaction(row: any[], mapping: ColumnMapping): Partial<Transaction> {
-  return {
+  const transaction: Partial<Transaction> = {
     description: mapping.description !== null ? String(row[mapping.description] || "") : "",
     amount_cents: mapping.amount !== null ? parsePHP(row[mapping.amount]) : 0,
     date: mapping.date !== null ? String(row[mapping.date] || "") : "",
@@ -220,6 +233,16 @@ export function mapRowToTransaction(row: any[], mapping: ColumnMapping): Partial
     notes: mapping.notes !== null ? String(row[mapping.notes] || "") : undefined,
     status: mapping.status !== null ? (row[mapping.status] as "pending" | "cleared") : "pending",
   };
+
+  // Preserve metadata fields for round-trip guarantee
+  if (mapping.created_at !== null && row[mapping.created_at]) {
+    transaction.created_at = String(row[mapping.created_at]);
+  }
+  if (mapping.created_by !== null && row[mapping.created_by]) {
+    transaction.created_by_user_id = String(row[mapping.created_by]);
+  }
+
+  return transaction;
 }
 
 /**
@@ -330,6 +353,8 @@ export function generateErrorReport(errors: ValidationError[]): string {
 
 /**
  * Process import in batches to avoid UI blocking
+ *
+ * Performance note: 16ms = one frame at 60fps, allows smooth UI repainting
  */
 export async function* batchProcess<T>(
   items: T[],
@@ -337,9 +362,21 @@ export async function* batchProcess<T>(
 ): AsyncGenerator<T[], void, unknown> {
   for (let i = 0; i < items.length; i += batchSize) {
     yield items.slice(i, i + batchSize);
-    // Allow UI to update between batches
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    // Allow UI to repaint between batches (one frame at 60fps)
+    await new Promise((resolve) => setTimeout(resolve, 16));
   }
+}
+
+/**
+ * Store import fingerprint for duplicate prevention across imports
+ * Per Decision #81: Store as import_key field to prevent re-importing same data
+ */
+export function addImportKey(transaction: Partial<Transaction>): Partial<Transaction> {
+  const { generateFingerprint } = require("./duplicate-detector");
+  return {
+    ...transaction,
+    import_key: generateFingerprint(transaction),
+  };
 }
 ```
 
@@ -398,6 +435,16 @@ interface ImportState {
   // Progress
   progress: number;
   setProgress: (progress: number) => void;
+  currentRow: number; // Row-by-row feedback (IMPLEMENTATION-PLAN.md line 429)
+  setCurrentRow: (row: number) => void;
+
+  // Replace action support
+  transactionsToImport: Partial<Transaction>[];
+  transactionsToReplace: { existing: Transaction; update: Partial<Transaction> }[];
+  setTransactionsToImport: (txns: Partial<Transaction>[]) => void;
+  setTransactionsToReplace: (
+    txns: { existing: Transaction; update: Partial<Transaction> }[]
+  ) => void;
 
   // Results
   imported: number;
@@ -436,6 +483,13 @@ export const useImportStore = create<ImportState>((set) => ({
 
   progress: 0,
   setProgress: (progress) => set({ progress }),
+  currentRow: 0,
+  setCurrentRow: (currentRow) => set({ currentRow }),
+
+  transactionsToImport: [],
+  transactionsToReplace: [],
+  setTransactionsToImport: (transactionsToImport) => set({ transactionsToImport }),
+  setTransactionsToReplace: (transactionsToReplace) => set({ transactionsToReplace }),
 
   imported: 0,
   skipped: 0,
@@ -454,6 +508,9 @@ export const useImportStore = create<ImportState>((set) => ({
       validTransactions: [],
       validationErrors: [],
       progress: 0,
+      currentRow: 0,
+      transactionsToImport: [],
+      transactionsToReplace: [],
       imported: 0,
       skipped: 0,
       failed: 0,
@@ -498,6 +555,8 @@ const FIELDS = [
   { key: "type", label: "Type", required: false },
   { key: "notes", label: "Notes", required: false },
   { key: "status", label: "Status", required: false },
+  { key: "created_at", label: "Created At", required: false },  // Round-Trip Guarantee
+  { key: "created_by", label: "Created By", required: false },  // Round-Trip Guarantee
 ] as const;
 
 export function ColumnMapper({
@@ -812,16 +871,40 @@ function ImportPage() {
       }))
     );
 
-    // Filter transactions based on resolutions
-    const transactions = store.rows
-      .map((row, i) => ({ row, index: i }))
-      .filter(({ index }) => {
-        const action = actions.get(index);
-        return action !== "skip";
-      })
-      .map(({ row }) => mapRowToTransaction(row, store.mapping!));
+    // Separate transactions by action type
+    const toImport: Partial<Transaction>[] = [];
+    const toReplace: { existing: Transaction; update: Partial<Transaction> }[] = [];
 
-    await handleValidation(transactions);
+    for (let i = 0; i < store.rows.length; i++) {
+      const row = store.rows[i];
+      const action = actions.get(i);
+
+      if (action === "skip") {
+        continue;  // Skip this row entirely
+      }
+
+      const mapped = mapRowToTransaction(row, store.mapping!);
+
+      if (action === "replace") {
+        // Find the existing transaction to replace
+        const duplicate = store.duplicates.find((d) => d.importIndex === i);
+        if (duplicate) {
+          toReplace.push({
+            existing: duplicate.existingTransaction,
+            update: mapped,
+          });
+        }
+      } else {
+        // "keep-both" or no duplicate action
+        toImport.push(mapped);
+      }
+    }
+
+    // Store for later use in import step
+    store.setTransactionsToImport(toImport);
+    store.setTransactionsToReplace(toReplace);
+
+    await handleValidation([...toImport, ...toReplace.map((r) => r.update)]);
   };
 
   const handleValidation = async (transactions) => {
@@ -871,13 +954,37 @@ function ImportPage() {
 
     try {
       const db = await getDexieDb();
+      const { addImportKey } = await import("@/lib/csv-importer");
       let imported = 0;
+      let replaced = 0;
       let failed = 0;
+      const totalOperations = transactions.length + (store.transactionsToReplace?.length || 0);
 
+      // Handle "Replace" actions first
+      if (store.transactionsToReplace && store.transactionsToReplace.length > 0) {
+        for (const { existing, update } of store.transactionsToReplace) {
+          try {
+            await db.transactions.update(existing.id, {
+              ...update,
+              import_key: addImportKey(update).import_key,  // Store fingerprint
+            });
+            replaced++;
+            store.setProgress(((replaced + imported) / totalOperations) * 100);
+          } catch (error) {
+            failed++;
+            console.error("Replace failed:", error);
+          }
+        }
+      }
+
+      // Handle new imports ("Keep Both" action or no duplicates)
       for await (const batch of batchProcess(transactions, 100)) {
         try {
+          // Add import_key to each transaction before import
+          const batchWithKeys = batch.map(addImportKey);
+
           await db.transaction("rw", db.transactions, async () => {
-            await db.transactions.bulkAdd(batch);
+            await db.transactions.bulkAdd(batchWithKeys);
           });
           imported += batch.length;
         } catch (error) {
@@ -885,13 +992,15 @@ function ImportPage() {
           console.error("Batch import failed:", error);
         }
 
-        store.setProgress((imported / transactions.length) * 100);
+        store.setProgress(((replaced + imported) / totalOperations) * 100);
+        store.setCurrentRow(imported);  // Row-by-row feedback
       }
 
-      store.setResults(imported, store.duplicates.length, failed);
+      const skipped = store.resolutions.filter((r) => r.action === "skip").length;
+      store.setResults(imported, skipped, failed);
       store.setStep("complete");
 
-      toast.success(`Imported ${imported} transactions`);
+      toast.success(`Imported ${imported}, replaced ${replaced}, skipped ${skipped} transactions`);
     } catch (error) {
       toast.error("Import failed");
       console.error(error);
@@ -951,6 +1060,10 @@ function ImportPage() {
           <Progress value={store.progress} />
           <p className="text-sm text-muted-foreground">
             {Math.round(store.progress)}% complete
+          </p>
+          {/* Row-by-row feedback per IMPLEMENTATION-PLAN.md line 429 */}
+          <p className="text-xs text-muted-foreground">
+            Processing row {store.currentRow} of {store.rows.length}
           </p>
         </div>
       )}

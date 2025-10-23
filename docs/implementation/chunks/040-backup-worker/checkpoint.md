@@ -35,9 +35,11 @@ npm test retry-utils.test.ts
 
 - [ ] BackupManager tests (3+ tests)
 - [ ] RestoreManager tests (2+ tests)
-- [ ] Retry utility tests
+- [ ] Retry utility tests (6+ tests - exponential backoff, max delay, callbacks)
 - [ ] Progress tracking tests
 - [ ] Error handling tests
+- [ ] Schema version validation tests
+- [ ] Rollback mechanism tests
 
 **Duration**: Should complete in <5 seconds
 
@@ -313,6 +315,87 @@ console.log("Match:", JSON.stringify(txn) === JSON.stringify(restoredTxn));
 
 ---
 
+### 5.5 Schema Version Validation ✓
+
+Test with incompatible backup version:
+
+```javascript
+// Manually modify a snapshot's metadata
+const { data } = await supabase
+  .from("snapshots")
+  .select("*")
+  .order("created_at", { ascending: false })
+  .limit(1)
+  .single();
+
+// Update version to incompatible
+await supabase
+  .from("snapshots")
+  .update({
+    metadata: {
+      ...data.metadata,
+      version: "2.0.0", // Incompatible future version
+    },
+  })
+  .eq("id", data.id);
+
+// Try to restore
+```
+
+**Expected**:
+
+- [ ] Restore fails at version check (82% progress)
+- [ ] Error: "Incompatible backup version: 2.0.0"
+- [ ] No data is modified (validation happens before restore)
+
+---
+
+### 5.6 Sync Trigger After Restore ✓
+
+After successful restore:
+
+```javascript
+// Check console logs
+// Should see: "TODO: Trigger syncEngine.fullSync() here..."
+
+// Future: Verify Supabase has restored data
+// const { data: supabaseTxns } = await supabase.from("transactions").select("*");
+// console.log("Supabase transaction count:", supabaseTxns.length);
+```
+
+**Expected**:
+
+- [ ] Console log indicates sync trigger placeholder
+- [ ] Note: Full sync implementation depends on sync engine (chunk 024)
+- [ ] For MVP: Manual sync can be triggered separately
+
+---
+
+### 5.7 SyncQueue Restoration ✓
+
+Verify sync queue is backed up and restored:
+
+```javascript
+// Before backup
+const preSyncQueue = await db.syncQueue.toArray();
+console.log("Pre-backup syncQueue count:", preSyncQueue.length);
+
+// After restore
+const postSyncQueue = await db.syncQueue.toArray();
+console.log("Post-restore syncQueue count:", postSyncQueue.length);
+
+// Verify match
+console.log("SyncQueue preserved:", preSyncQueue.length === postSyncQueue.length);
+```
+
+**Expected**:
+
+- [ ] syncQueue table included in backup
+- [ ] All offline changes preserved after restore
+- [ ] No duplicate queue entries
+
+---
+
 ## Part 6: Error Handling & Edge Cases
 
 ### 6.1 Offline Backup Attempt ✓
@@ -406,6 +489,32 @@ Test with expired session:
 - [ ] Error indicates session issue
 - [ ] User prompted to log in again
 - [ ] After re-login, backup works
+
+---
+
+### 6.6 Rollback on Restore Failure ✓
+
+Test rollback mechanism:
+
+1. Create a backup with valid data
+2. Manually corrupt backup data in R2 (or modify checksum)
+3. Note your current transaction count
+4. Attempt restore
+
+**Expected**:
+
+- [ ] Restore fails at checksum/decryption step
+- [ ] Rollback mechanism triggers automatically
+- [ ] Console shows: "Attempting rollback: clearing local data and re-syncing from cloud..."
+- [ ] Data restored from Supabase (cloud truth)
+- [ ] Toast: "Restore failed and was rolled back. Your original data is intact."
+- [ ] Transaction count matches pre-restore count
+- [ ] App remains functional
+
+**If rollback also fails**:
+
+- [ ] Toast: "CRITICAL: Restore failed and rollback failed..."
+- [ ] User directed to contact support or restore from another backup
 
 ---
 

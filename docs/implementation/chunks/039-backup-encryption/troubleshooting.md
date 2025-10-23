@@ -120,15 +120,20 @@ self.onmessage = async (e) => {
       ["deriveBits", "deriveKey"]
     );
 
+    // Make key extractable so we can export it
     const key = await crypto.subtle.deriveKey(
       { name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" },
       baseKey,
       { name: "AES-GCM", length: 256 },
-      false,
+      true, // ← extractable: true (required for export)
       ["encrypt", "decrypt"]
     );
 
-    self.postMessage({ key });
+    // Export key as raw bytes (CryptoKey cannot be transferred directly)
+    const exportedKey = await crypto.subtle.exportKey("raw", key);
+
+    // Send raw bytes (ArrayBuffer can be transferred)
+    self.postMessage({ exportedKey }, [exportedKey]);
   }
 };
 
@@ -136,9 +141,18 @@ self.onmessage = async (e) => {
 async deriveKeyFromAuth(): Promise<CryptoKey> {
   const worker = new Worker(new URL('./crypto-worker.ts', import.meta.url));
 
-  return new Promise((resolve, reject) => {
-    worker.onmessage = (e) => {
-      resolve(e.data.key);
+  return new Promise(async (resolve, reject) => {
+    worker.onmessage = async (e) => {
+      // Re-import the raw key bytes as CryptoKey (non-extractable)
+      const key = await crypto.subtle.importKey(
+        "raw",
+        e.data.exportedKey,
+        { name: "AES-GCM" },
+        false, // non-extractable for security
+        ["encrypt", "decrypt"]
+      );
+
+      resolve(key);
       worker.terminate();
     };
 
@@ -157,6 +171,13 @@ async deriveKeyFromAuth(): Promise<CryptoKey> {
   });
 }
 ```
+
+**Important**: CryptoKey objects are **non-transferable** via `postMessage`. The solution:
+
+1. Derive key as **extractable** in worker (`true` flag)
+2. Export key as raw ArrayBuffer
+3. Transfer ArrayBuffer to main thread
+4. Re-import as **non-extractable** CryptoKey for security
 
 ---
 

@@ -399,6 +399,128 @@ const { payload } = await jwtVerify(token, publicKey);
 
 ---
 
+### Problem: Need RS256 instead of HS256
+
+**Symptoms**:
+
+- Your Supabase project uses RS256 (asymmetric) instead of HS256 (symmetric)
+- JWT verification with shared secret fails
+- Need to use JWKS public keys
+
+**Cause**: Some Supabase configurations use RS256 for enhanced security
+
+**Solution**:
+
+Replace JWT verification in `src/auth.ts` with JWKS-based approach:
+
+```typescript
+import { jwtVerify, importSPKI } from "jose";
+import type { Env, JWTPayload } from "./types";
+
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
+// Cache for JWKS keys
+let cachedKeys: any = null;
+let cacheExpiry = 0;
+
+async function getPublicKeys(env: Env): Promise<any> {
+  const now = Date.now();
+
+  // Check memory cache first
+  if (cachedKeys && cacheExpiry > now) {
+    return cachedKeys;
+  }
+
+  // Try KV cache
+  const cached = await env.JWT_CACHE.get("jwks", "json");
+  if (cached && cached.expiry > now) {
+    cachedKeys = cached.keys;
+    cacheExpiry = cached.expiry;
+    return cachedKeys;
+  }
+
+  // Fetch fresh JWKS from Supabase
+  const jwksUrl = `${env.SUPABASE_URL}/auth/v1/.well-known/jwks.json`;
+  const response = await fetch(jwksUrl);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch JWKS: ${response.statusText}`);
+  }
+
+  const jwks = await response.json();
+
+  // Cache for 24 hours
+  const expiry = now + CACHE_DURATION;
+  await env.JWT_CACHE.put(
+    "jwks",
+    JSON.stringify({
+      keys: jwks.keys,
+      expiry,
+    })
+  );
+
+  cachedKeys = jwks.keys;
+  cacheExpiry = expiry;
+  return jwks.keys;
+}
+
+export async function verifyJWT(token: string, env: Env): Promise<JWTPayload | null> {
+  try {
+    // For RS256: Use JWKS public keys
+    const keys = await getPublicKeys(env);
+
+    // Try each key until one works
+    for (const key of keys) {
+      try {
+        // Import public key
+        const publicKey = await importSPKI(key.x5c[0], key.alg);
+
+        // Verify JWT
+        const { payload } = await jwtVerify(token, publicKey, {
+          issuer: `${env.SUPABASE_URL}/auth/v1`,
+          audience: "authenticated",
+        });
+
+        // Validate payload structure
+        if (!payload.sub || typeof payload.sub !== "string") {
+          console.error("Invalid JWT payload: missing sub");
+          return null;
+        }
+
+        return payload as JWTPayload;
+      } catch (err) {
+        // Try next key
+        continue;
+      }
+    }
+
+    // No key worked
+    console.error("JWT verification failed with all keys");
+    return null;
+  } catch (error) {
+    console.error("JWT verification failed:", error);
+    return null;
+  }
+}
+
+// extractToken and authenticateRequest remain the same
+```
+
+**Also update wrangler.toml**:
+
+```toml
+# Remove SUPABASE_JWT_SECRET from secrets (not needed for RS256)
+# wrangler secret delete SUPABASE_JWT_SECRET
+
+# SUPABASE_URL still needed in [vars]
+[vars]
+SUPABASE_URL = "https://your-project.supabase.co"
+```
+
+**Reference**: See R2-BACKUP.md lines 115-136 for complete RS256 implementation.
+
+---
+
 ## CORS Issues
 
 ### Problem: Browser shows CORS error despite CORS headers

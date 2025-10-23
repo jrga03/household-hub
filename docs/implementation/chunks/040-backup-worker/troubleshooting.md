@@ -649,6 +649,48 @@ const encrypted = await withTimeout(this.encryption.encryptBackup(compressed), 6
 
 ## Data Integrity Issues
 
+### Problem: "Incompatible backup version" error
+
+**Cause**: Backup was created with different app version
+
+**Symptoms**:
+
+- Restore fails at 82% progress
+- Error: "Incompatible backup version: X.X.X"
+- No data is modified
+
+**Diagnosis**:
+
+```javascript
+// Check backup version
+const { data: snapshot } = await supabase
+  .from("snapshots")
+  .select("*")
+  .eq("id", snapshotId)
+  .single();
+
+console.log("Backup version:", snapshot.metadata?.version);
+console.log("Current app version:", "1.0.0");
+```
+
+**Solution**:
+
+Option A: Update version compatibility check to allow minor versions:
+
+```typescript
+private isCompatibleVersion(backupVersion: string): boolean {
+  const [backupMajor, backupMinor] = backupVersion.split(".").map(Number);
+  const [currentMajor, currentMinor] = "1.0.0".split(".").map(Number);
+
+  // Allow same major version, any minor/patch
+  return backupMajor === currentMajor && backupMinor <= currentMinor;
+}
+```
+
+Option B: Implement schema migration (see below)
+
+---
+
 ### Problem: Restored data missing some fields
 
 **Cause**: Schema mismatch between backup version and current app version
@@ -661,7 +703,7 @@ const encrypted = await withTimeout(this.encryption.encryptBackup(compressed), 6
 
 **Solution**:
 
-Add schema version validation and migration:
+Implement schema migration in RestoreManager:
 
 ```typescript
 private async restoreData(data: any): Promise<void> {
@@ -696,6 +738,199 @@ private async migrateData(data: any, from: string, to: string): Promise<any> {
 
   return data;
 }
+```
+
+---
+
+### Problem: Restore completes but syncQueue missing
+
+**Cause**: syncQueue not included in backup or restore
+
+**Symptoms**:
+
+- Restore succeeds
+- All transactions restored
+- syncQueue table empty
+- Offline changes lost
+
+**Diagnosis**:
+
+```javascript
+// Check if syncQueue was backed up
+const { data: snapshot } = await supabase
+  .from("snapshots")
+  .select("metadata")
+  .eq("id", snapshotId)
+  .single();
+
+// Download and inspect backup
+// Look for syncQueue property in data
+
+const db = await getDexieDb();
+const queueItems = await db.syncQueue.count();
+console.log("SyncQueue items after restore:", queueItems);
+```
+
+**Solution**:
+
+Ensure BackupManager includes syncQueue:
+
+```typescript
+// In backup-manager.ts gatherData method
+private async gatherData() {
+  const db = await getDexieDb();
+  return {
+    transactions: await db.transactions.toArray(),
+    accounts: await db.accounts.toArray(),
+    categories: await db.categories.toArray(),
+    budgets: (await db.budgets?.toArray()) || [],
+    syncQueue: await db.syncQueue.toArray(), // MUST be included
+  };
+}
+```
+
+And RestoreManager restores it:
+
+```typescript
+// In restore-manager.ts restoreData method
+if (db.syncQueue && data.syncQueue) {
+  await db.syncQueue.bulkPut(data.syncQueue);
+}
+```
+
+**Recovery**:
+
+If syncQueue was lost:
+
+1. All offline changes are lost
+2. Must manually re-enter any unsynced transactions
+3. Create new backup with complete implementation
+
+---
+
+### Problem: Rollback fails after restore failure
+
+**Cause**: Supabase cloud truth also corrupted or network unavailable
+
+**Symptoms**:
+
+- Restore fails
+- Rollback attempt also fails
+- Critical error toast appears
+- App data partially deleted
+
+**Diagnosis**:
+
+```javascript
+// Check if Supabase is accessible
+const { data, error } = await supabase.from("transactions").select("count");
+console.log("Supabase accessible:", !error);
+console.log("Transaction count in cloud:", data?.[0]?.count);
+```
+
+**Solution**:
+
+Manual recovery:
+
+```typescript
+// Emergency: Clear and force full re-sync
+const db = await getDexieDb();
+
+// Clear all local data
+await db.transactions.clear();
+await db.accounts.clear();
+await db.categories.clear();
+
+// Force refresh from cloud
+window.location.reload();
+
+// Or implement manual sync pull
+async function manualSyncPull() {
+  const { data: transactions } = await supabase.from("transactions").select("*");
+  const { data: accounts } = await supabase.from("accounts").select("*");
+  const { data: categories } = await supabase.from("categories").select("*");
+
+  const db = await getDexieDb();
+  await db.transactions.bulkPut(transactions);
+  await db.accounts.bulkPut(accounts);
+  await db.categories.bulkPut(categories);
+
+  toast.success("Manual sync completed");
+}
+
+await manualSyncPull();
+```
+
+**Prevention**:
+
+1. Always create backup before risky operations
+2. Test restores with small test backups first
+3. Keep multiple backup versions (don't overwrite)
+4. Maintain Supabase as canonical source of truth
+
+---
+
+### Problem: "TODO: Trigger syncEngine.fullSync()" in console
+
+**Cause**: Sync trigger not yet implemented (chunk dependency)
+
+**Symptoms**:
+
+- Restore completes successfully
+- Data in IndexedDB
+- Data NOT in Supabase
+- Console shows TODO message
+
+**Solution**:
+
+This is **expected behavior** in Phase B before sync engine integration.
+
+**Temporary workaround**:
+
+Manually trigger sync after restore:
+
+```typescript
+// In restore-manager.ts (temporary)
+onProgress?.(95);
+
+// Trigger manual sync to Supabase
+await this.manualSyncToCloud(data);
+
+onProgress?.(100);
+
+// Helper method
+private async manualSyncToCloud(data: any): Promise<void> {
+  // Simple push to Supabase (not production-ready)
+  const { error: txnError } = await supabase
+    .from("transactions")
+    .upsert(data.transactions);
+
+  const { error: accError } = await supabase
+    .from("accounts")
+    .upsert(data.accounts);
+
+  const { error: catError } = await supabase
+    .from("categories")
+    .upsert(data.categories);
+
+  if (txnError || accError || catError) {
+    console.error("Manual sync failed:", { txnError, accError, catError });
+    throw new Error("Failed to sync restored data to cloud");
+  }
+}
+```
+
+**Proper Solution (Phase C)**:
+
+Import and use sync engine:
+
+```typescript
+import { syncEngine } from "@/lib/sync-engine";
+
+// In RestoreManager
+onProgress?.(95);
+await syncEngine.fullSync();
+onProgress?.(100);
 ```
 
 ---

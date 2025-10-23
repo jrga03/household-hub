@@ -362,22 +362,106 @@ console.log(fp1 === fp2); // true
 
 ---
 
+## 19. Round-Trip Guarantee ✓
+
+**Test export → import data preservation** (FEATURES.md lines 378-384):
+
+**Steps**:
+
+1. Create 3 transactions manually with different `created_by` values
+2. Export to CSV
+3. Delete all transactions
+4. Import the CSV
+
+**Expected**:
+
+- [ ] All fields preserved: description, amount, date, account, category, type, status, notes
+- [ ] Metadata preserved: `created_at` and `created_by` fields match original
+- [ ] No data loss or transformation
+- [ ] Transaction count matches (3 imported)
+
+---
+
+## 20. Import Key Storage ✓
+
+**Test fingerprint persistence** (Decision #81):
+
+**Steps**:
+
+1. Import a CSV with 5 transactions
+2. Query database: `await db.transactions.toArray()`
+3. Inspect each transaction object
+
+**Expected**:
+
+- [ ] Each transaction has `import_key` field populated
+- [ ] `import_key` format: fingerprint hash string (e.g., "1a2b3c")
+- [ ] Keys are deterministic (same data = same key)
+- [ ] Re-importing same CSV detects all 5 as duplicates
+
+---
+
+## 21. Replace Action Works ✓
+
+**Test "Replace" duplicate resolution**:
+
+**Steps**:
+
+1. Create transaction: "Groceries" ₱500.00 2025-01-15 Account: Cash
+2. Import CSV with duplicate but different amount:
+   ```csv
+   Description,Amount,Date,Account
+   Groceries,750.00,2025-01-15,Cash
+   ```
+3. Choose "Replace" action
+4. Complete import
+
+**Expected**:
+
+- [ ] Existing transaction amount updated to ₱750.00
+- [ ] No duplicate created
+- [ ] Transaction ID remains the same
+- [ ] Only 1 transaction in database after import
+
+---
+
+## 22. Row-by-Row Feedback ✓
+
+**Test progress display** (IMPLEMENTATION-PLAN.md line 429):
+
+**Steps**:
+
+1. Import CSV with 100 rows
+2. Watch import progress screen
+
+**Expected**:
+
+- [ ] Shows "Processing row X of 100"
+- [ ] Updates in real-time as rows process
+- [ ] Percentage and row count both visible
+- [ ] UI remains responsive during import
+
+---
+
 ## Success Criteria
 
 - [ ] All unit tests pass
 - [ ] Type checking passes
 - [ ] CSV parsing works for various formats
-- [ ] Column mapping auto-detects correctly
+- [ ] Column mapping auto-detects correctly (includes created_at/created_by)
 - [ ] Manual mapping override functional
-- [ ] Duplicate detection accurate
-- [ ] Duplicate resolution UI works
+- [ ] Duplicate detection accurate (includes account in fingerprint)
+- [ ] Duplicate resolution UI works (all 3 actions: Skip | Keep Both | Replace)
 - [ ] Validation catches errors
-- [ ] Progress indicator smooth
+- [ ] Progress indicator smooth with row-by-row feedback
 - [ ] Import completes successfully
 - [ ] Large files handled efficiently
 - [ ] Error recovery graceful
 - [ ] State management correct
 - [ ] Accessibility requirements met
+- [ ] Round-trip guarantee preserved (export → import = identical data)
+- [ ] Import keys stored for duplicate prevention across imports
+- [ ] Replace action updates existing transactions correctly
 
 ---
 

@@ -89,6 +89,9 @@ export class EventCompactor {
     };
 
     // CRITICAL: Store snapshot BEFORE deleting old events
+    // Note: Dexie operations are atomic by default for IndexedDB.
+    // The reference architecture uses Supabase transactions (begin/commit/rollback)
+    // for server-side compaction, but Dexie provides atomicity implicitly.
     await db.events.add(snapshotEvent);
 
     // Delete old events (keep last N for safety)
@@ -163,16 +166,26 @@ export class EventCompactor {
 
   /**
    * Prune inactive devices from vector clock
+   * IMPORTANT: Preserves causality with _historical counter
    */
   private compactVectorClock(vectorClock: VectorClock): VectorClock {
     const compacted: VectorClock = {};
-    const now = Date.now();
+    let historicalMax = 0;
 
     for (const [deviceId, clock] of Object.entries(vectorClock)) {
-      // Keep device if active within threshold
-      // (In production, track last_seen in devices table)
+      // In this simplified version, keep all devices
+      // Step 2 will add device activity tracking
+      // For now, just preserve the vector clock structure
       compacted[deviceId] = clock;
     }
+
+    // If implementing device pruning, track historicalMax:
+    // if (shouldPrune(deviceId)) {
+    //   historicalMax = Math.max(historicalMax, clock);
+    // }
+    // if (historicalMax > 0) {
+    //   compacted["_historical"] = historicalMax;
+    // }
 
     return compacted;
   }
@@ -260,6 +273,7 @@ Enhance vector clock compaction with device activity tracking:
 private async compactVectorClock(vectorClock: VectorClock): Promise<VectorClock> {
   const compacted: VectorClock = {};
   const now = Date.now();
+  let historicalMax = 0;
 
   // Get device registry
   const devices = await db.devices?.toArray() || [];
@@ -275,8 +289,16 @@ private async compactVectorClock(vectorClock: VectorClock): Promise<VectorClock>
     if (inactiveDuration < this.INACTIVE_DEVICE_THRESHOLD) {
       compacted[deviceId] = clock;
     } else {
-      console.log(`Pruned inactive device ${deviceId} from vector clock`);
+      // Track max clock from inactive devices to preserve causality
+      historicalMax = Math.max(historicalMax, clock);
+      console.log(`Pruned inactive device ${deviceId} from vector clock (clock: ${clock})`);
     }
+  }
+
+  // Add _historical counter to preserve causality for pruned devices
+  // This prevents clock regression when devices reactivate or new devices join
+  if (historicalMax > 0) {
+    compacted["_historical"] = historicalMax;
   }
 
   return compacted;

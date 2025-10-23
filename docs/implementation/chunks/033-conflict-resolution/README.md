@@ -9,18 +9,18 @@
 
 ## What You're Building
 
-Record-level Last-Write-Wins conflict resolution (Phase B approach per Decision #85):
+Record-level Last-Write-Wins conflict resolution (Phase B approach per Decision #86):
 
 - ConflictResolutionEngine class
 - Record-level LWW using server timestamps
-- Special case handling (DELETE-wins, cleared-wins)
+- Special case handling (DELETE-wins implemented; field-level rules deferred to Phase C)
 - Resolution logging for transparency
 - Integration with sync processor
 - Field-level merge rules documented (Phase C future)
 
 ## Why This Matters
 
-Conflict resolution is the **heart of Phase B sync** (Decision #85). It enables:
+Conflict resolution is the **heart of Phase B sync** (Decision #86). It enables:
 
 - **Automatic resolution**: No user intervention needed for most conflicts
 - **Deterministic**: Same conflict always resolves the same way
@@ -28,7 +28,7 @@ Conflict resolution is the **heart of Phase B sync** (Decision #85). It enables:
 - **Data integrity**: No silent data loss
 - **Multi-device**: Devices converge to same state
 
-Phase B uses **record-level LWW** (simpler than field-level). Field-level merge deferred to Phase C or "when needed" per Decision #85.
+Phase B uses **record-level LWW** (simpler than field-level). Field-level merge deferred to Phase C or "when needed" per Decision #86.
 
 ## Before You Start
 
@@ -36,7 +36,7 @@ Make sure you have:
 
 - Chunk 032 completed (conflict detection working)
 - Conflicts logged to IndexedDB
-- Transaction events include server timestamps
+- Transaction events include lamport clocks (logical timestamps)
 - Understanding of LWW resolution
 
 ## What Happens Next
@@ -66,7 +66,7 @@ src/
 - **Original**: `docs/initial plan/SYNC-ENGINE.md` lines 279-363 (per-entity resolution)
 - **Decisions**:
   - #77: Deterministic conflict resolution
-  - #85: Phase B uses record-level LWW, field-level deferred to Phase C
+  - #86: Phase B uses record-level LWW, field-level deferred to Phase C
 
 ## Technical Stack
 
@@ -132,7 +132,7 @@ if (localEvent.op === "delete" || remoteEvent.op === "delete") {
 
 ### Why Record-Level LWW?
 
-**Phase B Simplicity** (Decision #85):
+**Phase B Simplicity** (Decision #86):
 
 - **Pros**:
   - Simple implementation (~100 LOC)

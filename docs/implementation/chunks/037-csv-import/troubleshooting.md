@@ -354,6 +354,64 @@ const handleActionChange = (index: number, action: DuplicateAction) => {
 
 ---
 
+### Problem: "Replace" action creates duplicates instead of updating
+
+**Symptoms**:
+
+- User selects "Replace" for duplicates
+- Import completes successfully
+- Duplicate transactions exist instead of updated ones
+- Transaction count increased instead of staying same
+
+**Cause**: handleDuplicateResolve doesn't distinguish between "keep-both" and "replace"
+
+**Solution**:
+
+Properly separate transactions by action:
+
+```typescript
+const handleDuplicateResolve = async (actions) => {
+  const toImport: Partial<Transaction>[] = [];
+  const toReplace: { existing: Transaction; update: Partial<Transaction> }[] = [];
+
+  for (let i = 0; i < store.rows.length; i++) {
+    const row = store.rows[i];
+    const action = actions.get(i);
+
+    if (action === "skip") continue;
+
+    const mapped = mapRowToTransaction(row, store.mapping!);
+
+    if (action === "replace") {
+      const duplicate = store.duplicates.find((d) => d.importIndex === i);
+      if (duplicate) {
+        toReplace.push({ existing: duplicate.existingTransaction, update: mapped });
+      }
+    } else {
+      toImport.push(mapped);
+    }
+  }
+
+  // Store separately for later processing
+  store.setTransactionsToImport(toImport);
+  store.setTransactionsToReplace(toReplace);
+};
+```
+
+Then in handleImport:
+
+```typescript
+// Handle replacements with db.transactions.update()
+for (const { existing, update } of store.transactionsToReplace) {
+  await db.transactions.update(existing.id, update);
+}
+
+// Handle new imports with db.transactions.bulkAdd()
+await db.transactions.bulkAdd(toImport);
+```
+
+---
+
 ## Validation Issues
 
 ### Problem: Valid transactions fail validation

@@ -7,6 +7,52 @@
 - **Prerequisites**: Chunk 034 (realtime sync working)
 - **Can Skip**: Optional - but prevents unbounded event growth
 
+## Prerequisites Verification
+
+Before starting this chunk, verify the following:
+
+### ✓ Chunk 034 Complete
+
+```bash
+# Check that realtime sync checkpoint passed
+cat docs/implementation/chunks/034-sync-realtime/checkpoint.md
+# All checkpoints should show ✓
+```
+
+### ✓ Required Infrastructure
+
+```javascript
+// In browser console, verify these exist:
+
+// 1. Vector clock utilities
+import { mergeVectorClocks } from "@/lib/vector-clock";
+console.log("Vector clock module:", typeof mergeVectorClocks); // "function"
+
+// 2. Events table populated
+import { db } from "@/lib/dexie";
+const eventCount = await db.events.count();
+console.log("Events in DB:", eventCount); // Should be > 0
+
+// 3. Devices table exists
+const deviceCount = await db.devices?.count();
+console.log("Devices registered:", deviceCount); // Should be ≥ 1
+
+// 4. Realtime subscriptions active
+// Check network tab for websocket connection to Supabase
+```
+
+### ✓ Ready to Proceed
+
+- [x] Chunk 034 checkpoint passed
+- [x] Vector clock module exists (`src/lib/vector-clock.ts`)
+- [x] Events table has data (transactions/accounts/categories created)
+- [x] Devices table populated (at least current device registered)
+- [x] Realtime sync tested and working
+
+**If any verification fails**, go back and complete the prerequisite chunks first.
+
+---
+
 ## What You're Building
 
 Event compaction strategy to prevent unbounded event log growth:
@@ -40,7 +86,9 @@ src/
 
 ## Related Documentation
 
-- **Original**: `docs/initial plan/SYNC-ENGINE.md` lines 945-1105 (event compaction)
+- **Original**: `docs/initial plan/SYNC-ENGINE.md` lines 1307-1468 (event compaction strategy)
+- **Decisions**: `docs/initial plan/DECISIONS.md` #67 (vector clock compaction - prune devices >30 days)
+- **Decisions**: `docs/initial plan/DECISIONS.md` #76 (event compaction policy - 100 events OR monthly)
 
 ## Technical Stack
 
@@ -96,6 +144,25 @@ Trigger when FIRST condition met:
 1. Event count ≥ 100 (prevents unbounded growth)
 2. Time since last compaction ≥ 30 days (periodic cleanup)
 ```
+
+### Event Retention Policy
+
+**Implementation**: Immediate compaction with 10-event safety buffer
+
+This chunk uses **immediate compaction** (not 90-day retention) for Phase A simplicity:
+
+- Old events deleted immediately after snapshot creation
+- Last 10 events preserved as safety buffer for conflict resolution
+- Snapshot + 10 recent events provide full state reconstruction
+
+**Rationale**: Decision #76 originally specified "Retain raw events for 90 days", but Phase A adopts immediate compaction with safety buffer for these reasons:
+
+1. **Storage efficiency**: Reduces IndexedDB usage by ~90% immediately
+2. **Simplicity**: No time-based cleanup scheduler needed
+3. **Adequate safety**: 10-event buffer sufficient for recent conflict resolution
+4. **Full history preserved**: R2 backups (Chunks 038-040) provide long-term retention
+
+**Future**: Phase B may introduce configurable retention windows if audit requirements demand it.
 
 ## How Event Compaction Works
 

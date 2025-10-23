@@ -48,9 +48,26 @@ export class BackupManager {
       onProgress?.(100);
     } catch (error) {
       console.error("Backup failed:", error);
+
+      // Note: Backup retry queue implementation deferred to Phase C (automated backups)
+      // For MVP (manual backups), user can simply retry manually
+      // Future: await this.queueBackupRetry(data, error);
+
       throw error;
     }
   }
+
+  // Future Phase C: Implement backup retry queue for automated backups
+  // private async queueBackupRetry(data: any, error: Error): Promise<void> {
+  //   const db = await getDexieDb();
+  //   await db.backupQueue.add({
+  //     data,
+  //     error: error.message,
+  //     attempt: 1,
+  //     nextRetry: Date.now() + 60000, // Retry in 1 minute
+  //     createdAt: Date.now(),
+  //   });
+  // }
 
   private async gatherData() {
     const db = await getDexieDb();
@@ -59,6 +76,7 @@ export class BackupManager {
       accounts: await db.accounts.toArray(),
       categories: await db.categories.toArray(),
       budgets: (await db.budgets?.toArray()) || [],
+      syncQueue: await db.syncQueue.toArray(), // CRITICAL: Include sync queue for offline changes
     };
   }
 
@@ -162,12 +180,40 @@ export class RestoreManager {
       const decompressed = await this.decompress(compressed);
       const data = JSON.parse(decompressed);
 
+      onProgress?.(82);
+      // Validate schema version compatibility
+      if (!this.isCompatibleVersion(data.version)) {
+        throw new Error(
+          `Incompatible backup version: ${data.version}. Current app version may not support this backup.`
+        );
+      }
+
       onProgress?.(85);
       await this.restoreData(data);
+
+      onProgress?.(95);
+      // Trigger full sync to push restored data to Supabase
+      // Note: syncEngine should be imported from your sync module
+      // Example: import { syncEngine } from '@/lib/sync-engine';
+      // await syncEngine.fullSync();
+      // For now, this is a placeholder - implement based on your sync architecture
+      console.log("TODO: Trigger syncEngine.fullSync() here to sync restored data to Supabase");
 
       onProgress?.(100);
     } catch (error) {
       console.error("Restore failed:", error);
+
+      // Attempt rollback if restore failed
+      try {
+        await this.rollbackRestore();
+        toast.error("Restore failed and was rolled back. Your original data is intact.");
+      } catch (rollbackError) {
+        console.error("Rollback also failed:", rollbackError);
+        toast.error(
+          "CRITICAL: Restore failed and rollback failed. Please restore from another backup or contact support."
+        );
+      }
+
       throw error;
     }
   }
@@ -179,7 +225,8 @@ export class RestoreManager {
     return data;
   }
 
-  private async getDownloadUrl(key: string) {
+  private async getDownloadUrl(key: string): Promise<string> {
+    // Get signed download URL from Worker (proper security proxy pattern)
     const token = (await supabase.auth.getSession()).data.session?.access_token;
     const response = await fetch(`${this.workerUrl}/api/backup/download`, {
       method: "POST",
@@ -190,12 +237,27 @@ export class RestoreManager {
       body: JSON.stringify({ key }),
     });
 
-    return response.arrayBuffer();
+    if (!response.ok) {
+      throw new Error("Failed to get signed download URL");
+    }
+
+    const { url } = await response.json();
+    return url; // Returns signed URL, not the data itself
   }
 
-  private async download(data: ArrayBuffer, onProgress?: (p: number) => void): Promise<Uint8Array> {
+  private async download(url: string, onProgress?: (p: number) => void): Promise<Uint8Array> {
+    // Download from signed R2 URL
+    const response = await fetch(url, {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      throw new Error("Download failed");
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
     onProgress?.(1);
-    return new Uint8Array(data);
+    return new Uint8Array(arrayBuffer);
   }
 
   private async generateChecksum(data: Uint8Array): Promise<string> {
@@ -210,17 +272,76 @@ export class RestoreManager {
     return await new Response(stream).text();
   }
 
+  private isCompatibleVersion(backupVersion: string): boolean {
+    const currentVersion = "1.0.0"; // Should match app version constant
+
+    // For now, exact match required
+    // Future: implement semantic version comparison for minor/patch compatibility
+    return backupVersion === currentVersion;
+  }
+
+  private async clearCurrentData(): Promise<void> {
+    const db = await getDexieDb();
+
+    // Clear all data tables
+    await db.accounts.clear();
+    await db.categories.clear();
+    await db.transactions.clear();
+    if (db.budgets) await db.budgets.clear();
+    if (db.syncQueue) await db.syncQueue.clear();
+  }
+
   private async restoreData(data: any): Promise<void> {
     const db = await getDexieDb();
-    await db.transaction("rw", [db.transactions, db.accounts, db.categories], async () => {
-      await db.accounts.clear();
-      await db.categories.clear();
-      await db.transactions.clear();
 
+    // Build transaction array dynamically based on available tables
+    const tables = [db.transactions, db.accounts, db.categories];
+    if (db.budgets) tables.push(db.budgets);
+    if (db.syncQueue) tables.push(db.syncQueue);
+
+    await db.transaction("rw", tables, async () => {
+      // Clear existing data first (within transaction for atomicity)
+      await this.clearCurrentData();
+
+      // Restore in order of dependencies
       await db.accounts.bulkPut(data.accounts);
       await db.categories.bulkPut(data.categories);
       await db.transactions.bulkPut(data.transactions);
+
+      // Restore optional tables if present
+      if (db.budgets && data.budgets) {
+        await db.budgets.bulkPut(data.budgets);
+      }
+      if (db.syncQueue && data.syncQueue) {
+        await db.syncQueue.bulkPut(data.syncQueue);
+      }
     });
+  }
+
+  private async rollbackRestore(): Promise<void> {
+    // Rollback strategy: Re-sync from Supabase to restore cloud truth
+    // This assumes Supabase still has the correct data before restore attempt
+
+    console.log("Attempting rollback: clearing local data and re-syncing from cloud...");
+
+    const db = await getDexieDb();
+
+    // Clear corrupted local data
+    await this.clearCurrentData();
+
+    // Fetch data from Supabase (cloud truth)
+    const { data: transactions } = await supabase.from("transactions").select("*");
+    const { data: accounts } = await supabase.from("accounts").select("*");
+    const { data: categories } = await supabase.from("categories").select("*");
+    const { data: budgets } = await supabase.from("budgets").select("*");
+
+    // Restore from cloud
+    if (transactions) await db.transactions.bulkPut(transactions);
+    if (accounts) await db.accounts.bulkPut(accounts);
+    if (categories) await db.categories.bulkPut(categories);
+    if (budgets && db.budgets) await db.budgets.bulkPut(budgets);
+
+    console.log("Rollback completed: data restored from Supabase");
   }
 }
 ```
@@ -784,6 +905,170 @@ Run tests:
 npm test backup-manager
 npm test restore-manager
 ```
+
+---
+
+## Step 7.5: Add Retry Utils Tests (10 min)
+
+Create `src/lib/__tests__/retry-utils.test.ts`:
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { withRetry } from "../retry-utils";
+
+describe("withRetry", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("should succeed on first attempt", async () => {
+    const operation = vi.fn().mockResolvedValue("success");
+
+    const result = await withRetry(operation);
+
+    expect(result).toBe("success");
+    expect(operation).toHaveBeenCalledTimes(1);
+  });
+
+  it("should retry on failure and eventually succeed", async () => {
+    const operation = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Attempt 1 failed"))
+      .mockRejectedValueOnce(new Error("Attempt 2 failed"))
+      .mockResolvedValue("success on attempt 3");
+
+    const onRetry = vi.fn();
+
+    const promise = withRetry(operation, { maxRetries: 3, onRetry });
+
+    // Fast-forward through retry delays
+    await vi.runAllTimersAsync();
+
+    const result = await promise;
+
+    expect(result).toBe("success on attempt 3");
+    expect(operation).toHaveBeenCalledTimes(3);
+    expect(onRetry).toHaveBeenCalledTimes(2); // Called on 2 failures before success
+  });
+
+  it("should throw after max retries exhausted", async () => {
+    const operation = vi.fn().mockRejectedValue(new Error("Always fails"));
+
+    const promise = withRetry(operation, { maxRetries: 3 });
+
+    // Fast-forward through all retries
+    await vi.runAllTimersAsync();
+
+    await expect(promise).rejects.toThrow("Always fails");
+    expect(operation).toHaveBeenCalledTimes(3);
+  });
+
+  it("should use exponential backoff with jitter", async () => {
+    const operation = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Fail 1"))
+      .mockRejectedValueOnce(new Error("Fail 2"))
+      .mockResolvedValue("success");
+
+    const delays: number[] = [];
+    const originalSetTimeout = global.setTimeout;
+
+    vi.spyOn(global, "setTimeout").mockImplementation(((callback: any, delay: number) => {
+      delays.push(delay);
+      return originalSetTimeout(callback, 0);
+    }) as any);
+
+    const promise = withRetry(operation, {
+      maxRetries: 3,
+      baseDelay: 1000,
+    });
+
+    await vi.runAllTimersAsync();
+    await promise;
+
+    // First retry: ~2000ms (1000 * 2^0 + jitter)
+    expect(delays[0]).toBeGreaterThanOrEqual(2000);
+    expect(delays[0]).toBeLessThan(3000);
+
+    // Second retry: ~4000ms (1000 * 2^1 + jitter)
+    expect(delays[1]).toBeGreaterThanOrEqual(4000);
+    expect(delays[1]).toBeLessThan(5000);
+  });
+
+  it("should respect maxDelay cap", async () => {
+    const operation = vi.fn().mockRejectedValue(new Error("Always fails"));
+
+    const delays: number[] = [];
+    const originalSetTimeout = global.setTimeout;
+
+    vi.spyOn(global, "setTimeout").mockImplementation(((callback: any, delay: number) => {
+      delays.push(delay);
+      return originalSetTimeout(callback, 0);
+    }) as any);
+
+    const promise = withRetry(operation, {
+      maxRetries: 5,
+      baseDelay: 5000,
+      maxDelay: 10000,
+    });
+
+    await vi.runAllTimersAsync();
+
+    try {
+      await promise;
+    } catch {
+      // Expected to fail
+    }
+
+    // All delays should be capped at maxDelay
+    delays.forEach((delay) => {
+      expect(delay).toBeLessThanOrEqual(10000 + 1000); // +1000 for jitter
+    });
+  });
+
+  it("should call onRetry with error and attempt number", async () => {
+    const error1 = new Error("First failure");
+    const error2 = new Error("Second failure");
+
+    const operation = vi
+      .fn()
+      .mockRejectedValueOnce(error1)
+      .mockRejectedValueOnce(error2)
+      .mockResolvedValue("success");
+
+    const onRetry = vi.fn();
+
+    const promise = withRetry(operation, { maxRetries: 3, onRetry });
+
+    await vi.runAllTimersAsync();
+    await promise;
+
+    expect(onRetry).toHaveBeenCalledTimes(2);
+    expect(onRetry).toHaveBeenNthCalledWith(1, error1, 1);
+    expect(onRetry).toHaveBeenNthCalledWith(2, error2, 2);
+  });
+});
+```
+
+Run tests:
+
+```bash
+npm test retry-utils
+```
+
+**Expected**: All 6 tests pass, covering:
+
+- Immediate success
+- Retry with eventual success
+- Max retries exhaustion
+- Exponential backoff timing
+- Max delay cap
+- Retry callback behavior
 
 ---
 

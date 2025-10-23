@@ -2,6 +2,8 @@
 
 Run these verifications to ensure everything works correctly.
 
+**IMPORTANT**: First run `verification.md` automated checks. Only proceed here if all automated checks pass.
+
 ---
 
 ## 1. Vite Build Succeeds ✓
@@ -25,12 +27,14 @@ Open Chrome DevTools → Application → Manifest
 
 **Check**:
 
-- [
-
-] Name: "Household Hub"
-
-- [ ] Short name: "HHub"
-- [ ] Theme color: #ffffff
+- [ ] Name: "Household Hub - Financial Tracker"
+- [ ] Short name: "HouseholdHub"
+- [ ] Theme color: #1e40af
+- [ ] Display override: ["window-controls-overlay", "standalone", "minimal-ui"]
+- [ ] Orientation: any
+- [ ] Lang: en-US
+- [ ] Dir: ltr
+- [ ] Start URL: /?source=pwa
 - [ ] Display: standalone
 - [ ] Icons: 192x192 and 512x512 present
 - [ ] Start URL: /
@@ -54,6 +58,8 @@ icon-32x32.png
 icon-192x192.png
 icon-512x512.png
 apple-touch-icon.png
+shortcut-add.png
+shortcut-dashboard.png
 ```
 
 **Visual check**:
@@ -91,9 +97,10 @@ navigator.serviceWorker.getRegistrations().then(console.log)
 **Test A: Automatic prompt**
 
 1. Clear site data (DevTools → Application → Clear storage)
-2. Reload page
-3. Interact with app (visit 2+ pages or wait 30s)
-4. **Expected**: Install button appears bottom-right
+2. Clear localStorage: `localStorage.clear()`
+3. Reload page 3+ times (to trigger visit counter)
+4. **Expected**: Install banner appears bottom-left (mobile) or bottom-right (desktop)
+5. Banner shows app icon, "Install" button, and "Not now" button
 
 **Test B: Manual prompt**
 
@@ -146,7 +153,7 @@ Test `useInstallPrompt` hook:
 
 ```typescript
 // In a test component
-const { isInstallable, isInstalled, isIOS, promptInstall } = useInstallPrompt();
+const { isInstallable, isInstalled, isIOS, promptInstall, dismissPrompt } = useInstallPrompt();
 
 console.log({
   isInstallable,
@@ -172,17 +179,26 @@ console.log({
 - `isInstalled: true`
 - `isInstallable: false`
 
+**Expected after dismissal**:
+
+- `localStorage.getItem('install-prompt-dismissed')` === 'true'
+- Prompt doesn't show on reload
+- `isInstallable: false`
+
 ---
 
 ## 7. InstallPrompt Component Renders ✓
 
 **Visual check**:
 
-- [ ] Install button appears bottom-right
-- [ ] Button shows "Install App" with download icon
-- [ ] Button has shadow and stands out
-- [ ] Clicking button triggers install (non-iOS)
-- [ ] iOS shows instruction dialog
+- [ ] Install banner appears (after 3+ visits)
+- [ ] Banner shows app icon from /icons/icon-192x192.png
+- [ ] Banner shows "Install Household Hub" heading
+- [ ] Banner shows "Install" and "Not now" buttons
+- [ ] Banner has close X button in top-right
+- [ ] Clicking "Install" triggers install (non-iOS)
+- [ ] Clicking "Not now" dismisses banner
+- [ ] iOS shows instruction dialog with 3-step guide
 
 **iOS dialog check**:
 
@@ -283,15 +299,18 @@ cat dist/manifest.webmanifest | jq
 
 ```json
 {
-  "name": "Household Hub",
-  "short_name": "HHub",
+  "name": "Household Hub - Financial Tracker",
+  "short_name": "HouseholdHub",
   "description": "Offline-first household financial tracker",
-  "theme_color": "#ffffff",
+  "theme_color": "#1e40af",
   "background_color": "#ffffff",
   "display": "standalone",
-  "orientation": "portrait",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "lang": "en-US",
+  "dir": "ltr",
   "scope": "/",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
   "categories": ["finance", "productivity"],
   "icons": [
     {

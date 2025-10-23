@@ -181,12 +181,49 @@ curl -X POST "$WORKER_URL/api/backup/upload"
 
 **Get valid token from Supabase**:
 
-In browser console (after logging into your app):
+Prerequisites for this test:
+
+1. **Dev server running**: `npm run dev` (in project root)
+2. **App accessible**: Open http://localhost:3000 in browser
+3. **Logged in**: Complete login flow (email/password from chunk 002)
+4. **Supabase client available**: App initialized with Supabase
+
+Steps to get token:
+
+1. Open browser DevTools (F12 or Cmd+Opt+I)
+2. Go to **Console** tab
+3. Run this command:
 
 ```javascript
-const token = (await supabase.auth.getSession()).data.session?.access_token;
-console.log(token);
+// Get current session
+const { data, error } = await window.supabase.auth.getSession();
+
+if (error) {
+  console.error("Auth error:", error);
+} else if (!data.session) {
+  console.error("No session - please log in first");
+} else {
+  const token = data.session.access_token;
+  console.log("Access Token:", token);
+  console.log("\nToken expires:", new Date(data.session.expires_at * 1000));
+
+  // Copy token to clipboard (Chrome/Edge)
+  if (navigator.clipboard) {
+    await navigator.clipboard.writeText(token);
+    console.log("✓ Token copied to clipboard!");
+  }
+}
 ```
+
+**Troubleshooting**:
+
+- **"supabase is not defined"**: Supabase client not initialized. Check chunk 002 implementation.
+- **"No session"**: Log out and log in again, then retry.
+- **Token expired**: Token is valid for 1 hour. Log in again to get fresh token.
+
+**Expected output**: Long JWT string (3 parts separated by dots, ~500+ characters)
+
+---
 
 **Test upload endpoint**:
 

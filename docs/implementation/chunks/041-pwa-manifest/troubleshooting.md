@@ -387,7 +387,13 @@ icons: [
     src: "/icons/icon-512x512.png",
     sizes: "512x512",
     type: "image/png",
-    purpose: "any maskable", // Allows Android to apply mask
+    purpose: "any", // Regular icon
+  },
+  {
+    src: "/icons/icon-maskable-512x512.png",
+    sizes: "512x512",
+    type: "image/png",
+    purpose: "maskable", // Separate maskable icon
   },
 ];
 ```
@@ -396,6 +402,53 @@ Maskable icon guidelines:
 
 - Content in center 80% (safe zone)
 - Outer 20% may be cut by mask
+- Test at: https://maskable.app/
+
+---
+
+### Problem: Shortcut icons not displaying
+
+**Symptoms**:
+
+- App shortcuts appear in context menu
+- But show broken/missing icons
+- Console error: 404 for `/icons/shortcut-*.png`
+
+**Cause**: Forgot to generate shortcut icon files
+
+**Solution**:
+
+Generate the shortcut icons:
+
+```bash
+# Navigate to project root
+cd /path/to/project
+
+# Generate shortcut icons (96x96)
+npx sharp -i logo.png -o public/icons/shortcut-add.png resize 96 96
+npx sharp -i logo.png -o public/icons/shortcut-dashboard.png resize 96 96
+```
+
+Or manually create 96x96 PNG files:
+
+1. Open logo in image editor
+2. Resize to 96x96 pixels
+3. Save as `shortcut-add.png` and `shortcut-dashboard.png`
+4. Place in `public/icons/`
+
+Verify files exist:
+
+```bash
+ls -la public/icons/shortcut-*.png
+```
+
+Rebuild and test:
+
+```bash
+npm run build
+npm run preview
+# Right-click installed app icon to see shortcuts
+```
 
 ---
 

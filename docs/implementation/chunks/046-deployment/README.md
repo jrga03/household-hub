@@ -34,13 +34,29 @@ Per Day 15 implementation plan, this completes the production deployment.
 
 ## Before You Start
 
-Make sure you have:
+### Required Prerequisites
 
-- All chunks 001-045 completed
-- All tests passing
-- Cloudflare account
-- Sentry account (optional but recommended)
-- Custom domain (optional)
+**Critical chunks must be complete**:
+
+- **Chunk 002** (auth-flow) - Authentication system working
+- **Chunk 020** (dexie-setup) - IndexedDB configured for offline
+- **Chunk 041** (pwa-manifest) - PWA manifest for installation
+- **Chunk 042** (service-worker) - Service worker for offline functionality
+- **Chunk 045** (e2e-tests) - All E2E tests passing
+
+**System requirements**:
+
+- [ ] All tests passing (`npm test && npm run test:e2e`)
+- [ ] Build succeeds (`npm run build`)
+- [ ] No TypeScript errors (`npx tsc --noEmit`)
+- [ ] Database migrations applied to production Supabase project
+- [ ] Environment variables ready (Supabase URL, anon key)
+
+**Accounts needed**:
+
+- [ ] Cloudflare account (free tier)
+- [ ] Sentry account (optional but recommended, 5K errors/month free)
+- [ ] Custom domain (optional, can use `*.pages.dev`)
 
 ## What Happens Next
 
@@ -56,7 +72,7 @@ After this chunk:
 ## Related Documentation
 
 - **Original**: `docs/initial plan/IMPLEMENTATION-PLAN.md` lines 533-565
-- **Decision**: #84 (PII scrubbing in Sentry)
+- **Decision**: #87 (Sentry PII scrubbing for financial data)
 - **External**: [Cloudflare Pages](https://pages.cloudflare.com/)
 - **External**: [Sentry Docs](https://docs.sentry.io/)
 
@@ -66,9 +82,11 @@ After this chunk:
 .github/workflows/
 └── deploy.yml                # CI/CD pipeline
 .lighthouserc.json            # Lighthouse CI config
-wrangler.toml                 # Cloudflare config
-sentry.client.config.ts       # Sentry setup
+src/lib/sentry.ts             # Sentry setup with PII scrubbing
+DEPLOYMENT.md                 # Deployment quick reference
 ```
+
+**Note**: Cloudflare **Pages** is configured via dashboard, not `wrangler.toml`. If you need Cloudflare Workers for R2 proxy (chunk 040) or push notifications (chunk 043), those would use separate `wrangler.toml` files in their respective worker directories.
 
 ## Deployment Checklist
 

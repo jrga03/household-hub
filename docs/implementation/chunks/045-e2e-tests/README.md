@@ -4,7 +4,12 @@
 
 - **Time**: 2 hours
 - **Milestone**: Production (5 of 6)
-- **Prerequisites**: Chunks 001-040 (working app)
+- **Prerequisites**:
+  - **Chunk 002** (auth-flow) - Auth system for login/signup tests
+  - **Chunk 008** (accounts-ui) - Account CRUD operations
+  - **Chunk 010** (transactions-list) - Transaction CRUD operations
+  - **Chunk 020** (dexie-setup) - IndexedDB for offline tests
+  - **Chunk 024** (sync-processor) - Sync engine for multi-device tests (optional, skip sync tests if not implemented)
 - **Can Skip**: No - critical for production confidence
 
 ## What You're Building
@@ -41,12 +46,14 @@ Per Day 15 implementation plan, this ensures quality before deployment.
 ## Key Files Created
 
 ```
-tests/
+tests/e2e/
 ├── auth.spec.ts              # Auth flow tests
 ├── transactions.spec.ts      # Transaction CRUD
 ├── offline.spec.ts           # Offline mode
 ├── sync.spec.ts              # Multi-device sync
+├── pwa.spec.ts               # PWA installation tests
 ├── accessibility.spec.ts     # A11y tests
+├── keyboard-nav.spec.ts      # Keyboard navigation
 ├── performance.spec.ts       # Load tests
 └── fixtures/
     ├── test-users.ts

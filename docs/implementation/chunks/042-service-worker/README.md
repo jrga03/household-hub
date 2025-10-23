@@ -37,10 +37,19 @@ Per Day 13 implementation plan, this completes the offline experience.
 
 Make sure you have:
 
-- Chunk 041 completed (PWA manifest working)
-- Vite PWA plugin installed
-- Basic understanding of caching strategies
-- Test scenarios for offline functionality
+- **Chunk 041 completed** (PWA manifest working)
+- **Vite PWA plugin installed** (`vite-plugin-pwa` in package.json)
+- **App builds successfully** (`npm run build` completes without errors)
+- **Dexie/IndexedDB setup complete** (from chunks 021-022)
+  - Sync queue table exists in Dexie schema
+  - Device ID system initialized
+  - Meta table for device registration
+- **Basic understanding of caching strategies**
+  - Cache-first vs Network-first patterns
+  - When to cache vs when not to
+- **Test scenarios prepared**
+  - Mobile device or browser DevTools for offline testing
+  - Network throttling tools available
 
 ## What Happens Next
 

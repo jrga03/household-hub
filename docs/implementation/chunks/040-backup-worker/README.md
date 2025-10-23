@@ -90,8 +90,9 @@ src/
 
 ## Related Documentation
 
-- **Original**: `docs/initial plan/R2-BACKUP.md` lines 292-598 (backup manager)
-- **Original**: `docs/initial plan/IMPLEMENTATION-PLAN.md` lines 410-441 (backup completion)
+- **Original**: `docs/initial plan/R2-BACKUP.md` lines 292-598 (backup manager and restore implementation)
+- **Architecture**: `docs/initial plan/R2-BACKUP.md` complete document for Worker setup, encryption, and retention policies
+- **Decision Context**: `docs/initial plan/DECISIONS.md` #69 (encryption strategy), #83 (backup timing)
 
 ## Performance Characteristics
 

@@ -4,6 +4,73 @@ Follow these steps in order. Estimated time: 1 hour.
 
 ---
 
+## Prerequisites Verification
+
+**Before proceeding**, verify all prerequisites from README.md are met:
+
+### 1. Check Chunk Dependencies
+
+```bash
+# Verify you're in the project root
+pwd  # Should show: /path/to/household-hub
+
+# Check if auth is working (requires dev server running)
+# 1. Start dev server: npm run dev
+# 2. Open http://localhost:3000 and log in
+# 3. Open browser console and run:
+#    await supabase.auth.getSession()
+#    Should return session with access_token
+```
+
+### 2. Check External Prerequisites
+
+```bash
+# 1. Verify Node.js version (need 18+)
+node --version
+# Expected: v18.x.x or higher
+
+# 2. Check npm is available
+npm --version
+# Expected: 9.x.x or higher
+
+# 3. Verify internet connection (needed for Wrangler login)
+ping -c 1 dash.cloudflare.com
+# Expected: Response from cloudflare.com
+```
+
+### 3. Verify Cloudflare Account Access
+
+1. Open https://dash.cloudflare.com in browser
+2. If not logged in, sign up (free tier, no credit card required)
+3. Verify you can access the dashboard
+4. Note your account ID (shown in dashboard URL or sidebar)
+
+### 4. Get Supabase JWT Secret
+
+1. Open your Supabase project dashboard
+2. Navigate to: **Settings** → **API**
+3. Scroll to **Project Settings** section
+4. Copy **JWT Secret** (long base64 string)
+5. **Do NOT copy**: anon key or service_role key
+6. Save this secret temporarily (needed in Step 5)
+
+### 5. Verification Complete
+
+If all checks pass:
+
+- ✅ Node.js 18+ installed
+- ✅ Can access Cloudflare dashboard
+- ✅ Have Supabase JWT secret ready
+- ✅ Auth flow working (chunk 002)
+- ✅ Dexie setup complete (chunk 019)
+- ✅ CSV export working (chunk 036)
+
+**Proceed to Step 1 below.**
+
+If any check fails, **stop here** and complete missing prerequisites first.
+
+---
+
 ## Step 1: Install Wrangler CLI (5 min)
 
 ```bash
@@ -250,6 +317,29 @@ Create `src/handlers.ts`:
 ```typescript
 import type { Env, SignedUrlRequest, SignedUrlResponse, R2AccessLog } from "./types";
 
+/**
+ * UPLOAD STRATEGY FOR PHASE B
+ *
+ * R2 doesn't support S3-style presigned URLs natively. We have two options:
+ *
+ * Option 1: Worker Proxy (CHOSEN FOR PHASE B)
+ * - Client requests upload endpoint
+ * - Client POSTs encrypted backup to Worker
+ * - Worker streams to R2 using env.BACKUPS.put()
+ * - Pros: Simple, works with any file size, secure
+ * - Cons: Data passes through Worker (bandwidth cost)
+ *
+ * Option 2: Multipart Upload (DEFERRED TO PHASE C)
+ * - Use R2.createMultipartUpload() for files >5MB
+ * - Client uploads parts directly to R2
+ * - Worker coordinates part completion
+ * - Pros: Better performance, no Worker bandwidth
+ * - Cons: Complex client logic, error handling harder
+ *
+ * For Phase B backups (<100MB typical), Option 1 is sufficient and simpler.
+ * Phase C optimization can implement Option 2 for large datasets.
+ */
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
@@ -271,18 +361,19 @@ export async function handleUploadRequest(
 
     const key = `backups/${userId}/${year}/${month}/${body.filename}`;
 
-    // Create multipart upload (for files >5MB)
-    const upload = await env.BACKUPS.createMultipartUpload(key, {
-      customMetadata: {
-        userId,
-        checksum: body.checksum || "",
-        timestamp: date.toISOString(),
-        contentType: body.contentType,
-      },
-    });
+    // PHASE B SIMPLIFICATION: Direct PUT with signed URL
+    // For Phase B, we use simple PUT uploads (<100MB typical backup size)
+    // Phase C optimization: Implement multipart upload for larger files
 
+    // R2 HTTP API signed URL generation (valid for 1 hour)
+    // Note: R2 doesn't have built-in signed URL generation like S3
+    // For Phase B, we'll use the Worker as a proxy for uploads
+    // Client POSTs file to Worker, Worker PUTs to R2
+
+    // For now, return Worker endpoint for client to POST file data
+    // The actual R2 upload will happen in handleDirectUpload (see Step 8.5 below)
     const response: SignedUrlResponse = {
-      url: upload.uploadId, // In practice, you'd generate a signed URL here
+      url: `/api/backup/upload-direct`, // Client will POST here with file
       key,
       expiresAt: new Date(Date.now() + 3600000).toISOString(), // 1 hour
     };
@@ -296,6 +387,48 @@ export async function handleUploadRequest(
   } catch (error) {
     console.error("Upload request failed:", error);
     return new Response("Internal error", { status: 500, headers: CORS_HEADERS });
+  }
+}
+
+// ADDITIONAL HANDLER: Direct upload endpoint
+// Client POSTs encrypted backup file here, Worker uploads to R2
+export async function handleDirectUpload(
+  request: Request,
+  env: Env,
+  userId: string
+): Promise<Response> {
+  try {
+    // Parse multipart form data or raw body
+    const contentType = request.headers.get("content-type") || "";
+    const key = request.headers.get("x-backup-key");
+
+    if (!key || !key.startsWith(`backups/${userId}/`)) {
+      return new Response("Invalid or unauthorized backup key", {
+        status: 403,
+        headers: CORS_HEADERS,
+      });
+    }
+
+    // Stream upload to R2 (handles large files efficiently)
+    await env.BACKUPS.put(key, request.body, {
+      httpMetadata: {
+        contentType: contentType || "application/octet-stream",
+      },
+      customMetadata: {
+        userId,
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    return new Response(JSON.stringify({ success: true, key }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...CORS_HEADERS,
+      },
+    });
+  } catch (error) {
+    console.error("Direct upload failed:", error);
+    return new Response("Upload error", { status: 500, headers: CORS_HEADERS });
   }
 }
 
@@ -422,6 +555,7 @@ Create `src/index.ts`:
 import { authenticateRequest } from "./auth";
 import {
   handleUploadRequest,
+  handleDirectUpload,
   handleDownloadRequest,
   handleListRequest,
   handleDeleteRequest,
@@ -460,7 +594,13 @@ export default {
     try {
       switch (url.pathname) {
         case "/api/backup/upload":
+          // Returns upload URL/endpoint for client
           response = await handleUploadRequest(request, env, userId);
+          break;
+
+        case "/api/backup/upload-direct":
+          // Actual file upload (client POSTs encrypted backup here)
+          response = await handleDirectUpload(request, env, userId);
           break;
 
         case "/api/backup/download":

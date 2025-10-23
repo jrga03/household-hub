@@ -222,6 +222,8 @@ Then reload.
 
 Once all checks pass:
 
-1. Test on mobile devices
-2. Commit service worker code
-3. Move to **Chunk 043: Push Notifications**
+1. **Run comprehensive verification**: See `verification.md` for detailed cross-browser and security tests
+2. **Test on mobile devices**: Especially iOS Safari (critical for this project)
+3. **Verify storage quota**: If you implemented Step 8, check cache size is reasonable
+4. **Commit service worker code**: Service worker implementation complete
+5. **Move to Chunk 043**: Push Notifications (requires service worker)

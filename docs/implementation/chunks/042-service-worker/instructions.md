@@ -38,6 +38,10 @@ VitePWA({
           },
           cacheableResponse: {
             statuses: [0, 200],
+            // Validate response headers to prevent cache poisoning
+            headers: {
+              "content-type": "application/json",
+            },
           },
         },
       },
@@ -53,6 +57,12 @@ VitePWA({
             maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
           },
         },
+      },
+
+      // Authentication endpoints - Network Only (NEVER cache sensitive data)
+      {
+        urlPattern: /^https:\/\/.*\.supabase\.co\/auth\/.*/i,
+        handler: "NetworkOnly",
       },
 
       // Google Fonts - Stale While Revalidate
@@ -332,24 +342,48 @@ function App() {
 
 ---
 
-## Step 7: Add Background Sync (iOS Fallback) (15 min)
+## Step 7: Add Background Sync (Multi-Strategy) (15 min)
 
-For iOS Safari, add sync on visibility change:
+**Note**: This step requires the sync queue implementation from chunks 023-024. If you haven't completed those chunks yet, you can create this file now and integrate it later, or skip this step and return after implementing the sync engine.
 
 Create `src/lib/background-sync.ts`:
 
 ```typescript
 /**
- * Background sync fallback for browsers that don't support Background Sync API
- * (primarily iOS Safari)
+ * Multi-strategy background sync for cross-browser support
+ *
+ * Strategy priority:
+ * 1. Native Background Sync API (Chrome/Edge)
+ * 2. Visibility change (all browsers)
+ * 3. Window focus (iOS Safari)
+ * 4. Online event (all browsers)
+ * 5. Periodic timer (iOS Safari fallback)
  */
 
 let syncHandler: (() => Promise<void>) | null = null;
+let periodicSyncTimer: number | null = null;
 
 export function registerBackgroundSync(handler: () => Promise<void>) {
   syncHandler = handler;
 
-  // Listen for app coming back to foreground
+  // Strategy 1: Native Background Sync API (Chrome/Edge)
+  if ("serviceWorker" in navigator && "sync" in ServiceWorkerRegistration.prototype) {
+    navigator.serviceWorker.ready
+      .then((registration) => {
+        // Register background sync tag
+        return (registration as any).sync.register("data-sync");
+      })
+      .then(() => {
+        console.log("Background Sync API registered");
+      })
+      .catch((err) => {
+        console.warn("Background Sync API not available, using fallbacks:", err);
+      });
+  } else {
+    console.log("Background Sync API not supported, using fallback strategies");
+  }
+
+  // Strategy 2: Visibility change (all browsers)
   document.addEventListener("visibilitychange", async () => {
     if (document.visibilityState === "visible" && navigator.onLine) {
       console.log("App visible and online - triggering sync");
@@ -357,22 +391,145 @@ export function registerBackgroundSync(handler: () => Promise<void>) {
     }
   });
 
-  // Listen for online event
+  // Strategy 3: Window focus (iOS Safari)
+  window.addEventListener("focus", async () => {
+    if (navigator.onLine) {
+      console.log("Window focused and online - triggering sync");
+      await syncHandler?.();
+    }
+  });
+
+  // Strategy 4: Online event (all browsers)
   window.addEventListener("online", async () => {
     console.log("Connection restored - triggering sync");
     await syncHandler?.();
   });
+
+  // Strategy 5: Periodic timer (iOS Safari fallback)
+  // Sync every 5 minutes while app is open
+  periodicSyncTimer = window.setInterval(
+    async () => {
+      if (navigator.onLine && !document.hidden) {
+        console.log("Periodic sync triggered");
+        await syncHandler?.();
+      }
+    },
+    5 * 60 * 1000
+  ); // 5 minutes
 }
 
-// Usage in your app:
+export function unregisterBackgroundSync() {
+  if (periodicSyncTimer) {
+    clearInterval(periodicSyncTimer);
+    periodicSyncTimer = null;
+  }
+}
+
+// Usage in your app (after sync queue is implemented):
+// import { registerBackgroundSync } from '@/lib/background-sync';
+// import { syncQueueProcessor } from '@/lib/sync-queue';
+//
 // registerBackgroundSync(async () => {
 //   await syncQueueProcessor.processQueue();
 // });
+//
+// Cleanup on app unmount:
+// unregisterBackgroundSync();
 ```
 
 ---
 
-## Step 8: Test Service Worker (15 min)
+## Step 8: Add Storage Quota Monitoring (Optional, 10 min)
+
+For production apps, monitor cache storage to prevent quota issues:
+
+Create `src/hooks/useStorageQuota.ts`:
+
+```typescript
+import { useState, useEffect } from "react";
+
+interface StorageQuota {
+  usage: number;
+  quota: number;
+  percentage: number;
+  available: boolean;
+}
+
+export function useStorageQuota() {
+  const [quota, setQuota] = useState<StorageQuota | null>(null);
+
+  useEffect(() => {
+    const checkQuota = async () => {
+      if (!navigator.storage?.estimate) {
+        return null;
+      }
+
+      const estimate = await navigator.storage.estimate();
+      const usage = estimate.usage || 0;
+      const quota = estimate.quota || 0;
+      const percentage = quota > 0 ? (usage / quota) * 100 : 0;
+
+      setQuota({
+        usage,
+        quota,
+        percentage,
+        available: percentage < 95, // Critical at 95%
+      });
+    };
+
+    checkQuota();
+
+    // Check every 5 minutes
+    const interval = setInterval(checkQuota, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return quota;
+}
+
+// Usage in a component:
+// const quota = useStorageQuota();
+// if (quota && quota.percentage > 80) {
+//   // Show warning to user
+// }
+```
+
+**Optional**: Create a storage warning component:
+
+Create `src/components/StorageWarning.tsx`:
+
+```typescript
+import { useStorageQuota } from '@/hooks/useStorageQuota';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { HardDrive } from 'lucide-react';
+
+export function StorageWarning() {
+  const quota = useStorageQuota();
+
+  if (!quota || quota.percentage < 80) {
+    return null;
+  }
+
+  const usedMB = (quota.usage / 1024 / 1024).toFixed(1);
+  const totalMB = (quota.quota / 1024 / 1024).toFixed(1);
+
+  return (
+    <Alert variant={quota.percentage > 95 ? 'destructive' : 'warning'}>
+      <HardDrive className="h-4 w-4" />
+      <AlertTitle>Storage {quota.percentage > 95 ? 'Critical' : 'Warning'}</AlertTitle>
+      <AlertDescription>
+        Using {usedMB}MB of {totalMB}MB ({quota.percentage.toFixed(1)}%)
+        {quota.percentage > 95 && ' - Please export or delete old data.'}
+      </AlertDescription>
+    </Alert>
+  );
+}
+```
+
+---
+
+## Step 9: Test Service Worker (15 min)
 
 ```bash
 # Build with service worker
@@ -398,10 +555,14 @@ npm run preview
    - Refresh app
    - Verify update prompt appears
 
+4. **Storage quota check** (if implemented):
+   - Console: `navigator.storage.estimate()`
+   - Verify reasonable usage (<50MB typically)
+
 ---
 
 ## Done!
 
-When service worker caches assets and offline mode works, proceed to checkpoint.
+When service worker caches assets and offline mode works, proceed to verification.
 
-**Next**: Run through `checkpoint.md`
+**Next**: Run through `checkpoint.md` then `verification.md`

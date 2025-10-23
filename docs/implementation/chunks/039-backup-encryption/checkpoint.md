@@ -268,7 +268,7 @@ console.log("✓ Text encoding works:", decoded === testText);
 ### 5.1 Hook Unit Tests Pass ✓
 
 ```bash
-npm test useBackupEncryption.test.tsx
+npm test useBackupEncryption.test.ts
 ```
 
 **Expected**: All hook tests pass:

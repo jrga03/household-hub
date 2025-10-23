@@ -293,27 +293,136 @@ beforeSend(event) {
 
 ## Rollback Procedure
 
-### Quick Rollback
+### Before Rolling Back
+
+**CRITICAL**: Check if database schema changed between deployments
+
+```bash
+# 1. Check migrations between deployments
+git log --oneline --since="1 day ago" -- supabase/migrations/
+
+# 2. If migrations exist, note them for rollback
+```
+
+**If schema changed**: Rollback database FIRST, then frontend
+
+---
+
+### Database Rollback (If Needed)
+
+**Only if migrations were applied in broken deployment:**
+
+```bash
+# 1. Create rollback migration
+npx supabase migration new rollback_<feature_name>
+
+# 2. Write reverse migration
+# Example: If migration added column, DROP it
+# If migration created table, DROP TABLE
+
+# 3. Apply rollback migration
+npx supabase db push
+```
+
+**Example rollback migration**:
+
+```sql
+-- Rollback for: Added user_preferences table
+
+DROP TABLE IF EXISTS user_preferences CASCADE;
+```
+
+**Verify rollback**:
+
+```bash
+npx supabase db diff
+# Should show no pending changes
+```
+
+---
+
+### Frontend Rollback
+
+#### Quick Rollback (Cloudflare Dashboard)
 
 1. Cloudflare Pages dashboard
 2. Deployments tab
-3. Find previous working deployment
+3. Find previous **working** deployment
+   - ✅ Check it was successful (green checkmark)
+   - ✅ Verify timestamp is before issue started
 4. Click "..." → "Rollback to this deployment"
 5. Confirm
 
 **Takes 1-2 minutes to apply.**
 
-### Manual Rollback
+**Verify**:
+
+- Visit production URL
+- Test critical paths (auth, transactions)
+- Check browser console for errors
+
+---
+
+#### Manual Rollback (Git)
 
 ```bash
-# Revert to previous commit
+# Option 1: Revert last commit (safer, preserves history)
 git revert HEAD
 git push origin main
 
-# Or reset to specific commit
-git reset --hard <commit-hash>
+# Option 2: Revert specific commit
+git log --oneline  # Find commit hash
+git revert <commit-hash>
+git push origin main
+
+# Option 3: Hard reset (DANGER: rewrites history)
+git reset --hard <working-commit-hash>
 git push origin main --force
 ```
+
+**⚠️ NEVER force push to main** unless absolutely necessary and team is notified
+
+---
+
+### Complete Rollback Checklist
+
+Use this for production incidents:
+
+#### Phase 1: Assess (2 min)
+
+- [ ] Identify broken deployment timestamp
+- [ ] Check if schema changed: `git log supabase/migrations/`
+- [ ] Find last working deployment
+- [ ] Notify team (if applicable)
+
+#### Phase 2: Database Rollback (5-10 min, if needed)
+
+- [ ] Create rollback migration
+- [ ] Test rollback in staging first (if available)
+- [ ] Apply to production: `npx supabase db push`
+- [ ] Verify: `npx supabase db diff`
+
+#### Phase 3: Frontend Rollback (2 min)
+
+- [ ] Cloudflare Pages → Rollback to previous deployment
+- [ ] OR: Git revert and push
+- [ ] Wait for deployment (1-2 min)
+
+#### Phase 4: Verify (5 min)
+
+- [ ] Visit production URL
+- [ ] Test auth flow
+- [ ] Create test transaction
+- [ ] Check browser console
+- [ ] Check Sentry for errors
+- [ ] Monitor for 15 minutes
+
+#### Phase 5: Root Cause (Later)
+
+- [ ] Review failed deployment logs
+- [ ] Identify what broke
+- [ ] Create fix in development
+- [ ] Test thoroughly before redeploying
 
 ---
 

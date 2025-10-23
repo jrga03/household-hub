@@ -4,7 +4,13 @@
 
 - **Time**: 1 hour
 - **Milestone**: Production (1 of 6)
-- **Prerequisites**: Chunks 001-040 complete (working app deployed to staging)
+- **Prerequisites**:
+  - Vite React project configured and building (`npm run build` succeeds)
+  - `src/App.tsx` exists and renders
+  - `index.html` exists in project root
+  - `public/` directory exists
+  - App logo file available (PNG or SVG, 512x512px minimum)
+  - (Optional) App deployed to HTTPS for install testing
 - **Can Skip**: No - required for PWA installation
 
 ## What You're Building
@@ -34,13 +40,28 @@ Per Day 13 of implementation plan, this enables mobile-first deployment.
 
 ## Before You Start
 
-Make sure you have:
+Verify prerequisites:
 
-- Working app deployed to staging (or localhost)
-- Vite project configured
-- App logo/icon in SVG or PNG
+```bash
+# 1. Check Vite config exists
+test -f vite.config.ts && echo "✅ Vite configured"
+
+# 2. Check build works
+npm run build && echo "✅ Build succeeds"
+
+# 3. Check required files
+test -f src/App.tsx && echo "✅ App.tsx exists"
+test -f index.html && echo "✅ index.html exists"
+test -d public && echo "✅ public/ directory exists"
+
+# 4. Check logo file (adjust path as needed)
+test -f logo.png && echo "✅ Logo file available"
+```
+
+Also ensure you have:
+
 - Basic understanding of PWA concepts
-- Test device for install testing (mobile or desktop)
+- Test device for install testing (mobile or desktop recommended)
 
 ## What Happens Next
 
