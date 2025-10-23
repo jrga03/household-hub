@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Generated files
+src/routeTree.gen.ts
+
+# Lock files
+package-lock.json
+pnpm-lock.yaml
+yarn.lock

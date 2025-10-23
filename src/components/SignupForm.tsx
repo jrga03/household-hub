@@ -1,5 +1,6 @@
 import { useState, FormEvent } from "react";
 import { AuthError } from "@supabase/supabase-js";
+import { Link } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,9 +48,9 @@ export function SignupForm() {
           <p className="text-sm text-muted-foreground">
             We&apos;ve sent you a confirmation email. Click the link to verify your account.
           </p>
-          <Button className="mt-4 w-full" onClick={() => (window.location.href = "/login")}>
-            Go to Login
-          </Button>
+          <Link to="/login" className="mt-4 block">
+            <Button className="w-full">Go to Login</Button>
+          </Link>
         </CardContent>
       </Card>
     );
@@ -116,10 +117,9 @@ export function SignupForm() {
 
           <div className="text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            {/* TODO (Chunk 003): Replace with <Link to="/login"> when TanStack Router is enabled */}
-            <a href="/login" className="text-primary hover:underline">
+            <Link to="/login" className="text-primary hover:underline">
               Log in
-            </a>
+            </Link>
           </div>
         </form>
       </CardContent>

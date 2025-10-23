@@ -16,6 +16,7 @@ export default [
       "test-results/**",
       ".lighthouseci/**",
       "*.config.js",
+      "src/routeTree.gen.ts",
     ],
   },
   js.configs.recommended,

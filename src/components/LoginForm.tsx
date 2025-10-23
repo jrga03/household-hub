@@ -1,5 +1,6 @@
 import { useState, FormEvent } from "react";
 import { AuthError } from "@supabase/supabase-js";
+import { Link } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,10 +70,9 @@ export function LoginForm() {
 
           <div className="text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
-            {/* TODO (Chunk 003): Replace with <Link to="/signup"> when TanStack Router is enabled */}
-            <a href="/signup" className="text-primary hover:underline">
+            <Link to="/signup" className="text-primary hover:underline">
               Sign up
-            </a>
+            </Link>
           </div>
         </form>
       </CardContent>
