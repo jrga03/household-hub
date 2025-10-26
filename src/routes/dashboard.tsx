@@ -53,7 +53,12 @@ function Dashboard() {
           <div className="rounded-lg border p-6">
             <h3 className="font-semibold">Transactions</h3>
             <p className="mt-2 text-sm text-muted-foreground">Track income and expenses</p>
-            <p className="mt-4 text-2xl font-bold text-muted-foreground">Coming in Chunk 007</p>
+            <Link
+              to="/transactions"
+              className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
+            >
+              View Transactions →
+            </Link>
           </div>
 
           <div className="rounded-lg border p-6">
