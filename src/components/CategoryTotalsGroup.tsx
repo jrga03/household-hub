@@ -1,4 +1,5 @@
 import { formatPHP } from "@/lib/currency";
+import { sanitizeHexColor } from "@/lib/validateColor";
 import { CategoryTotalCard } from "@/components/CategoryTotalCard";
 import type { CategoryTotalGroup } from "@/lib/supabaseQueries";
 
@@ -13,7 +14,10 @@ export function CategoryTotalsGroup({ group, previousMonthData }: Props) {
       {/* Parent Category Header */}
       <div className="flex items-center justify-between px-4 py-2 bg-muted rounded-lg">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: group.parentColor }} />
+          <div
+            className="w-4 h-4 rounded-full"
+            style={{ backgroundColor: sanitizeHexColor(group.parentColor) }}
+          />
           <h3 className="font-semibold text-lg">{group.parentName}</h3>
         </div>
         <div className="font-mono font-bold text-lg">{formatPHP(group.totalExpenseCents)}</div>

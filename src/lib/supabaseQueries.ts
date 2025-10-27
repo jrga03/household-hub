@@ -649,14 +649,30 @@ export interface CategoryTotalGroup {
  * Transfers are account movements, not actual income or expenses, and would cause
  * double-counting if included in analytics.
  *
+ * **Caching Strategy**: Uses adaptive caching based on whether the month is current or historical:
+ * - Current month: 1 minute cache (data changes frequently as transactions are added)
+ * - Historical months: 10 minutes cache (rarely change unless transactions are edited)
+ *
  * @param month - The month to calculate totals for (Date object)
+ * @param options - Optional configuration for query behavior
+ * @param options.staleTime - Override default cache duration (milliseconds)
  * @returns Query result with CategoryTotalGroup[] sorted by expense (highest first)
  *
  * @example
- * const { data: totals, isLoading } = useCategoryTotals(new Date(2024, 0, 1));
- * // Returns parent categories with their children's expense/income totals
+ * // Use default adaptive caching
+ * const { data: totals } = useCategoryTotals(new Date(2024, 0, 1));
+ *
+ * @example
+ * // Override cache duration
+ * const { data: totals } = useCategoryTotals(new Date(2024, 0, 1), { staleTime: 5000 });
  */
-export function useCategoryTotals(month: Date) {
+export function useCategoryTotals(month: Date, options?: { staleTime?: number }) {
+  // Adaptive caching: Historical months can be cached longer since they rarely change
+  const isCurrentMonth = format(month, "yyyy-MM") === format(new Date(), "yyyy-MM");
+  const defaultStaleTime = isCurrentMonth
+    ? 60 * 1000 // 1 minute for current month (frequent updates expected)
+    : 10 * 60 * 1000; // 10 minutes for historical months (rarely change)
+
   return useQuery({
     queryKey: ["category-totals", format(month, "yyyy-MM")],
     queryFn: async (): Promise<CategoryTotalGroup[]> => {
@@ -775,11 +791,16 @@ export function useCategoryTotals(month: Date) {
       });
 
       // Convert map to array, filter out empty groups, and sort by total expense (highest first)
-      return Array.from(parentMap.values())
-        .filter((group) => group.children.length > 0) // Only show parents with children
-        .sort((a, b) => b.totalExpenseCents - a.totalExpenseCents);
+      return (
+        Array.from(parentMap.values())
+          .filter((group) => group.children.length > 0) // Only show parents with children
+          // NOTE: Parents without ANY child categories (not just zero transactions) are also excluded.
+          // This is intentional per schema constraint: transactions must be assigned to child categories only.
+          // A parent with defined children but zero transactions will show with ₱0.00 totals.
+          .sort((a, b) => b.totalExpenseCents - a.totalExpenseCents)
+      );
     },
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: options?.staleTime ?? defaultStaleTime,
   });
 }
 

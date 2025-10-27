@@ -1,4 +1,5 @@
 import { formatPHP } from "@/lib/currency";
+import { sanitizeHexColor } from "@/lib/validateColor";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
@@ -28,7 +29,10 @@ export function CategoryTotalCard({ category, previousExpenseCents }: Props) {
     <Card className="p-4">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: category.color }} />
+          <div
+            className="w-3 h-3 rounded-full"
+            style={{ backgroundColor: sanitizeHexColor(category.color) }}
+          />
           <h4 className="font-medium">{category.categoryName}</h4>
         </div>
         <div className="text-right">
@@ -46,7 +50,7 @@ export function CategoryTotalCard({ category, previousExpenseCents }: Props) {
             className="h-full transition-all duration-300 ease-in-out"
             style={{
               width: `${Math.min(category.percentOfTotal, 100)}%`,
-              backgroundColor: category.color,
+              backgroundColor: sanitizeHexColor(category.color),
             }}
           />
         </div>
