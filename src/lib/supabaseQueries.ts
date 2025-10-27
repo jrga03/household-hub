@@ -1072,3 +1072,289 @@ export function useDashboardData(currentMonth: Date) {
     staleTime: 30 * 1000, // 30 seconds
   });
 }
+
+/**
+ * TanStack Query hooks for budgets CRUD operations
+ * CRITICAL: Budget vs actual calculations MUST exclude transfers
+ */
+
+/**
+ * Individual budget with actual spending calculated
+ */
+export interface Budget {
+  id: string;
+  categoryId: string;
+  categoryName: string;
+  categoryColor: string;
+  parentCategoryName: string;
+  budgetAmountCents: number;
+  actualSpentCents: number;
+  remainingCents: number;
+  percentUsed: number;
+  isOverBudget: boolean;
+}
+
+/**
+ * Budget group by parent category
+ */
+export interface BudgetGroup {
+  parentName: string;
+  parentColor: string;
+  totalBudgetCents: number;
+  totalSpentCents: number;
+  budgets: Budget[];
+}
+
+/**
+ * Fetches budgets for a specific month with actual spending calculated.
+ *
+ * CRITICAL: Actual spending MUST exclude transfers using `.is("transfer_group_id", null)`.
+ * Transfers are movements between accounts, not actual expenses, and would cause
+ * incorrect budget calculations if included.
+ *
+ * Returns budgets grouped by parent category with rollup totals.
+ *
+ * @param month - The month to fetch budgets for
+ * @returns Query result with BudgetGroup[] array
+ *
+ * @example
+ * const { data: budgetGroups, isLoading } = useBudgets(new Date(2024, 0, 1));
+ * // Returns budgets grouped by parent category with actual spending
+ */
+export function useBudgets(month: Date) {
+  return useQuery({
+    queryKey: ["budgets", format(month, "yyyy-MM")],
+    queryFn: async (): Promise<BudgetGroup[]> => {
+      const monthStart = startOfMonth(month);
+      const monthEnd = endOfMonth(month);
+      const monthKey = format(monthStart, "yyyy-MM-dd");
+
+      // 1. Fetch budgets for this month
+      const { data: budgets, error: budgetsError } = await supabase
+        .from("budgets")
+        .select(
+          `
+          id,
+          category_id,
+          amount_cents,
+          categories(id, name, color, parent_id)
+        `
+        )
+        .eq("month", monthKey);
+
+      if (budgetsError) throw budgetsError;
+
+      // 2. Fetch parent categories
+      const { data: parents, error: parentsError } = await supabase
+        .from("categories")
+        .select("id, name, color")
+        .is("parent_id", null);
+
+      if (parentsError) throw parentsError;
+
+      // 3. Fetch actual spending for these categories
+      // CRITICAL: Exclude transfers from spending calculation
+      const categoryIds = budgets.map((b: any) => b.categories.id);
+
+      const { data: transactions, error: transactionsError } = await supabase
+        .from("transactions")
+        .select("category_id, amount_cents, type")
+        .in("category_id", categoryIds)
+        .is("transfer_group_id", null) // ← Exclude transfers
+        .eq("type", "expense")
+        .gte("date", format(monthStart, "yyyy-MM-dd"))
+        .lte("date", format(monthEnd, "yyyy-MM-dd"));
+
+      if (transactionsError) throw transactionsError;
+
+      // Calculate spending per category
+      const spendingMap = new Map<string, number>();
+      transactions?.forEach((t) => {
+        const existing = spendingMap.get(t.category_id) || 0;
+        spendingMap.set(t.category_id, existing + t.amount_cents);
+      });
+
+      // Build budget objects
+      const budgetObjects: Budget[] = budgets.map((b: any) => {
+        const category = b.categories;
+        const parent = parents?.find((p) => p.id === category.parent_id);
+        const actualSpent = spendingMap.get(category.id) || 0;
+        const remaining = b.amount_cents - actualSpent;
+        const percentUsed = b.amount_cents > 0 ? (actualSpent / b.amount_cents) * 100 : 0;
+
+        return {
+          id: b.id,
+          categoryId: category.id,
+          categoryName: category.name,
+          categoryColor: category.color,
+          parentCategoryName: parent?.name || "Uncategorized",
+          budgetAmountCents: b.amount_cents,
+          actualSpentCents: actualSpent,
+          remainingCents: remaining,
+          percentUsed,
+          isOverBudget: actualSpent > b.amount_cents,
+        };
+      });
+
+      // Group by parent category
+      const groupMap = new Map<string, BudgetGroup>();
+
+      budgetObjects.forEach((budget) => {
+        const parentName = budget.parentCategoryName;
+
+        if (!groupMap.has(parentName)) {
+          const parent = parents.find((p) => p.name === parentName);
+          groupMap.set(parentName, {
+            parentName,
+            parentColor: parent?.color || "#6B7280",
+            totalBudgetCents: 0,
+            totalSpentCents: 0,
+            budgets: [],
+          });
+        }
+
+        const group = groupMap.get(parentName)!;
+        group.totalBudgetCents += budget.budgetAmountCents;
+        group.totalSpentCents += budget.actualSpentCents;
+        group.budgets.push(budget);
+      });
+
+      return Array.from(groupMap.values());
+    },
+    staleTime: 30 * 1000,
+  });
+}
+
+/**
+ * Creates a new budget for a category and month.
+ *
+ * Note: Database enforces unique constraint on (household_id, category_id, month).
+ * Attempting to create duplicate budgets will fail.
+ *
+ * @returns Mutation hook for creating budgets
+ */
+export function useCreateBudget() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: { categoryId: string; month: Date; amountCents: number }) => {
+      const monthKey = format(startOfMonth(data.month), "yyyy-MM-dd");
+
+      const { data: budget, error } = await supabase
+        .from("budgets")
+        .insert({
+          category_id: data.categoryId,
+          month: monthKey,
+          amount_cents: data.amountCents,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return budget;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["budgets"] });
+    },
+  });
+}
+
+/**
+ * Updates an existing budget's amount.
+ *
+ * Note: Category cannot be changed when editing - only the amount can be updated.
+ * To change category, delete and create new budget.
+ *
+ * @returns Mutation hook for updating budgets
+ */
+export function useUpdateBudget() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: { id: string; amountCents: number }) => {
+      const { data: budget, error } = await supabase
+        .from("budgets")
+        .update({ amount_cents: data.amountCents })
+        .eq("id", data.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return budget;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["budgets"] });
+    },
+  });
+}
+
+/**
+ * Deletes a budget.
+ *
+ * Note: Deleting a budget does not affect transactions or actual spending data.
+ *
+ * @returns Mutation hook for deleting budgets
+ */
+export function useDeleteBudget() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (budgetId: string) => {
+      const { error } = await supabase.from("budgets").delete().eq("id", budgetId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["budgets"] });
+    },
+  });
+}
+
+/**
+ * Copies budgets from one month to another.
+ *
+ * Useful for replicating previous month's budget targets without manual re-entry.
+ * Note: This is a convenience feature - budgets are independent per month (no rollover).
+ *
+ * @returns Mutation hook for copying budgets
+ */
+export function useCopyBudgets() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: { fromMonth: Date; toMonth: Date }) => {
+      const fromKey = format(startOfMonth(data.fromMonth), "yyyy-MM-dd");
+      const toKey = format(startOfMonth(data.toMonth), "yyyy-MM-dd");
+
+      // Fetch budgets from previous month
+      const { data: existingBudgets, error: fetchError } = await supabase
+        .from("budgets")
+        .select("category_id, amount_cents")
+        .eq("month", fromKey);
+
+      if (fetchError) throw fetchError;
+
+      if (!existingBudgets || existingBudgets.length === 0) {
+        throw new Error("No budgets found for previous month");
+      }
+
+      // Insert budgets for new month using upsert to handle partial copies
+      const newBudgets = existingBudgets.map((b) => ({
+        category_id: b.category_id,
+        month: toKey,
+        amount_cents: b.amount_cents,
+      }));
+
+      const { error: insertError } = await supabase
+        .from("budgets")
+        .upsert(newBudgets, { onConflict: "household_id,category_id,month" });
+
+      if (insertError) throw insertError;
+
+      return newBudgets.length;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["budgets"] });
+    },
+  });
+}
