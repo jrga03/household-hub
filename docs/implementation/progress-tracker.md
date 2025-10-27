@@ -4,10 +4,10 @@
 
 ## Your Stats
 
-- **Time invested**: 20.5 hours
-- **Current milestone**: MVP ✅ COMPLETE (11/11 required chunks) + Budgets Schema Enhancement
-- **Last chunk completed**: 015-budgets-schema
-- **Next session goal**: Optional - Chunk 016 (Budgets UI) or Transfers (017-018) OR proceed to Milestone 3 (Offline)
+- **Time invested**: 21 hours
+- **Current milestone**: MVP ✅ COMPLETE (11/11 required chunks) + Budgets UI Enhancement
+- **Last chunk completed**: 016-budgets-ui
+- **Next session goal**: Optional - Transfers (017-018) OR proceed to Milestone 3 (Offline)
 
 ---
 
@@ -60,7 +60,7 @@
 
 - [x] 014-budgets-basic ⏱️ 2hr ✅ COMPLETE (merged schema + UI, comprehensive code review, Progress bar colors fixed, copy budgets with upsert, TypeScript build passes, PRODUCTION-READY)
 - [x] 015-budgets-schema ⏱️ 35min ✅ COMPLETE (budgets table with month_key optimization, 7 indexes, RLS policies, comprehensive verification, code review A+ 10/10, PRODUCTION-READY)
-- [ ] 016-budgets-ui ⏱️ 1.5hr (optional enhancement to 014)
+- [x] 016-budgets-ui ⏱️ 30min ✅ COMPLETE (modular hook structure with useBudgets.ts, useBudgetActuals.ts, enhanced BudgetProgressBar component, wrapper pattern for backward compatibility, code review 8.5/10, defensive checks added, PRODUCTION-READY)
 - [ ] 017-transfers-schema ⏱️ 45min
 - [ ] 018-transfers-ui ⏱️ 1hr
 
