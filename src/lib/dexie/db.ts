@@ -1,0 +1,347 @@
+/**
+ * Dexie Database Setup for Household Hub
+ *
+ * IndexedDB database using Dexie.js for offline-first functionality.
+ * Implements three-layer state architecture: Zustand → IndexedDB → Supabase
+ *
+ * Schema Versioning:
+ * - Version 1: Initial schema with 7 tables
+ * - Future versions: Add new indexes/fields with .upgrade() functions
+ * - NEVER remove fields (mark deprecated instead)
+ * - ALWAYS provide default values in upgrade functions
+ *
+ * See ARCHITECTURE.md (Three-Layer State) and SYNC-ENGINE.md (Dexie Schema Versioning)
+ *
+ * @module dexie/db
+ */
+
+import Dexie, { Table } from "dexie";
+
+// ============================================================================
+// TypeScript Interfaces
+// ============================================================================
+// Interfaces match Supabase schema structure for consistency
+
+/**
+ * Local transaction record stored in IndexedDB.
+ * Mirrors the transactions table in Supabase with additions for offline sync.
+ */
+export interface LocalTransaction {
+  id: string;
+  household_id: string;
+  date: string; // ISO date string (DATE type in Supabase)
+  description: string;
+  amount_cents: number; // BIGINT cents (always positive)
+  type: "income" | "expense";
+  currency_code: string; // 'PHP' only for MVP
+  account_id?: string;
+  category_id?: string;
+  transfer_group_id?: string; // Links paired transfer transactions
+  status: "pending" | "cleared";
+  visibility: "household" | "personal";
+  created_by_user_id: string;
+  tagged_user_ids: string[]; // Array for @mentions
+  notes?: string;
+  import_key?: string; // SHA-256 hash for duplicate detection
+  device_id: string;
+  created_at: string; // ISO timestamp
+  updated_at: string; // ISO timestamp
+}
+
+/**
+ * Local account record cached from Supabase.
+ */
+export interface LocalAccount {
+  id: string;
+  household_id: string;
+  name: string;
+  type: "bank" | "investment" | "credit_card" | "cash";
+  initial_balance_cents: number;
+  currency_code: string; // 'PHP' only for MVP (Phase 2: multi-currency)
+  visibility: "household" | "personal";
+  owner_user_id?: string;
+  color: string;
+  icon: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Local category record cached from Supabase.
+ * Supports two-level hierarchy (parent → child).
+ */
+export interface LocalCategory {
+  id: string;
+  household_id: string;
+  parent_id?: string; // null for parent categories
+  name: string;
+  color: string;
+  icon: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Sync queue item for offline changes waiting to sync.
+ */
+export interface SyncQueueItem {
+  id: string;
+  household_id: string;
+  entity_type: "transaction" | "account" | "category" | "budget";
+  entity_id: string;
+  operation: {
+    op: "create" | "update" | "delete";
+    payload: any;
+  };
+  device_id: string;
+  status: "queued" | "syncing" | "completed" | "failed";
+  retry_count: number;
+  error_message?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Transaction event for event sourcing audit log.
+ * Used for conflict resolution and sync.
+ */
+export interface TransactionEvent {
+  id: string;
+  household_id: string;
+  entity_type: "transaction" | "account" | "category" | "budget";
+  entity_id: string;
+  op: "create" | "update" | "delete";
+  payload: any; // Changed fields only for updates
+  idempotency_key: string; // Format: ${deviceId}-${entityType}-${entityId}-${lamportClock}
+  event_version: number; // Schema version for forward compatibility
+  actor_user_id: string;
+  device_id: string;
+  lamport_clock: number; // Per-entity counter
+  vector_clock: Record<string, number>; // {deviceId: clockValue} scoped to entity
+  timestamp: string; // ISO timestamp
+}
+
+/**
+ * Key-value storage for metadata (device ID, last sync time, etc.).
+ */
+export interface MetaEntry {
+  key: string;
+  value: any; // Flexible value type (string, number, object, etc.)
+}
+
+/**
+ * Debug log entry for observability.
+ */
+export interface LogEntry {
+  id: string;
+  timestamp: string;
+  level: "debug" | "info" | "warn" | "error";
+  message: string;
+  context?: any;
+  device_id: string;
+}
+
+// ============================================================================
+// Dexie Database Class
+// ============================================================================
+
+/**
+ * HouseholdHubDB - IndexedDB database for offline-first functionality.
+ *
+ * Schema Design:
+ * - Primary keys are always "id" except meta table (uses "key")
+ * - Indexes define queryable fields (IndexedDB has no query optimizer)
+ * - Compound indexes for efficient common query patterns
+ * - Multi-entry indexes (*prefix) for array fields like tagged_user_ids
+ *
+ * Version Strategy:
+ * - Start at version 1 with all tables
+ * - Increment version for schema changes (add fields, modify indexes)
+ * - Never remove fields (mark deprecated with comments)
+ * - Always provide .upgrade() function with default values
+ *
+ * Auto-open:
+ * - Database opens automatically on module import
+ * - Handles migration between versions transparently
+ *
+ * @example
+ * import { db } from '@/lib/dexie/db';
+ *
+ * // Add transaction
+ * await db.transactions.add(transaction);
+ *
+ * // Query with index
+ * const recent = await db.transactions
+ *   .where('date')
+ *   .above('2024-01-01')
+ *   .limit(100)
+ *   .toArray();
+ */
+export class HouseholdHubDB extends Dexie {
+  // Table declarations with TypeScript typing
+  transactions!: Table<LocalTransaction, string>;
+  accounts!: Table<LocalAccount, string>;
+  categories!: Table<LocalCategory, string>;
+  syncQueue!: Table<SyncQueueItem, string>;
+  events!: Table<TransactionEvent, string>;
+  meta!: Table<MetaEntry, string>;
+  logs!: Table<LogEntry, string>;
+
+  constructor() {
+    super("HouseholdHubDB");
+
+    // ========================================================================
+    // Version 1: Initial schema with all 7 tables
+    // ========================================================================
+    this.version(1).stores({
+      // Transactions: Core transaction storage with compound indexes for common queries
+      // Single indexes: id (primary), date, account_id, category_id, status, type, household_id, created_at, transfer_group_id
+      // Compound indexes: [account_id+date], [category_id+date], [household_id+date] for efficient range queries
+      // Multi-entry indexes: *tagged_user_ids (for @mention queries)
+      transactions:
+        "id, date, account_id, category_id, status, type, household_id, created_at, transfer_group_id, " +
+        "[account_id+date], [category_id+date], [household_id+date], *tagged_user_ids",
+
+      // Accounts: Bank/financial account cache
+      // Indexes: id (primary), name, visibility, household
+      accounts: "id, name, visibility, household_id",
+
+      // Categories: Category hierarchy cache
+      // Indexes: id (primary), parent_id (for tree queries), name, household
+      categories: "id, parent_id, name, household_id",
+
+      // Sync Queue: Pending sync operations with compound indexes for queue filtering
+      // Single indexes: id (primary), status, entity_type, entity_id, device_id, created_at
+      // Compound indexes: [status+device_id] for queue filtering, [device_id+created_at] for history
+      syncQueue:
+        "id, status, entity_type, entity_id, device_id, created_at, " +
+        "[status+device_id], [device_id+created_at]",
+
+      // Events: Event sourcing log
+      // Indexes: id (primary), entity_id, lamport_clock, timestamp, device_id
+      events: "id, entity_id, lamport_clock, timestamp, device_id",
+
+      // Meta: Key-value storage (device ID, last sync time, etc.)
+      // Primary key: key (not id)
+      meta: "key",
+
+      // Logs: Debug and observability logs
+      // Indexes: id (primary), timestamp, level, device_id
+      logs: "id, timestamp, level, device_id",
+    });
+
+    // ========================================================================
+    // Version 2 (Future): Add tagged_user_ids multi-entry index
+    // ========================================================================
+    // Example of how to add a new version with migration:
+    //
+    // this.version(2)
+    //   .stores({
+    //     // Add *tagged_user_ids for multi-entry index (array queries)
+    //     transactions:
+    //       "id, date, account_id, category_id, status, type, household_id, created_at, *tagged_user_ids",
+    //   })
+    //   .upgrade((tx) => {
+    //     // Migration logic: Initialize missing field with default value
+    //     return tx
+    //       .table("transactions")
+    //       .toCollection()
+    //       .modify((transaction) => {
+    //         if (!transaction.tagged_user_ids) {
+    //           transaction.tagged_user_ids = [];
+    //         }
+    //       });
+    //   });
+
+    // ========================================================================
+    // Version 3 (Future): Add household_id compound index for performance
+    // ========================================================================
+    // Example of optimizing queries with compound indexes:
+    //
+    // this.version(3)
+    //   .stores({
+    //     // Add compound index for household + date queries
+    //     transactions:
+    //       "id, date, account_id, category_id, status, type, household_id, created_at, *tagged_user_ids, [household_id+date]",
+    //   })
+    //   .upgrade((tx) => {
+    //     // No data migration needed, just index addition
+    //     console.log("Added household_id+date compound index");
+    //     return Promise.resolve();
+    //   });
+
+    // ========================================================================
+    // Migration Testing Notes
+    // ========================================================================
+    // When adding new versions:
+    // 1. Test migration from v1 → vN with realistic data (10k+ records)
+    // 2. Verify default values are applied correctly
+    // 3. Check indexes work as expected (use .where() queries)
+    // 4. Measure migration performance (<5s for typical datasets)
+    // 5. Keep all migration code forever (users may skip versions)
+    //
+    // See tests/dexie/migrations.test.ts for examples
+  }
+}
+
+// ============================================================================
+// Singleton Instance & Auto-open
+// ============================================================================
+
+/**
+ * Singleton database instance.
+ * Automatically opens when imported.
+ *
+ * @example
+ * import { db } from '@/lib/dexie/db';
+ * await db.transactions.add(newTransaction);
+ */
+export const db = new HouseholdHubDB();
+
+// Auto-open database on module import
+// Handles version migrations transparently
+db.open().catch((err) => {
+  console.error("Failed to open IndexedDB database:", err);
+  // Log to observability system if available
+  if (typeof window !== "undefined" && (window as any).Sentry) {
+    (window as any).Sentry.captureException(err, {
+      tags: { subsystem: "dexie-db" },
+    });
+  }
+});
+
+// ============================================================================
+// Developer Notes
+// ============================================================================
+
+// Storage Quota Management:
+// - Monitor with navigator.storage.estimate()
+// - Warn at 80%, prune at 95%
+// - See SYNC-ENGINE.md lines 2341-2520 for quota management strategy
+
+// Idempotency:
+// - Event idempotency_key format: ${deviceId}-${entityType}-${entityId}-${lamportClock}
+// - Prevents duplicate event processing in distributed sync
+// - See SYNC-ENGINE.md lines 227-277 for implementation
+
+// Device ID Strategy:
+// - Priority: IndexedDB (meta table) → localStorage → crypto.randomUUID()
+// - Already implemented in src/lib/device.ts using localStorage + crypto API
+// - Future: Add FingerprintJS fallback for continuity across cache clears
+// - See SYNC-ENGINE.md lines 1123-1303 for full hybrid strategy
+
+// Query Performance:
+// - Use .where() with indexed fields for fast queries
+// - Compound indexes for common filter combinations
+// - Avoid .filter() on large tables (scans all records)
+// - Use .limit() to prevent loading thousands of records
+
+// Testing:
+// - Unit tests: Currency utilities, conflict resolution
+// - Migration tests: v1 → v2, v2 → v3 with data preservation
+// - Performance tests: 10k+ transaction rendering, sync queue processing
+// - See tests/dexie/migrations.test.ts for examples
