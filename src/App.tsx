@@ -1,6 +1,7 @@
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 import { Toaster } from "@/components/ui/sonner";
+import { OfflineBanner } from "@/components/OfflineBanner";
 
 // Create router instance
 const router = createRouter({ routeTree });
@@ -15,6 +16,7 @@ declare module "@tanstack/react-router" {
 function App() {
   return (
     <>
+      <OfflineBanner />
       <RouterProvider router={router} />
       <Toaster />
     </>
