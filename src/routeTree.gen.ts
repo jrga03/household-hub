@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TransfersRouteImport } from './routes/transfers'
 import { Route as TransactionsRouteImport } from './routes/transactions'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LoginRouteImport } from './routes/login'
@@ -20,6 +21,11 @@ import { Route as BudgetsIndexRouteImport } from './routes/budgets/index'
 import { Route as AnalyticsCategoriesRouteImport } from './routes/analytics/categories'
 import { Route as AccountsAccountIdRouteImport } from './routes/accounts/$accountId'
 
+const TransfersRoute = TransfersRouteImport.update({
+  id: '/transfers',
+  path: '/transfers',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TransactionsRoute = TransactionsRouteImport.update({
   id: '/transactions',
   path: '/transactions',
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/transactions': typeof TransactionsRoute
+  '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRoute
   '/analytics/categories': typeof AnalyticsCategoriesRoute
   '/budgets': typeof BudgetsIndexRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/transactions': typeof TransactionsRoute
+  '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRoute
   '/analytics/categories': typeof AnalyticsCategoriesRoute
   '/budgets': typeof BudgetsIndexRoute
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/transactions': typeof TransactionsRoute
+  '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRoute
   '/analytics/categories': typeof AnalyticsCategoriesRoute
   '/budgets/': typeof BudgetsIndexRoute
@@ -118,6 +127,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/transactions'
+    | '/transfers'
     | '/accounts/$accountId'
     | '/analytics/categories'
     | '/budgets'
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/transactions'
+    | '/transfers'
     | '/accounts/$accountId'
     | '/analytics/categories'
     | '/budgets'
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/transactions'
+    | '/transfers'
     | '/accounts/$accountId'
     | '/analytics/categories'
     | '/budgets/'
@@ -155,12 +167,20 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
   TransactionsRoute: typeof TransactionsRoute
+  TransfersRoute: typeof TransfersRoute
   AnalyticsCategoriesRoute: typeof AnalyticsCategoriesRoute
   BudgetsIndexRoute: typeof BudgetsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/transfers': {
+      id: '/transfers'
+      path: '/transfers'
+      fullPath: '/transfers'
+      preLoaderRoute: typeof TransfersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/transactions': {
       id: '/transactions'
       path: '/transactions'
@@ -254,6 +274,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
   TransactionsRoute: TransactionsRoute,
+  TransfersRoute: TransfersRoute,
   AnalyticsCategoriesRoute: AnalyticsCategoriesRoute,
   BudgetsIndexRoute: BudgetsIndexRoute,
 }
