@@ -612,7 +612,7 @@ export function useToggleTransactionStatus() {
  * CRITICAL: Always exclude transfers from analytics calculations
  */
 
-import { startOfMonth, endOfMonth, format } from "date-fns";
+import { startOfMonth, endOfMonth, format, subMonths } from "date-fns";
 
 /**
  * Individual category total with expense/income breakdown
@@ -829,4 +829,246 @@ export function useCategoryTotalsComparison(currentMonth: Date, previousMonth: D
     previous,
     isLoading: current.isLoading || previous.isLoading,
   };
+}
+
+/**
+ * TanStack Query hook for dashboard data aggregation
+ * CRITICAL: Excludes transfers from income/expense analytics
+ * but INCLUDES transfers in balance calculations
+ */
+
+/**
+ * Dashboard data interface with all metrics and visualizations
+ */
+export interface DashboardData {
+  summary: {
+    totalIncomeCents: number;
+    totalExpenseCents: number;
+    netAmountCents: number;
+    transactionCount: number;
+    accountCount: number;
+    totalBalanceCents: number;
+    previousMonthIncomeCents: number;
+    previousMonthExpenseCents: number;
+    // Enhanced metrics (per DATABASE.md Monthly Summary Query spec)
+    activeDays: number; // COUNT(DISTINCT date)
+    uniqueCategories: number; // COUNT(DISTINCT category_id)
+    clearedCount: number; // Cleared transaction count
+    pendingCount: number; // Pending transaction count
+  };
+  monthlyTrend: Array<{
+    month: string;
+    incomeCents: number;
+    expenseCents: number;
+  }>;
+  categoryBreakdown: Array<{
+    categoryId: string; // For click navigation to filtered transactions
+    categoryName: string;
+    color: string;
+    amountCents: number;
+    percentOfTotal: number;
+  }>;
+  recentTransactions: TransactionWithRelations[];
+}
+
+/**
+ * Fetches all dashboard data in a single optimized query.
+ *
+ * CRITICAL Transfer Handling:
+ * - Analytics (income/expense/category): EXCLUDE transfers (`.is("transfer_group_id", null)`)
+ * - Balances: INCLUDE transfers (they affect account balances)
+ *
+ * Caching: 30 seconds (balance between freshness and performance)
+ *
+ * @param currentMonth - The month to display dashboard for
+ * @returns Query result with DashboardData interface
+ *
+ * @example
+ * const { data, isLoading } = useDashboardData(startOfMonth(new Date()));
+ */
+export function useDashboardData(currentMonth: Date) {
+  return useQuery({
+    queryKey: ["dashboard", format(currentMonth, "yyyy-MM")],
+    queryFn: async (): Promise<DashboardData> => {
+      const monthStart = startOfMonth(currentMonth);
+      const monthEnd = endOfMonth(currentMonth);
+      const previousMonthStart = startOfMonth(subMonths(currentMonth, 1));
+      const previousMonthEnd = endOfMonth(subMonths(currentMonth, 1));
+
+      // 1. Fetch current month transactions (exclude transfers)
+      const { data: currentTransactions, error: currentError } = await supabase
+        .from("transactions")
+        .select("id, amount_cents, type, category_id, status, date")
+        .is("transfer_group_id", null) // Exclude transfers
+        .gte("date", format(monthStart, "yyyy-MM-dd"))
+        .lte("date", format(monthEnd, "yyyy-MM-dd"));
+
+      if (currentError) throw currentError;
+
+      // 2. Fetch previous month for comparison
+      const { data: previousTransactions, error: previousError } = await supabase
+        .from("transactions")
+        .select("amount_cents, type")
+        .is("transfer_group_id", null)
+        .gte("date", format(previousMonthStart, "yyyy-MM-dd"))
+        .lte("date", format(previousMonthEnd, "yyyy-MM-dd"));
+
+      if (previousError) throw previousError;
+
+      // 3. Fetch last 6 months for trend
+      const sixMonthsAgo = subMonths(monthStart, 5);
+      const { data: trendTransactions, error: trendError } = await supabase
+        .from("transactions")
+        .select("date, amount_cents, type")
+        .is("transfer_group_id", null)
+        .gte("date", format(sixMonthsAgo, "yyyy-MM-dd"))
+        .lte("date", format(monthEnd, "yyyy-MM-dd"));
+
+      if (trendError) throw trendError;
+
+      // 4. Fetch categories for breakdown
+      const { data: categories, error: categoriesError } = await supabase
+        .from("categories")
+        .select("id, name, color")
+        .eq("is_active", true);
+
+      if (categoriesError) throw categoriesError;
+
+      // 5. Fetch accounts for count and total balance
+      const { data: accounts, error: accountsError } = await supabase
+        .from("accounts")
+        .select("id, initial_balance_cents")
+        .eq("is_active", true);
+
+      if (accountsError) throw accountsError;
+
+      // 6. Fetch all transactions for account balances (INCLUDE transfers)
+      const { data: allTransactions, error: allTransactionsError } = await supabase
+        .from("transactions")
+        .select("account_id, amount_cents, type");
+
+      if (allTransactionsError) throw allTransactionsError;
+
+      // 7. Fetch recent transactions (last 10)
+      const { data: recentTransactions, error: recentError } = await supabase
+        .from("transactions")
+        .select(
+          `
+          *,
+          account:accounts(id, name),
+          category:categories(id, name, color)
+        `
+        )
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (recentError) throw recentError;
+
+      // Calculate summary
+      const totalIncome = (currentTransactions || [])
+        .filter((t) => t.type === "income")
+        .reduce((sum, t) => sum + t.amount_cents, 0);
+
+      const totalExpense = (currentTransactions || [])
+        .filter((t) => t.type === "expense")
+        .reduce((sum, t) => sum + t.amount_cents, 0);
+
+      const previousIncome = (previousTransactions || [])
+        .filter((t) => t.type === "income")
+        .reduce((sum, t) => sum + t.amount_cents, 0);
+
+      const previousExpense = (previousTransactions || [])
+        .filter((t) => t.type === "expense")
+        .reduce((sum, t) => sum + t.amount_cents, 0);
+
+      // Enhanced metrics per DATABASE.md Monthly Summary Query spec
+      const uniqueDates = new Set((currentTransactions || []).map((t) => t.date));
+      const uniqueCategoryIds = new Set(
+        (currentTransactions || []).filter((t) => t.category_id).map((t) => t.category_id)
+      );
+      const clearedTransactions = (currentTransactions || []).filter((t) => t.status === "cleared");
+      const pendingTransactions = (currentTransactions || []).filter((t) => t.status === "pending");
+
+      // Calculate total balance across all accounts (INCLUDE transfers)
+      const totalBalance = (accounts || []).reduce((sum, account) => {
+        const accountTransactions = (allTransactions || []).filter(
+          (t) => t.account_id === account.id
+        );
+        const balance = accountTransactions.reduce((bal, t) => {
+          return bal + (t.type === "income" ? t.amount_cents : -t.amount_cents);
+        }, account.initial_balance_cents || 0);
+        return sum + balance;
+      }, 0);
+
+      // Calculate monthly trend
+      const monthlyTrend: Array<{ month: string; incomeCents: number; expenseCents: number }> = [];
+      for (let i = 5; i >= 0; i--) {
+        const month = subMonths(currentMonth, i);
+        const monthKey = format(month, "yyyy-MM");
+        const monthTransactions = (trendTransactions || []).filter(
+          (t) => format(new Date(t.date), "yyyy-MM") === monthKey
+        );
+
+        const income = monthTransactions
+          .filter((t) => t.type === "income")
+          .reduce((sum, t) => sum + t.amount_cents, 0);
+
+        const expense = monthTransactions
+          .filter((t) => t.type === "expense")
+          .reduce((sum, t) => sum + t.amount_cents, 0);
+
+        monthlyTrend.push({
+          month: format(month, "MMM"),
+          incomeCents: income,
+          expenseCents: expense,
+        });
+      }
+
+      // Calculate category breakdown
+      const categoryTotals = new Map<string, number>();
+      (currentTransactions || [])
+        .filter((t) => t.type === "expense" && t.category_id)
+        .forEach((t) => {
+          const existing = categoryTotals.get(t.category_id!) || 0;
+          categoryTotals.set(t.category_id!, existing + t.amount_cents);
+        });
+
+      const categoryBreakdown = Array.from(categoryTotals.entries())
+        .map(([categoryId, amount]) => {
+          const category = (categories || []).find((c) => c.id === categoryId);
+          return {
+            categoryId, // Include for click navigation
+            categoryName: category?.name || "Unknown",
+            color: category?.color || "#6B7280",
+            amountCents: amount,
+            percentOfTotal: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
+          };
+        })
+        .sort((a, b) => b.amountCents - a.amountCents)
+        .slice(0, 10); // Top 10 categories
+
+      return {
+        summary: {
+          totalIncomeCents: totalIncome,
+          totalExpenseCents: totalExpense,
+          netAmountCents: totalIncome - totalExpense,
+          transactionCount: (currentTransactions || []).length,
+          accountCount: (accounts || []).length,
+          totalBalanceCents: totalBalance,
+          previousMonthIncomeCents: previousIncome,
+          previousMonthExpenseCents: previousExpense,
+          // Enhanced metrics
+          activeDays: uniqueDates.size,
+          uniqueCategories: uniqueCategoryIds.size,
+          clearedCount: clearedTransactions.length,
+          pendingCount: pendingTransactions.length,
+        },
+        monthlyTrend,
+        categoryBreakdown,
+        recentTransactions: recentTransactions || [],
+      };
+    },
+    staleTime: 30 * 1000, // 30 seconds
+  });
 }
