@@ -7,7 +7,7 @@
 - **Time invested**: 25.75 hours
 - **Current milestone**: Milestone 3: Offline (2/7 chunks complete)
 - **Last chunk completed**: 020-offline-reads
-- **Next session goal**: Continue Milestone 3 - Chunk 021-offline-writes
+- **Next session goal**: Continue Milestone 3 - Chunk 022-sync-queue-schema
 
 ---
 
@@ -91,7 +91,7 @@
 
 - [x] 019-dexie-setup ⏱️ 1hr ✅ COMPLETE
 - [x] 020-offline-reads ⏱️ 2hr ✅ COMPLETE
-- [ ] 021-offline-writes ⏱️ 1.5hr
+- [x] 021-offline-writes ⏱️ 1.5hr ✅ COMPLETE
 - [ ] 022-sync-queue-schema ⏱️ 30min
 - [ ] 023-offline-writes-queue ⏱️ 2hr
 - [ ] 024-sync-processor ⏱️ 1hr
@@ -352,7 +352,7 @@
 - **Duration**: 2 hours
 - **Chunks completed**: 020-offline-reads ✅ COMPLETE
 - **Blockers**: 5 P0 critical code review issues - ALL FIXED in 40 min
-- **Next session goal**: Continue Milestone 3 - Chunk 021-offline-writes
+- **Next session goal**: Continue Milestone 3 - Chunk 022-sync-queue-schema
 - **Notes**: Implemented complete offline-first read pattern with IndexedDB-first queries. **Created 8 files** (7 new + 1 modified): useOnlineStatus.ts (35 lines, Navigator API + 30s health checks), cacheManager.ts (89 lines, IndexedDB operations singleton), useOfflineTransactions.ts (86 lines, two-query pattern), useOfflineAccounts.ts (62 lines), useOfflineCategories.ts (58 lines), OfflineBanner.tsx (40 lines, yellow banner when offline), SyncStatus.tsx (53 lines, last sync + pending count), App.tsx integration. **Agent Collaboration**: offline-first-agent implemented entire offline-first layer following instructions.md exactly - perfect two-query pattern (offline: staleTime Infinity + sync: background only when online), proper query invalidation, complete Supabase → Local type mapping (18 fields for transactions, 13 for accounts, 10 for categories). code-quality-reviewer gave **B+ (85/100) score** - identified 5 CRITICAL P0 issues that were IMMEDIATELY FIXED: (1) Apostrophe escape in OfflineBanner (linting blocker), (2) Removed await from query invalidation (race condition risk - TanStack Query handles this safely), (3) Added error logging to health check (was silently swallowing errors), (4) Changed health check from profiles → transactions table (most critical table for app), (5) Added null normalization (Supabase returns null, TypeScript expects undefined - used ?? operator for all optional fields + type assertions for union types). **Critical Patterns**: Two-query separation (offline reads instant from IndexedDB with staleTime: Infinity, sync query runs in background only when isOnline with refetchOnReconnect: true), smart staleTime differentiation (transactions 5min, accounts 10min, categories 15min based on volatility), cache-then-invalidate pattern, null → undefined normalization (tx.account_id ?? undefined), type assertions for union types ("income" | "expense", "bank" | "investment" | "credit_card" | "cash"). **Features**: Online/offline detection with Navigator API + Supabase health check every 30s, instant data load from IndexedDB (no network latency), background sync when online, offline banner with retry button (invalidates sync queries, not full reload), sync status display with formatDistanceToNow + pending count + contextual icons (AlertCircle yellow when offline, RefreshCw blue spinning when syncing, Check green when synced), auto-refresh intervals (lastSync 60s, pendingCount 5s), proper cleanup of event listeners and intervals. **TypeScript Build**: Passes cleanly, no ESLint errors in new files. **Production Readiness**: All 5 P0 issues fixed in 40 min, B+ grade improved to A-/A with fixes. Reviewer confirmed "production-ready with fixes applied." **Architecture Alignment**: Perfect implementation of three-layer state (Zustand → IndexedDB → Supabase), IndexedDB as source of truth for UI, offline-first principles score 95/100. Ready for chunk 021 (offline writes)! 🚀
 
 ---

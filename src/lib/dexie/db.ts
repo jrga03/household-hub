@@ -39,6 +39,7 @@ export interface LocalTransaction {
   transfer_group_id?: string; // Links paired transfer transactions
   status: "pending" | "cleared";
   visibility: "household" | "personal";
+  owner_user_id?: string; // Owner for personal visibility (null for household)
   created_by_user_id: string;
   tagged_user_ids: string[]; // Array for @mentions
   notes?: string;
