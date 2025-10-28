@@ -1,40 +1,76 @@
-import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { useQueryClient } from "@tanstack/react-query";
-import { WifiOff, RefreshCw } from "lucide-react";
+import { useState, useEffect } from "react";
+import { AlertCircle, X } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { useSyncStatus } from "@/hooks/useSyncStatus";
+import { useSyncProcessor } from "@/hooks/useSyncProcessor";
 
+/**
+ * OfflineBanner Component
+ *
+ * Alert banner displayed when app is offline.
+ * Features:
+ * - Auto-hides when back online
+ * - Shows pending sync count
+ * - Manual sync retry button
+ * - Dismissible (resets when back online)
+ *
+ * Uses Alert component for consistent styling and accessibility.
+ *
+ * @example
+ * ```tsx
+ * <App>
+ *   <OfflineBanner />
+ *   <RouterProvider />
+ * </App>
+ * ```
+ */
 export function OfflineBanner() {
-  const isOnline = useOnlineStatus();
-  const queryClient = useQueryClient();
+  const { isOnline, pendingCount } = useSyncStatus();
+  const { mutate: sync, isPending } = useSyncProcessor();
+  const [dismissed, setDismissed] = useState(false);
 
-  // Handle manual retry - trigger background sync instead of full reload
-  const handleRetry = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["transactions", "sync"] });
-    await queryClient.invalidateQueries({ queryKey: ["accounts", "sync"] });
-    await queryClient.invalidateQueries({ queryKey: ["categories", "sync"] });
-  };
+  // Reset dismissed when back online
+  useEffect(() => {
+    if (isOnline) setDismissed(false);
+  }, [isOnline]);
 
-  // Don't show banner when online
-  if (isOnline) return null;
+  if (isOnline || dismissed) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-yellow-950 px-4 py-2 flex items-center justify-between shadow-md">
-      <div className="flex items-center gap-2">
-        <WifiOff className="h-5 w-5" />
-        <span className="font-medium">
-          {"You're offline. Changes will sync when connection is restored."}
+    <Alert
+      variant="destructive"
+      className="mb-4"
+      role="alert"
+      aria-live="assertive"
+      aria-atomic="true"
+    >
+      <AlertCircle className="h-4 w-4" />
+      <AlertDescription className="flex items-center justify-between">
+        <span>
+          You're offline. {pendingCount > 0 && `${pendingCount} changes will sync when online.`}
         </span>
-      </div>
-
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleRetry}
-        className="text-yellow-950 hover:bg-yellow-600"
-      >
-        <RefreshCw className="h-4 w-4 mr-2" />
-        Retry
-      </Button>
-    </div>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => sync()}
+            disabled={!isOnline || isPending}
+            title={!isOnline ? "Cannot sync while offline" : "Retry sync now"}
+            aria-label={!isOnline ? "Sync disabled: offline" : "Retry syncing now"}
+          >
+            {isPending ? "Retrying..." : "Retry"}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setDismissed(true)}
+            aria-label="Dismiss offline notice"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </AlertDescription>
+    </Alert>
   );
 }

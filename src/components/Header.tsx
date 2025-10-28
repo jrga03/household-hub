@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
 import { Button } from "@/components/ui/button";
+import { SyncStatus } from "@/components/SyncStatus";
+import { SyncButton } from "@/components/SyncButton";
 
 export function Header() {
   const user = useAuthStore((state) => state.user);
@@ -23,6 +25,8 @@ export function Header() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
+          <SyncStatus />
+          <SyncButton />
           <span className="text-sm text-muted-foreground">{user?.email}</span>
           <Button variant="outline" size="sm" onClick={signOut}>
             Sign Out

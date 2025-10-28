@@ -1,53 +1,82 @@
-import { useQuery } from "@tanstack/react-query";
-import { cacheManager } from "@/lib/offline/cacheManager";
-import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { RefreshCw, Check, AlertCircle } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { Loader2, CloudOff, CheckCircle2 } from "lucide-react";
+import { useSyncStatus } from "@/hooks/useSyncStatus";
+import { Badge } from "@/components/ui/badge";
 
+/**
+ * SyncStatus Component
+ *
+ * Visual indicator showing current sync state with three variants:
+ * - Offline: Red badge with CloudOff icon
+ * - Syncing: Spinner with pending count or "Syncing..." text
+ * - Synced: Green checkmark with "Synced" text
+ *
+ * Includes accessibility features:
+ * - role="status" for live region
+ * - aria-live="polite" for non-intrusive updates
+ * - Descriptive aria-label for screen readers
+ *
+ * @example
+ * ```tsx
+ * <Header>
+ *   <SyncStatus />
+ * </Header>
+ * ```
+ */
 export function SyncStatus() {
-  const isOnline = useOnlineStatus();
+  const { isOnline, pendingCount, isSyncing } = useSyncStatus();
 
-  // Query last sync time
-  const { data: lastSync } = useQuery({
-    queryKey: ["lastSync"],
-    queryFn: () => cacheManager.getLastSync(),
-    refetchInterval: 60000, // Update every minute
-  });
-
-  // Query pending count
-  const { data: pendingCount = 0 } = useQuery({
-    queryKey: ["pendingCount"],
-    queryFn: () => cacheManager.getPendingCount(),
-    refetchInterval: 5000, // Update every 5 seconds
-  });
-
-  const getStatusIcon = () => {
-    if (!isOnline) {
-      return <AlertCircle className="h-4 w-4 text-yellow-600" />;
+  // Helper for screen readers
+  const getAriaLabel = () => {
+    if (!isOnline) return "Sync status: offline";
+    if (isSyncing || pendingCount > 0) {
+      return `Sync status: syncing ${pendingCount} ${pendingCount === 1 ? "item" : "items"}`;
     }
-    if (pendingCount > 0) {
-      return <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />;
-    }
-    return <Check className="h-4 w-4 text-green-600" />;
+    return "Sync status: synced";
   };
 
-  const getStatusText = () => {
-    if (!isOnline) {
-      return "Offline";
-    }
-    if (pendingCount > 0) {
-      return `Syncing ${pendingCount} change${pendingCount === 1 ? "" : "s"}...`;
-    }
-    if (lastSync) {
-      return `Synced ${formatDistanceToNow(lastSync, { addSuffix: true })}`;
-    }
-    return "Never synced";
-  };
+  if (!isOnline) {
+    return (
+      <Badge
+        variant="destructive"
+        className="gap-1.5"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        aria-label={getAriaLabel()}
+      >
+        <CloudOff className="h-3 w-3" />
+        Offline
+      </Badge>
+    );
+  }
+
+  if (isSyncing || pendingCount > 0) {
+    return (
+      <Badge
+        variant="secondary"
+        className="gap-1.5"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        aria-label={getAriaLabel()}
+      >
+        <Loader2 className="h-3 w-3 animate-spin" />
+        {pendingCount > 0 ? `${pendingCount} pending` : "Syncing..."}
+      </Badge>
+    );
+  }
 
   return (
-    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-      {getStatusIcon()}
-      <span>{getStatusText()}</span>
-    </div>
+    <Badge
+      variant="outline"
+      className="gap-1.5"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      aria-label={getAriaLabel()}
+    >
+      <CheckCircle2 className="h-3 w-3 text-green-600" />
+      Synced
+    </Badge>
   );
 }
