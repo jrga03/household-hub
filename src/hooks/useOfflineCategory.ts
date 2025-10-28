@@ -19,6 +19,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useAuthStore } from "@/stores/authStore";
 import {
   createOfflineCategory,
   updateOfflineCategory,
@@ -55,15 +56,17 @@ import type { CategoryInput } from "@/lib/offline/types";
  */
 export function useCreateOfflineCategory() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
 
   return useMutation({
     mutationFn: (input: CategoryInput) => {
-      return createOfflineCategory(input);
+      if (!user?.id) throw new Error("User not authenticated");
+      return createOfflineCategory(input, user.id);
     },
     onSuccess: (result) => {
       if (result.success) {
         queryClient.invalidateQueries({ queryKey: ["categories", "offline"] });
-        toast.success("Category created (offline)");
+        toast.success("Category created and queued for sync");
       } else {
         toast.error(result.error || "Failed to create category");
       }
@@ -96,15 +99,17 @@ export function useCreateOfflineCategory() {
  */
 export function useUpdateOfflineCategory() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
 
   return useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<CategoryInput> }) => {
-      return updateOfflineCategory(id, updates);
+      if (!user?.id) throw new Error("User not authenticated");
+      return updateOfflineCategory(id, updates, user.id);
     },
     onSuccess: (result) => {
       if (result.success) {
         queryClient.invalidateQueries({ queryKey: ["categories", "offline"] });
-        toast.success("Category updated (offline)");
+        toast.success("Category updated and queued for sync");
       } else {
         toast.error(result.error || "Failed to update category");
       }
@@ -131,13 +136,17 @@ export function useUpdateOfflineCategory() {
  */
 export function useDeactivateOfflineCategory() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
 
   return useMutation({
-    mutationFn: (id: string) => deactivateOfflineCategory(id),
+    mutationFn: (id: string) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      return deactivateOfflineCategory(id, user.id);
+    },
     onSuccess: (result) => {
       if (result.success) {
         queryClient.invalidateQueries({ queryKey: ["categories", "offline"] });
-        toast.success("Category deactivated (offline)");
+        toast.success("Category deactivated and queued for sync");
       } else {
         toast.error(result.error || "Failed to deactivate category");
       }

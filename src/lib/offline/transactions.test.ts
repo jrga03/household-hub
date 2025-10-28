@@ -73,10 +73,14 @@ describe("Offline Transaction Operations", () => {
     const id = createResult.data!.id;
 
     // Update it
-    const updateResult = await updateOfflineTransaction(id, {
-      description: "Updated",
-      amount_cents: 200000,
-    });
+    const updateResult = await updateOfflineTransaction(
+      id,
+      {
+        description: "Updated",
+        amount_cents: 200000,
+      },
+      testUserId
+    );
 
     expect(updateResult.success).toBe(true);
     expect(updateResult.data?.description).toBe("Updated");
@@ -104,7 +108,7 @@ describe("Offline Transaction Operations", () => {
     const id = createResult.data!.id;
 
     // Delete it
-    const deleteResult = await deleteOfflineTransaction(id);
+    const deleteResult = await deleteOfflineTransaction(id, testUserId);
 
     expect(deleteResult.success).toBe(true);
 

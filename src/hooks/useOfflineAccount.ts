@@ -54,7 +54,7 @@ export function useCreateOfflineAccount() {
     onSuccess: (result) => {
       if (result.success) {
         queryClient.invalidateQueries({ queryKey: ["accounts", "offline"] });
-        toast.success("Account created (offline)");
+        toast.success("Account created and queued for sync");
       } else {
         toast.error(result.error || "Failed to create account");
       }
@@ -94,7 +94,7 @@ export function useUpdateOfflineAccount() {
     onSuccess: (result) => {
       if (result.success) {
         queryClient.invalidateQueries({ queryKey: ["accounts", "offline"] });
-        toast.success("Account updated (offline)");
+        toast.success("Account updated and queued for sync");
       } else {
         toast.error(result.error || "Failed to update account");
       }
@@ -128,7 +128,7 @@ export function useDeactivateOfflineAccount() {
     onSuccess: (result) => {
       if (result.success) {
         queryClient.invalidateQueries({ queryKey: ["accounts", "offline"] });
-        toast.success("Account deactivated (offline)");
+        toast.success("Account deactivated and queued for sync");
       } else {
         toast.error(result.error || "Failed to deactivate account");
       }

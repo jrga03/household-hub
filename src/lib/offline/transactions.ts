@@ -20,6 +20,7 @@
 import { nanoid } from "nanoid";
 import { db, type LocalTransaction } from "@/lib/dexie/db";
 import { deviceManager } from "@/lib/dexie/deviceManager";
+import { addToSyncQueue } from "./syncQueue";
 import type { TransactionInput, OfflineOperationResult } from "./types";
 
 /**
@@ -112,8 +113,27 @@ export async function createOfflineTransaction(
       updated_at: now,
     };
 
-    // Write to IndexedDB
+    // Step 1: Write to IndexedDB
     await db.transactions.add(transaction);
+
+    // Step 2: Add to sync queue
+    const queueResult = await addToSyncQueue(
+      "transaction",
+      transaction.id,
+      "create",
+      transaction as unknown as Record<string, unknown>,
+      userId
+    );
+
+    // Step 3: Rollback IndexedDB if queue fails
+    if (!queueResult.success) {
+      await db.transactions.delete(transaction.id);
+      return {
+        success: false,
+        error: `Failed to queue for sync: ${queueResult.error}`,
+        isTemporary: false,
+      };
+    }
 
     return {
       success: true,
@@ -151,6 +171,7 @@ export async function createOfflineTransaction(
  *
  * @param id - Transaction ID (may be temporary or permanent UUID)
  * @param updates - Partial transaction data to merge with existing
+ * @param userId - User ID for sync queue attribution
  * @returns Promise resolving to result with updated transaction or error
  *
  * @example
@@ -158,7 +179,7 @@ export async function createOfflineTransaction(
  *   description: "Updated description",
  *   amount_cents: 200000, // Changed amount
  *   status: "cleared", // Mark as cleared
- * });
+ * }, "user-123");
  *
  * if (result.success) {
  *   console.log("Transaction updated:", result.data);
@@ -166,7 +187,8 @@ export async function createOfflineTransaction(
  */
 export async function updateOfflineTransaction(
   id: string,
-  updates: Partial<TransactionInput>
+  updates: Partial<TransactionInput>,
+  userId: string
 ): Promise<OfflineOperationResult<LocalTransaction>> {
   try {
     // Get existing transaction
@@ -198,8 +220,27 @@ export async function updateOfflineTransaction(
       updated_at: new Date().toISOString(),
     };
 
-    // Update in IndexedDB (uses .put() for upsert)
+    // Step 1: Update in IndexedDB (uses .put() for upsert)
     await db.transactions.put(updated);
+
+    // Step 2: Add to sync queue
+    const queueResult = await addToSyncQueue(
+      "transaction",
+      id,
+      "update",
+      updated as unknown as Record<string, unknown>,
+      userId
+    );
+
+    // Step 3: Rollback IndexedDB if queue fails
+    if (!queueResult.success) {
+      await db.transactions.put(existing);
+      return {
+        success: false,
+        error: `Failed to queue for sync: ${queueResult.error}`,
+        isTemporary: false,
+      };
+    }
 
     return {
       success: true,
@@ -239,10 +280,11 @@ export async function updateOfflineTransaction(
  * - IndexedDB errors: Logged and returned as error result
  *
  * @param id - Transaction ID to delete (may be temporary or permanent UUID)
+ * @param userId - User ID for sync queue attribution
  * @returns Promise resolving to success result or error
  *
  * @example
- * const result = await deleteOfflineTransaction("temp-abc123");
+ * const result = await deleteOfflineTransaction("temp-abc123", "user-123");
  *
  * if (result.success) {
  *   console.log("Transaction deleted");
@@ -250,7 +292,10 @@ export async function updateOfflineTransaction(
  *   console.error("Delete failed:", result.error);
  * }
  */
-export async function deleteOfflineTransaction(id: string): Promise<OfflineOperationResult<void>> {
+export async function deleteOfflineTransaction(
+  id: string,
+  userId: string
+): Promise<OfflineOperationResult<void>> {
   try {
     // Verify transaction exists before attempting delete
     const existing = await db.transactions.get(id);
@@ -262,8 +307,21 @@ export async function deleteOfflineTransaction(id: string): Promise<OfflineOpera
       };
     }
 
-    // Delete from IndexedDB (hard delete)
+    // Step 1: Delete from IndexedDB (hard delete)
     await db.transactions.delete(id);
+
+    // Step 2: Add to sync queue
+    const queueResult = await addToSyncQueue("transaction", id, "delete", { id }, userId);
+
+    // Step 3: Rollback IndexedDB if queue fails
+    if (!queueResult.success) {
+      await db.transactions.add(existing);
+      return {
+        success: false,
+        error: `Failed to queue for sync: ${queueResult.error}`,
+        isTemporary: false,
+      };
+    }
 
     return {
       success: true,
@@ -354,6 +412,32 @@ export async function createOfflineTransactionsBatch(
 
     // Bulk write to IndexedDB (atomic operation)
     await db.transactions.bulkAdd(transactions);
+
+    // Add all transactions to sync queue
+    const queueResults = await Promise.all(
+      transactions.map((tx) =>
+        addToSyncQueue(
+          "transaction",
+          tx.id,
+          "create",
+          tx as unknown as Record<string, unknown>,
+          userId
+        )
+      )
+    );
+
+    // Check if any queue operations failed
+    const failedQueues = queueResults.filter((r) => !r.success);
+    if (failedQueues.length > 0) {
+      // Rollback: Delete all transactions from IndexedDB
+      await db.transactions.bulkDelete(transactions.map((t) => t.id));
+      console.error(`Failed to queue ${failedQueues.length} transactions for sync`);
+      return {
+        success: false,
+        error: `Failed to queue ${failedQueues.length} of ${transactions.length} transactions for sync`,
+        isTemporary: false,
+      };
+    }
 
     return {
       success: true,

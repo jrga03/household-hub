@@ -59,7 +59,7 @@ export function useCreateOfflineTransaction() {
       if (result.success) {
         // Invalidate transactions query to refetch from IndexedDB
         queryClient.invalidateQueries({ queryKey: ["transactions", "offline"] });
-        toast.success("Transaction created (offline)");
+        toast.success("Transaction created and queued for sync");
       } else {
         toast.error(result.error || "Failed to create transaction");
       }
@@ -89,15 +89,17 @@ export function useCreateOfflineTransaction() {
  */
 export function useUpdateOfflineTransaction() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
 
   return useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<TransactionInput> }) => {
-      return updateOfflineTransaction(id, updates);
+      if (!user?.id) throw new Error("User not authenticated");
+      return updateOfflineTransaction(id, updates, user.id);
     },
     onSuccess: (result) => {
       if (result.success) {
         queryClient.invalidateQueries({ queryKey: ["transactions", "offline"] });
-        toast.success("Transaction updated (offline)");
+        toast.success("Transaction updated and queued for sync");
       } else {
         toast.error(result.error || "Failed to update transaction");
       }
@@ -122,13 +124,17 @@ export function useUpdateOfflineTransaction() {
  */
 export function useDeleteOfflineTransaction() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
 
   return useMutation({
-    mutationFn: (id: string) => deleteOfflineTransaction(id),
+    mutationFn: (id: string) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      return deleteOfflineTransaction(id, user.id);
+    },
     onSuccess: (result) => {
       if (result.success) {
         queryClient.invalidateQueries({ queryKey: ["transactions", "offline"] });
-        toast.success("Transaction deleted (offline)");
+        toast.success("Transaction deleted and queued for sync");
       } else {
         toast.error(result.error || "Failed to delete transaction");
       }

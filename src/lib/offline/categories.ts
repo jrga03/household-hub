@@ -19,6 +19,7 @@
 
 import { nanoid } from "nanoid";
 import { db, type LocalCategory } from "@/lib/dexie/db";
+import { addToSyncQueue } from "./syncQueue";
 import type { CategoryInput, OfflineOperationResult } from "./types";
 
 /**
@@ -64,6 +65,7 @@ const DEFAULT_ICON = "folder";
  * - All errors logged to console but don't throw
  *
  * @param input - Category data from form (excluding generated fields)
+ * @param userId - User ID for sync queue attribution
  * @returns Promise resolving to result with success status and data/error
  *
  * @example
@@ -74,7 +76,7 @@ const DEFAULT_ICON = "folder";
  *   icon: "utensils",
  *   sort_order: 0,
  *   is_active: true,
- * });
+ * }, "user-123");
  *
  * @example
  * // Create child category
@@ -85,14 +87,15 @@ const DEFAULT_ICON = "folder";
  *   icon: "shopping-cart",
  *   sort_order: 0,
  *   is_active: true,
- * });
+ * }, "user-123");
  *
  * if (result.success) {
  *   console.log("Category created:", result.data.id);
  * }
  */
 export async function createOfflineCategory(
-  input: CategoryInput
+  input: CategoryInput,
+  userId: string
 ): Promise<OfflineOperationResult<LocalCategory>> {
   try {
     // Generate temporary ID (will be replaced with UUID during sync)
@@ -113,8 +116,27 @@ export async function createOfflineCategory(
       updated_at: now,
     };
 
-    // Write to IndexedDB
+    // Step 1: Write to IndexedDB
     await db.categories.add(category);
+
+    // Step 2: Add to sync queue
+    const queueResult = await addToSyncQueue(
+      "category",
+      category.id,
+      "create",
+      category as unknown as Record<string, unknown>,
+      userId
+    );
+
+    // Step 3: Rollback IndexedDB if queue fails
+    if (!queueResult.success) {
+      await db.categories.delete(category.id);
+      return {
+        success: false,
+        error: `Failed to queue for sync: ${queueResult.error}`,
+        isTemporary: false,
+      };
+    }
 
     return {
       success: true,
@@ -156,13 +178,14 @@ export async function createOfflineCategory(
  *
  * @param id - Category ID (can be temporary or permanent)
  * @param updates - Partial category data to update
+ * @param userId - User ID for sync queue attribution
  * @returns Promise resolving to result with success status and data/error
  *
  * @example
  * const result = await updateOfflineCategory("temp-abc123", {
  *   name: "Food & Drink (Updated)",
  *   color: "#059669",
- * });
+ * }, "user-123");
  *
  * if (result.success) {
  *   console.log("Category updated:", result.data.name);
@@ -172,11 +195,12 @@ export async function createOfflineCategory(
  * // Move category to different parent
  * const result = await updateOfflineCategory("cat-123", {
  *   parent_id: "cat-456", // New parent
- * });
+ * }, "user-123");
  */
 export async function updateOfflineCategory(
   id: string,
-  updates: Partial<CategoryInput>
+  updates: Partial<CategoryInput>,
+  userId: string
 ): Promise<OfflineOperationResult<LocalCategory>> {
   try {
     // Fetch existing category from IndexedDB
@@ -202,8 +226,27 @@ export async function updateOfflineCategory(
       updated_at: new Date().toISOString(),
     };
 
-    // Write updated category back to IndexedDB
+    // Step 1: Write updated category back to IndexedDB
     await db.categories.put(updated);
+
+    // Step 2: Add to sync queue
+    const queueResult = await addToSyncQueue(
+      "category",
+      id,
+      "update",
+      updated as unknown as Record<string, unknown>,
+      userId
+    );
+
+    // Step 3: Rollback IndexedDB if queue fails
+    if (!queueResult.success) {
+      await db.categories.put(existing);
+      return {
+        success: false,
+        error: `Failed to queue for sync: ${queueResult.error}`,
+        isTemporary: false,
+      };
+    }
 
     return {
       success: true,
@@ -240,17 +283,19 @@ export async function updateOfflineCategory(
  * - Child categories are not automatically deactivated (handled by UI logic)
  *
  * @param id - Category ID to deactivate
+ * @param userId - User ID for sync queue attribution
  * @returns Promise resolving to result with success status and data/error
  *
  * @example
- * const result = await deactivateOfflineCategory("temp-abc123");
+ * const result = await deactivateOfflineCategory("temp-abc123", "user-123");
  *
  * if (result.success) {
  *   console.log("Category deactivated:", result.data.name);
  * }
  */
 export async function deactivateOfflineCategory(
-  id: string
+  id: string,
+  userId: string
 ): Promise<OfflineOperationResult<LocalCategory>> {
-  return updateOfflineCategory(id, { is_active: false });
+  return updateOfflineCategory(id, { is_active: false }, userId);
 }

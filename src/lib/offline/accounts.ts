@@ -19,6 +19,7 @@
 
 import { nanoid } from "nanoid";
 import { db, type LocalAccount } from "@/lib/dexie/db";
+import { addToSyncQueue } from "./syncQueue";
 import type { AccountInput, OfflineOperationResult } from "./types";
 
 /**
@@ -113,8 +114,27 @@ export async function createOfflineAccount(
       updated_at: now,
     };
 
-    // Write to IndexedDB
+    // Step 1: Write to IndexedDB
     await db.accounts.add(account);
+
+    // Step 2: Add to sync queue
+    const queueResult = await addToSyncQueue(
+      "account",
+      account.id,
+      "create",
+      account as unknown as Record<string, unknown>,
+      userId
+    );
+
+    // Step 3: Rollback IndexedDB if queue fails
+    if (!queueResult.success) {
+      await db.accounts.delete(account.id);
+      return {
+        success: false,
+        error: `Failed to queue for sync: ${queueResult.error}`,
+        isTemporary: false,
+      };
+    }
 
     return {
       success: true,
@@ -216,8 +236,27 @@ export async function updateOfflineAccount(
       }
     }
 
-    // Write updated account back to IndexedDB
+    // Step 1: Write updated account back to IndexedDB
     await db.accounts.put(updated);
+
+    // Step 2: Add to sync queue
+    const queueResult = await addToSyncQueue(
+      "account",
+      id,
+      "update",
+      updated as unknown as Record<string, unknown>,
+      userId
+    );
+
+    // Step 3: Rollback IndexedDB if queue fails
+    if (!queueResult.success) {
+      await db.accounts.put(existing);
+      return {
+        success: false,
+        error: `Failed to queue for sync: ${queueResult.error}`,
+        isTemporary: false,
+      };
+    }
 
     return {
       success: true,
