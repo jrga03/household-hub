@@ -116,7 +116,7 @@ export interface TransactionEvent {
   household_id: string;
   entity_type: "transaction" | "account" | "category" | "budget";
   entity_id: string;
-  op: "create" | "update" | "delete";
+  op: "create" | "update" | "delete" | "snapshot"; // "snapshot" added for event compaction
   payload: any; // Changed fields only for updates
   idempotency_key: string; // Format: ${deviceId}-${entityType}-${entityId}-${lamportClock}
   event_version: number; // Schema version for forward compatibility
