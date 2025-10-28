@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TransfersRouteImport } from './routes/transfers'
 import { Route as TransactionsRouteImport } from './routes/transactions'
+import { Route as TestDeviceRouteImport } from './routes/test-device'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -29,6 +30,11 @@ const TransfersRoute = TransfersRouteImport.update({
 const TransactionsRoute = TransactionsRouteImport.update({
   id: '/transactions',
   path: '/transactions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TestDeviceRoute = TestDeviceRouteImport.update({
+  id: '/test-device',
+  path: '/test-device',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignupRoute = SignupRouteImport.update({
@@ -84,6 +90,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/test-device': typeof TestDeviceRoute
   '/transactions': typeof TransactionsRoute
   '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRoute
@@ -97,6 +104,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/test-device': typeof TestDeviceRoute
   '/transactions': typeof TransactionsRoute
   '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRoute
@@ -111,6 +119,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/test-device': typeof TestDeviceRoute
   '/transactions': typeof TransactionsRoute
   '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRoute
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/signup'
+    | '/test-device'
     | '/transactions'
     | '/transfers'
     | '/accounts/$accountId'
@@ -139,6 +149,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/signup'
+    | '/test-device'
     | '/transactions'
     | '/transfers'
     | '/accounts/$accountId'
@@ -152,6 +163,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/signup'
+    | '/test-device'
     | '/transactions'
     | '/transfers'
     | '/accounts/$accountId'
@@ -166,6 +178,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
+  TestDeviceRoute: typeof TestDeviceRoute
   TransactionsRoute: typeof TransactionsRoute
   TransfersRoute: typeof TransfersRoute
   AnalyticsCategoriesRoute: typeof AnalyticsCategoriesRoute
@@ -186,6 +199,13 @@ declare module '@tanstack/react-router' {
       path: '/transactions'
       fullPath: '/transactions'
       preLoaderRoute: typeof TransactionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/test-device': {
+      id: '/test-device'
+      path: '/test-device'
+      fullPath: '/test-device'
+      preLoaderRoute: typeof TestDeviceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/signup': {
@@ -273,6 +293,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
+  TestDeviceRoute: TestDeviceRoute,
   TransactionsRoute: TransactionsRoute,
   TransfersRoute: TransfersRoute,
   AnalyticsCategoriesRoute: AnalyticsCategoriesRoute,
