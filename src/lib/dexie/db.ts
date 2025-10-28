@@ -164,6 +164,22 @@ export interface SyncIssueRecord {
   canRetry: boolean; // Whether the issue can be retried automatically
 }
 
+/**
+ * Conflict record for tracking concurrent edits detected via vector clocks.
+ * Stored in IndexedDB for conflict resolution and audit trail.
+ */
+export interface Conflict {
+  id: string;
+  entity_type: string; // "transaction" | "account" | "category" | "budget"
+  entity_id: string; // Which entity has the conflict
+  detected_at: string; // ISO timestamp when conflict was detected
+  local_event: any; // Full local TransactionEvent object
+  remote_event: any; // Full remote TransactionEvent object
+  resolution: string; // "pending" | "resolved" | "manual"
+  resolved_value: any | null; // Final resolved value (null if pending)
+  resolved_at: string | null; // ISO timestamp when resolved (null if pending)
+}
+
 // ============================================================================
 // Dexie Database Class
 // ============================================================================
@@ -210,6 +226,7 @@ export class HouseholdHubDB extends Dexie {
   meta!: Table<MetaEntry, string>;
   logs!: Table<LogEntry, string>;
   syncIssues!: Table<SyncIssueRecord, string>;
+  conflicts!: Table<Conflict, string>;
 
   constructor() {
     super("HouseholdHubDB");
@@ -283,15 +300,48 @@ export class HouseholdHubDB extends Dexie {
       });
 
     // ========================================================================
-    // Version 3 (Future): Add tagged_user_ids multi-entry index
+    // Version 3: Add conflicts table for vector clock conflict detection
+    // ========================================================================
+    this.version(3)
+      .stores({
+        // IMPORTANT: Must repeat ALL previous version table definitions (Dexie requirement)
+        transactions:
+          "id, date, account_id, category_id, status, type, household_id, created_at, transfer_group_id, " +
+          "[account_id+date], [category_id+date], [household_id+date], *tagged_user_ids",
+        accounts: "id, name, visibility, household_id",
+        categories: "id, parent_id, name, household_id",
+        syncQueue:
+          "id, status, entity_type, entity_id, device_id, created_at, " +
+          "[status+device_id], [device_id+created_at]",
+        events: "id, entity_id, lamport_clock, timestamp, device_id",
+        meta: "key",
+        logs: "id, timestamp, level, device_id",
+        syncIssues: "id, entityId, issueType, timestamp",
+
+        // NEW: Conflicts table for vector clock-based conflict detection
+        // Single indexes: id (primary), entity_id, resolution, detected_at
+        // Compound indexes: [entity_id+resolution] (optimize hasPendingConflicts queries), [resolution+detected_at] (sort pending by time)
+        conflicts:
+          "id, entity_id, resolution, detected_at, [entity_id+resolution], [resolution+detected_at]",
+      })
+      .upgrade((_tx) => {
+        // Migration: Add conflicts table (no data migration needed for new table)
+        console.log(
+          "[Dexie Migration v2→v3] Adding conflicts table for vector clock conflict detection"
+        );
+        return Promise.resolve();
+      });
+
+    // ========================================================================
+    // Future Versions: Examples
     // ========================================================================
     // Example of how to add a new version with migration:
     //
-    // this.version(2)
+    // this.version(4)
     //   .stores({
-    //     // Add *tagged_user_ids for multi-entry index (array queries)
+    //     // Add new field or index
     //     transactions:
-    //       "id, date, account_id, category_id, status, type, household_id, created_at, *tagged_user_ids",
+    //       "id, date, account_id, category_id, status, type, household_id, created_at, *tagged_user_ids, new_field",
     //   })
     //   .upgrade((tx) => {
     //     // Migration logic: Initialize missing field with default value
@@ -299,27 +349,10 @@ export class HouseholdHubDB extends Dexie {
     //       .table("transactions")
     //       .toCollection()
     //       .modify((transaction) => {
-    //         if (!transaction.tagged_user_ids) {
-    //           transaction.tagged_user_ids = [];
+    //         if (!transaction.new_field) {
+    //           transaction.new_field = "default_value";
     //         }
     //       });
-    //   });
-
-    // ========================================================================
-    // Version 3 (Future): Add household_id compound index for performance
-    // ========================================================================
-    // Example of optimizing queries with compound indexes:
-    //
-    // this.version(3)
-    //   .stores({
-    //     // Add compound index for household + date queries
-    //     transactions:
-    //       "id, date, account_id, category_id, status, type, household_id, created_at, *tagged_user_ids, [household_id+date]",
-    //   })
-    //   .upgrade((tx) => {
-    //     // No data migration needed, just index addition
-    //     console.log("Added household_id+date compound index");
-    //     return Promise.resolve();
     //   });
 
     // ========================================================================

@@ -273,3 +273,38 @@ export interface SyncQueueFilters {
   /** Filter by user ID */
   user_id?: string;
 }
+
+/**
+ * Represents a detected conflict between local and remote versions
+ * Stored in IndexedDB for review and resolution
+ */
+export interface Conflict {
+  id: string;
+  entityType: "transaction" | "account" | "category" | "budget";
+  entityId: string;
+  detectedAt: Date;
+  localEvent: import("@/types/event").TransactionEvent;
+  remoteEvent: import("@/types/event").TransactionEvent;
+  resolution: "pending" | "resolved" | "manual";
+  resolvedValue?: Record<string, unknown>;
+  resolvedAt?: Date;
+}
+
+/**
+ * Result of conflict detection between two events
+ */
+export interface ConflictDetectionResult {
+  hasConflict: boolean;
+  reason?: string;
+  comparison: ClockComparison;
+}
+
+/**
+ * Statistics for conflict monitoring
+ */
+export interface ConflictStats {
+  total: number;
+  pending: number;
+  resolved: number;
+  byEntity: Record<string, number>;
+}
