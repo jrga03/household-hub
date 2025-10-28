@@ -26,6 +26,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
 import { syncProcessor } from "@/lib/sync/processor";
+import { syncIssuesManager } from "@/lib/sync/SyncIssuesManager";
 
 /**
  * React hook for manual sync processor operations
@@ -133,6 +134,10 @@ export function useSyncProcessor() {
      * - This triggers refetch of offline data from IndexedDB
      * - Updated data (with server IDs) will be displayed
      *
+     * Sync Issues Integration:
+     * - Logs conflicts if result.conflictsResolved exists (chunk 032)
+     * - Currently a placeholder until conflict detection is implemented
+     *
      * @param result - Sync result from processor
      */
     onSuccess: (result) => {
@@ -147,10 +152,27 @@ export function useSyncProcessor() {
       if (result.failed > 0) {
         toast.error(`${result.failed} items failed to sync`);
       }
+
+      // TODO (Chunk 032): Log conflict resolutions when conflict detection is implemented
+      // The sync processor currently doesn't return conflictsResolved in result
+      // When chunk 032 adds conflict detection, uncomment this:
+      //
+      // if (result.conflictsResolved && result.conflictsResolved.length > 0) {
+      //   for (const conflict of result.conflictsResolved) {
+      //     syncIssuesManager.logConflictResolution(
+      //       conflict.entityType,
+      //       conflict.entityId,
+      //       conflict.field,
+      //       conflict.localValue,
+      //       conflict.remoteValue,
+      //       conflict.resolvedValue
+      //     );
+      //   }
+      // }
     },
 
     /**
-     * Error handler - shows error toast
+     * Error handler - shows error toast and logs sync failure
      *
      * Handles errors from:
      * - Authentication failures (user not logged in)
@@ -158,10 +180,24 @@ export function useSyncProcessor() {
      * - Supabase errors (RLS, permissions)
      * - Unexpected errors (bugs, edge cases)
      *
+     * Sync Issues Integration:
+     * - Logs sync failure to SyncIssuesManager for user visibility
+     * - Marked as retryable (user can manually retry via UI)
+     *
      * @param error - Error thrown by mutationFn
      */
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Sync failed");
+      const errorMessage = error instanceof Error ? error.message : "Sync failed";
+      toast.error(errorMessage);
+
+      // Log sync failure to issues panel
+      // User can see and retry from the sync issues panel
+      syncIssuesManager.logSyncFailure(
+        "transaction", // Generic entity type (actual type unknown at this level)
+        "batch-sync", // Batch sync operation (multiple items)
+        error instanceof Error ? error : new Error(errorMessage),
+        true // Can retry via manual sync button
+      );
     },
   });
 }

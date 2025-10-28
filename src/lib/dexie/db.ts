@@ -6,6 +6,7 @@
  *
  * Schema Versioning:
  * - Version 1: Initial schema with 7 tables
+ * - Version 2: Added syncIssues table for conflict tracking
  * - Future versions: Add new indexes/fields with .upgrade() functions
  * - NEVER remove fields (mark deprecated instead)
  * - ALWAYS provide default values in upgrade functions
@@ -146,6 +147,23 @@ export interface LogEntry {
   device_id: string;
 }
 
+/**
+ * Sync issue record for tracking conflicts and errors.
+ * Used to surface issues to users for manual resolution when automatic resolution fails.
+ */
+export interface SyncIssueRecord {
+  id: string;
+  entityType: string; // "transaction" | "account" | "category" | "budget"
+  entityId: string; // Which entity has the conflict
+  issueType: string; // "conflict" | "validation_error" | "network_error" | "unknown"
+  message: string; // Human-readable description
+  localValue?: any; // Local version (optional)
+  remoteValue?: any; // Remote version (optional)
+  resolvedValue?: any; // Resolution if auto-resolved (optional)
+  timestamp: string; // ISO timestamp string (NOT Date object for IndexedDB)
+  canRetry: boolean; // Whether the issue can be retried automatically
+}
+
 // ============================================================================
 // Dexie Database Class
 // ============================================================================
@@ -191,6 +209,7 @@ export class HouseholdHubDB extends Dexie {
   events!: Table<TransactionEvent, string>;
   meta!: Table<MetaEntry, string>;
   logs!: Table<LogEntry, string>;
+  syncIssues!: Table<SyncIssueRecord, string>;
 
   constructor() {
     super("HouseholdHubDB");
@@ -236,7 +255,35 @@ export class HouseholdHubDB extends Dexie {
     });
 
     // ========================================================================
-    // Version 2 (Future): Add tagged_user_ids multi-entry index
+    // Version 2: Add syncIssues table for conflict tracking
+    // ========================================================================
+    this.version(2)
+      .stores({
+        // IMPORTANT: Must repeat ALL version 1 table definitions (Dexie requirement)
+        transactions:
+          "id, date, account_id, category_id, status, type, household_id, created_at, transfer_group_id, " +
+          "[account_id+date], [category_id+date], [household_id+date], *tagged_user_ids",
+        accounts: "id, name, visibility, household_id",
+        categories: "id, parent_id, name, household_id",
+        syncQueue:
+          "id, status, entity_type, entity_id, device_id, created_at, " +
+          "[status+device_id], [device_id+created_at]",
+        events: "id, entity_id, lamport_clock, timestamp, device_id",
+        meta: "key",
+        logs: "id, timestamp, level, device_id",
+
+        // NEW: Sync Issues table for tracking conflicts and errors
+        // Indexes: id (primary), entityId (find issues for entity), issueType (filter by type), timestamp (sort chronologically)
+        syncIssues: "id, entityId, issueType, timestamp",
+      })
+      .upgrade((_tx) => {
+        // Migration: Add syncIssues table (no data migration needed for new table)
+        console.log("[Dexie Migration v1→v2] Adding syncIssues table for conflict tracking");
+        return Promise.resolve();
+      });
+
+    // ========================================================================
+    // Version 3 (Future): Add tagged_user_ids multi-entry index
     // ========================================================================
     // Example of how to add a new version with migration:
     //
