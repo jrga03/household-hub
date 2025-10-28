@@ -4,10 +4,10 @@
 
 ## Your Stats
 
-- **Time invested**: 34 hours
-- **Current milestone**: Milestone 4: Multi-Device Sync 🚧 IN PROGRESS (1/10 chunks)
-- **Last chunk completed**: 026-device-hybrid-id
-- **Next session goal**: Continue Milestone 4 with chunk 027-devices-table
+- **Time invested**: 34.5 hours
+- **Current milestone**: Milestone 4: Multi-Device Sync 🚧 IN PROGRESS (2/10 chunks)
+- **Last chunk completed**: 027-devices-table
+- **Next session goal**: Continue Milestone 4 with chunk 028-events-schema
 
 ---
 
@@ -123,7 +123,7 @@
 ### Device & Events
 
 - [x] 026-device-hybrid-id ⏱️ 1hr ✅ COMPLETE (DISCOVERY: Already implemented in earlier chunk! Consolidated duplicate implementation to use production-ready dexie/deviceManager.ts with Supabase registration, 4-layer fallback strategy verified, type definitions added, test page created for manual validation, code review identified critical architectural alignment issue and resolved, PRODUCTION-READY)
-- [ ] 027-devices-table ⏱️ 30min
+- [x] 027-devices-table ⏱️ 30min ✅ COMPLETE (Supabase devices table created with RLS policies, 4 strategic indexes including partial index on is_active, device registration delegated to DeviceManager.updateUserDevice() to avoid duplication, DEFAULT household_id added for MVP consistency, code review B+ → A- after P0 fixes, PRODUCTION-READY)
 - [ ] 028-events-schema ⏱️ 45min
 - [ ] 029-idempotency-keys ⏱️ 1hr
 - [ ] 030-event-generation ⏱️ 1.5hr
@@ -149,7 +149,7 @@
 
 ### Milestone 4 Checklist
 
-- [ ] Devices register automatically
+- [x] Devices register automatically
 - [ ] Events created for all mutations
 - [ ] Idempotency prevents duplicate events
 - [ ] Vector clocks detect conflicts
