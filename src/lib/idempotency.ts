@@ -1,6 +1,4 @@
-import { db } from "./dexie/db";
-// import { deviceManager } from "./dexie/deviceManager";
-import type { EntityType, VectorClock } from "@/types/event";
+import type { EntityType } from "@/types/event";
 
 /**
  * IdempotencyKeyGenerator creates deterministic keys for events
@@ -11,6 +9,12 @@ import type { EntityType, VectorClock } from "@/types/event";
  * - Same mutation always generates same key (idempotent)
  * - Different devices generate different keys
  * - Events ordered by lamport clock per entity
+ *
+ * NOTE: Lamport clock and vector clock management has been moved to
+ * LamportClockManager in vector-clock.ts for better separation of concerns.
+ * This class now focuses solely on:
+ * - Idempotency key generation
+ * - Payload checksum calculation
  */
 export class IdempotencyKeyGenerator {
   /**
@@ -30,41 +34,6 @@ export class IdempotencyKeyGenerator {
   ): string {
     // Format: device-entity_type-entity_id-clock
     return `${deviceId}-${entityType}-${entityId}-${lamportClock}`;
-  }
-
-  /**
-   * Get next lamport clock for entity
-   *
-   * Queries events table for highest lamport_clock for this entity,
-   * then increments by 1.
-   *
-   * @param entityId Entity ID to query
-   * @returns Next lamport clock value (1 if no events exist)
-   */
-  async getNextLamportClock(entityId: string): Promise<number> {
-    try {
-      // Query events for this entity, ordered by lamport_clock descending
-      // Note: Dexie schema uses snake_case (entity_id, lamport_clock)
-      const events = await db.events
-        .where("entity_id")
-        .equals(entityId)
-        .reverse() // Descending order
-        .limit(1)
-        .toArray();
-
-      if (events.length === 0) {
-        // No events for this entity yet
-        return 1;
-      }
-
-      // Increment highest clock
-      const maxClock = events[0].lamport_clock;
-      return maxClock + 1;
-    } catch (error) {
-      console.error("Failed to get lamport clock:", error);
-      // Fallback to 1 if query fails
-      return 1;
-    }
   }
 
   /**
@@ -118,31 +87,6 @@ export class IdempotencyKeyGenerator {
       });
 
     return sorted;
-  }
-
-  /**
-   * Initialize vector clock for new entity
-   *
-   * @param deviceId Current device ID
-   * @returns Vector clock with single entry
-   */
-  initVectorClock(deviceId: string): VectorClock {
-    return {
-      [deviceId]: 1,
-    };
-  }
-
-  /**
-   * Update vector clock for existing entity
-   *
-   * @param currentClock Current vector clock
-   * @param deviceId Current device ID
-   * @returns Updated vector clock
-   */
-  updateVectorClock(currentClock: VectorClock, deviceId: string): VectorClock {
-    const updated = { ...currentClock };
-    updated[deviceId] = (updated[deviceId] || 0) + 1;
-    return updated;
   }
 }
 

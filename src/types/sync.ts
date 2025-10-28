@@ -47,6 +47,45 @@ export type OperationType = "create" | "update" | "delete";
 export type VectorClock = Record<string, number>;
 
 /**
+ * Result of vector clock comparison
+ *
+ * Indicates the causality relationship between two vector clocks:
+ * - "concurrent": Both clocks have events the other doesn't (conflict!)
+ * - "local-ahead": Local has all remote's events plus more (no conflict)
+ * - "remote-ahead": Remote has all local's events plus more (no conflict)
+ * - "equal": Same version across all devices
+ */
+export type ClockComparison = "concurrent" | "local-ahead" | "remote-ahead" | "equal";
+
+/**
+ * Lamport clock value (monotonic counter per entity)
+ *
+ * Per-entity logical timestamp that increments with each event.
+ * Provides total ordering of events within a single entity.
+ */
+export type LamportClock = number;
+
+/**
+ * Per-entity clock state stored in meta table
+ *
+ * Tracks both lamport and vector clocks for a specific entity.
+ * Stored in Dexie meta table with key format: `clock:${entityId}`
+ */
+export interface EntityClockState {
+  /** Entity ID this clock state belongs to */
+  entityId: string;
+
+  /** Current lamport clock value (monotonic counter) */
+  lamportClock: number;
+
+  /** Current vector clock (per-device counters) */
+  vectorClock: VectorClock;
+
+  /** Last update timestamp (ISO string) */
+  updatedAt: string;
+}
+
+/**
  * Sync queue operation payload
  *
  * Contains the operation details and metadata needed for sync

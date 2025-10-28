@@ -29,7 +29,8 @@ import { db } from "./dexie/db";
 import { supabase } from "./supabase";
 import { deviceManager } from "./dexie/deviceManager";
 import { idempotencyGenerator } from "./idempotency";
-import type { EntityType, EventOp, TransactionEvent, VectorClock } from "@/types/event";
+import { lamportClockManager } from "./vector-clock";
+import type { EntityType, EventOp, TransactionEvent } from "@/types/event";
 
 /**
  * Default household ID for MVP (single household mode).
@@ -122,9 +123,13 @@ export class EventGenerator {
     // Get device ID (hybrid fallback: IndexedDB → localStorage → FingerprintJS → UUID)
     const deviceId = await deviceManager.getDeviceId();
 
-    // Get next Lamport clock for this specific entity (NOT global clock)
+    // Update vector clock for this entity (also increments lamport clock atomically)
+    // Vector clocks are per-entity (not global) for fine-grained conflict detection
+    const vectorClock = await lamportClockManager.updateVectorClock(entityId, deviceId);
+
+    // Get the updated lamport clock for this specific entity (NOT global clock)
     // Lamport clocks are per-entity to avoid global coordination bottlenecks
-    const lamportClock = await idempotencyGenerator.getNextLamportClock(entityId);
+    const lamportClock = await lamportClockManager.getCurrentLamportClock(entityId);
 
     // Generate deterministic idempotency key
     // Format: ${deviceId}-${entityType}-${entityId}-${lamportClock}
@@ -139,10 +144,6 @@ export class EventGenerator {
     // Calculate checksum for payload integrity verification
     // Uses SHA-256 with normalized JSON (sorted keys, excluded timestamps)
     const checksum = await idempotencyGenerator.calculateChecksum(payload);
-
-    // Get or initialize vector clock for this entity
-    // Vector clocks are per-entity (not global) for fine-grained conflict detection
-    const vectorClock = await this.getVectorClock(entityId, deviceId);
 
     // Create event object with camelCase fields (TypeScript interface)
     const event: TransactionEvent = {
@@ -216,59 +217,6 @@ export class EventGenerator {
     }
 
     return event;
-  }
-
-  /**
-   * Get current vector clock for entity.
-   *
-   * Vector clocks track causality between events on different devices.
-   * Each device maintains its own clock value per entity.
-   *
-   * Structure: `{ [deviceId: string]: number }`
-   * Example: `{ "device-A": 5, "device-B": 3 }` means:
-   * - Device A has processed 5 events for this entity
-   * - Device B has processed 3 events for this entity
-   *
-   * Vector clock comparison rules (Phase B):
-   * - If v1[deviceId] > v2[deviceId] for ALL devices: v1 dominates (no conflict)
-   * - If neither dominates: concurrent edits (conflict exists)
-   *
-   * Scope: Per-entity, NOT global
-   * - Each transaction has its own vector clock
-   * - Each account has its own vector clock
-   * - Prevents false conflicts when editing different entities
-   *
-   * ATOMICITY: Uses Dexie transaction to ensure read-modify-write atomicity.
-   * This prevents race conditions when multiple events are created concurrently
-   * for the same entity.
-   *
-   * @param entityId Entity ID to query
-   * @param deviceId Current device ID
-   * @returns Promise resolving to vector clock object
-   * @private
-   */
-  private async getVectorClock(entityId: string, deviceId: string): Promise<VectorClock> {
-    // CRITICAL: Use Dexie transaction for atomic read
-    // Prevents race condition where another event is inserted between query and clock update
-    return await db.transaction("r", db.events, async () => {
-      // Query latest event for this entity using index in reverse order
-      // OPTIMIZATION: reverse().limit(1) is more efficient than sortBy() + last element
-      // IMPORTANT: Use snake_case for Dexie schema fields
-      const events = await db.events
-        .where("entity_id")
-        .equals(entityId)
-        .reverse() // Use lamport_clock index in descending order
-        .limit(1) // Only fetch the latest event
-        .toArray();
-
-      if (events.length === 0) {
-        // First event for this entity - initialize vector clock
-        return idempotencyGenerator.initVectorClock(deviceId);
-      }
-
-      // Update existing vector clock (increment this device's counter)
-      return idempotencyGenerator.updateVectorClock(events[0].vector_clock, deviceId);
-    });
   }
 
   /**
