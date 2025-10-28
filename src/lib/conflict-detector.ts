@@ -167,38 +167,30 @@ export async function logConflict(
 ): Promise<void> {
   const conflictId = nanoid();
 
-  // Create conflict record
+  // Create conflict record (using snake_case to match Dexie schema)
   const conflict: Conflict = {
     id: conflictId,
-    entityType: localEvent.entityType,
-    entityId: localEvent.entityId,
-    detectedAt: new Date(),
-    localEvent,
-    remoteEvent,
+    entity_type: localEvent.entityType,
+    entity_id: localEvent.entityId,
+    detected_at: new Date().toISOString(),
+    local_event: localEvent,
+    remote_event: remoteEvent,
     resolution: "pending",
+    resolved_value: null,
+    resolved_at: null,
   };
 
   // Persist to IndexedDB using put() for idempotent writes
   // This prevents race conditions when the same conflict is detected twice
   try {
-    await db.conflicts.put({
-      id: conflict.id,
-      entity_type: conflict.entityType,
-      entity_id: conflict.entityId,
-      detected_at: conflict.detectedAt.toISOString(),
-      local_event: conflict.localEvent,
-      remote_event: conflict.remoteEvent,
-      resolution: conflict.resolution,
-      resolved_value: null,
-      resolved_at: null,
-    });
+    await db.conflicts.put(conflict);
   } catch (error) {
     console.error("[ConflictDetector] Failed to persist conflict to IndexedDB:", error);
     // Log to observability system if available
     if (typeof window !== "undefined" && (window as any).Sentry) {
       (window as any).Sentry.captureException(error, {
         tags: { subsystem: "conflict-detector", operation: "persist-conflict" },
-        extra: { conflictId: conflict.id, entityId: conflict.entityId },
+        extra: { conflictId: conflict.id, entityId: conflict.entity_id },
       });
     }
     throw error; // Re-throw so caller knows about the failure
@@ -215,12 +207,14 @@ export async function logConflict(
     if (typeof window !== "undefined" && (window as any).Sentry) {
       (window as any).Sentry.captureException(error, {
         tags: { subsystem: "conflict-detector", operation: "store-notification" },
-        extra: { conflictId: conflict.id, entityId: conflict.entityId },
+        extra: { conflictId: conflict.id, entityId: conflict.entity_id },
       });
     }
   }
 
-  console.log(`[ConflictDetector] Logged conflict for ${conflict.entityType} ${conflict.entityId}`);
+  console.log(
+    `[ConflictDetector] Logged conflict for ${conflict.entity_type} ${conflict.entity_id}`
+  );
 }
 
 /**
@@ -268,16 +262,7 @@ export async function getPendingConflicts(entityId: string): Promise<Conflict[]>
     .where({ entity_id: entityId, resolution: "pending" })
     .toArray();
 
-  // Convert snake_case IndexedDB records to camelCase Conflict objects
-  return dbConflicts.map((c) => ({
-    id: c.id,
-    entityType: c.entity_type as "transaction" | "account" | "category" | "budget",
-    entityId: c.entity_id,
-    detectedAt: new Date(c.detected_at),
-    localEvent: c.local_event as TransactionEvent,
-    remoteEvent: c.remote_event as TransactionEvent,
-    resolution: c.resolution as "pending" | "resolved" | "manual",
-    resolvedValue: c.resolved_value ?? undefined,
-    resolvedAt: c.resolved_at ? new Date(c.resolved_at) : undefined,
-  }));
+  // Return conflicts directly (no conversion needed - both use snake_case)
+  // Cast entity_type to specific union type for type safety
+  return dbConflicts as Conflict[];
 }

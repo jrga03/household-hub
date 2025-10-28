@@ -277,17 +277,19 @@ export interface SyncQueueFilters {
 /**
  * Represents a detected conflict between local and remote versions
  * Stored in IndexedDB for review and resolution
+ *
+ * Note: Uses snake_case to match Dexie/IndexedDB schema
  */
 export interface Conflict {
   id: string;
-  entityType: "transaction" | "account" | "category" | "budget";
-  entityId: string;
-  detectedAt: Date;
-  localEvent: import("@/types/event").TransactionEvent;
-  remoteEvent: import("@/types/event").TransactionEvent;
+  entity_type: "transaction" | "account" | "category" | "budget";
+  entity_id: string;
+  detected_at: string; // ISO timestamp string (not Date object)
+  local_event: import("@/types/event").TransactionEvent;
+  remote_event: import("@/types/event").TransactionEvent;
   resolution: "pending" | "resolved" | "manual";
-  resolvedValue?: Record<string, unknown>;
-  resolvedAt?: Date;
+  resolved_value: Record<string, unknown> | null;
+  resolved_at: string | null; // ISO timestamp string (not Date object)
 }
 
 /**
