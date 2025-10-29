@@ -140,8 +140,10 @@ export function useAnalytics(startDate: Date, endDate: Date, filters?: Analytics
       // Aggregate budgets by category (sum across all months in period)
       const budgetsByCategory: Record<string, { total: number; name: string }> = {};
       (rawBudgets || []).forEach((budget) => {
-        const categoryData = budget.categories as { name: string } | null;
-        const categoryName = categoryData?.name || "Uncategorized";
+        const categoryData = budget.categories as { name: string } | { name: string }[] | null;
+        const categoryName = Array.isArray(categoryData)
+          ? categoryData[0]?.name
+          : categoryData?.name || "Uncategorized";
         if (!budgetsByCategory[budget.category_id]) {
           budgetsByCategory[budget.category_id] = {
             total: 0,
@@ -192,7 +194,10 @@ export function useAnalytics(startDate: Date, endDate: Date, filters?: Analytics
       const totalIncome = calculateTotal(transactionData || [], "income");
       const totalExpenses = calculateTotal(transactionData || [], "expense");
       const budgetVariance = processBudgetVariance(budgetData || [], transactionData || []);
-      const yearOverYear = processYearOverYear(transactionData || [], prevYearData || []);
+      const yearOverYear = processYearOverYear(
+        transactionData || [],
+        (prevYearData as any[]) || []
+      );
       const insights = processInsights(transactionData || [], startDate, endDate);
 
       return {
