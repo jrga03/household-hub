@@ -26,6 +26,12 @@ declare module "@tanstack/react-router" {
 
 function App() {
   const user = useAuthStore((state) => state.user);
+  const initializeAuth = useAuthStore((state) => state.initialize);
+
+  // Initialize auth state on app mount
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
 
   // Initialize realtime sync on app mount
   useEffect(() => {

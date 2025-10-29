@@ -51,8 +51,8 @@ function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b">
+      {/* Month Selector Bar */}
+      <div className="border-b bg-background">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
@@ -62,7 +62,7 @@ function DashboardPage() {
             <MonthSelector selectedMonth={selectedMonth} onChange={setSelectedMonth} />
           </div>
         </div>
-      </header>
+      </div>
 
       {/* Content */}
       <main className="container mx-auto px-4 py-8 space-y-6">

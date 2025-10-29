@@ -1,4 +1,4 @@
-import { createRootRoute, Outlet } from "@tanstack/react-router";
+import { createRootRoute } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 import { useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
@@ -6,6 +6,7 @@ import { autoSyncManager } from "@/lib/sync/autoSync";
 import { syncIssuesManager } from "@/lib/sync/SyncIssuesManager";
 import { SyncIssuesPanel } from "@/components/SyncIssuesPanel";
 import { ensureDeviceRegistered, triggerDeviceLastSeenUpdate } from "@/lib/device-registration";
+import { AppLayout } from "@/components/layout/AppLayout";
 
 /**
  * Root Component with Device Registration, Auto-Sync, and Sync Issues Panel
@@ -92,7 +93,7 @@ function RootComponent() {
 
   return (
     <>
-      <Outlet />
+      <AppLayout />
       <SyncIssuesPanel />
       {import.meta.env.DEV && <TanStackRouterDevtools />}
     </>

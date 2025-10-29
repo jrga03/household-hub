@@ -66,19 +66,19 @@ function Transactions() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b">
+      {/* Page Header Bar */}
+      <div className="border-b bg-background">
         <div className="container mx-auto flex items-center justify-between px-4 py-4">
           <div>
             <h1 className="text-xl font-bold">Transactions</h1>
             <p className="text-sm text-muted-foreground">Track your income and expenses</p>
           </div>
-          <Button onClick={() => setIsFormOpen(true)}>
+          <Button onClick={() => setIsFormOpen(true)} className="hidden md:flex">
             <Plus className="mr-2 h-4 w-4" />
             Add Transaction
           </Button>
         </div>
-      </header>
+      </div>
 
       {/* Content */}
       <main className="container mx-auto px-4 py-8 space-y-6">
