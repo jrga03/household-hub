@@ -4,6 +4,7 @@ import { routeTree } from "./routeTree.gen";
 import { Toaster } from "@/components/ui/sonner";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { SyncIndicator } from "@/components/SyncIndicator";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { realtimeSync } from "@/lib/realtime-sync";
 import { eventCompactor } from "@/lib/event-compactor";
@@ -113,6 +114,8 @@ function App() {
       </div>
       <RouterProvider router={router} />
       <Toaster />
+      {/* PWA install prompt (conditionally rendered) */}
+      <InstallPrompt />
     </TooltipProvider>
   );
 }
