@@ -13,7 +13,9 @@ export function BudgetList({ groups, onEdit, onDelete }: Props) {
     return (
       <div className="text-center py-12">
         <p className="text-lg font-medium text-muted-foreground">No budgets for this month</p>
-        <p className="text-sm text-muted-foreground mt-2">Click "Add Budget" to create one</p>
+        <p className="text-sm text-muted-foreground mt-2">
+          Click &quot;Add Budget&quot; to create one
+        </p>
       </div>
     );
   }

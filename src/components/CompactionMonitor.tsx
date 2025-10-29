@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { db } from "@/lib/dexie/db";
 import { useLiveQuery } from "dexie-react-hooks";
 import { AlertCircle } from "lucide-react";
@@ -25,7 +25,7 @@ export function CompactionMonitor() {
   /**
    * Check which entities need compaction (≥100 events)
    */
-  const checkCompactionNeeds = async () => {
+  const checkCompactionNeeds = useCallback(async () => {
     try {
       // Count events per entity (memory-efficient streaming)
       const entityEventCounts = new Map<string, number>();
@@ -48,12 +48,12 @@ export function CompactionMonitor() {
     } catch (error) {
       console.error("[CompactionMonitor] Failed to check compaction needs:", error);
     }
-  };
+  }, []);
 
   // Check compaction needs whenever event count changes
   useEffect(() => {
     checkCompactionNeeds();
-  }, [eventCount]);
+  }, [eventCount, checkCompactionNeeds]);
 
   // Don't render anything if no compaction needed
   if (!eventCount || needsCompaction === 0) {

@@ -90,7 +90,9 @@ export function DuplicateResolver({ duplicates, onResolve, onCancel }: Duplicate
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="skip" id={`skip-${match.importIndex}`} />
-                <Label htmlFor={`skip-${match.importIndex}`}>Skip - Don't import this row</Label>
+                <Label htmlFor={`skip-${match.importIndex}`}>
+                  Skip - Don&apos;t import this row
+                </Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="keep-both" id={`keep-${match.importIndex}`} />

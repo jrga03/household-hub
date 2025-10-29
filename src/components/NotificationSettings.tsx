@@ -149,8 +149,8 @@ export function NotificationSettings() {
             Notifications Not Supported
           </CardTitle>
           <CardDescription>
-            Your browser doesn't support push notifications. Try using Chrome, Firefox, or Edge for
-            the best experience.
+            Your browser doesn&apos;t support push notifications. Try using Chrome, Firefox, or Edge
+            for the best experience.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -279,7 +279,7 @@ export function NotificationSettings() {
                 <p className="font-medium">Notifications enabled but not active</p>
                 <p className="mt-1 text-muted-foreground">
                   On iOS Safari, you may need to add this app to your home screen first. Tap the
-                  Share button and select "Add to Home Screen".
+                  Share button and select &quot;Add to Home Screen&quot;.
                 </p>
               </div>
             </div>

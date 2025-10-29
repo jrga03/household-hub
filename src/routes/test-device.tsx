@@ -69,7 +69,7 @@ function TestDevice() {
             Open DevTools and clear IndexedDB - Device ID should still persist (localStorage backup)
           </li>
           <li>Clear localStorage too - Device ID should regenerate from fingerprint</li>
-          <li>Click "Clear Device ID" - New device ID generated</li>
+          <li>Click &quot;Clear Device ID&quot; - New device ID generated</li>
         </ol>
       </Card>
     </div>

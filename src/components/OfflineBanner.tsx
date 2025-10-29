@@ -48,7 +48,8 @@ export function OfflineBanner() {
       <AlertCircle className="h-4 w-4" />
       <AlertDescription className="flex items-center justify-between">
         <span>
-          You're offline. {pendingCount > 0 && `${pendingCount} changes will sync when online.`}
+          You&apos;re offline.{" "}
+          {pendingCount > 0 && `${pendingCount} changes will sync when online.`}
         </span>
         <div className="flex gap-2">
           <Button
