@@ -105,6 +105,7 @@ export function AccountFormDialog({ open, onClose, editingId }: Props) {
         });
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingId, accounts]);
 
   const onSubmit = async (data: AccountFormData) => {

@@ -72,7 +72,8 @@ import { deviceManager } from "@/lib/dexie/deviceManager";
 // Remove .skip after installing fake-indexeddb and configuring test setup
 
 describe("Sync Queue Integration Tests", () => {
-  const testUserId = "test-user-123";
+  // Use a valid UUID format for test user ID (Supabase expects UUID)
+  const testUserId = "12345678-1234-5678-1234-567812345678";
   let deviceId: string;
 
   beforeEach(async () => {

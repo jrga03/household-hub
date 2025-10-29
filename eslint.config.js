@@ -20,8 +20,151 @@ export default [
     ],
   },
   js.configs.recommended,
+
+  // Node.js scripts configuration
   {
-    files: ["**/*.{ts,tsx}"],
+    files: ["scripts/**/*.{js,cjs,mjs}"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        process: "readonly",
+        __dirname: "readonly",
+        __filename: "readonly",
+        require: "readonly",
+        module: "readonly",
+        exports: "readonly",
+        Buffer: "readonly",
+      },
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+      },
+    },
+    rules: {
+      "no-undef": "error",
+      "no-console": "off",
+    },
+  },
+
+  // Deno edge functions configuration
+  {
+    files: ["edge-functions/**/*.ts"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+      },
+      globals: {
+        Deno: "readonly",
+        Request: "readonly",
+        Response: "readonly",
+        Headers: "readonly",
+        URL: "readonly",
+        URLSearchParams: "readonly",
+        console: "readonly",
+        crypto: "readonly",
+        TextEncoder: "readonly",
+        TextDecoder: "readonly",
+        atob: "readonly",
+        btoa: "readonly",
+      },
+    },
+    plugins: {
+      "@typescript-eslint": typescript,
+    },
+    rules: {
+      ...typescript.configs.recommended.rules,
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+        },
+      ],
+      "@typescript-eslint/no-explicit-any": "warn", // Relaxed for edge functions
+    },
+  },
+
+  // Cloudflare Workers configuration
+  {
+    files: ["workers/**/*.ts"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+      },
+      globals: {
+        Request: "readonly",
+        Response: "readonly",
+        Headers: "readonly",
+        URL: "readonly",
+        URLSearchParams: "readonly",
+        ExecutionContext: "readonly",
+        console: "readonly",
+        crypto: "readonly",
+        TextEncoder: "readonly",
+        TextDecoder: "readonly",
+        atob: "readonly",
+        btoa: "readonly",
+        fetch: "readonly",
+        addEventListener: "readonly",
+        dispatchEvent: "readonly",
+      },
+    },
+    plugins: {
+      "@typescript-eslint": typescript,
+    },
+    rules: {
+      ...typescript.configs.recommended.rules,
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+        },
+      ],
+      "@typescript-eslint/no-explicit-any": "warn", // Relaxed for workers
+    },
+  },
+
+  // E2E tests configuration (Playwright)
+  {
+    files: ["tests/e2e/**/*.ts"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+      },
+      globals: {
+        console: "readonly",
+        performance: "readonly",
+        document: "readonly",
+        window: "readonly",
+        navigator: "readonly",
+      },
+    },
+    plugins: {
+      "@typescript-eslint": typescript,
+    },
+    rules: {
+      ...typescript.configs.recommended.rules,
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+        },
+      ],
+      "@typescript-eslint/no-explicit-any": "warn", // Relaxed for tests
+    },
+  },
+
+  // Main source code (React app)
+  {
+    files: ["src/**/*.{ts,tsx}"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
@@ -33,9 +176,6 @@ export default [
       },
       globals: {
         console: "readonly",
-        process: "readonly",
-        __dirname: "readonly",
-        __filename: "readonly",
         window: "readonly",
         document: "readonly",
         navigator: "readonly",
@@ -46,6 +186,19 @@ export default [
         clearTimeout: "readonly",
         setInterval: "readonly",
         clearInterval: "readonly",
+        crypto: "readonly",
+        indexedDB: "readonly",
+        IDBKeyRange: "readonly",
+        Blob: "readonly",
+        File: "readonly",
+        FileReader: "readonly",
+        URL: "readonly",
+        URLSearchParams: "readonly",
+        performance: "readonly",
+        dispatchEvent: "readonly",
+        CustomEvent: "readonly",
+        Event: "readonly",
+        HTMLButtonElement: "readonly",
       },
     },
     plugins: {

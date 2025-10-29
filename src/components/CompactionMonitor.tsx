@@ -22,15 +22,10 @@ export function CompactionMonitor() {
   const [needsCompaction, setNeedsCompaction] = useState(0);
   const [_entityIds, setEntityIds] = useState<string[]>([]);
 
-  // Check compaction needs whenever event count changes
-  useEffect(() => {
-    checkCompactionNeeds();
-  }, [eventCount]);
-
   /**
    * Check which entities need compaction (≥100 events)
    */
-  async function checkCompactionNeeds() {
+  const checkCompactionNeeds = async () => {
     try {
       // Count events per entity (memory-efficient streaming)
       const entityEventCounts = new Map<string, number>();
@@ -53,7 +48,12 @@ export function CompactionMonitor() {
     } catch (error) {
       console.error("[CompactionMonitor] Failed to check compaction needs:", error);
     }
-  }
+  };
+
+  // Check compaction needs whenever event count changes
+  useEffect(() => {
+    checkCompactionNeeds();
+  }, [eventCount]);
 
   // Don't render anything if no compaction needed
   if (!eventCount || needsCompaction === 0) {
