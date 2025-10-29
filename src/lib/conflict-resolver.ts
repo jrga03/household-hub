@@ -31,6 +31,7 @@ import type { TransactionEvent } from "@/types/event";
 import type { Conflict } from "@/types/sync";
 import type { ResolutionResult } from "@/types/resolution";
 import { db } from "@/lib/dexie/db";
+import { hasSentry } from "@/types/sentry";
 
 /**
  * Conflict Resolution Engine (Phase B: Record-level LWW)
@@ -273,22 +274,8 @@ export class ConflictResolutionEngine {
       console.error("[ConflictResolver] Failed to log resolution:", error);
 
       // Log to observability system if available
-      if (
-        typeof window !== "undefined" &&
-        "Sentry" in window &&
-        typeof (window as { Sentry?: { captureException: (err: unknown, opts?: unknown) => void } })
-          .Sentry?.captureException === "function"
-      ) {
-        (
-          window as {
-            Sentry: {
-              captureException: (
-                err: unknown,
-                opts?: { tags?: Record<string, string>; extra?: Record<string, unknown> }
-              ) => void;
-            };
-          }
-        ).Sentry.captureException(error, {
+      if (typeof window !== "undefined" && hasSentry(window)) {
+        window.Sentry.captureException(error, {
           tags: { subsystem: "conflict-resolver", operation: "log-resolution" },
           extra: {
             conflictId: conflict.id,

@@ -1,7 +1,8 @@
 /**
  * Checkpoint Tests for Chunk 019: Dexie Setup
  *
- * Verifies all 9 checkpoint criteria from checkpoint.md
+ * Verifies all checkpoint criteria from checkpoint.md
+ * Note: Schema now has 9 tables (originally 7, added syncIssues and conflicts)
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -29,7 +30,7 @@ describe("Checkpoint 019: Dexie Setup", () => {
     await expect(db.open()).resolves.toBeDefined();
   });
 
-  it("2. All 7 tables exist", () => {
+  it("2. All 9 tables exist", () => {
     const tableNames = db.tables.map((t) => t.name);
 
     expect(tableNames).toContain("transactions");
@@ -39,8 +40,10 @@ describe("Checkpoint 019: Dexie Setup", () => {
     expect(tableNames).toContain("events");
     expect(tableNames).toContain("meta");
     expect(tableNames).toContain("logs");
+    expect(tableNames).toContain("syncIssues");
+    expect(tableNames).toContain("conflicts");
 
-    expect(tableNames.length).toBe(7);
+    expect(tableNames.length).toBe(9);
   });
 
   it("3. Can store and retrieve transaction data", async () => {

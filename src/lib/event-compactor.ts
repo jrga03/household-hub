@@ -369,9 +369,16 @@ export class EventCompactor {
 
     // Get device registry if available (devices table may not exist yet)
     // The `devices` table will be added in a future chunk
-    const devices = (db as any).devices ? await (db as any).devices.toArray() : [];
+    type MaybeDevicesDB = typeof db & { devices?: { toArray(): Promise<unknown[]> } };
+    const devicesTable = (db as MaybeDevicesDB).devices;
+    const devices: unknown[] = devicesTable ? await devicesTable.toArray() : [];
     const deviceLastSeen = new Map<string, number>(
-      devices.map((d: any) => [d.id, new Date(d.last_seen_at).getTime()])
+      devices.map((d: unknown) => {
+        const device = d as { id?: string; last_seen_at?: string };
+        const id = device.id || "";
+        const lastSeen = device.last_seen_at ? new Date(device.last_seen_at).getTime() : 0;
+        return [id, lastSeen];
+      })
     );
 
     for (const [deviceId, clock] of Object.entries(vectorClock)) {

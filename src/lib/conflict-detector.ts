@@ -30,6 +30,7 @@ import type { TransactionEvent } from "@/types/event";
 import type { Conflict, ConflictDetectionResult } from "@/types/sync";
 import { compareVectorClocks } from "@/lib/vector-clock";
 import { db } from "@/lib/dexie/db";
+import { hasSentry } from "@/types/sentry";
 
 // ============================================================================
 // Conflict Detection Functions
@@ -187,8 +188,8 @@ export async function logConflict(
   } catch (error) {
     console.error("[ConflictDetector] Failed to persist conflict to IndexedDB:", error);
     // Log to observability system if available
-    if (typeof window !== "undefined" && (window as any).Sentry) {
-      (window as any).Sentry.captureException(error, {
+    if (typeof window !== "undefined" && hasSentry(window)) {
+      window.Sentry.captureException(error, {
         tags: { subsystem: "conflict-detector", operation: "persist-conflict" },
         extra: { conflictId: conflict.id, entityId: conflict.entity_id },
       });
@@ -204,8 +205,8 @@ export async function logConflict(
     console.error("[ConflictDetector] Failed to notify conflict store:", error);
     // Log to observability system but don't throw - IndexedDB write succeeded
     // UI can self-heal by loading conflicts from IndexedDB on next startup
-    if (typeof window !== "undefined" && (window as any).Sentry) {
-      (window as any).Sentry.captureException(error, {
+    if (typeof window !== "undefined" && hasSentry(window)) {
+      window.Sentry.captureException(error, {
         tags: { subsystem: "conflict-detector", operation: "store-notification" },
         extra: { conflictId: conflict.id, entityId: conflict.entity_id },
       });

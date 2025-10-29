@@ -61,13 +61,14 @@
 
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { db } from "@/lib/dexie/db";
+import { db, type LocalTransaction, type LocalAccount, type LocalCategory } from "@/lib/dexie/db";
 import { getDeviceId } from "@/lib/device";
 import { detectConflict, logConflict } from "@/lib/conflict-detector";
 import { conflictResolutionEngine } from "@/lib/conflict-resolver";
 import { useSyncStore } from "@/stores/syncStore";
 import type { EntityType } from "@/types/sync";
 import type { TransactionEvent } from "@/types/event";
+import { hasSentry } from "@/types/sentry";
 
 /**
  * Table names that support realtime sync
@@ -79,6 +80,11 @@ type SyncTableName = "transactions" | "accounts" | "categories";
  * Realtime payload from Supabase (generic for any table)
  */
 type RealtimePayload = RealtimePostgresChangesPayload<Record<string, unknown>>;
+
+/**
+ * Union type for all synced table records
+ */
+type SyncRecord = LocalTransaction | LocalAccount | LocalCategory;
 
 /**
  * Type-safe table accessor to handle Dexie's union type properly
@@ -95,6 +101,25 @@ function getTable(tableName: SyncTableName) {
     case "categories":
       return db.categories;
   }
+}
+
+/**
+ * Safely access common record properties across all sync tables.
+ * All sync tables have these core fields from the database schema.
+ */
+function getRecordCommonFields(record: SyncRecord | Record<string, unknown>): {
+  id: string;
+  household_id: string;
+  updated_at: string;
+  created_at: string;
+} {
+  const r = record as Record<string, unknown>;
+  return {
+    id: (r.id as string) || "",
+    household_id: (r.household_id as string) || "",
+    updated_at: (r.updated_at as string) || new Date().toISOString(),
+    created_at: (r.created_at as string) || new Date().toISOString(),
+  };
 }
 
 /**
@@ -299,8 +324,8 @@ export class RealtimeSync {
       useSyncStore.getState().setStatus("error");
 
       // Log to observability system if available
-      if (typeof window !== "undefined" && (window as any).Sentry) {
-        (window as any).Sentry.captureException(error, {
+      if (typeof window !== "undefined" && hasSentry(window)) {
+        window.Sentry.captureException(error, {
           tags: { subsystem: "realtime-sync", table: tableName, event: payload.eventType },
         });
       }
@@ -331,7 +356,7 @@ export class RealtimeSync {
     }
 
     // Add to IndexedDB (type assertion needed due to union type from switch)
-    await table.add(record as any);
+    await table.add(record as SyncRecord);
     console.log(`[RealtimeSync] ✓ Inserted ${record.id} into ${tableName}`);
   }
 
@@ -372,20 +397,23 @@ export class RealtimeSync {
 
     if (localRecord) {
       // Build events for conflict detection
+      // Note: Not all tables have all sync fields (e.g., accounts/categories lack device_id, lamport_clock)
+      // Use Record<string, unknown> to safely access potentially missing fields
+      const localRecordFields = localRecord as Record<string, unknown>;
       const localEvent: TransactionEvent = {
-        id: (localRecord as any).id || "",
-        householdId: (localRecord as any).household_id || "",
+        id: (localRecordFields.id as string) || "",
+        householdId: (localRecordFields.household_id as string) || "",
         entityType: this.getEntityTypeFromTable(tableName),
-        entityId: (localRecord as any).id || "",
+        entityId: (localRecordFields.id as string) || "",
         op: "update",
         payload: localRecord,
-        timestamp: new Date((localRecord as any).updated_at || Date.now()).getTime(),
-        actorUserId: (localRecord as any).created_by_user_id || "",
-        deviceId: (localRecord as any).device_id || this.deviceId || "",
+        timestamp: new Date((localRecordFields.updated_at as string) || Date.now()).getTime(),
+        actorUserId: (localRecordFields.created_by_user_id as string) || "",
+        deviceId: (localRecordFields.device_id as string) || this.deviceId || "",
         idempotencyKey: "", // Not used in conflict detection
         eventVersion: 1,
-        lamportClock: (localRecord as any).lamport_clock || 0,
-        vectorClock: (localRecord as any).vector_clock || {},
+        lamportClock: (localRecordFields.lamport_clock as number) || 0,
+        vectorClock: (localRecordFields.vector_clock as Record<string, number>) || {},
         checksum: "", // Not used in conflict detection
       };
 
@@ -425,13 +453,13 @@ export class RealtimeSync {
         );
 
         // Apply winner's payload to IndexedDB (type assertion needed due to union type)
-        await table.put(resolution.winner.payload as any);
+        await table.put(resolution.winner.payload as SyncRecord);
         return;
       }
     }
 
     // No conflict - apply remote update directly (type assertion needed due to union type)
-    await table.put(newRecord as any);
+    await table.put(newRecord as SyncRecord);
     console.log(`[RealtimeSync] ✓ Updated ${newRecord.id} in ${tableName}`);
   }
 
@@ -501,8 +529,8 @@ export class RealtimeSync {
       useSyncStore.getState().setStatus("error");
 
       // Log to observability system if available
-      if (typeof window !== "undefined" && (window as any).Sentry) {
-        (window as any).Sentry.captureException(error, {
+      if (typeof window !== "undefined" && hasSentry(window)) {
+        window.Sentry.captureException(error, {
           tags: { subsystem: "realtime-sync", operation: "reconnection" },
         });
       }
@@ -618,16 +646,17 @@ export class RealtimeSync {
 
     if (!local) {
       // New record - add it (type assertion needed due to union type)
-      await table.add(record as any);
+      await table.add(record as SyncRecord);
       console.log(`[RealtimeSync] Added new record ${record.id} to ${tableName}`);
     } else {
       // Compare timestamps to determine which version is newer
       const remoteTime = new Date(record.updated_at as string).getTime();
-      const localTime = new Date((local as any).updated_at).getTime();
+      const localFields = local as Record<string, unknown>;
+      const localTime = new Date(localFields.updated_at as string).getTime();
 
       if (remoteTime > localTime) {
         // Remote is newer - update local (type assertion needed due to union type)
-        await table.put(record as any);
+        await table.put(record as SyncRecord);
         console.log(`[RealtimeSync] Updated ${record.id} in ${tableName} (remote newer)`);
       } else {
         // Local is newer or same - keep local
