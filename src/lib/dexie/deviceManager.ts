@@ -65,7 +65,7 @@ class DeviceManager {
    * Cached FingerprintJS promise (singleton pattern).
    * Loading fingerprint library is expensive, cache the promise.
    */
-  private fpPromise: Promise<any> | null = null;
+  private fpPromise: Promise<{ get: () => Promise<{ visitorId: string }> }> | null = null;
 
   /**
    * Gets the current device ID using 3-tier hybrid fallback strategy.

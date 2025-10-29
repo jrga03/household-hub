@@ -97,7 +97,7 @@ export interface SyncQueueItem {
   entity_id: string;
   operation: {
     op: "create" | "update" | "delete";
-    payload: any;
+    payload: unknown;
   };
   device_id: string;
   status: "queued" | "syncing" | "completed" | "failed";
@@ -117,7 +117,7 @@ export interface TransactionEvent {
   entity_type: "transaction" | "account" | "category" | "budget";
   entity_id: string;
   op: "create" | "update" | "delete" | "snapshot"; // "snapshot" added for event compaction
-  payload: any; // Changed fields only for updates
+  payload: unknown; // Changed fields only for updates
   idempotency_key: string; // Format: ${deviceId}-${entityType}-${entityId}-${lamportClock}
   event_version: number; // Schema version for forward compatibility
   actor_user_id: string;
@@ -132,7 +132,7 @@ export interface TransactionEvent {
  */
 export interface MetaEntry {
   key: string;
-  value: any; // Flexible value type (string, number, object, etc.)
+  value: unknown; // Flexible value type (string, number, object, etc.)
 }
 
 /**
@@ -143,7 +143,7 @@ export interface LogEntry {
   timestamp: string;
   level: "debug" | "info" | "warn" | "error";
   message: string;
-  context?: any;
+  context?: unknown;
   device_id: string;
 }
 
@@ -157,9 +157,9 @@ export interface SyncIssueRecord {
   entityId: string; // Which entity has the conflict
   issueType: string; // "conflict" | "validation_error" | "network_error" | "unknown"
   message: string; // Human-readable description
-  localValue?: any; // Local version (optional)
-  remoteValue?: any; // Remote version (optional)
-  resolvedValue?: any; // Resolution if auto-resolved (optional)
+  localValue?: unknown; // Local version (optional)
+  remoteValue?: unknown; // Remote version (optional)
+  resolvedValue?: unknown; // Resolution if auto-resolved (optional)
   timestamp: string; // ISO timestamp string (NOT Date object for IndexedDB)
   canRetry: boolean; // Whether the issue can be retried automatically
 }
@@ -173,10 +173,10 @@ export interface Conflict {
   entity_type: string; // "transaction" | "account" | "category" | "budget"
   entity_id: string; // Which entity has the conflict
   detected_at: string; // ISO timestamp when conflict was detected
-  local_event: any; // Full local TransactionEvent object
-  remote_event: any; // Full remote TransactionEvent object
+  local_event: unknown; // Full local TransactionEvent object
+  remote_event: unknown; // Full remote TransactionEvent object
   resolution: string; // "pending" | "resolved" | "manual"
-  resolved_value: any | null; // Final resolved value (null if pending)
+  resolved_value: unknown | null; // Final resolved value (null if pending)
   resolved_at: string | null; // ISO timestamp when resolved (null if pending)
 }
 
@@ -388,8 +388,19 @@ export const db = new HouseholdHubDB();
 db.open().catch((err) => {
   console.error("Failed to open IndexedDB database:", err);
   // Log to observability system if available
-  if (typeof window !== "undefined" && (window as any).Sentry) {
-    (window as any).Sentry.captureException(err, {
+  if (
+    typeof window !== "undefined" &&
+    "Sentry" in window &&
+    typeof (window as { Sentry?: { captureException: (err: unknown, opts?: unknown) => void } })
+      .Sentry?.captureException === "function"
+  ) {
+    (
+      window as {
+        Sentry: {
+          captureException: (err: unknown, opts?: { tags?: Record<string, string> }) => void;
+        };
+      }
+    ).Sentry.captureException(err, {
       tags: { subsystem: "dexie-db" },
     });
   }

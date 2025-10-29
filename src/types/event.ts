@@ -28,7 +28,7 @@ export interface TransactionEvent {
   entityType: EntityType;
   entityId: string;
   op: EventOp;
-  payload: any; // Changed fields (full for create, delta for update)
+  payload: unknown; // Changed fields (full for create, delta for update)
 
   // Timestamps
   timestamp: number; // Unix timestamp

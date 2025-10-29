@@ -59,5 +59,5 @@ export interface ResolutionResult {
    * Phase B: Always undefined (uses winner.payload)
    * Phase C: May contain field-level merge result
    */
-  mergedPayload?: any;
+  mergedPayload?: unknown;
 }
