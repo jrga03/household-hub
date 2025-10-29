@@ -12,8 +12,8 @@ export default defineConfig({
     TanStackRouterVite(),
     react(),
     VitePWA({
-      registerType: "autoUpdate",
-      includeAssets: ["icons/*.png", "splash/*.jpg"],
+      registerType: "prompt", // Changed from 'autoUpdate' to allow user control
+      includeAssets: ["icons/*.png", "splash/*.jpg", "offline.html"],
       manifest: {
         name: "Household Hub - Financial Tracker",
         short_name: "HouseholdHub",
@@ -76,23 +76,76 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Service worker config (will expand in chunk 042)
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,woff,woff2}"],
+        // Cache all static assets
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,woff,woff2}"],
+
+        // Don't cache these
+        globIgnores: ["**/node_modules/**/*"],
+
         // Increase the maximum file size to cache (default is 2MB)
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
+
+        // Runtime caching strategies
         runtimeCaching: [
+          // Supabase API - Network First
           {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/.*/i,
             handler: "NetworkFirst",
             options: {
-              cacheName: "supabase-cache",
+              cacheName: "supabase-api-cache",
               expiration: {
                 maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24, // 24 hours
+                maxAgeSeconds: 5 * 60, // 5 minutes
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+                // Validate response headers to prevent cache poisoning
+                headers: {
+                  "content-type": "application/json",
+                },
+              },
+            },
+          },
+
+          // Supabase Storage - Cache First
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "supabase-storage-cache",
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+              },
+            },
+          },
+
+          // Authentication endpoints - Network Only (NEVER cache sensitive data)
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/auth\/.*/i,
+            handler: "NetworkOnly",
+          },
+
+          // Google Fonts - Stale While Revalidate
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "google-fonts-cache",
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
               },
             },
           },
         ],
+
+        // Navigate fallback for offline
+        navigateFallback: "/offline.html",
+        navigateFallbackDenylist: [/^\/api\//],
+
+        // Cleanup old caches
+        cleanupOutdatedCaches: true,
       },
       devOptions: {
         enabled: true,

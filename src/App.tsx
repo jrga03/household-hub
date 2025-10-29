@@ -5,9 +5,14 @@ import { Toaster } from "@/components/ui/sonner";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { UpdatePrompt } from "@/components/UpdatePrompt";
+import { StorageWarning } from "@/components/StorageWarning";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { realtimeSync } from "@/lib/realtime-sync";
 import { eventCompactor } from "@/lib/event-compactor";
+import { registerBackgroundSync, unregisterBackgroundSync } from "@/lib/background-sync";
+import { syncProcessor } from "@/lib/sync/processor";
+import { useAuthStore } from "@/stores/authStore";
 
 // Create router instance
 const router = createRouter({ routeTree });
@@ -20,6 +25,8 @@ declare module "@tanstack/react-router" {
 }
 
 function App() {
+  const user = useAuthStore((state) => state.user);
+
   // Initialize realtime sync on app mount
   useEffect(() => {
     async function initSync() {
@@ -34,18 +41,22 @@ function App() {
     };
   }, []);
 
-  // Handle reconnection when network comes back online
+  // Register background sync with multi-strategy fallback (iOS Safari support)
+  // Consolidates all network event handling in one place
   useEffect(() => {
-    function handleOnline() {
-      realtimeSync.handleReconnection();
-    }
+    if (!user?.id) return;
 
-    window.addEventListener("online", handleOnline);
+    registerBackgroundSync(async () => {
+      // 1. Trigger realtime reconnection
+      realtimeSync.handleReconnection();
+      // 2. Process sync queue for offline changes
+      await syncProcessor.processQueue(user.id);
+    });
 
     return () => {
-      window.removeEventListener("online", handleOnline);
+      unregisterBackgroundSync();
     };
-  }, []);
+  }, [user?.id]);
 
   // Handle reconnection when app comes back into focus (iOS Safari)
   useEffect(() => {
@@ -107,15 +118,27 @@ function App() {
 
   return (
     <TooltipProvider>
+      {/* Offline indicator (user-dismissible with retry button and pending count) */}
       <OfflineBanner />
+
+      {/* Storage quota warning (shows at 80%+ usage) */}
+      <div className="fixed top-16 left-4 right-4 z-40 md:left-auto md:w-96">
+        <StorageWarning />
+      </div>
+
       {/* Global sync status indicator (top-right) */}
       <div className="fixed top-4 right-4 z-50">
         <SyncIndicator />
       </div>
+
       <RouterProvider router={router} />
       <Toaster />
+
       {/* PWA install prompt (conditionally rendered) */}
       <InstallPrompt />
+
+      {/* Service worker update prompt (bottom-right) */}
+      <UpdatePrompt />
     </TooltipProvider>
   );
 }
