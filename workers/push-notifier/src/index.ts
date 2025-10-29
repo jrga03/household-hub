@@ -183,7 +183,7 @@ async function handleFetch(request: Request, env: Env): Promise<Response> {
   let body: PushNotificationRequest;
   try {
     body = (await request.json()) as PushNotificationRequest;
-  } catch (_error) {
+  } catch {
     return errorResponse("Invalid JSON body", 400);
   }
 

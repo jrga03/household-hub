@@ -55,7 +55,7 @@ if (typeof globalThis.performance === "undefined") {
     getEntriesByType: vi.fn(() => []),
     toJSON: vi.fn(),
     timeOrigin: Date.now(),
-  } as Performance;
+  } as unknown as Performance;
 }
 
 // Clean up after each test

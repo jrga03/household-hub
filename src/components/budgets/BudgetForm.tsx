@@ -70,7 +70,7 @@ export function BudgetForm({ open, onClose, onSubmit, existingBudget }: Props) {
 
       form.reset();
       onClose();
-    } catch (_error) {
+    } catch {
       form.setError("amount", {
         message: "Invalid amount format",
       });

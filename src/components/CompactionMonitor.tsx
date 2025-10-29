@@ -51,7 +51,10 @@ export function CompactionMonitor() {
   }, []);
 
   // Check compaction needs whenever event count changes
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
+    // Intentional async setState: Triggers data fetch and state update when event count changes.
+    // This is an external system sync pattern (IndexedDB → React state).
     checkCompactionNeeds();
   }, [eventCount, checkCompactionNeeds]);
 

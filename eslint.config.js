@@ -141,6 +141,7 @@ export default [
       globals: {
         console: "readonly",
         performance: "readonly",
+        Performance: "readonly",
         document: "readonly",
         window: "readonly",
         navigator: "readonly",
@@ -199,6 +200,12 @@ export default [
         CustomEvent: "readonly",
         Event: "readonly",
         HTMLButtonElement: "readonly",
+        HTMLInputElement: "readonly",
+        React: "readonly",
+        NotificationPermission: "readonly",
+        Notification: "readonly",
+        BufferSource: "readonly",
+        ServiceWorkerRegistration: "readonly",
       },
     },
     plugins: {

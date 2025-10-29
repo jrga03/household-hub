@@ -27,7 +27,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
  */
 export function SyncIndicator() {
   const { status, lastSyncTime, pendingChanges } = useSyncStore();
-  const [currentTime, setCurrentTime] = useState(Date.now());
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
 
   // Update current time every 10 seconds for relative time display
   useEffect(() => {
@@ -135,7 +135,7 @@ export function SyncIndicator() {
     }
 
     return parts.join("\n");
-  }, [currentTime, lastSyncTime, pendingChanges, status, getStatusText]);
+  }, [currentTime, lastSyncTime, pendingChanges, getStatusText]);
 
   return (
     <Tooltip>

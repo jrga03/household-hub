@@ -60,7 +60,7 @@ export function SyncIssueItem({ issue, onRetry, onDismiss }: SyncIssueItemProps)
     try {
       await onRetry();
       toast.success("Sync retried successfully");
-    } catch (_error) {
+    } catch {
       toast.error("Retry failed");
     } finally {
       setIsRetrying(false);
