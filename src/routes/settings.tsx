@@ -3,8 +3,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { eventCompactor, type CompactionStats } from "@/lib/event-compactor";
+import { csvExporter } from "@/lib/csv-exporter";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Download } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -13,6 +14,7 @@ export const Route = createFileRoute("/settings")({
 function SettingsPage() {
   const [compacting, setCompacting] = useState(false);
   const [lastStats, setLastStats] = useState<CompactionStats | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   const handleCompaction = async () => {
     setCompacting(true);
@@ -36,12 +38,105 @@ function SettingsPage() {
     }
   };
 
+  const exportAndDownload = async (type: "transactions" | "accounts" | "categories") => {
+    setIsExporting(true);
+    try {
+      let csv: string;
+      let filename: string;
+      const date = new Date().toISOString().split("T")[0];
+
+      switch (type) {
+        case "transactions":
+          csv = await csvExporter.exportTransactions();
+          filename = `household-hub-transactions-${date}.csv`;
+          break;
+        case "accounts":
+          csv = await csvExporter.exportAccounts();
+          filename = `household-hub-accounts-${date}.csv`;
+          break;
+        case "categories":
+          csv = await csvExporter.exportCategories();
+          filename = `household-hub-categories-${date}.csv`;
+          break;
+      }
+
+      csvExporter.downloadCsv(csv, filename);
+      toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} exported successfully`);
+    } catch (error) {
+      console.error("Export failed:", error);
+      toast.error("Export failed. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground mt-2">Manage your application settings and storage</p>
       </div>
+
+      {/* Data Export Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Data Export</CardTitle>
+          <CardDescription>
+            Download your data as CSV for manual backups, spreadsheet analysis, or data portability
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3">
+            <Button
+              onClick={() => exportAndDownload("transactions")}
+              disabled={isExporting}
+              variant="outline"
+              className="w-full justify-start"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export Transactions
+            </Button>
+
+            <Button
+              onClick={() => exportAndDownload("accounts")}
+              disabled={isExporting}
+              variant="outline"
+              className="w-full justify-start"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export Accounts
+            </Button>
+
+            <Button
+              onClick={() => exportAndDownload("categories")}
+              disabled={isExporting}
+              variant="outline"
+              className="w-full justify-start"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export Categories
+            </Button>
+          </div>
+
+          <div className="pt-4 border-t">
+            <h4 className="font-medium mb-2">Export Format</h4>
+            <ul className="text-sm text-muted-foreground space-y-1">
+              <li>
+                • <strong>Format:</strong> CSV (UTF-8 with BOM for Excel compatibility)
+              </li>
+              <li>
+                • <strong>Amounts:</strong> Decimal format (e.g., 1500.50)
+              </li>
+              <li>
+                • <strong>Dates:</strong> ISO 8601 format (YYYY-MM-DD)
+              </li>
+              <li>
+                • <strong>Use Cases:</strong> Backups, spreadsheet analysis, data portability
+              </li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Storage Management Section */}
       <Card>

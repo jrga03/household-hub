@@ -4,10 +4,10 @@
 
 ## Your Stats
 
-- **Time invested**: 48.25 hours
-- **Current milestone**: Milestone 4: Multi-Device Sync ✅ COMPLETE (10/10 chunks)
-- **Last chunk completed**: 035-event-compaction (Event log compaction with dual triggers (100 events OR 30 days), snapshot creation with event replay, 10-event safety buffer, vector clock compaction with \_historical counter, scheduled daily compaction at 3 AM, manual Settings UI, CompactionMonitor component, 26/26 tests passing, code review A+ after fixing critical constant access bug and memory optimizations, ~90% storage reduction verified)
-- **Next session goal**: Begin Milestone 5: PWA & Refinement
+- **Time invested**: 49.75 hours
+- **Current milestone**: Milestone 4: Multi-Device Sync (11/15 chunks - backups in progress)
+- **Last chunk completed**: 036-csv-export (CSV exporter with plain decimal currency format (1500.50 NOT ₱1,500.50), UTF-8 BOM for Excel, 10-column format contract, Decision #84 logout data retention with unsynced data check, 37/37 unit tests passing, code review completed with 2 critical fixes applied: sync queue schema alignment (removed "draft" status), ExportButton toast integration, TypeScript compilation verified, PRODUCTION-READY)
+- **Next session goal**: Complete CSV import (chunk 037) or proceed to PWA features
 
 ---
 
@@ -141,7 +141,7 @@
 
 ### Backups (Optional but Recommended)
 
-- [ ] 036-csv-export ⏱️ 1hr
+- [x] 036-csv-export ⏱️ 1.5hr ✅ COMPLETE (CSVExporter class with exportTransactions/Accounts/Categories methods, plain decimal format WITHOUT currency symbols (critical for CSV contract), UTF-8 BOM for Excel compatibility, proper CSV escaping (commas, quotes, newlines), 10-column guaranteed stable order per FEATURES.md spec, ExportButton component with loading states + Sonner toast, enhanced Settings page with 3 export buttons, Decision #84 logout data retention: checkUnsyncedData() queries sync queue for ["queued", "syncing", "failed"] statuses (schema-aligned), clearIndexedDB() cleanup, window.confirm prompt before logout with unsynced data, CSV export option with 1-second download wait, authStore.ts enhanced with export flow, 37/37 comprehensive unit tests (currency format validation, CSV escaping, BOM presence, column order, edge cases, date formatting), code review completed with 2 critical fixes applied: removed "draft" status from sync queue query (schema mismatch), replaced alert() with toast in ExportButton for UX consistency, TypeScript warnings eliminated, all tests passing, PRODUCTION-READY)
 - [ ] 037-csv-import ⏱️ 2hr
 - [ ] 038-r2-setup ⏱️ 1hr
 - [ ] 039-backup-encryption ⏱️ 2hr
