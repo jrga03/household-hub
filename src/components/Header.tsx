@@ -3,6 +3,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { Button } from "@/components/ui/button";
 import { SyncStatus } from "@/components/SyncStatus";
 import { SyncButton } from "@/components/SyncButton";
+import { BarChart3 } from "lucide-react";
 
 export function Header() {
   const user = useAuthStore((state) => state.user);
@@ -21,6 +22,13 @@ export function Header() {
               className="text-sm font-medium text-muted-foreground hover:text-foreground"
             >
               Accounts
+            </Link>
+            <Link
+              to="/analytics"
+              className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+            >
+              <BarChart3 className="h-4 w-4" />
+              Analytics
             </Link>
           </nav>
         </div>
