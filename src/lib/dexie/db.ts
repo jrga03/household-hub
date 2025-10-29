@@ -17,6 +17,7 @@
  */
 
 import Dexie, { Table } from "dexie";
+import { hasSentry } from "@/types/sentry";
 
 // ============================================================================
 // TypeScript Interfaces
@@ -388,19 +389,8 @@ export const db = new HouseholdHubDB();
 db.open().catch((err) => {
   console.error("Failed to open IndexedDB database:", err);
   // Log to observability system if available
-  if (
-    typeof window !== "undefined" &&
-    "Sentry" in window &&
-    typeof (window as { Sentry?: { captureException: (err: unknown, opts?: unknown) => void } })
-      .Sentry?.captureException === "function"
-  ) {
-    (
-      window as {
-        Sentry: {
-          captureException: (err: unknown, opts?: { tags?: Record<string, string> }) => void;
-        };
-      }
-    ).Sentry.captureException(err, {
+  if (typeof window !== "undefined" && hasSentry(window)) {
+    window.Sentry.captureException(err, {
       tags: { subsystem: "dexie-db" },
     });
   }
