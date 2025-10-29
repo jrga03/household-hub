@@ -1,0 +1,23 @@
+name = "household-hub-push"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# Environment variables (non-sensitive)
+[vars]
+ENVIRONMENT = "development"
+
+# Production environment configuration
+[env.production]
+vars = { ENVIRONMENT = "production", SUPABASE_URL = "https://your-project.supabase.co" }
+
+# Scheduled triggers for notification delivery
+# 8 AM UTC: Transaction reminders
+# 9 AM UTC: Budget alerts
+[triggers]
+crons = ["0 8 * * *", "0 9 * * *"]
+
+# Secrets to be set via CLI:
+# wrangler secret put SUPABASE_JWT_SECRET
+# wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+# wrangler secret put VAPID_PUBLIC_KEY
+# wrangler secret put VAPID_PRIVATE_KEY

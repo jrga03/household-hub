@@ -1,0 +1,25 @@
+{
+  "name": "household-hub-push-notifier",
+  "version": "1.0.0",
+  "description": "Web Push notification worker for Household Hub",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "keywords": [
+    "cloudflare-workers",
+    "web-push",
+    "notifications"
+  ],
+  "author": "Household Hub",
+  "license": "MIT",
+  "dependencies": {
+    "web-push": "^3.6.6"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20231218.0",
+    "wrangler": "^3.22.1"
+  }
+}

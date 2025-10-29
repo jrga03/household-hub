@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build output
+dist/
+.wrangler/
+
+# Secrets (NEVER commit)
+.dev.vars
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Wrangler
+.mf/

@@ -1,0 +1,15 @@
+# Development Environment Variables
+# Copy this file to .dev.vars for local development
+# DO NOT commit .dev.vars to git (it contains secrets)
+
+# Supabase Configuration
+SUPABASE_URL=http://localhost:54321
+SUPABASE_JWT_SECRET=your-jwt-secret-from-supabase-dashboard
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-from-supabase-dashboard
+
+# VAPID Keys (generate with: npx web-push generate-vapid-keys)
+VAPID_PUBLIC_KEY=BLc5asl8GQ8vq4B3sdmA0mZ1Oaw7mB199CDw5nIvP24cU5vJxgFV8OxKCbPNQqyqC36HrpV_KeNTp0N5mvVcCqM
+VAPID_PRIVATE_KEY=c6yxglDendazbZ0KtiWEW8palsOcSD4z_cAU9D467XQ
+
+# Environment
+ENVIRONMENT=development
