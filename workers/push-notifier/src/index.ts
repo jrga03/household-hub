@@ -183,7 +183,7 @@ async function handleFetch(request: Request, env: Env): Promise<Response> {
   let body: PushNotificationRequest;
   try {
     body = (await request.json()) as PushNotificationRequest;
-  } catch (error) {
+  } catch (_error) {
     return errorResponse("Invalid JSON body", 400);
   }
 
@@ -240,7 +240,7 @@ async function handleFetch(request: Request, env: Env): Promise<Response> {
 async function handleScheduled(
   event: ScheduledEvent,
   env: Env,
-  ctx: ExecutionContext
+  _ctx: ExecutionContext
 ): Promise<void> {
   console.log("Cron triggered:", event.cron, "at", new Date(event.scheduledTime).toISOString());
 
@@ -300,7 +300,7 @@ export default {
   /**
    * Fetch handler for HTTP requests
    */
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     return handleFetch(request, env);
   },
 

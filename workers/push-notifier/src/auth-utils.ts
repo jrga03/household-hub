@@ -72,7 +72,7 @@ export async function verifySupabaseJWT(token: string, jwtSecret: string): Promi
 
     const payloadStr = new TextDecoder().decode(base64UrlDecode(payloadB64));
     payload = JSON.parse(payloadStr);
-  } catch (error) {
+  } catch (_error) {
     throw new Error("Invalid JWT: failed to decode header or payload");
   }
 

@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 const XLSX = require('xlsx');
-const path = require('path');
 
 // Read the Excel file
 const filePath = '/Users/jasonacido/Downloads/Savings_Expenses.xlsx';

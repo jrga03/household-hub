@@ -26,7 +26,7 @@ test.describe("Authentication", () => {
     await expect(page).toHaveURL(/\/dashboard/);
   });
 
-  test("should sign out", async ({ page, context }) => {
+  test("should sign out", async ({ page, context: _context }) => {
     // Sign in first
     await page.goto("/login");
     await page.fill('[name="email"]', "test@example.com");

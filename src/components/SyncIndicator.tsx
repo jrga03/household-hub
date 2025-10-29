@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Wifi, WifiOff, RefreshCw, AlertCircle } from "lucide-react";
 import { useSyncStore } from "@/stores/syncStore";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +27,15 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
  */
 export function SyncIndicator() {
   const { status, lastSyncTime, pendingChanges } = useSyncStore();
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  // Update current time every 10 seconds for relative time display
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Listen to browser online/offline events
   useEffect(() => {
@@ -104,7 +113,7 @@ export function SyncIndicator() {
     const parts: string[] = [getStatusText()];
 
     if (lastSyncTime) {
-      const elapsed = Date.now() - lastSyncTime.getTime();
+      const elapsed = currentTime - lastSyncTime.getTime();
       const seconds = Math.floor(elapsed / 1000);
       const minutes = Math.floor(seconds / 60);
       const hours = Math.floor(minutes / 60);
@@ -126,7 +135,7 @@ export function SyncIndicator() {
     }
 
     return parts.join("\n");
-  }, [lastSyncTime, pendingChanges, status]);
+  }, [currentTime, lastSyncTime, pendingChanges, status, getStatusText]);
 
   return (
     <Tooltip>

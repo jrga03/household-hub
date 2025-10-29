@@ -30,12 +30,10 @@ export function OfflineBanner() {
   const { mutate: sync, isPending } = useSyncProcessor();
   const [dismissed, setDismissed] = useState(false);
 
-  // Reset dismissed when back online
-  useEffect(() => {
-    if (isOnline) setDismissed(false);
-  }, [isOnline]);
+  // Auto-reset dismissed flag when back online (derived state pattern)
+  const isDismissed = dismissed && !isOnline;
 
-  if (isOnline || dismissed) return null;
+  if (isOnline || isDismissed) return null;
 
   return (
     <Alert

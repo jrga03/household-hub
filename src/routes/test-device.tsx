@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { getDeviceId, clearDeviceId, hasDeviceId } from "@/lib/dexie/deviceManager";
 import { Button } from "@/components/ui/button";
@@ -12,11 +12,11 @@ function TestDevice() {
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [deviceExists, setDeviceExists] = useState(false);
 
-  const loadDeviceInfo = async () => {
+  const loadDeviceInfo = useCallback(async () => {
     const id = await getDeviceId();
     setDeviceId(id);
     setDeviceExists(hasDeviceId());
-  };
+  }, []);
 
   const clearDevice = async () => {
     await clearDeviceId();
@@ -26,7 +26,7 @@ function TestDevice() {
 
   useEffect(() => {
     loadDeviceInfo();
-  }, []);
+  }, [loadDeviceInfo]);
 
   return (
     <div className="container mx-auto max-w-2xl py-12 space-y-6">
