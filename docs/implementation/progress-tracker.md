@@ -4,10 +4,10 @@
 
 ## Your Stats
 
-- **Time invested**: 49.75 hours
-- **Current milestone**: Milestone 4: Multi-Device Sync (11/15 chunks - backups in progress)
-- **Last chunk completed**: 036-csv-export (CSV exporter with plain decimal currency format (1500.50 NOT ₱1,500.50), UTF-8 BOM for Excel, 10-column format contract, Decision #84 logout data retention with unsynced data check, 37/37 unit tests passing, code review completed with 2 critical fixes applied: sync queue schema alignment (removed "draft" status), ExportButton toast integration, TypeScript compilation verified, PRODUCTION-READY)
-- **Next session goal**: Complete CSV import (chunk 037) or proceed to PWA features
+- **Time invested**: 52.5 hours
+- **Current milestone**: Milestone 4: Multi-Device Sync (12/15 chunks - backups complete)
+- **Last chunk completed**: 037-csv-import (CSV import with PapaParse, hash-based deduplication (Decision #81 includes account_id), column auto-detection with created_at/created_by preservation for round-trip guarantee, 3 duplicate actions (Skip|Keep Both|Replace), CSV injection prevention, account/category name-to-ID resolution, file size validation (50MB), 15/15 unit tests passing, code review completed with 4 critical fixes: type safety, reference resolution, CSV injection prevention, error handling improvements, TypeScript compilation verified, PRODUCTION-READY with TODO for transaction enrichment)
+- **Next session goal**: R2 backup setup (chunk 038) or PWA manifest (chunk 039)
 
 ---
 
@@ -142,7 +142,7 @@
 ### Backups (Optional but Recommended)
 
 - [x] 036-csv-export ⏱️ 1.5hr ✅ COMPLETE (CSVExporter class with exportTransactions/Accounts/Categories methods, plain decimal format WITHOUT currency symbols (critical for CSV contract), UTF-8 BOM for Excel compatibility, proper CSV escaping (commas, quotes, newlines), 10-column guaranteed stable order per FEATURES.md spec, ExportButton component with loading states + Sonner toast, enhanced Settings page with 3 export buttons, Decision #84 logout data retention: checkUnsyncedData() queries sync queue for ["queued", "syncing", "failed"] statuses (schema-aligned), clearIndexedDB() cleanup, window.confirm prompt before logout with unsynced data, CSV export option with 1-second download wait, authStore.ts enhanced with export flow, 37/37 comprehensive unit tests (currency format validation, CSV escaping, BOM presence, column order, edge cases, date formatting), code review completed with 2 critical fixes applied: removed "draft" status from sync queue query (schema mismatch), replaced alert() with toast in ExportButton for UX consistency, TypeScript warnings eliminated, all tests passing, PRODUCTION-READY)
-- [ ] 037-csv-import ⏱️ 2hr
+- [x] 037-csv-import ⏱️ 2.75hr ✅ COMPLETE (PapaParse, hash dedup with account_id, column auto-detect with created_at/created_by, 3 actions: Skip|Keep Both|Replace, CSV injection prevention, name-to-ID resolution, 50MB file limit, 15 tests, code review with 4 critical fixes, PRODUCTION-READY with TODO for transaction enrichment)
 - [ ] 038-r2-setup ⏱️ 1hr
 - [ ] 039-backup-encryption ⏱️ 2hr
 - [ ] 040-backup-worker ⏱️ 1.5hr

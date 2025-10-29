@@ -20,7 +20,7 @@ export function CompactionMonitor() {
 
   // State for tracking how many entities need compaction
   const [needsCompaction, setNeedsCompaction] = useState(0);
-  const [entityIds, setEntityIds] = useState<string[]>([]);
+  const [_entityIds, setEntityIds] = useState<string[]>([]);
 
   // Check compaction needs whenever event count changes
   useEffect(() => {

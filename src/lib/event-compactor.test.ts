@@ -42,7 +42,6 @@ function createTestEvent(
     entity_type: "transaction",
     op,
     payload,
-    lamportClock: lamportClock,
     lamport_clock: lamportClock, // Dexie uses snake_case
     vector_clock: { "device-1": lamportClock },
     timestamp: new Date().toISOString(),
