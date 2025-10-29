@@ -9,19 +9,19 @@
 
 ## Quick Status Overview
 
-| Component          | Phase A Status | Phase B Status | Chunk Reference    |
-| ------------------ | -------------- | -------------- | ------------------ |
-| Core App           | ✅ Ready       | N/A            | 001-037 complete   |
-| Database           | ✅ Ready       | N/A            | Migrations 001-037 |
-| Auth               | ✅ Ready       | N/A            | Chunk 002          |
-| Offline Storage    | ✅ Ready       | N/A            | Chunks 019-025     |
-| Event Sourcing     | ✅ Ready       | N/A            | Chunks 028-035     |
-| CSV Export         | ✅ Ready       | N/A            | Chunk 036-037      |
-| R2 Backups         | ⏳ TODO        | ⏳ Pending     | Chunk 038-040      |
-| PWA Manifest       | ⏳ TODO        | ⏳ Pending     | Chunk 041          |
-| Service Worker     | ⏳ TODO        | ⏳ Pending     | Chunk 042          |
-| Push Notifications | ⏳ TODO        | ⏳ Pending     | Chunk 043          |
-| E2E Tests          | ⏳ TODO        | ⏳ Pending     | Chunk 045          |
+| Component          | Phase A Status | Phase B Status | Chunk Reference                           |
+| ------------------ | -------------- | -------------- | ----------------------------------------- |
+| Core App           | ✅ Ready       | N/A            | 001-037 complete                          |
+| Database           | ✅ Ready       | N/A            | Migrations 001-037                        |
+| Auth               | ✅ Ready       | N/A            | Chunk 002                                 |
+| Offline Storage    | ✅ Ready       | N/A            | Chunks 019-025                            |
+| Event Sourcing     | ✅ Ready       | N/A            | Chunks 028-035                            |
+| CSV Export         | ✅ Ready       | N/A            | Chunk 036-037                             |
+| R2 Backups         | ⏸️ Deferred    | ⏸️ Deferred    | Chunk 038-040 (implement post-deployment) |
+| PWA Manifest       | ⏳ TODO        | ⏳ Pending     | Chunk 041                                 |
+| Service Worker     | ⏳ TODO        | ⏳ Pending     | Chunk 042                                 |
+| Push Notifications | ⏳ TODO        | ⏳ Pending     | Chunk 043                                 |
+| E2E Tests          | ⏳ TODO        | ⏳ Pending     | Chunk 045                                 |
 
 ---
 
@@ -1035,40 +1035,61 @@ npm deprecate --list  # (not a real command, manual check needed)
 
 These sections will be completed as Phase B features are implemented.
 
-### 11.1 R2 Backup Readiness ⏳ TODO (Chunks 038-040)
+### 11.1 R2 Backup Readiness ⏸️ DEFERRED (Chunks 038-040)
 
-**Chunk 038: R2 Setup**
+**Status**: ⏸️ **DEFERRED - Implement After Phase A Deployment**
 
-- [ ] R2 bucket created (`household-backups`)
-- [ ] CORS policy configured
-- [ ] Access keys generated and stored
-- [ ] Bucket lifecycle rules set (optional)
+**Rationale**: R2 backups are Phase B enhancements. CSV export (chunks 036-037) provides sufficient backup capability for initial deployment.
 
-**Chunk 039: Backup Encryption**
+**When to Implement**: 1-2 weeks after successful Phase A deployment when:
 
-- [ ] Encryption key derivation implemented
-- [ ] AES-GCM encryption tested locally
-- [ ] Decryption flow verified
-- [ ] Key rotation policy documented
+- ✅ Core app is stable and users are testing
+- ✅ Ready to add automated cloud backups
+- ✅ Cloudflare account provisioned
 
-**Chunk 040: Backup Worker**
+**Complete Implementation Guide**: See [`DEPLOYMENT.md Phase 7`](./DEPLOYMENT.md#phase-7-r2-backup-setup--chunks-038-040) for detailed steps.
 
-- [ ] Cloudflare Worker deployed
-- [ ] Cron schedule configured (daily backups)
-- [ ] Backup format validated
-- [ ] Restoration tested on staging
+**Quick Checklist** (for future implementation):
 
-**Verification Commands** (to be added):
+- [ ] Cloudflare account created
+- [ ] R2 bucket created (`household-hub-backups-prod`)
+- [ ] KV namespace created for JWT caching
+- [ ] Production Supabase JWT secret obtained
+- [ ] Worker code implemented (5 files in `workers/r2-proxy/`)
+- [ ] Worker tested locally with `wrangler dev`
+- [ ] Worker deployed to production with `wrangler deploy`
+- [ ] All 5 endpoints verified (upload, upload-direct, download, list, delete)
+- [ ] JWT validation working (401 for invalid tokens)
+- [ ] User-scoped access enforced (403 for cross-user attempts)
+- [ ] CORS configured for production domain
+- [ ] Encryption added (chunk 039: AES-GCM with WebCrypto)
+- [ ] Backup UI implemented (chunk 040: BackupManager + RestoreManager)
+
+**Verification Commands** (when ready to implement):
 
 ```bash
 # Test R2 access
-wrangler r2 bucket list
-# Should show "household-backups"
+npx wrangler r2 bucket list
+# Expected: household-hub-backups-prod
 
-# Test backup worker
-wrangler tail [worker-name]
-# Trigger manual backup and verify logs
+# Test Worker locally
+cd workers/r2-proxy
+npx wrangler dev
+# Access http://localhost:8787/api/backup/list
+
+# Deploy to production
+npx wrangler deploy
+
+# Test production endpoint
+curl https://household-hub-r2-proxy.YOUR_SUBDOMAIN.workers.dev/api/backup/list \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+# Expected: {"backups": []}
+
+# Monitor Worker logs
+npx wrangler tail
 ```
+
+**Current Backup Solution**: ✅ Manual CSV export (chunks 036-037) operational
 
 ---
 

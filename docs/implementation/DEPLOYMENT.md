@@ -700,63 +700,207 @@ GROUP BY household_id;
 
 ---
 
-## Phase 7: R2 Backup Setup ⏳ (Chunks 038-040)
+## Phase 7: R2 Backup Setup ⏸️ (Chunks 038-040)
 
-⏳ **TODO**: Complete after chunk 038-040 implementation
+**Status**: ⏸️ **DEFERRED - Implement After Core Deployment**
+**Time**: 20 minutes
+**Prerequisites**: Phase A deployed successfully, Cloudflare account created
 
-### 7.1 Create R2 Bucket (Chunk 038)
+### Why Deferred?
 
-**Prerequisites**: Cloudflare account with R2 enabled
+R2 backups (chunks 038-040) are **Phase B enhancements** that:
+
+✅ **Current backup solution**: Manual CSV export (chunks 036-037) provides sufficient backup capability for initial deployment
+✅ **Not blocking**: R2 is optional infrastructure for automated cloud backups
+✅ **Better with production**: Requires production Supabase JWT secrets and deployed infrastructure
+✅ **Can be added later**: Implement after Phase A is stable and users are testing
+
+**Decision Context**: Per Decision #83, encrypted automated backups are Phase B features. Manual export satisfies MVP backup requirements.
+
+### When to Implement
+
+Implement R2 backups AFTER successful Phase A deployment when:
+
+1. ✅ Core app deployed and stable (Phase 1-6 complete)
+2. ✅ Users actively testing the application
+3. ✅ Ready to add automated cloud backups
+4. ✅ Cloudflare account provisioned
+
+**Recommended Timeline**: 1-2 weeks after initial deployment
+
+---
+
+### Implementation Guide
+
+**For complete step-by-step instructions, see**: [`docs/implementation/deployment/r2-worker-deployment.md`](./deployment/r2-worker-deployment.md)
+
+#### Quick Overview (20 minutes)
+
+**Step 1: Cloudflare Setup (5 min)**
 
 ```bash
-# Create R2 bucket
-npx wrangler r2 bucket create household-backups
+# Login to Cloudflare
+npx wrangler login
 
-# Configure CORS
-npx wrangler r2 bucket cors set household-backups --config r2-cors.json
+# Create R2 bucket (via dashboard or CLI)
+npx wrangler r2 bucket create household-hub-backups-prod
+
+# Create KV namespace for JWT caching
+npx wrangler kv:namespace create "JWT_CACHE"
+npx wrangler kv:namespace create "JWT_CACHE" --preview
 ```
 
-**r2-cors.json**:
+**Step 2: Get Production JWT Secret (2 min)**
 
-```json
-{
-  "AllowedOrigins": ["https://household-hub.pages.dev"],
-  "AllowedMethods": ["GET", "PUT", "POST", "DELETE"],
-  "AllowedHeaders": ["*"],
-  "ExposeHeaders": ["ETag"],
-  "MaxAgeSeconds": 3600
-}
-```
+1. Go to Supabase Dashboard → Settings → API
+2. Copy **JWT Secret** (NOT anon key)
+3. Save temporarily for Worker configuration
 
-**Verification**:
+**Step 3: Initialize Worker Project (5 min)**
 
 ```bash
-# List buckets
-npx wrangler r2 bucket list
-# Expected: household-backups
+cd workers/r2-proxy
+npm install jose @cloudflare/workers-types
 
-# Check CORS
-npx wrangler r2 bucket cors get household-backups
+# Set JWT secret
+npx wrangler secret put SUPABASE_JWT_SECRET
+# Paste JWT secret when prompted
+```
+
+**Step 4: Configure wrangler.toml (2 min)**
+
+Update `workers/r2-proxy/wrangler.toml` with production values:
+
+```toml
+name = "household-hub-r2-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-01-15"
+
+[[r2_buckets]]
+binding = "BACKUPS"
+bucket_name = "household-hub-backups-prod"
+
+[[kv_namespaces]]
+binding = "JWT_CACHE"
+id = "YOUR_KV_NAMESPACE_ID"         # From step 1
+preview_id = "YOUR_PREVIEW_KV_ID"   # From step 1
+
+[vars]
+SUPABASE_URL = "https://YOUR_PROJECT.supabase.co"  # Production URL
+```
+
+**Step 5: Test Locally (3 min)**
+
+```bash
+# Run Worker locally (can reach localhost for pre-production testing)
+npx wrangler dev
+
+# Test in another terminal
+curl http://localhost:8787/api/backup/list \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Expected: {"backups": []}
+```
+
+**Step 6: Deploy to Production (3 min)**
+
+```bash
+# Deploy Worker
+npx wrangler deploy
+
+# Test production endpoint
+curl https://household-hub-r2-proxy.YOUR_SUBDOMAIN.workers.dev/api/backup/list \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Expected: {"backups": []}
+```
+
+#### Verification Checklist
+
+After deployment, verify:
+
+- [ ] Worker responds to all 5 endpoints (upload, upload-direct, download, list, delete)
+- [ ] JWT validation rejects invalid tokens (401)
+- [ ] User-scoped access prevents cross-user access (403)
+- [ ] CORS headers allow production domain
+- [ ] R2 bindings functional (can list/upload/download)
+- [ ] KV caching operational (JWT verification logs cached)
+
+#### Rollback Procedure
+
+If issues occur:
+
+```bash
+# 1. Check Worker logs
+npx wrangler tail
+
+# 2. Rollback to previous Worker version (if needed)
+npx wrangler rollback
+
+# 3. Disable Worker (emergency)
+npx wrangler delete household-hub-r2-proxy
+
+# App continues using CSV export (chunks 036-037)
 ```
 
 ---
 
-### 7.2 Deploy Backup Worker (Chunks 039-040)
+### Implementation Files
 
-⏳ **TODO**: Implementation pending
+When ready to implement, all code is documented in:
 
-**Worker will handle**:
+- **Chunk 038 Instructions**: `docs/implementation/chunks/038-r2-setup/instructions.md`
+- **Complete Deployment Guide**: `docs/implementation/deployment/r2-worker-deployment.md`
+- **Troubleshooting**: `docs/implementation/chunks/038-r2-setup/troubleshooting.md`
+- **Checkpoint Tests**: `docs/implementation/chunks/038-r2-setup/checkpoint.md`
 
-- Client-side encryption (AES-GCM)
-- Automated daily backups
-- Signed URL generation
-- Backup restoration
+**Worker Code** (5 files to create):
 
-**Deployment command** (to be added):
+1. `workers/r2-proxy/src/types.ts` - TypeScript interfaces
+2. `workers/r2-proxy/src/auth.ts` - JWT validation with Supabase
+3. `workers/r2-proxy/src/handlers.ts` - 5 endpoint handlers
+4. `workers/r2-proxy/src/index.ts` - Main Worker entry
+5. `workers/r2-proxy/wrangler.toml` - Configuration
 
-```bash
-npx wrangler deploy workers/backup-worker.ts
-```
+---
+
+### Cost Considerations
+
+**Cloudflare R2 Free Tier** (sufficient for most households):
+
+- **Storage**: 10GB free
+- **Class A operations**: 1M/month (writes, lists)
+- **Class B operations**: 10M/month (reads)
+- **Egress**: Free (no bandwidth charges)
+
+**Typical household usage**:
+
+- Daily backup: ~5MB compressed
+- Monthly storage: ~150MB
+- Annual storage: ~1.8GB
+- **Cost**: $0 (within free tier) ✅
+
+---
+
+### Security Notes
+
+When implementing:
+
+- ✅ **JWT Secret**: Rotate if exposed, never commit to Git
+- ✅ **CORS**: Restrict to production domain (not wildcard)
+- ✅ **User Scoping**: All paths prefixed with `backups/{userId}/`
+- ✅ **Encryption**: Chunks 039-040 add AES-GCM encryption before upload
+- ✅ **Rate Limiting**: Consider adding Durable Objects-based throttling
+
+---
+
+### Next Steps After R2 Setup
+
+Once R2 infrastructure is deployed:
+
+1. **Chunk 039**: Implement client-side backup encryption (AES-GCM with WebCrypto)
+2. **Chunk 040**: Build BackupManager and RestoreManager UI
+3. **Test**: Verify full backup/restore cycle with encryption
 
 ---
 
