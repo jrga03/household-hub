@@ -11,13 +11,40 @@
  * @module offline/transactions.test
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { db } from "@/lib/dexie/db";
+import { supabase } from "@/lib/supabase";
 import {
   createOfflineTransaction,
   updateOfflineTransaction,
   deleteOfflineTransaction,
 } from "./transactions";
+
+/**
+ * Helper function to mock Supabase sync_queue insert operations.
+ * Returns a spy on supabase.from() that intercepts sync_queue calls.
+ */
+function mockSyncQueueInsert() {
+  const fromSpy = vi.spyOn(supabase, "from");
+  fromSpy.mockImplementation((table: string) => {
+    if (table === "sync_queue") {
+      return {
+        insert: vi.fn().mockImplementation(() => {
+          return {
+            select: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: `queue-item-${Date.now()}` },
+                error: null,
+              }),
+            }),
+          };
+        }),
+      } as never;
+    }
+    return fromSpy.wrappedMethod.call(supabase, table);
+  });
+  return fromSpy;
+}
 
 describe("Offline Transaction Operations", () => {
   // Use a valid UUID format for test user ID (Supabase expects UUID)
@@ -26,11 +53,17 @@ describe("Offline Transaction Operations", () => {
   beforeEach(async () => {
     // Clear test database before each test
     await db.transactions.clear();
+
+    // Mock Supabase sync_queue operations
+    mockSyncQueueInsert();
   });
 
   afterEach(async () => {
     // Clean up after each test
     await db.transactions.clear();
+
+    // Restore all mocks
+    vi.restoreAllMocks();
   });
 
   it("should create transaction with temporary ID", async () => {

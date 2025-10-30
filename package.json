@@ -11,9 +11,11 @@
     "format": "prettier --write .",
     "preview": "vite preview",
     "test": "vitest",
+    "test:unit": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
+    "test:all": "npm run test:unit -- run && npm run test:e2e",
     "lighthouse": "lhci autorun",
     "prepare": "husky"
   },

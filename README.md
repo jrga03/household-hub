@@ -76,9 +76,11 @@ npm run preview      # Preview production build
 npm run lint         # Run ESLint
 npm run lint:fix     # Fix ESLint issues
 npm run format       # Format code with Prettier
-npm test             # Run unit tests
-npm run test:e2e     # Run E2E tests
+npm test             # Run unit tests (Vitest)
+npm run test:unit    # Run unit tests explicitly
+npm run test:e2e     # Run E2E tests (Playwright)
 npm run test:e2e:ui  # Run E2E tests with UI
+npm run test:all     # Run all tests (unit + E2E)
 ```
 
 ## Project Structure

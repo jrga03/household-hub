@@ -19,13 +19,15 @@ import { db } from "./dexie/db";
 
 describe("EventGenerator", () => {
   beforeEach(async () => {
-    // Clear events table before each test
+    // Clear events and meta tables before each test
     await db.events.clear();
+    await db.meta.clear();
   });
 
   afterEach(async () => {
     // Clean up after each test
     await db.events.clear();
+    await db.meta.clear();
   });
 
   it("should create event with correct fields", async () => {
@@ -34,7 +36,7 @@ describe("EventGenerator", () => {
       entityId: "tx-test-001",
       op: "create",
       payload: { amount_cents: 100000, description: "Test transaction" },
-      userId: "user-123",
+      userId: "12345678-1234-5678-1234-567812345001",
     });
 
     // Verify event structure
@@ -44,7 +46,7 @@ describe("EventGenerator", () => {
     expect(event.entityId).toBe("tx-test-001");
     expect(event.op).toBe("create");
     expect(event.payload).toEqual({ amount_cents: 100000, description: "Test transaction" });
-    expect(event.actorUserId).toBe("user-123");
+    expect(event.actorUserId).toBe("12345678-1234-5678-1234-567812345001");
     expect(event.deviceId).toBeDefined(); // From deviceManager
     expect(event.idempotencyKey).toBeDefined();
     expect(event.eventVersion).toBe(1);
@@ -60,7 +62,7 @@ describe("EventGenerator", () => {
       entityId: "tx-test-002",
       op: "create",
       payload: { amount_cents: 50000 },
-      userId: "user-456",
+      userId: "12345678-1234-5678-1234-567812345002",
     });
 
     // Query Dexie using snake_case field names
@@ -72,7 +74,7 @@ describe("EventGenerator", () => {
     expect(storedEvent.entity_type).toBe("transaction");
     expect(storedEvent.entity_id).toBe("tx-test-002");
     expect(storedEvent.op).toBe("create");
-    expect(storedEvent.actor_user_id).toBe("user-456");
+    expect(storedEvent.actor_user_id).toBe("12345678-1234-5678-1234-567812345002");
     expect(storedEvent.device_id).toBeDefined();
     expect(storedEvent.idempotency_key).toBeDefined();
     expect(storedEvent.event_version).toBe(1);
@@ -90,7 +92,7 @@ describe("EventGenerator", () => {
       entityId,
       op: "create",
       payload: { amount_cents: 10000 },
-      userId: "user-789",
+      userId: "12345678-1234-5678-1234-567812345003",
     });
 
     // Small delay to ensure IndexedDB transaction commits
@@ -102,7 +104,7 @@ describe("EventGenerator", () => {
       entityId,
       op: "update",
       payload: { amount_cents: 20000 },
-      userId: "user-789",
+      userId: "12345678-1234-5678-1234-567812345003",
     });
 
     // Small delay to ensure IndexedDB transaction commits
@@ -114,7 +116,7 @@ describe("EventGenerator", () => {
       entityId,
       op: "update",
       payload: { description: "Updated" },
-      userId: "user-789",
+      userId: "12345678-1234-5678-1234-567812345003",
     });
 
     // Verify lamport clocks increment
@@ -123,7 +125,10 @@ describe("EventGenerator", () => {
     expect(event3.lamportClock).toBe(3);
 
     // Verify stored in Dexie correctly
-    const storedEvents = await db.events.where("entity_id").equals(entityId).toArray();
+    const storedEvents = await db.events
+      .where("entity_id")
+      .equals(entityId)
+      .sortBy("lamport_clock"); // Sort by lamport clock to ensure correct order
     expect(storedEvents).toHaveLength(3);
     expect(storedEvents[0].lamport_clock).toBe(1);
     expect(storedEvents[1].lamport_clock).toBe(2);
@@ -137,7 +142,7 @@ describe("EventGenerator", () => {
       entityId: "tx-entity-A",
       op: "create",
       payload: { amount_cents: 10000 },
-      userId: "user-001",
+      userId: "12345678-1234-5678-1234-567812345004",
     });
 
     // Create event for entity B
@@ -146,7 +151,7 @@ describe("EventGenerator", () => {
       entityId: "tx-entity-B",
       op: "create",
       payload: { amount_cents: 20000 },
-      userId: "user-001",
+      userId: "12345678-1234-5678-1234-567812345004",
     });
 
     // Create another event for entity A
@@ -155,7 +160,7 @@ describe("EventGenerator", () => {
       entityId: "tx-entity-A",
       op: "update",
       payload: { amount_cents: 15000 },
-      userId: "user-001",
+      userId: "12345678-1234-5678-1234-567812345004",
     });
 
     // Both entities should start at 1 (independent clocks)
@@ -210,7 +215,7 @@ describe("EventGenerator", () => {
       entityId: "acc-test-001",
       op: "create",
       payload: { name: "Savings Account" },
-      userId: "user-111",
+      userId: "12345678-1234-5678-1234-567812345005",
     });
 
     // First event should have vector clock with single device entry
@@ -232,7 +237,7 @@ describe("EventGenerator", () => {
       entityId,
       op: "create",
       payload: { name: "Checking Account" },
-      userId: "user-222",
+      userId: "12345678-1234-5678-1234-567812345006",
     });
 
     // Create second event
@@ -241,7 +246,7 @@ describe("EventGenerator", () => {
       entityId,
       op: "update",
       payload: { name: "Updated Account" },
-      userId: "user-222",
+      userId: "12345678-1234-5678-1234-567812345006",
     });
 
     // Get device ID from first event
@@ -258,7 +263,7 @@ describe("EventGenerator", () => {
       entityId: "cat-test-001",
       op: "create",
       payload: { name: "Groceries", color: "#FF5722" },
-      userId: "user-333",
+      userId: "12345678-1234-5678-1234-567812345007",
     });
 
     // Checksum should be a 64-character hex string (SHA-256)
@@ -273,7 +278,7 @@ describe("EventGenerator", () => {
       entityId: "tx-checksum-001",
       op: "create",
       payload: { amount_cents: 10000 },
-      userId: "user-444",
+      userId: "12345678-1234-5678-1234-567812345008",
     });
 
     const event2 = await eventGenerator.createEvent({
@@ -281,7 +286,7 @@ describe("EventGenerator", () => {
       entityId: "tx-checksum-002",
       op: "create",
       payload: { amount_cents: 20000 }, // Different amount
-      userId: "user-444",
+      userId: "12345678-1234-5678-1234-567812345008",
     });
 
     // Different payloads should have different checksums
@@ -294,7 +299,7 @@ describe("EventGenerator", () => {
       entityId: "bud-test-001",
       op: "create",
       payload: { amount_cents: 50000, month_key: "2025-01" },
-      userId: "user-555",
+      userId: "12345678-1234-5678-1234-567812345009",
     });
 
     // Idempotency key format: ${deviceId}-${entityType}-${entityId}-${lamportClock}
@@ -324,7 +329,7 @@ describe("EventGenerator", () => {
         entityId: `${entityType}-test-multi`,
         op: "create",
         payload: { test: true },
-        userId: "user-666",
+        userId: "12345678-1234-5678-1234-567812345010",
       });
 
       expect(event.entityType).toBe(entityType);
@@ -345,7 +350,7 @@ describe("EventGenerator", () => {
       entityId,
       op: "create",
       payload: { amount_cents: 10000 },
-      userId: "user-777",
+      userId: "12345678-1234-5678-1234-567812345011",
     });
     expect(createEvent.op).toBe("create");
     expect(createEvent.lamportClock).toBe(1);
@@ -359,7 +364,7 @@ describe("EventGenerator", () => {
       entityId,
       op: "update",
       payload: { amount_cents: 20000 },
-      userId: "user-777",
+      userId: "12345678-1234-5678-1234-567812345011",
     });
     expect(updateEvent.op).toBe("update");
     expect(updateEvent.lamportClock).toBe(2);
@@ -373,7 +378,7 @@ describe("EventGenerator", () => {
       entityId,
       op: "delete",
       payload: { deleted: true },
-      userId: "user-777",
+      userId: "12345678-1234-5678-1234-567812345011",
     });
     expect(deleteEvent.op).toBe("delete");
     expect(deleteEvent.lamportClock).toBe(3);
