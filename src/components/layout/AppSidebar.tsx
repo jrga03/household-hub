@@ -141,7 +141,7 @@ export function AppSidebar() {
   const router = useRouterState();
   const user = useAuthStore((state) => state.user);
   const setQuickAddOpen = useNavStore((state) => state.setQuickAddOpen);
-  const { open, setOpen } = useSidebar();
+  const { open, setOpen: _setOpen } = useSidebar();
 
   // Check if a route is active
   const isActiveRoute = (path: string) => {

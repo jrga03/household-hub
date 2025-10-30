@@ -107,7 +107,7 @@ function getTable(tableName: SyncTableName) {
  * Safely access common record properties across all sync tables.
  * All sync tables have these core fields from the database schema.
  */
-function getRecordCommonFields(record: SyncRecord | Record<string, unknown>): {
+function _getRecordCommonFields(record: SyncRecord | Record<string, unknown>): {
   id: string;
   household_id: string;
   updated_at: string;

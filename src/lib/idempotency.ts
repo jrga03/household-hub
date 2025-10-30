@@ -42,12 +42,13 @@ export class IdempotencyKeyGenerator {
    * @param payload Event payload (any JSON-serializable object)
    * @returns SHA-256 hex string
    */
-  async calculateChecksum(payload: any): Promise<string> {
+  async calculateChecksum(payload: Record<string, unknown>): Promise<string> {
     // Normalize payload for consistent hashing
     const normalized = this.normalizePayload(payload);
     const json = JSON.stringify(normalized);
 
     // Use Web Crypto API for SHA-256
+    // eslint-disable-next-line no-undef
     const encoder = new TextEncoder();
     const data = encoder.encode(json);
     const hashBuffer = await crypto.subtle.digest("SHA-256", data);
@@ -69,7 +70,7 @@ export class IdempotencyKeyGenerator {
    * @param obj Payload to normalize
    * @returns Normalized payload
    */
-  private normalizePayload(obj: any): any {
+  private normalizePayload(obj: unknown): unknown {
     if (obj === null || obj === undefined) return obj;
     if (typeof obj !== "object") return obj;
     if (Array.isArray(obj)) {
@@ -77,12 +78,13 @@ export class IdempotencyKeyGenerator {
     }
 
     // Sort keys and exclude timestamps
-    const sorted: any = {};
-    Object.keys(obj)
+    const sorted: Record<string, unknown> = {};
+    const objRecord = obj as Record<string, unknown>;
+    Object.keys(objRecord)
       .sort()
       .forEach((key) => {
         if (key !== "updated_at" && key !== "created_at") {
-          sorted[key] = this.normalizePayload(obj[key]);
+          sorted[key] = this.normalizePayload(objRecord[key]);
         }
       });
 

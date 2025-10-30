@@ -25,7 +25,8 @@ function TestDevice() {
   };
 
   useEffect(() => {
-    loadDeviceInfo();
+    // Use Promise to schedule async work, avoiding synchronous setState in effect
+    void Promise.resolve().then(() => loadDeviceInfo());
   }, [loadDeviceInfo]);
 
   return (

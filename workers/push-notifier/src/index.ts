@@ -39,7 +39,7 @@ interface PushNotificationRequest {
   subscription: PushSubscription;
   title: string;
   body: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
   urgency?: "very-low" | "low" | "normal" | "high";
 }
 
@@ -90,7 +90,7 @@ function errorResponse(message: string, status: number): Response {
 /**
  * Creates success response with CORS headers
  */
-function successResponse(data: any, status: number = 200): Response {
+function successResponse(data: unknown, status: number = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
@@ -110,7 +110,7 @@ function successResponse(data: any, status: number = 200): Response {
  */
 async function sendPushNotification(
   subscription: PushSubscription,
-  payload: { title: string; body: string; data?: any },
+  payload: { title: string; body: string; data?: unknown },
   urgency: "very-low" | "low" | "normal" | "high",
   env: Env
 ): Promise<{ success: boolean; error?: string }> {
@@ -129,7 +129,7 @@ async function sendPushNotification(
     });
 
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Push notification failed:", error);
 
     // Handle specific error cases
@@ -174,7 +174,7 @@ async function handleFetch(request: Request, env: Env): Promise<Response> {
     const authHeader = request.headers.get("Authorization");
     const token = extractToken(authHeader);
     user = await verifySupabaseJWT(token, env.SUPABASE_JWT_SECRET);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("JWT verification failed:", error.message);
     return errorResponse(`Unauthorized: ${error.message}`, 401);
   }
@@ -260,7 +260,7 @@ async function handleScheduled(
     } else {
       console.warn("Unknown cron schedule hour:", hour);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Scheduled job failed:", error.message);
     // Don't throw - allow worker to continue
   }
@@ -273,7 +273,11 @@ async function handleScheduled(
  * @param payload - Request body to send
  * @param env - Environment bindings
  */
-async function callSupabaseFunction(functionName: string, payload: any, env: Env): Promise<any> {
+async function callSupabaseFunction(
+  functionName: string,
+  payload: unknown,
+  env: Env
+): Promise<unknown> {
   const url = `${env.SUPABASE_URL}/functions/v1/${functionName}`;
 
   const response = await fetch(url, {

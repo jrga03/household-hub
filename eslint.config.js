@@ -129,6 +129,48 @@ export default [
     },
   },
 
+  // Service Worker configuration
+  {
+    files: ["src/sw.ts"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+      },
+      globals: {
+        self: "readonly",
+        console: "readonly",
+        caches: "readonly",
+        fetch: "readonly",
+        Response: "readonly",
+        Request: "readonly",
+        URL: "readonly",
+        ServiceWorkerGlobalScope: "readonly",
+        PushEvent: "readonly",
+        NotificationEvent: "readonly",
+        NotificationOptions: "readonly",
+        WindowClient: "readonly",
+        ExtendableEvent: "readonly",
+        FetchEvent: "readonly",
+      },
+    },
+    plugins: {
+      "@typescript-eslint": typescript,
+    },
+    rules: {
+      ...typescript.configs.recommended.rules,
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+        },
+      ],
+      "@typescript-eslint/no-explicit-any": "error",
+    },
+  },
+
   // E2E tests configuration (Playwright)
   {
     files: ["tests/e2e/**/*.ts"],
@@ -163,6 +205,43 @@ export default [
     },
   },
 
+  // Unit tests configuration (Vitest)
+  {
+    files: ["src/test/**/*.ts", "src/**/*.test.ts", "src/**/*.spec.ts"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+      },
+      globals: {
+        console: "readonly",
+        window: "readonly",
+        navigator: "readonly",
+        localStorage: "readonly",
+        globalThis: "readonly",
+        performance: "readonly",
+        Performance: "readonly",
+        Window: "readonly",
+        dispatchEvent: "readonly",
+      },
+    },
+    plugins: {
+      "@typescript-eslint": typescript,
+    },
+    rules: {
+      ...typescript.configs.recommended.rules,
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+        },
+      ],
+      "@typescript-eslint/no-explicit-any": "error",
+    },
+  },
+
   // Main source code (React app)
   {
     files: ["src/**/*.{ts,tsx}"],
@@ -178,6 +257,7 @@ export default [
       globals: {
         console: "readonly",
         window: "readonly",
+        Window: "readonly",
         document: "readonly",
         navigator: "readonly",
         localStorage: "readonly",
@@ -199,6 +279,8 @@ export default [
         dispatchEvent: "readonly",
         CustomEvent: "readonly",
         Event: "readonly",
+        KeyboardEvent: "readonly",
+        MediaQueryListEvent: "readonly",
         HTMLButtonElement: "readonly",
         HTMLInputElement: "readonly",
         React: "readonly",

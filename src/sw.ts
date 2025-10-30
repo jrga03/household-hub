@@ -122,7 +122,7 @@ self.addEventListener("push", (event: PushEvent) => {
 
     // Add action buttons for budget alerts
     if (notificationData?.tag === "budget-alert") {
-      (options as any).actions = [
+      options.actions = [
         {
           action: "view-budget",
           title: "View Budget",
@@ -132,12 +132,12 @@ self.addEventListener("push", (event: PushEvent) => {
           title: "Dismiss",
         },
       ];
-      (options as any).vibrate = [200, 100, 200];
+      options.vibrate = [200, 100, 200];
     }
 
     // Add action buttons for pending transactions
     if (notificationData?.tag === "pending-transactions") {
-      (options as any).actions = [
+      options.actions = [
         {
           action: "view-transactions",
           title: "View Pending",
@@ -147,7 +147,7 @@ self.addEventListener("push", (event: PushEvent) => {
           title: "Dismiss",
         },
       ];
-      (options as any).vibrate = [200, 100, 200];
+      options.vibrate = [200, 100, 200];
     }
 
     event.waitUntil(self.registration.showNotification(title, options));
@@ -212,7 +212,7 @@ self.addEventListener("notificationclick", (event: NotificationEvent) => {
             client.focus();
           }
           if ("navigate" in client) {
-            return (client as any).navigate(new URL(targetUrl, self.location.origin).href);
+            return (client as WindowClient).navigate(new URL(targetUrl, self.location.origin).href);
           }
         }
 

@@ -209,7 +209,7 @@ function ImportPage() {
         for (const { existing, update } of store.transactionsToReplace) {
           try {
             // Build update object with proper types (convert null to undefined for Dexie)
-            const updateData: any = {
+            const updateData: Partial<Transaction> = {
               ...update,
               import_key: addImportKey(update).import_key || undefined,
               account_id: update.account_id || undefined,
@@ -242,14 +242,15 @@ function ImportPage() {
           // NOTE: This will fail in production without enriching transactions
           // with required fields. See TODO above.
           await db.transaction("rw", db.transactions, async () => {
-            await db.transactions.bulkAdd(batchWithKeys as any);
+            await db.transactions.bulkAdd(batchWithKeys as Transaction[]);
           });
           imported += batch.length;
-        } catch (error) {
+        } catch (error: unknown) {
           // Distinguish between different error types
-          if ((error as any).name === "ConstraintError") {
+          const errorName = error instanceof Error ? error.name : "Unknown";
+          if (errorName === "ConstraintError") {
             toast.error(`Duplicate transaction detected in batch`);
-          } else if ((error as any).name === "QuotaExceededError") {
+          } else if (errorName === "QuotaExceededError") {
             toast.error("Storage quota exceeded. Please free up space.");
             break; // Stop processing
           }

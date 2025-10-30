@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -50,6 +50,11 @@ export function CategoryFormDialog({ open, onClose, editingId, defaultParentId }
       sort_order: 0,
     },
   });
+
+  // Watch form values using useWatch (React Compiler compatible)
+  const parentId = useWatch({ control: form.control, name: "parent_id" });
+  const color = useWatch({ control: form.control, name: "color" });
+  const icon = useWatch({ control: form.control, name: "icon" });
 
   // Load existing category data when editing or reset form when closing
   useEffect(() => {
@@ -150,7 +155,7 @@ export function CategoryFormDialog({ open, onClose, editingId, defaultParentId }
           <div>
             <Label htmlFor="parent_id">Parent Category (optional)</Label>
             <Select
-              value={form.watch("parent_id") ?? "none"}
+              value={parentId ?? "none"}
               onValueChange={(value) => form.setValue("parent_id", value === "none" ? null : value)}
             >
               <SelectTrigger>
@@ -173,10 +178,7 @@ export function CategoryFormDialog({ open, onClose, editingId, defaultParentId }
           {/* Color */}
           <div>
             <Label>Color</Label>
-            <ColorPicker
-              value={form.watch("color")}
-              onChange={(color) => form.setValue("color", color)}
-            />
+            <ColorPicker value={color} onChange={(color) => form.setValue("color", color)} />
             {form.formState.errors.color && (
               <p className="text-sm text-destructive mt-1">{form.formState.errors.color.message}</p>
             )}
@@ -185,10 +187,7 @@ export function CategoryFormDialog({ open, onClose, editingId, defaultParentId }
           {/* Icon */}
           <div>
             <Label>Icon</Label>
-            <IconPicker
-              value={form.watch("icon")}
-              onChange={(icon) => form.setValue("icon", icon)}
-            />
+            <IconPicker value={icon} onChange={(icon) => form.setValue("icon", icon)} />
             {form.formState.errors.icon && (
               <p className="text-sm text-destructive mt-1">{form.formState.errors.icon.message}</p>
             )}

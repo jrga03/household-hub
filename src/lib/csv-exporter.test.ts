@@ -327,7 +327,7 @@ describe("CSV Exporter", () => {
       vi.spyOn(db.transactions, "toCollection").mockReturnValue({
         filter: vi.fn().mockReturnThis(),
         toArray: vi.fn().mockResolvedValue([]),
-      } as any);
+      } as ReturnType<typeof db.transactions.toCollection>);
 
       const csv = await exporter.exportTransactions();
 

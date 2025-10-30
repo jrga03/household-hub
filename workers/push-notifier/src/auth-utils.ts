@@ -63,7 +63,7 @@ export async function verifySupabaseJWT(token: string, jwtSecret: string): Promi
   const [headerB64, payloadB64, signatureB64] = parts;
 
   // Decode header and payload
-  let header: any;
+  let header: { alg: string; typ?: string };
   let payload: JWTPayload;
 
   try {

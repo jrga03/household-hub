@@ -42,6 +42,7 @@ export function CurrencyInputExample() {
       <Button type="submit">Submit</Button>
 
       <div className="text-sm text-muted-foreground">
+        {/* eslint-disable-next-line react-hooks/incompatible-library */}
         Current value: {form.watch("amount")} cents
       </div>
     </form>

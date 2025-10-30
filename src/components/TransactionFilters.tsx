@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { Search, X, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -41,23 +41,21 @@ interface TransactionFiltersProps {
 export function TransactionFilters({ filters, onFiltersChange }: TransactionFiltersProps) {
   // Local state for search input to provide immediate visual feedback
   // Actual debouncing happens in parent component
-  const [searchInput, setSearchInput] = useState(filters.search || "");
+  const [searchInput, setSearchInput] = useState(() => filters.search || "");
   const { data: accounts } = useAccounts();
-  const previousSearchRef = useRef(filters.search);
 
-  // Sync local search state when parent filters change externally
-  // (e.g., Clear Filters, browser back/forward, external updates)
-  // Skip if the change came from our own input handler
+  // Sync local search state when parent filters change externally via useEffect
+  // Only updates when filters.search changes and differs from current input
   useEffect(() => {
-    if (filters.search !== previousSearchRef.current) {
+    // Only update if the filter changed externally (not from our own input)
+    if (filters.search !== searchInput) {
       setSearchInput(filters.search || "");
-      previousSearchRef.current = filters.search;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.search]);
 
   const handleSearchChange = (value: string) => {
     setSearchInput(value);
-    previousSearchRef.current = value;
     onFiltersChange({ ...filters, search: value });
   };
 

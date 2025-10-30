@@ -33,7 +33,7 @@ function createTestEvent(
   entityId: string,
   lamportClock: number,
   op: "create" | "update" | "delete" | "snapshot",
-  payload: any
+  payload: Record<string, unknown>
 ): TransactionEvent {
   return {
     id: nanoid(),
@@ -216,7 +216,9 @@ describe("EventCompactor - Event Replay", () => {
     await db.events.bulkAdd([createEvent, updateEvent1, updateEvent2]);
 
     // Use private method to replay events (type assertion for testing)
-    const compactor = eventCompactor as any;
+    const compactor = eventCompactor as {
+      replayEvents: (events: unknown[]) => { state: Record<string, unknown> };
+    };
     const snapshot = compactor.replayEvents([createEvent, updateEvent1, updateEvent2]);
 
     // Verify final state has merged all changes
@@ -253,7 +255,9 @@ describe("EventCompactor - Event Replay", () => {
     await db.events.bulkAdd([createEvent, updateEvent, deleteEvent]);
 
     // Replay events
-    const compactor = eventCompactor as any;
+    const compactor = eventCompactor as {
+      replayEvents: (events: unknown[]) => { state: Record<string, unknown> };
+    };
     const snapshot = compactor.replayEvents([createEvent, updateEvent, deleteEvent]);
 
     // Verify tombstone markers added
@@ -284,7 +288,9 @@ describe("EventCompactor - Event Replay", () => {
     await db.events.bulkAdd([oldSnapshot, updateEvent]);
 
     // Replay events
-    const compactor = eventCompactor as any;
+    const compactor = eventCompactor as {
+      replayEvents: (events: unknown[]) => { state: Record<string, unknown> };
+    };
     const snapshot = compactor.replayEvents([oldSnapshot, updateEvent]);
 
     // Verify snapshot replaced old state and then updated
@@ -319,7 +325,12 @@ describe("EventCompactor - Event Replay", () => {
     await db.events.bulkAdd([event1, event2, event3]);
 
     // Replay events
-    const compactor = eventCompactor as any;
+    const compactor = eventCompactor as {
+      replayEvents: (events: unknown[]) => {
+        state: Record<string, unknown>;
+        vectorClock: Record<string, number>;
+      };
+    };
     const snapshot = compactor.replayEvents([event1, event2, event3]);
 
     // Verify merged vector clock has all devices at max values

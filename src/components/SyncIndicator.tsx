@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Wifi, WifiOff, RefreshCw, AlertCircle } from "lucide-react";
 import { useSyncStore } from "@/stores/syncStore";
 import { Badge } from "@/components/ui/badge";
@@ -86,8 +86,9 @@ export function SyncIndicator() {
 
   /**
    * Get user-friendly status text
+   * Memoized to prevent exhaustive-deps warnings in useMemo
    */
-  const getStatusText = () => {
+  const getStatusText = useCallback(() => {
     switch (status) {
       case "online":
         return "Connected";
@@ -98,7 +99,7 @@ export function SyncIndicator() {
       case "error":
         return "Sync Error";
     }
-  };
+  }, [status]);
 
   /**
    * Build detailed tooltip content with:

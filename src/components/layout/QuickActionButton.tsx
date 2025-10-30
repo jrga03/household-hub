@@ -9,7 +9,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useNavStore } from "@/stores/navStore";
 import { TransactionFormDialog } from "@/components/TransactionFormDialog";
 import { cn } from "@/lib/utils";
 import { getShortcutKey } from "@/hooks/useKeyboardShortcuts";

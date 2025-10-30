@@ -115,7 +115,7 @@ export class EventGenerator {
     entityType: EntityType;
     entityId: string;
     op: EventOp;
-    payload: any;
+    payload: Record<string, unknown>;
     userId: string;
   }): Promise<TransactionEvent> {
     const { entityType, entityId, op, payload, userId } = params;
@@ -251,8 +251,11 @@ export class EventGenerator {
    * );
    * // Returns: { amount: 2000, status: "cleared" }
    */
-  calculateDelta(oldValue: any, newValue: any): any {
-    const delta: any = {};
+  calculateDelta(
+    oldValue: Record<string, unknown>,
+    newValue: Record<string, unknown>
+  ): Record<string, unknown> {
+    const delta: Record<string, unknown> = {};
 
     // Iterate through all keys in new value
     for (const key in newValue) {
@@ -315,7 +318,7 @@ export const eventGenerator = new EventGenerator();
 export async function createTransactionEvent(
   op: EventOp,
   transactionId: string,
-  payload: any,
+  payload: Record<string, unknown>,
   userId: string
 ): Promise<TransactionEvent> {
   return eventGenerator.createEvent({
@@ -350,7 +353,7 @@ export async function createTransactionEvent(
 export async function createAccountEvent(
   op: EventOp,
   accountId: string,
-  payload: any,
+  payload: Record<string, unknown>,
   userId: string
 ): Promise<TransactionEvent> {
   return eventGenerator.createEvent({
@@ -385,7 +388,7 @@ export async function createAccountEvent(
 export async function createCategoryEvent(
   op: EventOp,
   categoryId: string,
-  payload: any,
+  payload: Record<string, unknown>,
   userId: string
 ): Promise<TransactionEvent> {
   return eventGenerator.createEvent({
@@ -420,7 +423,7 @@ export async function createCategoryEvent(
 export async function createBudgetEvent(
   op: EventOp,
   budgetId: string,
-  payload: any,
+  payload: Record<string, unknown>,
   userId: string
 ): Promise<TransactionEvent> {
   return eventGenerator.createEvent({

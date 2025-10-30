@@ -196,7 +196,7 @@ export function useAnalytics(startDate: Date, endDate: Date, filters?: Analytics
       const budgetVariance = processBudgetVariance(budgetData || [], transactionData || []);
       const yearOverYear = processYearOverYear(
         transactionData || [],
-        (prevYearData as any[]) || []
+        (prevYearData as unknown[]) || []
       );
       const insights = processInsights(transactionData || [], startDate, endDate);
 

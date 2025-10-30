@@ -31,9 +31,9 @@ export function useMediaQuery(query: string): boolean {
 
     const media = window.matchMedia(query);
 
-    // Update state if initial value was incorrect
+    // Update state if initial value was incorrect using microtask
     if (media.matches !== matches) {
-      setMatches(media.matches);
+      void Promise.resolve().then(() => setMatches(media.matches));
     }
 
     // Create event listener

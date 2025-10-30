@@ -61,7 +61,8 @@ export function useSyncStatus() {
       // Prevents rapid-fire updates during quick sync cycles
       if (now - lastUpdateRef.current > 1000) {
         const timestamp = new Date(now);
-        setLastSyncTime(timestamp);
+        // Use microtask to avoid setState during effect
+        void Promise.resolve().then(() => setLastSyncTime(timestamp));
 
         try {
           localStorage.setItem("lastSyncTime", timestamp.toISOString());

@@ -39,8 +39,9 @@ function BudgetsPage() {
         amountCents: data.amountCents,
       });
       toast.success("Budget created");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to create budget");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to create budget";
+      toast.error(message);
     }
   };
 
@@ -53,19 +54,22 @@ function BudgetsPage() {
         amountCents: data.amountCents,
       });
       toast.success("Budget updated");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to update budget");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to update budget";
+      toast.error(message);
     }
   };
 
   const handleDelete = async (budgetId: string) => {
-    if (!confirm("Are you sure you want to delete this budget?")) return;
+    // TODO: Replace with proper dialog component (see linting errors)
+    if (!window.confirm("Are you sure you want to delete this budget?")) return;
 
     try {
       await deleteBudget.mutateAsync(budgetId);
       toast.success("Budget deleted");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to delete budget");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to delete budget";
+      toast.error(message);
     }
   };
 
@@ -78,8 +82,9 @@ function BudgetsPage() {
         toMonth: selectedMonth,
       });
       toast.success(`Copied ${count} budgets from previous month`);
-    } catch (error: any) {
-      toast.error(error.message || "Failed to copy budgets");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to copy budgets";
+      toast.error(message);
     }
   };
 

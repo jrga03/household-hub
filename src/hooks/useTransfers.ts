@@ -112,11 +112,21 @@ export function useTransfers(householdId: string) {
 
       // Group transactions by transfer_group_id on the client side
       // This is fast and avoids multiple database queries
+      type TransferTransaction = {
+        id: string;
+        date: string;
+        amount_cents: number;
+        description: string;
+        transfer_group_id: string | null;
+        type: string;
+        account: { id: string; name: string } | null;
+      };
+
       const transferGroups = new Map<
         string,
         {
-          expense: any | null;
-          income: any | null;
+          expense: TransferTransaction | null;
+          income: TransferTransaction | null;
         }
       >();
 

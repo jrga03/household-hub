@@ -41,7 +41,7 @@
  *   setItem: vi.fn(),
  *   removeItem: vi.fn(),
  *   clear: vi.fn(),
- * } as any;
+ * } as MockSupabaseResponse;
  * ```
  *
  * Option 2: Run tests in browser environment
@@ -67,6 +67,14 @@ import { getQueueCount, getPendingQueueItems } from "./syncQueue";
 import { resetLamportClock, getCurrentLamportClock } from "@/lib/sync/lamportClock";
 import { getVectorClock } from "@/lib/sync/vectorClock";
 import { deviceManager } from "@/lib/dexie/deviceManager";
+
+// Type for Supabase mock responses in tests
+type MockSupabaseResponse = {
+  select: ReturnType<typeof vi.fn>;
+  single?: ReturnType<typeof vi.fn>;
+  data?: unknown;
+  error?: unknown;
+};
 
 // NOTE: Tests are marked as .skip until IndexedDB polyfill is configured
 // Remove .skip after installing fake-indexeddb and configuring test setup
@@ -99,9 +107,9 @@ describe("Sync Queue Integration Tests", () => {
     it("should add transaction to queue on create", async () => {
       // Mock Supabase insert to capture queue item
       const insertSpy = vi.spyOn(supabase.from("sync_queue"), "insert");
-      let capturedQueueItem: any = null;
+      let capturedQueueItem: unknown = null;
 
-      insertSpy.mockImplementationOnce((queueItem: any) => {
+      insertSpy.mockImplementationOnce((queueItem: unknown) => {
         capturedQueueItem = queueItem;
         return {
           select: vi.fn().mockReturnValue({
@@ -110,7 +118,7 @@ describe("Sync Queue Integration Tests", () => {
               error: null,
             }),
           }),
-        } as any;
+        } as MockSupabaseResponse;
       });
 
       // Create transaction
@@ -146,9 +154,9 @@ describe("Sync Queue Integration Tests", () => {
     it("should generate idempotency key with correct format", async () => {
       // Mock Supabase insert
       const insertSpy = vi.spyOn(supabase.from("sync_queue"), "insert");
-      let capturedOperation: any = null;
+      let capturedOperation: unknown = null;
 
-      insertSpy.mockImplementationOnce((queueItem: any) => {
+      insertSpy.mockImplementationOnce((queueItem: unknown) => {
         capturedOperation = queueItem.operation;
         return {
           select: vi.fn().mockReturnValue({
@@ -157,7 +165,7 @@ describe("Sync Queue Integration Tests", () => {
               error: null,
             }),
           }),
-        } as any;
+        } as MockSupabaseResponse;
       });
 
       // Create transaction
@@ -205,7 +213,7 @@ describe("Sync Queue Integration Tests", () => {
       const insertSpy = vi.spyOn(supabase.from("sync_queue"), "insert");
       const capturedClocks: number[] = [];
 
-      insertSpy.mockImplementation((queueItem: any) => {
+      insertSpy.mockImplementation((queueItem: unknown) => {
         capturedClocks.push(queueItem.operation.lamportClock);
         return {
           select: vi.fn().mockReturnValue({
@@ -214,7 +222,7 @@ describe("Sync Queue Integration Tests", () => {
               error: null,
             }),
           }),
-        } as any;
+        } as MockSupabaseResponse;
       });
 
       // Create first transaction
@@ -283,9 +291,9 @@ describe("Sync Queue Integration Tests", () => {
     it("should initialize vector clock with device ID", async () => {
       // Mock Supabase insert
       const insertSpy = vi.spyOn(supabase.from("sync_queue"), "insert");
-      let capturedVectorClock: any = null;
+      let capturedVectorClock: unknown = null;
 
-      insertSpy.mockImplementationOnce((queueItem: any) => {
+      insertSpy.mockImplementationOnce((queueItem: unknown) => {
         capturedVectorClock = queueItem.operation.vectorClock;
         return {
           select: vi.fn().mockReturnValue({
@@ -294,7 +302,7 @@ describe("Sync Queue Integration Tests", () => {
               error: null,
             }),
           }),
-        } as any;
+        } as MockSupabaseResponse;
       });
 
       // Create transaction
@@ -342,7 +350,7 @@ describe("Sync Queue Integration Tests", () => {
               error: { message: "Simulated queue failure", code: "MOCK_ERROR" },
             }),
           }),
-        } as any;
+        } as MockSupabaseResponse;
       });
 
       // Attempt to create transaction
@@ -384,7 +392,7 @@ describe("Sync Queue Integration Tests", () => {
               error: null,
             }),
           }),
-        } as any;
+        } as MockSupabaseResponse;
       });
 
       // Create 3 transactions
@@ -435,7 +443,7 @@ describe("Sync Queue Integration Tests", () => {
           count: 3,
           error: null,
         }),
-      } as any);
+      } as ReturnType<typeof vi.fn>);
 
       const count = await getQueueCount(testUserId);
       expect(count).toBe(3);
@@ -446,9 +454,9 @@ describe("Sync Queue Integration Tests", () => {
     it("should queue account operations", async () => {
       // Mock Supabase insert
       const insertSpy = vi.spyOn(supabase.from("sync_queue"), "insert");
-      let capturedQueueItem: any = null;
+      let capturedQueueItem: unknown = null;
 
-      insertSpy.mockImplementationOnce((queueItem: any) => {
+      insertSpy.mockImplementationOnce((queueItem: unknown) => {
         capturedQueueItem = queueItem;
         return {
           select: vi.fn().mockReturnValue({
@@ -457,7 +465,7 @@ describe("Sync Queue Integration Tests", () => {
               error: null,
             }),
           }),
-        } as any;
+        } as MockSupabaseResponse;
       });
 
       // Create account
@@ -492,9 +500,9 @@ describe("Sync Queue Integration Tests", () => {
     it("should queue category operations", async () => {
       // Mock Supabase insert
       const insertSpy = vi.spyOn(supabase.from("sync_queue"), "insert");
-      let capturedQueueItem: any = null;
+      let capturedQueueItem: unknown = null;
 
-      insertSpy.mockImplementationOnce((queueItem: any) => {
+      insertSpy.mockImplementationOnce((queueItem: unknown) => {
         capturedQueueItem = queueItem;
         return {
           select: vi.fn().mockReturnValue({
@@ -503,7 +511,7 @@ describe("Sync Queue Integration Tests", () => {
               error: null,
             }),
           }),
-        } as any;
+        } as MockSupabaseResponse;
       });
 
       // Create category
@@ -536,9 +544,9 @@ describe("Sync Queue Integration Tests", () => {
     it("should queue update operations with incremented clock", async () => {
       // Mock Supabase insert
       const insertSpy = vi.spyOn(supabase.from("sync_queue"), "insert");
-      const capturedOperations: any[] = [];
+      const capturedOperations: unknown[] = [];
 
-      insertSpy.mockImplementation((queueItem: any) => {
+      insertSpy.mockImplementation((queueItem: unknown) => {
         capturedOperations.push(queueItem.operation);
         return {
           select: vi.fn().mockReturnValue({
@@ -547,7 +555,7 @@ describe("Sync Queue Integration Tests", () => {
               error: null,
             }),
           }),
-        } as any;
+        } as MockSupabaseResponse;
       });
 
       // Create account
@@ -596,9 +604,9 @@ describe("Sync Queue Integration Tests", () => {
     it("should queue delete operations", async () => {
       // Mock Supabase insert
       const insertSpy = vi.spyOn(supabase.from("sync_queue"), "insert");
-      const capturedOperations: any[] = [];
+      const capturedOperations: unknown[] = [];
 
-      insertSpy.mockImplementation((queueItem: any) => {
+      insertSpy.mockImplementation((queueItem: unknown) => {
         capturedOperations.push(queueItem.operation);
         return {
           select: vi.fn().mockReturnValue({
@@ -607,7 +615,7 @@ describe("Sync Queue Integration Tests", () => {
               error: null,
             }),
           }),
-        } as any;
+        } as MockSupabaseResponse;
       });
 
       // Create transaction
@@ -657,7 +665,7 @@ describe("Sync Queue Integration Tests", () => {
               error: null,
             }),
           }),
-        } as any;
+        } as MockSupabaseResponse;
       });
 
       // Create some transactions
@@ -709,7 +717,7 @@ describe("Sync Queue Integration Tests", () => {
           ],
           error: null,
         }),
-      } as any);
+      } as ReturnType<typeof vi.fn>);
 
       const pending = await getPendingQueueItems(testUserId);
 
@@ -725,9 +733,9 @@ describe("Sync Queue Integration Tests", () => {
     it("should maintain separate vector clocks for different entities", async () => {
       // Mock Supabase insert
       const insertSpy = vi.spyOn(supabase.from("sync_queue"), "insert");
-      const capturedVectorClocks: any[] = [];
+      const capturedVectorClocks: unknown[] = [];
 
-      insertSpy.mockImplementation((queueItem: any) => {
+      insertSpy.mockImplementation((queueItem: unknown) => {
         capturedVectorClocks.push(queueItem.operation.vectorClock);
         return {
           select: vi.fn().mockReturnValue({
@@ -736,7 +744,7 @@ describe("Sync Queue Integration Tests", () => {
               error: null,
             }),
           }),
-        } as any;
+        } as MockSupabaseResponse;
       });
 
       // Create transaction

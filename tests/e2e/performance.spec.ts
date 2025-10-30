@@ -32,7 +32,11 @@ test.describe("Performance", () => {
       performance
         .getEntriesByType("resource")
         .filter((r) => r.name.includes(".js"))
-        .reduce((sum, r) => sum + (r as any).transferSize, 0)
+        .reduce((sum, r) => {
+          // eslint-disable-next-line no-undef
+          const resource = r as PerformanceResourceTiming;
+          return sum + resource.transferSize;
+        }, 0)
     );
 
     // Should be under 200KB

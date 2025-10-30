@@ -42,7 +42,14 @@ export function registerBackgroundSync(handler: () => Promise<void>) {
     navigator.serviceWorker.ready
       .then((registration) => {
         // Register background sync tag
-        return (registration as any).sync.register("data-sync");
+        // TypeScript doesn't have built-in types for Background Sync API yet
+        interface SyncManager {
+          register(tag: string): Promise<void>;
+        }
+        interface ServiceWorkerRegistrationWithSync extends ServiceWorkerRegistration {
+          sync: SyncManager;
+        }
+        return (registration as ServiceWorkerRegistrationWithSync).sync.register("data-sync");
       })
       .then(() => {
         console.log("Background Sync API registered");

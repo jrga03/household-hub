@@ -1154,7 +1154,7 @@ export function useBudgets(month: Date) {
 
       // 3. Fetch actual spending for these categories
       // CRITICAL: Exclude transfers from spending calculation
-      const categoryIds = budgets.map((b: any) => b.categories.id);
+      const categoryIds = budgets.map((b: { categories: { id: string } }) => b.categories.id);
 
       const { data: transactions, error: transactionsError } = await supabase
         .from("transactions")
@@ -1175,26 +1175,32 @@ export function useBudgets(month: Date) {
       });
 
       // Build budget objects
-      const budgetObjects: Budget[] = budgets.map((b: any) => {
-        const category = b.categories;
-        const parent = parents?.find((p) => p.id === category.parent_id);
-        const actualSpent = spendingMap.get(category.id) || 0;
-        const remaining = b.amount_cents - actualSpent;
-        const percentUsed = b.amount_cents > 0 ? (actualSpent / b.amount_cents) * 100 : 0;
+      const budgetObjects: Budget[] = budgets.map(
+        (b: {
+          id: string;
+          amount_cents: number;
+          categories: { id: string; name: string; color: string; parent_id: string | null };
+        }) => {
+          const category = b.categories;
+          const parent = parents?.find((p) => p.id === category.parent_id);
+          const actualSpent = spendingMap.get(category.id) || 0;
+          const remaining = b.amount_cents - actualSpent;
+          const percentUsed = b.amount_cents > 0 ? (actualSpent / b.amount_cents) * 100 : 0;
 
-        return {
-          id: b.id,
-          categoryId: category.id,
-          categoryName: category.name,
-          categoryColor: category.color,
-          parentCategoryName: parent?.name || "Uncategorized",
-          budgetAmountCents: b.amount_cents,
-          actualSpentCents: actualSpent,
-          remainingCents: remaining,
-          percentUsed,
-          isOverBudget: actualSpent > b.amount_cents,
-        };
-      });
+          return {
+            id: b.id,
+            categoryId: category.id,
+            categoryName: category.name,
+            categoryColor: category.color,
+            parentCategoryName: parent?.name || "Uncategorized",
+            budgetAmountCents: b.amount_cents,
+            actualSpentCents: actualSpent,
+            remainingCents: remaining,
+            percentUsed,
+            isOverBudget: actualSpent > b.amount_cents,
+          };
+        }
+      );
 
       // Group by parent category
       const groupMap = new Map<string, BudgetGroup>();
