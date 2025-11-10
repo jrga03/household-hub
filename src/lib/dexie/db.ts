@@ -18,6 +18,7 @@
 
 import Dexie, { Table } from "dexie";
 import { hasSentry } from "@/types/sentry";
+import type { Debt, InternalDebt, DebtPayment } from "@/types/debt";
 
 // ============================================================================
 // TypeScript Interfaces
@@ -229,6 +230,11 @@ export class HouseholdHubDB extends Dexie {
   syncIssues!: Table<SyncIssueRecord, string>;
   conflicts!: Table<Conflict, string>;
 
+  // Debt tracking tables (added in version 4)
+  debts!: Table<Debt, string>;
+  internalDebts!: Table<InternalDebt, string>;
+  debtPayments!: Table<DebtPayment, string>;
+
   constructor() {
     super("HouseholdHubDB");
 
@@ -331,6 +337,97 @@ export class HouseholdHubDB extends Dexie {
           "[Dexie Migration v2→v3] Adding conflicts table for vector clock conflict detection"
         );
         return Promise.resolve();
+      });
+
+    // ========================================================================
+    // Version 4: Add debt tracking tables
+    // ========================================================================
+    // CRITICAL: Explicit version number to prevent infinite version loops
+    const DEBT_MIGRATION_VERSION = 4;
+
+    this.version(DEBT_MIGRATION_VERSION)
+      .stores({
+        // IMPORTANT: Must repeat ALL version 3 table definitions (Dexie requirement)
+        transactions:
+          "id, date, account_id, category_id, status, type, household_id, created_at, transfer_group_id, " +
+          "[account_id+date], [category_id+date], [household_id+date], *tagged_user_ids",
+        accounts: "id, name, visibility, household_id",
+        categories: "id, parent_id, name, household_id",
+        syncQueue:
+          "id, status, entity_type, entity_id, device_id, created_at, " +
+          "[status+device_id], [device_id+created_at]",
+        events: "id, entity_id, lamport_clock, timestamp, device_id",
+        meta: "key",
+        logs: "id, timestamp, level, device_id",
+        syncIssues: "id, entityId, issueType, timestamp",
+        conflicts:
+          "id, entity_id, resolution, detected_at, [entity_id+resolution], [resolution+detected_at]",
+
+        // NEW: Debt Tracking Tables
+        // External debts (loans from outside household)
+        // Single indexes: id (primary), household_id, status, created_at
+        // Compound index: [household_id+status+updated_at] for efficient filtered sorting
+        // NOTE: No current_balance_cents - balance is ALWAYS calculated from payments
+        debts: "id, household_id, status, created_at, [household_id+status+updated_at]",
+
+        // Internal debts (borrowing between household entities)
+        // Single indexes: id (primary), household_id, from_type, from_id, to_type, to_id, status, created_at
+        // Compound index: [household_id+status+updated_at] for efficient filtered sorting
+        // Entity type indexes enable filtering by category/account/member
+        internalDebts:
+          "id, household_id, from_type, from_id, to_type, to_id, status, created_at, " +
+          "[household_id+status+updated_at]",
+
+        // Debt payments (immutable audit trail)
+        // Single indexes: id (primary), debt_id, internal_debt_id, transaction_id, payment_date, is_reversal
+        // Compound indexes: [debt_id+payment_date+created_at], [internal_debt_id+payment_date+created_at]
+        // Enables efficient payment history queries with secondary sort by created_at
+        debtPayments:
+          "id, debt_id, internal_debt_id, transaction_id, payment_date, is_reversal, " +
+          "[debt_id+payment_date+created_at], [internal_debt_id+payment_date+created_at]",
+      })
+      .upgrade(async (tx) => {
+        console.log(`[Dexie Migration v3→v${DEBT_MIGRATION_VERSION}] Adding debt tracking tables`);
+
+        // Initialize lamport clock if not exists
+        // Used for idempotency key generation: ${deviceId}-${entityType}-${entityId}-${lamportClock}
+        const meta = tx.table("meta");
+        const existingClock = await meta.get("lamport_clock");
+
+        if (!existingClock) {
+          await meta.put({ key: "lamport_clock", value: 0 });
+          console.log(`[Dexie Migration v${DEBT_MIGRATION_VERSION}] Initialized lamport_clock = 0`);
+        } else {
+          console.log(
+            `[Dexie Migration v${DEBT_MIGRATION_VERSION}] Lamport clock already exists:`,
+            existingClock.value
+          );
+        }
+
+        // Check for any debt-linked transactions (unlikely in fresh migration)
+        // These would have debt_id or internal_debt_id fields set
+        const transactions = tx.table("transactions");
+        const debtLinkedCount = await transactions
+          .filter((t: LocalTransaction) => {
+            // TypeScript workaround: transactions table doesn't have debt fields yet in types
+            const txWithDebt = t as LocalTransaction & {
+              debt_id?: string;
+              internal_debt_id?: string;
+            };
+            return Boolean(txWithDebt.debt_id || txWithDebt.internal_debt_id);
+          })
+          .count();
+
+        if (debtLinkedCount > 0) {
+          console.warn(
+            `[Dexie Migration v${DEBT_MIGRATION_VERSION}] Found ${debtLinkedCount} existing debt-linked transactions`
+          );
+          console.warn(
+            `[Dexie Migration v${DEBT_MIGRATION_VERSION}] Payment records should be created via sync`
+          );
+        }
+
+        console.log(`[Dexie Migration v${DEBT_MIGRATION_VERSION}] Migration complete ✓`);
       });
 
     // ========================================================================
