@@ -256,6 +256,28 @@ export interface DebtPaymentFormData {
 }
 
 // =====================================================
+// Payment Processing Types
+// =====================================================
+
+export interface ProcessPaymentData {
+  transaction_id: string;
+  amount_cents: number;
+  payment_date: string; // DATE format YYYY-MM-DD
+  debt_id?: string;
+  internal_debt_id?: string;
+  household_id: string;
+}
+
+export interface PaymentResult {
+  payment: DebtPayment;
+  wasOverpayment: boolean;
+  overpaymentAmount: number; // Positive value if overpaid
+  newBalance: number; // Can be negative
+  statusChanged: boolean;
+  newStatus: DebtStatus;
+}
+
+// =====================================================
 // Query Result Types
 // =====================================================
 
