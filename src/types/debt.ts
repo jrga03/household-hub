@@ -190,6 +190,12 @@ export interface DebtPayment {
 
   /** When payment record was created (ISO 8601 UTC) */
   created_at: string;
+
+  /** When payment record was last updated (ISO 8601 UTC) */
+  updated_at: string;
+
+  /** Idempotency key for event sourcing (format: deviceId-entityType-entityId-lamportClock) */
+  idempotency_key: string;
 }
 
 // =====================================================
@@ -321,4 +327,45 @@ export interface DebtSummary {
 
   /** Sum of all payments made */
   total_paid: number;
+}
+
+// =====================================================
+// Reversal Types (for compensating events)
+// =====================================================
+
+/**
+ * Input for creating a reversal
+ */
+export interface CreateReversalData {
+  payment_id: string;
+  reason?: string; // Optional: "transaction_edited" | "transaction_deleted" | "user_initiated"
+}
+
+/**
+ * Result of reversal operation
+ */
+export interface ReversalResult {
+  reversal: DebtPayment;
+  originalPayment: DebtPayment;
+  newBalance: number;
+  statusChanged: boolean;
+  newStatus?: DebtStatus;
+}
+
+/**
+ * Input for handling transaction edit
+ */
+export interface TransactionEditData {
+  transaction_id: string;
+  new_amount_cents?: number;
+  new_debt_id?: string;
+  new_internal_debt_id?: string;
+  payment_date: string; // ISO date for new payment
+}
+
+/**
+ * Input for handling transaction delete
+ */
+export interface TransactionDeleteData {
+  transaction_id: string;
 }

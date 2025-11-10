@@ -53,6 +53,8 @@ describe("Balance Calculation", () => {
         device_id: "device-1",
         is_reversal: false,
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        idempotency_key: "device-1-debt_payment-payment-1-1",
       });
 
       const balance = await calculateDebtBalance("debt-1", "external");
@@ -81,6 +83,8 @@ describe("Balance Calculation", () => {
           device_id: "device-1",
           is_reversal: false,
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          idempotency_key: "device-1-debt_payment-payment-1-1",
         },
         {
           id: "payment-2",
@@ -92,6 +96,8 @@ describe("Balance Calculation", () => {
           device_id: "device-1",
           is_reversal: false,
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          idempotency_key: "device-1-debt_payment-payment-2-2",
         },
       ]);
 
@@ -121,6 +127,8 @@ describe("Balance Calculation", () => {
           device_id: "device-1",
           is_reversal: false,
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          idempotency_key: "device-1-debt_payment-payment-1-1",
         },
         {
           id: "reversal-1",
@@ -133,6 +141,8 @@ describe("Balance Calculation", () => {
           is_reversal: true,
           reverses_payment_id: "payment-1",
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          idempotency_key: "device-1-debt_payment-reversal-1-2",
         },
       ]);
 
@@ -163,6 +173,8 @@ describe("Balance Calculation", () => {
         is_overpayment: true,
         overpayment_amount: 50000,
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        idempotency_key: "device-1-debt_payment-payment-1-1",
       });
 
       const balance = await calculateDebtBalance("debt-1", "external");
@@ -198,6 +210,8 @@ describe("Balance Calculation", () => {
           device_id: "device-1",
           is_reversal: false,
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          idempotency_key: "device-1-debt_payment-payment-1-1",
         },
         {
           id: "payment-2",
@@ -209,6 +223,8 @@ describe("Balance Calculation", () => {
           device_id: "device-1",
           is_reversal: false,
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          idempotency_key: "device-1-debt_payment-payment-2-2",
         },
       ]);
 
@@ -244,6 +260,8 @@ describe("Balance Calculation", () => {
         device_id: "device-1",
         is_reversal: false,
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        idempotency_key: "device-1-debt_payment-payment-1-1",
       });
 
       const details = await calculateDebtBalanceWithDetails("debt-1", "external");
@@ -299,6 +317,8 @@ describe("Balance Calculation", () => {
           device_id: "device-1",
           is_reversal: false,
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          idempotency_key: "device-1-debt_payment-payment-1-1",
         },
         {
           id: "payment-2",
@@ -310,6 +330,8 @@ describe("Balance Calculation", () => {
           device_id: "device-1",
           is_reversal: false,
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          idempotency_key: "device-1-debt_payment-payment-2-2",
         },
       ]);
 
