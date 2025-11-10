@@ -101,7 +101,14 @@ Every change is stored as an immutable event, enabling:
 ```typescript
 interface TransactionEvent {
   id: string;
-  entityType: "transaction" | "account" | "category" | "budget";
+  entityType:
+    | "transaction"
+    | "account"
+    | "category"
+    | "budget"
+    | "debt"
+    | "internal_debt"
+    | "debt_payment";
   entityId: string; // The specific entity this event applies to
   op: "create" | "update" | "delete";
   payload: any; // Changed fields only for updates
@@ -141,7 +148,14 @@ type SyncState =
 
 interface SyncQueueItem {
   id: string;
-  entityType: "transaction" | "category" | "account" | "budget";
+  entityType:
+    | "transaction"
+    | "category"
+    | "account"
+    | "budget"
+    | "debt"
+    | "internal_debt"
+    | "debt_payment";
   entityId: string;
   operation: "create" | "update" | "delete";
   payload: any;
@@ -2517,3 +2531,304 @@ class OfflineStorage {
   }
 }
 ```
+
+## Debt Entity Integration
+
+### Overview
+
+The debt tracking feature introduces three new entity types to the sync engine:
+
+- `debt`: External debts (loans, credit cards, etc.)
+- `internal_debt`: Internal household borrowing between accounts/members
+- `debt_payment`: Immutable payment records (append-only)
+
+### Entity Type Updates
+
+All entity type enums throughout the sync engine have been updated to include the new debt entities:
+
+```typescript
+type EntityType =
+  | "transaction"
+  | "account"
+  | "category"
+  | "budget"
+  | "debt" // NEW: External debt entity
+  | "internal_debt" // NEW: Internal debt entity
+  | "debt_payment"; // NEW: Payment record entity
+```
+
+### Debt-Specific Sync Characteristics
+
+#### 1. Derived Balances
+
+Debt balances are **never stored** - they're always calculated from payment history:
+
+```typescript
+// Balance is calculated, not synced
+async function calculateDebtBalance(debtId: string): Promise<number> {
+  const debt = await db.debts.get(debtId);
+  const payments = await db.debtPayments
+    .where("debt_id")
+    .equals(debtId)
+    .filter((p) => !p.reversed) // Skip reversed for performance
+    .toArray();
+
+  const totalPaid = payments.reduce((sum, p) => sum + p.amount_cents, 0);
+  return Math.max(0, debt.original_amount_cents - totalPaid);
+}
+```
+
+This eliminates balance drift from concurrent updates across devices.
+
+#### 2. Append-Only Payment Pattern
+
+Debt payments are **immutable** - edits create compensating reversals:
+
+```typescript
+// Payment events are create-only, never update/delete
+interface DebtPaymentEvent {
+  entity_type: "debt_payment";
+  entity_id: paymentId;
+  op: "create"; // ONLY create operations
+  payload: {
+    debt_id?: string;
+    internal_debt_id?: string;
+    transaction_id: string;
+    amount_cents: number; // Negative for reversals
+    reversed?: boolean;
+    reverses_payment_id?: string;
+    is_overpayment?: boolean;
+    overpayment_amount?: number;
+  };
+}
+```
+
+This ensures conflict-free sync since there are no update conflicts.
+
+#### 3. Vector Clock Scoping
+
+Each debt entity maintains its own vector clock:
+
+```typescript
+// Debt entity has its own vector clock
+const debtVectorClock = {
+  [deviceA]: 5, // Device A made 5 updates to this debt
+  [deviceB]: 3, // Device B made 3 updates
+};
+
+// Payment entity has separate vector clock
+const paymentVectorClock = {
+  [deviceA]: 1, // Device A created this payment
+};
+
+// Payments don't update debt's vector clock
+// (balance is derived, not stored)
+```
+
+#### 4. Idempotency for Debt Payments
+
+Debt payments use enhanced idempotency keys to prevent duplicates:
+
+```typescript
+// Format includes entity type for clarity
+const idempotencyKey = `${deviceId}-debt_payment-${transactionId}-${lamportClock}`;
+
+// Prevents duplicate payments even with retry storms
+async function createDebtPayment(data: PaymentData) {
+  const key = generateIdempotencyKey(data);
+
+  // Check if already processed
+  const existing = await db.events.where("idempotency_key").equals(key).first();
+
+  if (existing) {
+    console.log("Payment already processed, skipping");
+    return existing;
+  }
+
+  // Process payment...
+}
+```
+
+### Conflict Resolution for Debt Entities
+
+#### Debt Metadata Conflicts
+
+For debt metadata (name, status), use standard Last-Write-Wins:
+
+```typescript
+case "debt":
+case "internal_debt":
+  // Only metadata uses LWW (name, status changes)
+  // Balance is derived, so no balance conflicts possible
+  if (remoteTimestamp > localTimestamp) {
+    return remoteValue;  // Remote wins
+  }
+  return localValue;  // Local wins
+```
+
+#### Payment Conflicts
+
+Debt payments have no conflicts due to append-only pattern:
+
+```typescript
+case "debt_payment":
+  // Payments are immutable and append-only
+  // Idempotency key prevents duplicates
+  // No updates means no conflicts
+  return localValue;  // Keep local, idempotency prevents dupes
+```
+
+#### Overpayment Handling
+
+Overpayments from concurrent devices are accepted and tracked:
+
+```typescript
+// Device A and B both pay while offline
+// Both payments accepted, overpayment tracked
+if (payment.is_overpayment) {
+  console.warn(`Overpayment of ${payment.overpayment_amount} detected`);
+  // UI shows warning but payment is accepted
+}
+```
+
+### Sync Queue Processing for Debts
+
+Debt operations follow standard queue processing with optimizations:
+
+```typescript
+async function processDebtSync(item: SyncQueueItem) {
+  switch (item.entityType) {
+    case "debt":
+    case "internal_debt":
+      // Standard sync with metadata
+      return syncEntityMetadata(item);
+
+    case "debt_payment":
+      // Optimized for append-only
+      return appendPaymentRecord(item);
+  }
+}
+
+async function appendPaymentRecord(item: SyncQueueItem) {
+  // No need to check for conflicts
+  // Idempotency key ensures uniqueness
+  const { data, error } = await supabase.from("debt_payments").insert(item.payload).single();
+
+  if (error?.code === "23505") {
+    // Unique violation
+    // Payment already exists, not an error
+    return { status: "duplicate", skipped: true };
+  }
+
+  return { status: "success", data };
+}
+```
+
+### Event Compaction for Debt History
+
+Debt payment history requires special compaction handling:
+
+```typescript
+async function compactDebtEvents(debtId: string) {
+  // Get all payment events
+  const events = await db.events
+    .where("entity_type")
+    .equals("debt_payment")
+    .filter((e) => e.payload.debt_id === debtId)
+    .toArray();
+
+  if (events.length < 100) {
+    return; // Don't compact yet
+  }
+
+  // Create snapshot of payment state
+  const snapshot = {
+    entity_type: "debt_payment_snapshot",
+    entity_id: debtId,
+    payment_count: events.length,
+    total_paid: events.reduce((sum, e) => sum + e.payload.amount_cents, 0),
+    last_payment_date: events[events.length - 1].payload.payment_date,
+    compacted_at: new Date().toISOString(),
+  };
+
+  // Store snapshot and delete old events
+  await db.events.add(snapshot);
+
+  // Keep last 10 events for recent history
+  const toDelete = events.slice(0, -10);
+  await db.events.bulkDelete(toDelete.map((e) => e.id));
+}
+```
+
+### Testing Debt Sync Scenarios
+
+Key test cases for debt entity sync:
+
+```typescript
+describe("Debt Entity Sync", () => {
+  test("concurrent debt payments from multiple devices", async () => {
+    // Device A pays ₱500 offline
+    const paymentA = await deviceA.createDebtPayment({
+      debt_id: "debt-1",
+      amount_cents: 50000,
+    });
+
+    // Device B pays ₱600 offline
+    const paymentB = await deviceB.createDebtPayment({
+      debt_id: "debt-1",
+      amount_cents: 60000,
+    });
+
+    // Both sync
+    await deviceA.sync();
+    await deviceB.sync();
+
+    // Both payments should exist
+    const payments = await db.debtPayments.where("debt_id").equals("debt-1").toArray();
+    expect(payments).toHaveLength(2);
+    expect(payments.some((p) => p.is_overpayment)).toBe(true);
+  });
+
+  test("transaction edit creates reversal payment", async () => {
+    // Create transaction with debt payment
+    const tx = await createTransaction({ debt_id: "debt-1", amount: 100 });
+
+    // Edit transaction amount
+    await editTransaction(tx.id, { amount: 150 });
+
+    // Should have reversal and new payment
+    const payments = await db.debtPayments.where("transaction_id").equals(tx.id).toArray();
+    expect(payments).toHaveLength(2);
+    expect(payments[0].amount_cents).toBe(-10000); // Reversal
+    expect(payments[1].amount_cents).toBe(15000); // New amount
+  });
+});
+```
+
+### Performance Considerations
+
+1. **Balance Calculation**: O(n) on payment count, cached in memory during session
+2. **Payment Sync**: Batched with transaction sync for efficiency
+3. **Event Compaction**: Triggered at 100 events per debt or monthly
+4. **Index Usage**: Debt payments indexed by debt_id, transaction_id for fast queries
+
+### Migration Notes
+
+When adding debt support to existing app:
+
+1. Update Dexie schema version
+2. Add debt entity types to all switch statements handling entities
+3. Initialize lamport clocks for debt entities
+4. Ensure idempotency key format includes entity type
+
+### Summary
+
+The debt feature integrates seamlessly with the sync engine by:
+
+- Using derived balances to eliminate conflicts
+- Implementing append-only payments for simplicity
+- Maintaining per-entity vector clocks
+- Leveraging idempotency for deduplication
+- Following established sync queue patterns
+
+This design ensures debt tracking remains conflict-free and efficient in the offline-first, multi-device environment.

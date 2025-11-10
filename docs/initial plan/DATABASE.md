@@ -192,6 +192,9 @@ CREATE TABLE transactions (
   -- Sync and audit
   device_id TEXT, -- Device ID from hybrid strategy
 
+  -- Soft delete support
+  deleted_at TIMESTAMPTZ, -- Soft delete timestamp (null = active)
+
   -- Timestamps
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -218,16 +221,19 @@ CREATE INDEX idx_transactions_status_date ON transactions(status, date DESC);
 CREATE INDEX idx_transactions_household_visibility ON transactions(household_id, visibility);
 ```
 
-### Transaction Events (Audit & Sync)
+### Events (Audit & Sync)
 
 ```sql
--- Event sourcing for sync and audit trail
-CREATE TABLE transaction_events (
+-- Unified event sourcing table for all entity types
+CREATE TABLE events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   household_id UUID DEFAULT '00000000-0000-0000-0000-000000000001' NOT NULL, -- Default household
 
   -- Entity tracking
-  entity_type TEXT NOT NULL DEFAULT 'transaction',
+  entity_type TEXT NOT NULL CHECK (entity_type IN (
+    'transaction', 'account', 'category', 'budget',
+    'debt', 'internal_debt', 'debt_payment'
+  )),
   entity_id UUID NOT NULL,
 
   -- Event details
@@ -251,15 +257,15 @@ CREATE TABLE transaction_events (
 );
 
 -- Indexes for efficient querying
-CREATE INDEX idx_events_entity ON transaction_events(entity_type, entity_id, lamport_clock);
-CREATE INDEX idx_events_household ON transaction_events(household_id);
-CREATE INDEX idx_events_timestamp ON transaction_events(created_at DESC);
-CREATE INDEX idx_events_user ON transaction_events(actor_user_id);
-CREATE INDEX idx_events_device ON transaction_events(device_id);
+CREATE INDEX idx_events_entity ON events(entity_type, entity_id, lamport_clock);
+CREATE INDEX idx_events_household ON events(household_id);
+CREATE INDEX idx_events_timestamp ON events(created_at DESC);
+CREATE INDEX idx_events_user ON events(actor_user_id);
+CREATE INDEX idx_events_device ON events(device_id);
 
 -- CRITICAL: Unique index enforces idempotency at database level
 -- Prevents duplicate event processing in distributed sync (see SECURITY.md)
-CREATE UNIQUE INDEX idx_events_idempotency_unique ON transaction_events(idempotency_key);
+CREATE UNIQUE INDEX idx_events_idempotency_unique ON events(idempotency_key);
 ```
 
 ### Budgets
@@ -680,7 +686,7 @@ BEGIN
   -- Calculate lamport clock (simplified for MVP)
   SELECT COALESCE(MAX(lamport_clock), 0) + 1
   INTO v_lamport_clock
-  FROM transaction_events
+  FROM events
   WHERE entity_id = NEW.id;
 
   -- Initialize vector clock
@@ -688,7 +694,7 @@ BEGIN
 
   -- Create event based on operation
   IF TG_OP = 'INSERT' THEN
-    INSERT INTO transaction_events (
+    INSERT INTO events (
       entity_type, entity_id, op, payload,
       actor_user_id, device_id, lamport_clock, vector_clock
     ) VALUES (
@@ -697,7 +703,7 @@ BEGIN
     );
   ELSIF TG_OP = 'UPDATE' THEN
     -- Store only changed fields in payload
-    INSERT INTO transaction_events (
+    INSERT INTO events (
       entity_type, entity_id, op, payload,
       actor_user_id, device_id, lamport_clock, vector_clock
     ) VALUES (
@@ -706,7 +712,7 @@ BEGIN
       NEW.created_by_user_id, v_device_id, v_lamport_clock, v_vector_clock
     );
   ELSIF TG_OP = 'DELETE' THEN
-    INSERT INTO transaction_events (
+    INSERT INTO events (
       entity_type, entity_id, op, payload,
       actor_user_id, device_id, lamport_clock, vector_clock
     ) VALUES (
@@ -784,7 +790,7 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE transaction_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE budgets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sync_queue ENABLE ROW LEVEL SECURITY;
 ALTER TABLE snapshots ENABLE ROW LEVEL SECURITY;
@@ -859,14 +865,14 @@ CREATE POLICY "Delete transactions"
   TO authenticated
   USING (created_by_user_id = auth.uid());
 
--- Transaction Events: Viewable by all authenticated users
-CREATE POLICY "View transaction events"
-  ON transaction_events FOR SELECT
+-- Events: Viewable by all authenticated users
+CREATE POLICY "View events"
+  ON events FOR SELECT
   TO authenticated
   USING (true); -- Audit trail visible to all
 
 CREATE POLICY "System creates events"
-  ON transaction_events FOR INSERT
+  ON events FOR INSERT
   TO authenticated
   WITH CHECK (true); -- Events created by triggers/system
 
@@ -1413,7 +1419,7 @@ ORDER BY seq_tup_read DESC;
 
 ## Event Retention Policy
 
-To prevent unbounded growth of the `transaction_events` table, we implement a retention policy with compaction.
+To prevent unbounded growth of the `events` table, we implement a retention policy with compaction.
 
 ### Retention Rules
 
@@ -1441,19 +1447,19 @@ BEGIN
   -- Find entities with events older than cutoff
   FOR entity IN
     SELECT DISTINCT entity_type, entity_id
-    FROM transaction_events
+    FROM events
     WHERE created_at < retention_cutoff
   LOOP
     -- Create snapshot if not exists for this month
     PERFORM create_entity_snapshot(entity.entity_type, entity.entity_id, retention_cutoff);
 
     -- Delete old events (keep last 10 for safety)
-    DELETE FROM transaction_events
+    DELETE FROM events
     WHERE entity_type = entity.entity_type
       AND entity_id = entity.entity_id
       AND created_at < retention_cutoff
       AND id NOT IN (
-        SELECT id FROM transaction_events
+        SELECT id FROM events
         WHERE entity_type = entity.entity_type
           AND entity_id = entity.entity_id
         ORDER BY lamport_clock DESC
@@ -1509,3 +1515,6 @@ interface StorageQuotaStatus {
 - DATE type used for transaction dates (user's local date) - simpler than TIMESTAMPTZ for financial data
 - Currency utilities handle all PHP formatting and parsing with exact centavo precision
 - **Event Retention**: 90-day retention with monthly compaction to prevent unbounded growth
+- **Events Table**: Renamed from `transaction_events` to `events` to support unified event sourcing for all entity types (debt, internal_debt, debt_payment, etc.)
+- **Soft Delete**: Transactions support soft delete via `deleted_at` timestamp for audit trail preservation
+- **Debt Foreign Keys**: When debt feature is added, use `ON DELETE CASCADE` for debt_payments.transaction_id to ensure clean deletion cascades
