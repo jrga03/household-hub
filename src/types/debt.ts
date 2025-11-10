@@ -233,14 +233,15 @@ export interface DebtFormData {
 
 /**
  * Form data for creating internal debt
+ * Note: Display names are auto-generated from entities, not user-provided
  */
 export interface InternalDebtFormData extends DebtFormData {
   from_type: EntityType;
   from_id: string;
-  from_display_name: string;
+  from_display_name?: string; // Optional - auto-generated if not provided
   to_type: EntityType;
   to_id: string;
-  to_display_name: string;
+  to_display_name?: string; // Optional - auto-generated if not provided
 }
 
 /**
