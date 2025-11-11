@@ -7,6 +7,7 @@
 
 import { db } from "@/lib/dexie/db";
 import type { DebtFormData, InternalDebtFormData, EntityType } from "@/types/debt";
+import { z } from "zod";
 
 // =====================================================
 // Types
@@ -259,4 +260,163 @@ export async function validateDebtDeletion(
   }
 
   return { valid: errors.length === 0, errors };
+}
+
+// =====================================================
+// Zod Schemas for Form Validation
+// =====================================================
+
+/**
+ * External debt creation schema
+ */
+export const createExternalDebtSchema = z.object({
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .max(100, "Name must be 100 characters or less")
+    .trim(),
+
+  original_amount_cents: z
+    .number()
+    .int("Amount must be a whole number")
+    .min(100, "Amount must be at least ₱1.00")
+    .max(99999999900, "Amount must not exceed ₱999,999,999.00"),
+
+  description: z.string().max(500, "Description must be 500 characters or less").optional(),
+
+  household_id: z.string().min(1, "Household ID is required"),
+});
+
+export type CreateExternalDebtFormData = z.infer<typeof createExternalDebtSchema>;
+
+/**
+ * External debt edit schema (name only)
+ */
+export const editExternalDebtSchema = z.object({
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .max(100, "Name must be 100 characters or less")
+    .trim(),
+});
+
+export type EditExternalDebtFormData = z.infer<typeof editExternalDebtSchema>;
+
+/**
+ * Internal debt creation schema
+ */
+export const createInternalDebtSchema = z
+  .object({
+    from_type: z.enum(["user", "account"], {
+      errorMap: () => ({ message: "From type must be user or account" }),
+    }),
+
+    from_id: z.string().min(1, "From is required"),
+
+    to_type: z.enum(["user", "account"], {
+      errorMap: () => ({ message: "To type must be user or account" }),
+    }),
+
+    to_id: z.string().min(1, "To is required"),
+
+    original_amount_cents: z
+      .number()
+      .int("Amount must be a whole number")
+      .min(100, "Amount must be at least ₱1.00")
+      .max(99999999900, "Amount must not exceed ₱999,999,999.00"),
+
+    description: z.string().max(500, "Description must be 500 characters or less").optional(),
+
+    household_id: z.string().min(1, "Household ID is required"),
+  })
+  .refine(
+    (data) => {
+      // Ensure from and to are different
+      if (data.from_type === data.to_type && data.from_id === data.to_id) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "From and To must be different",
+      path: ["to_id"], // Show error on "to" field
+    }
+  );
+
+export type CreateInternalDebtFormData = z.infer<typeof createInternalDebtSchema>;
+
+/**
+ * Check if debt name is unique within active debts
+ *
+ * @param name - Debt name to check
+ * @param householdId - Household ID
+ * @param excludeDebtId - Optional debt ID to exclude (for edit forms)
+ * @returns True if name is unique
+ */
+export async function isDebtNameUnique(
+  name: string,
+  householdId: string,
+  excludeDebtId?: string
+): Promise<boolean> {
+  const trimmedName = name.trim();
+
+  const existing = await db.debts
+    .where("household_id")
+    .equals(householdId)
+    .and((debt) => {
+      // Exclude archived debts
+      if (debt.status === "archived") return false;
+
+      // Exclude current debt (for edit)
+      if (excludeDebtId && debt.id === excludeDebtId) return false;
+
+      // Case-insensitive name match
+      return debt.name.toLowerCase() === trimmedName.toLowerCase();
+    })
+    .first();
+
+  return !existing;
+}
+
+/**
+ * Validate amount string and convert to cents
+ *
+ * @param input - Amount string (e.g., "1500", "₱1,500.50")
+ * @returns Amount in cents or null if invalid
+ */
+export function parseAmountInput(input: string): number | null {
+  try {
+    // Remove currency symbol, commas, spaces
+    const cleaned = input.replace(/[₱,\s]/g, "");
+
+    // Parse as float
+    const pesos = parseFloat(cleaned);
+
+    if (isNaN(pesos) || pesos < 0) {
+      return null;
+    }
+
+    // Convert to cents
+    const cents = Math.round(pesos * 100);
+
+    // Validate range
+    if (cents < 100 || cents > 99999999900) {
+      return null;
+    }
+
+    return cents;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Format cents to display value for input
+ *
+ * @param cents - Amount in cents
+ * @returns Formatted string (e.g., "1500.50")
+ */
+export function formatAmountInput(cents: number): string {
+  const pesos = cents / 100;
+  return pesos.toFixed(2);
 }
