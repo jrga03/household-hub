@@ -7,6 +7,7 @@ import { SyncIndicator } from "@/components/SyncIndicator";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
 import { StorageWarning } from "@/components/StorageWarning";
+import { NetworkStatus } from "@/components/NetworkStatus";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { realtimeSync } from "@/lib/realtime-sync";
 import { eventCompactor } from "@/lib/event-compactor";
@@ -145,6 +146,9 @@ function App() {
 
       {/* Service worker update prompt (bottom-right) */}
       <UpdatePrompt />
+
+      {/* Network status indicator (bottom-left) - For debt sync visibility */}
+      <NetworkStatus />
     </TooltipProvider>
   );
 }

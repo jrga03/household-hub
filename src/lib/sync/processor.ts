@@ -570,13 +570,16 @@ export class SyncProcessor {
    * - account → accounts
    * - category → categories
    * - budget → budgets
+   * - debt → debts
+   * - internal_debt → internal_debts
+   * - debt_payment → debt_payments
    *
    * @param entityType - Logical entity type
    * @returns Database table name
    *
    * @example
    * getTableName("transaction"); // "transactions"
-   * getTableName("account"); // "accounts"
+   * getTableName("debt"); // "debts"
    */
   private getTableName(entityType: EntityType): string {
     const tableMap: Record<EntityType, string> = {
@@ -584,6 +587,9 @@ export class SyncProcessor {
       account: "accounts",
       category: "categories",
       budget: "budgets",
+      debt: "debts",
+      internal_debt: "internal_debts",
+      debt_payment: "debt_payments",
     };
     return tableMap[entityType] || entityType;
   }

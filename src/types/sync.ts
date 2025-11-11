@@ -22,8 +22,16 @@ export type SyncQueueStatus = "queued" | "syncing" | "completed" | "failed";
  * Entity types that can be synced
  *
  * These correspond to the main data tables in the system.
+ * Includes debt-related entities for debt tracking feature.
  */
-export type EntityType = "transaction" | "account" | "category" | "budget";
+export type EntityType =
+  | "transaction"
+  | "account"
+  | "category"
+  | "budget"
+  | "debt" // External debts (loans from outside household)
+  | "internal_debt" // Internal debts (borrowing between household entities)
+  | "debt_payment"; // Debt payment records
 
 /**
  * Operation type for sync queue items

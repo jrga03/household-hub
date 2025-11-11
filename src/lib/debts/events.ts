@@ -29,6 +29,7 @@ import { nanoid } from "nanoid";
 import { db } from "@/lib/dexie/db";
 import { getDeviceId } from "@/lib/device";
 import { getNextLamportClock } from "@/lib/dexie/lamport-clock";
+import { addDebtEventToSyncQueue } from "./sync";
 import type {
   Debt,
   InternalDebt,
@@ -170,6 +171,9 @@ export async function createDebtEvent(
 
   await db.events.add(event);
 
+  // Add to sync queue for server synchronization
+  await addDebtEventToSyncQueue(event);
+
   console.log(`[Event] Debt ${op} event created: ${debt.name} (lamport: ${lamportClock})`);
 
   return event;
@@ -223,6 +227,9 @@ export async function createInternalDebtEvent(
   };
 
   await db.events.add(event);
+
+  // Add to sync queue for server synchronization
+  await addDebtEventToSyncQueue(event);
 
   console.log(`[Event] Internal debt ${op} event created: ${debt.name} (lamport: ${lamportClock})`);
 
@@ -281,6 +288,9 @@ export async function createDebtPaymentEvent(
   };
 
   await db.events.add(event);
+
+  // Add to sync queue for server synchronization
+  await addDebtEventToSyncQueue(event);
 
   console.log(
     `[Event] Payment ${op} event created: ₱${(payment.amount_cents / 100).toFixed(2)} (lamport: ${lamportClock})`

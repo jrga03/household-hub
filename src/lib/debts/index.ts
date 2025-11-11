@@ -75,6 +75,14 @@ export {
   getDebtEventsInRange,
 } from "./events";
 
+// Sync queue integration
+export {
+  addDebtEventToSyncQueue,
+  getSyncStatusForDebt,
+  getPendingDebtSyncCount,
+  type DebtSyncStatus,
+} from "./sync";
+
 // Re-export types
 export type {
   Debt,
