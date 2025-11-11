@@ -265,11 +265,39 @@ export async function handleTransactionEdit(data: TransactionEditData) {
   }> = [];
 
   // 1. Find existing payment for this transaction
-  const existingPayment = await db.debtPayments
+  // CRITICAL: Must find the LATEST non-reversal payment that hasn't been reversed yet
+  // This handles the case where a transaction is edited multiple times:
+  // - Original payment: ₱50,000
+  // - First edit: Reverses ₱50,000, creates new ₱30,000
+  // - Second edit: Should reverse ₱30,000 (not ₱50,000 again!)
+  const allPayments = await db.debtPayments
     .where("transaction_id")
     .equals(data.transaction_id)
-    .filter((p) => !p.is_reversal) // Ignore reversals
-    .first();
+    .filter((p) => !p.is_reversal) // Get non-reversal payments
+    .toArray();
+
+  // Find the payment that hasn't been reversed yet
+  let existingPayment: (typeof allPayments)[0] | undefined;
+
+  if (allPayments.length > 0) {
+    // Check which payments have already been reversed
+    const reversals = await db.debtPayments
+      .where("transaction_id")
+      .equals(data.transaction_id)
+      .filter((p) => p.is_reversal)
+      .toArray();
+
+    const reversedPaymentIds = new Set(reversals.map((r) => r.reverses_payment_id));
+
+    // Find the payment that hasn't been reversed
+    existingPayment = allPayments.find((p) => !reversedPaymentIds.has(p.id));
+
+    // If all payments have been reversed (shouldn't happen), take the most recent
+    if (!existingPayment && allPayments.length > 0) {
+      allPayments.sort((a, b) => b.created_at.localeCompare(a.created_at));
+      existingPayment = allPayments[0];
+    }
+  }
 
   // 2. Reverse existing payment if found
   if (existingPayment) {

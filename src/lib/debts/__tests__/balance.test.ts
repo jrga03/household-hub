@@ -5,7 +5,7 @@ import {
   calculateDebtBalanceWithDetails,
   calculateMultipleBalances,
 } from "../balance";
-import type { Debt, DebtPayment } from "@/types/debt";
+import { createTestDebt, createTestPayment } from "../test-utils";
 
 describe("Balance Calculation", () => {
   beforeEach(async () => {
@@ -16,15 +16,10 @@ describe("Balance Calculation", () => {
 
   describe("calculateDebtBalance", () => {
     it("should return full balance when no payments exist", async () => {
-      const debt: Debt = {
+      const debt = createTestDebt({
         id: "debt-1",
-        household_id: "household-1",
-        name: "Test Debt",
         original_amount_cents: 100000, // ₱1,000
-        status: "active",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      });
 
       await db.debts.add(debt);
 
@@ -33,149 +28,106 @@ describe("Balance Calculation", () => {
     });
 
     it("should calculate balance with single payment", async () => {
-      await db.debts.add({
+      const debt = createTestDebt({
         id: "debt-1",
-        household_id: "household-1",
-        name: "Test",
         original_amount_cents: 100000,
-        status: "active",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       });
 
-      await db.debtPayments.add({
+      const payment = createTestPayment({
         id: "payment-1",
-        household_id: "household-1",
         debt_id: "debt-1",
         transaction_id: "txn-1",
         amount_cents: 25000, // ₱250 paid
         payment_date: "2025-11-10",
-        device_id: "device-1",
-        is_reversal: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        idempotency_key: "device-1-debt_payment-payment-1-1",
       });
+
+      await db.debts.add(debt);
+      await db.debtPayments.add(payment);
 
       const balance = await calculateDebtBalance("debt-1", "external");
       expect(balance).toBe(75000); // ₱1,000 - ₱250 = ₱750
     });
 
     it("should calculate balance with multiple payments", async () => {
-      await db.debts.add({
+      const debt = createTestDebt({
         id: "debt-1",
-        household_id: "household-1",
-        name: "Test",
         original_amount_cents: 100000,
-        status: "active",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       });
 
-      await db.debtPayments.bulkAdd([
-        {
+      const payments = [
+        createTestPayment({
           id: "payment-1",
-          household_id: "household-1",
           debt_id: "debt-1",
           transaction_id: "txn-1",
           amount_cents: 25000,
           payment_date: "2025-11-01",
-          device_id: "device-1",
-          is_reversal: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          idempotency_key: "device-1-debt_payment-payment-1-1",
-        },
-        {
+        }),
+        createTestPayment({
           id: "payment-2",
-          household_id: "household-1",
           debt_id: "debt-1",
           transaction_id: "txn-2",
           amount_cents: 30000,
           payment_date: "2025-11-05",
-          device_id: "device-1",
-          is_reversal: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          idempotency_key: "device-1-debt_payment-payment-2-2",
-        },
-      ]);
+        }),
+      ];
+
+      await db.debts.add(debt);
+      await db.debtPayments.bulkAdd(payments);
 
       const balance = await calculateDebtBalance("debt-1", "external");
       expect(balance).toBe(45000); // ₱1,000 - ₱250 - ₱300 = ₱450
     });
 
     it("should exclude reversal records from calculation", async () => {
-      await db.debts.add({
+      const debt = createTestDebt({
         id: "debt-1",
-        household_id: "household-1",
-        name: "Test",
         original_amount_cents: 100000,
-        status: "active",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       });
 
-      await db.debtPayments.bulkAdd([
-        {
+      const payments = [
+        createTestPayment({
           id: "payment-1",
-          household_id: "household-1",
           debt_id: "debt-1",
           transaction_id: "txn-1",
           amount_cents: 25000, // Original payment
           payment_date: "2025-11-01",
-          device_id: "device-1",
-          is_reversal: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          idempotency_key: "device-1-debt_payment-payment-1-1",
-        },
-        {
+        }),
+        createTestPayment({
           id: "reversal-1",
-          household_id: "household-1",
           debt_id: "debt-1",
           transaction_id: "txn-1",
           amount_cents: -25000, // Reversal (negative)
           payment_date: "2025-11-02",
-          device_id: "device-1",
           is_reversal: true,
           reverses_payment_id: "payment-1",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          idempotency_key: "device-1-debt_payment-reversal-1-2",
-        },
-      ]);
+        }),
+      ];
+
+      await db.debts.add(debt);
+      await db.debtPayments.bulkAdd(payments);
 
       const balance = await calculateDebtBalance("debt-1", "external");
       expect(balance).toBe(100000); // Both excluded, back to full balance
     });
 
     it("should support negative balance (overpayment)", async () => {
-      await db.debts.add({
+      const debt = createTestDebt({
         id: "debt-1",
-        household_id: "household-1",
-        name: "Test",
         original_amount_cents: 100000, // ₱1,000
-        status: "active",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       });
 
-      await db.debtPayments.add({
+      const payment = createTestPayment({
         id: "payment-1",
-        household_id: "household-1",
         debt_id: "debt-1",
         transaction_id: "txn-1",
         amount_cents: 150000, // ₱1,500 paid (overpaid by ₱500)
         payment_date: "2025-11-10",
-        device_id: "device-1",
-        is_reversal: false,
         is_overpayment: true,
         overpayment_amount: 50000,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        idempotency_key: "device-1-debt_payment-payment-1-1",
       });
+
+      await db.debts.add(debt);
+      await db.debtPayments.add(payment);
 
       const balance = await calculateDebtBalance("debt-1", "external");
       expect(balance).toBe(-50000); // Overpaid by ₱500
@@ -189,44 +141,30 @@ describe("Balance Calculation", () => {
 
   describe("calculateDebtBalanceWithDetails", () => {
     it("should return detailed breakdown", async () => {
-      await db.debts.add({
+      const debt = createTestDebt({
         id: "debt-1",
-        household_id: "household-1",
-        name: "Test",
         original_amount_cents: 100000,
-        status: "active",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       });
 
-      await db.debtPayments.bulkAdd([
-        {
+      const payments = [
+        createTestPayment({
           id: "payment-1",
-          household_id: "household-1",
           debt_id: "debt-1",
           transaction_id: "txn-1",
           amount_cents: 30000,
           payment_date: "2025-11-01",
-          device_id: "device-1",
-          is_reversal: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          idempotency_key: "device-1-debt_payment-payment-1-1",
-        },
-        {
+        }),
+        createTestPayment({
           id: "payment-2",
-          household_id: "household-1",
           debt_id: "debt-1",
           transaction_id: "txn-2",
           amount_cents: 20000,
           payment_date: "2025-11-05",
-          device_id: "device-1",
-          is_reversal: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          idempotency_key: "device-1-debt_payment-payment-2-2",
-        },
-      ]);
+        }),
+      ];
+
+      await db.debts.add(debt);
+      await db.debtPayments.bulkAdd(payments);
 
       const details = await calculateDebtBalanceWithDetails("debt-1", "external");
 
@@ -240,29 +178,21 @@ describe("Balance Calculation", () => {
     });
 
     it("should detect overpayment in details", async () => {
-      await db.debts.add({
+      const debt = createTestDebt({
         id: "debt-1",
-        household_id: "household-1",
-        name: "Test",
         original_amount_cents: 100000,
-        status: "active",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       });
 
-      await db.debtPayments.add({
+      const payment = createTestPayment({
         id: "payment-1",
-        household_id: "household-1",
         debt_id: "debt-1",
         transaction_id: "txn-1",
         amount_cents: 125000, // Overpaid
         payment_date: "2025-11-10",
-        device_id: "device-1",
-        is_reversal: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        idempotency_key: "device-1-debt_payment-payment-1-1",
       });
+
+      await db.debts.add(debt);
+      await db.debtPayments.add(payment);
 
       const details = await calculateDebtBalanceWithDetails("debt-1", "external");
 
@@ -275,65 +205,44 @@ describe("Balance Calculation", () => {
   describe("calculateMultipleBalances", () => {
     it("should calculate balances for multiple debts efficiently", async () => {
       // Add 3 debts
-      await db.debts.bulkAdd([
-        {
+      const debts = [
+        createTestDebt({
           id: "debt-1",
-          household_id: "household-1",
           name: "Debt 1",
           original_amount_cents: 100000,
-          status: "active",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
+        }),
+        createTestDebt({
           id: "debt-2",
-          household_id: "household-1",
           name: "Debt 2",
           original_amount_cents: 200000,
-          status: "active",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
+        }),
+        createTestDebt({
           id: "debt-3",
-          household_id: "household-1",
           name: "Debt 3",
           original_amount_cents: 150000,
-          status: "active",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ]);
+        }),
+      ];
 
       // Add payments for debt-1 and debt-2 (debt-3 has no payments)
-      await db.debtPayments.bulkAdd([
-        {
+      const payments = [
+        createTestPayment({
           id: "payment-1",
-          household_id: "household-1",
           debt_id: "debt-1",
           transaction_id: "txn-1",
           amount_cents: 25000,
           payment_date: "2025-11-01",
-          device_id: "device-1",
-          is_reversal: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          idempotency_key: "device-1-debt_payment-payment-1-1",
-        },
-        {
+        }),
+        createTestPayment({
           id: "payment-2",
-          household_id: "household-1",
           debt_id: "debt-2",
           transaction_id: "txn-2",
           amount_cents: 100000,
           payment_date: "2025-11-01",
-          device_id: "device-1",
-          is_reversal: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          idempotency_key: "device-1-debt_payment-payment-2-2",
-        },
-      ]);
+        }),
+      ];
+
+      await db.debts.bulkAdd(debts);
+      await db.debtPayments.bulkAdd(payments);
 
       const balances = await calculateMultipleBalances(["debt-1", "debt-2", "debt-3"], "external");
 
