@@ -369,3 +369,88 @@ export interface TransactionEditData {
 export interface TransactionDeleteData {
   transaction_id: string;
 }
+
+// =====================================================
+// Event Sourcing Types (D10)
+// =====================================================
+
+/**
+ * Base event structure for debt entities
+ *
+ * Events enable:
+ * - Complete audit trail (who changed what and when)
+ * - Multi-device sync with conflict resolution
+ * - Event replay for debugging and recovery
+ * - Compliance with immutable financial record-keeping
+ */
+export interface BaseDebtEvent {
+  /** Event ID (nanoid) */
+  id: string;
+
+  /** Entity type this event applies to */
+  entityType: "debt" | "internal_debt" | "debt_payment";
+
+  /** ID of the entity being modified */
+  entityId: string;
+
+  /** Operation type */
+  op: "create" | "update" | "delete";
+
+  /** Changed data (full entity for create, delta for update) */
+  payload: Record<string, any>;
+
+  /** Idempotency key for deduplication
+   * Format: ${deviceId}-${entityType}-${entityId}-${lamportClock}
+   * For payments: reuses payment.idempotency_key
+   */
+  idempotencyKey: string;
+
+  /** Lamport clock value (global monotonic counter) */
+  lamportClock: number;
+
+  /** Vector clock for conflict resolution
+   * Format: { deviceId: lamportClock }
+   */
+  vectorClock: Record<string, number>;
+
+  /** User who made the change */
+  actorUserId: string;
+
+  /** Device that generated this event */
+  deviceId: string;
+
+  /** Unix timestamp (milliseconds) for ordering */
+  timestamp: number;
+
+  /** ISO 8601 timestamp for human readability */
+  created_at: string;
+}
+
+/**
+ * Event for external debt operations
+ */
+export interface DebtEvent extends BaseDebtEvent {
+  entityType: "debt";
+  payload: Partial<Debt>;
+}
+
+/**
+ * Event for internal debt operations
+ */
+export interface InternalDebtEvent extends BaseDebtEvent {
+  entityType: "internal_debt";
+  payload: Partial<InternalDebt>;
+}
+
+/**
+ * Event for debt payment operations (includes reversals)
+ */
+export interface DebtPaymentEvent extends BaseDebtEvent {
+  entityType: "debt_payment";
+  payload: DebtPayment;
+}
+
+/**
+ * Union type for all debt events
+ */
+export type AnyDebtEvent = DebtEvent | InternalDebtEvent | DebtPaymentEvent;

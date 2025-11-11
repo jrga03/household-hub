@@ -68,6 +68,7 @@ import { getNextLamportClock } from "@/lib/dexie/lamport-clock";
 import { calculateDebtBalance } from "./balance";
 import { updateDebtStatusFromBalance } from "./status";
 import { processDebtPayment } from "./payments";
+import { createDebtPaymentEvent } from "./events";
 import type {
   DebtPayment,
   CreateReversalData,
@@ -172,7 +173,10 @@ export async function reverseDebtPayment(data: CreateReversalData): Promise<Reve
   // 8. Insert reversal
   await db.debtPayments.add(reversal);
 
-  // 9. Recalculate balance and update status
+  // 9. Create event (for event sourcing & sync)
+  await createDebtPaymentEvent(reversal, "create");
+
+  // 10. Recalculate balance and update status
   const newBalance = await calculateDebtBalance(debtId, debtType);
 
   // Special handling for archived debts - unarchive them when reversal occurs

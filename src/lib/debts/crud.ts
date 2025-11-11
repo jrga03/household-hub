@@ -15,6 +15,7 @@ import {
   getEntityDisplayName,
 } from "./validation";
 import { calculateDebtBalance } from "./balance";
+import { createDebtEvent, createInternalDebtEvent, calculateDelta } from "./events";
 import type {
   Debt,
   InternalDebt,
@@ -51,6 +52,9 @@ export async function createExternalDebt(data: DebtFormData): Promise<Debt> {
   };
 
   await db.debts.add(debt);
+
+  // 3. Create event (for event sourcing & sync)
+  await createDebtEvent(debt, "create");
 
   console.log("[Debt Created]", debt.name, `(₱${(debt.original_amount_cents / 100).toFixed(2)})`);
 
@@ -93,6 +97,9 @@ export async function createInternalDebt(data: InternalDebtFormData): Promise<In
   };
 
   await db.internalDebts.add(debt);
+
+  // 4. Create event (for event sourcing & sync)
+  await createInternalDebtEvent(debt, "create");
 
   console.log(
     "[Internal Debt Created]",
@@ -224,10 +231,26 @@ export async function updateDebtName(
     throw new Error(validation.errors.join(", "));
   }
 
-  await table.update(debtId, {
+  // Prepare updated debt
+  const updatedDebt = {
+    ...debt,
     name: newName.trim(),
     updated_at: new Date().toISOString(),
+  };
+
+  await table.update(debtId, {
+    name: newName.trim(),
+    updated_at: updatedDebt.updated_at,
   });
+
+  // Calculate delta and create update event
+  const delta = calculateDelta(debt, updatedDebt);
+
+  if (type === "external") {
+    await createDebtEvent(updatedDebt as Debt, "update", delta);
+  } else {
+    await createInternalDebtEvent(updatedDebt as InternalDebt, "update", delta);
+  }
 
   console.log("[Debt Updated]", `"${debt.name}" → "${newName.trim()}"`);
 }
@@ -248,11 +271,29 @@ export async function archiveDebt(debtId: string, type: "external" | "internal")
     return;
   }
 
+  // Prepare updated debt
+  const closedAt = new Date().toISOString();
+  const updatedDebt = {
+    ...debt,
+    status: "archived" as const,
+    closed_at: closedAt,
+    updated_at: closedAt,
+  };
+
   await table.update(debtId, {
     status: "archived",
-    closed_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    closed_at: closedAt,
+    updated_at: closedAt,
   });
+
+  // Calculate delta and create update event (NOT delete event)
+  const delta = calculateDelta(debt, updatedDebt);
+
+  if (type === "external") {
+    await createDebtEvent(updatedDebt as Debt, "update", delta);
+  } else {
+    await createInternalDebtEvent(updatedDebt as InternalDebt, "update", delta);
+  }
 
   console.log("[Debt Archived]", debt.name);
 }
@@ -277,12 +318,30 @@ export async function unarchiveDebt(debtId: string, type: "external" | "internal
   // Determine status based on current balance
   const balance = await calculateDebtBalance(debtId, type);
   const newStatus: DebtStatus = balance <= 0 ? "paid_off" : "active";
+  const updatedAt = new Date().toISOString();
+
+  // Prepare updated debt
+  const updatedDebt = {
+    ...debt,
+    status: newStatus,
+    closed_at: newStatus === "paid_off" ? debt.closed_at : (null as string | undefined),
+    updated_at: updatedAt,
+  };
 
   await table.update(debtId, {
     status: newStatus,
     closed_at: newStatus === "paid_off" ? debt.closed_at : null,
-    updated_at: new Date().toISOString(),
+    updated_at: updatedAt,
   });
+
+  // Calculate delta and create update event
+  const delta = calculateDelta(debt, updatedDebt);
+
+  if (type === "external") {
+    await createDebtEvent(updatedDebt as Debt, "update", delta);
+  } else {
+    await createInternalDebtEvent(updatedDebt as InternalDebt, "update", delta);
+  }
 
   console.log("[Debt Unarchived]", debt.name, `(status: ${newStatus})`);
 }

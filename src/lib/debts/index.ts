@@ -63,6 +63,18 @@ export {
   handleTransactionDelete,
 } from "./reversals";
 
+// Event sourcing
+export {
+  createDebtEvent,
+  createInternalDebtEvent,
+  createDebtPaymentEvent,
+  calculateDelta,
+  eventExists,
+  getDebtEvents,
+  getPaymentEvents,
+  getDebtEventsInRange,
+} from "./events";
+
 // Re-export types
 export type {
   Debt,
@@ -82,4 +94,10 @@ export type {
   ReversalResult,
   TransactionEditData,
   TransactionDeleteData,
+  // Event types
+  BaseDebtEvent,
+  DebtEvent,
+  InternalDebtEvent,
+  DebtPaymentEvent,
+  AnyDebtEvent,
 } from "@/types/debt";

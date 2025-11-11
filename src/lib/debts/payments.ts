@@ -11,6 +11,7 @@ import { getNextLamportClock } from "@/lib/dexie/lamport-clock";
 import { getDeviceId } from "@/lib/device";
 import { calculateDebtBalance } from "./balance";
 import { updateDebtStatusFromBalance } from "./status";
+import { createDebtPaymentEvent } from "./events";
 import type { DebtPayment, ProcessPaymentData, PaymentResult } from "@/types/debt";
 
 // =====================================================
@@ -95,9 +96,8 @@ export async function processDebtPayment(data: ProcessPaymentData): Promise<Paym
 
   // Generate idempotency key
   // Format: ${deviceId}-debt_payment-${paymentId}-${lamportClock}
-  // Note: In Phase B, this will be used for server-side deduplication
-  // For now, we just track lamport clock for future sync
-  // const idempotencyKey = `${deviceId}-debt_payment-${paymentId}-${lamportClock}`;
+  // Used for event sourcing and server-side deduplication
+  const idempotencyKey = `${deviceId}-debt_payment-${paymentId}-${lamportClock}`;
 
   // Create payment
   const payment: DebtPayment = {
@@ -117,11 +117,18 @@ export async function processDebtPayment(data: ProcessPaymentData): Promise<Paym
     is_overpayment: isOverpayment,
     overpayment_amount: isOverpayment ? overpaymentAmount : undefined,
 
+    // Event sourcing (idempotency key for deduplication)
+    idempotency_key: idempotencyKey,
+
     created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   };
 
   // Insert payment
   await db.debtPayments.add(payment);
+
+  // Create event (for event sourcing & sync)
+  await createDebtPaymentEvent(payment, "create");
 
   console.log(
     `[Payment Created] ₱${(data.amount_cents / 100).toFixed(2)} for debt ${debt.name}`,
