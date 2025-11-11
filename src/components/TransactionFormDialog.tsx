@@ -27,6 +27,12 @@ import {
 import { transactionSchema, type TransactionFormData } from "@/lib/validations/transaction";
 import { useAuthStore } from "@/stores/authStore";
 import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { calculateDebtBalance, processDebtPayment, handleTransactionEdit } from "@/lib/debts";
+import { listDebts } from "@/lib/debts/crud";
+import { formatPHP } from "@/lib/currency";
+import { cn } from "@/lib/utils";
+import type { Debt } from "@/types/debt";
 
 interface Props {
   open: boolean;
@@ -42,6 +48,7 @@ export function TransactionFormDialog({
   defaultType = "expense",
 }: Props) {
   const user = useAuthStore((state) => state.user);
+  const queryClient = useQueryClient();
   const { data: accounts } = useAccounts();
   const { data: transactions } = useTransactions();
   const createTransaction = useCreateTransaction();
@@ -59,8 +66,50 @@ export function TransactionFormDialog({
       status: "pending",
       visibility: "household",
       notes: null,
+      debt_id: undefined,
+      internal_debt_id: undefined,
     },
   });
+
+  // Watch form fields for debt selector logic
+  const isTransfer = !!form.watch("transfer_group_id");
+  const selectedDebtId = form.watch("debt_id");
+  const transactionAmount = form.watch("amount_cents");
+
+  // Fetch active debts for selector
+  const { data: debts } = useQuery({
+    queryKey: ["debts", user?.id, "external", "active"],
+    queryFn: async () => {
+      if (!user?.id) return [];
+
+      const allDebts = await listDebts(user.id, "external", { status: "active" });
+
+      // Calculate balances for each debt
+      const debtsWithBalances = await Promise.all(
+        allDebts.map(async (debt: Debt) => ({
+          ...debt,
+          balance: await calculateDebtBalance(debt.id, "external"),
+        }))
+      );
+
+      return debtsWithBalances;
+    },
+    enabled: !!user?.id && open,
+  });
+
+  // Find selected debt and calculate balance preview
+  const selectedDebt = debts?.find((d: Debt & { balance: number }) => d.id === selectedDebtId);
+  const balanceAfterPayment =
+    selectedDebt && transactionAmount ? selectedDebt.balance - transactionAmount : null;
+  const isOverpayment = balanceAfterPayment !== null && balanceAfterPayment < 0;
+
+  // Clear debt link when transfer selected
+  useEffect(() => {
+    if (isTransfer) {
+      form.setValue("debt_id", undefined);
+      form.setValue("internal_debt_id", undefined);
+    }
+  }, [isTransfer, form]);
 
   // Centralized close handler with form reset
   const handleClose = () => {
@@ -74,6 +123,8 @@ export function TransactionFormDialog({
       status: "pending",
       visibility: "household",
       notes: null,
+      debt_id: undefined,
+      internal_debt_id: undefined,
     });
     onClose();
   };
@@ -108,27 +159,76 @@ export function TransactionFormDialog({
         type: data.type,
         account_id: data.account_id || null,
         category_id: data.category_id || null,
+        debt_id: data.debt_id || null,
+        internal_debt_id: data.internal_debt_id || null,
         status: data.status,
         visibility: data.visibility,
         notes: data.notes || null,
         created_by_user_id: user?.id,
       };
 
+      let transactionId: string;
+
       if (editingId) {
+        // Update transaction
         await updateTransaction.mutateAsync({
           id: editingId,
           updates: transactionData,
         });
-        toast.success("Transaction updated");
+        transactionId = editingId;
+
+        // Handle debt payment changes (reverse old, create new)
+        const debtFieldsChanged =
+          data.debt_id !== undefined ||
+          data.internal_debt_id !== undefined ||
+          data.amount_cents !== undefined ||
+          data.date !== undefined;
+
+        if (debtFieldsChanged) {
+          await handleTransactionEdit({
+            transaction_id: editingId,
+            new_amount_cents: data.amount_cents,
+            new_debt_id: data.debt_id,
+            new_internal_debt_id: data.internal_debt_id,
+            payment_date: format(data.date, "yyyy-MM-dd"),
+          });
+        }
+
+        toast.success("Transaction updated and debt payment adjusted");
       } else {
-        await createTransaction.mutateAsync(transactionData);
-        toast.success("Transaction created");
+        // Create transaction
+        const result = await createTransaction.mutateAsync(transactionData);
+        transactionId = result.id;
+
+        // Create debt payment if linked
+        if (data.debt_id || data.internal_debt_id) {
+          await processDebtPayment({
+            transaction_id: transactionId,
+            amount_cents: data.amount_cents,
+            payment_date: format(data.date, "yyyy-MM-dd"),
+            debt_id: data.debt_id,
+            internal_debt_id: data.internal_debt_id,
+            household_id: user?.id || "", // TODO: Use actual household_id
+          });
+
+          const debtName = selectedDebt?.name || "debt";
+          toast.success(`Transaction saved and payment applied to ${debtName}`);
+        } else {
+          toast.success("Transaction created");
+        }
+      }
+
+      // Invalidate queries to refresh UI
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      if (data.debt_id || data.internal_debt_id) {
+        queryClient.invalidateQueries({ queryKey: ["debts"] });
+        queryClient.invalidateQueries({ queryKey: ["debt-balance"] });
       }
 
       handleClose();
     } catch (error) {
       console.error("Failed to save transaction:", error);
-      toast.error("Failed to save transaction");
+      toast.error("Failed to save transaction. Please try again.");
     }
   };
 
@@ -250,6 +350,92 @@ export function TransactionFormDialog({
               )}
             />
           </div>
+
+          {/* Debt Selector */}
+          <div>
+            <Label htmlFor="debt">Link to Debt (Optional)</Label>
+            <Controller
+              name="debt_id"
+              control={form.control}
+              render={({ field }) => (
+                <Select
+                  value={field.value || ""}
+                  onValueChange={(value) => field.onChange(value || undefined)}
+                  disabled={isTransfer}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a debt (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {debts?.map((debt: Debt & { balance: number }) => (
+                      <SelectItem key={debt.id} value={debt.id}>
+                        {debt.name} - Balance: {formatPHP(debt.balance)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              {isTransfer
+                ? "Transfers cannot be linked to debts"
+                : "Optionally link this transaction to a debt payment"}
+            </p>
+            {form.formState.errors.debt_id && (
+              <p className="text-sm text-destructive mt-1">
+                {form.formState.errors.debt_id.message}
+              </p>
+            )}
+          </div>
+
+          {/* Balance Preview */}
+          {selectedDebt && (
+            <div className="rounded-lg border p-4 space-y-2 bg-muted/30">
+              <h4 className="font-medium text-sm">Payment Preview</h4>
+
+              <div className="text-sm space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Current balance:</span>
+                  <span className="font-medium">{formatPHP(selectedDebt.balance)}</span>
+                </div>
+
+                {transactionAmount > 0 && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Payment amount:</span>
+                      <span className="font-medium">-{formatPHP(transactionAmount)}</span>
+                    </div>
+
+                    <div className="flex justify-between pt-2 border-t">
+                      <span className="text-muted-foreground">After payment:</span>
+                      <span
+                        className={cn(
+                          "font-bold",
+                          isOverpayment && "text-red-600 dark:text-red-400",
+                          balanceAfterPayment === 0 && "text-green-600 dark:text-green-400"
+                        )}
+                      >
+                        {formatPHP(balanceAfterPayment!)}
+                      </span>
+                    </div>
+
+                    {isOverpayment && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 pt-2">
+                        ⚠ This will overpay by {formatPHP(Math.abs(balanceAfterPayment!))}
+                      </p>
+                    )}
+
+                    {balanceAfterPayment === 0 && (
+                      <p className="text-xs text-green-600 dark:text-green-400 pt-2">
+                        ✓ This will pay off the debt completely
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Status */}
           <div>

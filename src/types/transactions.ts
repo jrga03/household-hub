@@ -53,6 +53,8 @@ export interface Transaction {
   account_id: string | null;
   category_id: string | null;
   transfer_group_id: string | null; // Links paired transfer transactions
+  debt_id: string | null; // Optional link to external debt
+  internal_debt_id: string | null; // Optional link to internal debt
 
   // Status and filtering
   status: TransactionStatus;
@@ -85,6 +87,8 @@ export interface TransactionInsert {
   account_id?: string | null;
   category_id?: string | null;
   transfer_group_id?: string | null;
+  debt_id?: string | null; // Optional link to external debt
+  internal_debt_id?: string | null; // Optional link to internal debt
   status?: TransactionStatus;
   visibility?: TransactionVisibility;
   created_by_user_id?: string;
@@ -104,6 +108,8 @@ export interface TransactionUpdate {
   type?: TransactionType;
   account_id?: string | null;
   category_id?: string | null;
+  debt_id?: string | null; // Optional link to external debt
+  internal_debt_id?: string | null; // Optional link to internal debt
   status?: TransactionStatus;
   notes?: string | null;
   tagged_user_ids?: string[];

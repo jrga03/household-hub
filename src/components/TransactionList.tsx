@@ -19,6 +19,8 @@ import { formatPHP } from "@/lib/currency";
 import { hasActiveTransactionFilters } from "@/lib/utils/filters";
 import type { TransactionFilters } from "@/types/transactions";
 import { toast } from "sonner";
+import { handleTransactionDelete } from "@/lib/debts";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Props {
   filters?: TransactionFilters;
@@ -29,12 +31,29 @@ export function TransactionList({ filters, onEdit }: Props) {
   const { data: transactions, isLoading } = useTransactions(filters);
   const toggleStatus = useToggleTransactionStatus();
   const deleteTransaction = useDeleteTransaction();
+  const queryClient = useQueryClient();
 
   const handleDelete = async (id: string, description: string) => {
-    if (window.confirm(`Delete transaction "${description}"?`)) {
+    if (
+      window.confirm(
+        `Delete transaction "${description}"?\n\nThis will also reverse any debt payments linked to this transaction.`
+      )
+    ) {
       try {
+        // Reverse debt payment FIRST (if linked)
+        const reversalResult = await handleTransactionDelete({ transaction_id: id });
+
+        // Then delete transaction
         await deleteTransaction.mutateAsync(id);
-        toast.success("Transaction deleted");
+
+        // Invalidate debt queries if payment was reversed
+        if (reversalResult) {
+          queryClient.invalidateQueries({ queryKey: ["debts"] });
+          queryClient.invalidateQueries({ queryKey: ["debt-balance"] });
+          toast.success("Transaction deleted and debt balance restored");
+        } else {
+          toast.success("Transaction deleted");
+        }
       } catch (error) {
         console.error("Failed to delete:", error);
         toast.error(error instanceof Error ? error.message : "Failed to delete transaction");

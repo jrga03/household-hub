@@ -40,6 +40,8 @@ export interface LocalTransaction {
   account_id?: string;
   category_id?: string;
   transfer_group_id?: string; // Links paired transfer transactions
+  debt_id?: string; // Optional link to external debt
+  internal_debt_id?: string; // Optional link to internal debt
   status: "pending" | "cleared";
   visibility: "household" | "personal";
   owner_user_id?: string; // Owner for personal visibility (null for household)
@@ -469,11 +471,48 @@ export class HouseholdHubDB extends Dexie {
       });
 
     // ========================================================================
+    // Version 6: Add debt_id and internal_debt_id to transactions
+    // ========================================================================
+    this.version(6)
+      .stores({
+        // IMPORTANT: Must repeat ALL version 5 table definitions (Dexie requirement)
+        transactions:
+          "id, date, account_id, category_id, status, type, household_id, created_at, transfer_group_id, debt_id, internal_debt_id, " +
+          "[account_id+date], [category_id+date], [household_id+date], *tagged_user_ids",
+        accounts: "id, name, visibility, household_id",
+        categories: "id, parent_id, name, household_id",
+        syncQueue:
+          "id, status, entity_type, entity_id, device_id, created_at, " +
+          "[status+device_id], [device_id+created_at]",
+        events: "id, entity_id, lamport_clock, timestamp, device_id",
+        meta: "key",
+        logs: "id, timestamp, level, device_id",
+        syncIssues: "id, entityId, issueType, timestamp",
+        conflicts:
+          "id, entity_id, resolution, detected_at, [entity_id+resolution], [resolution+detected_at]",
+        debts: "id, household_id, status, created_at, [household_id+status+updated_at]",
+        internalDebts:
+          "id, household_id, from_type, from_id, to_type, to_id, status, created_at, " +
+          "[household_id+status+updated_at]",
+        debtPayments:
+          "id, debt_id, internal_debt_id, transaction_id, payment_date, is_reversal, reverses_payment_id, " +
+          "[debt_id+payment_date+created_at], [internal_debt_id+payment_date+created_at]",
+      })
+      .upgrade(async (tx) => {
+        console.log("[Dexie Migration v5→v6] Adding debt_id and internal_debt_id to transactions");
+
+        // No data migration needed - new optional fields
+        // Existing transactions will have undefined for these fields
+
+        console.log("[Dexie Migration v6] Migration complete ✓");
+      });
+
+    // ========================================================================
     // Future Versions: Examples
     // ========================================================================
     // Example of how to add a new version with migration:
     //
-    // this.version(6)
+    // this.version(7)
     //   .stores({
     //     // Add new field or index
     //     transactions:
