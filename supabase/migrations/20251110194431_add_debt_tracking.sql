@@ -408,23 +408,28 @@ COMMENT ON CONSTRAINT transaction_events_entity_type_check ON transaction_events
 -- =====================================================
 -- RLS HELPER FUNCTION
 -- =====================================================
--- Reusable function to get user's household_id
--- More performant than subquery in policies
+-- NOTE: get_user_household_id() function definition
+-- =====================================================
+-- ⚠️  DO NOT REDEFINE THIS FUNCTION HERE
+--
+-- This function is already defined in:
+--   20251024000000_fix_rls_infinite_recursion.sql
+--
+-- CRITICAL: The function MUST use SECURITY DEFINER (not SECURITY INVOKER)
+-- to prevent infinite RLS recursion. See that migration for full explanation.
+--
+-- Previous versions of this migration incorrectly redefined the function with
+-- SECURITY INVOKER, which caused "stack depth limit exceeded" errors on all
+-- endpoints. This was fixed in hotfix migration:
+--   20251122000000_fix_rls_recursion_hotfix.sql
+--
+-- For fresh database installations, the function is already correctly defined
+-- by the earlier migration. This comment remains as a reminder to NOT redefine it.
+-- =====================================================
 
-CREATE OR REPLACE FUNCTION get_user_household_id()
-RETURNS UUID
-LANGUAGE SQL
-STABLE
-SECURITY INVOKER
-AS $$
-  SELECT household_id FROM profiles WHERE id = auth.uid()
-$$;
-
--- Optimize with index
+-- Optimize with index for household_id lookups
 CREATE INDEX IF NOT EXISTS idx_profiles_id_household
   ON profiles(id, household_id);
-
-COMMENT ON FUNCTION get_user_household_id() IS 'Returns household_id for current authenticated user. Used in RLS policies.';
 
 -- =====================================================
 -- ROW-LEVEL SECURITY POLICIES
