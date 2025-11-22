@@ -7,6 +7,7 @@ import { TransactionFormDialog } from "@/components/TransactionFormDialog";
 import { TransactionFilters as TransactionFiltersComponent } from "@/components/TransactionFilters";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import { useTransactions } from "@/lib/supabaseQueries";
+import { usePrefetchTransactionData } from "@/hooks/usePrefetchTransactionData";
 import type { TransactionFilters } from "@/types/transactions";
 
 /**
@@ -37,6 +38,10 @@ function Transactions() {
   const navigate = Route.useNavigate();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Prefetch accounts and categories for transaction form
+  // This runs once on mount and loads data in parallel
+  usePrefetchTransactionData();
 
   // Debounce search term to avoid excessive queries
   // Other filters update immediately

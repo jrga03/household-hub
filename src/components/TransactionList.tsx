@@ -1,4 +1,6 @@
+import { useRef } from "react";
 import { format, parseISO } from "date-fns";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   Table,
   TableBody,
@@ -21,6 +23,8 @@ import type { TransactionFilters } from "@/types/transactions";
 import { toast } from "sonner";
 import { handleTransactionDelete } from "@/lib/debts";
 import { useQueryClient } from "@tanstack/react-query";
+import { SyncBadge } from "@/components/sync/SyncBadge";
+import { cn } from "@/lib/utils";
 
 interface Props {
   filters?: TransactionFilters;
@@ -90,88 +94,139 @@ export function TransactionList({ filters, onEdit }: Props) {
     );
   }
 
+  // Set up virtual scrolling
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const rowVirtualizer = useVirtualizer({
+    count: transactions.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 73, // Estimated row height in pixels
+    overscan: 5, // Render 5 extra items above/below visible area
+  });
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-[100px]">Date</TableHead>
-          <TableHead>Description</TableHead>
-          <TableHead>Category</TableHead>
-          <TableHead>Account</TableHead>
-          <TableHead className="text-right">Amount</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {transactions.map((transaction) => (
-          <TableRow key={transaction.id}>
-            <TableCell className="font-mono text-sm">
-              {format(parseISO(transaction.date), "MMM dd")}
-            </TableCell>
-            <TableCell>
-              <div className="font-medium">{transaction.description}</div>
-              {transaction.notes && (
-                <div className="text-xs text-muted-foreground truncate max-w-xs">
-                  {transaction.notes}
-                </div>
-              )}
-            </TableCell>
-            <TableCell>
-              {transaction.category ? (
-                <Badge variant="outline">{transaction.category.name}</Badge>
-              ) : (
-                <span className="text-muted-foreground text-sm">—</span>
-              )}
-            </TableCell>
-            <TableCell>
-              {transaction.account ? (
-                <span className="text-sm">{transaction.account.name}</span>
-              ) : (
-                <span className="text-muted-foreground text-sm">—</span>
-              )}
-            </TableCell>
-            <TableCell
-              className={`text-right font-mono ${
-                transaction.type === "income"
-                  ? "text-green-600 dark:text-green-400"
-                  : "text-red-600 dark:text-red-400"
-              }`}
-            >
-              {transaction.type === "income" ? "+" : "-"}
-              {formatPHP(transaction.amount_cents)}
-            </TableCell>
-            <TableCell>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => toggleStatus.mutate(transaction.id)}
-                className="h-8 w-8 p-0"
-              >
-                {transaction.status === "cleared" ? (
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                ) : (
-                  <Circle className="h-4 w-4 text-muted-foreground" />
-                )}
-              </Button>
-            </TableCell>
-            <TableCell className="text-right">
-              <div className="flex justify-end gap-2">
-                <Button variant="ghost" size="sm" onClick={() => onEdit(transaction.id)}>
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDelete(transaction.id, transaction.description)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </TableCell>
+    <div className="rounded-lg border bg-card">
+      {/* Fixed table header */}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[100px]">Date</TableHead>
+            <TableHead>Description</TableHead>
+            <TableHead>Category</TableHead>
+            <TableHead>Account</TableHead>
+            <TableHead className="text-right">Amount</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+      </Table>
+
+      {/* Virtualized scrollable body */}
+      <div
+        ref={parentRef}
+        className="overflow-auto"
+        style={{
+          height: `${Math.min(600, rowVirtualizer.getTotalSize())}px`, // Max 600px height
+        }}
+      >
+        <Table>
+          <TableBody
+            style={{
+              height: `${rowVirtualizer.getTotalSize()}px`,
+              position: "relative",
+            }}
+          >
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const transaction = transactions[virtualRow.index];
+
+              return (
+                <TableRow
+                  key={transaction.id}
+                  data-index={virtualRow.index}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: `${virtualRow.size}px`,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  <TableCell className="font-mono text-sm w-[100px]">
+                    {format(parseISO(transaction.date), "MMM dd")}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium">{transaction.description}</div>
+                        {transaction.notes && (
+                          <div className="text-xs text-muted-foreground truncate max-w-xs">
+                            {transaction.notes}
+                          </div>
+                        )}
+                      </div>
+                      <SyncBadge status="synced" size="xs" />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {transaction.category ? (
+                      <Badge variant="outline">{transaction.category.name}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {transaction.account ? (
+                      <span className="text-sm">{transaction.account.name}</span>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell
+                    className={cn(
+                      "text-right font-mono",
+                      transaction.type === "income"
+                        ? "text-green-600 dark:text-green-400"
+                        : "text-red-600 dark:text-red-400"
+                    )}
+                  >
+                    {transaction.type === "income" ? "+" : "-"}
+                    {formatPHP(transaction.amount_cents)}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleStatus.mutate(transaction.id)}
+                      className="h-8 w-8 p-0"
+                    >
+                      {transaction.status === "cleared" ? (
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <Circle className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => onEdit(transaction.id)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(transaction.id, transaction.description)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
   );
 }

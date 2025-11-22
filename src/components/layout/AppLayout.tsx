@@ -11,8 +11,9 @@ import { useNavStore } from "@/stores/navStore";
 import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { cn } from "@/lib/utils";
-import { SyncIndicator } from "@/components/SyncIndicator";
+import { GlobalSyncStatus } from "@/components/sync/GlobalSyncStatus";
 import { LoadingScreen } from "@/components/LoadingScreen";
+import { OfflineBanner } from "@/components/sync/OfflineBanner";
 
 /**
  * Main application layout component
@@ -126,13 +127,16 @@ export function AppLayout() {
               <span className="font-semibold">Household Hub</span>
             </div>
 
-            {/* Sync Indicator */}
-            <SyncIndicator compact />
+            {/* Sync Status */}
+            <GlobalSyncStatus variant="compact" />
           </div>
         </header>
 
         {/* Mobile Navigation Drawer */}
         <MobileNav open={mobileNavOpen} onOpenChange={setMobileNavOpen} />
+
+        {/* Offline Banner */}
+        <OfflineBanner />
 
         {/* Main Content */}
         <main id="main-content" className="flex-1">
@@ -171,6 +175,9 @@ export function AppLayout() {
               </div>
             </div>
           </header>
+
+          {/* Offline Banner */}
+          <OfflineBanner />
 
           {/* Main Content */}
           <main

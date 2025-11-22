@@ -8,15 +8,111 @@ Feature-specific documentation hub for **Household Hub**. Contains detailed spec
 
 ```
 features/
-├── README.md          # This file - Feature documentation hub
-└── debts/            # Debt tracking feature (Post-MVP)
-    ├── DEBTS.md                    # Feature overview & requirements
-    ├── DEBT-DECISIONS.md           # Design decisions & rationale
-    ├── DEBT-VALIDATION.md          # Validation rules & constraints
-    └── debt-implementation.md      # Implementation guide
+├── README.md                       # This file - Feature documentation hub
+├── react-19-enhancements/         # React 19 features (Phase A MVP)
+│   ├── REACT-19-ENHANCEMENTS.md   # Feature overview
+│   ├── REACT-19-DECISIONS.md      # Design decisions
+│   └── react-19-implementation.md # Implementation guide
+├── sync-management/               # Sync status visibility (Phase A MVP)
+│   ├── SYNC-MANAGEMENT.md         # Feature overview
+│   ├── SYNC-MANAGEMENT-DECISIONS.md # Design decisions
+│   └── sync-management-implementation.md # Implementation guide
+└── debts/                         # Debt tracking feature (Post-MVP)
+    ├── DEBTS.md                   # Feature overview & requirements
+    ├── DEBT-DECISIONS.md          # Design decisions & rationale
+    ├── DEBT-VALIDATION.md         # Validation rules & constraints
+    └── debt-implementation.md     # Implementation guide
 ```
 
 ## Current Features
+
+### React 19 Enhancements (Phase A MVP)
+
+**Status:** ✅ Implemented
+
+**Location:** [react-19-enhancements/](react-19-enhancements/)
+
+**Overview:**
+Implementation of React 19's modern APIs including useFormStatus(), Suspense boundaries, use() hook for context consumption, and optimistic UI updates with TanStack Query.
+
+**Key documents:**
+
+1. **[react-19-enhancements/REACT-19-ENHANCEMENTS.md](react-19-enhancements/REACT-19-ENHANCEMENTS.md)** - Feature overview
+   - User stories and requirements
+   - Use cases for each React 19 feature
+   - Component architecture
+   - Integration points
+   - Success metrics
+
+2. **[react-19-enhancements/REACT-19-DECISIONS.md](react-19-enhancements/REACT-19-DECISIONS.md)** - Design decisions
+   - Decision to adopt useFormStatus() for auth forms
+   - Suspense boundaries for analytics tabs
+   - Migration to use() hook for context
+   - Optimistic updates pattern
+   - Reusable SubmitButton component
+
+3. **[react-19-enhancements/react-19-implementation.md](react-19-enhancements/react-19-implementation.md)** - Implementation guide
+   - Step-by-step SubmitButton creation
+   - Auth form migration
+   - Analytics tabs with Suspense
+   - Context hook migration
+   - Optimistic update implementation
+   - Testing strategy
+
+**Key features:**
+
+- useFormStatus() for automatic form submission states
+- Suspense boundaries for smooth loading transitions
+- use() hook for cleaner context consumption
+- Optimistic updates for instant UI feedback
+- Reusable SubmitButton component
+
+---
+
+### Sync Management & Status Visibility (Phase A MVP)
+
+**Status:** ✅ Implemented
+
+**Location:** [sync-management/](sync-management/)
+
+**Overview:**
+Comprehensive sync status visibility and queue management system for offline-first architecture. Provides real-time sync status, manual retry controls, and detailed queue viewer.
+
+**Key documents:**
+
+1. **[sync-management/SYNC-MANAGEMENT.md](sync-management/SYNC-MANAGEMENT.md)** - Feature overview
+   - User stories and requirements
+   - Use cases for status visibility and queue management
+   - Component architecture (SyncBadge, GlobalSyncStatus, OfflineBanner, SyncQueueViewer)
+   - Data model and hook signatures
+   - Accessibility features
+
+2. **[sync-management/SYNC-MANAGEMENT-DECISIONS.md](sync-management/SYNC-MANAGEMENT-DECISIONS.md)** - Design decisions
+   - Per-transaction sync badges
+   - Global sync status indicator
+   - Offline banner design
+   - Sync queue viewer architecture
+   - Manual retry operations
+   - Discard operation with confirmation
+
+3. **[sync-management/sync-management-implementation.md](sync-management/sync-management-implementation.md)** - Implementation guide
+   - SyncBadge component creation
+   - GlobalSyncStatus with 3 variants
+   - OfflineBanner with reconnection celebration
+   - SyncQueueViewer with grouped items
+   - Sync queue operations (retry, discard)
+   - Testing strategy
+
+**Key features:**
+
+- Per-transaction sync status badges (synced, pending, syncing, failed)
+- Global sync status in header with online/offline indicator
+- Offline banner with reconnection celebration
+- Detailed sync queue viewer with manual controls
+- Retry individual or all failed sync items
+- Discard problematic sync items with confirmation
+
+---
 
 ### Debt Tracking (Post-MVP)
 

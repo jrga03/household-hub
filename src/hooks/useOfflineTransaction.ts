@@ -4,13 +4,13 @@
  * Provides TanStack Query mutation hooks for creating, updating, and deleting
  * transactions offline. These hooks handle:
  * - IndexedDB write operations
- * - Cache invalidation for UI updates
+ * - Optimistic updates for instant UI feedback
+ * - Automatic rollback on error
  * - Toast notifications for user feedback
  * - Error handling with graceful degradation
  *
- * Pattern: Simple cache invalidation approach (not true optimistic updates).
- * UI refetches from IndexedDB after mutation completes, providing near-instant
- * feedback without the complexity of optimistic update rollbacks.
+ * Pattern: Optimistic updates with TanStack Query's onMutate/onError callbacks.
+ * UI updates immediately before mutation completes, then rolls back on error.
  *
  * @see instructions.md Step 5 (lines 484-562)
  * @module hooks/useOfflineTransaction
@@ -55,17 +55,46 @@ export function useCreateOfflineTransaction() {
       if (!user?.id) throw new Error("User not authenticated");
       return createOfflineTransaction(input, user.id);
     },
+    // Optimistic update: Add transaction to cache immediately
+    onMutate: async (newTransaction) => {
+      // Cancel any outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ["transactions", "offline"] });
+
+      // Snapshot the previous value for rollback
+      const previousTransactions = queryClient.getQueryData(["transactions", "offline"]);
+
+      // Optimistically update the cache with a temporary transaction
+      queryClient.setQueryData(["transactions", "offline"], (old: any) => {
+        const optimisticTransaction = {
+          ...newTransaction,
+          id: `temp-${Date.now()}`, // Temporary ID until sync completes
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          synced: false,
+        };
+        return old ? [...old, optimisticTransaction] : [optimisticTransaction];
+      });
+
+      // Return context for rollback
+      return { previousTransactions };
+    },
     onSuccess: (result) => {
       if (result.success) {
-        // Invalidate transactions query to refetch from IndexedDB
-        queryClient.invalidateQueries({ queryKey: ["transactions", "offline"] });
         toast.success("Transaction created and queued for sync");
       } else {
         toast.error(result.error || "Failed to create transaction");
       }
     },
-    onError: (error) => {
+    onError: (error, _newTransaction, context) => {
+      // Rollback to previous state on error
+      if (context?.previousTransactions) {
+        queryClient.setQueryData(["transactions", "offline"], context.previousTransactions);
+      }
       toast.error(error instanceof Error ? error.message : "Unknown error");
+    },
+    // Always refetch after error or success to ensure consistency
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions", "offline"] });
     },
   });
 }
@@ -96,16 +125,44 @@ export function useUpdateOfflineTransaction() {
       if (!user?.id) throw new Error("User not authenticated");
       return updateOfflineTransaction(id, updates, user.id);
     },
+    // Optimistic update: Update transaction in cache immediately
+    onMutate: async ({ id, updates }) => {
+      await queryClient.cancelQueries({ queryKey: ["transactions", "offline"] });
+
+      const previousTransactions = queryClient.getQueryData(["transactions", "offline"]);
+
+      // Optimistically update the specific transaction
+      queryClient.setQueryData(["transactions", "offline"], (old: any) => {
+        if (!old) return old;
+        return old.map((txn: any) =>
+          txn.id === id
+            ? {
+                ...txn,
+                ...updates,
+                updated_at: new Date().toISOString(),
+                synced: false,
+              }
+            : txn
+        );
+      });
+
+      return { previousTransactions };
+    },
     onSuccess: (result) => {
       if (result.success) {
-        queryClient.invalidateQueries({ queryKey: ["transactions", "offline"] });
         toast.success("Transaction updated and queued for sync");
       } else {
         toast.error(result.error || "Failed to update transaction");
       }
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
+      if (context?.previousTransactions) {
+        queryClient.setQueryData(["transactions", "offline"], context.previousTransactions);
+      }
       toast.error(error instanceof Error ? error.message : "Unknown error");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions", "offline"] });
     },
   });
 }
@@ -131,16 +188,35 @@ export function useDeleteOfflineTransaction() {
       if (!user?.id) throw new Error("User not authenticated");
       return deleteOfflineTransaction(id, user.id);
     },
+    // Optimistic update: Remove transaction from cache immediately
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["transactions", "offline"] });
+
+      const previousTransactions = queryClient.getQueryData(["transactions", "offline"]);
+
+      // Optimistically remove the transaction
+      queryClient.setQueryData(["transactions", "offline"], (old: any) => {
+        if (!old) return old;
+        return old.filter((txn: any) => txn.id !== id);
+      });
+
+      return { previousTransactions };
+    },
     onSuccess: (result) => {
       if (result.success) {
-        queryClient.invalidateQueries({ queryKey: ["transactions", "offline"] });
         toast.success("Transaction deleted and queued for sync");
       } else {
         toast.error(result.error || "Failed to delete transaction");
       }
     },
-    onError: (error) => {
+    onError: (error, _id, context) => {
+      if (context?.previousTransactions) {
+        queryClient.setQueryData(["transactions", "offline"], context.previousTransactions);
+      }
       toast.error(error instanceof Error ? error.message : "Unknown error");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions", "offline"] });
     },
   });
 }

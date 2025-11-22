@@ -100,6 +100,52 @@ export default defineConfig({
   build: {
     target: "esnext",
     sourcemap: true,
+
+    // Chunk size warnings
+    chunkSizeWarningLimit: 500, // Warn if chunk > 500KB
+
+    // Manual chunk splitting for better caching
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Separate vendor chunks for better caching
+          "vendor-react": ["react", "react-dom", "react/jsx-runtime"],
+          "vendor-tanstack": [
+            "@tanstack/react-query",
+            "@tanstack/react-router",
+            "@tanstack/react-table",
+            "@tanstack/react-virtual",
+          ],
+          "vendor-ui": [
+            "lucide-react",
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-select",
+            "@radix-ui/react-slot",
+            "@radix-ui/react-tooltip",
+          ],
+          "vendor-utils": ["date-fns", "clsx", "tailwind-merge", "zod", "sonner"],
+          // Supabase in separate chunk (changes less frequently)
+          "vendor-supabase": ["@supabase/supabase-js"],
+        },
+        // Consistent chunk naming for better long-term caching
+        chunkFileNames: (chunkInfo) => {
+          const facadeModuleId = chunkInfo.facadeModuleId
+            ? chunkInfo.facadeModuleId.split("/").pop()
+            : "chunk";
+          return `assets/${facadeModuleId}-[hash].js`;
+        },
+      },
+    },
+
+    // Minification settings
+    minify: "esbuild", // Faster than terser, good compression
+    cssMinify: true,
+
+    // Enable tree-shaking
+    modulePreload: {
+      polyfill: true,
+    },
   },
   test: {
     environment: "jsdom",
