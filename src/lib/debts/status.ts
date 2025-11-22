@@ -195,7 +195,7 @@ export async function recoverInvalidDebtStates(type: "external" | "internal"): P
 
       await table.update(debt.id, {
         status: expectedStatus,
-        closed_at: expectedStatus === "paid_off" ? new Date().toISOString() : null,
+        closed_at: expectedStatus === "paid_off" ? new Date().toISOString() : undefined,
         updated_at: new Date().toISOString(),
       });
 

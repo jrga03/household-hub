@@ -366,7 +366,7 @@ describe("Reversal System", () => {
         household_id: "h1",
       });
 
-      const payment = await processDebtPayment({
+      await processDebtPayment({
         transaction_id: "txn-1",
         amount_cents: 50000,
         payment_date: "2025-11-10",
@@ -516,7 +516,7 @@ describe("Reversal System", () => {
       });
 
       // Original payment
-      const payment = await processDebtPayment({
+      await processDebtPayment({
         transaction_id: "txn-1",
         amount_cents: 50000,
         payment_date: "2025-11-10",

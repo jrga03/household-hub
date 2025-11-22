@@ -50,6 +50,8 @@ export async function testDebtBalanceInBrowser() {
       device_id: "test-device",
       is_reversal: false,
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      idempotency_key: "test-device-debt_payment-test-payment-1-1",
     });
 
     console.log("✅ Added payment: ₱600");
@@ -87,6 +89,8 @@ export async function testDebtBalanceInBrowser() {
       device_id: "test-device",
       is_reversal: false,
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      idempotency_key: "test-device-debt_payment-test-payment-2-1",
     });
 
     console.log("✅ Added final payment: ₱400");
@@ -117,6 +121,8 @@ export async function testDebtBalanceInBrowser() {
       reverses_payment_id: "test-payment-2",
       adjustment_reason: "Transaction edited",
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      idempotency_key: "test-device-debt_payment-test-reversal-1-1",
     });
 
     console.log("✅ Added reversal for last payment");
@@ -146,6 +152,8 @@ export async function testDebtBalanceInBrowser() {
       is_overpayment: true,
       overpayment_amount: 20000,
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      idempotency_key: "test-device-debt_payment-test-payment-3-1",
     });
 
     console.log("✅ Added overpayment: ₱600");

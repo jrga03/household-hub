@@ -460,6 +460,8 @@ describe("Debt Validation", () => {
         device_id: "device-1",
         is_reversal: false,
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        idempotency_key: "device-1-debt_payment-payment-1-1",
       });
 
       const result = await validateDebtDeletion("debt-1", "external");
@@ -529,6 +531,8 @@ describe("Debt Validation", () => {
         device_id: "device-1",
         is_reversal: false,
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        idempotency_key: "device-1-debt_payment-payment-1-1",
       });
 
       const result = await validateDebtDeletion("internal-1", "internal");

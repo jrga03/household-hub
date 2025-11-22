@@ -20,8 +20,8 @@ export * from "./categories";
 // Device types
 export * from "./device";
 
-// Event types
-export * from "./event";
+// Event types (selective export to avoid EntityType/VectorClock conflicts with sync.ts)
+export type { EventOp, TransactionEvent } from "./event";
 
 // Resolution types
 export * from "./resolution";

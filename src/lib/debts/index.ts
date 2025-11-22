@@ -10,23 +10,29 @@
 export {
   createExternalDebt,
   createInternalDebt,
-  updateExternalDebt,
-  updateInternalDebt,
-  deleteExternalDebt,
-  deleteInternalDebt,
-  getExternalDebt,
-  getInternalDebt,
-  getExternalDebtWithBalance,
-  getInternalDebtWithBalance,
-  listExternalDebts,
-  listInternalDebts,
+  getDebt,
+  getDebtWithBalance,
+  listDebts,
+  searchDebtsByName,
+  updateDebtName,
+  archiveDebt,
+  unarchiveDebt,
+  deleteDebt,
+  getDebtsWithBalances,
 } from "./crud";
 
 // Validation utilities
 export {
-  validateDebtFormData,
-  validateInternalDebtFormData,
-  validateDebtPaymentFormData,
+  validateAmount,
+  validateDebtName,
+  validateEntityExists,
+  getEntityDisplayName,
+  validateDebtCreation,
+  validateInternalDebtCreation,
+  validateDebtDeletion,
+  isDebtNameUnique,
+  parseAmountInput,
+  formatAmountInput,
 } from "./validation";
 
 // Balance calculation
@@ -40,19 +46,23 @@ export {
 // Status management
 export {
   updateDebtStatusFromBalance,
-  determineDebtStatus,
-  checkAndUpdateDebtStatus,
+  getExpectedStatus,
+  isValidStatusTransition,
   updateMultipleDebtStatuses,
-  type StatusUpdateResult,
+  recoverInvalidDebtStates,
 } from "./status";
 
 // Payment processing
 export {
   processDebtPayment,
-  getDebtPaymentHistory,
-  getRecentPayments,
-  type PaymentResult,
+  getDebtPayments,
+  getPayment,
+  getPaymentsByTransaction,
+  isTransactionLinkedToDebt,
 } from "./payments";
+
+// Re-export PaymentResult type from types
+export type { PaymentResult } from "@/types/debt";
 
 // Reversal system
 export {

@@ -324,13 +324,13 @@ export async function unarchiveDebt(debtId: string, type: "external" | "internal
   const updatedDebt = {
     ...debt,
     status: newStatus,
-    closed_at: newStatus === "paid_off" ? debt.closed_at : (null as string | undefined),
+    closed_at: newStatus === "paid_off" ? debt.closed_at : undefined,
     updated_at: updatedAt,
   };
 
   await table.update(debtId, {
     status: newStatus,
-    closed_at: newStatus === "paid_off" ? debt.closed_at : null,
+    closed_at: newStatus === "paid_off" ? debt.closed_at : undefined,
     updated_at: updatedAt,
   });
 

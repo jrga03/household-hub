@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+// Tabs component not yet implemented - using simple div layout instead
+// import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   CreateExternalDebtForm,
   EditExternalDebtForm,

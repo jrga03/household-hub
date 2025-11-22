@@ -37,6 +37,8 @@ describe("Status Transitions", () => {
         device_id: "device-1",
         is_reversal: false,
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        idempotency_key: "device-1-debt_payment-payment-1-1",
       });
 
       // Update status based on balance
@@ -73,6 +75,8 @@ describe("Status Transitions", () => {
         device_id: "device-1",
         is_reversal: false,
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        idempotency_key: "device-1-debt_payment-payment-1-1",
       });
 
       // Add reversal (creates balance again)
@@ -87,6 +91,8 @@ describe("Status Transitions", () => {
         is_reversal: true,
         reverses_payment_id: "payment-1",
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        idempotency_key: "device-1-debt_payment-reversal-1-1",
       });
 
       // Update status
@@ -145,6 +151,8 @@ describe("Status Transitions", () => {
         is_overpayment: true,
         overpayment_amount: 50000,
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        idempotency_key: "device-1-debt_payment-payment-1-1",
       });
 
       const changed = await updateDebtStatusFromBalance("debt-1", "external");
@@ -224,6 +232,8 @@ describe("Status Transitions", () => {
         device_id: "device-1",
         is_reversal: false,
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        idempotency_key: "device-1-debt_payment-payment-1-1",
       });
 
       // Run recovery

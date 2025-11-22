@@ -100,6 +100,8 @@ describe("Dexie Debt Migration", () => {
       device_id: "device-123",
       is_reversal: false,
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      idempotency_key: "device-123-debt_payment-test-payment-1-1",
     };
 
     await db.debtPayments.add(payment);
@@ -165,6 +167,8 @@ describe("Dexie Debt Migration", () => {
         device_id: "device-1",
         is_reversal: false,
         created_at: "2025-11-10T10:00:00Z",
+        updated_at: "2025-11-10T10:00:00Z",
+        idempotency_key: "device-1-debt_payment-payment-1-1",
       },
       {
         id: "payment-2",
@@ -176,6 +180,8 @@ describe("Dexie Debt Migration", () => {
         device_id: "device-1",
         is_reversal: false,
         created_at: "2025-11-10T12:00:00Z", // Later same day
+        updated_at: "2025-11-10T12:00:00Z",
+        idempotency_key: "device-1-debt_payment-payment-2-1",
       },
     ]);
 

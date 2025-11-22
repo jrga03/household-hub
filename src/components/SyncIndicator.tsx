@@ -4,6 +4,11 @@ import { useSyncStore } from "@/stores/syncStore";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
+interface SyncIndicatorProps {
+  /** Whether to show a compact version (icon only, no text) */
+  compact?: boolean;
+}
+
 /**
  * SyncIndicator - Displays realtime connection and sync status
  *
@@ -25,7 +30,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
  * - Keyboard accessible tooltip
  * - Screen reader friendly status text
  */
-export function SyncIndicator() {
+export function SyncIndicator({ compact = false }: SyncIndicatorProps = {}) {
   const { status, lastSyncTime, pendingChanges } = useSyncStore();
   const [currentTime, setCurrentTime] = useState(() => Date.now());
 
@@ -148,8 +153,8 @@ export function SyncIndicator() {
           aria-label={tooltipContent.replace(/\n/g, ", ")}
         >
           {getIcon()}
-          <span className="text-sm text-muted-foreground">{getStatusText()}</span>
-          {pendingChanges > 0 && (
+          {!compact && <span className="text-sm text-muted-foreground">{getStatusText()}</span>}
+          {!compact && pendingChanges > 0 && (
             <Badge
               variant="secondary"
               className="ml-2"

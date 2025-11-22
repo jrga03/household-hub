@@ -186,7 +186,7 @@ export async function reverseDebtPayment(data: CreateReversalData): Promise<Reve
     const table = debtType === "external" ? db.debts : db.internalDebts;
     await table.update(debtId, {
       status: "active",
-      closed_at: null,
+      closed_at: undefined,
       updated_at: new Date().toISOString(),
     });
     statusChanged = true;

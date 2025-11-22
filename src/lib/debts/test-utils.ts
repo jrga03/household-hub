@@ -76,12 +76,10 @@ export function createTestDebt(overrides?: Partial<Debt>): Debt {
     household_id: TEST_HOUSEHOLD_ID,
     name: "Test Debt",
     original_amount_cents: 100000, // ₱1,000.00
-    description: null,
     status: "active",
-    device_id: TEST_DEVICE_ID,
     created_at: now,
     updated_at: now,
-    closed_at: null,
+    closed_at: undefined,
     ...overrides,
   };
 }
@@ -110,16 +108,18 @@ export function createTestInternalDebt(overrides?: Partial<InternalDebt>): Inter
   return {
     id: nanoid(),
     household_id: TEST_HOUSEHOLD_ID,
-    lender_user_id: TEST_USER_1,
-    borrower_user_id: TEST_USER_2,
     name: "Test Internal Debt",
     original_amount_cents: 50000, // ₱500.00
-    description: null,
+    from_type: "member" as EntityType,
+    from_id: TEST_USER_1,
+    from_display_name: "Test User 1",
+    to_type: "member" as EntityType,
+    to_id: TEST_USER_2,
+    to_display_name: "Test User 2",
     status: "active",
-    device_id: TEST_DEVICE_ID,
     created_at: now,
     updated_at: now,
-    closed_at: null,
+    closed_at: undefined,
     ...overrides,
   };
 }
@@ -157,15 +157,16 @@ export function createTestPayment(overrides?: Partial<DebtPayment>): DebtPayment
     id: nanoid(),
     household_id: TEST_HOUSEHOLD_ID,
     debt_id: "test-debt-" + nanoid(),
-    internal_debt_id: null,
+    internal_debt_id: undefined,
     transaction_id: TEST_TRANSACTION_ID,
     amount_cents: 10000, // ₱100.00
     payment_date: today,
     is_reversal: false,
-    reverses_payment_id: null,
+    reverses_payment_id: undefined,
     idempotency_key: `${TEST_DEVICE_ID}-debt_payment-${nanoid()}-${Date.now()}`,
     device_id: TEST_DEVICE_ID,
     created_at: now,
+    updated_at: now,
     ...overrides,
   };
 }
