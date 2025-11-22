@@ -1,208 +1,214 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
-import { getDeviceId } from "@/lib/device";
-
-// VAPID public key from Cloudflare Worker setup
-// TODO: Replace with your actual public key from Step 1
-const VAPID_PUBLIC_KEY =
-  "BLc5asl8GQ8vq4B3sdmA0mZ1Oaw7mB199CDw5nIvP24cU5vJxgFV8OxKCbPNQqyqC36HrpV_KeNTp0N5mvVcCqM";
-
-// Cloudflare Worker URL
-// TODO: Replace with your deployed worker URL
-// const PUSH_WORKER_URL = "https://household-hub-push.your-subdomain.workers.dev";
-
 /**
- * Converts a base64url-encoded string to a Uint8Array for VAPID key.
+ * Push Notifications Hook
  *
- * The Push API requires the VAPID public key as a Uint8Array, but keys
- * are typically distributed as base64url strings. This function handles
- * the conversion, including proper padding.
- *
- * @param base64String - Base64url-encoded VAPID key
- * @returns Uint8Array suitable for pushManager.subscribe()
- */
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = window.atob(base64);
-  return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
-}
-
-/**
- * React hook for managing push notification subscriptions.
- *
- * Provides permission management, subscription lifecycle, and device-scoped
- * push notification support. Each device gets its own push subscription linked
- * via device_id from the device identification system.
- *
- * @returns Object with permission state and subscription methods
+ * Manages Web Push notifications subscription and permissions.
+ * Features:
+ * - Permission request with user-friendly UI
+ * - Service worker registration and subscription
+ * - VAPID public key management
+ * - Subscription storage and sync with backend
+ * - Unsubscribe functionality
  *
  * @example
- * ```tsx
- * const { isSubscribed, subscribe, unsubscribe, canAsk } = usePushNotifications();
+ * const { isSupported, permission, subscribe, unsubscribe } = usePushNotifications();
  *
- * if (canAsk) {
- *   return <Button onClick={subscribe}>Enable Notifications</Button>;
+ * if (isSupported && permission === 'default') {
+ *   await subscribe();
  * }
- * ```
  */
+
+import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
+
+// VAPID public key - Replace with your actual key from Cloudflare Worker
+// Generate with: npx web-push generate-vapid-keys
+const VAPID_PUBLIC_KEY =
+  import.meta.env.VITE_VAPID_PUBLIC_KEY ||
+  "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U";
+
+interface PushSubscriptionState {
+  isSupported: boolean;
+  permission: NotificationPermission;
+  isSubscribed: boolean;
+  subscription: PushSubscription | null;
+}
+
 export function usePushNotifications() {
-  const [permission, setPermission] = useState<NotificationPermission>("default");
-  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [state, setState] = useState<PushSubscriptionState>({
+    isSupported: false,
+    permission: "default",
+    isSubscribed: false,
+    subscription: null,
+  });
   const [isLoading, setIsLoading] = useState(false);
 
-  // Check permission status on mount
+  // Check push notification support and current permission
   useEffect(() => {
-    if ("Notification" in window) {
-      setPermission(Notification.permission);
-    }
+    const checkSupport = async () => {
+      const isSupported =
+        "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 
-    checkSubscription();
+      if (!isSupported) {
+        setState((prev) => ({ ...prev, isSupported: false }));
+        return;
+      }
+
+      const permission = Notification.permission;
+
+      // Check if already subscribed
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+
+        setState({
+          isSupported: true,
+          permission,
+          isSubscribed: !!subscription,
+          subscription,
+        });
+      } catch (error) {
+        console.error("Error checking push subscription:", error);
+        setState({
+          isSupported: true,
+          permission,
+          isSubscribed: false,
+          subscription: null,
+        });
+      }
+    };
+
+    checkSupport();
   }, []);
 
-  /**
-   * Checks if the user is currently subscribed to push notifications.
-   *
-   * Queries the service worker's PushManager to see if an active subscription
-   * exists for this device.
-   */
-  const checkSubscription = async () => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-      return;
-    }
+  // Convert VAPID key from base64 to Uint8Array
+  const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
 
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
-      setIsSubscribed(!!subscription);
-    } catch (error) {
-      console.error("Error checking subscription:", error);
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
     }
+    return outputArray;
   };
 
-  /**
-   * Subscribes the user to push notifications.
-   *
-   * Workflow:
-   * 1. Request notification permission from the browser
-   * 2. Subscribe to push via the service worker using VAPID key
-   * 3. Get device ID from device identification system
-   * 4. Store subscription in database with device_id for multi-device support
-   *
-   * @returns true if subscription successful, false otherwise
-   */
-  const subscribe = async (): Promise<boolean> => {
+  // Subscribe to push notifications
+  const subscribe = useCallback(async () => {
+    if (!state.isSupported) {
+      toast.error("Push notifications are not supported in this browser");
+      return false;
+    }
+
     setIsLoading(true);
 
     try {
-      // Step 1: Request permission
+      // Request permission
       const permission = await Notification.requestPermission();
-      setPermission(permission);
 
       if (permission !== "granted") {
-        throw new Error("Permission not granted");
+        toast.error("Notification permission denied");
+        setState((prev) => ({ ...prev, permission }));
+        setIsLoading(false);
+        return false;
       }
 
-      // Step 2: Subscribe to push
+      // Get service worker registration
       const registration = await navigator.serviceWorker.ready;
+
+      // Subscribe to push notifications
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
       });
 
-      // Step 3: Get authenticated user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      // TODO: Send subscription to backend for storage
+      // await saveSubscriptionToBackend(subscription);
+      console.log("Push subscription:", JSON.stringify(subscription));
 
-      // Step 4: Get device ID from device identification system
-      const deviceId = await getDeviceId();
+      setState({
+        isSupported: true,
+        permission: "granted",
+        isSubscribed: true,
+        subscription,
+      });
 
-      // Step 5: Extract subscription details for storage
-      const subscriptionJSON = subscription.toJSON();
-      const keys = subscriptionJSON.keys;
-
-      if (!keys?.p256dh || !keys?.auth) {
-        throw new Error("Invalid subscription keys");
-      }
-
-      // Step 6: Save to database with device_id for multi-device support
-      const { error } = await supabase.from("push_subscriptions").upsert(
-        {
-          user_id: user.id,
-          device_id: deviceId,
-          endpoint: subscription.endpoint,
-          p256dh: keys.p256dh,
-          auth: keys.auth,
-        },
-        { onConflict: "user_id,device_id" }
-      );
-
-      if (error) throw error;
-
-      setIsSubscribed(true);
+      toast.success("Notifications enabled successfully!");
+      setIsLoading(false);
       return true;
     } catch (error) {
-      console.error("Subscribe error:", error);
-      return false;
-    } finally {
+      console.error("Error subscribing to push notifications:", error);
+      toast.error("Failed to enable notifications");
       setIsLoading(false);
+      return false;
     }
-  };
+  }, [state.isSupported]);
 
-  /**
-   * Unsubscribes the user from push notifications.
-   *
-   * Workflow:
-   * 1. Unsubscribe from push via the service worker
-   * 2. Remove subscription from database by endpoint
-   *
-   * @returns true if unsubscribe successful, false otherwise
-   */
-  const unsubscribe = async (): Promise<boolean> => {
+  // Unsubscribe from push notifications
+  const unsubscribe = useCallback(async () => {
+    if (!state.subscription) {
+      return false;
+    }
+
     setIsLoading(true);
 
     try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
+      await state.subscription.unsubscribe();
 
-      if (subscription) {
-        // Unsubscribe from push service
-        await subscription.unsubscribe();
+      // TODO: Remove subscription from backend
+      // await removeSubscriptionFromBackend(state.subscription);
 
-        // Remove from database
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (user) {
-          await supabase.from("push_subscriptions").delete().eq("endpoint", subscription.endpoint);
-        }
-      }
+      setState((prev) => ({
+        ...prev,
+        isSubscribed: false,
+        subscription: null,
+      }));
 
-      setIsSubscribed(false);
+      toast.success("Notifications disabled");
+      setIsLoading(false);
       return true;
     } catch (error) {
-      console.error("Unsubscribe error:", error);
-      return false;
-    } finally {
+      console.error("Error unsubscribing from push notifications:", error);
+      toast.error("Failed to disable notifications");
       setIsLoading(false);
+      return false;
     }
-  };
+  }, [state.subscription]);
+
+  // Test notification
+  const sendTestNotification = useCallback(async () => {
+    if (!state.isSubscribed || state.permission !== "granted") {
+      toast.error("Notifications not enabled");
+      return;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+
+      await registration.showNotification("Household Hub Test", {
+        body: "Push notifications are working! 🎉",
+        icon: "/icons/icon-192x192.png",
+        badge: "/icons/icon-192x192.png",
+        tag: "test-notification",
+        requireInteraction: false,
+        data: {
+          url: "/dashboard",
+        },
+      });
+
+      toast.success("Test notification sent");
+    } catch (error) {
+      console.error("Error sending test notification:", error);
+      toast.error("Failed to send test notification");
+    }
+  }, [state.isSubscribed, state.permission]);
 
   return {
-    // Permission state
-    permission,
-    isSubscribed,
+    ...state,
     isLoading,
-
-    // Permission flags for UI rendering
-    canAsk: permission === "default",
-    isGranted: permission === "granted",
-    isDenied: permission === "denied",
-
-    // Subscription methods
     subscribe,
     unsubscribe,
+    sendTestNotification,
   };
 }

@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { GlobalSyncStatus } from "@/components/sync/GlobalSyncStatus";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { OfflineBanner } from "@/components/sync/OfflineBanner";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 
 /**
  * Main application layout component
@@ -145,6 +146,9 @@ export function AppLayout() {
 
         {/* Floating Action Button */}
         <QuickActionButton />
+
+        {/* PWA Installation Prompt */}
+        <PWAInstallPrompt />
       </div>
     );
   }
@@ -192,6 +196,9 @@ export function AppLayout() {
             <Outlet />
           </main>
         </div>
+
+        {/* PWA Installation Prompt */}
+        <PWAInstallPrompt />
       </div>
     </SidebarProvider>
   );
