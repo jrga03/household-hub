@@ -131,6 +131,8 @@ export interface TransactionFilters {
   type?: TransactionType | null; // null = "all"
   search?: string; // Full-text search on description and notes
   excludeTransfers?: boolean; // CRITICAL: Default true for analytics/budgets
+  amountMin?: number; // Minimum amount in cents
+  amountMax?: number; // Maximum amount in cents
 }
 
 /**

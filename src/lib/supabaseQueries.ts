@@ -470,6 +470,15 @@ export function useTransactions(filters?: TransactionFilters) {
         query = query.eq("type", filters.type);
       }
 
+      // Amount range filtering
+      if (filters?.amountMin !== undefined) {
+        query = query.gte("amount_cents", filters.amountMin);
+      }
+
+      if (filters?.amountMax !== undefined) {
+        query = query.lte("amount_cents", filters.amountMax);
+      }
+
       // Full-text search on description and notes (case-insensitive)
       if (filters?.search) {
         query = query.or(`description.ilike.%${filters.search}%,notes.ilike.%${filters.search}%`);

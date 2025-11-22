@@ -8,6 +8,7 @@ import { TransactionFilters as TransactionFiltersComponent } from "@/components/
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import { useTransactions } from "@/lib/supabaseQueries";
 import { usePrefetchTransactionData } from "@/hooks/usePrefetchTransactionData";
+import { useOpenTransactionFormShortcut } from "@/hooks/useKeyboardShortcuts";
 import type { TransactionFilters } from "@/types/transactions";
 
 /**
@@ -30,6 +31,8 @@ export const Route = createFileRoute("/transactions")({
     search: (search.search as string) || undefined,
     // CRITICAL: Default to true (hide transfers) unless explicitly "false"
     excludeTransfers: search.excludeTransfers === "false" ? false : true,
+    amountMin: search.amountMin ? Number(search.amountMin) : undefined,
+    amountMax: search.amountMax ? Number(search.amountMax) : undefined,
   }),
 });
 
@@ -42,6 +45,9 @@ function Transactions() {
   // Prefetch accounts and categories for transaction form
   // This runs once on mount and loads data in parallel
   usePrefetchTransactionData();
+
+  // Listen for Cmd/Ctrl + N keyboard shortcut to open transaction form
+  useOpenTransactionFormShortcut(() => setIsFormOpen(true));
 
   // Debounce search term to avoid excessive queries
   // Other filters update immediately

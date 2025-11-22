@@ -1,130 +1,196 @@
-import { useEffect } from "react";
+/**
+ * useKeyboardShortcuts Hook
+ *
+ * Registers global keyboard shortcuts for navigation and actions.
+ * Provides Gmail-style "g then x" navigation shortcuts.
+ *
+ * Supported Shortcuts:
+ * - Cmd/Ctrl + K: Open command palette / quick search
+ * - Cmd/Ctrl + N: New transaction
+ * - g then d: Go to Dashboard
+ * - g then t: Go to Transactions
+ * - g then a: Go to Analytics
+ * - g then s: Go to Settings
+ * - ?: Show keyboard shortcuts help
+ * - Esc: Close modals/dialogs
+ */
+
+import { useEffect, useRef } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useNavStore } from "@/stores/navStore";
 import { toast } from "sonner";
 
 /**
- * Keyboard shortcuts for navigation and common actions
- *
- * Global shortcuts:
- * - Cmd/Ctrl + B: Toggle sidebar
- * - Cmd/Ctrl + K: Open command palette (future)
- * - Cmd/Ctrl + Shift + N: Quick add transaction
- *
- * Navigation shortcuts:
- * - Cmd/Ctrl + Shift + D: Dashboard
- * - Cmd/Ctrl + Shift + T: Transactions
- * - Cmd/Ctrl + Shift + A: Accounts
- * - Cmd/Ctrl + Shift + B: Budgets
- * - Cmd/Ctrl + Shift + C: Categories
- * - Cmd/Ctrl + Shift + S: Settings
+ * Get keyboard shortcut key string for display
+ * @param key - The key (e.g., "N", "K")
+ * @param withModifier - Whether to include Cmd/Ctrl modifier
+ * @returns Formatted shortcut string (e.g., "⌘N" on Mac, "Ctrl+N" on Windows)
  */
+export function getShortcutKey(key: string, withModifier = false): string {
+  const isMac =
+    typeof navigator !== "undefined" && navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+  const modKey = isMac ? "⌘" : "Ctrl+";
+
+  if (withModifier) {
+    return `${modKey}${key}`;
+  }
+
+  return key;
+}
+
 export function useKeyboardShortcuts() {
   const navigate = useNavigate();
-  const toggleSidebar = useNavStore((state) => state.toggleSidebar);
-  const setQuickAddOpen = useNavStore((state) => state.setQuickAddOpen);
+  const lastKeyRef = useRef<string | null>(null);
+  const lastKeyTimeRef = useRef<number>(0);
 
   useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      // Check for modifier keys
-      const isMod = event.metaKey || event.ctrlKey; // Cmd on Mac, Ctrl on Windows/Linux
-
-      if (!isMod) return; // All our shortcuts require Cmd/Ctrl
-
-      // Toggle sidebar: Cmd/Ctrl + B
-      if (event.key === "b" || event.key === "B") {
-        event.preventDefault();
-        toggleSidebar();
-        return;
-      }
-
-      // Command palette (future): Cmd/Ctrl + K
-      if (event.key === "k" || event.key === "K") {
-        if (!event.shiftKey) {
-          event.preventDefault();
-          toast.info("Command palette coming soon!");
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore shortcuts when typing in inputs, textareas, or contenteditable
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
+        // Allow Esc even in inputs (to close modals)
+        if (e.key !== "Escape") {
           return;
         }
       }
 
-      // Quick add transaction: Cmd/Ctrl + Shift + N
-      if (event.shiftKey && (event.key === "n" || event.key === "N")) {
-        event.preventDefault();
-        setQuickAddOpen(true);
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+      const modKey = isMac ? e.metaKey : e.ctrlKey;
+
+      // Cmd/Ctrl + K: Command palette / Quick search
+      if (modKey && e.key === "k") {
+        e.preventDefault();
+        toast.info("Command palette coming soon!", {
+          description: "Quick search and actions will be available here",
+        });
         return;
       }
 
-      // Navigation shortcuts (all require Shift)
-      if (event.shiftKey) {
-        let navigateTo: string | null = null;
-
-        switch (event.key.toLowerCase()) {
-          case "d":
-            navigateTo = "/";
-            break;
-          case "t":
-            navigateTo = "/transactions";
-            break;
-          case "a":
-            navigateTo = "/accounts";
-            break;
-          case "b":
-            navigateTo = "/budgets";
-            break;
-          case "c":
-            navigateTo = "/categories";
-            break;
-          case "s":
-            navigateTo = "/settings";
-            break;
-        }
-
-        if (navigateTo) {
-          event.preventDefault();
-          navigate({ to: navigateTo });
-        }
+      // Cmd/Ctrl + N: New transaction
+      if (modKey && e.key === "n") {
+        e.preventDefault();
+        navigate({ to: "/transactions" });
+        // Dispatch custom event to open transaction form
+        window.dispatchEvent(new CustomEvent("open-transaction-form"));
+        toast.success("Opening transaction form");
+        return;
       }
-    }
 
-    // Add event listener
+      // ?: Show keyboard shortcuts help
+      if (e.key === "?" && !modKey) {
+        e.preventDefault();
+        showKeyboardShortcutsHelp();
+        return;
+      }
+
+      // Esc: Close modals/dialogs
+      if (e.key === "Escape") {
+        // Dispatch custom event for components to listen to
+        window.dispatchEvent(new CustomEvent("close-modal"));
+        return;
+      }
+
+      // Gmail-style "g then x" navigation
+      // Check if last key was 'g' within 1 second
+      const now = Date.now();
+      if (lastKeyRef.current === "g" && now - lastKeyTimeRef.current < 1000) {
+        e.preventDefault();
+
+        switch (e.key) {
+          case "d": // g then d: Dashboard
+            navigate({ to: "/dashboard" });
+            toast.success("Navigated to Dashboard");
+            break;
+          case "t": // g then t: Transactions
+            navigate({ to: "/transactions" });
+            toast.success("Navigated to Transactions");
+            break;
+          case "a": // g then a: Analytics
+            navigate({ to: "/analytics" });
+            toast.success("Navigated to Analytics");
+            break;
+          case "s": // g then s: Settings
+            navigate({ to: "/settings" });
+            toast.success("Navigated to Settings");
+            break;
+          case "i": // g then i: Import
+            navigate({ to: "/import" });
+            toast.success("Navigated to Import");
+            break;
+          default:
+            // Invalid sequence
+            break;
+        }
+
+        // Reset sequence
+        lastKeyRef.current = null;
+        lastKeyTimeRef.current = 0;
+      } else if (e.key === "g" && !modKey) {
+        // Start of sequence
+        lastKeyRef.current = "g";
+        lastKeyTimeRef.current = now;
+
+        // Show toast hint
+        toast.info("Navigation mode active", {
+          description: "Press: d (Dashboard), t (Transactions), a (Analytics), s (Settings)",
+          duration: 1000,
+        });
+      } else {
+        // Reset sequence on any other key
+        lastKeyRef.current = null;
+        lastKeyTimeRef.current = 0;
+      }
+    };
+
     window.addEventListener("keydown", handleKeyDown);
 
-    // Cleanup
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [navigate, toggleSidebar, setQuickAddOpen]);
+  }, [navigate]);
 }
 
 /**
- * Returns a formatted string for displaying keyboard shortcuts
- * Detects the user's platform and shows appropriate modifier key
+ * Show keyboard shortcuts help dialog
  */
-export function getShortcutKey(key: string, withShift = false): string {
+function showKeyboardShortcutsHelp() {
   const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-  const modifier = isMac ? "⌘" : "Ctrl";
-  const shift = withShift ? (isMac ? "⇧" : "Shift+") : "";
+  const modKey = isMac ? "⌘" : "Ctrl";
 
-  return `${modifier}${shift}${key.toUpperCase()}`;
-}
-
-/**
- * Hook to get all available shortcuts for display in help menu
- */
-export function useShortcutsList() {
-  const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-  const mod = isMac ? "⌘" : "Ctrl";
-  const shift = isMac ? "⇧" : "Shift";
-
-  return [
-    { keys: `${mod}B`, description: "Toggle sidebar" },
-    { keys: `${mod}${shift}N`, description: "Add transaction" },
-    { keys: `${mod}${shift}D`, description: "Go to Dashboard" },
-    { keys: `${mod}${shift}T`, description: "Go to Transactions" },
-    { keys: `${mod}${shift}A`, description: "Go to Accounts" },
-    { keys: `${mod}${shift}B`, description: "Go to Budgets" },
-    { keys: `${mod}${shift}C`, description: "Go to Categories" },
-    { keys: `${mod}${shift}S`, description: "Go to Settings" },
-    { keys: `${mod}K`, description: "Command palette (coming soon)" },
+  const shortcuts = [
+    { keys: `${modKey} + K`, description: "Open command palette / Quick search" },
+    { keys: `${modKey} + N`, description: "New transaction" },
+    { keys: "g then d", description: "Go to Dashboard" },
+    { keys: "g then t", description: "Go to Transactions" },
+    { keys: "g then a", description: "Go to Analytics" },
+    { keys: "g then s", description: "Go to Settings" },
+    { keys: "g then i", description: "Go to Import" },
+    { keys: "?", description: "Show keyboard shortcuts" },
+    { keys: "Esc", description: "Close modals/dialogs" },
   ];
+
+  // Create and show help toast
+  const helpContent = shortcuts.map((s) => `${s.keys}: ${s.description}`).join("\n");
+
+  toast.info("Keyboard Shortcuts", {
+    description: helpContent,
+    duration: 10000, // 10 seconds
+  });
+}
+
+/** Hook to listen for "open transaction form" event */
+export function useOpenTransactionFormShortcut(callback: () => void) {
+  useEffect(() => {
+    const handleOpen = () => callback();
+    window.addEventListener("open-transaction-form", handleOpen);
+    return () => window.removeEventListener("open-transaction-form", handleOpen);
+  }, [callback]);
+}
+
+/** Hook to listen for "close modal" event (Esc key) */
+export function useCloseModalShortcut(callback: () => void) {
+  useEffect(() => {
+    const handleClose = () => callback();
+    window.addEventListener("close-modal", handleClose);
+    return () => window.removeEventListener("close-modal", handleClose);
+  }, [callback]);
 }

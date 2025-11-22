@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { format } from "date-fns";
-import { Search, X, Filter } from "lucide-react";
+import { format, startOfMonth, endOfMonth, subMonths, startOfYear, subDays } from "date-fns";
+import { Search, X, Filter, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useAccounts } from "@/lib/supabaseQueries";
 import { hasActiveTransactionFilters } from "@/lib/utils/filters";
+import { parsePHP, formatPHP } from "@/lib/currency";
 import type { TransactionFilters as FilterCriteria } from "@/types/transactions";
 
 interface TransactionFiltersProps {
@@ -24,11 +25,17 @@ interface TransactionFiltersProps {
 }
 
 /**
+ * Quick date preset options
+ */
+type DatePreset = "this-month" | "last-month" | "last-30-days" | "this-year";
+
+/**
  * Transaction Filters Component
  *
  * Provides comprehensive filtering UI for the transactions list:
  * - Search (debounced in parent)
- * - Date range (from/to)
+ * - Date range (from/to) with quick presets
+ * - Amount range (min/max)
  * - Account selector
  * - Category selector (hierarchical)
  * - Type filter (income/expense/all)
@@ -42,6 +49,15 @@ export function TransactionFilters({ filters, onFiltersChange }: TransactionFilt
   // Local state for search input to provide immediate visual feedback
   // Actual debouncing happens in parent component
   const [searchInput, setSearchInput] = useState(() => filters.search || "");
+
+  // Local state for amount inputs (as formatted PHP strings)
+  const [amountMinInput, setAmountMinInput] = useState(() =>
+    filters.amountMin ? formatPHP(filters.amountMin) : ""
+  );
+  const [amountMaxInput, setAmountMaxInput] = useState(() =>
+    filters.amountMax ? formatPHP(filters.amountMax) : ""
+  );
+
   const { data: accounts } = useAccounts();
 
   // Sync local search state when parent filters change externally via useEffect
@@ -73,8 +89,61 @@ export function TransactionFilters({ filters, onFiltersChange }: TransactionFilt
     });
   };
 
+  const handleAmountMinChange = (value: string) => {
+    setAmountMinInput(value);
+    try {
+      const cents = value ? parsePHP(value) : undefined;
+      onFiltersChange({ ...filters, amountMin: cents });
+    } catch {
+      // Invalid input, don't update filter
+    }
+  };
+
+  const handleAmountMaxChange = (value: string) => {
+    setAmountMaxInput(value);
+    try {
+      const cents = value ? parsePHP(value) : undefined;
+      onFiltersChange({ ...filters, amountMax: cents });
+    } catch {
+      // Invalid input, don't update filter
+    }
+  };
+
+  const applyDatePreset = (preset: DatePreset) => {
+    const today = new Date();
+    let dateFrom: Date;
+    let dateTo: Date;
+
+    switch (preset) {
+      case "this-month":
+        dateFrom = startOfMonth(today);
+        dateTo = endOfMonth(today);
+        break;
+      case "last-month":
+        dateFrom = startOfMonth(subMonths(today, 1));
+        dateTo = endOfMonth(subMonths(today, 1));
+        break;
+      case "last-30-days":
+        dateFrom = subDays(today, 30);
+        dateTo = today;
+        break;
+      case "this-year":
+        dateFrom = startOfYear(today);
+        dateTo = today;
+        break;
+    }
+
+    onFiltersChange({
+      ...filters,
+      dateFrom: format(dateFrom, "yyyy-MM-dd"),
+      dateTo: format(dateTo, "yyyy-MM-dd"),
+    });
+  };
+
   const clearFilters = () => {
     setSearchInput("");
+    setAmountMinInput("");
+    setAmountMaxInput("");
     onFiltersChange({
       excludeTransfers: true, // CRITICAL: Keep default to hide transfers
     });
@@ -97,6 +166,46 @@ export function TransactionFilters({ filters, onFiltersChange }: TransactionFilt
             Clear
           </Button>
         )}
+      </div>
+
+      {/* Quick Date Presets */}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => applyDatePreset("this-month")}
+          className="gap-1"
+        >
+          <Calendar className="h-3 w-3" />
+          This Month
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => applyDatePreset("last-month")}
+          className="gap-1"
+        >
+          <Calendar className="h-3 w-3" />
+          Last Month
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => applyDatePreset("last-30-days")}
+          className="gap-1"
+        >
+          <Calendar className="h-3 w-3" />
+          Last 30 Days
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => applyDatePreset("this-year")}
+          className="gap-1"
+        >
+          <Calendar className="h-3 w-3" />
+          This Year
+        </Button>
       </div>
 
       {/* Filter Controls Grid */}
@@ -132,6 +241,28 @@ export function TransactionFilters({ filters, onFiltersChange }: TransactionFilt
             value={filters.dateTo ? new Date(filters.dateTo) : undefined}
             onChange={handleDateToChange}
             placeholder="End date"
+          />
+        </div>
+
+        {/* Amount Range - Min */}
+        <div className="space-y-2">
+          <Label>Min Amount</Label>
+          <Input
+            type="text"
+            placeholder="₱0.00"
+            value={amountMinInput}
+            onChange={(e) => handleAmountMinChange(e.target.value)}
+          />
+        </div>
+
+        {/* Amount Range - Max */}
+        <div className="space-y-2">
+          <Label>Max Amount</Label>
+          <Input
+            type="text"
+            placeholder="₱999,999.99"
+            value={amountMaxInput}
+            onChange={(e) => handleAmountMaxChange(e.target.value)}
           />
         </div>
 
