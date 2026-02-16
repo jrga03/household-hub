@@ -99,10 +99,24 @@ export class SyncProcessor {
   private processingPromise: Promise<{ synced: number; failed: number }> | null = null;
 
   /**
+   * Tracks whether executeProcessing is still actively running.
+   * Used to prevent a new processing session from starting if a previous
+   * one is still in flight after a timeout (the timeout only rejects the
+   * caller's promise, it doesn't cancel the underlying work).
+   */
+  private isExecuting = false;
+
+  /**
    * Maximum retry attempts before permanent failure
    * Each item can be retried this many times (4 total attempts including first try)
    */
   private readonly MAX_RETRIES = 3;
+
+  /**
+   * Maximum time (ms) before a processing session is considered stuck.
+   * Prevents deadlock if executeProcessing never resolves.
+   */
+  private readonly PROCESSING_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
   /**
    * Process all pending queue items for a user
@@ -156,13 +170,31 @@ export class SyncProcessor {
       return this.processingPromise;
     }
 
-    // Create and store processing promise
-    this.processingPromise = this.executeProcessing(userId);
+    // Guard against starting a new session while a timed-out one is still executing
+    if (this.isExecuting) {
+      console.warn("Sync executor still running from timed-out session - skipping");
+      return { synced: 0, failed: 0 };
+    }
+
+    // Wrap processing with a timeout guard to prevent deadlocks
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const timeoutPromise = new Promise<{ synced: number; failed: number }>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error(`Sync processing timed out after ${this.PROCESSING_TIMEOUT_MS}ms`));
+      }, this.PROCESSING_TIMEOUT_MS);
+    });
+
+    this.processingPromise = Promise.race([this.executeProcessing(userId), timeoutPromise]);
 
     try {
-      return await this.processingPromise;
+      const result = await this.processingPromise;
+      clearTimeout(timeoutId!);
+      return result;
+    } catch (error) {
+      console.error("Sync processing failed or timed out:", error);
+      return { synced: 0, failed: 0 };
     } finally {
-      // Clear promise reference when complete
+      // Always clear promise reference — prevents deadlock
       this.processingPromise = null;
     }
   }
@@ -176,10 +208,14 @@ export class SyncProcessor {
    * @private
    */
   private async executeProcessing(userId: string): Promise<{ synced: number; failed: number }> {
+    this.isExecuting = true;
     let synced = 0;
     let failed = 0;
 
     try {
+      // Load persisted ID mappings from previous interrupted session
+      await idMapping.load();
+
       // Get all pending queue items (queued or failed status)
       const items = await getPendingQueueItems(userId);
 
@@ -201,11 +237,15 @@ export class SyncProcessor {
       }
 
       console.log(`Sync complete: ${synced} synced, ${failed} failed`);
+
+      // Clean up old completed items to prevent unbounded growth
+      await this.cleanupCompleted();
     } catch (error) {
       console.error("Unexpected error during queue processing:", error);
     } finally {
       // Always cleanup: clear ID mappings to prevent memory leaks
-      idMapping.clear();
+      await idMapping.clear();
+      this.isExecuting = false;
     }
 
     return { synced, failed };
@@ -268,8 +308,9 @@ export class SyncProcessor {
 
       // Step 4: Store ID mapping if created new entity
       // This allows future operations to reference the server UUID
+      // Persisted to IndexedDB for crash recovery
       if (item.operation.op === "create" && "serverId" in result && result.serverId) {
-        idMapping.add(item.entity_id, result.serverId);
+        await idMapping.add(item.entity_id, result.serverId);
         console.log(`Mapped ${item.entity_id} → ${result.serverId}`);
       }
 
@@ -557,6 +598,44 @@ export class SyncProcessor {
     if (error) {
       console.error(`Failed to update queue status for item ${id}:`, error);
       // Don't throw - this is a logging operation
+    }
+  }
+
+  /**
+   * Clean up completed sync queue items older than the retention period.
+   * Prevents unbounded Supabase sync_queue table growth on long-running installations.
+   *
+   * @param retentionDays - Number of days to keep completed items (default: 7)
+   * @returns Number of items deleted
+   */
+  async cleanupCompleted(retentionDays = 7): Promise<number> {
+    try {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - retentionDays);
+      const cutoffISO = cutoff.toISOString();
+
+      const { data, error } = await supabase
+        .from("sync_queue")
+        .delete()
+        .eq("status", "completed")
+        .lt("synced_at", cutoffISO)
+        .select("id");
+
+      if (error) {
+        console.error("[SyncProcessor] Cleanup failed:", error);
+        return 0;
+      }
+
+      const count = data?.length ?? 0;
+      if (count > 0) {
+        console.log(
+          `[SyncProcessor] Cleaned up ${count} completed queue items older than ${retentionDays} days`
+        );
+      }
+      return count;
+    } catch (error) {
+      console.error("[SyncProcessor] Cleanup error:", error);
+      return 0;
     }
   }
 
