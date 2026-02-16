@@ -134,9 +134,13 @@ describe("parsePHP", () => {
       expect(parsePHP("   ")).toBe(0);
     });
 
-    it("returns 0 for invalid strings", () => {
-      expect(parsePHP("invalid")).toBe(0);
-      expect(parsePHP("abc")).toBe(0);
+    it("throws error for non-numeric strings", () => {
+      expect(() => parsePHP("invalid")).toThrow("Invalid amount");
+      expect(() => parsePHP("abc")).toThrow("Invalid amount");
+    });
+
+    it("returns 0 for currency-symbol-only input", () => {
+      // ₱₱₱ strips to empty string → treated as empty input
       expect(parsePHP("₱₱₱")).toBe(0);
     });
 
@@ -249,9 +253,10 @@ describe("parsePHPSafe", () => {
 
   it("handles invalid format gracefully", () => {
     const result = parsePHPSafe("invalid");
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.value).toBe(0); // parsePHP returns 0 for invalid strings
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toBeInstanceOf(CurrencyError);
+      expect(result.error.code).toBe("INVALID_FORMAT");
     }
   });
 });

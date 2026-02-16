@@ -16,9 +16,15 @@
  */
 
 import Papa from "papaparse";
-import { parsePHP, validateAmount } from "./currency";
+import { parsePHPSafe, validateAmount } from "./currency";
 import type { Transaction } from "@/types/transactions";
 import { generateFingerprint } from "./duplicate-detector";
+
+/** Parse a currency string, returning 0 for invalid values instead of throwing */
+function parseAmountOrZero(value: string): number {
+  const result = parsePHPSafe(value);
+  return result.success ? result.value : 0;
+}
 
 /**
  * Column mapping configuration
@@ -162,7 +168,7 @@ export function detectColumnMappings(headers: string[]): ColumnMapping {
 export function mapRowToTransaction(row: string[], mapping: ColumnMapping): Partial<Transaction> {
   const transaction: Partial<Transaction> = {
     description: mapping.description !== null ? String(row[mapping.description] || "") : "",
-    amount_cents: mapping.amount !== null ? parsePHP(row[mapping.amount]) : 0,
+    amount_cents: mapping.amount !== null ? parseAmountOrZero(row[mapping.amount]) : 0,
     date: mapping.date !== null ? String(row[mapping.date] || "") : "",
     account_id: mapping.account !== null ? String(row[mapping.account] || "") : "",
     category_id: mapping.category !== null ? String(row[mapping.category] || "") : "",

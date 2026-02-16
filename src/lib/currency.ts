@@ -83,20 +83,20 @@ export function formatPHP(cents: number): string {
  * - Strings with thousand separators: "1,500.50" → 150050
  * - Plain strings: "1500.50" → 150050
  *
- * Returns 0 for invalid/empty input (graceful degradation).
- * Throws error if amount exceeds MAX_AMOUNT_CENTS or is negative.
+ * Returns 0 for empty/whitespace input.
+ * Throws error if input is non-numeric, negative, or exceeds MAX_AMOUNT_CENTS.
  *
  * @param input - User input (string or number)
  * @returns Integer amount in cents
- * @throws {Error} If amount is negative or exceeds maximum
+ * @throws {Error} If input is non-numeric, negative, or exceeds maximum
  *
  * @example
  * parsePHP("1,500.50")     // 150050
  * parsePHP("₱1,500.50")    // 150050
  * parsePHP("1500.50")      // 150050
  * parsePHP(1500.50)        // 150050
- * parsePHP("invalid")      // 0 (graceful)
- * parsePHP("")             // 0 (graceful)
+ * parsePHP("")             // 0 (empty input)
+ * parsePHP("invalid")      // throws Error
  * parsePHP("-100")         // throws Error
  * parsePHP("10000000")     // throws Error (exceeds max)
  */
@@ -120,7 +120,7 @@ export function parsePHP(input: string | number): number {
     return cents;
   }
 
-  // Handle empty or invalid input gracefully
+  // Handle empty or null-like input gracefully
   if (!input || typeof input !== "string") {
     return 0;
   }
@@ -128,12 +128,17 @@ export function parsePHP(input: string | number): number {
   // Clean input: remove currency symbols, thousand separators, and whitespace
   const cleaned = input.replace(/[₱,\s]/g, "");
 
+  // Return 0 for empty/whitespace-only input
+  if (cleaned === "") {
+    return 0;
+  }
+
   // Parse as float (handles decimal point)
   const parsed = parseFloat(cleaned);
 
-  // Return 0 for invalid input (graceful degradation)
+  // Throw for non-numeric input instead of silently returning 0
   if (isNaN(parsed)) {
-    return 0;
+    throw new Error(`Invalid amount: "${input}" is not a valid number`);
   }
 
   // Convert to cents and round to handle floating-point precision
@@ -267,8 +272,11 @@ export function parsePHPSafe(
  * formatNumeric(0)        // "0.00"
  */
 export function formatNumeric(cents: number): string {
-  const pesos = cents / 100;
-  return pesos.toFixed(2);
+  const isNegative = cents < 0;
+  const absoluteCents = Math.abs(cents);
+  const pesos = Math.floor(absoluteCents / 100);
+  const remainder = absoluteCents % 100;
+  return `${isNegative ? "-" : ""}${pesos}.${remainder.toString().padStart(2, "0")}`;
 }
 
 /**
