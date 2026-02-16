@@ -216,8 +216,12 @@ describe("EventCompactor - Event Replay", () => {
     await db.events.bulkAdd([createEvent, updateEvent1, updateEvent2]);
 
     // Use private method to replay events (type assertion for testing)
-    const compactor = eventCompactor as {
-      replayEvents: (events: unknown[]) => { state: Record<string, unknown> };
+    const compactor = eventCompactor as unknown as {
+      replayEvents: (events: TransactionEvent[]) => {
+        state: Record<string, unknown>;
+        lamportClock: number;
+        vectorClock: Record<string, number>;
+      };
     };
     const snapshot = compactor.replayEvents([createEvent, updateEvent1, updateEvent2]);
 
@@ -255,8 +259,12 @@ describe("EventCompactor - Event Replay", () => {
     await db.events.bulkAdd([createEvent, updateEvent, deleteEvent]);
 
     // Replay events
-    const compactor = eventCompactor as {
-      replayEvents: (events: unknown[]) => { state: Record<string, unknown> };
+    const compactor = eventCompactor as unknown as {
+      replayEvents: (events: TransactionEvent[]) => {
+        state: Record<string, unknown>;
+        lamportClock: number;
+        vectorClock: Record<string, number>;
+      };
     };
     const snapshot = compactor.replayEvents([createEvent, updateEvent, deleteEvent]);
 
@@ -288,8 +296,12 @@ describe("EventCompactor - Event Replay", () => {
     await db.events.bulkAdd([oldSnapshot, updateEvent]);
 
     // Replay events
-    const compactor = eventCompactor as {
-      replayEvents: (events: unknown[]) => { state: Record<string, unknown> };
+    const compactor = eventCompactor as unknown as {
+      replayEvents: (events: TransactionEvent[]) => {
+        state: Record<string, unknown>;
+        lamportClock: number;
+        vectorClock: Record<string, number>;
+      };
     };
     const snapshot = compactor.replayEvents([oldSnapshot, updateEvent]);
 
@@ -325,9 +337,10 @@ describe("EventCompactor - Event Replay", () => {
     await db.events.bulkAdd([event1, event2, event3]);
 
     // Replay events
-    const compactor = eventCompactor as {
-      replayEvents: (events: unknown[]) => {
+    const compactor = eventCompactor as unknown as {
+      replayEvents: (events: TransactionEvent[]) => {
         state: Record<string, unknown>;
+        lamportClock: number;
         vectorClock: Record<string, number>;
       };
     };
@@ -381,8 +394,9 @@ describe("EventCompactor - Snapshot Creation", () => {
     expect(snapshot?.idempotency_key).toMatch(/^snapshot-/);
 
     // Verify payload contains final state
-    expect(snapshot?.payload.amount_cents).toBe(100000 + 110 * 1000); // Last event's amount
-    expect(snapshot?.payload.description).toBe("Event 110"); // Last event's description
+    const snapshotPayload = snapshot?.payload as Record<string, unknown>;
+    expect(snapshotPayload?.amount_cents).toBe(100000 + 110 * 1000); // Last event's amount
+    expect(snapshotPayload?.description).toBe("Event 110"); // Last event's description
   });
 
   it("should preserve household_id and entity_type in snapshot", async () => {
@@ -726,9 +740,10 @@ describe("EventCompactor - Edge Cases", () => {
       .first();
 
     // Verify all fields preserved
-    expect(snapshot?.payload.amount_cents).toBe(100000); // From create
-    expect(snapshot?.payload.description).toBe("Update 110"); // From last update
-    expect(snapshot?.payload.account_id).toBe("acc-1"); // From create
-    expect(snapshot?.payload.category_id).toBe("cat-1"); // From create
+    const snapshotPayload = snapshot?.payload as Record<string, unknown>;
+    expect(snapshotPayload?.amount_cents).toBe(100000); // From create
+    expect(snapshotPayload?.description).toBe("Update 110"); // From last update
+    expect(snapshotPayload?.account_id).toBe("acc-1"); // From create
+    expect(snapshotPayload?.category_id).toBe("cat-1"); // From create
   });
 });

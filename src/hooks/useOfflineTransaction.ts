@@ -25,6 +25,7 @@ import {
   deleteOfflineTransaction,
 } from "@/lib/offline/transactions";
 import type { TransactionInput } from "@/lib/offline/types";
+import type { LocalTransaction } from "@/lib/dexie/db";
 
 /**
  * Hook for creating transactions offline
@@ -64,16 +65,19 @@ export function useCreateOfflineTransaction() {
       const previousTransactions = queryClient.getQueryData(["transactions", "offline"]);
 
       // Optimistically update the cache with a temporary transaction
-      queryClient.setQueryData(["transactions", "offline"], (old: any) => {
-        const optimisticTransaction = {
-          ...newTransaction,
-          id: `temp-${Date.now()}`, // Temporary ID until sync completes
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          synced: false,
-        };
-        return old ? [...old, optimisticTransaction] : [optimisticTransaction];
-      });
+      queryClient.setQueryData(
+        ["transactions", "offline"],
+        (old: LocalTransaction[] | undefined) => {
+          const optimisticTransaction = {
+            ...newTransaction,
+            id: `temp-${Date.now()}`, // Temporary ID until sync completes
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            synced: false,
+          };
+          return old ? [...old, optimisticTransaction] : [optimisticTransaction];
+        }
+      );
 
       // Return context for rollback
       return { previousTransactions };
@@ -132,19 +136,22 @@ export function useUpdateOfflineTransaction() {
       const previousTransactions = queryClient.getQueryData(["transactions", "offline"]);
 
       // Optimistically update the specific transaction
-      queryClient.setQueryData(["transactions", "offline"], (old: any) => {
-        if (!old) return old;
-        return old.map((txn: any) =>
-          txn.id === id
-            ? {
-                ...txn,
-                ...updates,
-                updated_at: new Date().toISOString(),
-                synced: false,
-              }
-            : txn
-        );
-      });
+      queryClient.setQueryData(
+        ["transactions", "offline"],
+        (old: LocalTransaction[] | undefined) => {
+          if (!old) return old;
+          return old.map((txn) =>
+            txn.id === id
+              ? {
+                  ...txn,
+                  ...updates,
+                  updated_at: new Date().toISOString(),
+                  synced: false,
+                }
+              : txn
+          );
+        }
+      );
 
       return { previousTransactions };
     },
@@ -195,10 +202,13 @@ export function useDeleteOfflineTransaction() {
       const previousTransactions = queryClient.getQueryData(["transactions", "offline"]);
 
       // Optimistically remove the transaction
-      queryClient.setQueryData(["transactions", "offline"], (old: any) => {
-        if (!old) return old;
-        return old.filter((txn: any) => txn.id !== id);
-      });
+      queryClient.setQueryData(
+        ["transactions", "offline"],
+        (old: LocalTransaction[] | undefined) => {
+          if (!old) return old;
+          return old.filter((txn) => txn.id !== id);
+        }
+      );
 
       return { previousTransactions };
     },

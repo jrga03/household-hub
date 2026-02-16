@@ -24,22 +24,28 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+// eslint-disable-next-line no-undef
+interface NavigatorStandalone extends Navigator {
+  standalone?: boolean;
+}
+
 const DISMISSED_KEY = "pwa-install-dismissed";
 const NEVER_SHOW_KEY = "pwa-install-never-show";
 
 export function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
+  const [isIOS] = useState(() => {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent);
+  });
+  const [isStandalone] = useState(() => {
+    return (
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as NavigatorStandalone).standalone === true
+    );
+  });
 
   useEffect(() => {
-    // Check if already installed (standalone mode)
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as any).standalone === true;
-    setIsStandalone(standalone);
-
     // Check if user dismissed or opted out
     const neverShow = localStorage.getItem(NEVER_SHOW_KEY) === "true";
     const dismissed = localStorage.getItem(DISMISSED_KEY);
@@ -49,13 +55,9 @@ export function PWAInstallPrompt() {
       : 999;
 
     // Don't show if already installed, user opted out, or dismissed within 7 days
-    if (standalone || neverShow || daysSinceDismissal < 7) {
+    if (isStandalone || neverShow || daysSinceDismissal < 7) {
       return;
     }
-
-    // Detect iOS
-    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-    setIsIOS(iOS);
 
     // Handle beforeinstallprompt for Chromium browsers
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -69,14 +71,14 @@ export function PWAInstallPrompt() {
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
     // For iOS, show prompt after delay if criteria met
-    if (iOS && !standalone) {
+    if (isIOS && !isStandalone) {
       setTimeout(() => setShowPrompt(true), 3000);
     }
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     };
-  }, []);
+  }, [isIOS, isStandalone]);
 
   const handleInstall = async () => {
     if (!deferredPrompt) return;
@@ -143,17 +145,17 @@ export function PWAInstallPrompt() {
                   Tap the <Share className="inline h-4 w-4" /> share button
                 </li>
                 <li className="flex items-center gap-2">
-                  Select <strong>"Add to Home Screen"</strong>
+                  Select <strong>&quot;Add to Home Screen&quot;</strong>
                 </li>
                 <li>
-                  Tap <strong>"Add"</strong> to install
+                  Tap <strong>&quot;Add&quot;</strong> to install
                 </li>
               </ol>
             </div>
 
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="flex-1" onClick={handleNeverShow}>
-                Don't show again
+                Don&apos;t show again
               </Button>
             </div>
           </CardContent>

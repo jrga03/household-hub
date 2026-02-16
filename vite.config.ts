@@ -150,6 +150,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
+    testTimeout: 15000, // IndexedDB integration tests need more than the 5s default
     setupFiles: "./src/test/setup.ts",
     exclude: [
       "**/node_modules/**",

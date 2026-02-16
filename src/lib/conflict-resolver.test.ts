@@ -80,7 +80,7 @@ describe("Conflict Resolution: Record-Level LWW", () => {
     expect(result.reason).toContain("local has higher lamport clock");
 
     // Verify winning payload is used
-    expect(result.winner.payload.amount_cents).toBe(100000);
+    expect((result.winner.payload as Record<string, unknown>).amount_cents).toBe(100000);
   });
 
   it("should resolve based on lamport clock (remote wins)", async () => {
@@ -109,7 +109,7 @@ describe("Conflict Resolution: Record-Level LWW", () => {
     expect(result.reason).toContain("remote has higher lamport clock");
 
     // Verify winning payload is used
-    expect(result.winner.payload.amount_cents).toBe(200000);
+    expect((result.winner.payload as Record<string, unknown>).amount_cents).toBe(200000);
   });
 });
 

@@ -118,7 +118,14 @@ export interface SyncQueueItem {
 export interface TransactionEvent {
   id: string;
   household_id: string;
-  entity_type: "transaction" | "account" | "category" | "budget";
+  entity_type:
+    | "transaction"
+    | "account"
+    | "category"
+    | "budget"
+    | "debt"
+    | "internal_debt"
+    | "debt_payment";
   entity_id: string;
   op: "create" | "update" | "delete" | "snapshot"; // "snapshot" added for event compaction
   payload: unknown; // Changed fields only for updates
@@ -498,7 +505,7 @@ export class HouseholdHubDB extends Dexie {
           "id, debt_id, internal_debt_id, transaction_id, payment_date, is_reversal, reverses_payment_id, " +
           "[debt_id+payment_date+created_at], [internal_debt_id+payment_date+created_at]",
       })
-      .upgrade(async (tx) => {
+      .upgrade(async (_tx) => {
         console.log("[Dexie Migration v5→v6] Adding debt_id and internal_debt_id to transactions");
 
         // No data migration needed - new optional fields
@@ -521,8 +528,8 @@ export class HouseholdHubDB extends Dexie {
         syncQueue:
           "id, status, entity_type, entity_id, device_id, created_at, " +
           "[status+device_id], [device_id+created_at]",
-        // UPDATED: Added idempotencyKey index for duplicate event detection (camelCase to match debt events)
-        events: "id, entity_id, lamport_clock, timestamp, device_id, idempotencyKey",
+        // UPDATED: Added idempotency_key index for duplicate event detection
+        events: "id, entity_id, lamport_clock, timestamp, device_id, idempotency_key",
         meta: "key",
         logs: "id, timestamp, level, device_id",
         syncIssues: "id, entityId, issueType, timestamp",

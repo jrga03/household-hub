@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { parseAmountInput, formatAmountInput } from "@/lib/debts/validation";
 
@@ -25,19 +25,22 @@ export function CurrencyInput({
   disabled,
   ...ariaProps
 }: CurrencyInputProps) {
-  // Display value (formatted string)
-  const [displayValue, setDisplayValue] = useState("");
+  // Track whether the user is actively editing
+  const [isEditing, setIsEditing] = useState(false);
+  const [rawInput, setRawInput] = useState("");
 
-  // Initialize display value from cents value
-  useEffect(() => {
-    if (value > 0) {
-      setDisplayValue(formatAmountInput(value));
+  // Derive display value: use raw input when editing, formatted value otherwise
+  const displayValue = useMemo(() => {
+    if (isEditing) {
+      return rawInput;
     }
-  }, [value]);
+    return value > 0 ? formatAmountInput(value) : "";
+  }, [isEditing, rawInput, value]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value;
-    setDisplayValue(input);
+    setIsEditing(true);
+    setRawInput(input);
 
     // Parse to cents
     const cents = parseAmountInput(input);
@@ -48,12 +51,9 @@ export function CurrencyInput({
   };
 
   const handleBlur = () => {
-    // Format display value on blur
-    if (value > 0) {
-      setDisplayValue(formatAmountInput(value));
-    } else {
-      setDisplayValue("");
-    }
+    // Stop editing mode so display value is derived from prop
+    setIsEditing(false);
+    setRawInput("");
 
     onBlur?.();
   };

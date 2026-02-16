@@ -89,7 +89,7 @@ export async function getNextLamportClock(entityId: string): Promise<number> {
 
     // Try to read current clock value
     const entry = await db.meta.get(key);
-    const currentClock = entry?.value ?? 0;
+    const currentClock = (entry?.value as number) ?? 0;
 
     // Increment clock
     const nextClock = currentClock + 1;
@@ -137,7 +137,7 @@ export async function getCurrentLamportClock(entityId: string): Promise<number> 
   try {
     const key = getLamportKey(entityId);
     const entry = await db.meta.get(key);
-    return entry?.value ?? 0;
+    return (entry?.value as number) ?? 0;
   } catch (error) {
     console.error(`Failed to get current Lamport clock for entity ${entityId}:`, error);
     return 0;
@@ -246,7 +246,7 @@ export async function mergeLamportClock(entityId: string, remoteClock: number): 
 
     // Get current local clock
     const entry = await db.meta.get(key);
-    const localClock = entry?.value ?? 0;
+    const localClock = (entry?.value as number) ?? 0;
 
     // Take maximum (maintain monotonicity)
     const mergedClock = Math.max(localClock, remoteClock);

@@ -95,23 +95,25 @@ export async function addDebtEventToSyncQueue(event: AnyDebtEvent): Promise<stri
     // The sync queue stores the event structure itself as the payload
     const payload = {
       id: event.id,
-      entityType: event.entityType,
-      entityId: event.entityId,
+      entity_type: event.entity_type,
+      entity_id: event.entity_id,
       op: event.op,
       payload: event.payload,
-      idempotencyKey: event.idempotencyKey,
-      lamportClock: event.lamportClock,
-      vectorClock: event.vectorClock,
-      actorUserId: event.actorUserId,
-      deviceId: event.deviceId,
+      idempotency_key: event.idempotency_key,
+      lamport_clock: event.lamport_clock,
+      vector_clock: event.vector_clock,
+      actor_user_id: event.actor_user_id,
+      device_id: event.device_id,
       timestamp: event.timestamp,
       created_at: event.created_at,
+      household_id: event.household_id,
+      event_version: event.event_version,
     };
 
     // Add to sync queue
     const result = await addToSyncQueue(
-      event.entityType as EntityType,
-      event.entityId,
+      event.entity_type as EntityType,
+      event.entity_id,
       event.op,
       payload,
       userId
@@ -123,7 +125,7 @@ export async function addDebtEventToSyncQueue(event: AnyDebtEvent): Promise<stri
     }
 
     console.log(
-      `[Debt Sync] Added to queue: ${event.entityType} ${event.entityId} (${event.op}) - Queue ID: ${result.queueItemId}`
+      `[Debt Sync] Added to queue: ${event.entity_type} ${event.entity_id} (${event.op}) - Queue ID: ${result.queueItemId}`
     );
 
     return result.queueItemId || null;

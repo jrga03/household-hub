@@ -86,8 +86,8 @@ export function NotificationSettings() {
         {permission === "denied" && (
           <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/20">
             <p className="text-sm text-red-900 dark:text-red-300">
-              Notifications are blocked. To enable them, click the lock icon in your browser's
-              address bar and change the notification permission to "Allow".
+              Notifications are blocked. To enable them, click the lock icon in your browser&apos;s
+              address bar and change the notification permission to &quot;Allow&quot;.
             </p>
           </div>
         )}
@@ -99,7 +99,7 @@ export function NotificationSettings() {
             <ul className="space-y-1.5 text-sm text-muted-foreground">
               <li className="flex items-start gap-2">
                 <span className="mt-0.5">•</span>
-                <span>You're approaching your monthly budget limit (80%, 100%)</span>
+                <span>You&apos;re approaching your monthly budget limit (80%, 100%)</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="mt-0.5">•</span>
@@ -156,7 +156,7 @@ export function NotificationSettings() {
         {isSubscribed && (
           <div className="rounded-lg border bg-green-50 p-4 dark:bg-green-950/20">
             <p className="text-sm text-green-900 dark:text-green-300">
-              ✓ Notifications are enabled. You'll receive alerts based on your preferences.
+              ✓ Notifications are enabled. You&apos;ll receive alerts based on your preferences.
             </p>
           </div>
         )}

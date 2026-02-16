@@ -137,11 +137,26 @@ export function useTransfers(householdId: string) {
           transferGroups.set(groupId, { expense: null, income: null });
         }
 
+        // Supabase joins return arrays; extract the first element for single-record joins
+        const accountData = Array.isArray(transaction.account)
+          ? (transaction.account[0] ?? null)
+          : transaction.account;
+
+        const mapped: TransferTransaction = {
+          id: transaction.id,
+          date: transaction.date,
+          amount_cents: transaction.amount_cents,
+          description: transaction.description,
+          transfer_group_id: transaction.transfer_group_id,
+          type: transaction.type,
+          account: accountData ? { id: accountData.id, name: accountData.name } : null,
+        };
+
         const group = transferGroups.get(groupId)!;
         if (transaction.type === "expense") {
-          group.expense = transaction;
+          group.expense = mapped;
         } else {
-          group.income = transaction;
+          group.income = mapped;
         }
       });
 

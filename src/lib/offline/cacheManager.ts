@@ -52,7 +52,7 @@ export class CacheManager {
    */
   async getLastSync(): Promise<Date | null> {
     const meta = await db.meta.get("lastSync");
-    return meta?.value ? new Date(meta.value) : null;
+    return meta?.value ? new Date(meta.value as string | number) : null;
   }
 
   /**

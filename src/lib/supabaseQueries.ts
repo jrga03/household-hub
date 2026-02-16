@@ -1163,7 +1163,10 @@ export function useBudgets(month: Date) {
 
       // 3. Fetch actual spending for these categories
       // CRITICAL: Exclude transfers from spending calculation
-      const categoryIds = budgets.map((b: { categories: { id: string } }) => b.categories.id);
+      const categoryIds = budgets.map((b: { categories: { id: string }[] | { id: string } }) => {
+        const cat = Array.isArray(b.categories) ? b.categories[0] : b.categories;
+        return cat.id;
+      });
 
       const { data: transactions, error: transactionsError } = await supabase
         .from("transactions")
@@ -1188,9 +1191,11 @@ export function useBudgets(month: Date) {
         (b: {
           id: string;
           amount_cents: number;
-          categories: { id: string; name: string; color: string; parent_id: string | null };
+          categories:
+            | { id: string; name: string; color: string; parent_id: string | null }[]
+            | { id: string; name: string; color: string; parent_id: string | null };
         }) => {
-          const category = b.categories;
+          const category = Array.isArray(b.categories) ? b.categories[0] : b.categories;
           const parent = parents?.find((p) => p.id === category.parent_id);
           const actualSpent = spendingMap.get(category.id) || 0;
           const remaining = b.amount_cents - actualSpent;

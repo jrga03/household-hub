@@ -84,11 +84,11 @@ export function CreateInternalDebtForm({
       const debtData = {
         ...data,
         name: debtName,
-        from_type: data.from_type === "user" ? "member" : "account",
-        to_type: data.to_type === "user" ? "member" : "account",
+        from_type: (data.from_type === "user" ? "member" : "account") as "member" | "account",
+        to_type: (data.to_type === "user" ? "member" : "account") as "member" | "account",
         from_display_name: fromEntity?.name,
         to_display_name: toEntity?.name,
-      } as any; // Type conversion needed for entity type mapping
+      };
 
       const debt = await createInternalDebt(debtData);
 

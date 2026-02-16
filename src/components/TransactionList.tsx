@@ -41,6 +41,16 @@ export function TransactionList({ filters, onEdit }: Props) {
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  // Set up virtual scrolling (must be before early returns)
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const rowVirtualizer = useVirtualizer({
+    count: transactions?.length ?? 0,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 73, // Estimated row height in pixels
+    overscan: 5, // Render 5 extra items above/below visible area
+  });
+
   const handleSelectAll = (checked: boolean) => {
     if (checked && transactions) {
       setSelectedIds(new Set(transactions.map((t) => t.id)));
@@ -160,16 +170,6 @@ export function TransactionList({ filters, onEdit }: Props) {
       </div>
     );
   }
-
-  // Set up virtual scrolling
-  const parentRef = useRef<HTMLDivElement>(null);
-
-  const rowVirtualizer = useVirtualizer({
-    count: transactions.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 73, // Estimated row height in pixels
-    overscan: 5, // Render 5 extra items above/below visible area
-  });
 
   const hasSelection = selectedIds.size > 0;
   const allSelected = transactions && selectedIds.size === transactions.length;

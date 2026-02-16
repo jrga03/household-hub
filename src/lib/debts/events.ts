@@ -91,7 +91,7 @@ async function getCurrentUserId(): Promise<string> {
  * const delta = calculateDelta(before, after);
  * // Result: { name: "New" }
  */
-export function calculateDelta<T extends Record<string, any>>(before: T, after: T): Partial<T> {
+export function calculateDelta<T extends object>(before: T, after: T): Partial<T> {
   const delta: Partial<T> = {};
 
   for (const key in after) {
@@ -147,29 +147,32 @@ export async function createDebtEvent(
   const idempotencyKey = `${deviceId}-debt-${debt.id}-${lamportClock}`;
 
   // Check if event already exists (idempotency)
-  const existing = await db.events.where("idempotencyKey").equals(idempotencyKey).first();
+  const existing = await db.events.filter((e) => e.idempotency_key === idempotencyKey).first();
 
   if (existing) {
     console.log(`[Event] Event with key ${idempotencyKey} already exists, skipping`);
-    return existing as DebtEvent;
+    return existing as unknown as DebtEvent;
   }
 
   const event: DebtEvent = {
     id: nanoid(),
-    entityType: "debt",
-    entityId: debt.id,
+    entity_type: "debt",
+    entity_id: debt.id,
     op,
-    payload: op === "create" ? debt : changedFields || {},
-    idempotencyKey,
-    lamportClock,
-    vectorClock: { [deviceId]: lamportClock },
-    actorUserId,
-    deviceId,
-    timestamp: Date.now(),
+    payload: (op === "create" ? debt : changedFields || {}) as Partial<Debt> &
+      Record<string, unknown>,
+    idempotency_key: idempotencyKey,
+    lamport_clock: lamportClock,
+    vector_clock: { [deviceId]: lamportClock },
+    actor_user_id: actorUserId,
+    device_id: deviceId,
+    timestamp: new Date().toISOString(),
     created_at: new Date().toISOString(),
+    household_id: debt.household_id,
+    event_version: 1,
   };
 
-  await db.events.add(event);
+  await db.events.add(event as unknown as import("@/lib/dexie/db").TransactionEvent);
 
   // Add to sync queue for server synchronization
   await addDebtEventToSyncQueue(event);
@@ -204,29 +207,32 @@ export async function createInternalDebtEvent(
   const idempotencyKey = `${deviceId}-internal_debt-${debt.id}-${lamportClock}`;
 
   // Check if event already exists (idempotency)
-  const existing = await db.events.where("idempotencyKey").equals(idempotencyKey).first();
+  const existing = await db.events.filter((e) => e.idempotency_key === idempotencyKey).first();
 
   if (existing) {
     console.log(`[Event] Event with key ${idempotencyKey} already exists, skipping`);
-    return existing as InternalDebtEvent;
+    return existing as unknown as InternalDebtEvent;
   }
 
   const event: InternalDebtEvent = {
     id: nanoid(),
-    entityType: "internal_debt",
-    entityId: debt.id,
+    entity_type: "internal_debt",
+    entity_id: debt.id,
     op,
-    payload: op === "create" ? debt : changedFields || {},
-    idempotencyKey,
-    lamportClock,
-    vectorClock: { [deviceId]: lamportClock },
-    actorUserId,
-    deviceId,
-    timestamp: Date.now(),
+    payload: (op === "create" ? debt : changedFields || {}) as Partial<InternalDebt> &
+      Record<string, unknown>,
+    idempotency_key: idempotencyKey,
+    lamport_clock: lamportClock,
+    vector_clock: { [deviceId]: lamportClock },
+    actor_user_id: actorUserId,
+    device_id: deviceId,
+    timestamp: new Date().toISOString(),
     created_at: new Date().toISOString(),
+    household_id: debt.household_id,
+    event_version: 1,
   };
 
-  await db.events.add(event);
+  await db.events.add(event as unknown as import("@/lib/dexie/db").TransactionEvent);
 
   // Add to sync queue for server synchronization
   await addDebtEventToSyncQueue(event);
@@ -265,29 +271,31 @@ export async function createDebtPaymentEvent(
   const idempotencyKey = payment.idempotency_key;
 
   // Check if event already exists (idempotency)
-  const existing = await db.events.where("idempotencyKey").equals(idempotencyKey).first();
+  const existing = await db.events.filter((e) => e.idempotency_key === idempotencyKey).first();
 
   if (existing) {
     console.log(`[Event] Event with key ${idempotencyKey} already exists, skipping`);
-    return existing as DebtPaymentEvent;
+    return existing as unknown as DebtPaymentEvent;
   }
 
   const event: DebtPaymentEvent = {
     id: nanoid(),
-    entityType: "debt_payment",
-    entityId: payment.id,
+    entity_type: "debt_payment",
+    entity_id: payment.id,
     op,
-    payload: payment,
-    idempotencyKey, // Reuses payment's key
-    lamportClock,
-    vectorClock: { [deviceId]: lamportClock },
-    actorUserId,
-    deviceId,
-    timestamp: Date.now(),
+    payload: payment as DebtPayment & Record<string, unknown>,
+    idempotency_key: idempotencyKey, // Reuses payment's key
+    lamport_clock: lamportClock,
+    vector_clock: { [deviceId]: lamportClock },
+    actor_user_id: actorUserId,
+    device_id: deviceId,
+    timestamp: new Date().toISOString(),
     created_at: new Date().toISOString(),
+    household_id: payment.household_id,
+    event_version: 1,
   };
 
-  await db.events.add(event);
+  await db.events.add(event as unknown as import("@/lib/dexie/db").TransactionEvent);
 
   // Add to sync queue for server synchronization
   await addDebtEventToSyncQueue(event);
@@ -318,7 +326,7 @@ export async function createDebtPaymentEvent(
  * }
  */
 export async function eventExists(idempotencyKey: string): Promise<boolean> {
-  const existing = await db.events.where("idempotencyKey").equals(idempotencyKey).first();
+  const existing = await db.events.filter((e) => e.idempotency_key === idempotencyKey).first();
   return existing !== undefined;
 }
 
@@ -343,12 +351,12 @@ export async function getDebtEvents(
   const entityType = type === "external" ? "debt" : "internal_debt";
 
   const events = await db.events
-    .where("entityId")
+    .where("entity_id")
     .equals(debtId)
-    .and((e) => e.entityType === entityType)
-    .sortBy("lamportClock");
+    .and((e) => e.entity_type === entityType)
+    .sortBy("lamport_clock");
 
-  return events as (DebtEvent | InternalDebtEvent)[];
+  return events as unknown as (DebtEvent | InternalDebtEvent)[];
 }
 
 /**
@@ -366,12 +374,12 @@ export async function getDebtEvents(
  */
 export async function getPaymentEvents(paymentId: string): Promise<DebtPaymentEvent[]> {
   const events = await db.events
-    .where("entityId")
+    .where("entity_id")
     .equals(paymentId)
-    .and((e) => e.entityType === "debt_payment")
-    .sortBy("lamportClock");
+    .and((e) => e.entity_type === "debt_payment")
+    .sortBy("lamport_clock");
 
-  return events as DebtPaymentEvent[];
+  return events as unknown as DebtPaymentEvent[];
 }
 
 /**
@@ -385,30 +393,30 @@ export async function getPaymentEvents(paymentId: string): Promise<DebtPaymentEv
  * - Generating activity reports
  * - Event compaction
  *
- * @param startTimestamp - Start timestamp (Unix milliseconds)
- * @param endTimestamp - End timestamp (Unix milliseconds)
+ * @param startTimestamp - Start timestamp (ISO 8601 string)
+ * @param endTimestamp - End timestamp (ISO 8601 string)
  * @returns Promise resolving to array of events ordered by lamport clock
  *
  * @example
- * const start = Date.now() - 24 * 60 * 60 * 1000; // 24 hours ago
- * const end = Date.now();
+ * const start = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(); // 24 hours ago
+ * const end = new Date().toISOString();
  * const events = await getDebtEventsInRange(start, end);
  * console.log(`${events.length} events in last 24 hours`);
  */
 export async function getDebtEventsInRange(
-  startTimestamp: number,
-  endTimestamp: number
+  startTimestamp: string,
+  endTimestamp: string
 ): Promise<AnyDebtEvent[]> {
   const events = await db.events
     .where("timestamp")
     .between(startTimestamp, endTimestamp, true, true)
     .and(
       (e) =>
-        e.entityType === "debt" ||
-        e.entityType === "internal_debt" ||
-        e.entityType === "debt_payment"
+        e.entity_type === "debt" ||
+        e.entity_type === "internal_debt" ||
+        e.entity_type === "debt_payment"
     )
-    .sortBy("lamportClock");
+    .sortBy("lamport_clock");
 
-  return events as AnyDebtEvent[];
+  return events as unknown as AnyDebtEvent[];
 }

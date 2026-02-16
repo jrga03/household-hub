@@ -59,13 +59,13 @@ function DefaultLoadingFallback() {
  *   return <Analytics />; // Automatically shows loading state
  * }
  */
-export function lazyComponent<T extends ComponentType<any>>(
-  importFn: () => Promise<{ default: T }>,
+export function lazyComponent<P extends Record<string, unknown>>(
+  importFn: () => Promise<{ default: ComponentType<P> }>,
   fallback: ReactElement = <DefaultLoadingFallback />
-): ComponentType<React.ComponentProps<T>> {
+): ComponentType<P> {
   const LazyComponent = lazy(importFn);
 
-  return function LazyComponentWithSuspense(props: React.ComponentProps<T>) {
+  return function LazyComponentWithSuspense(props: P) {
     return (
       <Suspense fallback={fallback}>
         <LazyComponent {...props} />
@@ -88,9 +88,9 @@ export function lazyComponent<T extends ComponentType<any>>(
  *   component: lazyRouteComponent(() => import('./AnalyticsPage')),
  * });
  */
-export function lazyRouteComponent<T extends ComponentType<any>>(
-  importFn: () => Promise<{ default: T }>
-): ComponentType<React.ComponentProps<T>> {
+export function lazyRouteComponent<P extends Record<string, unknown>>(
+  importFn: () => Promise<{ default: ComponentType<P> }>
+): ComponentType<P> {
   return lazy(importFn);
 }
 
@@ -109,8 +109,8 @@ export function lazyRouteComponent<T extends ComponentType<any>>(
  *   Analytics
  * </Link>
  */
-export function preloadComponent<T extends ComponentType<any>>(
-  importFn: () => Promise<{ default: T }>
+export function preloadComponent<P extends Record<string, unknown>>(
+  importFn: () => Promise<{ default: ComponentType<P> }>
 ): void {
   // Calling the import function starts the download
   // The browser will cache it for when it's actually needed

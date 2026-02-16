@@ -171,8 +171,9 @@ export class EventCompactor {
 
     // Trigger 2: Time-based threshold (monthly compaction)
     const compactionMeta = await db.meta.get(`compaction:${entityId}`);
-    if (compactionMeta?.value?.timestamp) {
-      const lastCompactionTime = new Date(compactionMeta.value.timestamp).getTime();
+    const metaValue = compactionMeta?.value as { timestamp?: string } | undefined;
+    if (metaValue?.timestamp) {
+      const lastCompactionTime = new Date(metaValue.timestamp).getTime();
       const timeSinceLastCompaction = Date.now() - lastCompactionTime;
 
       if (timeSinceLastCompaction >= MONTHLY_COMPACTION) {
@@ -312,12 +313,12 @@ export class EventCompactor {
       switch (event.op) {
         case "create":
           // Full replacement
-          state = { ...event.payload };
+          state = { ...(event.payload as Record<string, unknown>) };
           break;
 
         case "update":
           // Merge changes into existing state
-          state = { ...state, ...event.payload };
+          state = { ...state, ...(event.payload as Record<string, unknown>) };
           break;
 
         case "delete":
@@ -331,7 +332,7 @@ export class EventCompactor {
 
         case "snapshot":
           // Handle existing snapshots - full replacement
-          state = { ...event.payload };
+          state = { ...(event.payload as Record<string, unknown>) };
           break;
 
         default:

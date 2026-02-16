@@ -191,6 +191,6 @@ export async function testDebtBalanceInBrowser() {
 
 // Export for use in browser console
 if (typeof window !== "undefined") {
-  (window as any).testDebtBalance = testDebtBalanceInBrowser;
+  (window as unknown as Record<string, unknown>).testDebtBalance = testDebtBalanceInBrowser;
   console.log("💡 Test function loaded. Run: testDebtBalance()");
 }

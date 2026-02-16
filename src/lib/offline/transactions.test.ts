@@ -25,6 +25,7 @@ import {
  * Returns a spy on supabase.from() that intercepts sync_queue calls.
  */
 function mockSyncQueueInsert() {
+  const originalFrom = supabase.from.bind(supabase);
   const fromSpy = vi.spyOn(supabase, "from");
   fromSpy.mockImplementation((table: string) => {
     if (table === "sync_queue") {
@@ -41,7 +42,7 @@ function mockSyncQueueInsert() {
         }),
       } as never;
     }
-    return fromSpy.wrappedMethod.call(supabase, table);
+    return originalFrom(table);
   });
   return fromSpy;
 }

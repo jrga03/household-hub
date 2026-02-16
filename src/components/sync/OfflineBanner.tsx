@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { CloudOff, Wifi, X } from "lucide-react";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { cn } from "@/lib/utils";
@@ -42,23 +42,37 @@ export function OfflineBanner({ className, dismissible = true }: OfflineBannerPr
   const isOnline = useOnlineStatus();
   const [isDismissed, setIsDismissed] = useState(false);
   const [showReconnected, setShowReconnected] = useState(false);
-  const [wasOffline, setWasOffline] = useState(false);
 
-  // Track offline state and show "reconnected" message
-  useEffect(() => {
-    if (!isOnline) {
-      setWasOffline(true);
-      setIsDismissed(false); // Reset dismiss when going offline
-    } else if (wasOffline && isOnline) {
-      // Just reconnected!
-      setShowReconnected(true);
-      const timer = setTimeout(() => {
-        setShowReconnected(false);
-        setWasOffline(false);
-      }, 3000);
-      return () => clearTimeout(timer);
+  // Auto-clear dismiss when user comes back online so banner reappears on next offline.
+  // This is the React-recommended pattern for adjusting state during render
+  // (replaces getDerivedStateFromProps). Safe because when online the banner is hidden.
+  const [prevIsOnline, setPrevIsOnline] = useState(isOnline);
+  if (isOnline !== prevIsOnline) {
+    setPrevIsOnline(isOnline);
+    if (isOnline && isDismissed) {
+      setIsDismissed(false);
     }
-  }, [isOnline, wasOffline]);
+  }
+
+  // Show "reconnected" banner for 3 seconds when coming back online
+  const handleReconnection = useCallback(() => {
+    setShowReconnected(true);
+  }, []);
+
+  // Listen for browser online event to trigger reconnection message
+  useEffect(() => {
+    window.addEventListener("online", handleReconnection);
+    return () => window.removeEventListener("online", handleReconnection);
+  }, [handleReconnection]);
+
+  // Auto-hide reconnected banner after 3 seconds
+  useEffect(() => {
+    if (!showReconnected) return;
+    const timer = setTimeout(() => {
+      setShowReconnected(false);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [showReconnected]);
 
   // Don't show anything if online and not showing reconnect message
   if (isOnline && !showReconnected) {
@@ -121,7 +135,7 @@ export function OfflineBanner({ className, dismissible = true }: OfflineBannerPr
                 Working offline
               </p>
               <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
-                Changes are saved locally and will sync when you're back online
+                Changes are saved locally and will sync when you&apos;re back online
               </p>
             </div>
           </div>

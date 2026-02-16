@@ -41,6 +41,49 @@ interface SpendingTrendsChartProps {
   height?: number;
 }
 
+// Tooltip types
+interface SpendingTooltipPayload {
+  name: string;
+  value: number;
+  color: string;
+}
+
+interface SpendingTooltipProps {
+  active?: boolean;
+  payload?: SpendingTooltipPayload[];
+  label?: string;
+}
+
+// Custom tooltip component
+function CustomTooltip({ active, payload, label }: SpendingTooltipProps) {
+  if (!active || !payload || !payload.length) return null;
+
+  return (
+    <div className="rounded-lg border bg-background p-3 shadow-lg">
+      <p className="mb-2 font-semibold">{label}</p>
+      <div className="space-y-1">
+        {payload.map((entry, index: number) => (
+          <div key={index} className="flex items-center gap-2 text-sm">
+            <div className="h-3 w-3 rounded" style={{ backgroundColor: entry.color }} />
+            <span className="flex-1">{entry.name}:</span>
+            <span className="font-mono font-semibold">{formatPHP(entry.value)}</span>
+          </div>
+        ))}
+      </div>
+      {payload.length > 1 && (
+        <div className="mt-2 border-t pt-2">
+          <div className="flex justify-between text-sm font-semibold">
+            <span>Total:</span>
+            <span className="font-mono">
+              {formatPHP(payload.reduce((sum: number, entry) => sum + entry.value, 0))}
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SpendingTrendsChart({
   data,
   categories = [],
@@ -48,40 +91,10 @@ export function SpendingTrendsChart({
   onBarClick,
   height = 400,
 }: SpendingTrendsChartProps) {
-  // Custom tooltip with PHP formatting
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload || !payload.length) return null;
-
-    return (
-      <div className="rounded-lg border bg-background p-3 shadow-lg">
-        <p className="mb-2 font-semibold">{label}</p>
-        <div className="space-y-1">
-          {payload.map((entry: any, index: number) => (
-            <div key={index} className="flex items-center gap-2 text-sm">
-              <div className="h-3 w-3 rounded" style={{ backgroundColor: entry.color }} />
-              <span className="flex-1">{entry.name}:</span>
-              <span className="font-mono font-semibold">{formatPHP(entry.value)}</span>
-            </div>
-          ))}
-        </div>
-        {payload.length > 1 && (
-          <div className="mt-2 border-t pt-2">
-            <div className="flex justify-between text-sm font-semibold">
-              <span>Total:</span>
-              <span className="font-mono">
-                {formatPHP(payload.reduce((sum: number, entry: any) => sum + entry.value, 0))}
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   // Handle bar click
-  const handleBarClick = (data: any, category: string) => {
+  const handleBarClick = (data: Record<string, unknown>, category: string) => {
     if (onBarClick && data?.month) {
-      onBarClick(data.month, category);
+      onBarClick(data.month as string, category);
     }
   };
 
@@ -116,7 +129,7 @@ export function SpendingTrendsChart({
             fill={categoryColors[category] || `hsl(${index * 60}, 70%, 50%)`}
             radius={[4, 4, 0, 0]}
             cursor="pointer"
-            onClick={(data) => handleBarClick(data, category)}
+            onClick={(data) => handleBarClick(data as unknown as Record<string, unknown>, category)}
           />
         ))}
       </BarChart>

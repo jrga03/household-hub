@@ -1,5 +1,4 @@
-// Tabs component not yet implemented - using simple div layout instead
-// import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   CreateExternalDebtForm,
   EditExternalDebtForm,
@@ -101,7 +100,9 @@ export default function FormsDemo() {
         <h3 className="font-semibold mb-2">Testing Instructions:</h3>
         <ul className="text-sm space-y-1 list-disc list-inside">
           <li>Test empty field validation - submit with empty fields</li>
-          <li>Test currency input - try various formats: "1500", "₱1,500.50"</li>
+          <li>
+            Test currency input - try various formats: &quot;1500&quot;, &quot;₱1,500.50&quot;
+          </li>
           <li>Test name length limits - enter very long names</li>
           <li>Test amount limits - try ₱0.50 (too low) and ₱1,000,000,000 (too high)</li>
           <li>For internal debts, verify From and To must be different</li>

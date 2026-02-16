@@ -33,6 +33,68 @@ interface CategoryBreakdownChartProps {
   innerRadius?: number; // For donut chart (0 = pie chart, 60-80 = donut)
 }
 
+// Tooltip types
+interface TooltipPayloadEntry {
+  name: string;
+  value: number;
+  payload: { color: string };
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: TooltipPayloadEntry[];
+  total: number;
+}
+
+// Custom tooltip component
+function CustomTooltip({ active, payload, total }: CustomTooltipProps) {
+  if (!active || !payload || !payload.length) return null;
+
+  const entry = payload[0];
+  const percentage = ((entry.value / total) * 100).toFixed(1);
+
+  return (
+    <div className="rounded-lg border bg-background p-3 shadow-lg">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="h-3 w-3 rounded" style={{ backgroundColor: entry.payload.color }} />
+        <span className="font-semibold">{entry.name}</span>
+      </div>
+      <div className="space-y-1 text-sm">
+        <div className="flex justify-between gap-4">
+          <span>Amount:</span>
+          <span className="font-mono font-semibold">{formatPHP(entry.value)}</span>
+        </div>
+        <div className="flex justify-between gap-4">
+          <span>Percentage:</span>
+          <span className="font-mono font-semibold">{percentage}%</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Center label types
+interface CenterLabelProps {
+  innerRadius: number;
+  total: number;
+}
+
+// Center label component for donut chart
+function CenterLabel({ innerRadius, total }: CenterLabelProps) {
+  if (innerRadius === 0) return null;
+
+  return (
+    <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground">
+      <tspan x="50%" dy="-0.5em" fontSize="14" className="fill-muted-foreground">
+        Total
+      </tspan>
+      <tspan x="50%" dy="1.5em" fontSize="20" fontWeight="bold">
+        {formatPHP(total)}
+      </tspan>
+    </text>
+  );
+}
+
 export function CategoryBreakdownChart({
   data,
   onCategoryClick,
@@ -42,33 +104,6 @@ export function CategoryBreakdownChart({
   // Calculate total for percentages
   const total = data.reduce((sum, item) => sum + item.value, 0);
 
-  // Custom tooltip
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (!active || !payload || !payload.length) return null;
-
-    const entry = payload[0];
-    const percentage = ((entry.value / total) * 100).toFixed(1);
-
-    return (
-      <div className="rounded-lg border bg-background p-3 shadow-lg">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="h-3 w-3 rounded" style={{ backgroundColor: entry.payload.color }} />
-          <span className="font-semibold">{entry.name}</span>
-        </div>
-        <div className="space-y-1 text-sm">
-          <div className="flex justify-between gap-4">
-            <span>Amount:</span>
-            <span className="font-mono font-semibold">{formatPHP(entry.value)}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span>Percentage:</span>
-            <span className="font-mono font-semibold">{percentage}%</span>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   // Handle slice click
   const handleClick = (entry: CategoryData) => {
     if (onCategoryClick) {
@@ -76,30 +111,11 @@ export function CategoryBreakdownChart({
     }
   };
 
-  // Center label for donut chart
-  const CenterLabel = () => {
-    if (innerRadius === 0) return null;
-
-    return (
-      <text
-        x="50%"
-        y="50%"
-        textAnchor="middle"
-        dominantBaseline="middle"
-        className="fill-foreground"
-      >
-        <tspan x="50%" dy="-0.5em" fontSize="14" className="fill-muted-foreground">
-          Total
-        </tspan>
-        <tspan x="50%" dy="1.5em" fontSize="20" fontWeight="bold">
-          {formatPHP(total)}
-        </tspan>
-      </text>
-    );
-  };
-
   // Custom label for slices
-  const renderLabel = (entry: any) => {
+  interface LabelEntry {
+    value: number;
+  }
+  const renderLabel = (entry: LabelEntry) => {
     const percentage = ((entry.value / total) * 100).toFixed(0);
     return `${percentage}%`;
   };
@@ -149,14 +165,14 @@ export function CategoryBreakdownChart({
             />
           ))}
         </Pie>
-        <Tooltip content={<CustomTooltip />} />
+        <Tooltip content={<CustomTooltip total={total} />} />
         <Legend
           verticalAlign="bottom"
           height={36}
           wrapperStyle={{ fontSize: 12 }}
           iconType="circle"
         />
-        <CenterLabel />
+        <CenterLabel innerRadius={innerRadius} total={total} />
       </PieChart>
     </ResponsiveContainer>
   );

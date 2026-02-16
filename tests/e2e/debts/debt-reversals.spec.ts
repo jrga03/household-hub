@@ -356,7 +356,7 @@ test.describe("Debt Payment Reversals", () => {
       await debtSelector.selectOption({ value: "", label: /none|no debt/i });
 
       // Should warn about reversal
-      const warning = page.locator("text=/reversal|remove.*debt.*link/i");
+      const _warning = page.locator("text=/reversal|remove.*debt.*link/i");
 
       // Confirm
       await page.click('button[type="submit"]');

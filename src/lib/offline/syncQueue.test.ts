@@ -68,19 +68,26 @@ import { resetLamportClock, getCurrentLamportClock } from "@/lib/sync/lamportClo
 import { getVectorClock } from "@/lib/sync/vectorClock";
 import { deviceManager } from "@/lib/dexie/deviceManager";
 
-// Type for Supabase mock responses in tests
-type MockSupabaseResponse = {
-  select: ReturnType<typeof vi.fn>;
-  single?: ReturnType<typeof vi.fn>;
-  data?: unknown;
-  error?: unknown;
-};
+// Type for captured queue items
+interface CapturedQueueItem {
+  entity_type: string;
+  entity_id: string;
+  status: string;
+  operation: {
+    op: string;
+    payload: Record<string, unknown>;
+    idempotencyKey: string;
+    lamportClock: number;
+    vectorClock: Record<string, number>;
+  };
+}
 
 /**
  * Helper function to mock Supabase sync_queue insert operations.
  * Returns a spy on supabase.from() that intercepts sync_queue calls.
  */
 function mockSyncQueueInsert(captureCallback?: (queueItem: unknown) => void) {
+  const originalFrom = supabase.from.bind(supabase);
   const fromSpy = vi.spyOn(supabase, "from");
   fromSpy.mockImplementation((table: string) => {
     if (table === "sync_queue") {
@@ -108,7 +115,7 @@ function mockSyncQueueInsert(captureCallback?: (queueItem: unknown) => void) {
         }),
       } as never;
     }
-    return fromSpy.wrappedMethod.call(supabase, table);
+    return originalFrom(table);
   });
   return fromSpy;
 }
@@ -143,9 +150,9 @@ describe("Sync Queue Integration Tests", () => {
   describe("Transaction Queue Integration", () => {
     it("should add transaction to queue on create", async () => {
       // Mock Supabase sync_queue insert
-      let capturedQueueItem: unknown = null;
+      let capturedQueueItem: CapturedQueueItem | null = null;
       const fromSpy = mockSyncQueueInsert((queueItem) => {
-        capturedQueueItem = queueItem;
+        capturedQueueItem = queueItem as CapturedQueueItem;
       });
 
       // Create transaction
@@ -170,19 +177,20 @@ describe("Sync Queue Integration Tests", () => {
       // Verify queue item was created
       expect(fromSpy).toHaveBeenCalledWith("sync_queue");
       expect(capturedQueueItem).toBeDefined();
-      expect(capturedQueueItem.entity_type).toBe("transaction");
-      expect(capturedQueueItem.entity_id).toBe(result.data!.id);
-      expect(capturedQueueItem.status).toBe("queued");
-      expect(capturedQueueItem.operation.op).toBe("create");
+      const queueItem = capturedQueueItem as unknown as CapturedQueueItem;
+      expect(queueItem.entity_type).toBe("transaction");
+      expect(queueItem.entity_id).toBe(result.data!.id);
+      expect(queueItem.status).toBe("queued");
+      expect(queueItem.operation.op).toBe("create");
     });
   });
 
   describe("Idempotency Key Generation", () => {
     it("should generate idempotency key with correct format", async () => {
       // Mock Supabase sync_queue insert
-      let capturedOperation: unknown = null;
+      let capturedOperation: CapturedQueueItem["operation"] | null = null;
       mockSyncQueueInsert((queueItem) => {
-        capturedOperation = queueItem.operation;
+        capturedOperation = (queueItem as CapturedQueueItem).operation;
       });
 
       // Create transaction
@@ -201,7 +209,8 @@ describe("Sync Queue Integration Tests", () => {
       expect(result.success).toBe(true);
 
       // Verify idempotency key format
-      const idempotencyKey = capturedOperation.idempotencyKey;
+      const op = capturedOperation as unknown as CapturedQueueItem["operation"];
+      const idempotencyKey = op.idempotencyKey;
       expect(idempotencyKey).toBeDefined();
 
       // Format: ${deviceId}-${entityType}-${entityId}-${lamportClock}
@@ -225,7 +234,7 @@ describe("Sync Queue Integration Tests", () => {
       // Mock Supabase sync_queue insert
       const capturedClocks: number[] = [];
       mockSyncQueueInsert((queueItem) => {
-        capturedClocks.push(queueItem.operation.lamportClock);
+        capturedClocks.push((queueItem as CapturedQueueItem).operation.lamportClock);
       });
 
       // Create first transaction
@@ -293,9 +302,9 @@ describe("Sync Queue Integration Tests", () => {
   describe("Vector Clock Initialization", () => {
     it("should initialize vector clock with device ID", async () => {
       // Mock Supabase sync_queue insert
-      let capturedVectorClock: unknown = null;
+      let capturedVectorClock: Record<string, number> | null = null;
       mockSyncQueueInsert((queueItem) => {
-        capturedVectorClock = queueItem.operation.vectorClock;
+        capturedVectorClock = (queueItem as CapturedQueueItem).operation.vectorClock;
       });
 
       // Create transaction
@@ -320,8 +329,8 @@ describe("Sync Queue Integration Tests", () => {
       expect(Array.isArray(capturedVectorClock)).toBe(false);
 
       // Verify device ID is in vector clock with value 1
-      expect(Object.keys(capturedVectorClock).length).toBeGreaterThan(0);
-      expect(capturedVectorClock[deviceId]).toBe(1);
+      expect(Object.keys(capturedVectorClock!).length).toBeGreaterThan(0);
+      expect(capturedVectorClock![deviceId]).toBe(1);
 
       // Verify vector clock in IndexedDB meta table
       const entityId = result.data!.id;
@@ -334,6 +343,7 @@ describe("Sync Queue Integration Tests", () => {
   describe("Rollback on Queue Failure", () => {
     it("should rollback IndexedDB on queue failure", async () => {
       // Mock Supabase insert to fail
+      const originalFrom = supabase.from.bind(supabase);
       const fromSpy = vi.spyOn(supabase, "from");
       fromSpy.mockImplementation((table: string) => {
         if (table === "sync_queue") {
@@ -350,7 +360,7 @@ describe("Sync Queue Integration Tests", () => {
             }),
           } as never;
         }
-        return fromSpy.wrappedMethod.call(supabase, table);
+        return originalFrom(table);
       });
 
       // Attempt to create transaction
@@ -420,6 +430,7 @@ describe("Sync Queue Integration Tests", () => {
       );
 
       // Mock getQueueCount Supabase query to return count of 3
+      const originalFrom2 = supabase.from.bind(supabase);
       const fromSpy2 = vi.spyOn(supabase, "from");
       fromSpy2.mockImplementation((table: string) => {
         if (table === "sync_queue") {
@@ -433,7 +444,7 @@ describe("Sync Queue Integration Tests", () => {
             }),
           } as never;
         }
-        return fromSpy2.wrappedMethod.call(supabase, table);
+        return originalFrom2(table);
       });
 
       const count = await getQueueCount(testUserId);
@@ -444,9 +455,9 @@ describe("Sync Queue Integration Tests", () => {
   describe("Account Mutations Queue", () => {
     it("should queue account operations", async () => {
       // Mock Supabase sync_queue insert
-      let capturedQueueItem: unknown = null;
+      let capturedQueueItem: CapturedQueueItem | null = null;
       mockSyncQueueInsert((queueItem) => {
-        capturedQueueItem = queueItem;
+        capturedQueueItem = queueItem as CapturedQueueItem;
       });
 
       // Create account
@@ -470,19 +481,20 @@ describe("Sync Queue Integration Tests", () => {
 
       // Verify queue item with entity_type = "account"
       expect(capturedQueueItem).toBeDefined();
-      expect(capturedQueueItem.entity_type).toBe("account");
-      expect(capturedQueueItem.entity_id).toBe(result.data!.id);
-      expect(capturedQueueItem.operation.op).toBe("create");
-      expect(capturedQueueItem.operation.payload.name).toBe("Test Account");
+      const accountQueueItem = capturedQueueItem as unknown as CapturedQueueItem;
+      expect(accountQueueItem.entity_type).toBe("account");
+      expect(accountQueueItem.entity_id).toBe(result.data!.id);
+      expect(accountQueueItem.operation.op).toBe("create");
+      expect(accountQueueItem.operation.payload.name).toBe("Test Account");
     });
   });
 
   describe("Category Mutations Queue", () => {
     it("should queue category operations", async () => {
       // Mock Supabase sync_queue insert
-      let capturedQueueItem: unknown = null;
+      let capturedQueueItem: CapturedQueueItem | null = null;
       mockSyncQueueInsert((queueItem) => {
-        capturedQueueItem = queueItem;
+        capturedQueueItem = queueItem as CapturedQueueItem;
       });
 
       // Create category
@@ -504,19 +516,20 @@ describe("Sync Queue Integration Tests", () => {
 
       // Verify queue item with entity_type = "category"
       expect(capturedQueueItem).toBeDefined();
-      expect(capturedQueueItem.entity_type).toBe("category");
-      expect(capturedQueueItem.entity_id).toBe(result.data!.id);
-      expect(capturedQueueItem.operation.op).toBe("create");
-      expect(capturedQueueItem.operation.payload.name).toBe("Test Category");
+      const categoryQueueItem = capturedQueueItem as unknown as CapturedQueueItem;
+      expect(categoryQueueItem.entity_type).toBe("category");
+      expect(categoryQueueItem.entity_id).toBe(result.data!.id);
+      expect(categoryQueueItem.operation.op).toBe("create");
+      expect(categoryQueueItem.operation.payload.name).toBe("Test Category");
     });
   });
 
   describe("Update Operations Queue", () => {
     it("should queue update operations with incremented clock", async () => {
       // Mock Supabase sync_queue insert
-      const capturedOperations: unknown[] = [];
+      const capturedOperations: CapturedQueueItem["operation"][] = [];
       mockSyncQueueInsert((queueItem) => {
-        capturedOperations.push(queueItem.operation);
+        capturedOperations.push((queueItem as CapturedQueueItem).operation);
       });
 
       // Create account
@@ -564,9 +577,9 @@ describe("Sync Queue Integration Tests", () => {
   describe("Delete Operations Queue", () => {
     it("should queue delete operations", async () => {
       // Mock Supabase sync_queue insert
-      const capturedOperations: unknown[] = [];
+      const capturedOperations: CapturedQueueItem["operation"][] = [];
       mockSyncQueueInsert((queueItem) => {
-        capturedOperations.push(queueItem.operation);
+        capturedOperations.push((queueItem as CapturedQueueItem).operation);
       });
 
       // Create transaction
@@ -635,6 +648,7 @@ describe("Sync Queue Integration Tests", () => {
       );
 
       // Mock getPendingQueueItems Supabase query
+      const originalFrom2 = supabase.from.bind(supabase);
       const fromSpy2 = vi.spyOn(supabase, "from");
       fromSpy2.mockImplementation((table: string) => {
         if (table === "sync_queue") {
@@ -664,7 +678,7 @@ describe("Sync Queue Integration Tests", () => {
             }),
           } as never;
         }
-        return fromSpy2.wrappedMethod.call(supabase, table);
+        return originalFrom2(table);
       });
 
       const pending = await getPendingQueueItems(testUserId);
@@ -680,9 +694,9 @@ describe("Sync Queue Integration Tests", () => {
   describe("Vector Clock Per-Entity Isolation", () => {
     it("should maintain separate vector clocks for different entities", async () => {
       // Mock Supabase sync_queue insert
-      const capturedVectorClocks: unknown[] = [];
+      const capturedVectorClocks: Record<string, number>[] = [];
       mockSyncQueueInsert((queueItem) => {
-        capturedVectorClocks.push(queueItem.operation.vectorClock);
+        capturedVectorClocks.push((queueItem as CapturedQueueItem).operation.vectorClock);
       });
 
       // Create transaction

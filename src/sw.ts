@@ -7,6 +7,11 @@ import { ExpirationPlugin } from "workbox-expiration";
 
 declare const self: ServiceWorkerGlobalScope;
 
+interface ExtendedNotificationOptions extends NotificationOptions {
+  actions?: Array<{ action: string; title: string; icon?: string }>;
+  vibrate?: number[];
+}
+
 /**
  * Custom Service Worker for Household Hub PWA
  *
@@ -111,7 +116,7 @@ self.addEventListener("push", (event: PushEvent) => {
     const data = event.data.json();
     const { title, body, icon, badge, data: notificationData } = data;
 
-    const options: NotificationOptions = {
+    const options: ExtendedNotificationOptions = {
       body,
       icon: icon || "/icons/icon-192x192.png",
       badge: badge || "/icons/badge-72x72.png",

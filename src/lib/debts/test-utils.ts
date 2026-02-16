@@ -27,7 +27,7 @@
  */
 
 import { nanoid } from "nanoid";
-import type { Debt, InternalDebt, DebtPayment } from "@/types/debt";
+import type { Debt, InternalDebt, DebtPayment, EntityType } from "@/types/debt";
 
 // =====================================================
 // Constants

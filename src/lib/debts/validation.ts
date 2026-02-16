@@ -29,7 +29,7 @@ const CURRENCY_LIMITS = {
   MIN_DEBT: 100, // ₱1.00 minimum debt
 };
 
-export function validateAmount(cents: number, type: "debt"): ValidationResult {
+export function validateAmount(cents: number, _type: "debt"): ValidationResult {
   const errors: string[] = [];
 
   if (!Number.isInteger(cents)) {
@@ -105,14 +105,16 @@ export async function validateEntityExists(
   entityId: string
 ): Promise<boolean> {
   switch (entityType) {
-    case "category":
+    case "category": {
       // Use db.categories (not budgetCategories as in spec)
       const category = await db.categories.get(entityId);
       return !!category && category.is_active; // Using is_active instead of deleted_at
+    }
 
-    case "account":
+    case "account": {
       const account = await db.accounts.get(entityId);
       return !!account && account.is_active; // Using is_active instead of deleted_at
+    }
 
     case "member":
       // No profiles table in Dexie, always return false for now
@@ -135,13 +137,15 @@ export async function getEntityDisplayName(
   entityId: string
 ): Promise<string> {
   switch (entityType) {
-    case "category":
+    case "category": {
       const category = await db.categories.get(entityId);
       return category?.name || `Unknown category`;
+    }
 
-    case "account":
+    case "account": {
       const account = await db.accounts.get(entityId);
       return account?.name || `Unknown account`;
+    }
 
     case "member":
       // No profiles table, return placeholder
@@ -246,7 +250,7 @@ export async function validateDebtDeletion(
     .where("entity_type")
     .equals("debt_payment")
     .and((item) => {
-      const payload = item.operation.payload as any;
+      const payload = item.operation.payload as Record<string, unknown> | undefined;
       const hasDebtId =
         type === "external" ? payload?.debt_id === debtId : payload?.internal_debt_id === debtId;
       return hasDebtId && (item.status === "queued" || item.status === "syncing");

@@ -32,6 +32,7 @@ import { detectDuplicates } from "@/lib/duplicate-detector";
 import { db } from "@/lib/dexie/db";
 import { toast } from "sonner";
 import type { Transaction } from "@/types/transactions";
+import type { LocalTransaction } from "@/lib/dexie/db";
 import type { DuplicateAction } from "@/lib/duplicate-detector";
 
 export const Route = createFileRoute("/import")({
@@ -209,12 +210,15 @@ function ImportPage() {
         for (const { existing, update } of store.transactionsToReplace) {
           try {
             // Build update object with proper types (convert null to undefined for Dexie)
-            const updateData: Partial<Transaction> = {
-              ...update,
-              import_key: addImportKey(update).import_key || undefined,
-              account_id: update.account_id || undefined,
-              category_id: update.category_id || undefined,
-              notes: update.notes || undefined,
+            const updateData: Partial<LocalTransaction> = {
+              date: update.date,
+              description: update.description,
+              amount_cents: update.amount_cents,
+              type: update.type as LocalTransaction["type"],
+              import_key: addImportKey(update).import_key ?? undefined,
+              account_id: update.account_id ?? undefined,
+              category_id: update.category_id ?? undefined,
+              notes: update.notes ?? undefined,
             };
 
             await db.transactions.update(existing.id, updateData);
@@ -241,8 +245,20 @@ function ImportPage() {
 
           // NOTE: This will fail in production without enriching transactions
           // with required fields. See TODO above.
+          // Convert null fields to undefined for LocalTransaction compatibility
+          const localBatch = batchWithKeys.map((t) => ({
+            ...t,
+            account_id: t.account_id ?? undefined,
+            category_id: t.category_id ?? undefined,
+            transfer_group_id: t.transfer_group_id ?? undefined,
+            debt_id: t.debt_id ?? undefined,
+            internal_debt_id: t.internal_debt_id ?? undefined,
+            created_by_user_id: t.created_by_user_id ?? undefined,
+            notes: t.notes ?? undefined,
+            import_key: t.import_key ?? undefined,
+          }));
           await db.transaction("rw", db.transactions, async () => {
-            await db.transactions.bulkAdd(batchWithKeys as Transaction[]);
+            await db.transactions.bulkAdd(localBatch as LocalTransaction[]);
           });
           imported += batch.length;
         } catch (error: unknown) {

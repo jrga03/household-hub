@@ -331,7 +331,10 @@ export class LamportClockManager {
   async getCurrentLamportClock(entityId: string): Promise<number> {
     // Check meta table for stored clock state
     const state = await db.meta.get(`clock:${entityId}`);
-    return state?.value?.lamportClock || 0;
+    const clockState = state?.value as
+      | { lamportClock?: number; vectorClock?: Record<string, number> }
+      | undefined;
+    return clockState?.lamportClock || 0;
   }
 
   /**
@@ -356,7 +359,10 @@ export class LamportClockManager {
 
     // Get existing state to preserve vector clock
     const existingState = await db.meta.get(`clock:${entityId}`);
-    const existingVectorClock = existingState?.value?.vectorClock || {};
+    const existingClockState = existingState?.value as
+      | { vectorClock?: Record<string, number> }
+      | undefined;
+    const existingVectorClock = existingClockState?.vectorClock || {};
 
     // Store updated value while preserving vector clock
     await db.meta.put({
@@ -386,7 +392,8 @@ export class LamportClockManager {
    */
   async getCurrentVectorClock(entityId: string): Promise<VectorClock> {
     const state = await db.meta.get(`clock:${entityId}`);
-    return state?.value?.vectorClock || {};
+    const clockState = state?.value as { vectorClock?: Record<string, number> } | undefined;
+    return clockState?.vectorClock || {};
   }
 
   /**

@@ -66,7 +66,7 @@ export async function updateDebtStatusFromBalance(
 
   // 4. Update status if changed
   if (targetStatus !== currentStatus) {
-    const updates: any = {
+    const updates: Record<string, string | null> = {
       status: targetStatus,
       updated_at: new Date().toISOString(),
     };

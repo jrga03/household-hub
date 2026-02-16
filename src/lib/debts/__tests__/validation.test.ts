@@ -14,6 +14,7 @@ import {
   getEntityDisplayName,
 } from "../validation";
 import type { LocalCategory, LocalAccount } from "@/lib/dexie/db";
+import type { EntityType } from "@/types/debt";
 
 describe("Debt Validation", () => {
   beforeEach(async () => {
@@ -398,7 +399,7 @@ describe("Debt Validation", () => {
         name: "Invalid Type",
         original_amount_cents: 10000,
         household_id: "household-1",
-        from_type: "invalid" as any,
+        from_type: "invalid" as unknown as EntityType,
         from_id: "cat-1",
         to_type: "category",
         to_id: "cat-2",

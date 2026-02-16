@@ -387,67 +387,73 @@ export interface BaseDebtEvent {
   /** Event ID (nanoid) */
   id: string;
 
-  /** Entity type this event applies to */
-  entityType: "debt" | "internal_debt" | "debt_payment";
+  /** Entity type this event applies to (snake_case to match Dexie TransactionEvent) */
+  entity_type: "debt" | "internal_debt" | "debt_payment";
 
   /** ID of the entity being modified */
-  entityId: string;
+  entity_id: string;
 
   /** Operation type */
   op: "create" | "update" | "delete";
 
   /** Changed data (full entity for create, delta for update) */
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
 
   /** Idempotency key for deduplication
    * Format: ${deviceId}-${entityType}-${entityId}-${lamportClock}
    * For payments: reuses payment.idempotency_key
    */
-  idempotencyKey: string;
+  idempotency_key: string;
 
   /** Lamport clock value (global monotonic counter) */
-  lamportClock: number;
+  lamport_clock: number;
 
   /** Vector clock for conflict resolution
    * Format: { deviceId: lamportClock }
    */
-  vectorClock: Record<string, number>;
+  vector_clock: Record<string, number>;
 
   /** User who made the change */
-  actorUserId: string;
+  actor_user_id: string;
 
   /** Device that generated this event */
-  deviceId: string;
+  device_id: string;
 
-  /** Unix timestamp (milliseconds) for ordering */
-  timestamp: number;
+  /** ISO 8601 timestamp for ordering (matches Dexie TransactionEvent) */
+  timestamp: string;
 
   /** ISO 8601 timestamp for human readability */
   created_at: string;
+
+  /** Household this event belongs to */
+  household_id: string;
+
+  /** Schema version for forward compatibility */
+  event_version: number;
 }
 
 /**
  * Event for external debt operations
  */
 export interface DebtEvent extends BaseDebtEvent {
-  entityType: "debt";
-  payload: Partial<Debt>;
+  entity_type: "debt";
+  payload: Partial<Debt> & Record<string, unknown>;
 }
 
 /**
  * Event for internal debt operations
  */
 export interface InternalDebtEvent extends BaseDebtEvent {
-  entityType: "internal_debt";
-  payload: Partial<InternalDebt>;
+  entity_type: "internal_debt";
+  payload: Partial<InternalDebt> & Record<string, unknown>;
 }
 
 /**
  * Event for debt payment operations (includes reversals)
  */
 export interface DebtPaymentEvent extends BaseDebtEvent {
-  entityType: "debt_payment";
-  payload: DebtPayment;
+  entity_type: "debt_payment";
+  payload: DebtPayment & Record<string, unknown>;
 }
 
 /**

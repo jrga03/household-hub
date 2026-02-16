@@ -43,56 +43,68 @@ interface IncomeExpensesChartProps {
   showNetLine?: boolean;
 }
 
+// Tooltip types
+interface IncomeExpenseTooltipPayload {
+  dataKey: string;
+  value: number;
+}
+
+interface IncomeExpenseTooltipProps {
+  active?: boolean;
+  payload?: IncomeExpenseTooltipPayload[];
+  label?: string;
+}
+
+// Custom tooltip component
+function CustomTooltip({ active, payload, label }: IncomeExpenseTooltipProps) {
+  if (!active || !payload || !payload.length) return null;
+
+  const income = payload.find((p) => p.dataKey === "income")?.value || 0;
+  const expenses = payload.find((p) => p.dataKey === "expenses")?.value || 0;
+  const net = income - expenses;
+
+  return (
+    <div className="rounded-lg border bg-background p-3 shadow-lg">
+      <p className="mb-2 font-semibold">{label}</p>
+      <div className="space-y-1 text-sm">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="h-3 w-3 rounded bg-green-500" />
+            <span>Income:</span>
+          </div>
+          <span className="font-mono font-semibold text-green-600">{formatPHP(income)}</span>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="h-3 w-3 rounded bg-red-500" />
+            <span>Expenses:</span>
+          </div>
+          <span className="font-mono font-semibold text-red-600">{formatPHP(expenses)}</span>
+        </div>
+        <div className="mt-2 border-t pt-2">
+          <div className="flex items-center justify-between gap-4 font-semibold">
+            <span>Net:</span>
+            <span className={`font-mono ${net >= 0 ? "text-green-600" : "text-red-600"}`}>
+              {net >= 0 ? "+" : ""}
+              {formatPHP(Math.abs(net))}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function IncomeExpensesChart({
   data,
   onPointClick,
   height = 400,
   showNetLine = true,
 }: IncomeExpensesChartProps) {
-  // Custom tooltip
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload || !payload.length) return null;
-
-    const income = payload.find((p: any) => p.dataKey === "income")?.value || 0;
-    const expenses = payload.find((p: any) => p.dataKey === "expenses")?.value || 0;
-    const net = income - expenses;
-
-    return (
-      <div className="rounded-lg border bg-background p-3 shadow-lg">
-        <p className="mb-2 font-semibold">{label}</p>
-        <div className="space-y-1 text-sm">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded bg-green-500" />
-              <span>Income:</span>
-            </div>
-            <span className="font-mono font-semibold text-green-600">{formatPHP(income)}</span>
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded bg-red-500" />
-              <span>Expenses:</span>
-            </div>
-            <span className="font-mono font-semibold text-red-600">{formatPHP(expenses)}</span>
-          </div>
-          <div className="mt-2 border-t pt-2">
-            <div className="flex items-center justify-between gap-4 font-semibold">
-              <span>Net:</span>
-              <span className={`font-mono ${net >= 0 ? "text-green-600" : "text-red-600"}`}>
-                {net >= 0 ? "+" : ""}
-                {formatPHP(Math.abs(net))}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   // Handle point click
-  const handleClick = (data: any) => {
-    if (onPointClick && data?.month) {
-      onPointClick(data.month);
+  const handleClick = (nextState: Record<string, unknown>) => {
+    if (onPointClick && (nextState as Record<string, unknown>)?.activeLabel) {
+      onPointClick((nextState as Record<string, unknown>).activeLabel as string);
     }
   };
 

@@ -288,6 +288,11 @@ export default [
         Notification: "readonly",
         BufferSource: "readonly",
         ServiceWorkerRegistration: "readonly",
+        FormData: "readonly",
+        HTMLDivElement: "readonly",
+        HTMLElement: "readonly",
+        PushSubscription: "readonly",
+        alert: "readonly",
       },
     },
     plugins: {
