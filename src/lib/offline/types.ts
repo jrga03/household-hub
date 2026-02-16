@@ -37,6 +37,8 @@ export interface TransactionInput {
   notes?: string;
   tagged_user_ids?: string[];
   transfer_group_id?: string | null;
+  debt_id?: string;
+  internal_debt_id?: string;
 }
 
 /**

@@ -18,18 +18,14 @@ import {
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { DatePicker } from "@/components/ui/date-picker";
 import { CategorySelector } from "@/components/ui/category-selector";
-import {
-  useAccounts,
-  useCreateTransaction,
-  useUpdateTransaction,
-  useTransactions,
-} from "@/lib/supabaseQueries";
+import { useAccounts, useUpdateTransaction, useTransactions } from "@/lib/supabaseQueries";
 import { transactionSchema, type TransactionFormData } from "@/lib/validations/transaction";
 import { useAuthStore } from "@/stores/authStore";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { calculateDebtBalance, processDebtPayment, handleTransactionEdit } from "@/lib/debts";
+import { calculateDebtBalance } from "@/lib/debts";
 import { listDebts } from "@/lib/debts/crud";
+import { createOfflineTransaction, updateOfflineTransaction } from "@/lib/offline/transactions";
 import { formatPHP } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import type { Debt } from "@/types/debt";
@@ -51,7 +47,6 @@ export function TransactionFormDialog({
   const queryClient = useQueryClient();
   const { data: accounts } = useAccounts();
   const { data: transactions } = useTransactions();
-  const createTransaction = useCreateTransaction();
   const updateTransaction = useUpdateTransaction();
 
   const form = useForm<TransactionFormData>({
@@ -152,65 +147,72 @@ export function TransactionFormDialog({
 
   const onSubmit = async (data: TransactionFormData) => {
     try {
-      const transactionData = {
-        date: format(data.date, "yyyy-MM-dd"), // Convert to DATE string
-        description: data.description,
-        amount_cents: data.amount_cents,
-        type: data.type,
-        account_id: data.account_id || null,
-        category_id: data.category_id || null,
-        debt_id: data.debt_id || null,
-        internal_debt_id: data.internal_debt_id || null,
-        status: data.status,
-        visibility: data.visibility,
-        notes: data.notes || null,
-        created_by_user_id: user?.id,
-      };
-
-      let transactionId: string;
+      const dateStr = format(data.date, "yyyy-MM-dd");
 
       if (editingId) {
-        // Update transaction
-        await updateTransaction.mutateAsync({
-          id: editingId,
-          updates: transactionData,
-        });
-        transactionId = editingId;
+        // Update via offline-first path (includes debt handling)
+        const result = await updateOfflineTransaction(
+          editingId,
+          {
+            date: dateStr,
+            description: data.description,
+            amount_cents: data.amount_cents,
+            type: data.type,
+            account_id: data.account_id || undefined,
+            category_id: data.category_id || undefined,
+            debt_id: data.debt_id || undefined,
+            internal_debt_id: data.internal_debt_id || undefined,
+            status: data.status,
+            visibility: data.visibility,
+            notes: data.notes || undefined,
+          },
+          user?.id || ""
+        );
 
-        // Handle debt payment changes (reverse old, create new)
-        const debtFieldsChanged =
-          data.debt_id !== undefined ||
-          data.internal_debt_id !== undefined ||
-          data.amount_cents !== undefined ||
-          data.date !== undefined;
-
-        if (debtFieldsChanged) {
-          await handleTransactionEdit({
-            transaction_id: editingId,
-            new_amount_cents: data.amount_cents,
-            new_debt_id: data.debt_id,
-            new_internal_debt_id: data.internal_debt_id,
-            payment_date: format(data.date, "yyyy-MM-dd"),
+        if (!result.success) {
+          // Fallback to direct Supabase update for non-temp IDs
+          await updateTransaction.mutateAsync({
+            id: editingId,
+            updates: {
+              date: dateStr,
+              description: data.description,
+              amount_cents: data.amount_cents,
+              type: data.type,
+              account_id: data.account_id || null,
+              category_id: data.category_id || null,
+              debt_id: data.debt_id || null,
+              internal_debt_id: data.internal_debt_id || null,
+              status: data.status,
+              notes: data.notes || null,
+            },
           });
         }
 
-        toast.success("Transaction updated and debt payment adjusted");
+        toast.success("Transaction updated");
       } else {
-        // Create transaction
-        const result = await createTransaction.mutateAsync(transactionData);
-        transactionId = result.id;
-
-        // Create debt payment if linked
-        if (data.debt_id || data.internal_debt_id) {
-          await processDebtPayment({
-            transaction_id: transactionId,
+        // Create via offline-first path (includes sync queue + debt handling)
+        const result = await createOfflineTransaction(
+          {
+            date: dateStr,
+            description: data.description,
             amount_cents: data.amount_cents,
-            payment_date: format(data.date, "yyyy-MM-dd"),
-            debt_id: data.debt_id,
-            internal_debt_id: data.internal_debt_id,
-            household_id: user?.id || "", // TODO: Use actual household_id
-          });
+            type: data.type,
+            account_id: data.account_id || undefined,
+            category_id: data.category_id || undefined,
+            debt_id: data.debt_id || undefined,
+            internal_debt_id: data.internal_debt_id || undefined,
+            status: data.status,
+            visibility: data.visibility,
+            notes: data.notes || undefined,
+          },
+          user?.id || ""
+        );
 
+        if (!result.success) {
+          throw new Error(result.error || "Failed to create transaction");
+        }
+
+        if (data.debt_id || data.internal_debt_id) {
           const debtName = selectedDebt?.name || "debt";
           toast.success(`Transaction saved and payment applied to ${debtName}`);
         } else {

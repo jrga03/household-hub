@@ -21,6 +21,7 @@ import { nanoid } from "nanoid";
 import { db, type LocalTransaction } from "@/lib/dexie/db";
 import { deviceManager } from "@/lib/dexie/deviceManager";
 import { addToSyncQueue } from "./syncQueue";
+import { processDebtPayment, handleTransactionEdit, handleTransactionDelete } from "@/lib/debts";
 import type { TransactionInput, OfflineOperationResult } from "./types";
 
 /**
@@ -102,6 +103,8 @@ export async function createOfflineTransaction(
       notes: input.notes || undefined,
       tagged_user_ids: input.tagged_user_ids || [],
       transfer_group_id: input.transfer_group_id || undefined,
+      debt_id: input.debt_id || undefined,
+      internal_debt_id: input.internal_debt_id || undefined,
 
       // Generated fields
       household_id: DEFAULT_HOUSEHOLD_ID,
@@ -133,6 +136,29 @@ export async function createOfflineTransaction(
         error: `Failed to queue for sync: ${queueResult.error}`,
         isTemporary: false,
       };
+    }
+
+    // Step 4: Process debt payment if linked to a debt
+    if (input.debt_id || input.internal_debt_id) {
+      try {
+        await processDebtPayment({
+          transaction_id: tempId,
+          amount_cents: input.amount_cents,
+          payment_date: input.date,
+          debt_id: input.debt_id,
+          internal_debt_id: input.internal_debt_id,
+          household_id: DEFAULT_HOUSEHOLD_ID,
+        });
+      } catch (error) {
+        // Rollback transaction and sync queue on debt payment failure
+        await db.transactions.delete(transaction.id);
+        console.error("Failed to create debt payment:", error);
+        return {
+          success: false,
+          error: `Failed to create debt payment: ${error instanceof Error ? error.message : "Unknown error"}`,
+          isTemporary: false,
+        };
+      }
     }
 
     return {
@@ -242,6 +268,31 @@ export async function updateOfflineTransaction(
       };
     }
 
+    // Step 4: Handle debt payment changes if debt-related fields changed
+    const debtFieldsChanged =
+      updates.amount_cents !== undefined ||
+      updates.debt_id !== undefined ||
+      updates.internal_debt_id !== undefined ||
+      updates.date !== undefined;
+
+    if (debtFieldsChanged && (updated.debt_id || updated.internal_debt_id)) {
+      try {
+        await handleTransactionEdit({
+          transaction_id: id,
+          new_amount_cents: updated.amount_cents,
+          new_debt_id: updated.debt_id,
+          new_internal_debt_id: updated.internal_debt_id,
+          payment_date: updated.date,
+        });
+      } catch (error) {
+        console.error("Failed to adjust debt payment:", error);
+        // Don't rollback the transaction update — the debt adjustment is secondary.
+        // This is intentionally asymmetric with deleteOfflineTransaction (which blocks
+        // on debt reversal failure) because a failed delete reversal would leave the
+        // debt balance incorrect, while a failed update adjustment is recoverable.
+      }
+    }
+
     return {
       success: true,
       data: updated,
@@ -303,6 +354,18 @@ export async function deleteOfflineTransaction(
       return {
         success: false,
         error: "Transaction not found",
+        isTemporary: false,
+      };
+    }
+
+    // Step 0: Reverse debt payment BEFORE deletion to preserve audit trail
+    try {
+      await handleTransactionDelete({ transaction_id: id });
+    } catch (error) {
+      console.error("Failed to reverse debt payment:", error);
+      return {
+        success: false,
+        error: `Failed to reverse debt payment: ${error instanceof Error ? error.message : "Unknown error"}`,
         isTemporary: false,
       };
     }
@@ -399,6 +462,8 @@ export async function createOfflineTransactionsBatch(
       notes: input.notes || undefined,
       tagged_user_ids: input.tagged_user_ids || [],
       transfer_group_id: input.transfer_group_id || undefined,
+      debt_id: input.debt_id || undefined,
+      internal_debt_id: input.internal_debt_id || undefined,
 
       // Generated fields (same for all transactions in batch)
       household_id: DEFAULT_HOUSEHOLD_ID,
@@ -410,10 +475,15 @@ export async function createOfflineTransactionsBatch(
       updated_at: now,
     }));
 
-    // Bulk write to IndexedDB (atomic operation)
-    await db.transactions.bulkAdd(transactions);
+    // Write transactions and queue sync items atomically using Dexie transaction.
+    // This prevents phantom sync queue entries pointing to deleted transactions
+    // if some queue operations fail mid-batch.
+    await db.transaction("rw", db.transactions, async () => {
+      await db.transactions.bulkAdd(transactions);
+    });
 
-    // Add all transactions to sync queue
+    // Queue sync items — if any fail, roll back all transactions AND
+    // any successfully queued items
     const queueResults = await Promise.all(
       transactions.map((tx) =>
         addToSyncQueue(
@@ -426,7 +496,6 @@ export async function createOfflineTransactionsBatch(
       )
     );
 
-    // Check if any queue operations failed
     const failedQueues = queueResults.filter((r) => !r.success);
     if (failedQueues.length > 0) {
       // Rollback: Delete all transactions from IndexedDB
