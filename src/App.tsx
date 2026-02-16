@@ -2,6 +2,7 @@ import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { routeTree } from "./routeTree.gen";
 import { Toaster } from "@/components/ui/sonner";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import { InstallPrompt } from "@/components/InstallPrompt";
@@ -124,32 +125,36 @@ function App() {
   }, []);
 
   return (
-    <TooltipProvider>
-      {/* Offline indicator (user-dismissible with retry button and pending count) */}
-      <OfflineBanner />
+    <ErrorBoundary>
+      <TooltipProvider>
+        {/* Offline indicator (user-dismissible with retry button and pending count) */}
+        <OfflineBanner />
 
-      {/* Storage quota warning (shows at 80%+ usage) */}
-      <div className="fixed top-16 left-4 right-4 z-40 md:left-auto md:w-96">
-        <StorageWarning />
-      </div>
+        {/* Storage quota warning (shows at 80%+ usage) */}
+        <div className="fixed top-16 left-4 right-4 z-40 md:left-auto md:w-96">
+          <StorageWarning />
+        </div>
 
-      {/* Global sync status indicator (top-right) */}
-      <div className="fixed top-4 right-4 z-50">
-        <SyncIndicator />
-      </div>
+        {/* Global sync status indicator (top-right) */}
+        <div className="fixed top-4 right-4 z-50">
+          <SyncIndicator />
+        </div>
 
-      <RouterProvider router={router} />
-      <Toaster />
+        <ErrorBoundary>
+          <RouterProvider router={router} />
+        </ErrorBoundary>
+        <Toaster />
 
-      {/* PWA install prompt (conditionally rendered) */}
-      <InstallPrompt />
+        {/* PWA install prompt (conditionally rendered) */}
+        <InstallPrompt />
 
-      {/* Service worker update prompt (bottom-right) */}
-      <UpdatePrompt />
+        {/* Service worker update prompt (bottom-right) */}
+        <UpdatePrompt />
 
-      {/* Network status indicator (bottom-left) - For debt sync visibility */}
-      <NetworkStatus />
-    </TooltipProvider>
+        {/* Network status indicator (bottom-left) - For debt sync visibility */}
+        <NetworkStatus />
+      </TooltipProvider>
+    </ErrorBoundary>
   );
 }
 
