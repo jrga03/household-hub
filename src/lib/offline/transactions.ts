@@ -464,6 +464,7 @@ export async function createOfflineTransactionsBatch(
       transfer_group_id: input.transfer_group_id || undefined,
       debt_id: input.debt_id || undefined,
       internal_debt_id: input.internal_debt_id || undefined,
+      import_key: input.import_key || undefined,
 
       // Generated fields (same for all transactions in batch)
       household_id: DEFAULT_HOUSEHOLD_ID,

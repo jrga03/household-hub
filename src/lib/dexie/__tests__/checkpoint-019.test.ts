@@ -55,7 +55,11 @@ describe("Checkpoint 019: Dexie Setup", () => {
     expect(tableNames).toContain("internalDebts");
     expect(tableNames).toContain("debtPayments");
 
-    expect(tableNames.length).toBe(12);
+    // Version 8 additions (PDF import drafts)
+    expect(tableNames).toContain("importDrafts");
+    expect(tableNames).toContain("importSessions");
+
+    expect(tableNames.length).toBe(14);
   });
 
   it("3. Can store and retrieve transaction data", async () => {

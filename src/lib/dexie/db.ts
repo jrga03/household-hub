@@ -19,6 +19,7 @@
 import Dexie, { Table } from "dexie";
 import { hasSentry } from "@/types/sentry";
 import type { Debt, InternalDebt, DebtPayment } from "@/types/debt";
+import type { ImportDraft, ImportSession } from "@/types/pdf-import";
 
 // ============================================================================
 // TypeScript Interfaces
@@ -243,6 +244,10 @@ export class HouseholdHubDB extends Dexie {
   debts!: Table<Debt, string>;
   internalDebts!: Table<InternalDebt, string>;
   debtPayments!: Table<DebtPayment, string>;
+
+  // PDF import draft tables (added in version 8)
+  importDrafts!: Table<ImportDraft, string>;
+  importSessions!: Table<ImportSession, string>;
 
   constructor() {
     super("HouseholdHubDB");
@@ -548,6 +553,51 @@ export class HouseholdHubDB extends Dexie {
           "[Dexie Migration v6→v7] Adding idempotency_key index to events for duplicate detection"
         );
         // No data migration needed - just adding an index
+        return Promise.resolve();
+      });
+
+    // ========================================================================
+    // Version 8: Add PDF import draft tables
+    // ========================================================================
+    this.version(8)
+      .stores({
+        // IMPORTANT: Must repeat ALL version 7 table definitions (Dexie requirement)
+        transactions:
+          "id, date, account_id, category_id, status, type, household_id, created_at, transfer_group_id, debt_id, internal_debt_id, " +
+          "[account_id+date], [category_id+date], [household_id+date], *tagged_user_ids",
+        accounts: "id, name, visibility, household_id",
+        categories: "id, parent_id, name, household_id",
+        syncQueue:
+          "id, status, entity_type, entity_id, device_id, created_at, " +
+          "[status+device_id], [device_id+created_at]",
+        events: "id, entity_id, lamport_clock, timestamp, device_id, idempotency_key",
+        meta: "key",
+        logs: "id, timestamp, level, device_id",
+        syncIssues: "id, entityId, issueType, timestamp",
+        conflicts:
+          "id, entity_id, resolution, detected_at, [entity_id+resolution], [resolution+detected_at]",
+        debts: "id, household_id, status, created_at, [household_id+status+updated_at]",
+        internalDebts:
+          "id, household_id, from_type, from_id, to_type, to_id, status, created_at, " +
+          "[household_id+status+updated_at]",
+        debtPayments:
+          "id, debt_id, internal_debt_id, transaction_id, payment_date, is_reversal, reverses_payment_id, " +
+          "[debt_id+payment_date+created_at], [internal_debt_id+payment_date+created_at]",
+
+        // NEW: PDF import draft tables
+        // importDrafts: Stores parsed transactions before user confirmation
+        // Compound index: [importSessionId+draft_status] for filtering drafts per session
+        importDrafts:
+          "id, importSessionId, draft_status, account_id, import_key, created_at, " +
+          "[importSessionId+draft_status]",
+
+        // importSessions: Groups drafts from a single PDF upload
+        importSessions: "id, source_bank, created_at",
+      })
+      .upgrade((_tx) => {
+        console.log(
+          "[Dexie Migration v7→v8] Adding importDrafts and importSessions tables for PDF import"
+        );
         return Promise.resolve();
       });
 

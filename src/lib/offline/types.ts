@@ -39,6 +39,7 @@ export interface TransactionInput {
   transfer_group_id?: string | null;
   debt_id?: string;
   internal_debt_id?: string;
+  import_key?: string;
 }
 
 /**
