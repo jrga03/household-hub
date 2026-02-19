@@ -16,12 +16,14 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ImportRouteImport } from './routes/import'
+import { Route as DraftsRouteImport } from './routes/drafts'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CategoriesRouteImport } from './routes/categories'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BudgetsIndexRouteImport } from './routes/budgets/index'
+import { Route as ImportPdfRouteImport } from './routes/import/pdf'
 import { Route as DebtsDemoRouteImport } from './routes/debts/demo'
 import { Route as AnalyticsCategoriesRouteImport } from './routes/analytics/categories'
 import { Route as AccountsAccountIdRouteImport } from './routes/accounts/$accountId'
@@ -61,6 +63,11 @@ const ImportRoute = ImportRouteImport.update({
   path: '/import',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DraftsRoute = DraftsRouteImport.update({
+  id: '/drafts',
+  path: '/drafts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -91,6 +98,11 @@ const BudgetsIndexRoute = BudgetsIndexRouteImport.update({
   path: '/budgets/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ImportPdfRoute = ImportPdfRouteImport.update({
+  id: '/pdf',
+  path: '/pdf',
+  getParentRoute: () => ImportRoute,
+} as any)
 const DebtsDemoRoute = DebtsDemoRouteImport.update({
   id: '/debts/demo',
   path: '/debts/demo',
@@ -113,7 +125,8 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRouteWithChildren
   '/categories': typeof CategoriesRoute
   '/dashboard': typeof DashboardRoute
-  '/import': typeof ImportRoute
+  '/drafts': typeof DraftsRoute
+  '/import': typeof ImportRouteWithChildren
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
@@ -123,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/accounts/$accountId': typeof AccountsAccountIdRoute
   '/analytics/categories': typeof AnalyticsCategoriesRoute
   '/debts/demo': typeof DebtsDemoRoute
+  '/import/pdf': typeof ImportPdfRoute
   '/budgets': typeof BudgetsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -131,7 +145,8 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRouteWithChildren
   '/categories': typeof CategoriesRoute
   '/dashboard': typeof DashboardRoute
-  '/import': typeof ImportRoute
+  '/drafts': typeof DraftsRoute
+  '/import': typeof ImportRouteWithChildren
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
@@ -141,6 +156,7 @@ export interface FileRoutesByTo {
   '/accounts/$accountId': typeof AccountsAccountIdRoute
   '/analytics/categories': typeof AnalyticsCategoriesRoute
   '/debts/demo': typeof DebtsDemoRoute
+  '/import/pdf': typeof ImportPdfRoute
   '/budgets': typeof BudgetsIndexRoute
 }
 export interface FileRoutesById {
@@ -150,7 +166,8 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRouteWithChildren
   '/categories': typeof CategoriesRoute
   '/dashboard': typeof DashboardRoute
-  '/import': typeof ImportRoute
+  '/drafts': typeof DraftsRoute
+  '/import': typeof ImportRouteWithChildren
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
@@ -160,6 +177,7 @@ export interface FileRoutesById {
   '/accounts/$accountId': typeof AccountsAccountIdRoute
   '/analytics/categories': typeof AnalyticsCategoriesRoute
   '/debts/demo': typeof DebtsDemoRoute
+  '/import/pdf': typeof ImportPdfRoute
   '/budgets/': typeof BudgetsIndexRoute
 }
 export interface FileRouteTypes {
@@ -170,6 +188,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/categories'
     | '/dashboard'
+    | '/drafts'
     | '/import'
     | '/login'
     | '/settings'
@@ -180,6 +199,7 @@ export interface FileRouteTypes {
     | '/accounts/$accountId'
     | '/analytics/categories'
     | '/debts/demo'
+    | '/import/pdf'
     | '/budgets'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -188,6 +208,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/categories'
     | '/dashboard'
+    | '/drafts'
     | '/import'
     | '/login'
     | '/settings'
@@ -198,6 +219,7 @@ export interface FileRouteTypes {
     | '/accounts/$accountId'
     | '/analytics/categories'
     | '/debts/demo'
+    | '/import/pdf'
     | '/budgets'
   id:
     | '__root__'
@@ -206,6 +228,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/categories'
     | '/dashboard'
+    | '/drafts'
     | '/import'
     | '/login'
     | '/settings'
@@ -216,6 +239,7 @@ export interface FileRouteTypes {
     | '/accounts/$accountId'
     | '/analytics/categories'
     | '/debts/demo'
+    | '/import/pdf'
     | '/budgets/'
   fileRoutesById: FileRoutesById
 }
@@ -225,7 +249,8 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRouteWithChildren
   CategoriesRoute: typeof CategoriesRoute
   DashboardRoute: typeof DashboardRoute
-  ImportRoute: typeof ImportRoute
+  DraftsRoute: typeof DraftsRoute
+  ImportRoute: typeof ImportRouteWithChildren
   LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
@@ -287,6 +312,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ImportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/drafts': {
+      id: '/drafts'
+      path: '/drafts'
+      fullPath: '/drafts'
+      preLoaderRoute: typeof DraftsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -328,6 +360,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/budgets'
       preLoaderRoute: typeof BudgetsIndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/import/pdf': {
+      id: '/import/pdf'
+      path: '/pdf'
+      fullPath: '/import/pdf'
+      preLoaderRoute: typeof ImportPdfRouteImport
+      parentRoute: typeof ImportRoute
     }
     '/debts/demo': {
       id: '/debts/demo'
@@ -377,13 +416,25 @@ const AnalyticsRouteWithChildren = AnalyticsRoute._addFileChildren(
   AnalyticsRouteChildren,
 )
 
+interface ImportRouteChildren {
+  ImportPdfRoute: typeof ImportPdfRoute
+}
+
+const ImportRouteChildren: ImportRouteChildren = {
+  ImportPdfRoute: ImportPdfRoute,
+}
+
+const ImportRouteWithChildren =
+  ImportRoute._addFileChildren(ImportRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountsRoute: AccountsRouteWithChildren,
   AnalyticsRoute: AnalyticsRouteWithChildren,
   CategoriesRoute: CategoriesRoute,
   DashboardRoute: DashboardRoute,
-  ImportRoute: ImportRoute,
+  DraftsRoute: DraftsRoute,
+  ImportRoute: ImportRouteWithChildren,
   LoginRoute: LoginRoute,
   SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,

@@ -12,6 +12,7 @@ import {
   LogOut,
   User,
   X,
+  FileText,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,8 @@ import { useAuthStore } from "@/stores/authStore";
 import { useNavStore } from "@/stores/navStore";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import { cn } from "@/lib/utils";
+import { useLiveQuery } from "dexie-react-hooks";
+import { getPendingDraftCount } from "@/lib/import-drafts";
 
 /**
  * Mobile navigation drawer component
@@ -72,7 +75,9 @@ const navItems: { section: string; items: NavItem[] }[] = [
     section: "Operations",
     items: [
       { to: "/transfers", label: "Transfers", icon: ArrowLeftRight },
-      { to: "/import", label: "Import", icon: Upload },
+      { to: "/import", label: "CSV Import", icon: Upload },
+      { to: "/import/pdf", label: "PDF Import", icon: FileText },
+      { to: "/drafts", label: "Drafts", icon: FileText },
     ],
   },
 ];
@@ -81,6 +86,15 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
   const router = useRouterState();
   const user = useAuthStore((state) => state.user);
   const setQuickAddOpen = useNavStore((state) => state.setQuickAddOpen);
+  const draftCount = useLiveQuery(() => getPendingDraftCount()) ?? 0;
+
+  // Inject dynamic badge into Drafts item
+  const sections = navItems.map((section) => ({
+    ...section,
+    items: section.items.map((item) =>
+      item.to === "/drafts" && draftCount > 0 ? { ...item, badge: draftCount } : item
+    ),
+  }));
 
   // Check if a route is active
   const isActiveRoute = (path: string) => {
@@ -163,7 +177,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
         {/* Navigation Items */}
         <ScrollArea className="flex-1">
           <div className="px-3 py-2">
-            {navItems.map((section, sectionIdx) => (
+            {sections.map((section, sectionIdx) => (
               <div key={section.section} className="mb-4">
                 <div className="mb-2 px-3">
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -196,7 +210,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
                     );
                   })}
                 </div>
-                {sectionIdx < navItems.length - 1 && <Separator className="mt-4" />}
+                {sectionIdx < sections.length - 1 && <Separator className="mt-4" />}
               </div>
             ))}
 

@@ -13,6 +13,8 @@ import {
   ChevronLeft,
   LogOut,
   User,
+  FileText,
+  FileSpreadsheet,
 } from "lucide-react";
 import {
   Sidebar,
@@ -41,6 +43,8 @@ import { useNavStore } from "@/stores/navStore";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import { cn } from "@/lib/utils";
 import { getShortcutKey } from "@/hooks/useKeyboardShortcuts";
+import { useLiveQuery } from "dexie-react-hooks";
+import { getPendingDraftCount } from "@/lib/import-drafts";
 
 /**
  * Main sidebar navigation component for desktop and tablet views
@@ -132,6 +136,23 @@ const navSections: { label: string; items: NavItem[] }[] = [
         to: "/import",
         label: "Import",
         icon: Upload,
+        children: [
+          {
+            to: "/import",
+            label: "CSV",
+            icon: FileSpreadsheet,
+          },
+          {
+            to: "/import/pdf",
+            label: "PDF Statement",
+            icon: FileText,
+          },
+        ],
+      },
+      {
+        to: "/drafts",
+        label: "Drafts",
+        icon: FileText,
       },
     ],
   },
@@ -142,6 +163,15 @@ export function AppSidebar() {
   const user = useAuthStore((state) => state.user);
   const setQuickAddOpen = useNavStore((state) => state.setQuickAddOpen);
   const { open, setOpen: _setOpen } = useSidebar();
+  const draftCount = useLiveQuery(() => getPendingDraftCount()) ?? 0;
+
+  // Inject dynamic badge count into the Drafts nav item
+  const sections = navSections.map((section) => ({
+    ...section,
+    items: section.items.map((item) =>
+      item.to === "/drafts" && draftCount > 0 ? { ...item, badge: draftCount } : item
+    ),
+  }));
 
   // Check if a route is active
   const isActiveRoute = (path: string) => {
@@ -202,7 +232,7 @@ export function AppSidebar() {
 
       <SidebarContent>
         <ScrollArea className="h-full">
-          {navSections.map((section, idx) => (
+          {sections.map((section, idx) => (
             <SidebarGroup key={section.label}>
               {open && (
                 <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -221,7 +251,7 @@ export function AppSidebar() {
                   ))}
                 </SidebarMenu>
               </SidebarGroupContent>
-              {idx < navSections.length - 1 && <Separator className="my-2" />}
+              {idx < sections.length - 1 && <Separator className="my-2" />}
             </SidebarGroup>
           ))}
 

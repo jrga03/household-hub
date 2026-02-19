@@ -221,7 +221,9 @@ function PageTitle() {
     if (pathname.startsWith("/budgets")) return "Budgets";
     if (pathname.startsWith("/analytics")) return "Analytics";
     if (pathname.startsWith("/transfers")) return "Transfers";
+    if (pathname.startsWith("/import/pdf")) return "PDF Import";
     if (pathname.startsWith("/import")) return "Import";
+    if (pathname.startsWith("/drafts")) return "Drafts";
     if (pathname.startsWith("/settings")) return "Settings";
     return "Household Hub";
   };
