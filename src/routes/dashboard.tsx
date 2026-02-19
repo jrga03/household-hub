@@ -15,8 +15,7 @@ function Dashboard() {
     if (!user) {
       navigate({ to: "/login" }).catch(console.error);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, navigate]);
 
   if (!user) {
     return (

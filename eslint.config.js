@@ -299,6 +299,10 @@ export default [
         MessageEvent: "readonly",
         self: "readonly",
         alert: "readonly",
+        TextEncoder: "readonly",
+        TextDecoder: "readonly",
+        BeforeInstallPromptEvent: "readonly",
+        Navigator: "readonly",
       },
     },
     plugins: {

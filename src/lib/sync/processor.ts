@@ -69,10 +69,9 @@ interface SyncCreateResult {
 
 /**
  * Result of sync update/delete operations
- * Empty for now, but provides consistent interface for future extensions
+ * Empty for now, but provides consistent type for future extensions
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface SyncOperationResult {}
+type SyncOperationResult = Record<string, never>;
 
 /**
  * SyncProcessor - Main class for processing offline sync queue

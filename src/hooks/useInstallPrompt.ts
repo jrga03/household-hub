@@ -3,7 +3,6 @@ import type {} from "@/types/window";
 
 export function useInstallPrompt() {
   const hasIncrementedRef = useRef(false);
-  // eslint-disable-next-line no-undef
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
 
@@ -32,7 +31,6 @@ export function useInstallPrompt() {
     // Capture install prompt event
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
-      // eslint-disable-next-line no-undef
       setDeferredPrompt(e as BeforeInstallPromptEvent);
 
       // Read fresh visit count from localStorage

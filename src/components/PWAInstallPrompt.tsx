@@ -24,7 +24,6 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-// eslint-disable-next-line no-undef
 interface NavigatorStandalone extends Navigator {
   standalone?: boolean;
 }

@@ -48,7 +48,6 @@ export class IdempotencyKeyGenerator {
     const json = JSON.stringify(normalized);
 
     // Use Web Crypto API for SHA-256
-    // eslint-disable-next-line no-undef
     const encoder = new TextEncoder();
     const data = encoder.encode(json);
     const hashBuffer = await crypto.subtle.digest("SHA-256", data);
