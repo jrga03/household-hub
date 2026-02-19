@@ -149,6 +149,10 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    env: {
+      VITE_SUPABASE_URL: "https://test.supabase.co",
+      VITE_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test-anon-key",
+    },
     globals: true,
     testTimeout: 15000, // IndexedDB integration tests need more than the 5s default
     setupFiles: "./src/test/setup.ts",
