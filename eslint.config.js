@@ -187,6 +187,9 @@ export default [
         document: "readonly",
         window: "readonly",
         navigator: "readonly",
+        __dirname: "readonly",
+        process: "readonly",
+        require: "readonly",
       },
     },
     plugins: {

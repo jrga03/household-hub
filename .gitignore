@@ -33,6 +33,7 @@ coverage
 .nyc_output
 playwright-report
 test-results
+.env.test
 
 # Build outputs
 *.tsbuildinfo
