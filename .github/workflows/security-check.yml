@@ -20,17 +20,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
+          cache: "npm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Build application
-        run: pnpm build
+        run: npm run build
         env:
           # Use dummy values for build (real values in production)
           VITE_SUPABASE_URL: "https://dummy.supabase.co"
@@ -104,22 +100,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
+          cache: "npm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
-      - name: Run pnpm audit
+      - name: Run npm audit
         run: |
           echo "🔍 Running dependency vulnerability scan..."
-          pnpm audit --audit-level=high
+          npm audit --audit-level=high
 
           # Store audit results
-          pnpm audit --json > audit-results.json || true
+          npm audit --json > audit-results.json || true
 
       - name: Upload audit results
         if: always()
@@ -176,17 +168,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
+          cache: "npm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Build application
-        run: pnpm build
+        run: npm run build
         env:
           VITE_SUPABASE_URL: "https://dummy.supabase.co"
           VITE_SUPABASE_ANON_KEY: "dummy_anon_key_for_ci"
