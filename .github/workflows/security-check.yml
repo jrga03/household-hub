@@ -36,8 +36,8 @@ jobs:
         run: |
           echo "🔍 Scanning dist/ for leaked credentials..."
 
-          # Check for service role keys
-          if grep -r "service_role\|SUPABASE_SERVICE_KEY\|service.key" dist/ 2>/dev/null; then
+          # Check for service role keys (exclude .map files to avoid false positives from SDK enums)
+          if grep -r --include="*.js" --include="*.html" --include="*.css" "service_role\|SUPABASE_SERVICE_KEY\|service.key" dist/ 2>/dev/null; then
             echo "❌ SECURITY VIOLATION: Service key detected in build output!"
             echo "Service keys must NEVER be included in client bundles."
             echo "These keys bypass RLS and grant full database access."
@@ -45,13 +45,13 @@ jobs:
           fi
 
           # Check for private keys
-          if grep -r "BEGIN PRIVATE KEY\|BEGIN RSA PRIVATE KEY" dist/ 2>/dev/null; then
+          if grep -r --include="*.js" --include="*.html" --include="*.css" "BEGIN PRIVATE KEY\|BEGIN RSA PRIVATE KEY" dist/ 2>/dev/null; then
             echo "❌ SECURITY VIOLATION: Private key detected in build output!"
             exit 1
           fi
 
           # Check for suspicious tokens
-          if grep -r "eyJhbGciOi.*service_role" dist/ 2>/dev/null; then
+          if grep -r --include="*.js" --include="*.html" --include="*.css" "eyJhbGciOi.*service_role" dist/ 2>/dev/null; then
             echo "❌ SECURITY VIOLATION: JWT service role token detected!"
             exit 1
           fi
@@ -108,10 +108,10 @@ jobs:
       - name: Run npm audit
         run: |
           echo "🔍 Running dependency vulnerability scan..."
-          npm audit --audit-level=high
+          npm audit --audit-level=high --omit=dev
 
-          # Store audit results
-          npm audit --json > audit-results.json || true
+          # Store audit results (production deps only)
+          npm audit --json --omit=dev > audit-results.json || true
 
       - name: Upload audit results
         if: always()

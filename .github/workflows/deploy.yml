@@ -52,8 +52,20 @@ jobs:
           echo "🎨 CSS sizes:"
           ls -lh dist/assets/*.css 2>/dev/null || echo "No CSS files found"
 
+      - name: Check for E2E credentials
+        id: check-e2e-creds
+        run: |
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "has_credentials=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping E2E tests: no Supabase credentials configured"
+          else
+            echo "has_credentials=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+
       - name: Run E2E tests
-        if: hashFiles('tests/e2e/**') != ''
+        if: steps.check-e2e-creds.outputs.has_credentials == 'true' && hashFiles('tests/e2e/**') != ''
         run: |
           echo "Installing Playwright browsers..."
           npx playwright install --with-deps
@@ -61,7 +73,7 @@ jobs:
           npm run test:e2e
 
       - name: Upload test results
-        if: failure()
+        if: failure() && steps.check-e2e-creds.outputs.has_credentials == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: test-results
