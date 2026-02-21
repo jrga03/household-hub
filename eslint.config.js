@@ -34,6 +34,9 @@ export default [
         module: "readonly",
         exports: "readonly",
         Buffer: "readonly",
+        setTimeout: "readonly",
+        Atomics: "readonly",
+        SharedArrayBuffer: "readonly",
       },
       parserOptions: {
         ecmaVersion: "latest",
