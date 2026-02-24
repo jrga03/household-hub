@@ -404,7 +404,7 @@ After successful deployment:
 
 ---
 
-**Deployment Date**: ******\_\_\_******
-**Deployed By**: ******\_\_\_******
+**Deployment Date**: **\*\***\_\_\_**\*\***
+**Deployed By**: **\*\***\_\_\_**\*\***
 **Worker URL**: https://household-hub-push._______________.workers.dev
 **Version**: 1.0.0 (Chunk 043)

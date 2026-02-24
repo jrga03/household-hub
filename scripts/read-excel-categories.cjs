@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
-const XLSX = require('xlsx');
+const XLSX = require("xlsx");
 
 // Read the Excel file
-const filePath = '/Users/jasonacido/Downloads/Savings_Expenses.xlsx';
+const filePath = "/Users/jasonacido/Downloads/Savings_Expenses.xlsx";
 const workbook = XLSX.readFile(filePath);
 
 // Get the Constants sheet
-const sheetName = 'Constants';
+const sheetName = "Constants";
 if (!workbook.SheetNames.includes(sheetName)) {
   console.error(`Sheet "${sheetName}" not found. Available sheets:`, workbook.SheetNames);
   process.exit(1);

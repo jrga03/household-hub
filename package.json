@@ -48,7 +48,7 @@
     "@typescript-eslint/parser": "^8.46.1",
     "@vitejs/plugin-react-swc": "^4.1.0",
     "axe-core": "^4.11.0",
-    "bundlesize": "^0.18.2",
+    "baseline-browser-mapping": "^2.10.0",
     "canvas": "^3.2.0",
     "eslint": "^9.37.0",
     "eslint-config-prettier": "^10.1.8",
@@ -68,6 +68,9 @@
     "vite": "^7.1.10",
     "vite-plugin-pwa": "^1.1.0",
     "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "tmp": "^0.2.4"
   },
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^4.6.2",
