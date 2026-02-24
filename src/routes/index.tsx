@@ -18,7 +18,7 @@ function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-dvh">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
@@ -26,7 +26,7 @@ function DashboardPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-dvh bg-background">
         <div className="container mx-auto px-4 py-12">
           <div className="text-center space-y-4 max-w-md mx-auto">
             <h2 className="text-xl font-semibold text-destructive">Failed to Load Dashboard</h2>
@@ -50,7 +50,7 @@ function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-dvh bg-background">
       {/* Month Selector Bar */}
       <div className="border-b bg-background">
         <div className="container mx-auto px-4 py-4">

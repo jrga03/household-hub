@@ -12,7 +12,7 @@ import { Loader2 } from "lucide-react";
  */
 export function LoadingScreen() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
+    <div className="flex min-h-dvh items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4">
         {/* App Logo */}
         <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-primary text-primary-foreground">

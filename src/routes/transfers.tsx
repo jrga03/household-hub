@@ -29,7 +29,7 @@ function TransfersPage() {
 
   if (!user) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-dvh items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
@@ -37,7 +37,7 @@ function TransfersPage() {
 
   if (accountsLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-dvh items-center justify-center">
         <div className="text-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
           <p className="mt-4 text-sm text-muted-foreground">Loading accounts...</p>
@@ -48,7 +48,7 @@ function TransfersPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-dvh bg-background">
         <Header />
         <div className="container mx-auto px-4 py-8">
           <div className="text-center py-12">
@@ -73,7 +73,7 @@ function TransfersPage() {
     })) || [];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-dvh bg-background">
       <Header />
 
       {/* Page Header */}

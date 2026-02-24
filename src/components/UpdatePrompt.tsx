@@ -19,7 +19,7 @@ export function UpdatePrompt() {
   }
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:w-96">
+    <div className="fixed bottom-[calc(1rem+var(--safe-area-bottom))] left-[calc(1rem+var(--safe-area-left))] right-[calc(1rem+var(--safe-area-right))] z-50 md:left-auto md:w-96">
       <Alert>
         <Download className="h-4 w-4" />
         <AlertTitle>Update Available</AlertTitle>

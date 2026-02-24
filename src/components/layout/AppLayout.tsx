@@ -82,7 +82,7 @@ export function AppLayout() {
   // If on auth pages (login/signup), render without navigation
   if (isAuthRoute) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-dvh bg-background">
         <Outlet />
       </div>
     );
@@ -97,7 +97,7 @@ export function AppLayout() {
   // Mobile layout
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-dvh bg-background">
         {/* Skip to main content link for accessibility */}
         <a
           href="#main-content"
@@ -107,7 +107,7 @@ export function AppLayout() {
         </a>
 
         {/* Mobile Header */}
-        <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pt-[var(--safe-area-top)]">
           <div className="flex h-14 items-center px-4">
             {/* Hamburger Menu */}
             <Button
@@ -156,7 +156,7 @@ export function AppLayout() {
   // Tablet/Desktop layout with sidebar
   return (
     <SidebarProvider defaultOpen={!isTablet}>
-      <div className="flex min-h-screen">
+      <div className="flex min-h-dvh">
         {/* Skip to main content link for accessibility */}
         <a
           href="#main-content"
@@ -171,7 +171,7 @@ export function AppLayout() {
         {/* Main Content Area */}
         <div className="flex flex-1 flex-col">
           {/* Optional Header for tablet/desktop (minimal) */}
-          <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 lg:hidden">
+          <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 lg:hidden pt-[var(--safe-area-top)]">
             <div className="flex h-14 items-center px-4">
               <SidebarTrigger className="mr-2" />
               <div className="flex flex-1 items-center">

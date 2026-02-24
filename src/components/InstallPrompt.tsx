@@ -35,7 +35,7 @@ export function InstallPrompt() {
   return (
     <>
       {/* Floating install banner with app icon */}
-      <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-50">
+      <div className="fixed bottom-[calc(1rem+var(--safe-area-bottom))] left-[calc(1rem+var(--safe-area-left))] right-[calc(1rem+var(--safe-area-right))] md:left-auto md:right-[calc(1rem+var(--safe-area-right))] md:w-96 z-50">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-200 dark:border-gray-700">
           <div className="flex items-start space-x-3">
             <div className="flex-shrink-0">

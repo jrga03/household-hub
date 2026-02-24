@@ -115,7 +115,7 @@ export function PWAInstallPrompt() {
   // iOS Safari installation instructions
   if (isIOS) {
     return (
-      <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:w-96">
+      <div className="fixed bottom-[calc(1rem+var(--safe-area-bottom))] left-[calc(1rem+var(--safe-area-left))] right-[calc(1rem+var(--safe-area-right))] z-50 md:left-auto md:w-96">
         <Card className="border-2 border-primary shadow-lg">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
@@ -128,7 +128,12 @@ export function PWAInstallPrompt() {
                   <CardDescription className="text-xs">Add to your home screen</CardDescription>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleDismiss}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-11 -mr-2 -mt-2"
+                onClick={handleDismiss}
+              >
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -165,7 +170,7 @@ export function PWAInstallPrompt() {
 
   // Chromium/Edge installation prompt
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:w-96">
+    <div className="fixed bottom-[calc(1rem+var(--safe-area-bottom))] left-[calc(1rem+var(--safe-area-left))] right-[calc(1rem+var(--safe-area-right))] z-50 md:left-auto md:w-96">
       <Card className="border-2 border-primary shadow-lg">
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
@@ -180,7 +185,12 @@ export function PWAInstallPrompt() {
                 </CardDescription>
               </div>
             </div>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleDismiss}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-11 -mr-2 -mt-2"
+              onClick={handleDismiss}
+            >
               <X className="h-4 w-4" />
             </Button>
           </div>

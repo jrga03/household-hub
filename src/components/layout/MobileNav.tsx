@@ -140,7 +140,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="size-11"
               onClick={() => onOpenChange(false)}
             >
               <X className="h-4 w-4" />

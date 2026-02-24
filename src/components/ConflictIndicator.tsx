@@ -53,7 +53,7 @@ export function ConflictIndicator() {
   }
 
   return (
-    <div className="fixed top-4 right-4 z-50">
+    <div className="fixed top-[calc(1rem+var(--safe-area-top))] right-[calc(1rem+var(--safe-area-right))] z-50">
       <Popover>
         <PopoverTrigger asChild>
           <Button variant="outline" size="sm" className="gap-2">

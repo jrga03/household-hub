@@ -70,7 +70,12 @@ export function QuickActionButton({
   return (
     <>
       {/* Floating Action Button */}
-      <div className={cn("fixed bottom-6 right-6 z-50", className)}>
+      <div
+        className={cn(
+          "fixed bottom-[calc(1.5rem+var(--safe-area-bottom))] right-[calc(1.5rem+var(--safe-area-right))] z-50",
+          className
+        )}
+      >
         <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
           <DropdownMenuTrigger asChild>
             <Button
@@ -166,7 +171,7 @@ export function SpeedDialFAB() {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-[calc(1.5rem+var(--safe-area-bottom))] right-[calc(1.5rem+var(--safe-area-right))] z-50">
       {/* Secondary actions */}
       <div
         className={cn(

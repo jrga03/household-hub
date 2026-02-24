@@ -89,7 +89,7 @@ export function OfflineBanner({ className, dismissible = true }: OfflineBannerPr
     return (
       <div
         className={cn(
-          "fixed top-16 left-0 right-0 z-40 animate-in slide-in-from-top duration-300",
+          "fixed top-[calc(4rem+var(--safe-area-top))] left-0 right-0 z-40 animate-in slide-in-from-top duration-300",
           className
         )}
       >
@@ -118,7 +118,7 @@ export function OfflineBanner({ className, dismissible = true }: OfflineBannerPr
   return (
     <div
       className={cn(
-        "fixed top-16 left-0 right-0 z-40 animate-in slide-in-from-top duration-300",
+        "fixed top-[calc(4rem+var(--safe-area-top))] left-0 right-0 z-40 animate-in slide-in-from-top duration-300",
         className
       )}
       role="alert"

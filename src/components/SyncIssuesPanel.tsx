@@ -61,7 +61,7 @@ export function SyncIssuesPanel() {
   if (issues.length === 0) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 max-w-md z-50">
+    <div className="fixed bottom-[calc(1rem+var(--safe-area-bottom))] right-[calc(1rem+var(--safe-area-right))] max-w-md z-50">
       {/* Collapsed badge (always visible when issues exist) */}
       {!expanded && (
         <button

@@ -76,7 +76,7 @@ export function NetworkStatus() {
 
   return (
     <div
-      className="fixed bottom-4 left-4 z-50 flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm text-white shadow-lg"
+      className="fixed bottom-[calc(1rem+var(--safe-area-bottom))] left-[calc(1rem+var(--safe-area-left))] z-50 flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm text-white shadow-lg"
       role="status"
       aria-live="polite"
     >
