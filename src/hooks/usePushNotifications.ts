@@ -20,11 +20,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 
-// VAPID public key - Replace with your actual key from Cloudflare Worker
+// VAPID public key - set via VITE_VAPID_PUBLIC_KEY environment variable
 // Generate with: npx web-push generate-vapid-keys
-const VAPID_PUBLIC_KEY =
-  import.meta.env.VITE_VAPID_PUBLIC_KEY ||
-  "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U";
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY ?? "";
 
 interface PushSubscriptionState {
   isSupported: boolean;

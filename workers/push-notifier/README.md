@@ -164,10 +164,10 @@ web-push generate-vapid-keys
 # Output will look like:
 # =======================================
 # Public Key:
-# BLc5asl8GQ8vq4B3sdmA0mZ1Oaw7mB199CDw5nIvP24cU5vJxgFV8OxKCbPNQqyqC36HrpV_KeNTp0N5mvVcCqM
+# <your-generated-public-key>
 #
 # Private Key:
-# c6yxglDendazbZ0KtiWEW8palsOcSD4z_cAU9D467XQ
+# <your-generated-private-key>
 # =======================================
 ```
 

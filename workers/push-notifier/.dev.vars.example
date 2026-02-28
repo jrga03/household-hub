@@ -8,8 +8,8 @@ SUPABASE_JWT_SECRET=your-jwt-secret-from-supabase-dashboard
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-from-supabase-dashboard
 
 # VAPID Keys (generate with: npx web-push generate-vapid-keys)
-VAPID_PUBLIC_KEY=BLc5asl8GQ8vq4B3sdmA0mZ1Oaw7mB199CDw5nIvP24cU5vJxgFV8OxKCbPNQqyqC36HrpV_KeNTp0N5mvVcCqM
-VAPID_PRIVATE_KEY=c6yxglDendazbZ0KtiWEW8palsOcSD4z_cAU9D467XQ
+VAPID_PUBLIC_KEY=your-vapid-public-key
+VAPID_PRIVATE_KEY=your-vapid-private-key
 
 # Environment
 ENVIRONMENT=development

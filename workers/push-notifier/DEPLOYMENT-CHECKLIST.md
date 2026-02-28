@@ -19,8 +19,8 @@ npx web-push generate-vapid-keys
 **Output example:**
 
 ```
-Public Key:  BLc5asl8GQ8vq4B3sdmA0mZ1Oaw7mB199CDw5nIvP24cU5vJxgFV8OxKCbPNQqyqC36HrpV_KeNTp0N5mvVcCqM
-Private Key: c6yxglDendazbZ0KtiWEW8palsOcSD4z_cAU9D467XQ
+Public Key:  <your-generated-public-key>
+Private Key: <your-generated-private-key>
 ```
 
 **Security Note**: Keep the private key secret! Only the public key goes in your PWA.
@@ -238,7 +238,7 @@ In your frontend project, update `.env.production`:
 
 ```bash
 VITE_PUSH_WORKER_URL=https://household-hub-push.YOUR_SUBDOMAIN.workers.dev
-VITE_VAPID_PUBLIC_KEY=BLc5asl8GQ8vq4B3sdmA0mZ1Oaw7mB199CDw5nIvP24cU5vJxgFV8OxKCbPNQqyqC36HrpV_KeNTp0N5mvVcCqM
+VITE_VAPID_PUBLIC_KEY=your-vapid-public-key
 ```
 
 ### 12. Update Service Worker Registration
