@@ -63,7 +63,21 @@ export function useServiceWorker() {
   }, []);
 
   const update = async () => {
+    // Listen for the new SW to take control (works on most browsers)
+    const controllerChanged = new Promise<void>((resolve) => {
+      navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), {
+        once: true,
+      });
+    });
+
     await updateServiceWorker(true);
+
+    // Wait for controllerchange, fall back after 3s for iOS standalone PWA
+    // where the event may not fire despite skipWaiting() succeeding
+    const timeout = new Promise<void>((resolve) => setTimeout(resolve, 3000));
+    await Promise.race([controllerChanged, timeout]);
+
+    window.location.reload();
   };
 
   return {
