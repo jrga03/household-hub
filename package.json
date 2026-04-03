@@ -70,7 +70,8 @@
     "vitest": "^3.2.4"
   },
   "overrides": {
-    "tmp": "^0.2.4"
+    "tmp": "^0.2.4",
+    "serialize-javascript": "^7.0.5"
   },
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^4.6.2",
