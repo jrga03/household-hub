@@ -24,17 +24,25 @@ export function MonthSelector({ selectedMonth, onChange }: Props) {
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1 sm:gap-2">
       <Button variant="outline" size="sm" onClick={handlePrevious}>
         <ChevronLeft className="h-4 w-4" />
       </Button>
 
-      <div className="flex items-center gap-2">
-        <span className="text-lg font-semibold min-w-[120px] text-center">
+      <div className="flex items-center gap-1 sm:gap-2">
+        <span className="text-sm font-semibold min-w-[100px] text-center sm:hidden">
+          {format(selectedMonth, "MMM yyyy")}
+        </span>
+        <span className="hidden sm:inline text-lg font-semibold min-w-[140px] text-center">
           {format(selectedMonth, "MMMM yyyy")}
         </span>
         {!isCurrentMonth && (
-          <Button variant="ghost" size="sm" onClick={handleCurrent}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleCurrent}
+            className="hidden sm:inline-flex"
+          >
             Current
           </Button>
         )}
