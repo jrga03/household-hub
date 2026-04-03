@@ -135,8 +135,11 @@ function DraftsPage() {
 
   if (!drafts) {
     return (
-      <div className="flex items-center justify-center p-12">
-        <span className="text-muted-foreground">Loading drafts...</span>
+      <div className="min-h-dvh bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
+          <p className="mt-4 text-sm text-muted-foreground">Loading drafts...</p>
+        </div>
       </div>
     );
   }

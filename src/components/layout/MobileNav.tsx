@@ -123,7 +123,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="left" className="w-80 p-0">
+      <SheetContent side="left" className="w-80 p-0 gap-0">
         <SheetHeader className="border-b px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -175,7 +175,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
         </div>
 
         {/* Navigation Items */}
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 min-h-0">
           <div className="px-3 py-2">
             {sections.map((section, sectionIdx) => (
               <div key={section.section} className="mb-4">

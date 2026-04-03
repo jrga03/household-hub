@@ -244,25 +244,28 @@ self.addEventListener("notificationclose", (event: NotificationEvent) => {
 // SERVICE WORKER LIFECYCLE
 // ============================================================================
 
-/**
- * Install Event
- *
- * Triggered when service worker is first installed.
- * Skip waiting to activate immediately.
- */
-self.addEventListener("install", (event) => {
-  console.log("[Service Worker] Installing...");
-  event.waitUntil(self.skipWaiting());
+// With registerType: "prompt" and injectManifest, the update flow is:
+// 1. New SW installs and enters "waiting" state (no skipWaiting on install)
+// 2. User sees UpdatePrompt and clicks "Reload Now"
+// 3. updateServiceWorker(true) sends { type: 'SKIP_WAITING' } message
+// 4. This message listener calls skipWaiting() → SW activates → page reloads
+//
+// IMPORTANT: Do NOT call skipWaiting() in the install handler — that would
+// bypass the prompt and activate the new SW while the page still serves
+// stale precached assets.
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
-/**
- * Activate Event
- *
- * Triggered when service worker activates.
- * Claim all clients immediately.
- */
+self.addEventListener("install", () => {
+  console.log("[Service Worker] Installed, waiting for user to accept update...");
+});
+
 self.addEventListener("activate", (event) => {
-  console.log("[Service Worker] Activating...");
+  console.log("[Service Worker] Activated");
   event.waitUntil(self.clients.claim());
 });
 
