@@ -123,7 +123,10 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="left" className="w-80 p-0 gap-0">
+      <SheetContent
+        side="left"
+        className="w-80 p-0 gap-0 pt-[var(--safe-area-top)] pb-[var(--safe-area-bottom)] [&>button]:hidden"
+      >
         <SheetHeader className="border-b px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
