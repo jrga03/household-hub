@@ -5,7 +5,6 @@ import { Toaster } from "@/components/ui/sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OfflineBanner } from "@/components/OfflineBanner";
 
-import { InstallPrompt } from "@/components/InstallPrompt";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
 import { StorageWarning } from "@/components/StorageWarning";
 import { NetworkStatus } from "@/components/NetworkStatus";
@@ -139,9 +138,6 @@ function App() {
           <RouterProvider router={router} />
         </ErrorBoundary>
         <Toaster />
-
-        {/* PWA install prompt (conditionally rendered) */}
-        <InstallPrompt />
 
         {/* Service worker update prompt (bottom-right) */}
         <UpdatePrompt />
