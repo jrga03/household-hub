@@ -1,17 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { eventCompactor, type CompactionStats } from "@/lib/event-compactor";
 import { csvExporter } from "@/lib/csv-exporter";
 import { toast } from "sonner";
-import { Loader2, Download } from "lucide-react";
+import { Loader2, Download, Monitor, Moon, Sun } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
 });
 
 function SettingsPage() {
+  const { theme, setTheme } = useTheme();
   const [compacting, setCompacting] = useState(false);
   const [lastStats, setLastStats] = useState<CompactionStats | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -83,6 +85,42 @@ function SettingsPage() {
       </div>
 
       <main className="container mx-auto max-w-7xl px-4 py-8 space-y-6">
+        {/* Appearance Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Appearance</CardTitle>
+            <CardDescription>Choose how Household Hub looks to you</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-3">
+              <Button
+                variant={theme === "light" ? "default" : "outline"}
+                className="flex flex-col items-center gap-2 h-auto py-4"
+                onClick={() => setTheme("light")}
+              >
+                <Sun className="h-5 w-5" />
+                <span className="text-xs font-medium">Light</span>
+              </Button>
+              <Button
+                variant={theme === "dark" ? "default" : "outline"}
+                className="flex flex-col items-center gap-2 h-auto py-4"
+                onClick={() => setTheme("dark")}
+              >
+                <Moon className="h-5 w-5" />
+                <span className="text-xs font-medium">Dark</span>
+              </Button>
+              <Button
+                variant={theme === "system" ? "default" : "outline"}
+                className="flex flex-col items-center gap-2 h-auto py-4"
+                onClick={() => setTheme("system")}
+              >
+                <Monitor className="h-5 w-5" />
+                <span className="text-xs font-medium">System</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Data Export Section */}
         <Card>
           <CardHeader>

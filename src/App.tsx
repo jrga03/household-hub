@@ -1,5 +1,6 @@
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { useEffect } from "react";
+import { ThemeProvider } from "next-themes";
 import { routeTree } from "./routeTree.gen";
 import { Toaster } from "@/components/ui/sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -125,26 +126,34 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <TooltipProvider>
-        {/* Offline indicator (user-dismissible with retry button and pending count) */}
-        <OfflineBanner />
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+        storageKey="household-hub-theme"
+      >
+        <TooltipProvider>
+          {/* Offline indicator (user-dismissible with retry button and pending count) */}
+          <OfflineBanner />
 
-        {/* Storage quota warning (shows at 80%+ usage) */}
-        <div className="fixed top-16 left-4 right-4 z-40 md:left-auto md:w-96">
-          <StorageWarning />
-        </div>
+          {/* Storage quota warning (shows at 80%+ usage) */}
+          <div className="fixed top-16 left-4 right-4 z-40 md:left-auto md:w-96">
+            <StorageWarning />
+          </div>
 
-        <ErrorBoundary>
-          <RouterProvider router={router} />
-        </ErrorBoundary>
-        <Toaster />
+          <ErrorBoundary>
+            <RouterProvider router={router} />
+          </ErrorBoundary>
+          <Toaster />
 
-        {/* Service worker update prompt (bottom-right) */}
-        <UpdatePrompt />
+          {/* Service worker update prompt (bottom-right) */}
+          <UpdatePrompt />
 
-        {/* Network status indicator (bottom-left) - For debt sync visibility */}
-        <NetworkStatus />
-      </TooltipProvider>
+          {/* Network status indicator (bottom-left) - For debt sync visibility */}
+          <NetworkStatus />
+        </TooltipProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }
