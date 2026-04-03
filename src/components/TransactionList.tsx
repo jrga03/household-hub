@@ -179,20 +179,18 @@ export function TransactionList({ filters, onEdit }: Props) {
       {/* Bulk Actions Toolbar */}
       {hasSelection && (
         <div className="rounded-lg border bg-muted/50 p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">
-                {selectedIds.size} transaction{selectedIds.size > 1 ? "s" : ""} selected
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-sm font-medium">
+              {selectedIds.size} transaction{selectedIds.size > 1 ? "s" : ""} selected
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => handleBulkStatusUpdate("cleared")}>
                 <CheckCircle className="mr-2 h-4 w-4" />
-                Mark Cleared
+                <span className="hidden sm:inline">Mark </span>Cleared
               </Button>
               <Button variant="outline" size="sm" onClick={() => handleBulkStatusUpdate("pending")}>
                 <Circle className="mr-2 h-4 w-4" />
-                Mark Pending
+                <span className="hidden sm:inline">Mark </span>Pending
               </Button>
               <Button variant="outline" size="sm" onClick={handleBulkDelete}>
                 <Trash2 className="mr-2 h-4 w-4" />
@@ -206,7 +204,7 @@ export function TransactionList({ filters, onEdit }: Props) {
         </div>
       )}
 
-      <div className="rounded-lg border bg-card">
+      <div className="rounded-lg border bg-card overflow-x-auto">
         {/* Fixed table header */}
         <Table>
           <TableHeader>
@@ -220,10 +218,10 @@ export function TransactionList({ filters, onEdit }: Props) {
               </TableHead>
               <TableHead className="w-[100px]">Date</TableHead>
               <TableHead>Description</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Account</TableHead>
+              <TableHead className="hidden md:table-cell">Category</TableHead>
+              <TableHead className="hidden lg:table-cell">Account</TableHead>
               <TableHead className="text-right">Amount</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead className="hidden sm:table-cell">Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -285,14 +283,14 @@ export function TransactionList({ filters, onEdit }: Props) {
                         <SyncBadge status="synced" size="xs" />
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       {transaction.category ? (
                         <Badge variant="outline">{transaction.category.name}</Badge>
                       ) : (
                         <span className="text-muted-foreground text-sm">—</span>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden lg:table-cell">
                       {transaction.account ? (
                         <span className="text-sm">{transaction.account.name}</span>
                       ) : (
@@ -310,7 +308,7 @@ export function TransactionList({ filters, onEdit }: Props) {
                       {transaction.type === "income" ? "+" : "-"}
                       {formatPHP(transaction.amount_cents)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <Button
                         variant="ghost"
                         size="sm"

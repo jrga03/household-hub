@@ -142,277 +142,286 @@ function DraftsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-6">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold">
-          <FileText className="h-6 w-6" />
-          Import Drafts
-        </h1>
-        <p className="text-muted-foreground">
-          Review and confirm imported transactions before they become real.
-        </p>
+    <div className="min-h-dvh bg-background">
+      {/* Page Header */}
+      <div className="border-b">
+        <div className="container mx-auto max-w-7xl px-4 py-4">
+          <h1 className="flex items-center gap-2 text-xl font-bold">
+            <FileText className="h-5 w-5" />
+            Import Drafts
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Review and confirm imported transactions before they become real.
+          </p>
+        </div>
       </div>
 
-      {drafts.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
-            <h3 className="text-lg font-medium">No Pending Drafts</h3>
-            <p className="text-sm text-muted-foreground">
-              Import a PDF statement to create draft transactions for review.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          {/* Bulk actions */}
+      <main className="container mx-auto max-w-7xl px-4 py-8 space-y-6">
+        {drafts.length === 0 ? (
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">
-                {drafts.length} Draft{drafts.length !== 1 ? "s" : ""} Pending
-              </CardTitle>
-              <CardDescription>
-                {selected.size > 0
-                  ? `${selected.size} selected`
-                  : "Select drafts or use bulk actions"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" onClick={handleConfirmAll} disabled={isConfirming}>
-                  <CheckCheck className="mr-1 h-4 w-4" />
-                  Confirm All
-                </Button>
-                {selected.size > 0 && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleConfirmSelected}
-                      disabled={isConfirming}
-                    >
-                      <Check className="mr-1 h-4 w-4" />
-                      Confirm Selected ({selected.size})
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={handleDiscardSelected}>
-                      <Trash2 className="mr-1 h-4 w-4" />
-                      Discard Selected
-                    </Button>
-                  </>
-                )}
-              </div>
+            <CardContent className="py-12 text-center">
+              <FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+              <h3 className="text-lg font-medium">No Pending Drafts</h3>
+              <p className="text-sm text-muted-foreground">
+                Import a PDF statement to create draft transactions for review.
+              </p>
             </CardContent>
           </Card>
+        ) : (
+          <>
+            {/* Bulk actions */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">
+                  {drafts.length} Draft{drafts.length !== 1 ? "s" : ""} Pending
+                </CardTitle>
+                <CardDescription>
+                  {selected.size > 0
+                    ? `${selected.size} selected`
+                    : "Select drafts or use bulk actions"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={handleConfirmAll} disabled={isConfirming}>
+                    <CheckCheck className="mr-1 h-4 w-4" />
+                    Confirm All
+                  </Button>
+                  {selected.size > 0 && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleConfirmSelected}
+                        disabled={isConfirming}
+                      >
+                        <Check className="mr-1 h-4 w-4" />
+                        Confirm Selected ({selected.size})
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={handleDiscardSelected}>
+                        <Trash2 className="mr-1 h-4 w-4" />
+                        Discard Selected
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Drafts table */}
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">
-                    <Checkbox
-                      checked={selected.size === drafts.length}
-                      onCheckedChange={toggleSelectAll}
-                    />
-                  </TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Account</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="w-20">Confidence</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead className="w-24">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {drafts.map((draft) => {
-                  const isEditing = editingId === draft.id;
-                  const account = accounts?.find((a) => a.id === draft.account_id);
+            {/* Drafts table */}
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={selected.size === drafts.length}
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="hidden md:table-cell">Account</TableHead>
+                    <TableHead className="hidden md:table-cell">Category</TableHead>
+                    <TableHead className="hidden lg:table-cell w-20">Confidence</TableHead>
+                    <TableHead className="hidden lg:table-cell">Source</TableHead>
+                    <TableHead className="w-24">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {drafts.map((draft) => {
+                    const isEditing = editingId === draft.id;
+                    const account = accounts?.find((a) => a.id === draft.account_id);
 
-                  return (
-                    <TableRow key={draft.id}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selected.has(draft.id)}
-                          onCheckedChange={() => toggleSelect(draft.id)}
-                        />
-                      </TableCell>
+                    return (
+                      <TableRow key={draft.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selected.has(draft.id)}
+                            onCheckedChange={() => toggleSelect(draft.id)}
+                          />
+                        </TableCell>
 
-                      {isEditing ? (
-                        <>
-                          <TableCell>
-                            <Input
-                              className="h-8 w-28"
-                              value={editValues.date || ""}
-                              onChange={(e) =>
-                                setEditValues((v) => ({ ...v, date: e.target.value }))
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              className="h-8"
-                              value={editValues.description || ""}
-                              onChange={(e) =>
-                                setEditValues((v) => ({ ...v, description: e.target.value }))
-                              }
-                            />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Input
-                              className="h-8 w-28 text-right"
-                              type="number"
-                              value={(editValues.amount_cents || 0) / 100}
-                              onChange={(e) =>
-                                setEditValues((v) => ({
-                                  ...v,
-                                  amount_cents: Math.round(Number(e.target.value) * 100),
-                                }))
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Select
-                              value={editValues.type || "expense"}
-                              onValueChange={(val) =>
-                                setEditValues((v) => ({
-                                  ...v,
-                                  type: val as "income" | "expense",
-                                }))
-                              }
-                            >
-                              <SelectTrigger className="h-8 w-24">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="expense">Expense</SelectItem>
-                                <SelectItem value="income">Income</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell>
-                            <Select
-                              value={editValues.account_id || ""}
-                              onValueChange={(val) =>
-                                setEditValues((v) => ({ ...v, account_id: val }))
-                              }
-                            >
-                              <SelectTrigger className="h-8">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {accounts?.map((a) => (
-                                  <SelectItem key={a.id} value={a.id}>
-                                    {a.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell>
-                            <Select
-                              value={editValues.category_id || "none"}
-                              onValueChange={(val) =>
-                                setEditValues((v) => ({
-                                  ...v,
-                                  category_id: val === "none" ? undefined : val,
-                                }))
-                              }
-                            >
-                              <SelectTrigger className="h-8">
-                                <SelectValue placeholder="None" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">None</SelectItem>
-                                {categories?.map((c) => (
-                                  <SelectItem key={c.id} value={c.id}>
-                                    {c.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell />
-                          <TableCell />
-                          <TableCell>
-                            <Button size="sm" variant="ghost" onClick={saveEdit}>
-                              <Check className="h-3 w-3" />
-                            </Button>
-                          </TableCell>
-                        </>
-                      ) : (
-                        <>
-                          <TableCell className="whitespace-nowrap">{draft.date}</TableCell>
-                          <TableCell className="max-w-48 truncate">{draft.description}</TableCell>
-                          <TableCell className="text-right whitespace-nowrap">
-                            {formatPHP(draft.amount_cents)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={draft.type === "expense" ? "destructive" : "default"}>
-                              {draft.type}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm">{account?.name || "-"}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">-</TableCell>
-                          <TableCell>
-                            {draft.parsed_confidence >= 0.9 ? (
-                              <Badge variant="outline" className="text-green-600">
-                                High
-                              </Badge>
-                            ) : draft.parsed_confidence >= 0.7 ? (
-                              <Badge variant="outline">
-                                {Math.round(draft.parsed_confidence * 100)}%
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-yellow-600">
-                                Low
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="max-w-24 truncate text-xs text-muted-foreground">
-                            {draft.source_file_name}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleConfirm([draft.id])}
-                                disabled={isConfirming}
-                                title="Confirm"
+                        {isEditing ? (
+                          <>
+                            <TableCell>
+                              <Input
+                                className="h-8 w-28"
+                                value={editValues.date || ""}
+                                onChange={(e) =>
+                                  setEditValues((v) => ({ ...v, date: e.target.value }))
+                                }
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                className="h-8"
+                                value={editValues.description || ""}
+                                onChange={(e) =>
+                                  setEditValues((v) => ({ ...v, description: e.target.value }))
+                                }
+                              />
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Input
+                                className="h-8 w-28 text-right"
+                                type="number"
+                                value={(editValues.amount_cents || 0) / 100}
+                                onChange={(e) =>
+                                  setEditValues((v) => ({
+                                    ...v,
+                                    amount_cents: Math.round(Number(e.target.value) * 100),
+                                  }))
+                                }
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={editValues.type || "expense"}
+                                onValueChange={(val) =>
+                                  setEditValues((v) => ({
+                                    ...v,
+                                    type: val as "income" | "expense",
+                                  }))
+                                }
                               >
+                                <SelectTrigger className="h-8 w-24">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="expense">Expense</SelectItem>
+                                  <SelectItem value="income">Income</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              <Select
+                                value={editValues.account_id || ""}
+                                onValueChange={(val) =>
+                                  setEditValues((v) => ({ ...v, account_id: val }))
+                                }
+                              >
+                                <SelectTrigger className="h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {accounts?.map((a) => (
+                                    <SelectItem key={a.id} value={a.id}>
+                                      {a.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              <Select
+                                value={editValues.category_id || "none"}
+                                onValueChange={(val) =>
+                                  setEditValues((v) => ({
+                                    ...v,
+                                    category_id: val === "none" ? undefined : val,
+                                  }))
+                                }
+                              >
+                                <SelectTrigger className="h-8">
+                                  <SelectValue placeholder="None" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">None</SelectItem>
+                                  {categories?.map((c) => (
+                                    <SelectItem key={c.id} value={c.id}>
+                                      {c.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell" />
+                            <TableCell className="hidden lg:table-cell" />
+                            <TableCell>
+                              <Button size="sm" variant="ghost" onClick={saveEdit}>
                                 <Check className="h-3 w-3" />
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => startEditing(draft)}
-                                title="Edit"
-                              >
-                                <Pencil className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleDiscard(draft.id)}
-                                title="Discard"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </>
-                      )}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </>
-      )}
+                            </TableCell>
+                          </>
+                        ) : (
+                          <>
+                            <TableCell className="whitespace-nowrap">{draft.date}</TableCell>
+                            <TableCell className="max-w-48 truncate">{draft.description}</TableCell>
+                            <TableCell className="text-right whitespace-nowrap">
+                              {formatPHP(draft.amount_cents)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={draft.type === "expense" ? "destructive" : "default"}>
+                                {draft.type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell text-sm">
+                              {account?.name || "-"}
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                              -
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell">
+                              {draft.parsed_confidence >= 0.9 ? (
+                                <Badge variant="outline" className="text-green-600">
+                                  High
+                                </Badge>
+                              ) : draft.parsed_confidence >= 0.7 ? (
+                                <Badge variant="outline">
+                                  {Math.round(draft.parsed_confidence * 100)}%
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-yellow-600">
+                                  Low
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell max-w-24 truncate text-xs text-muted-foreground">
+                              {draft.source_file_name}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleConfirm([draft.id])}
+                                  disabled={isConfirming}
+                                  title="Confirm"
+                                >
+                                  <Check className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => startEditing(draft)}
+                                  title="Edit"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDiscard(draft.id)}
+                                  title="Discard"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </>
+                        )}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        )}
+      </main>
     </div>
   );
 }
