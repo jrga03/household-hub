@@ -33,7 +33,7 @@ function AccountDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-24">
+      <div className="flex items-center justify-center py-24 bg-background">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
@@ -48,7 +48,7 @@ function AccountDetailPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-background">
+    <div className="bg-background">
       {/* Header */}
       <header className="border-b">
         <div className="container mx-auto max-w-7xl px-4 py-4">

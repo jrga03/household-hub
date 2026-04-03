@@ -100,14 +100,14 @@ function BudgetsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-dvh bg-background flex items-center justify-center">
+      <div className="flex items-center justify-center py-24">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-dvh bg-background">
+    <div className="bg-background">
       {/* Header */}
       <header className="border-b">
         <div className="container mx-auto max-w-7xl px-4 py-4">

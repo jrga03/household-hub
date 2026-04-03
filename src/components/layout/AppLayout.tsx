@@ -140,7 +140,7 @@ export function AppLayout() {
         <OfflineBanner />
 
         {/* Main Content */}
-        <main id="main-content" className="flex-1">
+        <main id="main-content" className="flex-1 bg-background">
           <Outlet />
         </main>
 
@@ -187,7 +187,7 @@ export function AppLayout() {
           <main
             id="main-content"
             className={cn(
-              "flex-1",
+              "flex-1 bg-background",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
               "relative"
             )}

@@ -76,7 +76,7 @@ function Transactions() {
   };
 
   return (
-    <div className="min-h-dvh bg-background">
+    <div className="bg-background">
       {/* Page Header Bar */}
       <div className="border-b bg-background">
         <div className="container mx-auto max-w-7xl flex items-center justify-between px-4 py-4">

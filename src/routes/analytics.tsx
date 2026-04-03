@@ -15,7 +15,7 @@ function Analytics() {
   const [activeTab, setActiveTab] = useState("overview");
 
   return (
-    <div className="min-h-dvh bg-background">
+    <div className="bg-background">
       {/* Page Header */}
       <div className="border-b">
         <div className="container mx-auto max-w-7xl px-4 py-4">
