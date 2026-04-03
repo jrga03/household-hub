@@ -4,7 +4,7 @@ import { routeTree } from "./routeTree.gen";
 import { Toaster } from "@/components/ui/sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OfflineBanner } from "@/components/OfflineBanner";
-import { SyncIndicator } from "@/components/SyncIndicator";
+
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
 import { StorageWarning } from "@/components/StorageWarning";
@@ -133,11 +133,6 @@ function App() {
         {/* Storage quota warning (shows at 80%+ usage) */}
         <div className="fixed top-16 left-4 right-4 z-40 md:left-auto md:w-96">
           <StorageWarning />
-        </div>
-
-        {/* Global sync status indicator (top-right) */}
-        <div className="fixed top-4 right-4 z-50">
-          <SyncIndicator />
         </div>
 
         <ErrorBoundary>

@@ -26,7 +26,7 @@ export function UpdatePrompt() {
         <AlertDescription>
           A new version of Household Hub is ready. Reload to get the latest features and fixes.
         </AlertDescription>
-        <div className="mt-4 flex gap-2">
+        <div className="col-start-2 mt-4 flex gap-2">
           <Button onClick={update} size="sm" className="flex-1">
             Reload Now
           </Button>
