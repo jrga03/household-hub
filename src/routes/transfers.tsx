@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { useAccounts } from "@/lib/supabaseQueries";
 import { TransferForm } from "@/components/transfers/TransferForm";
 import { TransferList } from "@/components/transfers/TransferList";
-import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/transfers")({
@@ -29,7 +28,7 @@ function TransfersPage() {
 
   if (!user) {
     return (
-      <div className="flex min-h-dvh items-center justify-center">
+      <div className="flex items-center justify-center py-24">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
@@ -37,7 +36,7 @@ function TransfersPage() {
 
   if (accountsLoading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center">
+      <div className="flex items-center justify-center py-24">
         <div className="text-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
           <p className="mt-4 text-sm text-muted-foreground">Loading accounts...</p>
@@ -49,7 +48,6 @@ function TransfersPage() {
   if (error) {
     return (
       <div className="min-h-dvh bg-background">
-        <Header />
         <div className="container mx-auto px-4 py-8">
           <div className="text-center py-12">
             <p className="text-destructive">Failed to load accounts</p>
@@ -74,15 +72,11 @@ function TransfersPage() {
 
   return (
     <div className="min-h-dvh bg-background">
-      <Header />
-
       {/* Page Header */}
       <div className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div>
-            <h1 className="text-xl font-bold">Transfers</h1>
-            <p className="text-sm text-muted-foreground">Move money between your accounts</p>
-          </div>
+        <div className="container mx-auto max-w-7xl px-4 py-4">
+          <h1 className="text-xl font-bold">Transfers</h1>
+          <p className="text-sm text-muted-foreground">Move money between your accounts</p>
         </div>
       </div>
 

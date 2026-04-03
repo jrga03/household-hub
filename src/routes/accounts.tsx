@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { AccountFormDialog } from "@/components/AccountFormDialog";
 import { AccountBalanceCard } from "@/components/AccountBalanceCard";
-import { Header } from "@/components/Header";
 
 export const Route = createFileRoute("/accounts")({
   component: Accounts,
@@ -31,7 +30,7 @@ function Accounts() {
 
   if (!user) {
     return (
-      <div className="flex min-h-dvh items-center justify-center">
+      <div className="flex items-center justify-center py-24">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
@@ -39,7 +38,7 @@ function Accounts() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center">
+      <div className="flex items-center justify-center py-24">
         <div className="text-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
           <p className="mt-4 text-sm text-muted-foreground">Loading accounts...</p>
@@ -51,7 +50,6 @@ function Accounts() {
   if (error) {
     return (
       <div className="min-h-dvh bg-background">
-        <Header />
         <div className="container mx-auto px-4 py-8">
           <div className="text-center py-12">
             <p className="text-destructive">Failed to load accounts</p>
@@ -69,11 +67,9 @@ function Accounts() {
 
   return (
     <div className="min-h-dvh bg-background">
-      <Header />
-
       {/* Page Header */}
       <div className="border-b">
-        <div className="container mx-auto flex items-center justify-between px-4 py-4">
+        <div className="container mx-auto max-w-7xl flex items-center justify-between px-4 py-4">
           <div>
             <h1 className="text-xl font-bold">Accounts</h1>
             <p className="text-sm text-muted-foreground">Manage your financial accounts</p>
@@ -86,7 +82,7 @@ function Accounts() {
       </div>
 
       {/* Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto max-w-7xl px-4 py-8">
         {!accounts || accounts.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">No accounts yet</p>
