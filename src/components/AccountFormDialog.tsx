@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -85,8 +85,10 @@ export function AccountFormDialog({ open, onClose, editingId }: Props) {
     },
   });
 
-  // Watch form values once for efficiency
-  const { type, visibility, color: selectedColor } = form.watch();
+  // Watch form values using useWatch (React Compiler compatible)
+  const type = useWatch({ control: form.control, name: "type" });
+  const visibility = useWatch({ control: form.control, name: "visibility" });
+  const selectedColor = useWatch({ control: form.control, name: "color" });
 
   // Load existing account data when editing
   useEffect(() => {

@@ -44,6 +44,7 @@ export function TransactionList({ filters, onEdit }: Props) {
   // Set up virtual scrolling (must be before early returns)
   const parentRef = useRef<HTMLDivElement>(null);
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- useVirtualizer returns a mutable instance; no compatible alternative exists
   const rowVirtualizer = useVirtualizer({
     count: transactions?.length ?? 0,
     getScrollElement: () => parentRef.current,

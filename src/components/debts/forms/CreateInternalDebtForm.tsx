@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -63,8 +63,8 @@ export function CreateInternalDebtForm({
     },
   });
 
-  const fromType = form.watch("from_type");
-  const toType = form.watch("to_type");
+  const fromType = useWatch({ control: form.control, name: "from_type" });
+  const toType = useWatch({ control: form.control, name: "to_type" });
 
   const onSubmit = async (data: CreateInternalDebtFormData) => {
     try {
