@@ -79,7 +79,7 @@ function Transactions() {
     <div className="min-h-dvh bg-background">
       {/* Page Header Bar */}
       <div className="border-b bg-background">
-        <div className="container mx-auto flex items-center justify-between px-4 py-4">
+        <div className="container mx-auto max-w-7xl flex items-center justify-between px-4 py-4">
           <div>
             <h1 className="text-xl font-bold">Transactions</h1>
             <p className="text-sm text-muted-foreground">Track your income and expenses</p>
@@ -92,7 +92,7 @@ function Transactions() {
       </div>
 
       {/* Content */}
-      <main className="container mx-auto px-4 py-8 space-y-6">
+      <main className="container mx-auto max-w-7xl px-4 py-8 space-y-6">
         {/* Filters */}
         <TransactionFiltersComponent filters={search} onFiltersChange={updateFilters} />
 

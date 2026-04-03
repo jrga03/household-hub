@@ -33,7 +33,7 @@ function AccountDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-dvh">
+      <div className="flex items-center justify-center py-24">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
@@ -51,7 +51,7 @@ function AccountDetailPage() {
     <div className="min-h-dvh bg-background">
       {/* Header */}
       <header className="border-b">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto max-w-7xl px-4 py-4">
           <div className="flex items-center gap-4 mb-4">
             <Link to="/accounts">
               <Button variant="ghost" size="sm" aria-label="Back to accounts">
@@ -95,7 +95,7 @@ function AccountDetailPage() {
       </header>
 
       {/* Transactions */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto max-w-7xl px-4 py-8">
         <h2 className="text-lg font-semibold mb-4">Transactions</h2>
         <TransactionList
           filters={{ accountId }}

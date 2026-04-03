@@ -17,7 +17,7 @@ function Categories() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center">
+      <div className="flex items-center justify-center py-24">
         <div className="text-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
           <p className="mt-4 text-sm text-muted-foreground">Loading categories...</p>
@@ -30,7 +30,7 @@ function Categories() {
     <div className="min-h-dvh bg-background">
       {/* Header */}
       <header className="border-b">
-        <div className="container mx-auto flex items-center justify-between px-4 py-4">
+        <div className="container mx-auto max-w-7xl flex items-center justify-between px-4 py-4">
           <h1 className="text-xl font-bold">Categories</h1>
           <Button
             onClick={() => {
@@ -46,7 +46,7 @@ function Categories() {
       </header>
 
       {/* Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto max-w-7xl px-4 py-8">
         {categories && categories.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">No categories yet. Create your first category!</p>

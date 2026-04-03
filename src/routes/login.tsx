@@ -29,7 +29,7 @@ function Login() {
   }, [user, navigate]);
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-background">
+    <div className="flex min-h-dvh items-center justify-center bg-background px-4">
       <LoginForm />
     </div>
   );

@@ -31,20 +31,18 @@ export function SummaryCards({ summary }: Props) {
       : 0;
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
       {/* Total Income */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
-              <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Income</p>
-              <h3 className="text-2xl font-bold font-mono">
-                {formatPHP(summary.totalIncomeCents)}
-              </h3>
-            </div>
+      <Card className="p-4 sm:p-6">
+        <div className="flex items-start gap-2">
+          <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg shrink-0">
+            <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs sm:text-sm text-muted-foreground">Total Income</p>
+            <h3 className="text-lg sm:text-2xl font-bold font-mono truncate">
+              {formatPHP(summary.totalIncomeCents)}
+            </h3>
           </div>
         </div>
         {Math.abs(incomeChange) > 0.01 && (
@@ -60,18 +58,16 @@ export function SummaryCards({ summary }: Props) {
       </Card>
 
       {/* Total Expenses */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
-              <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Expenses</p>
-              <h3 className="text-2xl font-bold font-mono">
-                {formatPHP(summary.totalExpenseCents)}
-              </h3>
-            </div>
+      <Card className="p-4 sm:p-6">
+        <div className="flex items-start gap-2">
+          <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg shrink-0">
+            <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs sm:text-sm text-muted-foreground">Total Expenses</p>
+            <h3 className="text-lg sm:text-2xl font-bold font-mono truncate">
+              {formatPHP(summary.totalExpenseCents)}
+            </h3>
           </div>
         </div>
         {Math.abs(expenseChange) > 0.01 && (
@@ -87,34 +83,32 @@ export function SummaryCards({ summary }: Props) {
       </Card>
 
       {/* Net Amount */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div
-              className={`p-2 rounded-lg ${
+      <Card className="p-4 sm:p-6">
+        <div className="flex items-start gap-2">
+          <div
+            className={`p-2 rounded-lg shrink-0 ${
+              summary.netAmountCents >= 0
+                ? "bg-blue-100 dark:bg-blue-900/20"
+                : "bg-orange-100 dark:bg-orange-900/20"
+            }`}
+          >
+            <ArrowUpDown
+              className={`h-4 w-4 ${
                 summary.netAmountCents >= 0
-                  ? "bg-blue-100 dark:bg-blue-900/20"
-                  : "bg-orange-100 dark:bg-orange-900/20"
+                  ? "text-blue-600 dark:text-blue-400"
+                  : "text-orange-600 dark:text-orange-400"
+              }`}
+            />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs sm:text-sm text-muted-foreground">Net Amount</p>
+            <h3
+              className={`text-lg sm:text-2xl font-bold font-mono truncate ${
+                summary.netAmountCents >= 0 ? "text-green-600" : "text-red-600"
               }`}
             >
-              <ArrowUpDown
-                className={`h-4 w-4 ${
-                  summary.netAmountCents >= 0
-                    ? "text-blue-600 dark:text-blue-400"
-                    : "text-orange-600 dark:text-orange-400"
-                }`}
-              />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Net Amount</p>
-              <h3
-                className={`text-2xl font-bold font-mono ${
-                  summary.netAmountCents >= 0 ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {formatPHP(summary.netAmountCents)}
-              </h3>
-            </div>
+              {formatPHP(summary.netAmountCents)}
+            </h3>
           </div>
         </div>
         <p className="text-xs text-muted-foreground mt-2">
@@ -124,18 +118,16 @@ export function SummaryCards({ summary }: Props) {
       </Card>
 
       {/* Total Balance */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-              <Wallet className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Balance</p>
-              <h3 className="text-2xl font-bold font-mono">
-                {formatPHP(summary.totalBalanceCents)}
-              </h3>
-            </div>
+      <Card className="p-4 sm:p-6">
+        <div className="flex items-start gap-2">
+          <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg shrink-0">
+            <Wallet className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs sm:text-sm text-muted-foreground">Total Balance</p>
+            <h3 className="text-lg sm:text-2xl font-bold font-mono truncate">
+              {formatPHP(summary.totalBalanceCents)}
+            </h3>
           </div>
         </div>
         <p className="text-xs text-muted-foreground mt-2">

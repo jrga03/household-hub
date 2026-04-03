@@ -292,7 +292,7 @@ function ImportPage() {
   };
 
   return (
-    <div className="container mx-auto max-w-4xl py-8">
+    <div className="container mx-auto max-w-4xl px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Import Transactions</h1>
 
       {store.step === "upload" && (
@@ -349,7 +349,7 @@ function ImportPage() {
       {store.step === "complete" && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">Import Complete</h2>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-3 sm:gap-4">
             <div className="border rounded-lg p-4">
               <p className="text-2xl font-bold text-green-600">{store.imported}</p>
               <p className="text-sm text-muted-foreground">Imported</p>

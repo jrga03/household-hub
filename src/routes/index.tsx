@@ -18,7 +18,7 @@ function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-dvh">
+      <div className="flex items-center justify-center py-24">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
@@ -53,8 +53,8 @@ function DashboardPage() {
     <div className="min-h-dvh bg-background">
       {/* Month Selector Bar */}
       <div className="border-b bg-background">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+        <div className="container mx-auto max-w-7xl px-4 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h1 className="text-xl font-bold">Dashboard</h1>
               <p className="text-sm text-muted-foreground">Financial overview</p>
@@ -65,7 +65,7 @@ function DashboardPage() {
       </div>
 
       {/* Content */}
-      <main className="container mx-auto px-4 py-8 space-y-6">
+      <main className="container mx-auto max-w-7xl px-4 py-8 space-y-6">
         {/* Summary Cards */}
         <SummaryCards summary={data.summary} />
 

@@ -65,7 +65,7 @@ export function CategoryChart({ data }: Props) {
   }
 
   return (
-    <Card className="p-6">
+    <Card className="p-4 sm:p-6">
       <h3 className="text-lg font-semibold mb-4">Spending by Category</h3>
       <div className="flex flex-col md:flex-row items-center gap-4">
         {/* Pie Chart */}

@@ -100,7 +100,7 @@ function BudgetsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-dvh">
+      <div className="flex items-center justify-center py-24">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
@@ -110,8 +110,8 @@ function BudgetsPage() {
     <div className="min-h-dvh bg-background">
       {/* Header */}
       <header className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between mb-4">
+        <div className="container mx-auto max-w-7xl px-4 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
             <div>
               <h1 className="text-xl font-bold">Budgets</h1>
               <p className="text-sm text-muted-foreground">Set and track monthly spending goals</p>
@@ -134,7 +134,7 @@ function BudgetsPage() {
       </header>
 
       {/* Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto max-w-7xl px-4 py-8">
         <BudgetList groups={budgetGroups || []} onEdit={handleEdit} onDelete={handleDelete} />
       </main>
 

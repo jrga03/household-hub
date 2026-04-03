@@ -66,13 +66,21 @@ export function MonthlyChart({ data }: Props) {
   }));
 
   return (
-    <Card className="p-6">
+    <Card className="p-4 sm:p-6">
       <h3 className="text-lg font-semibold mb-4">Monthly Trend</h3>
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={chartData}>
+      <ResponsiveContainer width="100%" height={280}>
+        <LineChart data={chartData} margin={{ left: -10, right: 5, top: 5, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="month" />
-          <YAxis tickFormatter={(value) => `₱${value.toLocaleString()}`} />
+          <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+          <YAxis
+            tickFormatter={(value) => {
+              if (value >= 1000000) return `₱${(value / 1000000).toFixed(1)}M`;
+              if (value >= 1000) return `₱${(value / 1000).toFixed(0)}K`;
+              return `₱${value}`;
+            }}
+            tick={{ fontSize: 12 }}
+            width={55}
+          />
           <Tooltip content={<CustomTooltip />} />
           <Legend />
           <Line type="monotone" dataKey="income" stroke="#10b981" strokeWidth={2} name="Income" />
