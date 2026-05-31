@@ -3,6 +3,13 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@theme {
+  /* Custom container breakpoints for PageShell layout system.
+     See docs/plans/2026-05-30-wide-screen-layout-design.md */
+  --container-mid: 1100px;
+  --container-wide: 1500px;
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
