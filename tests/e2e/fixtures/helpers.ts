@@ -9,8 +9,8 @@ export async function login(page: Page, userKey: "primary" | "secondary" = "prim
   await page.fill('[name="password"]', user.password);
   await page.click('button[type="submit"]');
 
-  // Wait for redirect to dashboard
-  await page.waitForURL(/\/(dashboard|transactions)/);
+  // Wait for redirect away from /login (dashboard is at "/", legacy /dashboard redirects to "/")
+  await page.waitForURL((url) => !url.pathname.startsWith("/login"));
 }
 
 export async function createTestTransaction(
