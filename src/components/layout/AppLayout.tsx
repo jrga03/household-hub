@@ -156,7 +156,10 @@ export function AppLayout() {
   // Tablet/Desktop layout with sidebar
   return (
     <SidebarProvider defaultOpen={!isTablet}>
-      <div className="flex min-h-dvh">
+      {/* w-full keeps the layout's width tied to the SidebarProvider wrapper
+          rather than to descendant min-content widths. Required so that pages
+          using container queries (PageShell) don't collapse the flex chain. */}
+      <div className="flex min-h-dvh w-full">
         {/* Skip to main content link for accessibility */}
         <a
           href="#main-content"

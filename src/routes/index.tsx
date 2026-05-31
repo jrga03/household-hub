@@ -7,6 +7,7 @@ import { MonthlyChart } from "@/components/dashboard/MonthlyChart";
 import { CategoryChart } from "@/components/dashboard/CategoryChart";
 import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { useDashboardData } from "@/lib/supabaseQueries";
+import { PageShell } from "@/components/layout/PageShell";
 
 export const Route = createFileRoute("/")({
   component: DashboardPage,
@@ -64,20 +65,16 @@ function DashboardPage() {
         </div>
       </div>
 
-      {/* Content */}
-      <main className="container mx-auto max-w-7xl px-4 py-8 space-y-6">
-        {/* Summary Cards */}
-        <SummaryCards summary={data.summary} />
-
-        {/* Charts Row */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          <MonthlyChart data={data.monthlyTrend} />
-          <CategoryChart data={data.categoryBreakdown} />
-        </div>
-
-        {/* Recent Transactions */}
-        <RecentTransactions transactions={data.recentTransactions} />
-      </main>
+      <PageShell variant="centered">
+        <PageShell.Main className="space-y-6">
+          <SummaryCards summary={data.summary} />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <MonthlyChart data={data.monthlyTrend} />
+            <CategoryChart data={data.categoryBreakdown} />
+          </div>
+          <RecentTransactions transactions={data.recentTransactions} />
+        </PageShell.Main>
+      </PageShell>
     </div>
   );
 }
