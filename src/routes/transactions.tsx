@@ -10,6 +10,7 @@ import { useTransactions } from "@/lib/supabaseQueries";
 import { usePrefetchTransactionData } from "@/hooks/usePrefetchTransactionData";
 import { useOpenTransactionFormShortcut } from "@/hooks/useKeyboardShortcuts";
 import type { TransactionFilters } from "@/types/transactions";
+import { PageShell } from "@/components/layout/PageShell";
 
 /**
  * Route configuration with URL search param validation
@@ -91,21 +92,17 @@ function Transactions() {
         </div>
       </div>
 
-      {/* Content */}
-      <main className="container mx-auto max-w-7xl px-4 py-8 space-y-6">
-        {/* Filters */}
-        <TransactionFiltersComponent filters={search} onFiltersChange={updateFilters} />
-
-        {/* Result Count */}
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            {transactions?.length || 0} transaction{transactions?.length !== 1 ? "s" : ""}
+      <PageShell variant="centered">
+        <PageShell.Main className="space-y-6">
+          <TransactionFiltersComponent filters={search} onFiltersChange={updateFilters} />
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              {transactions?.length || 0} transaction{transactions?.length !== 1 ? "s" : ""}
+            </div>
           </div>
-        </div>
-
-        {/* Transaction List */}
-        <TransactionList filters={debouncedFilters} onEdit={handleEdit} />
-      </main>
+          <TransactionList filters={debouncedFilters} onEdit={handleEdit} />
+        </PageShell.Main>
+      </PageShell>
 
       {/* Form Dialog */}
       <TransactionFormDialog open={isFormOpen} onClose={handleClose} editingId={editingId} />

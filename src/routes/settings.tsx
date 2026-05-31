@@ -7,6 +7,7 @@ import { eventCompactor, type CompactionStats } from "@/lib/event-compactor";
 import { csvExporter } from "@/lib/csv-exporter";
 import { toast } from "sonner";
 import { Loader2, Download, Monitor, Moon, Sun } from "lucide-react";
+import { PageShell } from "@/components/layout/PageShell";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -84,176 +85,183 @@ function SettingsPage() {
         </div>
       </div>
 
-      <main className="container mx-auto max-w-7xl px-4 py-8 space-y-6">
-        {/* Appearance Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Appearance</CardTitle>
-            <CardDescription>Choose how Household Hub looks to you</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 gap-3">
-              <Button
-                variant={theme === "light" ? "default" : "outline"}
-                className="flex flex-col items-center gap-2 h-auto py-4"
-                onClick={() => setTheme("light")}
-              >
-                <Sun className="h-5 w-5" />
-                <span className="text-xs font-medium">Light</span>
-              </Button>
-              <Button
-                variant={theme === "dark" ? "default" : "outline"}
-                className="flex flex-col items-center gap-2 h-auto py-4"
-                onClick={() => setTheme("dark")}
-              >
-                <Moon className="h-5 w-5" />
-                <span className="text-xs font-medium">Dark</span>
-              </Button>
-              <Button
-                variant={theme === "system" ? "default" : "outline"}
-                className="flex flex-col items-center gap-2 h-auto py-4"
-                onClick={() => setTheme("system")}
-              >
-                <Monitor className="h-5 w-5" />
-                <span className="text-xs font-medium">System</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Data Export Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Data Export</CardTitle>
-            <CardDescription>
-              Download your data as CSV for manual backups, spreadsheet analysis, or data
-              portability
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-3">
-              <Button
-                onClick={() => exportAndDownload("transactions")}
-                disabled={isExporting}
-                variant="outline"
-                className="w-full justify-start"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Export Transactions
-              </Button>
-
-              <Button
-                onClick={() => exportAndDownload("accounts")}
-                disabled={isExporting}
-                variant="outline"
-                className="w-full justify-start"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Export Accounts
-              </Button>
-
-              <Button
-                onClick={() => exportAndDownload("categories")}
-                disabled={isExporting}
-                variant="outline"
-                className="w-full justify-start"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Export Categories
-              </Button>
-            </div>
-
-            <div className="pt-4 border-t">
-              <h4 className="font-medium mb-2">Export Format</h4>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>
-                  • <strong>Format:</strong> CSV (UTF-8 with BOM for Excel compatibility)
-                </li>
-                <li>
-                  • <strong>Amounts:</strong> Decimal format (e.g., 1500.50)
-                </li>
-                <li>
-                  • <strong>Dates:</strong> ISO 8601 format (YYYY-MM-DD)
-                </li>
-                <li>
-                  • <strong>Use Cases:</strong> Backups, spreadsheet analysis, data portability
-                </li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Storage Management Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Storage Management</CardTitle>
-            <CardDescription>
-              Compact event logs to reduce storage usage and improve performance. Compaction is
-              automatic but can be triggered manually.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-4">
-              <Button onClick={handleCompaction} disabled={compacting} variant="outline" size="lg">
-                {compacting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {compacting ? "Compacting..." : "Compact Event Log"}
-              </Button>
-              <p className="text-sm text-muted-foreground">
-                Reduces storage by removing old events while preserving data integrity
-              </p>
-            </div>
-
-            {lastStats && (
-              <div className="mt-6 p-4 bg-muted rounded-lg">
-                <h3 className="font-semibold mb-3">Last Compaction Results</h3>
-                <dl className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <dt className="text-muted-foreground">Entities Compacted</dt>
-                    <dd className="font-medium">{lastStats.entitiesCompacted}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Events Deleted</dt>
-                    <dd className="font-medium">{lastStats.eventsDeleted}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Snapshots Created</dt>
-                    <dd className="font-medium">{lastStats.snapshotsCreated}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Storage Saved</dt>
-                    <dd className="font-medium">
-                      ~{(lastStats.storageSaved / 1024).toFixed(1)} KB
-                    </dd>
-                  </div>
-                  <div className="col-span-2">
-                    <dt className="text-muted-foreground">Duration</dt>
-                    <dd className="font-medium">{lastStats.duration}ms</dd>
-                  </div>
-                </dl>
+      <PageShell variant="centered">
+        <PageShell.Main className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Appearance</CardTitle>
+              <CardDescription>Choose how Household Hub looks to you</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-3">
+                <Button
+                  variant={theme === "light" ? "default" : "outline"}
+                  className="flex flex-col items-center gap-2 h-auto py-4"
+                  onClick={() => setTheme("light")}
+                >
+                  <Sun className="h-5 w-5" />
+                  <span className="text-xs font-medium">Light</span>
+                </Button>
+                <Button
+                  variant={theme === "dark" ? "default" : "outline"}
+                  className="flex flex-col items-center gap-2 h-auto py-4"
+                  onClick={() => setTheme("dark")}
+                >
+                  <Moon className="h-5 w-5" />
+                  <span className="text-xs font-medium">Dark</span>
+                </Button>
+                <Button
+                  variant={theme === "system" ? "default" : "outline"}
+                  className="flex flex-col items-center gap-2 h-auto py-4"
+                  onClick={() => setTheme("system")}
+                >
+                  <Monitor className="h-5 w-5" />
+                  <span className="text-xs font-medium">System</span>
+                </Button>
               </div>
-            )}
+            </CardContent>
+          </Card>
 
-            <div className="pt-4 border-t">
-              <h4 className="font-medium mb-2">About Compaction</h4>
-              <ul className="text-sm text-muted-foreground space-y-2">
-                <li>
-                  • <strong>Automatic:</strong> Runs daily at 3 AM and on app startup
-                </li>
-                <li>
-                  • <strong>Triggers:</strong> Compacts when entities have 100+ events or after 30
-                  days
-                </li>
-                <li>
-                  • <strong>Safety:</strong> Keeps last 10 events per entity for conflict resolution
-                </li>
-                <li>
-                  • <strong>Data Integrity:</strong> Creates snapshots before deleting old events
-                </li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
-      </main>
+          {/* Data Export Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Data Export</CardTitle>
+              <CardDescription>
+                Download your data as CSV for manual backups, spreadsheet analysis, or data
+                portability
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3">
+                <Button
+                  onClick={() => exportAndDownload("transactions")}
+                  disabled={isExporting}
+                  variant="outline"
+                  className="w-full justify-start"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export Transactions
+                </Button>
+
+                <Button
+                  onClick={() => exportAndDownload("accounts")}
+                  disabled={isExporting}
+                  variant="outline"
+                  className="w-full justify-start"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export Accounts
+                </Button>
+
+                <Button
+                  onClick={() => exportAndDownload("categories")}
+                  disabled={isExporting}
+                  variant="outline"
+                  className="w-full justify-start"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export Categories
+                </Button>
+              </div>
+
+              <div className="pt-4 border-t">
+                <h4 className="font-medium mb-2">Export Format</h4>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>
+                    • <strong>Format:</strong> CSV (UTF-8 with BOM for Excel compatibility)
+                  </li>
+                  <li>
+                    • <strong>Amounts:</strong> Decimal format (e.g., 1500.50)
+                  </li>
+                  <li>
+                    • <strong>Dates:</strong> ISO 8601 format (YYYY-MM-DD)
+                  </li>
+                  <li>
+                    • <strong>Use Cases:</strong> Backups, spreadsheet analysis, data portability
+                  </li>
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Storage Management Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Storage Management</CardTitle>
+              <CardDescription>
+                Compact event logs to reduce storage usage and improve performance. Compaction is
+                automatic but can be triggered manually.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-4">
+                <Button
+                  onClick={handleCompaction}
+                  disabled={compacting}
+                  variant="outline"
+                  size="lg"
+                >
+                  {compacting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {compacting ? "Compacting..." : "Compact Event Log"}
+                </Button>
+                <p className="text-sm text-muted-foreground">
+                  Reduces storage by removing old events while preserving data integrity
+                </p>
+              </div>
+
+              {lastStats && (
+                <div className="mt-6 p-4 bg-muted rounded-lg">
+                  <h3 className="font-semibold mb-3">Last Compaction Results</h3>
+                  <dl className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <dt className="text-muted-foreground">Entities Compacted</dt>
+                      <dd className="font-medium">{lastStats.entitiesCompacted}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">Events Deleted</dt>
+                      <dd className="font-medium">{lastStats.eventsDeleted}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">Snapshots Created</dt>
+                      <dd className="font-medium">{lastStats.snapshotsCreated}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">Storage Saved</dt>
+                      <dd className="font-medium">
+                        ~{(lastStats.storageSaved / 1024).toFixed(1)} KB
+                      </dd>
+                    </div>
+                    <div className="col-span-2">
+                      <dt className="text-muted-foreground">Duration</dt>
+                      <dd className="font-medium">{lastStats.duration}ms</dd>
+                    </div>
+                  </dl>
+                </div>
+              )}
+
+              <div className="pt-4 border-t">
+                <h4 className="font-medium mb-2">About Compaction</h4>
+                <ul className="text-sm text-muted-foreground space-y-2">
+                  <li>
+                    • <strong>Automatic:</strong> Runs daily at 3 AM and on app startup
+                  </li>
+                  <li>
+                    • <strong>Triggers:</strong> Compacts when entities have 100+ events or after 30
+                    days
+                  </li>
+                  <li>
+                    • <strong>Safety:</strong> Keeps last 10 events per entity for conflict
+                    resolution
+                  </li>
+                  <li>
+                    • <strong>Data Integrity:</strong> Creates snapshots before deleting old events
+                  </li>
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
+        </PageShell.Main>
+      </PageShell>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { AccountFormDialog } from "@/components/AccountFormDialog";
 import { AccountBalanceCard } from "@/components/AccountBalanceCard";
+import { PageShell } from "@/components/layout/PageShell";
 
 export const Route = createFileRoute("/accounts")({
   component: Accounts,
@@ -81,48 +82,48 @@ function Accounts() {
         </div>
       </div>
 
-      {/* Content */}
-      <main className="container mx-auto max-w-7xl px-4 py-8">
-        {!accounts || accounts.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No accounts yet</p>
-          </div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {accounts.map((account) => {
-              const balance = balances?.find((b) => b.accountId === account.id) || {
-                currentBalance: account.initial_balance_cents || 0,
-                clearedBalance: account.initial_balance_cents || 0,
-                pendingBalance: 0,
-              };
+      <PageShell variant="centered">
+        <PageShell.Main>
+          {!accounts || accounts.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No accounts yet</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {accounts.map((account) => {
+                const balance = balances?.find((b) => b.accountId === account.id) || {
+                  currentBalance: account.initial_balance_cents || 0,
+                  clearedBalance: account.initial_balance_cents || 0,
+                  pendingBalance: 0,
+                };
 
-              return (
-                <AccountBalanceCard
-                  key={account.id}
-                  account={{
-                    id: account.id,
-                    name: account.name,
-                    type: account.type,
-                    color: account.color ?? undefined,
-                    icon: account.icon ?? undefined,
-                  }}
-                  balance={balance}
-                />
-              );
-            })}
-          </div>
-        )}
+                return (
+                  <AccountBalanceCard
+                    key={account.id}
+                    account={{
+                      id: account.id,
+                      name: account.name,
+                      type: account.type,
+                      color: account.color ?? undefined,
+                      icon: account.icon ?? undefined,
+                    }}
+                    balance={balance}
+                  />
+                );
+              })}
+            </div>
+          )}
 
-        {/* Account Form Dialog */}
-        <AccountFormDialog
-          open={isFormOpen}
-          onClose={() => {
-            setIsFormOpen(false);
-            setEditingId(null);
-          }}
-          editingId={editingId}
-        />
-      </main>
+          <AccountFormDialog
+            open={isFormOpen}
+            onClose={() => {
+              setIsFormOpen(false);
+              setEditingId(null);
+            }}
+            editingId={editingId}
+          />
+        </PageShell.Main>
+      </PageShell>
     </div>
   );
 }
