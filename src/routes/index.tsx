@@ -4,8 +4,8 @@ import { startOfMonth } from "date-fns";
 import { MonthSelector } from "@/components/MonthSelector";
 import { SummaryCards } from "@/components/dashboard/SummaryCards";
 import { MonthlyChart } from "@/components/dashboard/MonthlyChart";
-import { CategoryChart } from "@/components/dashboard/CategoryChart";
 import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
+import { DashboardRail } from "@/components/dashboard/DashboardRail";
 import { useDashboardData } from "@/lib/supabaseQueries";
 import { PageShell } from "@/components/layout/PageShell";
 
@@ -65,15 +65,15 @@ function DashboardPage() {
         </div>
       </div>
 
-      <PageShell variant="centered">
+      <PageShell variant="rail">
         <PageShell.Main className="space-y-6">
           <SummaryCards summary={data.summary} />
-          <div className="grid gap-6 lg:grid-cols-2">
-            <MonthlyChart data={data.monthlyTrend} />
-            <CategoryChart data={data.categoryBreakdown} />
-          </div>
+          <MonthlyChart data={data.monthlyTrend} />
           <RecentTransactions transactions={data.recentTransactions} />
         </PageShell.Main>
+        <PageShell.RightAside>
+          <DashboardRail categoryBreakdown={data.categoryBreakdown} />
+        </PageShell.RightAside>
       </PageShell>
     </div>
   );

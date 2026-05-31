@@ -54,24 +54,27 @@ function RightAside({ className, children }: SlotProps) {
  * See docs/plans/2026-05-30-wide-screen-layout-design.md for the full design.
  */
 export function PageShell({ variant = "centered", className, children }: PageShellProps) {
+  // The outer wrapper carries `@container` so descendants can use `@[1100px]:`
+  // container query variants. CSS spec forbids an element from querying its own
+  // container, so the responsive grid/max-width classes live on an inner div.
   return (
-    <div
-      data-variant={variant}
-      className={cn(
-        "@container",
-        variant === "centered" && "mx-auto w-full max-w-7xl px-4 py-8",
-        variant === "rail" &&
-          "grid gap-6 px-4 py-8 mx-auto w-full max-w-7xl @[1100px]:max-w-none @[1100px]:grid-cols-[1fr_320px] @[1500px]:grid-cols-[1fr_380px]",
-        variant === "split" &&
-          "grid gap-6 px-4 py-8 mx-auto w-full max-w-7xl @[1100px]:max-w-none @[1100px]:grid-cols-2 @[1500px]:grid-cols-[55fr_45fr]",
-        variant === "nav-content" &&
-          "grid gap-6 px-4 py-8 mx-auto w-full max-w-7xl @[900px]:grid-cols-[200px_1fr] @[1500px]:grid-cols-[240px_1fr]",
-        variant === "triple" &&
-          "grid gap-6 px-4 py-8 mx-auto w-full max-w-7xl @[1100px]:max-w-none @[1100px]:grid-cols-[240px_1fr] @[1500px]:grid-cols-[260px_1fr_480px]",
-        className
-      )}
-    >
-      {children}
+    <div data-variant={variant} className="@container w-full">
+      <div
+        className={cn(
+          variant === "centered" && "mx-auto w-full max-w-7xl px-4 py-8",
+          variant === "rail" &&
+            "grid gap-6 px-4 py-8 mx-auto w-full max-w-7xl @[1100px]:max-w-none @[1100px]:grid-cols-[1fr_320px] @[1500px]:grid-cols-[1fr_380px]",
+          variant === "split" &&
+            "grid gap-6 px-4 py-8 mx-auto w-full max-w-7xl @[1100px]:max-w-none @[1100px]:grid-cols-2 @[1500px]:grid-cols-[55fr_45fr]",
+          variant === "nav-content" &&
+            "grid gap-6 px-4 py-8 mx-auto w-full max-w-7xl @[900px]:grid-cols-[200px_1fr] @[1500px]:grid-cols-[240px_1fr]",
+          variant === "triple" &&
+            "grid gap-6 px-4 py-8 mx-auto w-full max-w-7xl @[1100px]:max-w-none @[1100px]:grid-cols-[240px_1fr] @[1500px]:grid-cols-[260px_1fr_480px]",
+          className
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 }
