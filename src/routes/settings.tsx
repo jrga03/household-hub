@@ -8,6 +8,7 @@ import { csvExporter } from "@/lib/csv-exporter";
 import { toast } from "sonner";
 import { Loader2, Download, Monitor, Moon, Sun } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
+import { SettingsNav } from "@/components/settings/SettingsNav";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -85,9 +86,12 @@ function SettingsPage() {
         </div>
       </div>
 
-      <PageShell variant="centered">
-        <PageShell.Main className="space-y-6">
-          <Card>
+      <PageShell variant="nav-content">
+        <PageShell.LeftAside>
+          <SettingsNav />
+        </PageShell.LeftAside>
+        <PageShell.Main className="space-y-6 mx-auto w-full max-w-2xl">
+          <Card id="appearance">
             <CardHeader>
               <CardTitle>Appearance</CardTitle>
               <CardDescription>Choose how Household Hub looks to you</CardDescription>
@@ -123,7 +127,7 @@ function SettingsPage() {
           </Card>
 
           {/* Data Export Section */}
-          <Card>
+          <Card id="data-export">
             <CardHeader>
               <CardTitle>Data Export</CardTitle>
               <CardDescription>
@@ -185,7 +189,7 @@ function SettingsPage() {
           </Card>
 
           {/* Storage Management Section */}
-          <Card>
+          <Card id="storage">
             <CardHeader>
               <CardTitle>Storage Management</CardTitle>
               <CardDescription>
