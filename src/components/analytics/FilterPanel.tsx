@@ -58,9 +58,9 @@ export function FilterPanel({ onFilterChange, accounts, categories }: FilterPane
   };
 
   return (
-    <Card>
+    <Card className="@container">
       <CardContent className="pt-6">
-        <div className="grid gap-4 md:grid-cols-5">
+        <div className="grid gap-4 @[600px]:grid-cols-5">
           {/* Date Range */}
           <div className="space-y-2">
             <Label>Start Date</Label>

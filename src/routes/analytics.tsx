@@ -1,8 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Suspense, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
+import {
+  AnalyticsDashboard,
+  type AnalyticsFilters,
+} from "@/components/analytics/AnalyticsDashboard";
+import { FilterPanel } from "@/components/analytics/FilterPanel";
 import { BarChart3, TrendingUp, PieChart } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { subMonths, startOfMonth, endOfMonth } from "date-fns";
 
 // Lazy import for category analytics (simulates code splitting benefit)
 import { CategoryAnalyticsContent } from "@/components/analytics/CategoryAnalyticsContent";
@@ -14,6 +21,34 @@ export const Route = createFileRoute("/analytics")({
 
 function Analytics() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [filters, setFilters] = useState<AnalyticsFilters>({
+    startDate: startOfMonth(subMonths(new Date(), 5)),
+    endDate: endOfMonth(new Date()),
+  });
+
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("accounts").select("id, name").order("name");
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name")
+        .is("parent_id", null)
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
   return (
     <div className="bg-background">
@@ -56,7 +91,20 @@ function Analytics() {
                   </div>
                 }
               >
-                <AnalyticsDashboard />
+                <div className="@container">
+                  <div className="grid gap-6 @[1100px]:grid-cols-[1fr_320px] @[1500px]:grid-cols-[1fr_380px]">
+                    <div className="min-w-0">
+                      <AnalyticsDashboard filters={filters} />
+                    </div>
+                    <div className="min-w-0 @[1100px]:sticky @[1100px]:top-4 @[1100px]:self-start">
+                      <FilterPanel
+                        onFilterChange={(next) => setFilters({ ...filters, ...next })}
+                        accounts={accounts}
+                        categories={categories}
+                      />
+                    </div>
+                  </div>
+                </div>
               </Suspense>
             </TabsContent>
 

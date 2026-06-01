@@ -1,60 +1,33 @@
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { MonthlyChart } from "@/components/dashboard/MonthlyChart";
 import { CategoryChart } from "@/components/dashboard/CategoryChart";
 import { BudgetProgressChart } from "@/components/charts/BudgetProgressChart";
 import { YearOverYearChart } from "@/components/charts/YearOverYearChart";
 import { InsightsSection } from "./InsightsSection";
-import { FilterPanel } from "./FilterPanel";
 import { formatPHP } from "@/lib/currency";
 import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
-import { subMonths, startOfMonth, endOfMonth } from "date-fns";
 
-export function AnalyticsDashboard() {
-  // Fetch real accounts from Supabase
-  const { data: accounts = [], isLoading: accountsLoading } = useQuery({
-    queryKey: ["accounts"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("accounts").select("id, name").order("name");
-      if (error) throw error;
-      return data;
-    },
-    staleTime: 5 * 60 * 1000,
-  });
+export interface AnalyticsFilters {
+  startDate: Date;
+  endDate: Date;
+  accountId?: string;
+  categoryId?: string;
+  type?: "income" | "expense";
+}
 
-  // Fetch real categories from Supabase
-  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
-    queryKey: ["categories"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("id, name")
-        .is("parent_id", null) // Only top-level categories for filter
-        .order("name");
-      if (error) throw error;
-      return data;
-    },
-    staleTime: 5 * 60 * 1000,
-  });
+interface AnalyticsDashboardProps {
+  filters: AnalyticsFilters;
+}
 
-  const [filters, setFilters] = useState({
-    startDate: startOfMonth(subMonths(new Date(), 5)),
-    endDate: endOfMonth(new Date()),
-    accountId: undefined as string | undefined,
-    categoryId: undefined as string | undefined,
-    type: undefined as "income" | "expense" | undefined,
-  });
-
+export function AnalyticsDashboard({ filters }: AnalyticsDashboardProps) {
   const { data, isLoading, error } = useAnalytics(filters.startDate, filters.endDate, {
     accountId: filters.accountId,
     categoryId: filters.categoryId,
     type: filters.type,
   });
 
-  if (isLoading || accountsLoading || categoriesLoading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-lg">Loading analytics...</div>
@@ -95,13 +68,6 @@ export function AnalyticsDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
-      <FilterPanel
-        onFilterChange={(newFilters) => setFilters({ ...filters, ...newFilters })}
-        accounts={accounts}
-        categories={categories}
-      />
-
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
