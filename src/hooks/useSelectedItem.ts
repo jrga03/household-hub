@@ -18,8 +18,10 @@ export function useSelectedItem({ paramKey }: UseSelectedItemOptions) {
 
   const select = useCallback(
     (id: string) => {
+      // Cast: this hook is route-agnostic, so we can't satisfy a specific
+      // route's typed search reducer. Consumer routes validate the param.
       navigate({
-        search: (prev: Record<string, unknown>) => ({ ...prev, [paramKey]: id }),
+        search: ((prev: Record<string, unknown>) => ({ ...prev, [paramKey]: id })) as never,
         replace: false,
       });
     },
@@ -28,11 +30,11 @@ export function useSelectedItem({ paramKey }: UseSelectedItemOptions) {
 
   const clear = useCallback(() => {
     navigate({
-      search: (prev: Record<string, unknown>) => {
+      search: ((prev: Record<string, unknown>) => {
         const next = { ...prev };
         delete next[paramKey];
         return next;
-      },
+      }) as never,
       replace: false,
     });
   }, [navigate, paramKey]);

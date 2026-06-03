@@ -66,7 +66,12 @@ export function AccountBalanceCard({ account, balance }: Props) {
   const Icon = accountIcons[account.type as keyof typeof accountIcons] || Building2;
 
   return (
-    <Link to="/accounts/$accountId" params={{ accountId: account.id }} className="block">
+    <Link
+      to="/accounts/$accountId"
+      params={{ accountId: account.id }}
+      search={{ selected: undefined }}
+      className="block"
+    >
       <Card className="p-4 hover:bg-accent transition-colors cursor-pointer">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">

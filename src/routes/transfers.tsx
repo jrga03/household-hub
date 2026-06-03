@@ -95,7 +95,7 @@ function TransfersPage() {
                 <Button
                   variant="link"
                   className="p-0 h-auto"
-                  onClick={() => navigate({ to: "/accounts" })}
+                  onClick={() => navigate({ to: "/accounts", search: { selected: undefined } })}
                 >
                   Accounts
                 </Button>{" "}

@@ -53,7 +53,7 @@ function AccountDetailPage() {
       <header className="border-b">
         <div className="container mx-auto max-w-7xl px-4 py-4">
           <div className="flex items-center gap-4 mb-4">
-            <Link to="/accounts">
+            <Link to="/accounts" search={{ selected: undefined }}>
               <Button variant="ghost" size="sm" aria-label="Back to accounts">
                 <ArrowLeft className="h-4 w-4" />
               </Button>

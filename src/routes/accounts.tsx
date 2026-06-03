@@ -5,11 +5,17 @@ import { useAccounts, useAccountBalances } from "@/lib/supabaseQueries";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { AccountFormDialog } from "@/components/AccountFormDialog";
-import { AccountBalanceCard } from "@/components/AccountBalanceCard";
 import { PageShell } from "@/components/layout/PageShell";
+import { useSelectedItem } from "@/hooks/useSelectedItem";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { AccountListItem } from "@/components/accounts/AccountListItem";
+import { AccountDetailPane } from "@/components/accounts/AccountDetailPane";
 
 export const Route = createFileRoute("/accounts")({
   component: Accounts,
+  validateSearch: (search: Record<string, unknown>) => ({
+    selected: typeof search.selected === "string" ? search.selected : undefined,
+  }),
 });
 
 function Accounts() {
@@ -20,6 +26,11 @@ function Accounts() {
 
   const { data: accounts, isLoading: accountsLoading, error } = useAccounts();
   const { data: balances, isLoading: balancesLoading } = useAccountBalances();
+
+  const { selectedId, select } = useSelectedItem({ paramKey: "selected" });
+  // Below the @[1100px] split breakpoint, clicking an account opens the legacy
+  // modal instead of selecting it into the (hidden) right pane.
+  const isNarrow = useMediaQuery("(max-width: 1099px)");
 
   const isLoading = accountsLoading || balancesLoading;
 
@@ -66,6 +77,20 @@ function Accounts() {
     );
   }
 
+  const handleAccountClick = (id: string) => {
+    if (isNarrow) {
+      setEditingId(id);
+      setIsFormOpen(true);
+    } else {
+      select(id);
+    }
+  };
+
+  const handleCloseForm = () => {
+    setIsFormOpen(false);
+    setEditingId(null);
+  };
+
   return (
     <div className="bg-background">
       {/* Page Header */}
@@ -82,48 +107,41 @@ function Accounts() {
         </div>
       </div>
 
-      <PageShell variant="centered">
+      <PageShell variant="split">
         <PageShell.Main>
           {!accounts || accounts.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">No accounts yet</p>
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-2">
               {accounts.map((account) => {
-                const balance = balances?.find((b) => b.accountId === account.id) || {
-                  currentBalance: account.initial_balance_cents || 0,
-                  clearedBalance: account.initial_balance_cents || 0,
-                  pendingBalance: 0,
-                };
-
+                const bal = balances?.find((b) => b.accountId === account.id);
                 return (
-                  <AccountBalanceCard
+                  <AccountListItem
                     key={account.id}
-                    account={{
-                      id: account.id,
-                      name: account.name,
-                      type: account.type,
-                      color: account.color ?? undefined,
-                      icon: account.icon ?? undefined,
-                    }}
-                    balance={balance}
+                    name={account.name}
+                    type={account.type}
+                    balanceCents={bal?.currentBalance ?? account.initial_balance_cents ?? 0}
+                    selected={selectedId === account.id}
+                    onSelect={() => handleAccountClick(account.id)}
                   />
                 );
               })}
             </div>
           )}
-
-          <AccountFormDialog
-            open={isFormOpen}
-            onClose={() => {
-              setIsFormOpen(false);
-              setEditingId(null);
-            }}
-            editingId={editingId}
-          />
         </PageShell.Main>
+        <PageShell.RightAside className="hidden @[1100px]:block">
+          <AccountDetailPane
+            accountId={selectedId}
+            accounts={accounts?.map((a) => ({ id: a.id, name: a.name, type: a.type })) ?? []}
+            balances={balances ?? []}
+            onAddAccount={() => setIsFormOpen(true)}
+          />
+        </PageShell.RightAside>
       </PageShell>
+
+      <AccountFormDialog open={isFormOpen} onClose={handleCloseForm} editingId={editingId} />
     </div>
   );
 }
