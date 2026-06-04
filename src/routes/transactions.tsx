@@ -4,13 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { TransactionList } from "@/components/TransactionList";
 import { TransactionFormDialog } from "@/components/TransactionFormDialog";
-import { TransactionFilters as TransactionFiltersComponent } from "@/components/TransactionFilters";
+import { TransactionFiltersPanel } from "@/components/TransactionFilters";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import { useTransactions } from "@/lib/supabaseQueries";
 import { usePrefetchTransactionData } from "@/hooks/usePrefetchTransactionData";
 import { useOpenTransactionFormShortcut } from "@/hooks/useKeyboardShortcuts";
-import type { TransactionFilters } from "@/types/transactions";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useSelectedItem } from "@/hooks/useSelectedItem";
 import { PageShell } from "@/components/layout/PageShell";
+import { TransactionDetailPane } from "@/components/transactions/TransactionDetailPane";
+import { TransactionFilterSheet } from "@/components/transactions/TransactionFilterSheet";
+import type { TransactionFilters } from "@/types/transactions";
 
 /**
  * Route configuration with URL search param validation
@@ -22,7 +26,9 @@ import { PageShell } from "@/components/layout/PageShell";
  */
 export const Route = createFileRoute("/transactions")({
   component: Transactions,
-  validateSearch: (search: Record<string, unknown>): TransactionFilters => ({
+  validateSearch: (
+    search: Record<string, unknown>
+  ): TransactionFilters & { selected?: string } => ({
     dateFrom: (search.dateFrom as string) || undefined,
     dateTo: (search.dateTo as string) || undefined,
     accountId: (search.accountId as string) || undefined,
@@ -34,6 +40,7 @@ export const Route = createFileRoute("/transactions")({
     excludeTransfers: search.excludeTransfers === "false" ? false : true,
     amountMin: search.amountMin ? Number(search.amountMin) : undefined,
     amountMax: search.amountMax ? Number(search.amountMax) : undefined,
+    selected: typeof search.selected === "string" ? search.selected : undefined,
   }),
 });
 
@@ -42,33 +49,41 @@ function Transactions() {
   const navigate = Route.useNavigate();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const { selectedId, select, clear } = useSelectedItem({ paramKey: "selected" });
+  // Below the @[1500px] triple-column breakpoint, row clicks open the legacy
+  // edit modal instead of selecting into the (hidden) detail pane.
+  const isNarrow = useMediaQuery("(max-width: 1499px)");
 
-  // Prefetch accounts and categories for transaction form
-  // This runs once on mount and loads data in parallel
   usePrefetchTransactionData();
-
-  // Listen for Cmd/Ctrl + N keyboard shortcut to open transaction form
   useOpenTransactionFormShortcut(() => setIsFormOpen(true));
 
-  // Debounce search term to avoid excessive queries
-  // Other filters update immediately
   const debouncedFilters = {
     ...search,
     search: useDebounce(search.search, 300),
   };
 
-  // Fetch transactions with debounced filters
   const { data: transactions } = useTransactions(debouncedFilters);
 
-  const updateFilters = (newFilters: TransactionFilters) => {
-    navigate({
-      search: (prev) => ({ ...prev, ...newFilters }),
-    });
+  const filterSummary = {
+    count: transactions?.length ?? 0,
+    totalIn:
+      transactions?.filter((t) => t.type === "income").reduce((s, t) => s + t.amount_cents, 0) ?? 0,
+    totalOut:
+      transactions?.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount_cents, 0) ??
+      0,
   };
 
-  const handleEdit = (id: string) => {
-    setEditingId(id);
-    setIsFormOpen(true);
+  const updateFilters = (newFilters: TransactionFilters) => {
+    navigate({ search: (prev) => ({ ...prev, ...newFilters }) });
+  };
+
+  const handleRowClick = (id: string) => {
+    if (isNarrow) {
+      setEditingId(id);
+      setIsFormOpen(true);
+    } else {
+      select(id);
+    }
   };
 
   const handleClose = () => {
@@ -92,19 +107,38 @@ function Transactions() {
         </div>
       </div>
 
-      <PageShell variant="centered">
-        <PageShell.Main className="space-y-6">
-          <TransactionFiltersComponent filters={search} onFiltersChange={updateFilters} />
-          <div className="flex items-center justify-between">
+      <PageShell variant="triple">
+        <PageShell.LeftAside className="hidden @[1100px]:block">
+          <div className="rounded-lg border bg-card p-4">
+            <TransactionFiltersPanel filters={search} onFiltersChange={updateFilters} />
+          </div>
+        </PageShell.LeftAside>
+
+        <PageShell.Main className="space-y-4">
+          <div className="flex items-center justify-between gap-2">
             <div className="text-sm text-muted-foreground">
               {transactions?.length || 0} transaction{transactions?.length !== 1 ? "s" : ""}
             </div>
+            <div className="@[1100px]:hidden">
+              <TransactionFilterSheet filters={search} onFiltersChange={updateFilters} />
+            </div>
           </div>
-          <TransactionList filters={debouncedFilters} onEdit={handleEdit} />
+          <TransactionList filters={debouncedFilters} onEdit={handleRowClick} />
         </PageShell.Main>
+
+        <PageShell.RightAside className="hidden @[1500px]:block">
+          <TransactionDetailPane
+            transactionId={selectedId}
+            filterSummary={filterSummary}
+            onEdit={(id) => {
+              setEditingId(id);
+              setIsFormOpen(true);
+            }}
+            onClear={clear}
+          />
+        </PageShell.RightAside>
       </PageShell>
 
-      {/* Form Dialog */}
       <TransactionFormDialog open={isFormOpen} onClose={handleClose} editingId={editingId} />
     </div>
   );
