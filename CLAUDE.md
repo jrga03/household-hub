@@ -192,6 +192,21 @@ src/
 
 ## Important Patterns
 
+### 0. PageShell layout primitive
+
+Every route uses `<PageShell variant="…">` from `src/components/layout/PageShell.tsx`.
+Variants: `centered` (default), `rail`, `split`, `nav-content`, `triple`. Responsive
+collapse is driven by Tailwind container queries on the outer `@container` wrapper,
+not viewport media queries — the global sidebar can collapse and shift the content
+area, so reacting to the actual page region is more reliable.
+
+When embedding components inside narrow regions (rails, sheets, master-detail panes),
+prefer container queries (`@[600px]:grid-cols-5`) over viewport breakpoints
+(`md:grid-cols-5`) so the component adapts to its host rather than the window.
+
+See `docs/plans/2026-05-30-wide-screen-layout-design.md` for the full design and
+`docs/plans/2026-05-31-wide-screen-layout-implementation.md` for migration history.
+
 ### 1. State Management
 
 ```typescript
