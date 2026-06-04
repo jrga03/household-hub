@@ -46,7 +46,7 @@ type DatePreset = "this-month" | "last-month" | "last-30-days" | "this-year";
  * All filter state is managed in the URL via the parent component,
  * making filter combinations bookmarkable and shareable.
  */
-export function TransactionFilters({ filters, onFiltersChange }: TransactionFiltersProps) {
+export function TransactionFiltersPanel({ filters, onFiltersChange }: TransactionFiltersProps) {
   const isMobile = useIsMobile();
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -173,7 +173,7 @@ export function TransactionFilters({ filters, onFiltersChange }: TransactionFilt
   const showFilters = !isMobile || isExpanded;
 
   return (
-    <div className="space-y-4 rounded-lg border bg-card p-4">
+    <div className="space-y-4 @container">
       {/* Header + Always-visible Search */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -259,8 +259,9 @@ export function TransactionFilters({ filters, onFiltersChange }: TransactionFilt
             </Button>
           </div>
 
-          {/* Filter Controls Grid */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {/* Filter Controls Grid: container-query driven so it stacks in a narrow
+              rail/sheet and reflows wide when embedded in a full-width card. */}
+          <div className="grid gap-4 @[500px]:grid-cols-2 @[900px]:grid-cols-4">
             {/* Date Range - From */}
             <div className="space-y-2">
               <Label>From Date</Label>
@@ -391,7 +392,7 @@ export function TransactionFilters({ filters, onFiltersChange }: TransactionFilt
             </div>
 
             {/* Transfer Exclusion Toggle */}
-            <div className="flex items-center space-x-2 md:pt-6">
+            <div className="flex items-center space-x-2 @[500px]:pt-6">
               <Switch
                 id="exclude-transfers"
                 checked={filters.excludeTransfers !== false}
@@ -409,6 +410,19 @@ export function TransactionFilters({ filters, onFiltersChange }: TransactionFilt
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * TransactionFilters — backward-compatible wrapper that adds card chrome.
+ * Use {@link TransactionFiltersPanel} directly when embedding inside another
+ * container (rail, sheet) where the outer chrome would double up.
+ */
+export function TransactionFilters(props: TransactionFiltersProps) {
+  return (
+    <div className="rounded-lg border bg-card p-4">
+      <TransactionFiltersPanel {...props} />
     </div>
   );
 }
