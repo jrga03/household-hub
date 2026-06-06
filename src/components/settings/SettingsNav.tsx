@@ -16,9 +16,9 @@ export function SettingsNav({ activeId }: SettingsNavProps) {
     <nav
       aria-label="Settings sections"
       className="
-        flex gap-2 overflow-x-auto pb-2
+        flex flex-wrap gap-2 pb-2
         @[900px]:sticky @[900px]:top-4 @[900px]:self-start
-        @[900px]:flex-col @[900px]:overflow-visible @[900px]:pb-0
+        @[900px]:flex-col @[900px]:flex-nowrap @[900px]:pb-0
       "
     >
       {SECTIONS.map(({ id, label, icon: Icon }) => (

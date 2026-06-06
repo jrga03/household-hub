@@ -10,6 +10,7 @@ import { useSelectedItem } from "@/hooks/useSelectedItem";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { AccountListItem } from "@/components/accounts/AccountListItem";
 import { AccountDetailPane } from "@/components/accounts/AccountDetailPane";
+import { AccountBalanceCard } from "@/components/AccountBalanceCard";
 
 export const Route = createFileRoute("/accounts")({
   component: Accounts,
@@ -112,6 +113,29 @@ function Accounts() {
           {!accounts || accounts.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">No accounts yet</p>
+            </div>
+          ) : isNarrow ? (
+            <div className="grid gap-3">
+              {accounts.map((account) => {
+                const bal = balances?.find((b) => b.accountId === account.id);
+                return (
+                  <AccountBalanceCard
+                    key={account.id}
+                    account={{
+                      id: account.id,
+                      name: account.name,
+                      type: account.type,
+                      color: account.color ?? undefined,
+                      icon: account.icon ?? undefined,
+                    }}
+                    balance={{
+                      currentBalance: bal?.currentBalance ?? account.initial_balance_cents ?? 0,
+                      clearedBalance: bal?.clearedBalance ?? account.initial_balance_cents ?? 0,
+                      pendingBalance: bal?.pendingBalance ?? 0,
+                    }}
+                  />
+                );
+              })}
             </div>
           ) : (
             <div className="space-y-2">

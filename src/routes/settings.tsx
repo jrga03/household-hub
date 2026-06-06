@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,15 @@ function SettingsPage() {
   const [compacting, setCompacting] = useState(false);
   const [lastStats, setLastStats] = useState<CompactionStats | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (!hash) return;
+    // Wait one frame so layout settles before scrolling.
+    requestAnimationFrame(() => {
+      document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
 
   const handleCompaction = async () => {
     setCompacting(true);
@@ -91,7 +100,7 @@ function SettingsPage() {
           <SettingsNav />
         </PageShell.LeftAside>
         <PageShell.Main className="space-y-6 mx-auto w-full max-w-2xl">
-          <Card id="appearance">
+          <Card id="appearance" className="scroll-mt-4">
             <CardHeader>
               <CardTitle>Appearance</CardTitle>
               <CardDescription>Choose how Household Hub looks to you</CardDescription>
@@ -127,7 +136,7 @@ function SettingsPage() {
           </Card>
 
           {/* Data Export Section */}
-          <Card id="data-export">
+          <Card id="data-export" className="scroll-mt-4">
             <CardHeader>
               <CardTitle>Data Export</CardTitle>
               <CardDescription>
@@ -189,7 +198,7 @@ function SettingsPage() {
           </Card>
 
           {/* Storage Management Section */}
-          <Card id="storage">
+          <Card id="storage" className="scroll-mt-4">
             <CardHeader>
               <CardTitle>Storage Management</CardTitle>
               <CardDescription>
