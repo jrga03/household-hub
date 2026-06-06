@@ -24,7 +24,7 @@ function SettingsPage() {
     const hash = window.location.hash.slice(1);
     if (!hash) return;
     // Wait one frame so layout settles before scrolling.
-    requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   }, []);
