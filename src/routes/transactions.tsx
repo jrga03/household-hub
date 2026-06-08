@@ -107,13 +107,13 @@ function Transactions() {
         </div>
       </div>
 
+      {/*
+        Triple variant lays out [main | detail | filters] at @[1500px], and
+        [main | filters] at @[1100px] (detail hidden). PageShell slot names are
+        positional fiction here: `LeftAside` = middle (detail), `RightAside` =
+        right (filters). See PageShell JSDoc.
+      */}
       <PageShell variant="triple">
-        <PageShell.LeftAside className="hidden @[1100px]:block">
-          <div className="rounded-lg border bg-card p-4">
-            <TransactionFiltersPanel filters={search} onFiltersChange={updateFilters} />
-          </div>
-        </PageShell.LeftAside>
-
         <PageShell.Main className="space-y-4">
           <div className="flex items-center justify-between gap-2">
             <div className="text-sm text-muted-foreground">
@@ -126,7 +126,7 @@ function Transactions() {
           <TransactionList filters={debouncedFilters} onEdit={handleRowClick} />
         </PageShell.Main>
 
-        <PageShell.RightAside className="hidden @[1500px]:block">
+        <PageShell.LeftAside className="hidden @[1500px]:block">
           <TransactionDetailPane
             transactionId={selectedId}
             filterSummary={filterSummary}
@@ -136,6 +136,12 @@ function Transactions() {
             }}
             onClear={clear}
           />
+        </PageShell.LeftAside>
+
+        <PageShell.RightAside className="hidden @[1100px]:block">
+          <div className="rounded-lg border bg-card p-4">
+            <TransactionFiltersPanel filters={search} onFiltersChange={updateFilters} />
+          </div>
         </PageShell.RightAside>
       </PageShell>
 

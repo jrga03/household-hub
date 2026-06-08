@@ -46,7 +46,16 @@ function RightAside({ className, children }: SlotProps) {
  *   - rail: main + right rail. Rail collapses below the main on narrow widths.
  *   - split: master-detail. Aside is the detail pane; collapses to main-only on narrow.
  *   - nav-content: left section nav + main content. Nav becomes horizontal tabs on narrow.
- *   - triple: left aside + main + right aside (Transactions only). Collapses progressively.
+ *   - triple: main + middle aside + right aside (Transactions only). At @[1100px]
+ *     the middle aside is hidden and the layout reads [main | right]. At @[1500px]
+ *     all three columns show as [main | middle | right]. CSS Grid auto-placement
+ *     fills visible children into the available tracks in DOM order, so the
+ *     middle slot just drops out cleanly when hidden.
+ *
+ *     NOTE on slot names for `triple`: `LeftAside` is repurposed as the *middle*
+ *     slot (detail pane) and `RightAside` as the *right* slot (filters). The
+ *     names are positional fiction here — the JSX order (Main → LeftAside →
+ *     RightAside) drives the visual columns, not the names.
  *
  * Uses container queries (`@container`) so layouts react to actual page width,
  * not viewport width (the global sidebar can collapse and shift content width).
@@ -69,7 +78,7 @@ export function PageShell({ variant = "centered", className, children }: PageShe
           variant === "nav-content" &&
             "grid gap-6 px-4 py-8 mx-auto w-full max-w-7xl @[900px]:grid-cols-[200px_1fr] @[1500px]:grid-cols-[240px_1fr]",
           variant === "triple" &&
-            "grid gap-6 px-4 py-8 mx-auto w-full max-w-7xl @[1100px]:max-w-none @[1100px]:grid-cols-[240px_1fr] @[1500px]:grid-cols-[260px_1fr_480px]",
+            "grid gap-6 px-4 py-8 mx-auto w-full max-w-7xl @[1100px]:max-w-none @[1100px]:grid-cols-[1fr_280px] @[1500px]:grid-cols-[1fr_480px_300px]",
           className
         )}
       >
