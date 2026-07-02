@@ -15,6 +15,7 @@ import { GlobalSyncStatus } from "@/components/sync/GlobalSyncStatus";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { OfflineBanner } from "@/components/sync/OfflineBanner";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { TransactionFormDialog } from "@/components/TransactionFormDialog";
 
 /**
  * Main application layout component
@@ -147,6 +148,9 @@ export function AppLayout() {
         {/* Floating Action Button */}
         <QuickActionButton />
 
+        {/* Quick-add dialog (sidebar/drawer CTAs and shortcuts drive navStore) */}
+        <QuickAddTransactionDialog />
+
         {/* PWA Installation Prompt */}
         <PWAInstallPrompt />
       </div>
@@ -200,11 +204,30 @@ export function AppLayout() {
           </main>
         </div>
 
+        {/* Quick-add dialog (sidebar/drawer CTAs and shortcuts drive navStore) */}
+        <QuickAddTransactionDialog />
+
         {/* PWA Installation Prompt */}
         <PWAInstallPrompt />
       </div>
     </SidebarProvider>
   );
+}
+
+/**
+ * Single consumer of navStore.quickAddOpen. The sidebar "Add Transaction"
+ * button, the mobile drawer CTA, and keyboard shortcuts all set the flag;
+ * this renders the dialog for whichever layout branch is mounted.
+ *
+ * Mounted conditionally because TransactionFormDialog fetches data on mount.
+ */
+function QuickAddTransactionDialog() {
+  const quickAddOpen = useNavStore((state) => state.quickAddOpen);
+  const setQuickAddOpen = useNavStore((state) => state.setQuickAddOpen);
+
+  if (!quickAddOpen) return null;
+
+  return <TransactionFormDialog open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />;
 }
 
 /**

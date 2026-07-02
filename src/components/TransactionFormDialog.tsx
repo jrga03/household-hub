@@ -361,15 +361,16 @@ export function TransactionFormDialog({
               control={form.control}
               render={({ field }) => (
                 <Select
-                  value={field.value || ""}
-                  onValueChange={(value) => field.onChange(value || undefined)}
+                  value={field.value || "none"}
+                  onValueChange={(value) => field.onChange(value === "none" ? undefined : value)}
                   disabled={isTransfer}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select a debt (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    {/* Radix Select throws on empty-string item values; "none" is the sentinel */}
+                    <SelectItem value="none">None</SelectItem>
                     {debts?.map((debt: Debt & { balance: number }) => (
                       <SelectItem key={debt.id} value={debt.id}>
                         {debt.name} - Balance: {formatPHP(debt.balance)}

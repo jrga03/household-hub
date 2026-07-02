@@ -12,7 +12,7 @@
  * @module routes/import
  */
 
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -36,6 +36,16 @@ import type { LocalTransaction } from "@/lib/dexie/db";
 import type { DuplicateAction } from "@/lib/duplicate-detector";
 
 export const Route = createFileRoute("/import")({
+  // CSV import is disabled pending its rebuild on the draft pipeline: the
+  // current insert path cannot succeed (rows lack required fields), "replace"
+  // resolutions import twice, and the injection transform corrupts negative
+  // amounts. See docs/reviews/2026-07-02-architecture-review.md (IMP-01..03).
+  // The pathname guard keeps /import/pdf reachable.
+  beforeLoad: ({ location }) => {
+    if (location.pathname === "/import") {
+      throw redirect({ to: "/import/pdf" });
+    }
+  },
   component: ImportPage,
 });
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { db } from "@/lib/dexie/db";
 import { createExternalDebt } from "../crud";
 import { processDebtPayment } from "../payments";
@@ -10,6 +10,16 @@ import {
   handleTransactionEdit,
   handleTransactionDelete,
 } from "../reversals";
+
+// getCurrentUserId reads the Supabase session; unit tests run unauthenticated,
+// so pin a deterministic test user while keeping the rest of the module real.
+vi.mock("../sync", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../sync")>();
+  return {
+    ...actual,
+    getCurrentUserId: vi.fn().mockResolvedValue("test-user-id"),
+  };
+});
 
 describe("Reversal System", () => {
   beforeEach(async () => {

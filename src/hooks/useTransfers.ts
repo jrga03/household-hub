@@ -35,34 +35,34 @@ export function useCreateTransfer() {
       const expenseDescription = description || `Transfer to ${to_account_name}`;
       const incomeDescription = description || `Transfer from ${from_account_name}`;
 
-      const { error: expenseError } = await supabase.from("transactions").insert({
-        household_id,
-        account_id: from_account_id,
-        date,
-        description: expenseDescription,
-        amount_cents,
-        type: "expense",
-        transfer_group_id,
-        created_by_user_id: user_id,
-        device_id,
-      });
+      // Both legs in one statement: PostgREST wraps a multi-row insert in a
+      // single database transaction, so a transfer can never be half-created.
+      const { error } = await supabase.from("transactions").insert([
+        {
+          household_id,
+          account_id: from_account_id,
+          date,
+          description: expenseDescription,
+          amount_cents,
+          type: "expense",
+          transfer_group_id,
+          created_by_user_id: user_id,
+          device_id,
+        },
+        {
+          household_id,
+          account_id: to_account_id,
+          date,
+          description: incomeDescription,
+          amount_cents,
+          type: "income",
+          transfer_group_id,
+          created_by_user_id: user_id,
+          device_id,
+        },
+      ]);
 
-      if (expenseError) throw expenseError;
-
-      // Create income (to account)
-      const { error: incomeError } = await supabase.from("transactions").insert({
-        household_id,
-        account_id: to_account_id,
-        date,
-        description: incomeDescription,
-        amount_cents,
-        type: "income",
-        transfer_group_id,
-        created_by_user_id: user_id,
-        device_id,
-      });
-
-      if (incomeError) throw incomeError;
+      if (error) throw error;
 
       return { transfer_group_id };
     },
@@ -73,17 +73,6 @@ export function useCreateTransfer() {
     },
   });
 }
-
-// NOTE: Transaction Atomicity
-// This implementation uses sequential inserts without explicit transaction wrapping.
-// The database triggers from chunk 017 (handle_transfer_deletion) will clean up
-// orphaned transactions if the second insert fails by setting transfer_group_id to NULL.
-//
-// For production enhancement, consider:
-// - Option A: PostgreSQL function with BEGIN/COMMIT transaction wrapper
-// - Option B: Supabase RPC function that atomically creates both transactions
-//
-// Current approach is acceptable for MVP as database triggers provide eventual consistency.
 
 export function useTransfers(householdId: string) {
   return useQuery({

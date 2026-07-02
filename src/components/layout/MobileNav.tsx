@@ -75,8 +75,8 @@ const navItems: { section: string; items: NavItem[] }[] = [
     section: "Operations",
     items: [
       { to: "/transfers", label: "Transfers", icon: ArrowLeftRight },
-      { to: "/import", label: "CSV Import", icon: Upload },
-      { to: "/import/pdf", label: "PDF Import", icon: FileText },
+      // CSV import is disabled until it moves onto the draft pipeline
+      { to: "/import/pdf", label: "PDF Import", icon: Upload },
       { to: "/drafts", label: "Drafts", icon: FileText },
     ],
   },

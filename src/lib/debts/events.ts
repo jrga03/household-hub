@@ -29,7 +29,7 @@ import { nanoid } from "nanoid";
 import { db } from "@/lib/dexie/db";
 import { getDeviceId } from "@/lib/device";
 import { getNextLamportClock } from "@/lib/dexie/lamport-clock";
-import { addDebtEventToSyncQueue } from "./sync";
+import { addDebtEventToSyncQueue, getCurrentUserId } from "./sync";
 import type {
   Debt,
   InternalDebt,
@@ -43,27 +43,6 @@ import type {
 // =====================================================
 // User Context (Placeholder)
 // =====================================================
-
-/**
- * Get current user ID from auth context
- *
- * TODO: Replace with actual Supabase auth integration
- * For now, returns a placeholder value
- *
- * Future implementation:
- * ```typescript
- * import { supabase } from '@/lib/supabase';
- * const { data: { user } } = await supabase.auth.getUser();
- * return user?.id || 'anonymous';
- * ```
- *
- * @returns Promise resolving to user ID
- */
-async function getCurrentUserId(): Promise<string> {
-  // Placeholder for MVP - replace with actual auth
-  // This will be integrated with Supabase auth in future chunks
-  return "user-placeholder";
-}
 
 // =====================================================
 // Delta Calculation

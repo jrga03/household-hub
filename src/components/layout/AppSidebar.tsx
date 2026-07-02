@@ -14,7 +14,6 @@ import {
   LogOut,
   User,
   FileText,
-  FileSpreadsheet,
 } from "lucide-react";
 import {
   Sidebar,
@@ -133,21 +132,11 @@ const navSections: { label: string; items: NavItem[] }[] = [
         icon: ArrowLeftRight,
       },
       {
-        to: "/import",
+        // CSV import is disabled until it moves onto the draft pipeline;
+        // /import redirects to /import/pdf, so link there directly.
+        to: "/import/pdf",
         label: "Import",
         icon: Upload,
-        children: [
-          {
-            to: "/import",
-            label: "CSV",
-            icon: FileSpreadsheet,
-          },
-          {
-            to: "/import/pdf",
-            label: "PDF Statement",
-            icon: FileText,
-          },
-        ],
       },
       {
         to: "/drafts",

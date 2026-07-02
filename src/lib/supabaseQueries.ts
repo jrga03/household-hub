@@ -149,48 +149,49 @@ export interface AccountBalance {
  * //   pendingCount: 5
  * // }
  */
+/**
+ * Row shape returned by the get_account_balances Postgres function.
+ * Aggregation happens server-side because fetching raw transaction rows is
+ * silently capped at PostgREST's max-rows (1,000 by default), which made
+ * client-computed balances wrong past 1,000 transactions (review DATA-02).
+ * Transfers are intentionally INCLUDED - they move money between accounts.
+ */
+interface AccountBalanceDeltaRow {
+  account_id: string;
+  cleared_delta_cents: number;
+  pending_delta_cents: number;
+  cleared_count: number;
+  pending_count: number;
+}
+
+const EMPTY_BALANCE_DELTA: Omit<AccountBalanceDeltaRow, "account_id"> = {
+  cleared_delta_cents: 0,
+  pending_delta_cents: 0,
+  cleared_count: 0,
+  pending_count: 0,
+};
+
 export function useAccountBalance(accountId: string) {
   return useQuery({
     queryKey: ["account-balance", accountId],
     queryFn: async (): Promise<AccountBalance> => {
-      // Fetch account details
-      const { data: account, error: accountError } = await supabase
-        .from("accounts")
-        .select("id, name, initial_balance_cents")
-        .eq("id", accountId)
-        .single();
+      // Account details and server-side balance deltas, in parallel
+      const [accountResult, deltasResult] = await Promise.all([
+        supabase
+          .from("accounts")
+          .select("id, name, initial_balance_cents")
+          .eq("id", accountId)
+          .single(),
+        supabase.rpc("get_account_balances", { p_account_ids: [accountId] }),
+      ]);
 
-      if (accountError) throw accountError;
+      if (accountResult.error) throw accountResult.error;
+      const account = accountResult.data;
       if (!account) throw new Error("Account not found");
 
-      // Fetch ALL transactions for this account
-      // CRITICAL: Do NOT filter out transfers - they affect account balances
-      const { data: transactions, error: transactionsError } = await supabase
-        .from("transactions")
-        .select("amount_cents, type, status")
-        .eq("account_id", accountId);
-
-      if (transactionsError) throw transactionsError;
-
-      // Initialize balance accumulators
-      let clearedBalanceDelta = 0;
-      let pendingBalanceDelta = 0;
-      let clearedCount = 0;
-      let pendingCount = 0;
-
-      // Calculate balance deltas using integer cent arithmetic
-      transactions?.forEach((t) => {
-        // Income adds to balance, expense subtracts from balance
-        const delta = t.type === "income" ? t.amount_cents : -t.amount_cents;
-
-        if (t.status === "cleared") {
-          clearedBalanceDelta += delta;
-          clearedCount++;
-        } else {
-          pendingBalanceDelta += delta;
-          pendingCount++;
-        }
-      });
+      if (deltasResult.error) throw deltasResult.error;
+      const deltas = (deltasResult.data ?? []) as AccountBalanceDeltaRow[];
+      const d = deltas[0] ?? { account_id: accountId, ...EMPTY_BALANCE_DELTA };
 
       const initialBalance = account.initial_balance_cents || 0;
 
@@ -198,12 +199,12 @@ export function useAccountBalance(accountId: string) {
         accountId: account.id,
         accountName: account.name,
         initialBalance,
-        currentBalance: initialBalance + clearedBalanceDelta + pendingBalanceDelta,
-        clearedBalance: initialBalance + clearedBalanceDelta,
-        pendingBalance: pendingBalanceDelta, // Can be positive or negative
-        transactionCount: transactions?.length || 0,
-        clearedCount,
-        pendingCount,
+        currentBalance: initialBalance + d.cleared_delta_cents + d.pending_delta_cents,
+        clearedBalance: initialBalance + d.cleared_delta_cents,
+        pendingBalance: d.pending_delta_cents, // Can be positive or negative
+        transactionCount: d.cleared_count + d.pending_count,
+        clearedCount: d.cleared_count,
+        pendingCount: d.pending_count,
       };
     },
     staleTime: 30 * 1000, // 30 seconds
@@ -243,71 +244,35 @@ export function useAccountBalances() {
       if (accountsError) throw accountsError;
       if (!accounts || accounts.length === 0) return [];
 
-      // Fetch transactions for active accounts only (performance optimization)
-      // CRITICAL: Include transfers for accurate balances
-      const accountIds = accounts.map((a) => a.id);
-      const { data: transactions, error: transactionsError } = await supabase
-        .from("transactions")
-        .select("account_id, amount_cents, type, status")
-        .in("account_id", accountIds);
-
-      if (transactionsError) throw transactionsError;
-
-      // Group transactions by account_id and calculate balances
-      const balanceMap = new Map<
-        string,
-        {
-          clearedDelta: number;
-          pendingDelta: number;
-          clearedCount: number;
-          pendingCount: number;
-        }
-      >();
-
-      // Initialize map with all accounts (even those with no transactions)
-      accounts.forEach((account) => {
-        balanceMap.set(account.id, {
-          clearedDelta: 0,
-          pendingDelta: 0,
-          clearedCount: 0,
-          pendingCount: 0,
-        });
+      // Server-side aggregation for active accounts (see AccountBalanceDeltaRow)
+      const { data: deltaRows, error: deltasError } = await supabase.rpc("get_account_balances", {
+        p_account_ids: accounts.map((a) => a.id),
       });
 
-      // Aggregate transaction deltas by account
-      transactions?.forEach((t) => {
-        if (!t.account_id) return; // Skip transactions without account
+      if (deltasError) throw deltasError;
 
-        const existing = balanceMap.get(t.account_id);
-        if (!existing) return; // Skip transactions for inactive accounts
+      const deltaByAccount = new Map(
+        ((deltaRows ?? []) as AccountBalanceDeltaRow[]).map((d) => [d.account_id, d])
+      );
 
-        // Income adds to balance, expense subtracts from balance
-        const delta = t.type === "income" ? t.amount_cents : -t.amount_cents;
-
-        if (t.status === "cleared") {
-          existing.clearedDelta += delta;
-          existing.clearedCount++;
-        } else {
-          existing.pendingDelta += delta;
-          existing.pendingCount++;
-        }
-      });
-
-      // Build AccountBalance array
+      // Build AccountBalance array (accounts with no transactions get zeros)
       return accounts.map((account) => {
-        const balances = balanceMap.get(account.id)!;
+        const d = deltaByAccount.get(account.id) ?? {
+          account_id: account.id,
+          ...EMPTY_BALANCE_DELTA,
+        };
         const initialBalance = account.initial_balance_cents || 0;
 
         return {
           accountId: account.id,
           accountName: account.name,
           initialBalance,
-          currentBalance: initialBalance + balances.clearedDelta + balances.pendingDelta,
-          clearedBalance: initialBalance + balances.clearedDelta,
-          pendingBalance: balances.pendingDelta,
-          transactionCount: balances.clearedCount + balances.pendingCount,
-          clearedCount: balances.clearedCount,
-          pendingCount: balances.pendingCount,
+          currentBalance: initialBalance + d.cleared_delta_cents + d.pending_delta_cents,
+          clearedBalance: initialBalance + d.cleared_delta_cents,
+          pendingBalance: d.pending_delta_cents,
+          transactionCount: d.cleared_count + d.pending_count,
+          clearedCount: d.cleared_count,
+          pendingCount: d.pending_count,
         };
       });
     },
@@ -584,6 +549,33 @@ export function useDeleteTransaction() {
 }
 
 // Toggle status (pending ↔ cleared)
+/**
+ * Sets an explicit status on a batch of transactions in a single UPDATE.
+ *
+ * Use this for bulk actions ("Mark Cleared" / "Mark Pending"). Unlike
+ * useToggleTransactionStatus, mixed selections converge on the requested
+ * status instead of flipping rows that were already correct.
+ */
+export function useSetTransactionStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ ids, status }: { ids: string[]; status: "pending" | "cleared" }) => {
+      const { error } = await supabase.from("transactions").update({ status }).in("id", ids);
+
+      if (error) throw error;
+
+      return status;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      // Status moves amounts between the cleared/pending balance splits
+      queryClient.invalidateQueries({ queryKey: ["account-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["account-balances"] });
+    },
+  });
+}
+
 export function useToggleTransactionStatus() {
   const queryClient = useQueryClient();
 
@@ -904,75 +896,78 @@ export function useDashboardData(currentMonth: Date) {
       const previousMonthStart = startOfMonth(subMonths(currentMonth, 1));
       const previousMonthEnd = endOfMonth(subMonths(currentMonth, 1));
 
-      // 1. Fetch current month transactions (exclude transfers)
-      const { data: currentTransactions, error: currentError } = await supabase
-        .from("transactions")
-        .select("id, amount_cents, type, category_id, status, date")
-        .is("transfer_group_id", null) // Exclude transfers
-        .gte("date", format(monthStart, "yyyy-MM-dd"))
-        .lte("date", format(monthEnd, "yyyy-MM-dd"));
-
-      if (currentError) throw currentError;
-
-      // 2. Fetch previous month for comparison
-      const { data: previousTransactions, error: previousError } = await supabase
-        .from("transactions")
-        .select("amount_cents, type")
-        .is("transfer_group_id", null)
-        .gte("date", format(previousMonthStart, "yyyy-MM-dd"))
-        .lte("date", format(previousMonthEnd, "yyyy-MM-dd"));
-
-      if (previousError) throw previousError;
-
-      // 3. Fetch last 6 months for trend
       const sixMonthsAgo = subMonths(monthStart, 5);
-      const { data: trendTransactions, error: trendError } = await supabase
-        .from("transactions")
-        .select("date, amount_cents, type")
-        .is("transfer_group_id", null)
-        .gte("date", format(sixMonthsAgo, "yyyy-MM-dd"))
-        .lte("date", format(monthEnd, "yyyy-MM-dd"));
 
-      if (trendError) throw trendError;
-
-      // 4. Fetch categories for breakdown
-      const { data: categories, error: categoriesError } = await supabase
-        .from("categories")
-        .select("id, name, color")
-        .eq("is_active", true);
-
-      if (categoriesError) throw categoriesError;
-
-      // 5. Fetch accounts for count and total balance
-      const { data: accounts, error: accountsError } = await supabase
-        .from("accounts")
-        .select("id, initial_balance_cents")
-        .eq("is_active", true);
-
-      if (accountsError) throw accountsError;
-
-      // 6. Fetch all transactions for account balances (INCLUDE transfers)
-      const { data: allTransactions, error: allTransactionsError } = await supabase
-        .from("transactions")
-        .select("account_id, amount_cents, type");
-
-      if (allTransactionsError) throw allTransactionsError;
-
-      // 7. Fetch recent transactions (last 10)
-      const { data: recentTransactions, error: recentError } = await supabase
-        .from("transactions")
-        .select(
-          `
+      // All seven data sources are independent; fetch them in parallel
+      // instead of paying 7 sequential round trips per dashboard load.
+      const [
+        currentResult,
+        previousResult,
+        trendResult,
+        categoriesResult,
+        accountsResult,
+        balanceDeltasResult,
+        recentResult,
+      ] = await Promise.all([
+        // 1. Current month transactions (exclude transfers)
+        supabase
+          .from("transactions")
+          .select("id, amount_cents, type, category_id, status, date")
+          .is("transfer_group_id", null) // Exclude transfers
+          .gte("date", format(monthStart, "yyyy-MM-dd"))
+          .lte("date", format(monthEnd, "yyyy-MM-dd")),
+        // 2. Previous month for comparison
+        supabase
+          .from("transactions")
+          .select("amount_cents, type")
+          .is("transfer_group_id", null)
+          .gte("date", format(previousMonthStart, "yyyy-MM-dd"))
+          .lte("date", format(previousMonthEnd, "yyyy-MM-dd")),
+        // 3. Last 6 months for trend
+        supabase
+          .from("transactions")
+          .select("date, amount_cents, type")
+          .is("transfer_group_id", null)
+          .gte("date", format(sixMonthsAgo, "yyyy-MM-dd"))
+          .lte("date", format(monthEnd, "yyyy-MM-dd")),
+        // 4. Categories for breakdown
+        supabase.from("categories").select("id, name, color").eq("is_active", true),
+        // 5. Accounts for count and total balance
+        supabase.from("accounts").select("id, initial_balance_cents").eq("is_active", true),
+        // 6. Per-account balance deltas, aggregated server-side (INCLUDE
+        //    transfers). Replaces an unbounded fetch of every transaction row,
+        //    which PostgREST silently capped at max-rows (review DATA-02).
+        supabase.rpc("get_account_balances"),
+        // 7. Recent transactions (last 10)
+        supabase
+          .from("transactions")
+          .select(
+            `
           *,
           account:accounts(id, name),
           category:categories(id, name, color)
         `
-        )
-        .order("date", { ascending: false })
-        .order("created_at", { ascending: false })
-        .limit(10);
+          )
+          .order("date", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(10),
+      ]);
 
-      if (recentError) throw recentError;
+      if (currentResult.error) throw currentResult.error;
+      if (previousResult.error) throw previousResult.error;
+      if (trendResult.error) throw trendResult.error;
+      if (categoriesResult.error) throw categoriesResult.error;
+      if (accountsResult.error) throw accountsResult.error;
+      if (balanceDeltasResult.error) throw balanceDeltasResult.error;
+      if (recentResult.error) throw recentResult.error;
+
+      const currentTransactions = currentResult.data;
+      const previousTransactions = previousResult.data;
+      const trendTransactions = trendResult.data;
+      const categories = categoriesResult.data;
+      const accounts = accountsResult.data;
+      const balanceDeltas = (balanceDeltasResult.data ?? []) as AccountBalanceDeltaRow[];
+      const recentTransactions = recentResult.data;
 
       // Calculate summary
       const totalIncome = (currentTransactions || [])
@@ -999,16 +994,15 @@ export function useDashboardData(currentMonth: Date) {
       const clearedTransactions = (currentTransactions || []).filter((t) => t.status === "cleared");
       const pendingTransactions = (currentTransactions || []).filter((t) => t.status === "pending");
 
-      // Calculate total balance across all accounts (INCLUDE transfers)
-      const totalBalance = (accounts || []).reduce((sum, account) => {
-        const accountTransactions = (allTransactions || []).filter(
-          (t) => t.account_id === account.id
-        );
-        const balance = accountTransactions.reduce((bal, t) => {
-          return bal + (t.type === "income" ? t.amount_cents : -t.amount_cents);
-        }, account.initial_balance_cents || 0);
-        return sum + balance;
-      }, 0);
+      // Calculate total balance across active accounts (INCLUDE transfers)
+      const deltaByAccount = new Map(
+        balanceDeltas.map((d) => [d.account_id, d.cleared_delta_cents + d.pending_delta_cents])
+      );
+      const totalBalance = (accounts || []).reduce(
+        (sum, account) =>
+          sum + (account.initial_balance_cents || 0) + (deltaByAccount.get(account.id) ?? 0),
+        0
+      );
 
       // Calculate monthly trend
       const monthlyTrend: Array<{ month: string; incomeCents: number; expenseCents: number }> = [];

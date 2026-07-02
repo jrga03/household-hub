@@ -1,8 +1,12 @@
 /// <reference lib="webworker" />
-import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
-import { registerRoute } from "workbox-routing";
-import { NetworkFirst, CacheFirst, NetworkOnly, StaleWhileRevalidate } from "workbox-strategies";
-import { CacheableResponsePlugin } from "workbox-cacheable-response";
+import {
+  precacheAndRoute,
+  cleanupOutdatedCaches,
+  createHandlerBoundToURL,
+  matchPrecache,
+} from "workbox-precaching";
+import { registerRoute, NavigationRoute, setCatchHandler } from "workbox-routing";
+import { CacheFirst, NetworkOnly } from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
 
 declare const self: ServiceWorkerGlobalScope;
@@ -35,28 +39,21 @@ precacheAndRoute(self.__WB_MANIFEST || []);
 cleanupOutdatedCaches();
 
 // ============================================================================
-// RUNTIME CACHING STRATEGIES (from chunk 042 vite.config.ts)
+// APP SHELL NAVIGATION
+// ============================================================================
+// Serve the precached index.html for all navigations so the SPA boots offline.
+// Previously navigations were network-only with a broken offline.html lookup,
+// which meant reloading the PWA offline returned a network error (INFRA-01).
+registerRoute(new NavigationRoute(createHandlerBoundToURL("index.html")));
+
+// ============================================================================
+// RUNTIME CACHING STRATEGIES
 // ============================================================================
 
-// 1. Supabase API - Network First (5-minute cache with validation)
-registerRoute(
-  ({ url }) => url.hostname.includes("supabase.co") && url.pathname.includes("/rest/"),
-  new NetworkFirst({
-    cacheName: "supabase-api-cache",
-    plugins: [
-      new CacheableResponsePlugin({
-        statuses: [0, 200],
-        headers: {
-          "content-type": "application/json",
-        },
-      }),
-      new ExpirationPlugin({
-        maxEntries: 50,
-        maxAgeSeconds: 5 * 60, // 5 minutes
-      }),
-    ],
-  })
-);
+// 1. Supabase REST API - deliberately NOT cached. Responses are authenticated
+//    financial data; Cache Storage is keyed by URL only, so cached payloads
+//    would survive logout and could leak across sessions (SEC-07). Dexie is
+//    the app's offline data layer; the SW must not keep a second copy.
 
 // 2. Supabase Storage - Cache First (7-day cache)
 registerRoute(
@@ -76,20 +73,6 @@ registerRoute(
 registerRoute(
   ({ url }) => url.hostname.includes("supabase.co") && url.pathname.includes("/auth/"),
   new NetworkOnly()
-);
-
-// 4. Google Fonts - Stale While Revalidate (1-year cache)
-registerRoute(
-  ({ url }) => url.hostname === "fonts.googleapis.com",
-  new StaleWhileRevalidate({
-    cacheName: "google-fonts-cache",
-    plugins: [
-      new ExpirationPlugin({
-        maxEntries: 10,
-        maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
-      }),
-    ],
-  })
 );
 
 // ============================================================================
@@ -273,14 +256,12 @@ self.addEventListener("activate", (event) => {
 // OFFLINE FALLBACK
 // ============================================================================
 
-// Navigate fallback for offline (reuse existing offline.html from chunk 042)
-self.addEventListener("fetch", (event) => {
-  if (event.request.mode === "navigate") {
-    event.respondWith(
-      fetch(event.request).catch(async () => {
-        const cachedResponse = await caches.match("/offline.html");
-        return cachedResponse || Response.error();
-      })
-    );
+// Last-resort handler when a registered route fails (e.g. the precached app
+// shell is missing after a cache wipe). matchPrecache resolves the revision-
+// parameterized cache key that a raw caches.match("/offline.html") missed.
+setCatchHandler(async ({ request }) => {
+  if (request.mode === "navigate") {
+    return (await matchPrecache("/offline.html")) || Response.error();
   }
+  return Response.error();
 });

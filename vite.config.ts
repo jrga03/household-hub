@@ -16,7 +16,10 @@ export default defineConfig({
       srcDir: "src",
       filename: "sw.ts",
       registerType: "prompt", // Changed from 'autoUpdate' to allow user control
-      includeAssets: ["icons/*.png", "splash/*.jpg", "offline.html"],
+      // offline.html is intentionally NOT listed here: the injectManifest
+      // "**/*.html" glob already precaches it, and listing it twice created
+      // duplicate precache entries.
+      includeAssets: ["icons/*.png", "splash/*.jpg"],
       manifest: {
         name: "Household Hub - Financial Tracker",
         short_name: "HouseholdHub",

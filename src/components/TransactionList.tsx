@@ -16,6 +16,7 @@ import { Edit, Trash2, CheckCircle, Circle, X } from "lucide-react";
 import {
   useTransactions,
   useToggleTransactionStatus,
+  useSetTransactionStatus,
   useDeleteTransaction,
 } from "@/lib/supabaseQueries";
 import { formatPHP } from "@/lib/currency";
@@ -35,6 +36,7 @@ interface Props {
 export function TransactionList({ filters, onEdit }: Props) {
   const { data: transactions, isLoading } = useTransactions(filters);
   const toggleStatus = useToggleTransactionStatus();
+  const setStatus = useSetTransactionStatus();
   const deleteTransaction = useDeleteTransaction();
   const queryClient = useQueryClient();
 
@@ -74,9 +76,15 @@ export function TransactionList({ filters, onEdit }: Props) {
 
   const handleBulkDelete = async () => {
     const count = selectedIds.size;
+    const includesTransferLeg = transactions?.some(
+      (t) => selectedIds.has(t.id) && t.transfer_group_id
+    );
+    const transferNote = includesTransferLeg
+      ? "\n\nSome selections are transfers: deleting one side removes BOTH sides to keep balances consistent."
+      : "";
     if (
       window.confirm(
-        `Delete ${count} transaction${count > 1 ? "s" : ""}?\n\nThis will also reverse any debt payments linked to these transactions.`
+        `Delete ${count} transaction${count > 1 ? "s" : ""}?\n\nThis will also reverse any debt payments linked to these transactions.${transferNote}`
       )
     ) {
       try {
@@ -103,9 +111,7 @@ export function TransactionList({ filters, onEdit }: Props) {
   const handleBulkStatusUpdate = async (status: "pending" | "cleared") => {
     const count = selectedIds.size;
     try {
-      const promises = Array.from(selectedIds).map((id) => toggleStatus.mutateAsync(id));
-
-      await Promise.all(promises);
+      await setStatus.mutateAsync({ ids: Array.from(selectedIds), status });
 
       toast.success(`Marked ${count} transaction${count > 1 ? "s" : ""} as ${status}`);
       clearSelection();
@@ -115,12 +121,11 @@ export function TransactionList({ filters, onEdit }: Props) {
     }
   };
 
-  const handleDelete = async (id: string, description: string) => {
-    if (
-      window.confirm(
-        `Delete transaction "${description}"?\n\nThis will also reverse any debt payments linked to this transaction.`
-      )
-    ) {
+  const handleDelete = async (id: string, description: string, isTransferLeg: boolean) => {
+    const confirmMessage = isTransferLeg
+      ? `Delete transfer "${description}"?\n\nBoth sides of this transfer will be deleted to keep account balances consistent.`
+      : `Delete transaction "${description}"?\n\nThis will also reverse any debt payments linked to this transaction.`;
+    if (window.confirm(confirmMessage)) {
       try {
         // Reverse debt payment FIRST (if linked)
         const reversalResult = await handleTransactionDelete({ transaction_id: id });
@@ -331,7 +336,13 @@ export function TransactionList({ filters, onEdit }: Props) {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(transaction.id, transaction.description)}
+                          onClick={() =>
+                            handleDelete(
+                              transaction.id,
+                              transaction.description,
+                              !!transaction.transfer_group_id
+                            )
+                          }
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
