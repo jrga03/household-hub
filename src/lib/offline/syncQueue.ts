@@ -1,51 +1,41 @@
 /**
- * Sync Queue Operations for Offline Changes
+ * Sync Queue: local Dexie outbox for offline changes
  *
- * Implements the sync queue interface for tracking offline changes waiting to
- * sync to Supabase. Integrates idempotency keys, Lamport clocks, and vector
- * clocks for distributed sync and conflict resolution.
+ * The queue is the OUTBOX PATTERN done locally: every mutation writes its
+ * entity AND a queue item into IndexedDB (ideally in one Dexie transaction),
+ * and the sync processor drains the queue to Supabase when online. Enqueueing
+ * never requires the network, so mutations succeed fully offline.
  *
- * Core Responsibilities:
- * - Add offline changes to sync queue (INSERT to Supabase)
- * - Query pending queue items for sync processor
- * - Track queue counts for UI badges and sync status
+ * (Historical note: this module previously INSERTed queue items into the
+ * Supabase sync_queue table, which inverted the outbox pattern and made
+ * offline mutations fail. See docs/reviews/2026-07-02-architecture-review.md
+ * SYNC-01/02.)
  *
  * Sync Queue State Machine:
  * queued → syncing → completed
  *        ↓ (on error)
- *      failed → queued (retry with exponential backoff)
+ *      queued (retryable, next_retry_at scheduled) or failed (permanent)
  *
- * Key Patterns:
- * - Idempotency: Each operation gets unique key (deviceId-entityType-entityId-clock)
- * - Lamport Clock: Per-entity counter for ordering
- * - Vector Clock: Per-entity device map for conflict detection
- * - Graceful Errors: Return error objects, never throw
- *
- * See SYNC-ENGINE.md lines 227-277 for idempotency strategy.
- * See SYNC-ENGINE.md lines 365-511 for conflict resolution.
- * See instructions.md Step 4 for implementation details.
+ * "failed" is terminal: it is surfaced in the UI and only re-enters the
+ * queue through an explicit user retry (retrySyncQueueItem).
  *
  * @module offline/syncQueue
  */
 
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/dexie/db";
 import { deviceManager } from "@/lib/dexie/deviceManager";
 import { generateIdempotencyKey } from "@/lib/sync/idempotency";
 import { getNextLamportClock } from "@/lib/sync/lamportClock";
-import { incrementVectorClock } from "@/lib/sync/vectorClock";
-import type {
-  EntityType,
-  OperationType,
-  SyncQueueOperation,
-  SyncQueueItem,
-  SyncQueueInsert,
-} from "@/types/sync";
+import type { EntityType, OperationType, SyncQueueItem, SyncQueueOperation } from "@/types/sync";
 
 /**
  * Default household ID for MVP (single household mode).
  * See DECISIONS.md #61 for multi-household architecture deferral.
  */
 const DEFAULT_HOUSEHOLD_ID = "00000000-0000-0000-0000-000000000001";
+
+/** Default number of retries before an item fails permanently. */
+const DEFAULT_MAX_RETRIES = 3;
 
 /**
  * Result type for sync queue operations.
@@ -57,91 +47,85 @@ interface SyncQueueResult {
 }
 
 /**
- * Adds an offline change to the sync queue.
+ * Assembles a fully populated queue item WITHOUT writing it.
  *
- * This is the core function called after every offline create/update/delete
- * operation. It generates all necessary sync metadata (idempotency key,
- * Lamport clock, vector clock) and inserts the change into the Supabase
- * sync_queue table with status "queued".
+ * Split from the enqueue so callers can generate the sync metadata (device
+ * ID, clocks, idempotency key) BEFORE opening a Dexie transaction, then add
+ * the item to db.syncQueue inside the same transaction as the entity write.
+ * The metadata helpers touch db.meta / localStorage / (worst case)
+ * FingerprintJS, none of which are safe inside a Dexie transaction zone.
  *
- * Metadata Generation:
- * 1. Get device ID from deviceManager
- * 2. Increment Lamport clock for this entity (per-entity counter)
- * 3. Increment vector clock for this entity (per-entity per-device map)
- * 4. Generate idempotency key (deviceId-entityType-entityId-lamportClock)
+ * Throws on failure; addToSyncQueue wraps this for callers that want a
+ * result object instead.
+ */
+export async function buildSyncQueueItem(
+  entityType: EntityType,
+  entityId: string,
+  op: OperationType,
+  payload: Record<string, unknown>,
+  userId: string
+): Promise<SyncQueueItem> {
+  const deviceId = await deviceManager.getDeviceId();
+  if (!deviceId) {
+    throw new Error("Device ID unavailable");
+  }
+
+  const lamportClock = await getNextLamportClock(entityId);
+  if (!lamportClock || lamportClock < 1 || !Number.isSafeInteger(lamportClock)) {
+    throw new Error(`Invalid Lamport clock for entity ${entityId}: ${lamportClock}`);
+  }
+
+  const idempotencyKey = await generateIdempotencyKey(entityType, entityId, lamportClock);
+  if (!idempotencyKey) {
+    throw new Error("Idempotency key generation failed");
+  }
+
+  // Note: vector clocks are no longer minted here. The Phase B conflict
+  // stack was removed as unreachable (review SYNC-05); Phase A resolves by
+  // timestamp LWW, and the Lamport clock above is what idempotency needs.
+  const operation: SyncQueueOperation = {
+    op,
+    payload,
+    idempotencyKey,
+    lamportClock,
+  };
+
+  const now = new Date().toISOString();
+
+  return {
+    id: crypto.randomUUID(),
+    household_id: DEFAULT_HOUSEHOLD_ID,
+    entity_type: entityType,
+    entity_id: entityId,
+    operation,
+    device_id: deviceId,
+    user_id: userId,
+    status: "queued",
+    retry_count: 0,
+    max_retries: DEFAULT_MAX_RETRIES,
+    error_message: null,
+    created_at: now,
+    updated_at: now,
+    synced_at: null,
+    next_retry_at: null,
+  };
+}
+
+/**
+ * Adds an offline change to the local sync queue.
  *
- * Queue Item Fields:
- * - id: Auto-generated UUID by Supabase
- * - household_id: Default MVP household (or explicit if provided)
- * - entity_type: Type of entity being synced
- * - entity_id: ID of entity (may be temporary like "temp-abc123")
- * - operation: {op, payload, idempotencyKey, lamportClock, vectorClock}
- * - device_id: Device that created this change
- * - user_id: User who owns this change (for RLS)
- * - status: "queued" (will be updated by sync processor)
- * - retry_count: 0 (incremented on retry)
- * - max_retries: 3 (configurable per operation)
- * - created_at: Auto-set by Supabase
- * - updated_at: Auto-set by trigger
+ * Purely local: builds the item (clocks, idempotency key) and writes it to
+ * IndexedDB. Never touches the network, so it succeeds offline.
  *
- * Error Handling:
- * - Device ID unavailable: Returns error (can't sync without device ID)
- * - Clock operations fail: Returns error (can't guarantee uniqueness)
- * - Supabase insert fails: Returns error with message
- * - Network offline: Returns error (queue item not created)
- * - All errors logged to console but don't throw
+ * Callers that need the enqueue to be atomic with their entity write should
+ * use buildSyncQueueItem() + db.syncQueue.add(item) inside their own
+ * db.transaction instead of this convenience wrapper.
  *
  * @param entityType - Type of entity being modified
- * @param entityId - ID of entity (may be temporary)
+ * @param entityId - ID of entity (client-generated UUID)
  * @param op - Operation type (create, update, delete)
- * @param payload - Entity-specific data (varies by entity_type and operation)
- * @param userId - User ID from auth store (for RLS)
- * @returns Promise resolving to result with success status and error/queueItemId
- *
- * @example
- * // After creating offline transaction
- * const result = await addToSyncQueue(
- *   "transaction",
- *   "temp-abc123",
- *   "create",
- *   {
- *     date: "2025-10-27",
- *     description: "Grocery shopping",
- *     amount_cents: 150000,
- *     type: "expense",
- *     account_id: "checking-id",
- *     category_id: "groceries-id",
- *     status: "pending",
- *   },
- *   "user-123"
- * );
- *
- * if (result.success) {
- *   console.log("Queued for sync:", result.queueItemId);
- * }
- *
- * @example
- * // After updating offline transaction
- * const result = await addToSyncQueue(
- *   "transaction",
- *   "transaction-456",
- *   "update",
- *   {
- *     description: "Updated description",
- *     amount_cents: 200000,
- *   },
- *   "user-123"
- * );
- *
- * @example
- * // After deleting offline transaction
- * const result = await addToSyncQueue(
- *   "transaction",
- *   "transaction-789",
- *   "delete",
- *   {}, // No payload for delete
- *   "user-123"
- * );
+ * @param payload - Entity-specific data
+ * @param userId - User ID from auth store
  */
 export async function addToSyncQueue(
   entityType: EntityType,
@@ -151,126 +135,17 @@ export async function addToSyncQueue(
   userId: string
 ): Promise<SyncQueueResult> {
   try {
-    // Step 1: Get device ID
-    const deviceId = await deviceManager.getDeviceId();
-    if (!deviceId) {
-      console.error("Failed to get device ID for sync queue");
-      return {
-        success: false,
-        error: "Device ID unavailable",
-      };
-    }
+    const item = await buildSyncQueueItem(entityType, entityId, op, payload, userId);
+    await db.syncQueue.add(item);
 
-    // Step 2: Increment Lamport clock (per-entity counter)
-    const lamportClock = await getNextLamportClock(entityId);
-    const MAX_LAMPORT_CLOCK = Number.MAX_SAFE_INTEGER;
-    if (!lamportClock || lamportClock < 1 || lamportClock > MAX_LAMPORT_CLOCK) {
-      console.error(
-        `Invalid Lamport clock value for entity ${entityId}: ${lamportClock} (expected 1 to ${MAX_LAMPORT_CLOCK})`
-      );
-      return {
-        success: false,
-        error: `Invalid Lamport clock: ${lamportClock}`,
-      };
-    }
-
-    // Step 3: Increment vector clock (per-entity per-device map)
-    const vectorClock = await incrementVectorClock(entityId);
-    if (!vectorClock || Object.keys(vectorClock).length === 0) {
-      console.error(`Failed to increment vector clock for entity ${entityId}`);
-      return {
-        success: false,
-        error: "Vector clock unavailable",
-      };
-    }
-
-    // Validate vector clock values (all must be positive integers)
-    for (const [deviceIdKey, clockValue] of Object.entries(vectorClock)) {
-      if (
-        typeof clockValue !== "number" ||
-        clockValue < 1 ||
-        !Number.isInteger(clockValue) ||
-        clockValue > MAX_LAMPORT_CLOCK
-      ) {
-        console.error(
-          `Invalid vector clock value for device ${deviceIdKey}: ${clockValue} (expected positive integer)`
-        );
-        return {
-          success: false,
-          error: `Invalid vector clock value: ${clockValue} for device ${deviceIdKey}`,
-        };
-      }
-    }
-
-    // Step 4: Generate idempotency key
-    const idempotencyKey = await generateIdempotencyKey(entityType, entityId, lamportClock);
-    if (!idempotencyKey) {
-      console.error("Failed to generate idempotency key");
-      return {
-        success: false,
-        error: "Idempotency key generation failed",
-      };
-    }
-
-    // Step 5: Build operation object
-    const operation: SyncQueueOperation = {
-      op,
-      payload,
-      idempotencyKey,
-      lamportClock,
-      vectorClock,
-    };
-
-    // Step 6: Build sync queue insert data
-    const queueItem: SyncQueueInsert = {
-      household_id: DEFAULT_HOUSEHOLD_ID,
-      entity_type: entityType,
-      entity_id: entityId,
-      operation,
-      device_id: deviceId,
-      user_id: userId,
-      status: "queued", // Initial state
-      retry_count: 0,
-      max_retries: 3, // Default: 3 attempts (configurable later)
-    };
-
-    // Step 7: Insert into Supabase sync_queue table
-    const { data, error } = await supabase
-      .from("sync_queue")
-      .insert(queueItem)
-      .select("id")
-      .single();
-
-    if (error) {
-      console.error("Failed to insert sync queue item:", error);
-      return {
-        success: false,
-        error: error.message || "Supabase insert failed",
-      };
-    }
-
-    if (!data?.id) {
-      console.error("Sync queue insert succeeded but no ID returned");
-      return {
-        success: false,
-        error: "No queue item ID returned",
-      };
-    }
-
-    // Success!
-    console.debug(`Added to sync queue: ${entityType} ${entityId} (${op})`, {
-      queueItemId: data.id,
-      idempotencyKey,
-      lamportClock,
-      vectorClock,
+    console.debug(`Queued for sync: ${entityType} ${entityId} (${op})`, {
+      queueItemId: item.id,
+      idempotencyKey: item.operation.idempotencyKey,
     });
 
-    return {
-      success: true,
-      queueItemId: data.id,
-    };
+    return { success: true, queueItemId: item.id };
   } catch (error) {
-    console.error("Unexpected error adding to sync queue:", error);
+    console.error("Failed to add to sync queue:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -279,148 +154,133 @@ export async function addToSyncQueue(
 }
 
 /**
- * Gets all pending sync queue items for the current user and device.
+ * Gets sync queue items that are due for processing.
  *
- * Retrieves queue items with status "queued" or "failed" that need to be
- * synced. Used by the sync processor to batch process offline changes.
+ * Returns "queued" items whose next_retry_at is unset or in the past, in
+ * FIFO order. "failed" items are terminal and excluded; they only re-enter
+ * via an explicit user retry.
  *
- * Query Strategy:
- * - Filter by user_id (RLS ensures only user's items visible)
- * - Filter by device_id (only sync this device's changes)
- * - Filter by status IN ("queued", "failed") (exclude syncing/completed)
- * - Order by created_at ascending (FIFO processing)
- * - No limit (return all pending items for batch processing)
- *
- * Status Types:
- * - "queued": Fresh items waiting for first sync attempt
- * - "failed": Items that failed previous sync and need retry
- * - Excludes "syncing": Currently being processed by sync processor
- * - Excludes "completed": Already synced successfully
- *
- * Error Handling:
- * - Device ID unavailable: Returns empty array (graceful degradation)
- * - Supabase query fails: Returns empty array with console error
- * - Network offline: Returns empty array (no pending items to fetch)
- * - All errors logged but don't throw
- *
- * @param userId - User ID from auth store (for RLS filtering)
- * @returns Promise resolving to array of pending queue items (empty on error)
- *
- * @example
- * const pending = await getPendingQueueItems("user-123");
- * console.log(`${pending.length} items pending sync`);
- *
- * for (const item of pending) {
- *   console.log(`${item.entity_type} ${item.entity_id}: ${item.operation.op}`);
- * }
- *
- * @example
- * // Empty result when offline or no pending items
- * const pending = await getPendingQueueItems("user-123");
- * // [] (empty array)
+ * @param userId - Optional user filter (defaults to all local items; the
+ *                 local DB is per-device, but a shared device could hold
+ *                 items from a previous account)
  */
-export async function getPendingQueueItems(userId: string): Promise<SyncQueueItem[]> {
+export async function getPendingQueueItems(userId?: string): Promise<SyncQueueItem[]> {
   try {
-    // Get device ID for filtering
-    const deviceId = await deviceManager.getDeviceId();
-    if (!deviceId) {
-      console.error("Failed to get device ID for pending queue items");
-      return [];
-    }
+    const now = new Date().toISOString();
 
-    // Query sync_queue for pending items
-    const { data, error } = await supabase
-      .from("sync_queue")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("device_id", deviceId)
-      .in("status", ["queued", "failed"])
-      .order("created_at", { ascending: true }); // FIFO processing
+    const items = await db.syncQueue
+      .where("status")
+      .equals("queued")
+      .filter(
+        (item) =>
+          (!item.next_retry_at || item.next_retry_at <= now) && (!userId || item.user_id === userId)
+      )
+      .toArray();
 
-    if (error) {
-      console.error("Failed to get pending queue items:", error);
-      return [];
-    }
+    // FIFO by creation time for causal ordering
+    items.sort((a, b) => a.created_at.localeCompare(b.created_at));
 
-    if (!data) {
-      console.debug("No pending queue items found");
-      return [];
-    }
-
-    console.debug(`Found ${data.length} pending queue items`);
-    return data as SyncQueueItem[];
+    return items;
   } catch (error) {
-    console.error("Unexpected error getting pending queue items:", error);
+    console.error("Failed to get pending queue items:", error);
     return [];
   }
 }
 
 /**
- * Gets the count of pending sync queue items for the current user and device.
- *
- * Returns the number of items with status "queued" or "failed" that need to
- * be synced. Used for:
- * - UI badges (e.g., "3 items pending sync")
- * - Sync status indicators
- * - Deciding whether to trigger sync
- *
- * Query Strategy:
- * - Filter by user_id (RLS ensures only user's items visible)
- * - Filter by device_id (only count this device's changes)
- * - Filter by status IN ("queued", "failed")
- * - Use COUNT(*) for efficiency (no need to fetch full rows)
- *
- * Error Handling:
- * - Device ID unavailable: Returns 0 (graceful degradation)
- * - Supabase query fails: Returns 0 with console error
- * - Network offline: Returns 0 (assume no pending items)
- * - All errors logged but don't throw
- *
- * @param userId - User ID from auth store (for RLS filtering)
- * @returns Promise resolving to count of pending items (0 on error)
- *
- * @example
- * const count = await getQueueCount("user-123");
- * if (count > 0) {
- *   console.log(`You have ${count} changes waiting to sync`);
- * }
- *
- * @example
- * // Use for UI badge
- * const count = await getQueueCount("user-123");
- * return count > 0 ? `Sync (${count})` : "Sync";
+ * Gets everything not yet synced (queued, syncing, and failed items) for
+ * queue-management UIs like SyncQueueViewer, newest last.
  */
-export async function getQueueCount(userId: string): Promise<number> {
+export async function getOutstandingQueueItems(userId?: string): Promise<SyncQueueItem[]> {
   try {
-    // Get device ID for filtering
-    const deviceId = await deviceManager.getDeviceId();
-    if (!deviceId) {
-      console.error("Failed to get device ID for queue count");
-      return 0;
-    }
+    const items = await db.syncQueue
+      .where("status")
+      .anyOf("queued", "syncing", "failed")
+      .filter((item) => !userId || item.user_id === userId)
+      .toArray();
 
-    // Query sync_queue for count only
-    const { count, error } = await supabase
-      .from("sync_queue")
-      .select("*", { count: "exact", head: true }) // COUNT(*) only, no rows
-      .eq("user_id", userId)
-      .eq("device_id", deviceId)
-      .in("status", ["queued", "failed"]);
+    items.sort((a, b) => a.created_at.localeCompare(b.created_at));
 
-    if (error) {
-      console.error("Failed to get queue count:", error);
-      return 0;
-    }
-
-    if (count === null) {
-      console.debug("Queue count returned null");
-      return 0;
-    }
-
-    console.debug(`Queue count: ${count} pending items`);
-    return count;
+    return items;
   } catch (error) {
-    console.error("Unexpected error getting queue count:", error);
+    console.error("Failed to get outstanding queue items:", error);
+    return [];
+  }
+}
+
+/**
+ * Counts items waiting to sync (queued now or scheduled for retry).
+ * Cheap local count; safe to poll or wrap in a liveQuery for badges.
+ */
+export async function getQueueCount(userId?: string): Promise<number> {
+  try {
+    return await db.syncQueue
+      .where("status")
+      .equals("queued")
+      .filter((item) => !userId || item.user_id === userId)
+      .count();
+  } catch (error) {
+    console.error("Failed to get queue count:", error);
+    return 0;
+  }
+}
+
+/**
+ * Counts permanently failed items (surfaced in the sync issues UI).
+ */
+export async function getFailedCount(userId?: string): Promise<number> {
+  try {
+    return await db.syncQueue
+      .where("status")
+      .equals("failed")
+      .filter((item) => !userId || item.user_id === userId)
+      .count();
+  } catch (error) {
+    console.error("Failed to get failed queue count:", error);
+    return 0;
+  }
+}
+
+/**
+ * Resets items stranded in "syncing" back to "queued".
+ *
+ * A tab crash between "mark syncing" and "mark completed/failed" previously
+ * stranded items forever (review SYNC-08). Called at the start of each
+ * processing session. Only items older than maxAgeMs are reset so an
+ * actively syncing sibling tab is left alone.
+ */
+export async function resetStaleSyncingItems(maxAgeMs = 5 * 60 * 1000): Promise<number> {
+  try {
+    const cutoff = new Date(Date.now() - maxAgeMs).toISOString();
+
+    return await db.syncQueue
+      .where("status")
+      .equals("syncing")
+      .filter((item) => item.updated_at <= cutoff)
+      .modify({ status: "queued", updated_at: new Date().toISOString() });
+  } catch (error) {
+    console.error("Failed to reset stale syncing items:", error);
+    return 0;
+  }
+}
+
+/**
+ * Deletes completed queue items older than the retention period.
+ * Keeps recent completions around briefly for debugging/inspection.
+ */
+export async function cleanupCompletedItems(retentionDays = 7): Promise<number> {
+  try {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - retentionDays);
+    const cutoffISO = cutoff.toISOString();
+
+    return await db.syncQueue
+      .where("status")
+      .equals("completed")
+      .filter((item) => (item.synced_at ?? item.updated_at) < cutoffISO)
+      .delete();
+  } catch (error) {
+    console.error("Failed to clean up completed queue items:", error);
     return 0;
   }
 }

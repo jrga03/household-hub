@@ -1,18 +1,16 @@
 import { useEffect } from "react";
-import { Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
+import { Outlet, useRouterState } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { AppSidebar } from "./AppSidebar";
 import { MobileNav } from "./MobileNav";
 import { QuickActionButton } from "./QuickActionButton";
-import { useAuthStore } from "@/stores/authStore";
 import { useNavStore } from "@/stores/navStore";
 import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { cn } from "@/lib/utils";
 import { GlobalSyncStatus } from "@/components/sync/GlobalSyncStatus";
-import { LoadingScreen } from "@/components/LoadingScreen";
 import { OfflineBanner } from "@/components/sync/OfflineBanner";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { TransactionFormDialog } from "@/components/TransactionFormDialog";
@@ -40,9 +38,6 @@ const NO_NAV_ROUTES = ["/login", "/signup"];
 
 export function AppLayout() {
   const router = useRouterState();
-  const navigate = useNavigate();
-  const user = useAuthStore((state) => state.user);
-  const initialized = useAuthStore((state) => state.initialized);
   const { mobileNavOpen, setMobileNavOpen, setActiveRoute } = useNavStore();
 
   // Responsive breakpoints
@@ -57,28 +52,10 @@ export function AppLayout() {
     setActiveRoute(router.location.pathname);
   }, [router.location.pathname, setActiveRoute]);
 
-  // Get current path
+  // Authentication is enforced BEFORE render by the root route's beforeLoad
+  // guard (routes/__root.tsx); no effect-based redirects here (review UI-07)
   const currentPath = router.location.pathname;
   const isAuthRoute = NO_NAV_ROUTES.includes(currentPath);
-
-  // Authentication Protection
-  useEffect(() => {
-    // Wait for auth to initialize
-    if (!initialized) return;
-
-    // If not authenticated and not on auth page, redirect to login
-    if (!user && !isAuthRoute) {
-      // Store the intended destination
-      sessionStorage.setItem("redirectUrl", currentPath);
-      // Redirect to login
-      navigate({ to: "/login" });
-    }
-  }, [user, initialized, currentPath, isAuthRoute, navigate]);
-
-  // Show loading screen while checking auth
-  if (!initialized) {
-    return <LoadingScreen />;
-  }
 
   // If on auth pages (login/signup), render without navigation
   if (isAuthRoute) {
@@ -87,12 +64,6 @@ export function AppLayout() {
         <Outlet />
       </div>
     );
-  }
-
-  // If not authenticated and not on auth page, show loading
-  // (redirect will happen via useEffect)
-  if (!user) {
-    return <LoadingScreen />;
   }
 
   // Mobile layout

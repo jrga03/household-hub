@@ -3,26 +3,28 @@
  *
  * Implements offline-first transaction CRUD operations using IndexedDB via Dexie.
  * These functions enable users to create, update, and delete transactions while offline.
- * Changes are stored locally and will sync to Supabase when connectivity is restored.
+ * Changes are stored locally and sync to Supabase when connectivity is restored.
  *
  * Key Patterns:
- * - Temporary IDs: Use `temp-${nanoid()}` format for offline-created entities
+ * - Client UUIDs: crypto.randomUUID() at creation, so local ID == server ID
+ *   (no temp-ID remapping; see review SYNC-03)
+ * - Outbox atomicity: entity write + sync queue enqueue happen in ONE Dexie
+ *   transaction, so there is no rollback choreography and no window where a
+ *   mutation exists without its queue item (or vice versa)
  * - Device Tracking: Include device_id from deviceManager for sync attribution
  * - Graceful Errors: Return structured results, never throw exceptions
  * - Household MVP: Hardcoded household_id for single-household mode
  * - Currency MVP: Hardcoded PHP currency code
  *
- * See instructions.md Step 2 (lines 72-261) for implementation details.
- *
  * @module offline/transactions
  */
 
-import { nanoid } from "nanoid";
 import { db, type LocalTransaction } from "@/lib/dexie/db";
 import { deviceManager } from "@/lib/dexie/deviceManager";
-import { addToSyncQueue } from "./syncQueue";
+import { buildSyncQueueItem } from "./syncQueue";
 import { processDebtPayment, handleTransactionEdit, handleTransactionDelete } from "@/lib/debts";
 import type { TransactionInput, OfflineOperationResult } from "./types";
+import type { SyncQueueItem } from "@/types/sync";
 
 /**
  * Default household ID for MVP (single household mode).
@@ -37,61 +39,29 @@ const DEFAULT_HOUSEHOLD_ID = "00000000-0000-0000-0000-000000000001";
 const DEFAULT_CURRENCY_CODE = "PHP";
 
 /**
- * Creates a new transaction offline with temporary ID.
+ * Creates a new transaction offline.
  *
- * The transaction is immediately written to IndexedDB and will be synced to
- * Supabase when connectivity is restored. The temporary ID will be replaced
- * with a permanent UUID during sync.
- *
- * Field Generation:
- * - id: `temp-${nanoid()}` - Temporary identifier replaced during sync
- * - device_id: From deviceManager - Tracks which device created the transaction
- * - household_id: Hardcoded for MVP single household mode
- * - currency_code: Hardcoded to "PHP" for MVP
- * - owner_user_id: Set to userId if visibility is "personal", null for "household"
- * - created_at/updated_at: Current ISO timestamp
- *
- * Error Handling:
- * - IndexedDB quota exceeded: Returns error with quota message
- * - Device ID unavailable: Still attempts write (graceful degradation)
- * - All errors logged to console but don't throw
+ * The transaction and its sync queue item are written to IndexedDB in a
+ * single Dexie transaction; the sync processor pushes it to Supabase when
+ * online. The ID is a client-generated UUID that the server keeps, so no
+ * ID remapping is ever needed.
  *
  * @param input - Transaction data from form (excluding generated fields)
  * @param userId - Authenticated user ID from auth store
  * @returns Promise resolving to result with success status and data/error
- *
- * @example
- * const result = await createOfflineTransaction(
- *   {
- *     date: "2025-10-27",
- *     description: "Grocery shopping",
- *     amount_cents: 150000, // ₱1,500.00
- *     type: "expense",
- *     account_id: "checking-account-id",
- *     category_id: "groceries-category-id",
- *     status: "pending",
- *     visibility: "household",
- *   },
- *   "user-123"
- * );
- *
- * if (result.success) {
- *   console.log("Transaction created:", result.data.id);
- * }
  */
 export async function createOfflineTransaction(
   input: TransactionInput,
   userId: string
 ): Promise<OfflineOperationResult<LocalTransaction>> {
   try {
-    // Generate temporary ID (will be replaced with UUID during sync)
-    const tempId = `temp-${nanoid()}`;
+    const id = crypto.randomUUID();
     const deviceId = await deviceManager.getDeviceId();
     const now = new Date().toISOString();
 
     // Map TransactionInput → LocalTransaction by adding generated fields
     const transaction: LocalTransaction = {
-      id: tempId,
+      id,
       date: input.date,
       description: input.description,
       amount_cents: input.amount_cents,
@@ -116,11 +86,10 @@ export async function createOfflineTransaction(
       updated_at: now,
     };
 
-    // Step 1: Write to IndexedDB
-    await db.transactions.add(transaction);
-
-    // Step 2: Add to sync queue
-    const queueResult = await addToSyncQueue(
+    // Sync metadata (clocks, idempotency key) is assembled BEFORE the Dexie
+    // transaction: those helpers touch db.meta and platform APIs that are
+    // not safe inside a transaction zone.
+    const queueItem = await buildSyncQueueItem(
       "transaction",
       transaction.id,
       "create",
@@ -128,21 +97,19 @@ export async function createOfflineTransaction(
       userId
     );
 
-    // Step 3: Rollback IndexedDB if queue fails
-    if (!queueResult.success) {
-      await db.transactions.delete(transaction.id);
-      return {
-        success: false,
-        error: `Failed to queue for sync: ${queueResult.error}`,
-        isTemporary: false,
-      };
-    }
+    // Entity + outbox item commit together or not at all
+    await db.transaction("rw", db.transactions, db.syncQueue, async () => {
+      await db.transactions.add(transaction);
+      await db.syncQueue.add(queueItem);
+    });
 
-    // Step 4: Process debt payment if linked to a debt
+    // Process debt payment if linked to a debt. This runs its own writes
+    // (debt tables + events) and cannot join the transaction above, so on
+    // failure we compensate by removing the transaction and its queue item.
     if (input.debt_id || input.internal_debt_id) {
       try {
         await processDebtPayment({
-          transaction_id: tempId,
+          transaction_id: id,
           amount_cents: input.amount_cents,
           payment_date: input.date,
           debt_id: input.debt_id,
@@ -150,8 +117,10 @@ export async function createOfflineTransaction(
           household_id: DEFAULT_HOUSEHOLD_ID,
         });
       } catch (error) {
-        // Rollback transaction and sync queue on debt payment failure
-        await db.transactions.delete(transaction.id);
+        await db.transaction("rw", db.transactions, db.syncQueue, async () => {
+          await db.transactions.delete(transaction.id);
+          await db.syncQueue.delete(queueItem.id);
+        });
         console.error("Failed to create debt payment:", error);
         return {
           success: false,
@@ -164,7 +133,7 @@ export async function createOfflineTransaction(
     return {
       success: true,
       data: transaction,
-      isTemporary: true,
+      isTemporary: true, // pending sync
     };
   } catch (error) {
     console.error("Failed to create offline transaction:", error);
@@ -180,36 +149,17 @@ export async function createOfflineTransaction(
  * Updates an existing transaction offline.
  *
  * Merges the provided updates with the existing transaction data and writes
- * back to IndexedDB. The updated_at timestamp is automatically refreshed.
+ * the updated entity plus its sync queue item atomically.
  *
  * Update Restrictions:
  * - Cannot change transfer_group_id after creation (enforced at sync level)
  * - Cannot change household_id (would break sync consistency)
  * - Cannot change created_by_user_id (immutable audit field)
  *
- * Temporary ID Handling:
- * - Updates to temp IDs work normally (common during offline editing)
- * - Sync process will handle ID replacement and change propagation
- *
- * Error Handling:
- * - Transaction not found: Returns error (possibly deleted or never created)
- * - IndexedDB errors: Logged and returned as error result
- *
- * @param id - Transaction ID (may be temporary or permanent UUID)
+ * @param id - Transaction UUID
  * @param updates - Partial transaction data to merge with existing
  * @param userId - User ID for sync queue attribution
  * @returns Promise resolving to result with updated transaction or error
- *
- * @example
- * const result = await updateOfflineTransaction("temp-abc123", {
- *   description: "Updated description",
- *   amount_cents: 200000, // Changed amount
- *   status: "cleared", // Mark as cleared
- * }, "user-123");
- *
- * if (result.success) {
- *   console.log("Transaction updated:", result.data);
- * }
  */
 export async function updateOfflineTransaction(
   id: string,
@@ -246,11 +196,7 @@ export async function updateOfflineTransaction(
       updated_at: new Date().toISOString(),
     };
 
-    // Step 1: Update in IndexedDB (uses .put() for upsert)
-    await db.transactions.put(updated);
-
-    // Step 2: Add to sync queue
-    const queueResult = await addToSyncQueue(
+    const queueItem = await buildSyncQueueItem(
       "transaction",
       id,
       "update",
@@ -258,17 +204,12 @@ export async function updateOfflineTransaction(
       userId
     );
 
-    // Step 3: Rollback IndexedDB if queue fails
-    if (!queueResult.success) {
-      await db.transactions.put(existing);
-      return {
-        success: false,
-        error: `Failed to queue for sync: ${queueResult.error}`,
-        isTemporary: false,
-      };
-    }
+    await db.transaction("rw", db.transactions, db.syncQueue, async () => {
+      await db.transactions.put(updated);
+      await db.syncQueue.add(queueItem);
+    });
 
-    // Step 4: Handle debt payment changes if debt-related fields changed
+    // Handle debt payment changes if debt-related fields changed
     const debtFieldsChanged =
       updates.amount_cents !== undefined ||
       updates.debt_id !== undefined ||
@@ -296,7 +237,7 @@ export async function updateOfflineTransaction(
     return {
       success: true,
       data: updated,
-      isTemporary: id.startsWith("temp-"),
+      isTemporary: true, // pending sync
     };
   } catch (error) {
     console.error("Failed to update offline transaction:", error);
@@ -311,37 +252,17 @@ export async function updateOfflineTransaction(
 /**
  * Deletes a transaction offline.
  *
- * Removes the transaction from IndexedDB immediately. Since we use event sourcing,
- * this is a hard delete locally - the delete event will be created separately
- * during sync processing.
- *
- * Deletion Strategy:
- * - Local: Hard delete from IndexedDB (immediate removal)
- * - Sync: Delete event created in sync queue for server propagation
- * - Event log: DELETE event recorded for conflict resolution
+ * Reverses any linked debt payment first (preserving the audit trail), then
+ * removes the transaction and enqueues the delete atomically.
  *
  * Transfer Considerations:
  * - Deleting a transfer transaction requires deleting BOTH paired transactions
- * - This function handles single transaction delete only
- * - Caller must delete both sides of transfer pair manually
- * - See chunk 018 (transfers-ui) for paired deletion logic
+ * - This function handles single transaction delete only; on the server the
+ *   handle_transfer_deletion trigger removes the sibling
  *
- * Error Handling:
- * - Transaction not found: Returns error (possibly already deleted)
- * - IndexedDB errors: Logged and returned as error result
- *
- * @param id - Transaction ID to delete (may be temporary or permanent UUID)
+ * @param id - Transaction UUID to delete
  * @param userId - User ID for sync queue attribution
  * @returns Promise resolving to success result or error
- *
- * @example
- * const result = await deleteOfflineTransaction("temp-abc123", "user-123");
- *
- * if (result.success) {
- *   console.log("Transaction deleted");
- * } else {
- *   console.error("Delete failed:", result.error);
- * }
  */
 export async function deleteOfflineTransaction(
   id: string,
@@ -358,7 +279,7 @@ export async function deleteOfflineTransaction(
       };
     }
 
-    // Step 0: Reverse debt payment BEFORE deletion to preserve audit trail
+    // Reverse debt payment BEFORE deletion to preserve audit trail
     try {
       await handleTransactionDelete({ transaction_id: id });
     } catch (error) {
@@ -370,25 +291,16 @@ export async function deleteOfflineTransaction(
       };
     }
 
-    // Step 1: Delete from IndexedDB (hard delete)
-    await db.transactions.delete(id);
+    const queueItem = await buildSyncQueueItem("transaction", id, "delete", { id }, userId);
 
-    // Step 2: Add to sync queue
-    const queueResult = await addToSyncQueue("transaction", id, "delete", { id }, userId);
-
-    // Step 3: Rollback IndexedDB if queue fails
-    if (!queueResult.success) {
-      await db.transactions.add(existing);
-      return {
-        success: false,
-        error: `Failed to queue for sync: ${queueResult.error}`,
-        isTemporary: false,
-      };
-    }
+    await db.transaction("rw", db.transactions, db.syncQueue, async () => {
+      await db.transactions.delete(id);
+      await db.syncQueue.add(queueItem);
+    });
 
     return {
       success: true,
-      isTemporary: id.startsWith("temp-"),
+      isTemporary: true, // pending sync
     };
   } catch (error) {
     console.error("Failed to delete offline transaction:", error);
@@ -401,44 +313,24 @@ export async function deleteOfflineTransaction(
 }
 
 /**
- * Batch creates multiple transactions (for CSV import).
+ * Batch creates multiple transactions (for imports).
  *
- * Creates multiple transactions in a single IndexedDB transaction for performance.
- * Uses bulkAdd() for atomic batch insertion - either all succeed or all fail.
+ * All transactions AND their sync queue items are written in one Dexie
+ * transaction: either the whole batch lands with its outbox entries, or
+ * nothing does.
  *
  * Performance Characteristics:
  * - bulkAdd() is 10-100x faster than individual add() calls
- * - Atomic operation: All or nothing (if one fails, all fail)
  * - Recommended for imports with 100+ transactions
  * - Handles up to 10,000 transactions efficiently
  *
  * Deduplication:
- * - No deduplication at this layer (handled by CSV import logic)
+ * - No deduplication at this layer (handled by import logic)
  * - Caller must check for duplicates using import_key field
- * - See chunk 037 (csv-import) for deduplication strategy
- *
- * Error Handling:
- * - Duplicate ID conflict: Entire batch fails (none inserted)
- * - IndexedDB quota: Returns error with quota information
- * - All errors logged but don't throw
  *
  * @param inputs - Array of transaction inputs to create
  * @param userId - Authenticated user ID from auth store
  * @returns Promise resolving to result with all created transactions or error
- *
- * @example
- * const result = await createOfflineTransactionsBatch(
- *   [
- *     { date: "2025-10-01", description: "Salary", amount_cents: 5000000, type: "income", ... },
- *     { date: "2025-10-05", description: "Rent", amount_cents: 1500000, type: "expense", ... },
- *     { date: "2025-10-10", description: "Groceries", amount_cents: 500000, type: "expense", ... },
- *   ],
- *   "user-123"
- * );
- *
- * if (result.success) {
- *   console.log(`Imported ${result.data.length} transactions`);
- * }
  */
 export async function createOfflineTransactionsBatch(
   inputs: TransactionInput[],
@@ -450,7 +342,7 @@ export async function createOfflineTransactionsBatch(
 
     // Map all inputs to LocalTransaction objects
     const transactions: LocalTransaction[] = inputs.map((input) => ({
-      id: `temp-${nanoid()}`,
+      id: crypto.randomUUID(),
       date: input.date,
       description: input.description,
       amount_cents: input.amount_cents,
@@ -476,43 +368,30 @@ export async function createOfflineTransactionsBatch(
       updated_at: now,
     }));
 
-    // Write transactions and queue sync items atomically using Dexie transaction.
-    // This prevents phantom sync queue entries pointing to deleted transactions
-    // if some queue operations fail mid-batch.
-    await db.transaction("rw", db.transactions, async () => {
-      await db.transactions.bulkAdd(transactions);
-    });
-
-    // Queue sync items — if any fail, roll back all transactions AND
-    // any successfully queued items
-    const queueResults = await Promise.all(
-      transactions.map((tx) =>
-        addToSyncQueue(
+    // Assemble queue items sequentially (per-entity clock increments) before
+    // opening the transaction
+    const queueItems: SyncQueueItem[] = [];
+    for (const tx of transactions) {
+      queueItems.push(
+        await buildSyncQueueItem(
           "transaction",
           tx.id,
           "create",
           tx as unknown as Record<string, unknown>,
           userId
         )
-      )
-    );
-
-    const failedQueues = queueResults.filter((r) => !r.success);
-    if (failedQueues.length > 0) {
-      // Rollback: Delete all transactions from IndexedDB
-      await db.transactions.bulkDelete(transactions.map((t) => t.id));
-      console.error(`Failed to queue ${failedQueues.length} transactions for sync`);
-      return {
-        success: false,
-        error: `Failed to queue ${failedQueues.length} of ${transactions.length} transactions for sync`,
-        isTemporary: false,
-      };
+      );
     }
+
+    await db.transaction("rw", db.transactions, db.syncQueue, async () => {
+      await db.transactions.bulkAdd(transactions);
+      await db.syncQueue.bulkAdd(queueItems);
+    });
 
     return {
       success: true,
       data: transactions,
-      isTemporary: true,
+      isTemporary: true, // pending sync
     };
   } catch (error) {
     console.error("Failed to batch create offline transactions:", error);

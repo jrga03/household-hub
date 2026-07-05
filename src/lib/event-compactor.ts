@@ -36,9 +36,21 @@
 import { db } from "./dexie/db";
 import type { TransactionEvent } from "./dexie/db";
 import type { VectorClock } from "@/types/event";
-import { mergeVectorClocks } from "./vector-clock";
 import { nanoid } from "nanoid";
 import { useSyncStore } from "@/stores/syncStore";
+
+// Inlined from the removed lib/vector-clock.ts (Phase B conflict stack):
+// pairwise max across device counters, used only for snapshot compaction.
+function mergeVectorClocks(v1: VectorClock, v2: VectorClock): VectorClock {
+  const merged: VectorClock = {};
+  const devices = new Set([...Object.keys(v1), ...Object.keys(v2)]);
+
+  for (const device of devices) {
+    merged[device] = Math.max(v1[device] || 0, v2[device] || 0);
+  }
+
+  return merged;
+}
 
 // ============================================================================
 // Constants

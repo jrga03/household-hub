@@ -1,12 +1,19 @@
 /**
- * Balance Calculation Logic
+ * Balance Calculation Logic (signed ledger)
  *
  * Core principle: Balance is DERIVED from payment history, never stored.
- * Formula: current_balance = original_amount - SUM(valid_payments)
+ * Formula: current_balance = original_amount - SUM(ALL payment rows)
  *
- * Valid payments = all payments EXCEPT:
- * 1. Reversal records (is_reversal = true)
- * 2. Payments that have been reversed (exists in reverses_payment_id)
+ * Rows are SIGNED: regular payments are positive, compensating rows
+ * (reversals) are negative, and a reversal of a reversal is a positive
+ * compensating row. Every row participates in the sum, which makes the
+ * model uniform and matches the server schema's design ("Positive for
+ * payment, negative for reversal", debt_payments.amount_cents).
+ *
+ * (The previous EXCLUSION-based model summed only "valid" rows and skipped
+ * reversal pairs. It forced reversal-of-reversal rows to masquerade as
+ * regular unlinked payments, which broke reversal idempotency and the audit
+ * chain; see docs/reviews/2026-07-02-architecture-review.md DEBT-02/13.)
  */
 
 import { db } from "@/lib/dexie/db";
@@ -61,18 +68,8 @@ export async function calculateDebtBalance(
     .equals(debtId)
     .toArray();
 
-  if (payments.length === 0) {
-    // No payments yet - full balance owed
-    return debt.original_amount_cents;
-  }
-
-  // 3. Filter valid payments (exclude reversals AND reversed payments)
-  const totalPaid = sumValidPayments(payments);
-
-  // 4. Calculate balance (can be negative)
-  const balance = debt.original_amount_cents - totalPaid;
-
-  return balance;
+  // 3. Signed sum over ALL rows (reversals are negative)
+  return debt.original_amount_cents - sumPayments(payments);
 }
 
 /**
@@ -113,13 +110,13 @@ export async function calculateDebtBalanceWithDetails(
     .equals(debtId)
     .toArray();
 
-  // Calculate totals
-  const totalPaid = sumValidPayments(payments);
+  // Signed totals
+  const totalPaid = sumPayments(payments);
   const balance = debt.original_amount_cents - totalPaid;
 
-  // Count payments and reversals
+  // Live payments = regular rows whose effect still stands (not compensated)
   const reversedIds = getReversedPaymentIds(payments);
-  const validPayments = payments.filter((p) => !p.is_reversal && !reversedIds.has(p.id));
+  const livePayments = payments.filter((p) => !p.is_reversal && !reversedIds.has(p.id));
   const reversals = payments.filter((p) => p.is_reversal);
 
   // Overpayment detection
@@ -130,7 +127,7 @@ export async function calculateDebtBalanceWithDetails(
     original_amount_cents: debt.original_amount_cents,
     total_paid_cents: totalPaid,
     current_balance_cents: balance,
-    payment_count: validPayments.length,
+    payment_count: livePayments.length,
     reversal_count: reversals.length,
     is_overpaid: isOverpaid,
     overpayment_amount_cents: overpaymentAmount,
@@ -142,37 +139,18 @@ export async function calculateDebtBalanceWithDetails(
 // =====================================================
 
 /**
- * Sum all valid payments (excludes reversals and reversed payments)
+ * Signed sum over ALL payment rows.
  *
- * Algorithm:
- * 1. Build set of reversed payment IDs for O(1) lookups
- * 2. Filter payments that are:
- *    - NOT reversal records (is_reversal = false)
- *    - NOT reversed by another payment (id not in reversedIds)
- * 3. Sum amount_cents
- *
- * @param payments - All payments for a debt
- * @returns Total paid amount in cents
+ * No exclusions: a reversed payment (+P) and its reversal (-P) cancel
+ * arithmetically, so the ledger stays uniform and reversal chains of any
+ * depth work without special cases.
  */
-function sumValidPayments(payments: DebtPayment[]): number {
-  // Pre-compute reversed payment IDs (O(n) once)
-  const reversedIds = getReversedPaymentIds(payments);
-
-  // Filter valid payments (O(n) with O(1) lookups)
-  const validPayments = payments.filter(
-    (p) =>
-      !p.is_reversal && // Exclude reversal records
-      !reversedIds.has(p.id) // Exclude reversed payments
-  );
-
-  // Sum amounts
-  const total = validPayments.reduce((sum, p) => sum + p.amount_cents, 0);
-
-  return total;
+function sumPayments(payments: DebtPayment[]): number {
+  return payments.reduce((sum, p) => sum + p.amount_cents, 0);
 }
 
 /**
- * Get set of payment IDs that have been reversed
+ * Get set of payment IDs that have been compensated by another row
  *
  * @param payments - All payments
  * @returns Set of reversed payment IDs
@@ -229,26 +207,14 @@ export async function calculateMultipleBalances(
   // Calculate balance for each debt
   for (const debt of debts) {
     const payments = paymentsByDebt.get(debt.id) || [];
-    const totalPaid = sumValidPayments(payments);
-    const balance = debt.original_amount_cents - totalPaid;
-    balances.set(debt.id, balance);
-  }
-
-  // Fill in missing debts (no payments = full balance)
-  for (const debtId of debtIds) {
-    if (!balances.has(debtId)) {
-      const debt = debts.find((d) => d.id === debtId);
-      if (debt) {
-        balances.set(debtId, debt.original_amount_cents);
-      }
-    }
+    balances.set(debt.id, debt.original_amount_cents - sumPayments(payments));
   }
 
   return balances;
 }
 
 // =====================================================
-// Export all functions
+// Export helpers (tests, sibling modules)
 // =====================================================
 
-export { sumValidPayments, getReversedPaymentIds };
+export { sumPayments, getReversedPaymentIds };

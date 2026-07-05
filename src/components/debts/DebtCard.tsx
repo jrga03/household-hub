@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useLiveQuery } from "dexie-react-hooks";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DebtStatusBadge } from "./DebtStatusBadge";
@@ -55,13 +55,12 @@ export function DebtCard({
   // Determine entity type for sync status query
   const entityType: "debt" | "internal_debt" = isInternal ? "internal_debt" : "debt";
 
-  // Query sync status
-  const { data: syncStatus } = useQuery({
-    queryKey: ["debt-sync-status", debt.id, entityType],
-    queryFn: () => getSyncStatusForDebt(debt.id, entityType),
-    refetchInterval: 5000, // Refresh every 5 seconds
-    staleTime: 4000, // Consider stale after 4 seconds
-  });
+  // Sync status from the LOCAL outbox: reactive (re-runs when db.syncQueue
+  // changes), zero network - replaces a per-card Supabase poll every 5s
+  const syncStatus = useLiveQuery(
+    () => getSyncStatusForDebt(debt.id, entityType),
+    [debt.id, entityType]
+  );
 
   return (
     <Card className={className}>

@@ -5,7 +5,7 @@ import {
   calculateDebtBalanceWithDetails,
   calculateMultipleBalances,
 } from "../balance";
-import { createTestDebt, createTestPayment } from "../test-utils";
+import { createTestDebt, createTestPayment } from "./test-utils";
 
 describe("Balance Calculation", () => {
   beforeEach(async () => {

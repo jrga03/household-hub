@@ -20,6 +20,7 @@ import Dexie, { Table } from "dexie";
 import { hasSentry } from "@/types/sentry";
 import type { Debt, InternalDebt, DebtPayment } from "@/types/debt";
 import type { ImportDraft, ImportSession } from "@/types/pdf-import";
+import type { SyncQueueItem } from "@/types/sync";
 
 // ============================================================================
 // TypeScript Interfaces
@@ -92,25 +93,10 @@ export interface LocalCategory {
   updated_at: string;
 }
 
-/**
- * Sync queue item for offline changes waiting to sync.
- */
-export interface SyncQueueItem {
-  id: string;
-  household_id: string;
-  entity_type: "transaction" | "account" | "category" | "budget";
-  entity_id: string;
-  operation: {
-    op: "create" | "update" | "delete";
-    payload: unknown;
-  };
-  device_id: string;
-  status: "queued" | "syncing" | "completed" | "failed";
-  retry_count: number;
-  error_message?: string;
-  created_at: string;
-  updated_at: string;
-}
+// SyncQueueItem lives in @/types/sync (the full outbox row shape, including
+// idempotency/clock metadata and retry scheduling). Re-exported below for
+// convenience since the table is defined here.
+export type { SyncQueueItem } from "@/types/sync";
 
 /**
  * Transaction event for event sourcing audit log.
@@ -176,22 +162,6 @@ export interface SyncIssueRecord {
   canRetry: boolean; // Whether the issue can be retried automatically
 }
 
-/**
- * Conflict record for tracking concurrent edits detected via vector clocks.
- * Stored in IndexedDB for conflict resolution and audit trail.
- */
-export interface Conflict {
-  id: string;
-  entity_type: string; // "transaction" | "account" | "category" | "budget"
-  entity_id: string; // Which entity has the conflict
-  detected_at: string; // ISO timestamp when conflict was detected
-  local_event: unknown; // Full local TransactionEvent object
-  remote_event: unknown; // Full remote TransactionEvent object
-  resolution: string; // "pending" | "resolved" | "manual"
-  resolved_value: unknown | null; // Final resolved value (null if pending)
-  resolved_at: string | null; // ISO timestamp when resolved (null if pending)
-}
-
 // ============================================================================
 // Dexie Database Class
 // ============================================================================
@@ -238,7 +208,6 @@ export class HouseholdHubDB extends Dexie {
   meta!: Table<MetaEntry, string>;
   logs!: Table<LogEntry, string>;
   syncIssues!: Table<SyncIssueRecord, string>;
-  conflicts!: Table<Conflict, string>;
 
   // Debt tracking tables (added in version 4)
   debts!: Table<Debt, string>;
@@ -599,6 +568,37 @@ export class HouseholdHubDB extends Dexie {
           "[Dexie Migration v7→v8] Adding importDrafts and importSessions tables for PDF import"
         );
         return Promise.resolve();
+      });
+
+    // ========================================================================
+    // Version 9: Drop conflicts table; signed-ledger debt payments
+    // ========================================================================
+    // NOTE: Contrary to the comments on versions 1-8, Dexie does NOT require
+    // repeating unchanged table definitions - later versions inherit them.
+    // Declare only the delta: changed/added tables, or `null` to drop one.
+    //
+    // - conflicts: dropped. The Phase B vector-clock conflict stack was
+    //   removed as unreachable (docs/reviews/2026-07-02-architecture-review.md
+    //   SYNC-05); Phase A resolves by timestamp LWW.
+    // - debtPayments: data migration to the signed-ledger model (DEBT-13):
+    //   reversal rows now store NEGATIVE amounts so that
+    //   balance = original - sum(ALL rows), replacing the exclusion-based
+    //   model. Totals are preserved: an excluded (P, R) pair contributed 0,
+    //   and P + (-P) = 0.
+    this.version(9)
+      .stores({
+        conflicts: null,
+      })
+      .upgrade((tx) => {
+        console.log("[Dexie Migration v8→v9] Negating reversal payment amounts (signed ledger)");
+        return tx
+          .table("debtPayments")
+          .toCollection()
+          .modify((payment) => {
+            if (payment.is_reversal && payment.amount_cents > 0) {
+              payment.amount_cents = -payment.amount_cents;
+            }
+          });
       });
 
     // ========================================================================

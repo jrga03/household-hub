@@ -1,5 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "./supabase";
+import {
+  isLikelyNetworkError,
+  getLocalTransactionsWithRelations,
+  getLocalActiveAccounts,
+  getLocalActiveCategories,
+} from "./offline/reads";
 import { Account, AccountInsert, AccountUpdate } from "@/types/accounts";
 import type {
   Category,
@@ -25,16 +31,26 @@ export function useAccounts() {
   return useQuery({
     queryKey: ["accounts"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("accounts")
-        .select("*")
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true });
+      try {
+        const { data, error } = await supabase
+          .from("accounts")
+          .select("*")
+          .eq("is_active", true)
+          .order("sort_order", { ascending: true });
 
-      if (error) throw error;
-      return data as Account[];
+        if (error) throw error;
+        return data as Account[];
+      } catch (error) {
+        // Offline fallback: serve the locally synced copy from Dexie
+        if (isLikelyNetworkError(error)) {
+          console.warn("[useAccounts] Network unavailable - reading from Dexie");
+          return (await getLocalActiveAccounts()) as Account[];
+        }
+        throw error;
+      }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
+    networkMode: "always", // run the queryFn offline so the Dexie fallback can serve
   });
 }
 
@@ -289,17 +305,27 @@ export function useCategories() {
   return useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("*")
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true })
-        .order("name", { ascending: true });
+      try {
+        const { data, error } = await supabase
+          .from("categories")
+          .select("*")
+          .eq("is_active", true)
+          .order("sort_order", { ascending: true })
+          .order("name", { ascending: true });
 
-      if (error) throw error;
-      return data as Category[];
+        if (error) throw error;
+        return data as Category[];
+      } catch (error) {
+        // Offline fallback: serve the locally synced copy from Dexie
+        if (isLikelyNetworkError(error)) {
+          console.warn("[useCategories] Network unavailable - reading from Dexie");
+          return (await getLocalActiveCategories()) as Category[];
+        }
+        throw error;
+      }
     },
     staleTime: 10 * 60 * 1000, // 10 minutes (categories change rarely)
+    networkMode: "always", // run the queryFn offline so the Dexie fallback can serve
   });
 }
 
@@ -308,15 +334,23 @@ export function useCategoriesGrouped() {
   return useQuery({
     queryKey: ["categories", "grouped"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("*")
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true });
+      let categories: Category[];
+      try {
+        const { data, error } = await supabase
+          .from("categories")
+          .select("*")
+          .eq("is_active", true)
+          .order("sort_order", { ascending: true });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      const categories = data as Category[];
+        categories = data as Category[];
+      } catch (error) {
+        // Offline fallback: serve the locally synced copy from Dexie
+        if (!isLikelyNetworkError(error)) throw error;
+        console.warn("[useCategoriesGrouped] Network unavailable - reading from Dexie");
+        categories = (await getLocalActiveCategories()) as Category[];
+      }
 
       // Group by parent_id - filter parents first, then add children
       const grouped = categories
@@ -329,6 +363,7 @@ export function useCategoriesGrouped() {
       return grouped as CategoryWithChildren[];
     },
     staleTime: 10 * 60 * 1000,
+    networkMode: "always", // run the queryFn offline so the Dexie fallback can serve
   });
 }
 
@@ -454,12 +489,24 @@ export function useTransactions(filters?: TransactionFilters) {
         query = query.is("transfer_group_id", null);
       }
 
-      const { data, error } = await query.limit(100); // Pagination later
+      try {
+        const { data, error } = await query.limit(100); // Pagination later
 
-      if (error) throw error;
-      return data as TransactionWithRelations[];
+        if (error) throw error;
+        return data as TransactionWithRelations[];
+      } catch (error) {
+        // Offline fallback: same filters and joins served from Dexie
+        if (isLikelyNetworkError(error)) {
+          console.warn("[useTransactions] Network unavailable - reading from Dexie");
+          return (await getLocalTransactionsWithRelations(
+            filters
+          )) as unknown as TransactionWithRelations[];
+        }
+        throw error;
+      }
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
+    networkMode: "always", // run the queryFn offline so the Dexie fallback can serve
   });
 }
 

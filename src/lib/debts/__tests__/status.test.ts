@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { db } from "@/lib/dexie/db";
 import {
   updateDebtStatusFromBalance,
@@ -6,6 +6,17 @@ import {
   isValidStatusTransition,
   recoverInvalidDebtStates,
 } from "../status";
+
+// Status transitions now emit events, which read the Supabase session for
+// attribution; unit tests run unauthenticated, so pin a deterministic user
+// while keeping the rest of the module real.
+vi.mock("../sync", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../sync")>();
+  return {
+    ...actual,
+    getCurrentUserId: vi.fn().mockResolvedValue("test-user-id"),
+  };
+});
 
 describe("Status Transitions", () => {
   beforeEach(async () => {
@@ -102,7 +113,9 @@ describe("Status Transitions", () => {
 
       const debt = await db.debts.get("debt-1");
       expect(debt?.status).toBe("active");
-      expect(debt?.closed_at).toBeNull();
+      // Cleared closed_at is stored as an absent property (undefined), not
+      // a literal null, matching the optional closed_at?: string type
+      expect(debt?.closed_at).toBeUndefined();
     });
 
     it("should NOT auto-transition archived debts", async () => {

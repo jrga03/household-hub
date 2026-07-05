@@ -2,72 +2,37 @@
  * Unit Tests for Offline Transaction Operations
  *
  * Tests the offline transaction mutation functions to ensure:
- * - Temporary IDs are generated correctly
+ * - Client UUIDs are generated correctly (local ID == server ID)
  * - CRUD operations work with IndexedDB
- * - Data persistence is correct
+ * - Every mutation lands an outbox item in db.syncQueue atomically
  * - Error handling is graceful
  *
- * @see instructions.md Step 6 (lines 799-914)
+ * No network mocks needed: the sync queue is a local Dexie table.
+ *
  * @module offline/transactions.test
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "@/lib/dexie/db";
-import { supabase } from "@/lib/supabase";
 import {
   createOfflineTransaction,
   updateOfflineTransaction,
   deleteOfflineTransaction,
 } from "./transactions";
 
-/**
- * Helper function to mock Supabase sync_queue insert operations.
- * Returns a spy on supabase.from() that intercepts sync_queue calls.
- */
-function mockSyncQueueInsert() {
-  const originalFrom = supabase.from.bind(supabase);
-  const fromSpy = vi.spyOn(supabase, "from");
-  fromSpy.mockImplementation((table: string) => {
-    if (table === "sync_queue") {
-      return {
-        insert: vi.fn().mockImplementation(() => {
-          return {
-            select: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: { id: `queue-item-${Date.now()}` },
-                error: null,
-              }),
-            }),
-          };
-        }),
-      } as never;
-    }
-    return originalFrom(table);
-  });
-  return fromSpy;
-}
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 describe("Offline Transaction Operations", () => {
   // Use a valid UUID format for test user ID (Supabase expects UUID)
   const testUserId = "12345678-1234-5678-1234-567812345678";
 
   beforeEach(async () => {
-    // Clear test database before each test
     await db.transactions.clear();
-
-    // Mock Supabase sync_queue operations
-    mockSyncQueueInsert();
+    await db.syncQueue.clear();
+    await db.meta.clear();
   });
 
-  afterEach(async () => {
-    // Clean up after each test
-    await db.transactions.clear();
-
-    // Restore all mocks
-    vi.restoreAllMocks();
-  });
-
-  it("should create transaction with temporary ID", async () => {
+  it("should create transaction with a client-generated UUID and queue it", async () => {
     const input = {
       date: "2024-01-15",
       description: "Test transaction",
@@ -80,18 +45,27 @@ describe("Offline Transaction Operations", () => {
     const result = await createOfflineTransaction(input, testUserId);
 
     expect(result.success).toBe(true);
-    expect(result.data?.id).toMatch(/^temp-/);
+    expect(result.data?.id).toMatch(UUID_PATTERN);
     expect(result.data?.description).toBe("Test transaction");
     expect(result.data?.amount_cents).toBe(150050);
-    expect(result.isTemporary).toBe(true);
+    expect(result.isTemporary).toBe(true); // pending sync
 
     // Verify in IndexedDB
     const stored = await db.transactions.get(result.data!.id);
     expect(stored).toBeDefined();
     expect(stored?.description).toBe("Test transaction");
+
+    // Verify the outbox item landed with the entity write
+    const queueItems = await db.syncQueue.toArray();
+    expect(queueItems).toHaveLength(1);
+    expect(queueItems[0].entity_type).toBe("transaction");
+    expect(queueItems[0].entity_id).toBe(result.data!.id);
+    expect(queueItems[0].operation.op).toBe("create");
+    expect(queueItems[0].status).toBe("queued");
+    expect(queueItems[0].user_id).toBe(testUserId);
   });
 
-  it("should update existing transaction", async () => {
+  it("should update existing transaction and queue the update", async () => {
     // Create initial transaction
     const createResult = await createOfflineTransaction(
       {
@@ -124,9 +98,13 @@ describe("Offline Transaction Operations", () => {
     // Verify in IndexedDB
     const stored = await db.transactions.get(id);
     expect(stored?.description).toBe("Updated");
+
+    // Verify create + update outbox items
+    const ops = (await db.syncQueue.toArray()).map((item) => item.operation.op).sort();
+    expect(ops).toEqual(["create", "update"]);
   });
 
-  it("should delete transaction", async () => {
+  it("should delete transaction and queue the delete", async () => {
     // Create transaction
     const createResult = await createOfflineTransaction(
       {
@@ -150,5 +128,9 @@ describe("Offline Transaction Operations", () => {
     // Verify removed from IndexedDB
     const stored = await db.transactions.get(id);
     expect(stored).toBeUndefined();
+
+    // Verify create + delete outbox items
+    const ops = (await db.syncQueue.toArray()).map((item) => item.operation.op).sort();
+    expect(ops).toEqual(["create", "delete"]);
   });
 });

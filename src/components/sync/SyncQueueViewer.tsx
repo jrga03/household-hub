@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { RefreshCw, Trash2, AlertCircle, CheckCircle2, Clock, Loader2 } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
-import { getPendingQueueItems } from "@/lib/offline/syncQueue";
+import { getOutstandingQueueItems } from "@/lib/offline/syncQueue";
 import {
   useRetrySyncItem,
   useDiscardSyncItem,
@@ -50,10 +50,11 @@ export function SyncQueueViewer({ open, onOpenChange }: SyncQueueViewerProps) {
   const queryClient = useQueryClient();
   const retryAllMutation = useRetryAllFailed();
 
-  // Fetch pending queue items
+  // Fetch outstanding queue items (queued + syncing + failed) from the
+  // local outbox - a cheap IndexedDB read, no network involved
   const { data: items = [], isLoading } = useQuery({
-    queryKey: ["sync-queue", "pending"],
-    queryFn: () => (user?.id ? getPendingQueueItems(user.id) : []),
+    queryKey: ["sync-queue", "outstanding"],
+    queryFn: () => (user?.id ? getOutstandingQueueItems(user.id) : []),
     enabled: !!user?.id && open,
     refetchInterval: 10000, // Refresh every 10 seconds
   });

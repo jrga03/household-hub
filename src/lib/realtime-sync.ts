@@ -62,11 +62,10 @@
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { db, type LocalTransaction, type LocalAccount, type LocalCategory } from "@/lib/dexie/db";
-import { getDeviceId } from "@/lib/device";
-import { detectConflict, logConflict } from "@/lib/conflict-detector";
-import { conflictResolutionEngine } from "@/lib/conflict-resolver";
+import { getDeviceId } from "@/lib/dexie/deviceManager";
+import { syncProcessor } from "@/lib/sync/processor";
 import { useSyncStore } from "@/stores/syncStore";
-import type { TransactionEvent } from "@/types/event";
+import { useAuthStore } from "@/stores/authStore";
 import { hasSentry } from "@/types/sentry";
 
 /**
@@ -235,7 +234,10 @@ export class RealtimeSync {
 
     console.log(`[RealtimeSync] Subscribing to ${tableName} (device: ${this.deviceId})`);
 
-    // Create channel with device filtering to prevent infinite loops
+    // Own-device changes are skipped CLIENT-SIDE in handleTableChange, not
+    // via a server `device_id=neq.X` filter: in Postgres, `neq` is NULL for
+    // NULL device_id rows, so a server filter silently dropped every change
+    // written without a device ID (review SYNC-15).
     const channel = supabase
       .channel(`${tableName}-changes`)
       .on(
@@ -244,8 +246,6 @@ export class RealtimeSync {
           event: "*", // Listen to INSERT, UPDATE, DELETE
           schema: "public",
           table: tableName,
-          // CRITICAL: Filter out own-device changes to prevent infinite loops
-          filter: `device_id=neq.${this.deviceId}`,
         },
         (payload) => this.handleTableChange(tableName, payload)
       )
@@ -286,6 +286,16 @@ export class RealtimeSync {
     tableName: SyncTableName,
     payload: RealtimePayload
   ): Promise<void> {
+    // CRITICAL: Skip own-device changes to prevent the echo loop (this
+    // device writes → server broadcasts → this device re-applies). Done
+    // client-side so rows with NULL device_id still reach other devices.
+    const changedDeviceId =
+      (payload.new as Record<string, unknown> | null)?.device_id ??
+      (payload.old as Record<string, unknown> | null)?.device_id;
+    if (this.deviceId && changedDeviceId === this.deviceId) {
+      return;
+    }
+
     console.log(`[RealtimeSync] Change on ${tableName}:`, payload.eventType);
 
     // Update status to syncing
@@ -353,25 +363,17 @@ export class RealtimeSync {
   }
 
   /**
-   * Handle UPDATE event from Supabase with conflict detection
+   * Handle UPDATE event from Supabase with timestamp Last-Write-Wins
    *
-   * Algorithm:
-   * 1. Check if record exists locally
-   * 2. If exists: Build events for conflict detection using vector clocks
-   * 3. Detect conflict: Compare local vs remote vector clocks
-   * 4. If conflict: Resolve using Phase B strategy (DELETE-wins, record-level LWW)
-   * 5. If no conflict: Apply remote update directly
+   * Phase A conflict strategy (Decision #62): the newer updated_at wins,
+   * matching mergeRecord() in the reconnection catch-up path. The Phase B
+   * vector-clock detection/resolution stack was removed as unreachable
+   * (clocks never left the device, so it always concluded "no conflict";
+   * review SYNC-05) and will be reintroduced end-to-end in Phase B.
    *
-   * Conflict Detection:
-   * - Uses detectConflict() from chunk 032 with vector clock comparison
-   * - "concurrent" comparison = conflict (both devices have events the other doesn't)
-   * - "local-ahead" or "remote-ahead" = no conflict (sequential edits)
-   *
-   * Conflict Resolution:
-   * - Uses conflictResolutionEngine from chunk 033
-   * - Phase B strategy: DELETE-wins, then record-level LWW with lamport clock
-   * - Logs resolution to IndexedDB conflicts table
-   * - Applies winner's payload to IndexedDB
+   * Keeping the newer local record protects unsynced local edits: the
+   * outbox will push them, and the resulting server UPDATE echoes back to
+   * other devices.
    *
    * @param tableName - Table that received UPDATE
    * @param newRecord - Updated record from Supabase
@@ -384,73 +386,21 @@ export class RealtimeSync {
   ): Promise<void> {
     const table = getTable(tableName);
 
-    // Get local version to check for conflicts
     const localRecord = await table.get(newRecord.id as string);
 
     if (localRecord) {
-      // Build events for conflict detection
-      // Note: Not all tables have all sync fields (e.g., accounts/categories lack device_id, lamport_clock)
-      // Use Record<string, unknown> to safely access potentially missing fields
-      const localRecordFields = localRecord as unknown as Record<string, unknown>;
-      const localEvent: TransactionEvent = {
-        id: (localRecordFields.id as string) || "",
-        householdId: (localRecordFields.household_id as string) || "",
-        entityType: this.getEntityTypeFromTable(tableName),
-        entityId: (localRecordFields.id as string) || "",
-        op: "update",
-        payload: localRecord,
-        timestamp: new Date((localRecordFields.updated_at as string) || Date.now()).getTime(),
-        actorUserId: (localRecordFields.created_by_user_id as string) || "",
-        deviceId: (localRecordFields.device_id as string) || this.deviceId || "",
-        idempotencyKey: "", // Not used in conflict detection
-        eventVersion: 1,
-        lamportClock: (localRecordFields.lamport_clock as number) || 0,
-        vectorClock: (localRecordFields.vector_clock as Record<string, number>) || {},
-        checksum: "", // Not used in conflict detection
-      };
+      const localFields = localRecord as unknown as Record<string, unknown>;
+      const localTime = new Date((localFields.updated_at as string) || 0).getTime();
+      const remoteTime = new Date(newRecord.updated_at as string).getTime();
 
-      const remoteEvent: TransactionEvent = {
-        id: newRecord.id as string,
-        householdId: newRecord.household_id as string,
-        entityType: this.getEntityTypeFromTable(tableName),
-        entityId: newRecord.id as string,
-        op: "update",
-        payload: newRecord,
-        timestamp: new Date(newRecord.updated_at as string).getTime(),
-        actorUserId: newRecord.created_by_user_id as string,
-        deviceId: newRecord.device_id as string,
-        idempotencyKey: "", // Not used in conflict detection
-        eventVersion: 1,
-        lamportClock: (newRecord.lamport_clock as number) || 0,
-        vectorClock: (newRecord.vector_clock as Record<string, number>) || {},
-        checksum: "", // Not used in conflict detection
-      };
-
-      // Use existing conflict detection from chunk 032
-      const detection = detectConflict(localEvent, remoteEvent);
-
-      if (detection.hasConflict) {
+      if (localTime >= remoteTime) {
         console.log(
-          `[RealtimeSync] Conflict detected on ${tableName} ${newRecord.id} - resolving...`
+          `[RealtimeSync] Kept local ${newRecord.id} in ${tableName} (local newer or same)`
         );
-
-        // Log conflict to IndexedDB
-        await logConflict(localEvent, remoteEvent);
-
-        // Use existing conflict resolution from chunk 033
-        const resolution = await conflictResolutionEngine.resolveConflict(localEvent, remoteEvent);
-
-        console.log(
-          `[RealtimeSync] Conflict resolved using ${resolution.strategy} - winner: ${resolution.winner === localEvent ? "local" : "remote"}`
-        );
-
-        // Apply winner's payload to IndexedDB
-        await table.put(resolution.winner.payload);
         return;
       }
     }
 
-    // No conflict - apply remote update directly
     await table.put(newRecord);
     console.log(`[RealtimeSync] ✓ Updated ${newRecord.id} in ${tableName}`);
   }
@@ -506,15 +456,22 @@ export class RealtimeSync {
     useSyncStore.getState().setStatus("syncing");
 
     try {
-      // Step 1: Process any queued local changes first
-      await this.processSyncQueue();
+      // Step 1: Push queued local changes first so the catch-up fetch
+      // cannot clobber unsynced local edits. Delegates to the real sync
+      // processor (this used to be a console.log stub, review SYNC-02).
+      const userId = useAuthStore.getState().user?.id;
+      if (userId) {
+        await syncProcessor.processQueue(userId);
+      }
 
       // Step 2: Fetch latest changes from server to catch up
       await this.fetchLatestChanges();
 
       // Success - update status
       useSyncStore.getState().setStatus("online");
-      useSyncStore.getState().setLastSyncTime(new Date());
+      const now = new Date();
+      useSyncStore.getState().setLastSyncTime(now);
+      await db.meta.put({ key: "lastSyncTime", value: now.toISOString() });
       console.log("[RealtimeSync] ✓ Reconnection catch-up complete");
     } catch (error) {
       console.error("[RealtimeSync] Reconnection catch-up failed:", error);
@@ -530,74 +487,51 @@ export class RealtimeSync {
   }
 
   /**
-   * Process sync queue (upload pending local changes)
+   * Fetch latest changes from server since the persisted high-water mark
    *
-   * Iterates through sync_queue table and uploads each item to Supabase.
-   * On success: Removes item from queue.
-   * On failure: Leaves item in queue for retry.
+   * Queries Supabase for all records updated since the last observed
+   * server-side updated_at (persisted in db.meta, so it survives reloads -
+   * previously this cursor lived in the in-memory store and every page
+   * load silently fell back to "last 24 hours", losing anything older;
+   * review SYNC-11).
    *
-   * Updates syncStore.pendingChanges with remaining queue count.
-   *
-   * @private
-   */
-  private async processSyncQueue(): Promise<void> {
-    const queueItems = await db.syncQueue.toArray();
-
-    console.log(`[RealtimeSync] Processing ${queueItems.length} queued changes`);
-
-    for (const item of queueItems) {
-      try {
-        // TODO: Implement uploadChange() in future chunk (sync processor)
-        // For now, just log the queued item
-        console.log(
-          `[RealtimeSync] Queued ${item.operation.op} on ${item.entity_type} ${item.entity_id}`
-        );
-
-        // NOTE: Actual upload logic will be implemented in sync processor chunk
-        // await this.uploadChange(item);
-        // await db.syncQueue.delete(item.id);
-      } catch (error) {
-        console.error(`[RealtimeSync] Failed to sync queued item ${item.id}:`, error);
-        // Leave in queue for retry
-      }
-    }
-
-    // Update pending changes count
-    const remaining = await db.syncQueue.count();
-    useSyncStore.getState().setPendingChanges(remaining);
-  }
-
-  /**
-   * Fetch latest changes from server since last sync
-   *
-   * Queries Supabase for all records updated since last sync timestamp.
    * Merges records into IndexedDB using timestamp comparison:
    * - No local record: Add remote record
    * - Remote updated_at > local updated_at: Update with remote
    * - Local updated_at >= remote updated_at: Keep local (local is newer)
    *
-   * Fallback: If no last sync time, fetch changes from last 24 hours.
+   * The cursor advances to the max updated_at actually seen (server
+   * timestamps, immune to client clock skew) and only after a fully
+   * successful pass, so a failed table fetch is retried from the same
+   * cursor next time. First run falls back to the last 24 hours.
    *
    * @private
    */
   private async fetchLatestChanges(): Promise<void> {
-    // Get last sync timestamp (or default to 24 hours ago)
-    const lastSync = useSyncStore.getState().lastSyncTime;
-    const since = lastSync || new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+    const HIGH_WATER_MARK_KEY = "syncHighWaterMark";
+
+    const stored = await db.meta.get(HIGH_WATER_MARK_KEY);
+    const since = stored?.value
+      ? new Date(stored.value as string)
+      : new Date(Date.now() - 24 * 60 * 60 * 1000); // first run: last 24 hours
 
     console.log(`[RealtimeSync] Fetching changes since ${since.toISOString()}`);
 
     const tables: SyncTableName[] = ["transactions", "accounts", "categories"];
+    let maxSeen = "";
+    let allSucceeded = true;
 
     for (const tableName of tables) {
       try {
         const { data, error } = await supabase
           .from(tableName)
           .select("*")
-          .gte("updated_at", since.toISOString());
+          .gte("updated_at", since.toISOString())
+          .order("updated_at", { ascending: true });
 
         if (error) {
           console.error(`[RealtimeSync] Failed to fetch ${tableName}:`, error);
+          allSucceeded = false;
           continue;
         }
 
@@ -607,12 +541,23 @@ export class RealtimeSync {
           // Merge changes into IndexedDB
           for (const record of data) {
             await this.mergeRecord(tableName, record);
+            const updatedAt = record.updated_at as string;
+            if (updatedAt > maxSeen) {
+              maxSeen = updatedAt;
+            }
           }
         }
       } catch (error) {
         console.error(`[RealtimeSync] Error fetching ${tableName}:`, error);
+        allSucceeded = false;
         // Continue with other tables
       }
+    }
+
+    // Advance the cursor only after a clean pass; gte + idempotent merge
+    // makes re-processing the boundary row harmless
+    if (allSucceeded && maxSeen) {
+      await db.meta.put({ key: HIGH_WATER_MARK_KEY, value: maxSeen });
     }
   }
 
@@ -654,28 +599,6 @@ export class RealtimeSync {
         // Local is newer or same - keep local
         console.log(`[RealtimeSync] Kept local ${record.id} in ${tableName} (local newer or same)`);
       }
-    }
-  }
-
-  /**
-   * Get entity type from table name
-   *
-   * Maps database table names to EntityType union type.
-   *
-   * @param tableName - Database table name
-   * @returns Entity type for event creation
-   * @private
-   */
-  private getEntityTypeFromTable(tableName: SyncTableName): "transaction" | "account" | "category" {
-    switch (tableName) {
-      case "transactions":
-        return "transaction";
-      case "accounts":
-        return "account";
-      case "categories":
-        return "category";
-      default:
-        throw new Error(`Unknown table: ${tableName}`);
     }
   }
 

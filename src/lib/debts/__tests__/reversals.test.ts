@@ -77,10 +77,20 @@ describe("Reversal System", () => {
         payment_id: reversal1.reversal.id,
       });
 
-      expect(reversal2.reversal.amount_cents).toBe(50000); // Positive!
-      expect(reversal2.reversal.is_reversal).toBe(false); // Regular payment, not a reversal
-      expect(reversal2.reversal.reverses_payment_id).toBeUndefined(); // No reversal link
-      expect(reversal2.newBalance).toBe(50000); // Back to original
+      // Signed ledger: a compensating row is ALWAYS marked and ALWAYS linked
+      // to its target, even when its amount comes out positive
+      expect(reversal2.reversal.amount_cents).toBe(50000); // Positive (negation of -50000)
+      expect(reversal2.reversal.is_reversal).toBe(true);
+      expect(reversal2.reversal.reverses_payment_id).toBe(reversal1.reversal.id);
+      expect(reversal2.newBalance).toBe(50000); // Back to post-payment balance
+
+      // Re-reversing the same reversal is idempotent (the old exclusion
+      // model stripped the link and double-credited the debt on retry)
+      const reversal2Again = await reverseDebtPayment({
+        payment_id: reversal1.reversal.id,
+      });
+      expect(reversal2Again.reversal.id).toBe(reversal2.reversal.id);
+      expect(reversal2Again.newBalance).toBe(50000);
     });
 
     it("should be idempotent (reversing twice returns same reversal)", async () => {

@@ -6,20 +6,17 @@
  * Changes are stored locally and will sync to Supabase when connectivity is restored.
  *
  * Key Patterns:
- * - Temporary IDs: Use `temp-${nanoid()}` format for offline-created entities
- * - Device Tracking: Include device_id from deviceManager for sync attribution
+ * - Client UUIDs: crypto.randomUUID() at creation, so local ID == server ID
+ * - Outbox atomicity: entity write + sync queue enqueue in ONE Dexie transaction
  * - Graceful Errors: Return structured results, never throw exceptions
  * - Household MVP: Hardcoded household_id for single-household mode
  * - Currency MVP: Hardcoded PHP currency code
  *
- * See instructions.md Step 3 (lines 267-371) for implementation details.
- *
  * @module offline/accounts
  */
 
-import { nanoid } from "nanoid";
 import { db, type LocalAccount } from "@/lib/dexie/db";
-import { addToSyncQueue } from "./syncQueue";
+import { buildSyncQueueItem } from "./syncQueue";
 import type { AccountInput, OfflineOperationResult } from "./types";
 
 /**
@@ -92,13 +89,11 @@ export async function createOfflineAccount(
   userId: string
 ): Promise<OfflineOperationResult<LocalAccount>> {
   try {
-    // Generate temporary ID (will be replaced with UUID during sync)
-    const tempId = `temp-${nanoid()}`;
     const now = new Date().toISOString();
 
     // Map AccountInput → LocalAccount by adding generated fields
     const account: LocalAccount = {
-      id: tempId,
+      id: crypto.randomUUID(),
       household_id: DEFAULT_HOUSEHOLD_ID,
       name: input.name,
       type: input.type === "e-wallet" ? "cash" : input.type, // Map e-wallet to cash for MVP
@@ -114,11 +109,8 @@ export async function createOfflineAccount(
       updated_at: now,
     };
 
-    // Step 1: Write to IndexedDB
-    await db.accounts.add(account);
-
-    // Step 2: Add to sync queue
-    const queueResult = await addToSyncQueue(
+    // Sync metadata assembled before the Dexie transaction (see syncQueue.ts)
+    const queueItem = await buildSyncQueueItem(
       "account",
       account.id,
       "create",
@@ -126,20 +118,16 @@ export async function createOfflineAccount(
       userId
     );
 
-    // Step 3: Rollback IndexedDB if queue fails
-    if (!queueResult.success) {
-      await db.accounts.delete(account.id);
-      return {
-        success: false,
-        error: `Failed to queue for sync: ${queueResult.error}`,
-        isTemporary: false,
-      };
-    }
+    // Entity + outbox item commit together or not at all
+    await db.transaction("rw", db.accounts, db.syncQueue, async () => {
+      await db.accounts.add(account);
+      await db.syncQueue.add(queueItem);
+    });
 
     return {
       success: true,
       data: account,
-      isTemporary: true, // Using temp ID
+      isTemporary: true, // pending sync
     };
   } catch (error) {
     console.error("Failed to create offline account:", error);
@@ -236,11 +224,7 @@ export async function updateOfflineAccount(
       }
     }
 
-    // Step 1: Write updated account back to IndexedDB
-    await db.accounts.put(updated);
-
-    // Step 2: Add to sync queue
-    const queueResult = await addToSyncQueue(
+    const queueItem = await buildSyncQueueItem(
       "account",
       id,
       "update",
@@ -248,20 +232,15 @@ export async function updateOfflineAccount(
       userId
     );
 
-    // Step 3: Rollback IndexedDB if queue fails
-    if (!queueResult.success) {
-      await db.accounts.put(existing);
-      return {
-        success: false,
-        error: `Failed to queue for sync: ${queueResult.error}`,
-        isTemporary: false,
-      };
-    }
+    await db.transaction("rw", db.accounts, db.syncQueue, async () => {
+      await db.accounts.put(updated);
+      await db.syncQueue.add(queueItem);
+    });
 
     return {
       success: true,
       data: updated,
-      isTemporary: id.startsWith("temp-"),
+      isTemporary: true, // pending sync
     };
   } catch (error) {
     console.error("Failed to update offline account:", error);

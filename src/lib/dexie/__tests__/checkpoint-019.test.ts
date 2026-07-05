@@ -34,7 +34,7 @@ describe("Checkpoint 019: Dexie Setup", () => {
     await expect(db.open()).resolves.toBeDefined();
   });
 
-  it("2. All 12 tables exist", () => {
+  it("2. All 13 tables exist", () => {
     const tableNames = db.tables.map((t) => t.name);
 
     // Original 7 tables
@@ -46,9 +46,10 @@ describe("Checkpoint 019: Dexie Setup", () => {
     expect(tableNames).toContain("meta");
     expect(tableNames).toContain("logs");
 
-    // Version 2-3 additions
+    // Version 2-3 additions (v3's conflicts table was dropped in v9 with
+    // the Phase B conflict stack)
     expect(tableNames).toContain("syncIssues");
-    expect(tableNames).toContain("conflicts");
+    expect(tableNames).not.toContain("conflicts");
 
     // Version 4 additions (debt tracking)
     expect(tableNames).toContain("debts");
@@ -59,7 +60,7 @@ describe("Checkpoint 019: Dexie Setup", () => {
     expect(tableNames).toContain("importDrafts");
     expect(tableNames).toContain("importSessions");
 
-    expect(tableNames.length).toBe(14);
+    expect(tableNames.length).toBe(13);
   });
 
   it("3. Can store and retrieve transaction data", async () => {

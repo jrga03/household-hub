@@ -6,20 +6,18 @@
  * Changes are stored locally and will sync to Supabase when connectivity is restored.
  *
  * Key Patterns:
- * - Temporary IDs: Use `temp-${nanoid()}` format for offline-created entities
+ * - Client UUIDs: crypto.randomUUID() at creation, so local ID == server ID
+ * - Outbox atomicity: entity write + sync queue enqueue in ONE Dexie transaction
  * - Household-scoped: Categories are always household-level (no owner_user_id)
  * - Two-level hierarchy: Support parent/child categories via parent_id field
  * - Graceful Errors: Return structured results, never throw exceptions
  * - Household MVP: Hardcoded household_id for single-household mode
  *
- * See instructions.md Step 4 (lines 377-478) for implementation details.
- *
  * @module offline/categories
  */
 
-import { nanoid } from "nanoid";
 import { db, type LocalCategory } from "@/lib/dexie/db";
-import { addToSyncQueue } from "./syncQueue";
+import { buildSyncQueueItem } from "./syncQueue";
 import type { CategoryInput, OfflineOperationResult } from "./types";
 
 /**
@@ -98,13 +96,11 @@ export async function createOfflineCategory(
   userId: string
 ): Promise<OfflineOperationResult<LocalCategory>> {
   try {
-    // Generate temporary ID (will be replaced with UUID during sync)
-    const tempId = `temp-${nanoid()}`;
     const now = new Date().toISOString();
 
     // Map CategoryInput → LocalCategory by adding generated fields
     const category: LocalCategory = {
-      id: tempId,
+      id: crypto.randomUUID(),
       household_id: DEFAULT_HOUSEHOLD_ID,
       name: input.name,
       parent_id: input.parent_id ?? undefined, // Convert null to undefined for consistency
@@ -116,11 +112,8 @@ export async function createOfflineCategory(
       updated_at: now,
     };
 
-    // Step 1: Write to IndexedDB
-    await db.categories.add(category);
-
-    // Step 2: Add to sync queue
-    const queueResult = await addToSyncQueue(
+    // Sync metadata assembled before the Dexie transaction (see syncQueue.ts)
+    const queueItem = await buildSyncQueueItem(
       "category",
       category.id,
       "create",
@@ -128,20 +121,16 @@ export async function createOfflineCategory(
       userId
     );
 
-    // Step 3: Rollback IndexedDB if queue fails
-    if (!queueResult.success) {
-      await db.categories.delete(category.id);
-      return {
-        success: false,
-        error: `Failed to queue for sync: ${queueResult.error}`,
-        isTemporary: false,
-      };
-    }
+    // Entity + outbox item commit together or not at all
+    await db.transaction("rw", db.categories, db.syncQueue, async () => {
+      await db.categories.add(category);
+      await db.syncQueue.add(queueItem);
+    });
 
     return {
       success: true,
       data: category,
-      isTemporary: true, // Using temp ID
+      isTemporary: true, // pending sync
     };
   } catch (error) {
     console.error("Failed to create offline category:", error);
@@ -226,11 +215,7 @@ export async function updateOfflineCategory(
       updated_at: new Date().toISOString(),
     };
 
-    // Step 1: Write updated category back to IndexedDB
-    await db.categories.put(updated);
-
-    // Step 2: Add to sync queue
-    const queueResult = await addToSyncQueue(
+    const queueItem = await buildSyncQueueItem(
       "category",
       id,
       "update",
@@ -238,20 +223,15 @@ export async function updateOfflineCategory(
       userId
     );
 
-    // Step 3: Rollback IndexedDB if queue fails
-    if (!queueResult.success) {
-      await db.categories.put(existing);
-      return {
-        success: false,
-        error: `Failed to queue for sync: ${queueResult.error}`,
-        isTemporary: false,
-      };
-    }
+    await db.transaction("rw", db.categories, db.syncQueue, async () => {
+      await db.categories.put(updated);
+      await db.syncQueue.add(queueItem);
+    });
 
     return {
       success: true,
       data: updated,
-      isTemporary: id.startsWith("temp-"),
+      isTemporary: true, // pending sync
     };
   } catch (error) {
     console.error("Failed to update offline category:", error);

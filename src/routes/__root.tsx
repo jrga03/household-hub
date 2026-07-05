@@ -1,4 +1,4 @@
-import { createRootRoute } from "@tanstack/react-router";
+import { createRootRoute, redirect } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 import { useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
@@ -100,6 +100,22 @@ function RootComponent() {
   );
 }
 
+/** Routes reachable without a session */
+const PUBLIC_ROUTES = ["/login", "/signup"];
+
 export const Route = createRootRoute({
+  // Pre-render auth guard: every protected route is checked here BEFORE its
+  // component mounts, replacing the old per-route effects that rendered a
+  // frame and then navigated away (review UI-07). initialize() is idempotent
+  // and resolves instantly once the session is restored.
+  beforeLoad: async ({ location }) => {
+    if (PUBLIC_ROUTES.includes(location.pathname)) return;
+
+    await useAuthStore.getState().initialize();
+
+    if (!useAuthStore.getState().user) {
+      throw redirect({ to: "/login", search: { redirect: location.href } });
+    }
+  },
   component: RootComponent,
 });

@@ -4,15 +4,16 @@
  * Provides functions for manual sync queue management including:
  * - Retry individual failed items
  * - Discard problematic items
- * - Reset retry counts
+ * - Clear completed items
  *
- * These operations complement the automatic sync processor and give users
- * control over their pending changes.
+ * All operations act on the LOCAL Dexie outbox (db.syncQueue); the sync
+ * processor drains it to Supabase. These complement the automatic sync
+ * processor and give users control over their pending changes.
  *
  * @module offline/syncQueueOperations
  */
 
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/dexie/db";
 import { syncProcessor } from "@/lib/sync/processor";
 
 /**
@@ -26,48 +27,36 @@ export interface SyncQueueOperationResult {
 /**
  * Retries a specific sync queue item by resetting its status and triggering sync.
  *
- * This is useful when a single item fails and the user wants to retry it
- * without waiting for the automatic retry interval.
- *
  * Process:
- * 1. Updates the item's status from "failed" to "queued"
- * 2. Resets retry_count to 0 (gives it fresh retry attempts)
- * 3. Triggers the sync processor to immediately process the item
+ * 1. Resets the item to "queued" with a fresh retry budget and no
+ *    next_retry_at gate (due immediately)
+ * 2. Triggers the sync processor to process it right away
  *
  * @param itemId - ID of the sync queue item to retry
- * @param userId - User ID for RLS filtering
- * @returns Promise resolving to operation result
- *
- * @example
- * const result = await retrySyncQueueItem("queue-item-123", "user-456");
- * if (result.success) {
- *   toast.success("Retry initiated");
- * }
+ * @param userId - User ID (safety check against retrying another user's item)
  */
 export async function retrySyncQueueItem(
   itemId: string,
   userId: string
 ): Promise<SyncQueueOperationResult> {
   try {
-    // Update item status to queued and reset retry count
-    const { error: updateError } = await supabase
-      .from("sync_queue")
-      .update({
-        status: "queued",
-        retry_count: 0,
-        error_message: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", itemId)
-      .eq("user_id", userId); // RLS safety check
+    const item = await db.syncQueue.get(itemId);
 
-    if (updateError) {
-      console.error("Failed to update sync queue item:", updateError);
-      return {
-        success: false,
-        error: updateError.message || "Failed to update item status",
-      };
+    if (!item) {
+      return { success: false, error: "Queue item not found" };
     }
+
+    if (item.user_id !== userId) {
+      return { success: false, error: "Queue item belongs to another user" };
+    }
+
+    await db.syncQueue.update(itemId, {
+      status: "queued",
+      retry_count: 0,
+      error_message: null,
+      next_retry_at: null,
+      updated_at: new Date().toISOString(),
+    });
 
     // Trigger sync processor to immediately process this item
     try {
@@ -91,40 +80,24 @@ export async function retrySyncQueueItem(
  * Retries all failed sync queue items for the current user.
  *
  * Batch operation that resets all failed items to queued status and
- * triggers sync processor. Useful when multiple items fail due to
- * temporary network issues.
- *
- * @param userId - User ID for RLS filtering
- * @returns Promise resolving to operation result with count
- *
- * @example
- * const result = await retryAllFailedItems("user-456");
- * toast.success(`Retrying ${result.count} items`);
+ * triggers the sync processor. Useful when multiple items failed due to
+ * a temporary outage.
  */
 export async function retryAllFailedItems(
   userId: string
 ): Promise<SyncQueueOperationResult & { count?: number }> {
   try {
-    const { data, error: updateError } = await supabase
-      .from("sync_queue")
-      .update({
+    const count = await db.syncQueue
+      .where("status")
+      .equals("failed")
+      .filter((item) => item.user_id === userId)
+      .modify({
         status: "queued",
         retry_count: 0,
         error_message: null,
+        next_retry_at: null,
         updated_at: new Date().toISOString(),
-      })
-      .eq("user_id", userId)
-      .eq("status", "failed")
-      .select("id");
-
-    if (updateError) {
-      return {
-        success: false,
-        error: updateError.message || "Failed to update items",
-      };
-    }
-
-    const count = data?.length || 0;
+      });
 
     // Trigger sync processor
     try {
@@ -148,43 +121,25 @@ export async function retryAllFailedItems(
  * WARNING: This permanently removes the queued change. The local change
  * may still exist in IndexedDB but will never sync to the server.
  *
- * Use cases:
- * - Item is stuck and blocking other syncs
- * - User realizes the change was a mistake
- * - Conflict cannot be resolved and user chooses to abandon the change
- *
- * Safety:
- * - Requires user confirmation before calling
- * - Only deletes from sync_queue (doesn't touch IndexedDB)
- * - Cannot be undone
- *
  * @param itemId - ID of the sync queue item to discard
- * @param userId - User ID for RLS filtering
- * @returns Promise resolving to operation result
- *
- * @example
- * if (confirm("Discard this change? Cannot be undone.")) {
- *   const result = await discardSyncQueueItem("queue-item-123", "user-456");
- * }
+ * @param userId - User ID (safety check)
  */
 export async function discardSyncQueueItem(
   itemId: string,
   userId: string
 ): Promise<SyncQueueOperationResult> {
   try {
-    const { error: deleteError } = await supabase
-      .from("sync_queue")
-      .delete()
-      .eq("id", itemId)
-      .eq("user_id", userId); // RLS safety check
+    const item = await db.syncQueue.get(itemId);
 
-    if (deleteError) {
-      console.error("Failed to delete sync queue item:", deleteError);
-      return {
-        success: false,
-        error: deleteError.message || "Failed to delete item",
-      };
+    if (!item) {
+      return { success: false, error: "Queue item not found" };
     }
+
+    if (item.user_id !== userId) {
+      return { success: false, error: "Queue item belongs to another user" };
+    }
+
+    await db.syncQueue.delete(itemId);
 
     return { success: true };
   } catch (error) {
@@ -200,30 +155,19 @@ export async function discardSyncQueueItem(
  * Clears all completed sync queue items for cleanup.
  *
  * Completed items are kept in the queue for a short time for observability
- * but can be safely deleted. This helps keep the queue table size manageable.
- *
- * @param userId - User ID for RLS filtering
- * @returns Promise resolving to operation result with count
+ * but can be safely deleted.
  */
 export async function clearCompletedItems(
   userId: string
 ): Promise<SyncQueueOperationResult & { count?: number }> {
   try {
-    const { data, error } = await supabase
-      .from("sync_queue")
-      .delete()
-      .eq("user_id", userId)
-      .eq("status", "completed")
-      .select("id");
+    const count = await db.syncQueue
+      .where("status")
+      .equals("completed")
+      .filter((item) => item.user_id === userId)
+      .delete();
 
-    if (error) {
-      return {
-        success: false,
-        error: error.message || "Failed to clear completed items",
-      };
-    }
-
-    return { success: true, count: data?.length || 0 };
+    return { success: true, count };
   } catch (error) {
     return {
       success: false,

@@ -5,7 +5,7 @@ import { Plus } from "lucide-react";
 import { TransactionList } from "@/components/TransactionList";
 import { TransactionFormDialog } from "@/components/TransactionFormDialog";
 import { TransactionFiltersPanel } from "@/components/TransactionFilters";
-import { useDebounce } from "@/lib/hooks/useDebounce";
+import { useDebounce } from "@/hooks/useDebounce";
 import { useTransactions } from "@/lib/supabaseQueries";
 import { usePrefetchTransactionData } from "@/hooks/usePrefetchTransactionData";
 import { useOpenTransactionFormShortcut } from "@/hooks/useKeyboardShortcuts";

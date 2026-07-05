@@ -13,18 +13,7 @@ function Signup() {
 
   useEffect(() => {
     if (user) {
-      // Check for stored redirect URL (user might have been redirected here)
-      const redirectUrl = sessionStorage.getItem("redirectUrl");
-
-      if (redirectUrl && redirectUrl !== "/login" && redirectUrl !== "/signup") {
-        // Clear the stored URL
-        sessionStorage.removeItem("redirectUrl");
-        // Navigate to the intended destination
-        navigate({ to: redirectUrl });
-      } else {
-        // Default to dashboard
-        navigate({ to: "/" });
-      }
+      navigate({ to: "/" });
     }
   }, [user, navigate]);
 

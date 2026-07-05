@@ -27,8 +27,8 @@
 
 import { nanoid } from "nanoid";
 import { db } from "@/lib/dexie/db";
-import { getDeviceId } from "@/lib/device";
-import { getNextLamportClock } from "@/lib/dexie/lamport-clock";
+import { getDeviceId } from "@/lib/dexie/deviceManager";
+import { getNextLamportClock } from "@/lib/sync/lamportClock";
 import { addDebtEventToSyncQueue, getCurrentUserId } from "./sync";
 import type {
   Debt,
@@ -73,7 +73,12 @@ import type {
 export function calculateDelta<T extends object>(before: T, after: T): Partial<T> {
   const delta: Partial<T> = {};
 
-  for (const key in after) {
+  // Union of keys from BOTH objects: a property REMOVED in `after` (e.g.
+  // closed_at cleared via undefined) must still appear in the delta, which
+  // an `after`-only iteration silently missed (review DEBT-12)
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]) as Set<keyof T & string>;
+
+  for (const key of keys) {
     if (after[key] !== before[key]) {
       delta[key] = after[key];
     }
@@ -120,13 +125,13 @@ export async function createDebtEvent(
   changedFields?: Partial<Debt>
 ): Promise<DebtEvent> {
   const deviceId = await getDeviceId();
-  const lamportClock = await getNextLamportClock();
+  const lamportClock = await getNextLamportClock(debt.id);
   const actorUserId = await getCurrentUserId();
 
   const idempotencyKey = `${deviceId}-debt-${debt.id}-${lamportClock}`;
 
   // Check if event already exists (idempotency)
-  const existing = await db.events.filter((e) => e.idempotency_key === idempotencyKey).first();
+  const existing = await db.events.where("idempotency_key").equals(idempotencyKey).first();
 
   if (existing) {
     console.log(`[Event] Event with key ${idempotencyKey} already exists, skipping`);
@@ -180,13 +185,13 @@ export async function createInternalDebtEvent(
   changedFields?: Partial<InternalDebt>
 ): Promise<InternalDebtEvent> {
   const deviceId = await getDeviceId();
-  const lamportClock = await getNextLamportClock();
+  const lamportClock = await getNextLamportClock(debt.id);
   const actorUserId = await getCurrentUserId();
 
   const idempotencyKey = `${deviceId}-internal_debt-${debt.id}-${lamportClock}`;
 
   // Check if event already exists (idempotency)
-  const existing = await db.events.filter((e) => e.idempotency_key === idempotencyKey).first();
+  const existing = await db.events.where("idempotency_key").equals(idempotencyKey).first();
 
   if (existing) {
     console.log(`[Event] Event with key ${idempotencyKey} already exists, skipping`);
@@ -243,14 +248,14 @@ export async function createDebtPaymentEvent(
   op: "create"
 ): Promise<DebtPaymentEvent> {
   const deviceId = await getDeviceId();
-  const lamportClock = await getNextLamportClock();
+  const lamportClock = await getNextLamportClock(payment.id);
   const actorUserId = await getCurrentUserId();
 
   // CRITICAL: Reuse payment's idempotency key (not generate new)
   const idempotencyKey = payment.idempotency_key;
 
   // Check if event already exists (idempotency)
-  const existing = await db.events.filter((e) => e.idempotency_key === idempotencyKey).first();
+  const existing = await db.events.where("idempotency_key").equals(idempotencyKey).first();
 
   if (existing) {
     console.log(`[Event] Event with key ${idempotencyKey} already exists, skipping`);
@@ -305,7 +310,7 @@ export async function createDebtPaymentEvent(
  * }
  */
 export async function eventExists(idempotencyKey: string): Promise<boolean> {
-  const existing = await db.events.filter((e) => e.idempotency_key === idempotencyKey).first();
+  const existing = await db.events.where("idempotency_key").equals(idempotencyKey).first();
   return existing !== undefined;
 }
 

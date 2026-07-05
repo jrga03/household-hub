@@ -61,9 +61,9 @@ function getLamportKey(entityId: string): string {
  * - If entity has no clock yet, starts at 1 (not 0)
  *
  * Concurrency:
- * - IndexedDB transactions are atomic (safe for concurrent calls)
- * - Multiple tabs may increment simultaneously (handled by IndexedDB)
- * - Race conditions are acceptable (clocks don't need perfect sequencing)
+ * - The read-increment-write runs inside a single Dexie "rw" transaction,
+ *   so concurrent calls (other tabs, racing mutations) cannot observe the
+ *   same value and mint duplicate clocks / idempotency keys (review SYNC-14)
  *
  * Error Handling:
  * - IndexedDB errors: Logged and returns 1 (fresh start)
@@ -87,17 +87,17 @@ export async function getNextLamportClock(entityId: string): Promise<number> {
   try {
     const key = getLamportKey(entityId);
 
-    // Try to read current clock value
-    const entry = await db.meta.get(key);
-    const currentClock = (entry?.value as number) ?? 0;
+    // Atomic read-increment-write: the surrounding transaction prevents two
+    // concurrent callers from both reading N and both writing N+1
+    return await db.transaction("rw", db.meta, async () => {
+      const entry = await db.meta.get(key);
+      const currentClock = (entry?.value as number) ?? 0;
+      const nextClock = currentClock + 1;
 
-    // Increment clock
-    const nextClock = currentClock + 1;
+      await db.meta.put({ key, value: nextClock });
 
-    // Store new value (upsert)
-    await db.meta.put({ key, value: nextClock });
-
-    return nextClock;
+      return nextClock;
+    });
   } catch (error) {
     console.error(`Failed to get next Lamport clock for entity ${entityId}:`, error);
     // Fallback: Return 1 (fresh start, sync will handle conflicts)

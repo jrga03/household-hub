@@ -59,6 +59,12 @@ async function clearIndexedDB(): Promise<void> {
   }
 }
 
+// Idempotency for initialize(): AuthProvider and route guards may all call
+// it; they share one in-flight run instead of stacking duplicate
+// onAuthStateChange listeners (review UI-12).
+let initPromise: Promise<void> | null = null;
+let authSubscription: { unsubscribe: () => void } | null = null;
+
 export const useAuthStore = create<AuthState & AuthActions>((set) => ({
   user: null,
   session: null,
@@ -66,25 +72,38 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
   initialized: false,
 
   initialize: async () => {
-    try {
-      const { data } = await supabase.auth.getSession();
-      set({
-        user: data.session?.user ?? null,
-        session: data.session,
-        initialized: true,
-      });
+    // Share the in-flight/settled run while the store says we're initialized;
+    // re-run after an explicit state reset (tests, future account switching)
+    if (initPromise && useAuthStore.getState().initialized) return initPromise;
 
-      // Listen for auth changes
-      supabase.auth.onAuthStateChange((_event, session) => {
+    initPromise = (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
         set({
-          user: session?.user ?? null,
-          session,
+          user: data.session?.user ?? null,
+          session: data.session,
+          initialized: true,
         });
-      });
-    } catch (error) {
-      console.error("Auth initialization error:", error);
-      set({ initialized: true });
-    }
+
+        // Listen for auth changes (exactly one listener, replaced if
+        // initialize somehow runs again after a reset)
+        authSubscription?.unsubscribe();
+        const {
+          data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+          set({
+            user: session?.user ?? null,
+            session,
+          });
+        });
+        authSubscription = subscription;
+      } catch (error) {
+        console.error("Auth initialization error:", error);
+        set({ initialized: true });
+      }
+    })();
+
+    return initPromise;
   },
 
   signUp: async (email: string, password: string) => {

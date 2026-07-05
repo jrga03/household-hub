@@ -1,6 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
-import { useEffect } from "react";
 import { useAccounts } from "@/lib/supabaseQueries";
 import { TransferForm } from "@/components/transfers/TransferForm";
 import { TransferList } from "@/components/transfers/TransferList";
@@ -20,18 +19,10 @@ function TransfersPage() {
   // Hardcoded household ID for MVP (single household)
   const householdId = "00000000-0000-0000-0000-000000000001";
 
-  useEffect(() => {
-    if (!user) {
-      navigate({ to: "/login" }).catch(console.error);
-    }
-  }, [user, navigate]);
-
+  // Authentication is guaranteed by the root route's beforeLoad guard;
+  // the null check only narrows the type for user.id below
   if (!user) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
+    return null;
   }
 
   if (accountsLoading) {

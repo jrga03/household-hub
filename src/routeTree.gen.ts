@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TransfersRouteImport } from './routes/transfers'
 import { Route as TransactionsRouteImport } from './routes/transactions'
-import { Route as TestDeviceRouteImport } from './routes/test-device'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as LoginRouteImport } from './routes/login'
@@ -24,7 +23,6 @@ import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BudgetsIndexRouteImport } from './routes/budgets/index'
 import { Route as ImportPdfRouteImport } from './routes/import/pdf'
-import { Route as DebtsDemoRouteImport } from './routes/debts/demo'
 import { Route as AnalyticsCategoriesRouteImport } from './routes/analytics/categories'
 import { Route as AccountsAccountIdRouteImport } from './routes/accounts/$accountId'
 
@@ -36,11 +34,6 @@ const TransfersRoute = TransfersRouteImport.update({
 const TransactionsRoute = TransactionsRouteImport.update({
   id: '/transactions',
   path: '/transactions',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TestDeviceRoute = TestDeviceRouteImport.update({
-  id: '/test-device',
-  path: '/test-device',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignupRoute = SignupRouteImport.update({
@@ -103,11 +96,6 @@ const ImportPdfRoute = ImportPdfRouteImport.update({
   path: '/pdf',
   getParentRoute: () => ImportRoute,
 } as any)
-const DebtsDemoRoute = DebtsDemoRouteImport.update({
-  id: '/debts/demo',
-  path: '/debts/demo',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AnalyticsCategoriesRoute = AnalyticsCategoriesRouteImport.update({
   id: '/categories',
   path: '/categories',
@@ -130,12 +118,10 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
-  '/test-device': typeof TestDeviceRoute
   '/transactions': typeof TransactionsRoute
   '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRoute
   '/analytics/categories': typeof AnalyticsCategoriesRoute
-  '/debts/demo': typeof DebtsDemoRoute
   '/import/pdf': typeof ImportPdfRoute
   '/budgets': typeof BudgetsIndexRoute
 }
@@ -150,12 +136,10 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
-  '/test-device': typeof TestDeviceRoute
   '/transactions': typeof TransactionsRoute
   '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRoute
   '/analytics/categories': typeof AnalyticsCategoriesRoute
-  '/debts/demo': typeof DebtsDemoRoute
   '/import/pdf': typeof ImportPdfRoute
   '/budgets': typeof BudgetsIndexRoute
 }
@@ -171,12 +155,10 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
-  '/test-device': typeof TestDeviceRoute
   '/transactions': typeof TransactionsRoute
   '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRoute
   '/analytics/categories': typeof AnalyticsCategoriesRoute
-  '/debts/demo': typeof DebtsDemoRoute
   '/import/pdf': typeof ImportPdfRoute
   '/budgets/': typeof BudgetsIndexRoute
 }
@@ -193,12 +175,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/settings'
     | '/signup'
-    | '/test-device'
     | '/transactions'
     | '/transfers'
     | '/accounts/$accountId'
     | '/analytics/categories'
-    | '/debts/demo'
     | '/import/pdf'
     | '/budgets'
   fileRoutesByTo: FileRoutesByTo
@@ -213,12 +193,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/settings'
     | '/signup'
-    | '/test-device'
     | '/transactions'
     | '/transfers'
     | '/accounts/$accountId'
     | '/analytics/categories'
-    | '/debts/demo'
     | '/import/pdf'
     | '/budgets'
   id:
@@ -233,12 +211,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/settings'
     | '/signup'
-    | '/test-device'
     | '/transactions'
     | '/transfers'
     | '/accounts/$accountId'
     | '/analytics/categories'
-    | '/debts/demo'
     | '/import/pdf'
     | '/budgets/'
   fileRoutesById: FileRoutesById
@@ -254,10 +230,8 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
-  TestDeviceRoute: typeof TestDeviceRoute
   TransactionsRoute: typeof TransactionsRoute
   TransfersRoute: typeof TransfersRoute
-  DebtsDemoRoute: typeof DebtsDemoRoute
   BudgetsIndexRoute: typeof BudgetsIndexRoute
 }
 
@@ -275,13 +249,6 @@ declare module '@tanstack/react-router' {
       path: '/transactions'
       fullPath: '/transactions'
       preLoaderRoute: typeof TransactionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/test-device': {
-      id: '/test-device'
-      path: '/test-device'
-      fullPath: '/test-device'
-      preLoaderRoute: typeof TestDeviceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/signup': {
@@ -368,13 +335,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ImportPdfRouteImport
       parentRoute: typeof ImportRoute
     }
-    '/debts/demo': {
-      id: '/debts/demo'
-      path: '/debts/demo'
-      fullPath: '/debts/demo'
-      preLoaderRoute: typeof DebtsDemoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/analytics/categories': {
       id: '/analytics/categories'
       path: '/categories'
@@ -438,10 +398,8 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,
-  TestDeviceRoute: TestDeviceRoute,
   TransactionsRoute: TransactionsRoute,
   TransfersRoute: TransfersRoute,
-  DebtsDemoRoute: DebtsDemoRoute,
   BudgetsIndexRoute: BudgetsIndexRoute,
 }
 export const routeTree = rootRouteImport

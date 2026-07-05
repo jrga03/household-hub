@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { getDeviceId } from "@/lib/device";
+import { getDeviceId } from "@/lib/dexie/deviceManager";
 
 export function useCreateTransfer() {
   const queryClient = useQueryClient();

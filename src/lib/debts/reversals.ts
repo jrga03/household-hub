@@ -48,28 +48,38 @@
  * }
  * ```
  *
- * ## Cascading Reversals
+ * ## Cascading Reversals (signed ledger)
  *
- * Reversing a reversal creates a positive payment (double negative).
- * This allows undoing accidental reversals.
- *
- * Example:
+ * A reversal is ALWAYS a linked compensating row whose amount is the exact
+ * negation of its target, so chains of any depth work uniformly:
  * - Original payment: +₱500
- * - First reversal: -₱500 (balance restored to ₱1,000)
- * - Second reversal: +₱500 (balance back to ₱500)
+ * - First reversal:   -₱500, reverses_payment_id → original
+ * - Second reversal:  +₱500, reverses_payment_id → first reversal
+ *
+ * Because the link is always set, "has this row been reversed?" and the
+ * reversal idempotency check work identically at every depth. (The previous
+ * exclusion-based model stripped the link from reversal-of-reversal rows,
+ * which made re-reversing them non-idempotent; review DEBT-02.)
  *
  * @module reversals
  */
 
 import { nanoid } from "nanoid";
 import { db } from "@/lib/dexie/db";
-import { getDeviceId } from "@/lib/device";
-import { getNextLamportClock } from "@/lib/dexie/lamport-clock";
+import { getDeviceId } from "@/lib/dexie/deviceManager";
+import { getNextLamportClock } from "@/lib/sync/lamportClock";
 import { calculateDebtBalance } from "./balance";
 import { updateDebtStatusFromBalance } from "./status";
 import { processDebtPayment } from "./payments";
-import { createDebtPaymentEvent } from "./events";
+import {
+  createDebtPaymentEvent,
+  createDebtEvent,
+  createInternalDebtEvent,
+  calculateDelta,
+} from "./events";
 import type {
+  Debt,
+  InternalDebt,
   DebtPayment,
   CreateReversalData,
   ReversalResult,
@@ -136,21 +146,19 @@ export async function reverseDebtPayment(data: CreateReversalData): Promise<Reve
     console.warn(`Reversing payment on archived debt ${debtId}. Status will change to active.`);
   }
 
-  // 5. Calculate reversal amount (handle cascading reversals)
-  const isReversingReversal = originalPayment.is_reversal === true;
-  const reversalAmount = isReversingReversal
-    ? Math.abs(originalPayment.amount_cents) // Positive (double negative)
-    : -originalPayment.amount_cents; // Negative
+  // 5. Compensating amount: always the exact negation of the target row.
+  // Negating a negative reversal yields a positive row, so cascades need
+  // no special cases in the signed ledger.
+  const reversalAmount = -originalPayment.amount_cents;
 
   // 6. Generate idempotency key for reversal
   const reversalId = nanoid();
-  const lamportClock = await getNextLamportClock();
+  const lamportClock = await getNextLamportClock(reversalId);
   const deviceId = await getDeviceId();
   const idempotencyKey = `${deviceId}-debt_payment-${reversalId}-${lamportClock}`;
 
-  // 7. Create reversal record
-  // IMPORTANT: When reversing a reversal (double negative), the resulting positive
-  // payment should NOT be marked as a reversal, otherwise balance calculation will exclude it
+  // 7. Create reversal record: ALWAYS marked as a reversal and ALWAYS
+  // linked to its target, at any cascade depth (uniform idempotency)
   const reversal: DebtPayment = {
     id: reversalId,
     household_id: originalPayment.household_id,
@@ -159,8 +167,8 @@ export async function reverseDebtPayment(data: CreateReversalData): Promise<Reve
     transaction_id: originalPayment.transaction_id, // Link to same transaction
     amount_cents: reversalAmount,
     payment_date: new Date().toISOString().split("T")[0], // Today's date
-    is_reversal: !isReversingReversal, // Regular payment if reversing a reversal
-    reverses_payment_id: isReversingReversal ? undefined : data.payment_id, // Only set if actual reversal
+    is_reversal: true,
+    reverses_payment_id: data.payment_id,
     adjustment_reason: data.reason,
     is_overpayment: false, // Reversals never overpayments
     overpayment_amount: undefined,
@@ -191,9 +199,25 @@ export async function reverseDebtPayment(data: CreateReversalData): Promise<Reve
     });
     statusChanged = true;
     console.log(`[Status] ${debt.name}: archived → active (reversal on archived debt)`);
+
+    // Emit the status-change event: this write previously bypassed event
+    // sourcing entirely (review DEBT-04)
+    const unarchived = await table.get(debtId);
+    if (unarchived) {
+      const delta = calculateDelta(debt, unarchived);
+      if (debtType === "external") {
+        await createDebtEvent(unarchived as Debt, "update", delta as Partial<Debt>);
+      } else {
+        await createInternalDebtEvent(
+          unarchived as InternalDebt,
+          "update",
+          delta as Partial<InternalDebt>
+        );
+      }
+    }
   } else {
-    // Normal status update based on balance
-    statusChanged = await updateDebtStatusFromBalance(debtId, debtType);
+    // Normal status update based on balance (emits its own event on change)
+    statusChanged = await updateDebtStatusFromBalance(debtId, debtType, newBalance);
   }
 
   // Get the updated debt to find the new status
@@ -385,23 +409,32 @@ export async function handleTransactionEdit(data: TransactionEditData) {
 export async function handleTransactionDelete(
   data: TransactionDeleteData
 ): Promise<ReversalResult | undefined> {
-  // 1. Find payment for this transaction
-  const payment = await db.debtPayments
-    .where("transaction_id")
-    .equals(data.transaction_id)
-    .filter((p) => !p.is_reversal) // Ignore reversals
-    .first();
+  // 1. Find every LIVE payment for this transaction: regular rows that have
+  // no compensating row pointing at them. After edits, a transaction can
+  // carry several regular rows; picking an arbitrary .first() used to
+  // reverse the wrong (already-reversed) one and leave the live payment
+  // standing (review DEBT-03).
+  const rows = await db.debtPayments.where("transaction_id").equals(data.transaction_id).toArray();
 
-  if (!payment) {
+  const reversedIds = new Set(
+    rows.filter((p) => p.reverses_payment_id).map((p) => p.reverses_payment_id!)
+  );
+  const livePayments = rows.filter((p) => !p.is_reversal && !reversedIds.has(p.id));
+
+  if (livePayments.length === 0) {
     // No payment to reverse
     return undefined;
   }
 
-  // 2. Reverse the payment
-  const reversalResult = await reverseDebtPayment({
-    payment_id: payment.id,
-    reason: "transaction_deleted",
-  });
+  // 2. Reverse every live payment (there should be exactly one, but loop
+  // defensively). reverseDebtPayment is idempotent per target row.
+  let lastResult: ReversalResult | undefined;
+  for (const payment of livePayments) {
+    lastResult = await reverseDebtPayment({
+      payment_id: payment.id,
+      reason: "transaction_deleted",
+    });
+  }
 
-  return reversalResult;
+  return lastResult;
 }

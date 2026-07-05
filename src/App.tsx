@@ -4,17 +4,11 @@ import { ThemeProvider } from "next-themes";
 import { routeTree } from "./routeTree.gen";
 import { Toaster } from "@/components/ui/sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { OfflineBanner } from "@/components/OfflineBanner";
-
 import { UpdatePrompt } from "@/components/UpdatePrompt";
 import { StorageWarning } from "@/components/StorageWarning";
-import { NetworkStatus } from "@/components/NetworkStatus";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { realtimeSync } from "@/lib/realtime-sync";
 import { eventCompactor } from "@/lib/event-compactor";
-import { registerBackgroundSync, unregisterBackgroundSync } from "@/lib/background-sync";
-import { syncProcessor } from "@/lib/sync/processor";
-import { useAuthStore } from "@/stores/authStore";
 
 // Create router instance
 const router = createRouter({ routeTree });
@@ -27,15 +21,13 @@ declare module "@tanstack/react-router" {
 }
 
 function App() {
-  const user = useAuthStore((state) => state.user);
-  const initializeAuth = useAuthStore((state) => state.initialize);
+  // Auth initialization lives in ONE place: AuthProvider (main.tsx wraps App
+  // with it). The store's initialize() is idempotent either way (review UI-12).
 
-  // Initialize auth state on app mount
-  useEffect(() => {
-    initializeAuth();
-  }, [initializeAuth]);
-
-  // Initialize realtime sync on app mount
+  // Initialize realtime sync on app mount.
+  // Sync TRIGGERS (online/visibility/focus/periodic) live in ONE place:
+  // autoSyncManager, started per-user in routes/__root.tsx. It pushes the
+  // local outbox and pulls remote changes (debounced handleReconnection).
   useEffect(() => {
     async function initSync() {
       await realtimeSync.initialize();
@@ -46,38 +38,6 @@ function App() {
     // Cleanup subscriptions on unmount
     return () => {
       realtimeSync.cleanup();
-    };
-  }, []);
-
-  // Register background sync with multi-strategy fallback (iOS Safari support)
-  // Consolidates all network event handling in one place
-  useEffect(() => {
-    if (!user?.id) return;
-
-    registerBackgroundSync(async () => {
-      // 1. Trigger realtime reconnection
-      realtimeSync.handleReconnection();
-      // 2. Process sync queue for offline changes
-      await syncProcessor.processQueue(user.id);
-    });
-
-    return () => {
-      unregisterBackgroundSync();
-    };
-  }, [user?.id]);
-
-  // Handle reconnection when app comes back into focus (iOS Safari)
-  useEffect(() => {
-    function handleVisibilityChange() {
-      if (document.visibilityState === "visible") {
-        realtimeSync.handleReconnection();
-      }
-    }
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
@@ -134,8 +94,7 @@ function App() {
         storageKey="household-hub-theme"
       >
         <TooltipProvider>
-          {/* Offline indicator (user-dismissible with retry button and pending count) */}
-          <OfflineBanner />
+          {/* The single offline banner renders in AppLayout (sync/OfflineBanner) */}
 
           {/* Storage quota warning (shows at 80%+ usage) */}
           <div className="fixed top-16 left-4 right-4 z-40 md:left-auto md:w-96">
@@ -149,9 +108,6 @@ function App() {
 
           {/* Service worker update prompt (bottom-right) */}
           <UpdatePrompt />
-
-          {/* Network status indicator (bottom-left) - For debt sync visibility */}
-          <NetworkStatus />
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

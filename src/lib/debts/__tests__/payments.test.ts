@@ -108,9 +108,11 @@ describe("Payment Processing", () => {
       expect(result.payment.device_id).toBeDefined();
 
       // Idempotency key format: ${deviceId}-debt_payment-${paymentId}-${lamportClock}
-      // We can't check the exact key here, but we can verify it was generated
-      // by checking lamport clock incremented
-      const meta = await db.meta.get("lamport_clock");
+      expect(result.payment.idempotency_key).toContain(`debt_payment-${result.payment.id}`);
+      expect(result.payment.idempotency_key).toMatch(/-\d+$/);
+
+      // Per-entity Lamport clock was minted for this payment
+      const meta = await db.meta.get(`lamport-${result.payment.id}`);
       expect(meta?.value).toBeGreaterThan(0);
     });
 

@@ -75,6 +75,7 @@
  */
 
 import { syncProcessor } from "./processor";
+import { realtimeSync } from "@/lib/realtime-sync";
 
 /**
  * AutoSyncManager - Coordinates automatic sync triggers across browser events
@@ -103,6 +104,16 @@ export class AutoSyncManager {
    * Required to call syncProcessor.processQueue(userId)
    */
   private userId?: string;
+
+  /**
+   * Timestamp of the last realtime reconnection catch-up.
+   * handleReconnection re-fetches all rows changed since the last sync, so
+   * it is debounced here rather than fired on every trigger event.
+   */
+  private lastReconnectAt = 0;
+
+  /** Minimum interval between reconnection catch-ups (ms) */
+  private readonly RECONNECT_DEBOUNCE_MS = 30 * 1000;
 
   /**
    * Start auto-sync manager for authenticated user
@@ -255,11 +266,23 @@ export class AutoSyncManager {
     }
 
     try {
+      // 1. Push: drain the local outbox to Supabase
       const result = await syncProcessor.processQueue(this.userId);
       if (result.synced > 0 || result.failed > 0) {
         console.log(
           `[AutoSync] Sync completed - synced: ${result.synced}, failed: ${result.failed}`
         );
+      }
+
+      // 2. Pull: catch up on remote changes (debounced - this re-fetches
+      //    rows changed since the last sync across all synced tables).
+      //    autoSync is the ONLY trigger source for this; the previous
+      //    parallel handlers in App.tsx/background-sync fired it 2-3x per
+      //    focus event (review SYNC-10).
+      const now = Date.now();
+      if (now - this.lastReconnectAt >= this.RECONNECT_DEBOUNCE_MS) {
+        this.lastReconnectAt = now;
+        await realtimeSync.handleReconnection();
       }
     } catch (error) {
       // Log error but don't throw (graceful degradation)

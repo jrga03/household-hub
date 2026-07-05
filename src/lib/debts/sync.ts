@@ -19,6 +19,7 @@
  */
 
 import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/dexie/db";
 import { addToSyncQueue } from "@/lib/offline/syncQueue";
 import type { AnyDebtEvent } from "@/types/debt";
 import type { EntityType, SyncQueueStatus } from "@/types/sync";
@@ -139,81 +140,49 @@ export async function addDebtEventToSyncQueue(event: AnyDebtEvent): Promise<stri
 /**
  * Get sync status for a debt entity
  *
- * Queries the Supabase sync_queue table for the most recent queue item
- * for the given entity and returns a user-friendly sync status.
+ * Reads the LOCAL sync queue (db.syncQueue) for the most recent outstanding
+ * item for the given entity. Purely local IndexedDB, so it works offline,
+ * costs nothing, and is truthful - the previous implementation polled
+ * Supabase and reported "synced" on any error, including while offline
+ * (review DEBT-08).
  *
  * Status Mapping:
  * - "syncing": Queue item status is "syncing"
  * - "queued": Queue item status is "queued"
  * - "failed": Queue item status is "failed"
- * - "synced": No pending queue items (all completed)
- *
- * Query Strategy:
- * - Filter by entity_id
- * - Filter by entity_type (debt | internal_debt | debt_payment)
- * - Exclude completed items (status = 'completed')
- * - Order by created_at descending (most recent first)
- * - Limit 1 (only need latest status)
- *
- * Error Handling:
- * - Returns "synced" on error (optimistic default)
- * - All errors logged to console
+ * - "synced": No outstanding queue items
  *
  * @param entityId - Debt entity ID
  * @param entityType - Entity type (debt | internal_debt | debt_payment)
  * @returns Promise resolving to sync status
- *
- * @example
- * const status = await getSyncStatusForDebt(debt.id, "debt");
- * if (status === "failed") {
- *   console.error("Sync failed for debt:", debt.id);
- * }
- *
- * @example
- * // Use in UI component
- * const { data: syncStatus } = useQuery({
- *   queryKey: ["sync-status", debtId],
- *   queryFn: () => getSyncStatusForDebt(debtId, "debt"),
- *   refetchInterval: 5000,
- * });
  */
 export async function getSyncStatusForDebt(
   entityId: string,
   entityType: "debt" | "internal_debt" | "debt_payment"
 ): Promise<DebtSyncStatus> {
   try {
-    // Query sync_queue for most recent non-completed item
-    const { data, error } = await supabase
-      .from("sync_queue")
-      .select("status")
-      .eq("entity_id", entityId)
-      .eq("entity_type", entityType)
-      .neq("status", "completed") // Exclude completed items
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(); // Use maybeSingle to handle 0 or 1 result
+    const outstanding = await db.syncQueue
+      .where("entity_id")
+      .equals(entityId)
+      .filter((item) => item.entity_type === entityType && item.status !== "completed")
+      .toArray();
 
-    if (error) {
-      console.error("[Debt Sync] Error querying sync status:", error);
-      return "synced"; // Optimistic default
-    }
-
-    // No pending items = synced
-    if (!data) {
+    if (outstanding.length === 0) {
       return "synced";
     }
 
-    // Map queue status to UI status
-    const status = data.status as SyncQueueStatus;
+    // Most recent item wins
+    outstanding.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    const status = outstanding[0].status as SyncQueueStatus;
+
     if (status === "syncing") return "syncing";
     if (status === "queued") return "queued";
     if (status === "failed") return "failed";
 
-    // Completed or unknown = synced
     return "synced";
   } catch (error) {
     console.error("[Debt Sync] Unexpected error getting sync status:", error);
-    return "synced"; // Optimistic default
+    return "queued"; // Unknown state: claim pending, never a false "synced"
   }
 }
 
@@ -252,18 +221,11 @@ export async function getSyncStatusForDebt(
  */
 export async function getPendingDebtSyncCount(): Promise<number> {
   try {
-    const { count, error } = await supabase
-      .from("sync_queue")
-      .select("*", { count: "exact", head: true }) // COUNT(*) only, no rows
-      .in("entity_type", ["debt", "internal_debt", "debt_payment"])
-      .in("status", ["queued", "syncing", "failed"]);
-
-    if (error) {
-      console.error("[Debt Sync] Error getting pending count:", error);
-      return 0;
-    }
-
-    return count || 0;
+    return await db.syncQueue
+      .where("status")
+      .anyOf("queued", "syncing", "failed")
+      .filter((item) => ["debt", "internal_debt", "debt_payment"].includes(item.entity_type))
+      .count();
   } catch (error) {
     console.error("[Debt Sync] Unexpected error getting pending count:", error);
     return 0;

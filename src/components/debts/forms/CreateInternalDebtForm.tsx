@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { CurrencyInput } from "./CurrencyInput";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { createInternalDebt } from "@/lib/debts/crud";
 import { createInternalDebtSchema, type CreateInternalDebtFormData } from "@/lib/debts/validation";
 import { toast } from "sonner";

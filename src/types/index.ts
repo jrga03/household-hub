@@ -26,9 +26,6 @@ export type { EventOp, TransactionEvent } from "./event";
 // Resolution types
 export * from "./resolution";
 
-// Currency types (exported first to establish TransactionType)
-export type { AmountCents, CurrencyCode } from "./currency";
-
 // Transaction types (includes TransactionType - takes precedence)
 export * from "./transactions";
 

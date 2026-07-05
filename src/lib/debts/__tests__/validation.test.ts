@@ -491,12 +491,19 @@ describe("Debt Validation", () => {
         operation: {
           op: "update",
           payload: { name: "Updated" },
+          idempotencyKey: "device-1-transaction-debt-1-1",
+          lamportClock: 1,
+          vectorClock: { "device-1": 1 },
         },
         device_id: "device-1",
+        user_id: "test-user-id",
         status: "queued",
         retry_count: 0,
+        max_retries: 3,
+        error_message: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        synced_at: null,
       });
 
       const result = await validateDebtDeletion("debt-1", "external");

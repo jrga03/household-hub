@@ -14,7 +14,7 @@ import {
   validateDebtName,
   getEntityDisplayName,
 } from "./validation";
-import { calculateDebtBalance } from "./balance";
+import { calculateDebtBalance, calculateMultipleBalances } from "./balance";
 import { createDebtEvent, createInternalDebtEvent, calculateDelta } from "./events";
 import type {
   Debt,
@@ -361,13 +361,22 @@ export async function deleteDebt(debtId: string, type: "external" | "internal"):
     throw new Error(validation.errors.join(", "));
   }
 
-  // 2. Get debt for logging
+  // 2. Get debt for the delete event
   const debt = await getDebt(debtId, type);
   if (!debt) {
     throw new Error("Debt not found");
   }
 
-  // 3. Delete
+  // 3. Emit the delete event BEFORE removing the row: hard deletes used to
+  // bypass event sourcing, so a debt deleted on one device lived forever on
+  // every other device (review DEBT-04)
+  if (type === "external") {
+    await createDebtEvent(debt as Debt, "delete");
+  } else {
+    await createInternalDebtEvent(debt as InternalDebt, "delete");
+  }
+
+  // 4. Delete
   const table = type === "external" ? db.debts : db.internalDebts;
   await table.delete(debtId);
 
@@ -388,15 +397,17 @@ export async function getDebtsWithBalances(
 ): Promise<Array<DebtWithBalance | InternalDebtWithBalance>> {
   const debts = await listDebts(householdId, type, filters);
 
-  const withBalances = await Promise.all(
-    debts.map(async (debt) => {
-      const balance = await calculateDebtBalance(debt.id, type);
-      return {
-        ...debt,
-        current_balance_cents: balance,
-      };
-    })
+  // Batched: two IndexedDB queries total instead of one payments query per
+  // debt (review DEBT-07)
+  const balances = await calculateMultipleBalances(
+    debts.map((d) => d.id),
+    type
   );
+
+  const withBalances = debts.map((debt) => ({
+    ...debt,
+    current_balance_cents: balances.get(debt.id) ?? debt.original_amount_cents,
+  }));
 
   return withBalances as Array<DebtWithBalance | InternalDebtWithBalance>;
 }

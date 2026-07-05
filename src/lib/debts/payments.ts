@@ -7,8 +7,8 @@
 
 import { nanoid } from "nanoid";
 import { db } from "@/lib/dexie/db";
-import { getNextLamportClock } from "@/lib/dexie/lamport-clock";
-import { getDeviceId } from "@/lib/device";
+import { getNextLamportClock } from "@/lib/sync/lamportClock";
+import { getDeviceId } from "@/lib/dexie/deviceManager";
 import { calculateDebtBalance } from "./balance";
 import { updateDebtStatusFromBalance } from "./status";
 import { createDebtPaymentEvent } from "./events";
@@ -92,7 +92,7 @@ export async function processDebtPayment(data: ProcessPaymentData): Promise<Paym
   // Generate IDs
   const paymentId = nanoid();
   const deviceId = await getDeviceId();
-  const lamportClock = await getNextLamportClock();
+  const lamportClock = await getNextLamportClock(paymentId);
 
   // Generate idempotency key
   // Format: ${deviceId}-debt_payment-${paymentId}-${lamportClock}
@@ -139,12 +139,14 @@ export async function processDebtPayment(data: ProcessPaymentData): Promise<Paym
   // Auto-Update Status
   // =====================================================
 
-  const statusChanged = await updateDebtStatusFromBalance(debtId, debtType);
+  // The post-payment balance follows arithmetically from the pre-payment
+  // balance computed above; no need to re-read every payment row (twice)
+  // as the old flow did (review DEBT-07)
+  const newBalance = currentBalance - data.amount_cents;
+
+  const statusChanged = await updateDebtStatusFromBalance(debtId, debtType, newBalance);
   const updatedDebt = await table.get(debtId);
   const newStatus = updatedDebt!.status;
-
-  // Calculate new balance after payment
-  const newBalance = await calculateDebtBalance(debtId, debtType);
 
   // Return result
   return {

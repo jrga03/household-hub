@@ -55,17 +55,6 @@ export type OperationType = "create" | "update" | "delete";
 export type VectorClock = Record<string, number>;
 
 /**
- * Result of vector clock comparison
- *
- * Indicates the causality relationship between two vector clocks:
- * - "concurrent": Both clocks have events the other doesn't (conflict!)
- * - "local-ahead": Local has all remote's events plus more (no conflict)
- * - "remote-ahead": Remote has all local's events plus more (no conflict)
- * - "equal": Same version across all devices
- */
-export type ClockComparison = "concurrent" | "local-ahead" | "remote-ahead" | "equal";
-
-/**
  * Lamport clock value (monotonic counter per entity)
  *
  * Per-entity logical timestamp that increments with each event.
@@ -124,23 +113,26 @@ export interface SyncQueueOperation {
    * Lamport clock for ordering
    *
    * Per-entity counter incremented on each operation.
-   * Used for ordering operations on the same entity.
+   * Used for ordering operations on the same entity and as the uniqueness
+   * component of the idempotency key.
    */
   lamportClock: number;
 
   /**
-   * Vector clock for conflict resolution
+   * Vector clock (Phase B only)
    *
-   * Scoped to specific entity (not global).
-   * Used in Phase B for detecting concurrent modifications.
+   * No longer minted: the Phase A conflict stack was removed (review
+   * SYNC-05). Optional so queue items written before the removal remain
+   * valid. Phase B reintroduces this end-to-end.
    */
-  vectorClock: VectorClock;
+  vectorClock?: VectorClock;
 }
 
 /**
- * Sync queue item (database row)
+ * Sync queue item (local Dexie outbox row)
  *
- * Represents a single offline change waiting to sync.
+ * Represents a single offline change waiting to sync. Lives in the local
+ * db.syncQueue table; the sync processor drains it to Supabase.
  */
 export interface SyncQueueItem {
   /** Unique identifier (UUID) */
@@ -194,6 +186,16 @@ export interface SyncQueueItem {
 
   /** When sync completed successfully (enables cleanup) */
   synced_at: string | null;
+
+  /**
+   * Earliest time this item should be retried (ISO string).
+   *
+   * Set by the sync processor after a retryable failure using exponential
+   * backoff. Null/undefined means the item is due immediately. Replaces the
+   * old inline sleep, which stalled the whole queue without actually
+   * retrying (review SYNC-09).
+   */
+  next_retry_at?: string | null;
 }
 
 /**
@@ -282,39 +284,7 @@ export interface SyncQueueFilters {
   user_id?: string;
 }
 
-/**
- * Represents a detected conflict between local and remote versions
- * Stored in IndexedDB for review and resolution
- *
- * Note: Uses snake_case to match Dexie/IndexedDB schema
- */
-export interface Conflict {
-  id: string;
-  entity_type: "transaction" | "account" | "category" | "budget";
-  entity_id: string;
-  detected_at: string; // ISO timestamp string (not Date object)
-  local_event: import("@/types/event").TransactionEvent;
-  remote_event: import("@/types/event").TransactionEvent;
-  resolution: "pending" | "resolved" | "manual";
-  resolved_value: Record<string, unknown> | null;
-  resolved_at: string | null; // ISO timestamp string (not Date object)
-}
-
-/**
- * Result of conflict detection between two events
- */
-export interface ConflictDetectionResult {
-  hasConflict: boolean;
-  reason?: string;
-  comparison: ClockComparison;
-}
-
-/**
- * Statistics for conflict monitoring
- */
-export interface ConflictStats {
-  total: number;
-  pending: number;
-  resolved: number;
-  byEntity: Record<string, number>;
-}
+// The Conflict/ConflictDetectionResult/ConflictStats/ClockComparison types
+// were removed with the Phase B conflict stack (unreachable at runtime;
+// review SYNC-05). Phase A resolves concurrent edits by timestamp LWW.
+// Reintroduce alongside the end-to-end vector clock wiring in Phase B.

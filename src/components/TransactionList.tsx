@@ -26,6 +26,8 @@ import { toast } from "sonner";
 import { handleTransactionDelete } from "@/lib/debts";
 import { useQueryClient } from "@tanstack/react-query";
 import { SyncBadge } from "@/components/sync/SyncBadge";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "@/lib/dexie/db";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -42,6 +44,15 @@ export function TransactionList({ filters, onEdit }: Props) {
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Transactions with outstanding outbox items (reactive, local IndexedDB).
+  // Rows not in this set have no pending local changes.
+  const pendingSyncIds = useLiveQuery(async () => {
+    const items = await db.syncQueue.where("status").anyOf("queued", "syncing", "failed").toArray();
+    return new Set(
+      items.filter((item) => item.entity_type === "transaction").map((item) => item.entity_id)
+    );
+  }, []);
 
   // Set up virtual scrolling (must be before early returns)
   const parentRef = useRef<HTMLDivElement>(null);
@@ -286,7 +297,10 @@ export function TransactionList({ filters, onEdit }: Props) {
                             </div>
                           )}
                         </div>
-                        <SyncBadge status="synced" size="xs" />
+                        <SyncBadge
+                          status={pendingSyncIds?.has(transaction.id) ? "pending" : "synced"}
+                          size="xs"
+                        />
                       </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">

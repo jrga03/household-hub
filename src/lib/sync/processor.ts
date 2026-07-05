@@ -1,53 +1,44 @@
 /**
- * Sync Processor - Process Offline Changes and Sync to Server
+ * Sync Processor - Drain the local outbox to Supabase
  *
- * Core responsibility: Process the sync queue (offline changes waiting to sync)
- * and execute operations against Supabase with retry logic and error handling.
+ * Core responsibility: process the local Dexie sync queue (offline changes
+ * waiting to sync) and execute operations against Supabase with retry
+ * scheduling and error classification.
  *
  * Key Features:
+ * - Reads the LOCAL db.syncQueue outbox (mutations enqueue there atomically)
  * - Processes queue items in FIFO order (created_at ascending)
- * - Replaces temporary IDs with server UUIDs during sync
- * - Implements exponential backoff retry with max 3 attempts
- * - Classifies errors as retryable vs non-retryable
- * - Updates queue status through state machine transitions
- * - Prevents concurrent processing with isProcessing flag
+ * - Client-generated UUIDs mean no ID remapping: local ID == server ID
+ * - Retryable failures are rescheduled via next_retry_at (exponential
+ *   backoff) instead of sleeping inline
+ * - Items stranded in "syncing" by a crash are reset at session start
+ * - Publishes progress to useSyncStore so all badges read one source
  *
  * State Machine Flow:
  * queued → syncing → completed (success)
  *        ↓ (on error)
- *      failed (after 3 retries) OR queued (retry with backoff)
+ *      queued with next_retry_at (retryable) OR failed (permanent)
  *
  * Error Classification:
  * - Non-Retryable: Validation, constraints, syntax errors → fail immediately
- * - Retryable: Network, RLS, timeout errors → retry with exponential backoff
- *
- * ID Mapping Integration:
- * 1. Before sync: Replace temp IDs in payload (idMapping.replaceIds)
- * 2. After create: Store mapping (idMapping.add(tempId, serverId))
- * 3. After session: Clear mappings (idMapping.clear)
- *
- * Usage Pattern:
- * ```typescript
- * // Automatic sync (called by autoSyncManager)
- * const result = await syncProcessor.processQueue(userId);
- * console.log(`Synced: ${result.synced}, Failed: ${result.failed}`);
- *
- * // Manual sync (called by user button)
- * const { mutate } = useSyncProcessor();
- * mutate(); // Processes queue with toast notifications
- * ```
- *
- * See SYNC-ENGINE.md lines 176-224 for retry strategy.
- * See instructions.md Step 4 (lines 142-343) for implementation details.
+ * - Retryable: Network, RLS, timeout errors → reschedule with backoff
+ * - Duplicate primary key on create → treated as success (the previous
+ *   attempt actually reached the server before we saw the response)
  *
  * @module sync/processor
  */
 
 import { supabase } from "@/lib/supabase";
-import { getPendingQueueItems } from "@/lib/offline/syncQueue";
-import { calculateRetryDelay, sleep } from "./retry";
-import { idMapping } from "./idMapping";
-import type { SyncQueueItem, EntityType } from "@/types/sync";
+import { db } from "@/lib/dexie/db";
+import {
+  getPendingQueueItems,
+  getQueueCount,
+  resetStaleSyncingItems,
+  cleanupCompletedItems,
+} from "@/lib/offline/syncQueue";
+import { calculateRetryDelay } from "./retry";
+import { useSyncStore } from "@/stores/syncStore";
+import type { SyncQueueItem, SyncQueueStatus, EntityType } from "@/types/sync";
 
 /**
  * Result of processing a single queue item
@@ -60,112 +51,48 @@ interface ProcessItemResult {
 }
 
 /**
- * Result of sync create operation
- */
-interface SyncCreateResult {
-  /** Server-generated UUID for created entity */
-  serverId?: string;
-}
-
-/**
- * Result of sync update/delete operations
- * Empty for now, but provides consistent type for future extensions
- */
-type SyncOperationResult = Record<string, never>;
-
-/**
- * SyncProcessor - Main class for processing offline sync queue
+ * SyncProcessor - Main class for draining the offline sync queue
  *
  * Singleton pattern: Use exported `syncProcessor` instance.
  *
- * Thread-safety: isProcessing flag prevents concurrent sync operations.
- * This is safe in single-threaded JavaScript runtime.
- *
- * Error Handling Philosophy:
- * - Non-retryable errors (validation, constraints) fail immediately
- * - Retryable errors (network, RLS) retry up to MAX_RETRIES times
- * - All errors logged to console with context
- * - Queue status updated to reflect current state
+ * Thread-safety: processingPromise dedupes concurrent calls within a tab.
+ * Cross-tab overlap is tolerated because operations are idempotent
+ * (duplicate-pkey creates are treated as success, updates are LWW,
+ * deletes of missing rows are no-ops).
  *
  * @class
  */
 export class SyncProcessor {
   /**
    * Active processing promise (null when idle)
-   * Used to prevent race conditions in concurrent processQueue calls
    * If multiple calls happen simultaneously, they all await the same promise
    */
   private processingPromise: Promise<{ synced: number; failed: number }> | null = null;
 
   /**
    * Tracks whether executeProcessing is still actively running.
-   * Used to prevent a new processing session from starting if a previous
-   * one is still in flight after a timeout (the timeout only rejects the
-   * caller's promise, it doesn't cancel the underlying work).
+   * Prevents a new session from starting if a timed-out one is still in
+   * flight (the timeout only rejects the caller's promise).
    */
   private isExecuting = false;
 
   /**
-   * Maximum retry attempts before permanent failure
-   * Each item can be retried this many times (4 total attempts including first try)
-   */
-  private readonly MAX_RETRIES = 3;
-
-  /**
    * Maximum time (ms) before a processing session is considered stuck.
-   * Prevents deadlock if executeProcessing never resolves.
    */
   private readonly PROCESSING_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
   /**
-   * Process all pending queue items for a user
+   * Process all due queue items.
    *
-   * Main entry point for sync operations. Called by:
-   * - autoSyncManager: On visibility change, focus, online event, periodic timer
-   * - useSyncProcessor: User-initiated manual sync button
+   * Main entry point for sync operations. Called by autoSyncManager
+   * (online/focus/interval triggers) and useSyncProcessor (manual button).
    *
-   * Processing Strategy:
-   * 1. Check isProcessing flag (prevent concurrent syncs)
-   * 2. Get pending items from sync_queue (status = "queued" or "failed")
-   * 3. Process each item sequentially in FIFO order
-   * 4. Track success/failure counts for reporting
-   * 5. Clear ID mappings after session (finally block)
-   *
-   * Queue items are processed in order of created_at (ascending) to maintain
-   * causal ordering. Items with earlier timestamps are synced first.
-   *
-   * ID Mapping Session:
-   * - mappings accumulate during processing (temp ID → server UUID)
-   * - cleared after session to prevent memory leaks
-   * - mappings only valid within single sync session
-   *
-   * @param userId - User ID from auth store (for RLS filtering)
-   * @returns Promise resolving to sync results with counts
-   *
-   * @example
-   * // Automatic sync (background)
-   * const result = await syncProcessor.processQueue("user-123");
-   * if (result.synced > 0) {
-   *   console.log(`Synced ${result.synced} items successfully`);
-   * }
-   * if (result.failed > 0) {
-   *   console.error(`${result.failed} items failed to sync`);
-   * }
-   *
-   * @example
-   * // Manual sync with loading state
-   * setIsLoading(true);
-   * try {
-   *   const result = await syncProcessor.processQueue(user.id);
-   *   toast.success(`Synced ${result.synced} items`);
-   * } finally {
-   *   setIsLoading(false);
-   * }
+   * @param userId - User ID (items are stamped with their creator; filters
+   *                 out items from another account on a shared device)
    */
   async processQueue(userId: string): Promise<{ synced: number; failed: number }> {
     // If already processing, return the existing promise (prevents race condition)
     if (this.processingPromise) {
-      console.log("Sync already in progress - returning existing promise");
       return this.processingPromise;
     }
 
@@ -175,7 +102,6 @@ export class SyncProcessor {
       return { synced: 0, failed: 0 };
     }
 
-    // Wrap processing with a timeout guard to prevent deadlocks
     let timeoutId: ReturnType<typeof setTimeout>;
     const timeoutPromise = new Promise<{ synced: number; failed: number }>((_, reject) => {
       timeoutId = setTimeout(() => {
@@ -193,39 +119,34 @@ export class SyncProcessor {
       console.error("Sync processing failed or timed out:", error);
       return { synced: 0, failed: 0 };
     } finally {
-      // Always clear promise reference — prevents deadlock
       this.processingPromise = null;
     }
   }
 
   /**
-   * Internal method that performs the actual queue processing
-   * Separated from processQueue() to enable atomic promise tracking
-   *
-   * @param userId - User ID from auth store
-   * @returns Sync results with success/failure counts
-   * @private
+   * Internal method that performs the actual queue processing.
    */
   private async executeProcessing(userId: string): Promise<{ synced: number; failed: number }> {
     this.isExecuting = true;
+    const store = useSyncStore.getState();
     let synced = 0;
     let failed = 0;
 
     try {
-      // Load persisted ID mappings from previous interrupted session
-      await idMapping.load();
+      // Recover items stranded in "syncing" by a previous crash (SYNC-08)
+      await resetStaleSyncingItems();
 
-      // Get all pending queue items (queued or failed status)
+      // Get all due queue items (queued, next_retry_at reached)
       const items = await getPendingQueueItems(userId);
 
       if (items.length === 0) {
-        console.log("No pending queue items to process");
         return { synced: 0, failed: 0 };
       }
 
       console.log(`Processing ${items.length} queue items`);
+      store.setStatus("syncing");
 
-      // Process each item sequentially
+      // Process each item sequentially (FIFO for causal ordering)
       for (const item of items) {
         const result = await this.processItem(item);
         if (result.success) {
@@ -237,88 +158,60 @@ export class SyncProcessor {
 
       console.log(`Sync complete: ${synced} synced, ${failed} failed`);
 
+      if (synced > 0) {
+        const now = new Date();
+        store.setLastSyncTime(now);
+        // Persist for reloads: useSyncStatus reads this via liveQuery
+        await db.meta.put({ key: "lastSyncTime", value: now.toISOString() });
+      }
+
       // Clean up old completed items to prevent unbounded growth
-      await this.cleanupCompleted();
+      await cleanupCompletedItems();
     } catch (error) {
       console.error("Unexpected error during queue processing:", error);
     } finally {
-      // Always cleanup: clear ID mappings to prevent memory leaks
-      await idMapping.clear();
       this.isExecuting = false;
+
+      // Publish final state for badges/banners (single source of truth)
+      try {
+        useSyncStore.getState().setPendingChanges(await getQueueCount(userId));
+      } catch {
+        // Non-fatal: badge count refresh only
+      }
+      useSyncStore
+        .getState()
+        .setStatus(typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "online");
     }
 
     return { synced, failed };
   }
 
   /**
-   * Process a single queue item
-   *
-   * Executes the operation (create/update/delete) and handles success/failure.
-   *
-   * Processing Steps:
-   * 1. Update status to "syncing" (mark as in-progress)
-   * 2. Replace temp IDs in payload (idMapping.replaceIds)
-   * 3. Execute operation based on op type (create/update/delete)
-   * 4. Store ID mapping if created entity (for future references)
-   * 5. Update status to "completed" with synced_at timestamp
-   *
-   * Error Handling:
-   * - Catch all errors and delegate to handleError
-   * - handleError classifies error and decides retry strategy
-   * - Returns success: false with error message on failure
-   *
-   * @param item - Sync queue item to process
-   * @returns Promise resolving to result with success flag and optional error
-   *
-   * @example
-   * // Process single item
-   * const item = await getPendingQueueItems(userId)[0];
-   * const result = await syncProcessor.processItem(item);
-   * if (result.success) {
-   *   console.log("Item synced successfully");
-   * } else {
-   *   console.error("Item failed:", result.error);
-   * }
+   * Process a single queue item: mark syncing, execute the operation,
+   * mark completed (or delegate to handleError).
    */
   async processItem(item: SyncQueueItem): Promise<ProcessItemResult> {
     try {
-      // Step 1: Update status to syncing
       await this.updateQueueStatus(item.id, "syncing");
 
-      // Step 2: Replace temporary IDs in payload
-      // This replaces any "temp-xxx" IDs with their server UUIDs
-      const payload = idMapping.replaceIds(item.operation.payload);
+      const payload = item.operation.payload;
 
-      // Step 3: Execute operation based on type
-      let result: SyncCreateResult | SyncOperationResult;
       switch (item.operation.op) {
         case "create":
-          result = await this.syncCreate(item.entity_type, payload);
+          await this.syncCreate(item.entity_type, payload);
           break;
         case "update":
-          result = await this.syncUpdate(item.entity_type, item.entity_id, payload);
+          await this.syncUpdate(item.entity_type, item.entity_id, payload);
           break;
         case "delete":
-          result = await this.syncDelete(item.entity_type, item.entity_id);
+          await this.syncDelete(item.entity_type, item.entity_id);
           break;
         default:
           throw new Error(`Unknown operation: ${item.operation.op}`);
       }
 
-      // Step 4: Store ID mapping if created new entity
-      // This allows future operations to reference the server UUID
-      // Persisted to IndexedDB for crash recovery
-      if (item.operation.op === "create" && "serverId" in result && result.serverId) {
-        await idMapping.add(item.entity_id, result.serverId);
-        console.log(`Mapped ${item.entity_id} → ${result.serverId}`);
-      }
-
-      // Step 5: Mark completed with timestamp
       await this.updateQueueStatus(item.id, "completed", null, new Date().toISOString());
 
-      console.log(
-        `Successfully processed queue item ${item.id} (${item.entity_type} ${item.operation.op})`
-      );
       return { success: true };
     } catch (error) {
       console.error(`Failed to process queue item ${item.id}:`, error);
@@ -327,78 +220,39 @@ export class SyncProcessor {
   }
 
   /**
-   * Sync CREATE operation to server
+   * Sync CREATE operation to server.
    *
-   * Creates a new entity in Supabase and returns the server-generated UUID.
-   * This UUID is stored in ID mapping for future references.
-   *
-   * Table Mapping:
-   * - transaction → transactions
-   * - account → accounts
-   * - category → categories
-   * - budget → budgets
-   *
-   * @param entityType - Type of entity to create
-   * @param payload - Entity data (already has temp IDs replaced)
-   * @returns Promise resolving to result with server UUID
-   * @throws Error if insert fails (caught by processItem)
-   *
-   * @example
-   * // Create transaction
-   * const result = await syncCreate("transaction", {
-   *   date: "2025-10-27",
-   *   description: "Grocery shopping",
-   *   amount_cents: 150000,
-   *   type: "expense",
-   *   account_id: "real-account-uuid", // Already replaced from temp ID
-   *   category_id: "real-category-uuid",
-   *   status: "pending",
-   * });
-   * // result.serverId = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+   * The payload carries a client-generated UUID as its id, which the server
+   * keeps, so no ID mapping is needed. A duplicate-primary-key error means a
+   * previous attempt already landed (e.g. we timed out after the server
+   * committed) and is treated as success.
    */
   private async syncCreate(
     entityType: EntityType,
     payload: Record<string, unknown>
-  ): Promise<SyncCreateResult> {
+  ): Promise<void> {
     const tableName = this.getTableName(entityType);
 
-    const { data, error } = await supabase.from(tableName).insert(payload).select("id").single();
+    const { error } = await supabase.from(tableName).insert(payload);
 
     if (error) {
+      const isDuplicatePkey = error.code === "23505" && error.message.includes("_pkey");
+      if (isDuplicatePkey) {
+        console.log(`${tableName} row already exists on server - treating create as synced`);
+        return;
+      }
       throw error;
     }
-
-    if (!data?.id) {
-      throw new Error(`Create succeeded but no ID returned for ${tableName}`);
-    }
-
-    return { serverId: data.id };
   }
 
   /**
-   * Sync UPDATE operation to server
-   *
-   * Updates an existing entity in Supabase by ID.
-   * The entity_id should already be a real UUID (not a temp ID).
-   *
-   * @param entityType - Type of entity to update
-   * @param entityId - Server UUID of entity (NOT temp ID)
-   * @param payload - Fields to update (already has temp IDs replaced)
-   * @returns Promise resolving to empty result object
-   * @throws Error if update fails (caught by processItem)
-   *
-   * @example
-   * // Update transaction description
-   * await syncUpdate("transaction", "real-uuid-123", {
-   *   description: "Updated description",
-   *   amount_cents: 200000,
-   * });
+   * Sync UPDATE operation to server.
    */
   private async syncUpdate(
     entityType: EntityType,
     entityId: string,
     payload: Record<string, unknown>
-  ): Promise<SyncOperationResult> {
+  ): Promise<void> {
     const tableName = this.getTableName(entityType);
 
     const { error } = await supabase.from(tableName).update(payload).eq("id", entityId);
@@ -406,29 +260,16 @@ export class SyncProcessor {
     if (error) {
       throw error;
     }
-
-    return {};
   }
 
   /**
-   * Sync DELETE operation to server
-   *
-   * Deletes an entity from Supabase by ID.
-   * The entity_id should already be a real UUID (not a temp ID).
+   * Sync DELETE operation to server.
    *
    * Note: Soft deletes (is_active = false) should use UPDATE, not DELETE.
-   * Only use DELETE for actual row removal.
-   *
-   * @param entityType - Type of entity to delete
-   * @param entityId - Server UUID of entity (NOT temp ID)
-   * @returns Promise resolving to empty result object
-   * @throws Error if delete fails (caught by processItem)
-   *
-   * @example
-   * // Hard delete transaction
-   * await syncDelete("transaction", "real-uuid-123");
+   * Deleting an already-missing row is a no-op on the server, which makes
+   * retries idempotent.
    */
-  private async syncDelete(entityType: EntityType, entityId: string): Promise<SyncOperationResult> {
+  private async syncDelete(entityType: EntityType, entityId: string): Promise<void> {
     const tableName = this.getTableName(entityType);
 
     const { error } = await supabase.from(tableName).delete().eq("id", entityId);
@@ -436,64 +277,24 @@ export class SyncProcessor {
     if (error) {
       throw error;
     }
-
-    return {};
   }
 
   /**
-   * Handle sync errors with retry logic
+   * Handle sync errors with retry scheduling.
    *
-   * Classifies errors into two categories:
-   * 1. Non-Retryable: Validation, constraints, syntax → fail immediately
-   * 2. Retryable: Network, RLS, timeout → retry with exponential backoff
+   * Non-retryable errors (validation/constraints) fail immediately and
+   * permanently. Retryable errors are put back to "queued" with a
+   * next_retry_at computed from exponential backoff, so the queue is never
+   * stalled by an inline sleep and each item retries on its own schedule
+   * across future sync sessions.
    *
-   * Non-Retryable Error Patterns:
-   * - "violates check constraint" (amount_cents < 0, invalid date, etc.)
-   * - "violates foreign key constraint" (invalid account_id, category_id)
-   * - "violates unique constraint" (duplicate idempotency key)
-   * - "invalid input syntax" (malformed UUID, invalid JSON)
-   * - "value too long" (description > 500 chars)
-   * - "invalid type" (string where number expected)
-   *
-   * Retry Strategy:
-   * - Retry count < MAX_RETRIES: Sleep with exponential backoff, then retry
-   * - Retry count >= MAX_RETRIES: Mark as failed permanently
-   * - Exponential delays: ~1s, ~2s, ~4s (with jitter to prevent thundering herd)
-   *
-   * Status Updates:
-   * - Non-retryable: status = "failed" (permanent)
-   * - Max retries: status = "failed" (permanent)
-   * - Retry: status = "queued", increment retry_count, store error_message
-   *
-   * @param item - Sync queue item that failed
-   * @param error - Error that occurred during sync
-   * @returns Promise resolving to result with success: false and error message
-   *
-   * @example
-   * // Non-retryable error (constraint violation)
-   * try {
-   *   await syncCreate("transaction", { amount_cents: -100 });
-   * } catch (error) {
-   *   const result = await handleError(item, error);
-   *   // result = { success: false, error: "violates check constraint..." }
-   *   // item.status = "failed" (permanent)
-   * }
-   *
-   * @example
-   * // Retryable error (network timeout)
-   * try {
-   *   await syncCreate("transaction", payload);
-   * } catch (error) {
-   *   const result = await handleError(item, error);
-   *   // Sleeps ~1s, then:
-   *   // item.status = "queued", item.retry_count = 1
-   *   // Next processQueue() call will retry
-   * }
+   * Retry budget: an item's first attempt runs with retry_count 0; it fails
+   * permanently once retry_count reaches max_retries (default 3 retries,
+   * 4 total attempts).
    */
   private async handleError(item: SyncQueueItem, error: unknown): Promise<ProcessItemResult> {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    // Check if error is non-retryable (validation/constraint errors)
     const nonRetryablePatterns = [
       "violates check constraint",
       "violates foreign key constraint",
@@ -513,76 +314,48 @@ export class SyncProcessor {
       return { success: false, error: errorMessage };
     }
 
-    // Check if max retries reached
-    const retryCount = item.retry_count + 1;
-
-    if (retryCount >= this.MAX_RETRIES) {
+    if (item.retry_count >= item.max_retries) {
       console.log(
-        `Max retries (${this.MAX_RETRIES}) reached for item ${item.id} - failing permanently`
+        `Max retries (${item.max_retries}) reached for item ${item.id} - failing permanently`
       );
       await this.updateQueueStatus(item.id, "failed", errorMessage);
       return { success: false, error: `Max retries reached: ${errorMessage}` };
     }
 
-    // Retry with exponential backoff
+    // Schedule the retry instead of sleeping: the item becomes due again
+    // once next_retry_at passes and a future sync session picks it up.
+    const retryCount = item.retry_count + 1;
     const delay = calculateRetryDelay(retryCount);
+    const nextRetryAt = new Date(Date.now() + delay).toISOString();
+
     console.log(
-      `Retrying item ${item.id} (attempt ${retryCount}/${this.MAX_RETRIES}) in ${Math.round(delay)}ms`
+      `Scheduling retry for item ${item.id} (attempt ${retryCount}/${item.max_retries}) at ${nextRetryAt}`
     );
 
-    await sleep(delay);
-
-    // Update retry count and status back to queued
-    // Next processQueue() call will pick it up
-    await supabase
-      .from("sync_queue")
-      .update({
-        status: "queued",
-        retry_count: retryCount,
-        error_message: errorMessage,
-      })
-      .eq("id", item.id);
+    await db.syncQueue.update(item.id, {
+      status: "queued",
+      retry_count: retryCount,
+      error_message: errorMessage,
+      next_retry_at: nextRetryAt,
+      updated_at: new Date().toISOString(),
+    });
 
     return { success: false, error: errorMessage };
   }
 
   /**
-   * Update sync queue item status
-   *
-   * Updates the status and optional metadata for a queue item.
-   * Used to track item progress through the state machine.
-   *
-   * Status Transitions:
-   * - queued → syncing: When processing starts
-   * - syncing → completed: When operation succeeds
-   * - syncing → failed: When operation fails (non-retryable or max retries)
-   * - failed → queued: When retrying after delay
-   *
-   * @param id - Queue item UUID
-   * @param status - New status value
-   * @param errorMessage - Optional error message (for failed status)
-   * @param syncedAt - Optional timestamp (for completed status)
-   * @returns Promise resolving when update completes
-   *
-   * @example
-   * // Mark as syncing
-   * await updateQueueStatus(item.id, "syncing");
-   *
-   * @example
-   * // Mark as completed
-   * await updateQueueStatus(item.id, "completed", null, new Date().toISOString());
-   *
-   * @example
-   * // Mark as failed
-   * await updateQueueStatus(item.id, "failed", "Network timeout");
+   * Update local sync queue item status.
    */
   private async updateQueueStatus(
     id: string,
-    status: "queued" | "syncing" | "completed" | "failed",
+    status: SyncQueueStatus,
     errorMessage?: string | null,
     syncedAt?: string
   ): Promise<void> {
-    const updates: Record<string, unknown> = { status };
+    const updates: Partial<SyncQueueItem> = {
+      status,
+      updated_at: new Date().toISOString(),
+    };
 
     if (errorMessage !== undefined) {
       updates.error_message = errorMessage;
@@ -592,72 +365,17 @@ export class SyncProcessor {
       updates.synced_at = syncedAt;
     }
 
-    const { error } = await supabase.from("sync_queue").update(updates).eq("id", id);
-
-    if (error) {
-      console.error(`Failed to update queue status for item ${id}:`, error);
-      // Don't throw - this is a logging operation
-    }
-  }
-
-  /**
-   * Clean up completed sync queue items older than the retention period.
-   * Prevents unbounded Supabase sync_queue table growth on long-running installations.
-   *
-   * @param retentionDays - Number of days to keep completed items (default: 7)
-   * @returns Number of items deleted
-   */
-  async cleanupCompleted(retentionDays = 7): Promise<number> {
     try {
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - retentionDays);
-      const cutoffISO = cutoff.toISOString();
-
-      const { data, error } = await supabase
-        .from("sync_queue")
-        .delete()
-        .eq("status", "completed")
-        .lt("synced_at", cutoffISO)
-        .select("id");
-
-      if (error) {
-        console.error("[SyncProcessor] Cleanup failed:", error);
-        return 0;
-      }
-
-      const count = data?.length ?? 0;
-      if (count > 0) {
-        console.log(
-          `[SyncProcessor] Cleaned up ${count} completed queue items older than ${retentionDays} days`
-        );
-      }
-      return count;
+      await db.syncQueue.update(id, updates);
     } catch (error) {
-      console.error("[SyncProcessor] Cleanup error:", error);
-      return 0;
+      console.error(`Failed to update queue status for item ${id}:`, error);
+      // Don't throw - stale "syncing" rows are recovered by
+      // resetStaleSyncingItems at the next session start
     }
   }
 
   /**
-   * Map entity type to Supabase table name
-   *
-   * Converts logical entity types to their corresponding database table names.
-   *
-   * Mapping:
-   * - transaction → transactions
-   * - account → accounts
-   * - category → categories
-   * - budget → budgets
-   * - debt → debts
-   * - internal_debt → internal_debts
-   * - debt_payment → debt_payments
-   *
-   * @param entityType - Logical entity type
-   * @returns Database table name
-   *
-   * @example
-   * getTableName("transaction"); // "transactions"
-   * getTableName("debt"); // "debts"
+   * Map entity type to Supabase table name.
    */
   private getTableName(entityType: EntityType): string {
     const tableMap: Record<EntityType, string> = {
@@ -676,14 +394,8 @@ export class SyncProcessor {
 /**
  * Singleton instance of SyncProcessor
  *
- * Use this exported instance throughout the application.
- * Do not create new instances - use the shared singleton.
- *
  * @example
  * import { syncProcessor } from '@/lib/sync/processor';
- *
- * // Process queue
  * const result = await syncProcessor.processQueue(userId);
- * console.log(`Synced ${result.synced} items`);
  */
 export const syncProcessor = new SyncProcessor();

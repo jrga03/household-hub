@@ -1,6 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useAuthStore } from "@/stores/authStore";
-import { useEffect, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { useAccounts, useAccountBalances } from "@/lib/supabaseQueries";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -20,8 +19,7 @@ export const Route = createFileRoute("/accounts")({
 });
 
 function Accounts() {
-  const user = useAuthStore((state) => state.user);
-  const navigate = useNavigate();
+  // Authentication is guaranteed by the root route's beforeLoad guard
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
 
@@ -34,20 +32,6 @@ function Accounts() {
   const isNarrow = useMediaQuery("(max-width: 1099px)");
 
   const isLoading = accountsLoading || balancesLoading;
-
-  useEffect(() => {
-    if (!user) {
-      navigate({ to: "/login" }).catch(console.error);
-    }
-  }, [user, navigate]);
-
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
-  }
 
   if (isLoading) {
     return (
