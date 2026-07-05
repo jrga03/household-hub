@@ -66,7 +66,7 @@ import { getDeviceId } from "@/lib/dexie/deviceManager";
 import { syncProcessor } from "@/lib/sync/processor";
 import { useSyncStore } from "@/stores/syncStore";
 import { useAuthStore } from "@/stores/authStore";
-import { hasSentry } from "@/types/sentry";
+import { reportError } from "@/lib/sentry";
 
 /**
  * Table names that support realtime sync
@@ -325,12 +325,10 @@ export class RealtimeSync {
       console.error(`[RealtimeSync] Error handling ${payload.eventType} on ${tableName}:`, error);
       useSyncStore.getState().setStatus("error");
 
-      // Log to observability system if available
-      if (typeof window !== "undefined" && hasSentry(window)) {
-        window.Sentry.captureException(error, {
-          tags: { subsystem: "realtime-sync", table: tableName, event: payload.eventType },
-        });
-      }
+      reportError(error, {
+        subsystem: "realtime-sync",
+        operation: `${payload.eventType}:${tableName}`,
+      });
     }
   }
 
@@ -477,12 +475,7 @@ export class RealtimeSync {
       console.error("[RealtimeSync] Reconnection catch-up failed:", error);
       useSyncStore.getState().setStatus("error");
 
-      // Log to observability system if available
-      if (typeof window !== "undefined" && hasSentry(window)) {
-        window.Sentry.captureException(error, {
-          tags: { subsystem: "realtime-sync", operation: "reconnection" },
-        });
-      }
+      reportError(error, { subsystem: "realtime-sync", operation: "reconnection" });
     }
   }
 

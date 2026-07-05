@@ -18,6 +18,7 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { useNavStore } from "@/stores/navStore";
 
 /**
  * Get keyboard shortcut key string for display
@@ -65,13 +66,15 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // Cmd/Ctrl + N: New transaction
+      // Cmd/Ctrl + N: New transaction. Drives navStore.quickAddOpen, which
+      // the always-mounted dialog in AppLayout reads, so it works from any
+      // route. The old approach navigated then dispatched a CustomEvent that
+      // the target route's listener hadn't mounted yet to receive (UI-09).
+      // (Note: browsers may reserve Cmd+N for a new window and not deliver
+      // the event; there is no reliable override, hence no false toast.)
       if (modKey && e.key === "n") {
         e.preventDefault();
-        navigate({ to: "/transactions" });
-        // Dispatch custom event to open transaction form
-        window.dispatchEvent(new CustomEvent("open-transaction-form"));
-        toast.success("Opening transaction form");
+        useNavStore.getState().setQuickAddOpen(true);
         return;
       }
 
@@ -82,12 +85,7 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // Esc: Close modals/dialogs
-      if (e.key === "Escape") {
-        // Dispatch custom event for components to listen to
-        window.dispatchEvent(new CustomEvent("close-modal"));
-        return;
-      }
+      // Esc is handled natively by Radix dialogs/sheets; nothing to do here
 
       // Gmail-style "g then x" navigation
       // Check if last key was 'g' within 1 second
@@ -95,26 +93,22 @@ export function useKeyboardShortcuts() {
       if (lastKeyRef.current === "g" && now - lastKeyTimeRef.current < 1000) {
         e.preventDefault();
 
+        // Navigation itself is the feedback; no success toast per hop (UI-09)
         switch (e.key) {
           case "d": // g then d: Dashboard
-            navigate({ to: "/dashboard" });
-            toast.success("Navigated to Dashboard");
+            navigate({ to: "/" });
             break;
           case "t": // g then t: Transactions
             navigate({ to: "/transactions" });
-            toast.success("Navigated to Transactions");
             break;
           case "a": // g then a: Analytics
             navigate({ to: "/analytics" });
-            toast.success("Navigated to Analytics");
             break;
           case "s": // g then s: Settings
             navigate({ to: "/settings" });
-            toast.success("Navigated to Settings");
             break;
-          case "i": // g then i: Import
-            navigate({ to: "/import" });
-            toast.success("Navigated to Import");
+          case "i": // g then i: Import (CSV import is disabled; PDF only)
+            navigate({ to: "/import/pdf" });
             break;
           default:
             // Invalid sequence
@@ -125,15 +119,10 @@ export function useKeyboardShortcuts() {
         lastKeyRef.current = null;
         lastKeyTimeRef.current = 0;
       } else if (e.key === "g" && !modKey) {
-        // Start of sequence
+        // Start of a "g then x" sequence (silent; the help screen documents
+        // the destinations, no per-keystroke toast, review UI-09)
         lastKeyRef.current = "g";
         lastKeyTimeRef.current = now;
-
-        // Show toast hint
-        toast.info("Navigation mode active", {
-          description: "Press: d (Dashboard), t (Transactions), a (Analytics), s (Settings)",
-          duration: 1000,
-        });
       } else {
         // Reset sequence on any other key
         lastKeyRef.current = null;
@@ -175,22 +164,4 @@ function showKeyboardShortcutsHelp() {
     description: helpContent,
     duration: 10000, // 10 seconds
   });
-}
-
-/** Hook to listen for "open transaction form" event */
-export function useOpenTransactionFormShortcut(callback: () => void) {
-  useEffect(() => {
-    const handleOpen = () => callback();
-    window.addEventListener("open-transaction-form", handleOpen);
-    return () => window.removeEventListener("open-transaction-form", handleOpen);
-  }, [callback]);
-}
-
-/** Hook to listen for "close modal" event (Esc key) */
-export function useCloseModalShortcut(callback: () => void) {
-  useEffect(() => {
-    const handleClose = () => callback();
-    window.addEventListener("close-modal", handleClose);
-    return () => window.removeEventListener("close-modal", handleClose);
-  }, [callback]);
 }

@@ -8,8 +8,7 @@ import { TransactionFiltersPanel } from "@/components/TransactionFilters";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useTransactions } from "@/lib/supabaseQueries";
 import { usePrefetchTransactionData } from "@/hooks/usePrefetchTransactionData";
-import { useOpenTransactionFormShortcut } from "@/hooks/useKeyboardShortcuts";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useContainerNarrow } from "@/hooks/useContainerWidth";
 import { useSelectedItem } from "@/hooks/useSelectedItem";
 import { PageShell } from "@/components/layout/PageShell";
 import { TransactionDetailPane } from "@/components/transactions/TransactionDetailPane";
@@ -50,16 +49,21 @@ function Transactions() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const { selectedId, select, clear } = useSelectedItem({ paramKey: "selected" });
-  // Below the @[1500px] triple-column breakpoint, row clicks open the legacy
-  // edit modal instead of selecting into the (hidden) detail pane.
-  const isNarrow = useMediaQuery("(max-width: 1499px)");
+  // Below the @[1500px] triple-column breakpoint the detail pane is hidden, so
+  // row clicks open the edit modal instead. Measured on the page region (not
+  // the viewport) so it agrees with PageShell's @container pane toggle even
+  // when the sidebar is expanded (review UI-05).
+  const [regionRef, isNarrow] = useContainerNarrow(1500);
 
   usePrefetchTransactionData();
-  useOpenTransactionFormShortcut(() => setIsFormOpen(true));
 
+  // `selected` is UI state (which row's detail pane is open), not a filter.
+  // Keeping it out of the query input means clicking a row no longer changes
+  // the ["transactions", filters] key and refetches the whole list (DATA-06).
+  const { selected: _selected, ...filters } = search;
   const debouncedFilters = {
-    ...search,
-    search: useDebounce(search.search, 300),
+    ...filters,
+    search: useDebounce(filters.search, 300),
   };
 
   const { data: transactions } = useTransactions(debouncedFilters);
@@ -92,7 +96,7 @@ function Transactions() {
   };
 
   return (
-    <div className="bg-background">
+    <div ref={regionRef} className="bg-background">
       {/* Page Header Bar */}
       <div className="border-b bg-background">
         <div className="container mx-auto max-w-7xl flex items-center justify-between px-4 py-4">

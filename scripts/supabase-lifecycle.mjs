@@ -1,8 +1,28 @@
 import { execFileSync, execSync } from "node:child_process";
 
-const HEALTH_URL = "http://127.0.0.1:54321/rest/v1/";
 const POLL_INTERVAL_MS = 2000;
 const HEALTH_TIMEOUT_MS = 60_000;
+
+/**
+ * Resolve the local API base URL from `supabase status` instead of assuming
+ * the default 54321. This project moved the API port (config.toml [api] port
+ * = 54331), so the hardcoded default could never succeed and every cold
+ * start burned the full 60s timeout (review INFRA-05).
+ */
+function getHealthUrl() {
+  try {
+    const status = execSync("supabase status", { stdio: "pipe", cwd: process.cwd() }).toString();
+    const match = status.match(/API URL:\s*(\S+)/i);
+    if (match) {
+      // /auth/v1/health needs no apikey, so `curl -sf` (fails on non-2xx)
+      // won't false-negative on the 401 that /rest/v1/ returns unauthenticated
+      return `${match[1].replace(/\/$/, "")}/auth/v1/health`;
+    }
+  } catch {
+    // status not available yet (Supabase still starting) - fall through
+  }
+  return "http://127.0.0.1:54331/auth/v1/health";
+}
 
 function log(message) {
   const timestamp = new Date().toISOString().slice(11, 19);
@@ -74,11 +94,12 @@ export function startSupabase() {
     throw error;
   }
 
-  // Health-check polling
+  // Health-check polling (URL resolved now that `supabase start` has run)
+  const healthUrl = getHealthUrl();
   const deadline = Date.now() + HEALTH_TIMEOUT_MS;
   while (Date.now() < deadline) {
     try {
-      execSync(`curl -sf ${HEALTH_URL}`, { stdio: "pipe" });
+      execSync(`curl -sf ${healthUrl}`, { stdio: "pipe" });
       log("Supabase is healthy");
       return;
     } catch {
@@ -106,10 +127,23 @@ export function stopSupabase() {
   }
 }
 
+function parseStatusEnvOutput(output) {
+  const env = {};
+  for (const line of output.split("\n")) {
+    const match = line.match(/^([A-Z0-9_]+)="(.*)"$/);
+    if (match) {
+      env[match[1]] = match[2];
+    }
+  }
+  return env;
+}
+
 export function getSupabaseCredentials() {
+  // Parse the machine-readable env output (KEY="value" lines) — never the
+  // human-readable `supabase status` output, which breaks on CLI upgrades.
   let output;
   try {
-    output = execSync("supabase status", {
+    output = execSync("supabase status -o env", {
       encoding: "utf-8",
       cwd: process.cwd(),
     });
@@ -117,17 +151,14 @@ export function getSupabaseCredentials() {
     throw new Error(`Failed to get Supabase status. Is Supabase running?\n${error.message}`);
   }
 
-  const extract = (label) => {
-    const match = output.match(new RegExp(`${label}:\\s+(.+)`));
-    return match?.[1]?.trim() ?? null;
-  };
+  const env = parseStatusEnvOutput(output);
 
   const creds = {
-    apiUrl: extract("API URL"),
-    anonKey: extract("anon key"),
-    serviceRoleKey: extract("service_role key"),
-    dbUrl: extract("DB URL"),
-    studioUrl: extract("Studio URL"),
+    apiUrl: env.API_URL ?? null,
+    anonKey: env.ANON_KEY ?? null,
+    serviceRoleKey: env.SERVICE_ROLE_KEY ?? null,
+    dbUrl: env.DB_URL ?? null,
+    studioUrl: env.STUDIO_URL ?? null,
   };
 
   const required = ["apiUrl", "serviceRoleKey"];

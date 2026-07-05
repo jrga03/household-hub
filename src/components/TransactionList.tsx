@@ -61,8 +61,14 @@ export function TransactionList({ filters, onEdit }: Props) {
   const rowVirtualizer = useVirtualizer({
     count: transactions?.length ?? 0,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 73, // Estimated row height in pixels
+    estimateSize: () => 73, // Initial estimate; real heights measured below
     overscan: 5, // Render 5 extra items above/below visible area
+    // Measure actual row heights so rows with a notes line (two-line cells)
+    // don't overlap or leave gaps against the fixed 73px estimate (UI-08)
+    measureElement:
+      typeof window !== "undefined" && navigator.userAgent.indexOf("Firefox") === -1
+        ? (el) => el?.getBoundingClientRect().height
+        : undefined,
   });
 
   const handleSelectAll = (checked: boolean) => {
@@ -244,12 +250,14 @@ export function TransactionList({ filters, onEdit }: Props) {
           </TableHeader>
         </Table>
 
-        {/* Virtualized scrollable body */}
+        {/* Virtualized scrollable body. Fills the available viewport height
+            instead of a hardcoded 600px cap, so the tall triple-column layout
+            isn't wasted (UI-08); shrinks to content when the list is short. */}
         <div
           ref={parentRef}
           className="overflow-auto"
           style={{
-            height: `${Math.min(600, rowVirtualizer.getTotalSize())}px`, // Max 600px height
+            height: `min(${rowVirtualizer.getTotalSize()}px, calc(100dvh - 16rem))`,
           }}
         >
           <Table>
@@ -266,12 +274,14 @@ export function TransactionList({ filters, onEdit }: Props) {
                   <TableRow
                     key={transaction.id}
                     data-index={virtualRow.index}
+                    ref={rowVirtualizer.measureElement}
                     style={{
                       position: "absolute",
                       top: 0,
                       left: 0,
                       width: "100%",
-                      height: `${virtualRow.size}px`,
+                      // No fixed height: measureElement reads each row's real
+                      // height so notes rows get the space they need (UI-08)
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
                   >

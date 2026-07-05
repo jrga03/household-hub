@@ -49,9 +49,12 @@ export default [
     },
   },
 
-  // Deno edge functions configuration
+  // Deno edge functions configuration.
+  // The functions live under supabase/functions/**, not edge-functions/** —
+  // the old glob matched a nonexistent directory, so these files were never
+  // linted (review INFRA-06).
   {
-    files: ["edge-functions/**/*.ts"],
+    files: ["supabase/functions/**/*.ts"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
@@ -67,10 +70,13 @@ export default [
         URLSearchParams: "readonly",
         console: "readonly",
         crypto: "readonly",
+        fetch: "readonly",
         TextEncoder: "readonly",
         TextDecoder: "readonly",
         atob: "readonly",
         btoa: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
       },
     },
     plugins: {

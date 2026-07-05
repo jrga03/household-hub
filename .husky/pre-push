@@ -1,2 +1,6 @@
-npm run lint:fix
-npm test
+# Pre-push VERIFIES; it does not mutate. The old `lint:fix` rewrote files in
+# place, so the pushed commits weren't the code that passed lint, and left
+# mystery working-tree diffs behind (review INFRA-07). Auto-fixing belongs in
+# pre-commit lint-staged. `vitest run` (not bare `vitest`) avoids watch mode.
+npm run lint
+npx vitest run

@@ -26,10 +26,17 @@ import type {
  * See instructions.md Step 2 for full specification
  */
 
-// Fetch all active accounts
-export function useAccounts() {
-  return useQuery({
-    queryKey: ["accounts"],
+/**
+ * Shared query definition for the active-accounts list.
+ *
+ * Exported so useAccounts AND usePrefetchTransactionData use the SAME
+ * queryKey + queryFn. Previously the prefetch fetched `select("*").order
+ * ("name")` (no is_active filter) into key ["accounts"], poisoning the cache
+ * so archived accounts appeared in every dropdown for 10 minutes (DATA-06).
+ */
+export function accountsQueryOptions() {
+  return {
+    queryKey: ["accounts"] as const,
     queryFn: async () => {
       try {
         const { data, error } = await supabase
@@ -50,8 +57,13 @@ export function useAccounts() {
       }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-    networkMode: "always", // run the queryFn offline so the Dexie fallback can serve
-  });
+    networkMode: "always" as const, // run the queryFn offline so the Dexie fallback can serve
+  };
+}
+
+// Fetch all active accounts
+export function useAccounts() {
+  return useQuery(accountsQueryOptions());
 }
 
 // Create account
@@ -300,10 +312,13 @@ export function useAccountBalances() {
  * TanStack Query hooks for categories CRUD operations
  */
 
-// Fetch all categories
-export function useCategories() {
-  return useQuery({
-    queryKey: ["categories"],
+/**
+ * Shared query definition for the active-categories list (see
+ * accountsQueryOptions for why: prefetch and hook must not diverge, DATA-06).
+ */
+export function categoriesQueryOptions() {
+  return {
+    queryKey: ["categories"] as const,
     queryFn: async () => {
       try {
         const { data, error } = await supabase
@@ -325,8 +340,13 @@ export function useCategories() {
       }
     },
     staleTime: 10 * 60 * 1000, // 10 minutes (categories change rarely)
-    networkMode: "always", // run the queryFn offline so the Dexie fallback can serve
-  });
+    networkMode: "always" as const, // run the queryFn offline so the Dexie fallback can serve
+  };
+}
+
+// Fetch all categories
+export function useCategories() {
+  return useQuery(categoriesQueryOptions());
 }
 
 // Fetch categories grouped by parent
@@ -530,6 +550,7 @@ export function useTransaction(id: string) {
       if (error) throw error;
       return data as TransactionWithRelations;
     },
+    enabled: !!id, // skip when there is no id (e.g. create mode)
   });
 }
 

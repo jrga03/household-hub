@@ -17,7 +17,7 @@
  */
 
 import Dexie, { Table } from "dexie";
-import { hasSentry } from "@/types/sentry";
+import { reportError } from "@/lib/sentry";
 import type { Debt, InternalDebt, DebtPayment } from "@/types/debt";
 import type { ImportDraft, ImportSession } from "@/types/pdf-import";
 import type { SyncQueueItem } from "@/types/sync";
@@ -656,12 +656,7 @@ export const db = new HouseholdHubDB();
 // Handles version migrations transparently
 db.open().catch((err) => {
   console.error("Failed to open IndexedDB database:", err);
-  // Log to observability system if available
-  if (typeof window !== "undefined" && hasSentry(window)) {
-    window.Sentry.captureException(err, {
-      tags: { subsystem: "dexie-db" },
-    });
-  }
+  reportError(err, { subsystem: "dexie-db", operation: "open" });
 });
 
 // ============================================================================

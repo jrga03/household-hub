@@ -32,7 +32,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Vite 7** with SWC plugin for fast builds
 - **ESLint** (flat config) with strict TypeScript rules
 - **Prettier** for formatting
-- **Husky** git hooks (pre-commit: format, pre-push: lint + test)
+- **Husky** git hooks (pre-commit: eslint --fix + format; pre-push: lint + test)
 
 ## Development Commands
 
@@ -55,12 +55,26 @@ npm run test:e2e:ui  # Run E2E tests with UI
 
 ## Architecture Principles
 
-### 1. Offline-First with Event Sourcing (Phase A MVP)
+### 1. Offline-First (Phase A MVP)
 
 - **Three-layer state**: Zustand (UI) → IndexedDB (persistent) → Supabase (cloud truth)
-- **Event sourcing from start**: All changes stored as immutable events
-- **Simple LWW** (Last-Write-Wins) in Phase A
-- **Vector clocks** added in Phase B for advanced conflict resolution
+- **Local outbox**: every mutation writes its entity AND a sync-queue item into
+  IndexedDB in ONE Dexie transaction (`buildSyncQueueItem` + `db.syncQueue`).
+  Enqueueing never touches the network, so mutations succeed fully offline. The
+  sync processor (`lib/sync/processor.ts`) drains the local queue to Supabase.
+- **Client-generated UUIDs**: `crypto.randomUUID()` at creation, so local ID ==
+  server ID. There are no temp IDs and no ID remapping.
+- **Reads**: TanStack Query with a Dexie fallback (`lib/offline/reads.ts`) when
+  the network is unreachable; sync badges read the local queue via `useLiveQuery`.
+- **Conflict strategy (Phase A)**: timestamp Last-Write-Wins (newer `updated_at`
+  wins), applied by both realtime `handleUpdate` and the reconnection catch-up.
+  Lamport clocks are retained for idempotency keys only.
+- **Phase B (not yet built)**: per-entity vector clocks + field-level conflict
+  resolution. The earlier Phase-B stack was removed as unreachable; reintroduce
+  it end-to-end (server columns + payload clocks + resolution) when Phase B starts.
+- **Debt ledger**: balances are a signed sum — `original - SUM(all payment rows)`
+  — where reversals are stored NEGATIVE and always linked via
+  `reverses_payment_id` (uniform at any cascade depth). See `lib/debts/balance.ts`.
 
 ### 2. Currency Handling (CRITICAL)
 
@@ -119,9 +133,10 @@ interface TransactionEvent {
   // Idempotency (CRITICAL)
   idempotencyKey: string; // Format: ${deviceId}-${entityType}-${entityId}-${lamportClock}
 
-  // Conflict resolution (Phase B)
-  lamportClock: number; // Per-entity counter
-  vectorClock: VectorClock; // Scoped to specific entity
+  // Ordering / idempotency. lamportClock is per-entity and drives the
+  // idempotency key. vectorClock is Phase B only and is NOT currently minted.
+  lamportClock: number;
+  vectorClock?: VectorClock;
 
   // Tracking
   actorUserId: string;
@@ -130,21 +145,28 @@ interface TransactionEvent {
 }
 ```
 
-### Sync Queue States
+### Sync Queue States (local Dexie outbox)
 
 ```
-draft → queued → syncing → acked → confirmed
-              ↓ (on error)
-            failed (with retry + exponential backoff)
+queued → syncing → completed
+      ↓ (retryable error: next_retry_at scheduled with exponential backoff)
+queued
+      ↓ (non-retryable, or retries exhausted)
+failed   (terminal; surfaced in the sync UI, re-enters only via user retry)
 ```
 
-### Conflict Resolution (Phase B)
+Crash recovery: items stranded in `syncing` are reset to `queued` at the start
+of each processing session (`resetStaleSyncingItems`).
 
-- **Per-entity vector clocks** (NOT global)
-- **Field-level Last-Write-Wins** with server canonical timestamps
-- **DELETE always wins** over UPDATE
-- **Deterministic**: Higher lamport clock wins, tie-break with deviceId
-- See SYNC-ENGINE.md lines 365-511, DECISIONS.md #77
+### Conflict Resolution
+
+- **Phase A (current)**: record-level timestamp LWW (newer `updated_at` wins).
+  A newer local unsynced edit is preserved over an older remote echo.
+- **Phase B (planned, not built)**: per-entity vector clocks + field-level LWW
+  with server timestamps, DELETE-wins. Requires clock columns on entity tables
+  and clocks in sync payloads before the resolution engine can be re-enabled.
+- See SYNC-ENGINE.md, DECISIONS.md #77, and
+  `docs/reviews/2026-07-02-architecture-review.md` (SYNC-05).
 
 ## Database Schema Highlights
 
@@ -449,12 +471,12 @@ import { Button } from "@/components/ui/button"; // → ./src/components/ui/butt
 
 ### Pre-commit Hook
 
-- Runs Prettier on staged files (TS, JS, JSON, MD, YAML)
+- Runs `eslint --fix` then Prettier on staged files via lint-staged (auto-fixes
+  are staged, so the committed code is what passed lint)
 
 ### Pre-push Hook
 
-- Runs `npm run lint:fix` (auto-fix issues)
-- Runs `npm test` (all unit tests must pass)
+- VERIFIES, never mutates: `npm run lint` then `npx vitest run` (must pass)
 
 ## Quick Reference: Key Files
 
@@ -476,6 +498,21 @@ import { Button } from "@/components/ui/button"; // → ./src/components/ui/butt
 6. **State**: Server state in TanStack Query, client state in Zustand
 7. **Offline**: Read from Dexie first, sync in background
 8. **Events**: Generate idempotency keys for all mutations
+
+## Known Infrastructure Issues
+
+Check this list BEFORE debugging any test/CLI failure you did not cause. To confirm a failure is pre-existing: `git stash` (or checkout main) and re-run — if it still fails, it is infrastructure debt, not your regression.
+
+Rules:
+
+- Do NOT root-cause a listed issue mid-task. Cite the entry, use its documented workaround, and move on.
+- If you hit a NEW pre-existing failure, add an entry here in the SAME commit as any workaround/exclusion. Unlogged "temporary" exclusions are forbidden.
+- When an issue is fixed, delete its entry and re-enable whatever was disabled (grep for TEMPORARY, test.skip, test.fixme).
+- Scripts must parse `supabase status -o env` (machine-readable), never the human-readable `supabase status` output — it breaks on CLI upgrades (bit this repo at CLI v2.105.0).
+
+Current entries:
+
+- `scripts/supabase-lifecycle.mjs` hardcodes `HEALTH_URL` to port 54321, but `supabase/config.toml` sets the API port to 54331. The post-start health poll in `startSupabase()` therefore targets the wrong port and will time out (60s) whenever the script itself has to start the stack. Workaround: start the stack manually (`supabase start`) before running dev/E2E scripts; the fix is to poll the `API_URL` from `supabase status -o env` instead of a hardcoded URL.
 
 ## Support & Resources
 

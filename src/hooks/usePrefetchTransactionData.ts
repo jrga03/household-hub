@@ -1,13 +1,12 @@
 /**
  * usePrefetchTransactionData Hook
  *
- * Prefetches accounts and categories when user navigates to transactions page.
- * This ensures dropdowns/selects load instantly when opening the transaction form.
+ * Prefetches accounts and categories when the user lands on the transactions
+ * page so the transaction form's dropdowns are warm before "Add Transaction".
  *
- * Benefits:
- * - Parallel loading (accounts + categories simultaneously)
- * - Cached data ready before user clicks "Add Transaction"
- * - Reduces perceived latency when opening form
+ * Uses the SAME query definitions as useAccounts/useCategories
+ * (accountsQueryOptions / categoriesQueryOptions) so the prefetch cannot
+ * poison their shared cache keys with a different queryFn (review DATA-06).
  *
  * @example
  * function TransactionsPage() {
@@ -18,34 +17,13 @@
 
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { accountsQueryOptions, categoriesQueryOptions } from "@/lib/supabaseQueries";
 
 export function usePrefetchTransactionData() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    // Prefetch accounts (likely needed for transaction form)
-    queryClient.prefetchQuery({
-      queryKey: ["accounts"],
-      queryFn: async () => {
-        const { data, error } = await supabase.from("accounts").select("*").order("name");
-
-        if (error) throw error;
-        return data;
-      },
-      staleTime: 10 * 60 * 1000, // 10 minutes
-    });
-
-    // Prefetch categories (likely needed for transaction form)
-    queryClient.prefetchQuery({
-      queryKey: ["categories"],
-      queryFn: async () => {
-        const { data, error } = await supabase.from("categories").select("*").order("name");
-
-        if (error) throw error;
-        return data;
-      },
-      staleTime: 10 * 60 * 1000, // 10 minutes
-    });
+    queryClient.prefetchQuery(accountsQueryOptions());
+    queryClient.prefetchQuery(categoriesQueryOptions());
   }, [queryClient]);
 }

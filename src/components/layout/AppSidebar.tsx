@@ -78,19 +78,21 @@ const navSections: { label: string; items: NavItem[] }[] = [
         to: "/",
         label: "Dashboard",
         icon: LayoutDashboard,
-        shortcut: getShortcutKey("D", true),
+        // Only the "g then x" sequences that useKeyboardShortcuts actually
+        // implements are advertised; the previous ⌘D/⌘T/... labels named
+        // shortcuts that did nothing (and are browser-reserved) (review UI-09)
+        shortcut: "g d",
       },
       {
         to: "/transactions",
         label: "Transactions",
         icon: Receipt,
-        shortcut: getShortcutKey("T", true),
+        shortcut: "g t",
       },
       {
         to: "/accounts",
         label: "Accounts",
         icon: CreditCard,
-        shortcut: getShortcutKey("A", true),
       },
     ],
   },
@@ -101,18 +103,17 @@ const navSections: { label: string; items: NavItem[] }[] = [
         to: "/budgets",
         label: "Budgets",
         icon: Target,
-        shortcut: getShortcutKey("B", true),
       },
       {
         to: "/categories",
         label: "Categories",
         icon: Tags,
-        shortcut: getShortcutKey("C", true),
       },
       {
         to: "/analytics",
         label: "Analytics",
         icon: BarChart3,
+        shortcut: "g a",
         children: [
           {
             to: "/analytics/categories",
@@ -259,9 +260,7 @@ export function AppSidebar() {
                       {open && (
                         <>
                           <span>Settings</span>
-                          <span className="ml-auto text-xs text-muted-foreground">
-                            {getShortcutKey("S", true)}
-                          </span>
+                          <span className="ml-auto text-xs text-muted-foreground">g s</span>
                         </>
                       )}
                     </Link>

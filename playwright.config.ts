@@ -7,7 +7,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Tests isolate their data via the [E2E] prefix + service-role cleanup, so
+  // they can run in parallel; 1 worker serialized the whole suite (TEST-01).
+  workers: process.env.CI ? 3 : undefined,
   reporter: "html",
 
   use: {

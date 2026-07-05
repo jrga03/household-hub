@@ -9,7 +9,10 @@ import path from "path";
 export default defineConfig({
   plugins: [
     tailwindcss(),
-    TanStackRouterVite(),
+    // autoCodeSplitting: each route's component graph becomes its own chunk,
+    // so heavy per-route dependencies (recharts, analytics dashboards, CSV
+    // machinery) stop shipping in the entry bundle (review UI-03)
+    TanStackRouterVite({ autoCodeSplitting: true }),
     react(),
     VitePWA({
       strategies: "injectManifest", // Custom SW with push handlers (chunk 043)
@@ -102,44 +105,25 @@ export default defineConfig({
   },
   build: {
     target: "esnext",
-    sourcemap: true,
+    // "hidden": maps are generated for upload to error tooling but not
+    // referenced from the bundles - shipping public maps exposed the full
+    // source of a privacy-focused finance app (review UI-03)
+    sourcemap: "hidden",
+
+    // Emit .vite/manifest.json so scripts/check-bundle-size.mjs can walk the
+    // static import graph and enforce the entry-bundle budget (review UI-03)
+    manifest: true,
 
     // Chunk size warnings
     chunkSizeWarningLimit: 500, // Warn if chunk > 500KB
 
-    // Manual chunk splitting for better caching
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          // Separate vendor chunks for better caching
-          "vendor-react": ["react", "react-dom", "react/jsx-runtime"],
-          "vendor-tanstack": [
-            "@tanstack/react-query",
-            "@tanstack/react-router",
-            "@tanstack/react-table",
-            "@tanstack/react-virtual",
-          ],
-          "vendor-ui": [
-            "lucide-react",
-            "@radix-ui/react-dialog",
-            "@radix-ui/react-dropdown-menu",
-            "@radix-ui/react-select",
-            "@radix-ui/react-slot",
-            "@radix-ui/react-tooltip",
-          ],
-          "vendor-utils": ["date-fns", "clsx", "tailwind-merge", "zod", "sonner"],
-          // Supabase in separate chunk (changes less frequently)
-          "vendor-supabase": ["@supabase/supabase-js"],
-        },
-        // Consistent chunk naming for better long-term caching
-        chunkFileNames: (chunkInfo) => {
-          const facadeModuleId = chunkInfo.facadeModuleId
-            ? chunkInfo.facadeModuleId.split("/").pop()
-            : "chunk";
-          return `assets/${facadeModuleId}-[hash].js`;
-        },
-      },
-    },
+    // No manualChunks: the hand-rolled vendor grouping forced heavy packages
+    // (all of lucide-react, several radix packages) into a single eagerly
+    // loaded ~186KB chunk and produced an empty vendor-react chunk (review
+    // UI-03). With autoCodeSplitting on, Rollup's default per-route splitting
+    // co-locates each dependency with the route that first needs it and
+    // hoists genuinely shared modules automatically. Default [name]-[hash]
+    // chunk names keep stable long-term caching.
 
     // Minification settings
     minify: "esbuild", // Faster than terser, good compression

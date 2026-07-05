@@ -18,7 +18,7 @@ import {
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { DatePicker } from "@/components/ui/date-picker";
 import { CategorySelector } from "@/components/ui/category-selector";
-import { useAccounts, useUpdateTransaction, useTransactions } from "@/lib/supabaseQueries";
+import { useAccounts, useUpdateTransaction, useTransaction } from "@/lib/supabaseQueries";
 import { transactionSchema, type TransactionFormData } from "@/lib/validations/transaction";
 import { useAuthStore } from "@/stores/authStore";
 import { toast } from "sonner";
@@ -46,7 +46,10 @@ export function TransactionFormDialog({
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const { data: accounts } = useAccounts();
-  const { data: transactions } = useTransactions();
+  // Fetch only the row being edited, not the whole (100-row, joined) list.
+  // The old useTransactions() subscription also couldn't reach rows past 100
+  // or any transfer leg (review DATA-06).
+  const { data: editingTransaction } = useTransaction(editingId ?? "");
   const updateTransaction = useUpdateTransaction();
 
   const form = useForm<TransactionFormData>({
@@ -127,23 +130,20 @@ export function TransactionFormDialog({
   // Load existing transaction data when editing
   const { reset } = form;
   useEffect(() => {
-    if (editingId && transactions) {
-      const transaction = transactions.find((t) => t.id === editingId);
-      if (transaction) {
-        reset({
-          date: parseISO(transaction.date),
-          description: transaction.description,
-          amount_cents: transaction.amount_cents,
-          type: transaction.type,
-          account_id: transaction.account_id,
-          category_id: transaction.category_id,
-          status: transaction.status,
-          visibility: transaction.visibility,
-          notes: transaction.notes,
-        });
-      }
+    if (editingId && editingTransaction) {
+      reset({
+        date: parseISO(editingTransaction.date),
+        description: editingTransaction.description,
+        amount_cents: editingTransaction.amount_cents,
+        type: editingTransaction.type,
+        account_id: editingTransaction.account_id,
+        category_id: editingTransaction.category_id,
+        status: editingTransaction.status,
+        visibility: editingTransaction.visibility,
+        notes: editingTransaction.notes,
+      });
     }
-  }, [editingId, transactions, reset]);
+  }, [editingId, editingTransaction, reset]);
 
   const onSubmit = async (data: TransactionFormData) => {
     try {

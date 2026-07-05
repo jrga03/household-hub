@@ -26,7 +26,7 @@ const PUSH_WORKER_URL = Deno.env.get("PUSH_WORKER_URL")!;
  * This helps users stay on top of transactions that need clearing
  * (e.g., pending bank transfers, receipts to reconcile).
  */
-Deno.serve(async (req) => {
+Deno.serve(async (_req) => {
   try {
     // Calculate date threshold (3 days ago)
     const threeDaysAgo = new Date();
@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
         acc[userId].push(txn);
         return acc;
       },
-      {} as Record<string, any[]>
+      {} as Record<string, unknown[]>
     );
 
     // Track notification results

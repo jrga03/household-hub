@@ -20,15 +20,11 @@ export function initSentry() {
       // Performance monitoring (10% of transactions)
       tracesSampleRate: 0.1,
 
-      // Integrations
-      integrations: [
-        Sentry.browserTracingIntegration(),
-        Sentry.replayIntegration({
-          // Disable session replay for finance app privacy
-          maskAllText: true,
-          blockAllMedia: true,
-        }),
-      ],
+      // Integrations. No replayIntegration: session replay is deliberately
+      // off for this finance app (the sample rates below are 0), so shipping
+      // the replay bundle just to disable it was contradictory (review
+      // INFRA-04).
+      integrations: [Sentry.browserTracingIntegration()],
 
       // PII Scrubbing (Decision #87)
       beforeSend(event) {
@@ -187,4 +183,26 @@ export function initSentry() {
   } else {
     console.warn("⚠️  Sentry DSN not configured");
   }
+}
+
+/**
+ * Report a caught error to Sentry with subsystem context.
+ *
+ * The single reporting entry point for background subsystems (sync engine,
+ * realtime, Dexie). Previously these paths guarded on `window.Sentry`, which
+ * initSentry never sets (it uses the @sentry/react module), so every one of
+ * those reports was silently dropped (review INFRA-04). No-ops safely in dev
+ * / when Sentry isn't initialized.
+ */
+export function reportError(
+  error: unknown,
+  context?: { subsystem?: string; operation?: string; extra?: Record<string, unknown> }
+): void {
+  Sentry.captureException(error, {
+    tags: {
+      ...(context?.subsystem ? { subsystem: context.subsystem } : {}),
+      ...(context?.operation ? { operation: context.operation } : {}),
+    },
+    extra: context?.extra,
+  });
 }

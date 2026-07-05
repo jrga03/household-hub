@@ -23,7 +23,7 @@ const PUSH_WORKER_URL = Deno.env.get("PUSH_WORKER_URL")!;
  * Budget calculation excludes transfers to avoid double-counting
  * (handled by check_budget_thresholds RPC function).
  */
-Deno.serve(async (req) => {
+Deno.serve(async (_req) => {
   try {
     // Get all budgets approaching limit (>= 80%)
     const { data: budgets, error: budgetsError } = await supabase.rpc("check_budget_thresholds");

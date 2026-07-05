@@ -1,13 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { startOfMonth } from "date-fns";
 import { MonthSelector } from "@/components/MonthSelector";
 import { SummaryCards } from "@/components/dashboard/SummaryCards";
-import { MonthlyChart } from "@/components/dashboard/MonthlyChart";
 import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
-import { DashboardRail } from "@/components/dashboard/DashboardRail";
 import { useDashboardData } from "@/lib/supabaseQueries";
 import { PageShell } from "@/components/layout/PageShell";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// Charts pull in recharts (~190KB gz). Lazy-load them so the dashboard's
+// first paint (cards + list) doesn't wait on chart vendor code (review UI-03)
+const MonthlyChart = lazy(() =>
+  import("@/components/dashboard/MonthlyChart").then((m) => ({ default: m.MonthlyChart }))
+);
+const DashboardRail = lazy(() =>
+  import("@/components/dashboard/DashboardRail").then((m) => ({ default: m.DashboardRail }))
+);
 
 export const Route = createFileRoute("/")({
   component: DashboardPage,
@@ -68,11 +76,15 @@ function DashboardPage() {
       <PageShell variant="rail">
         <PageShell.Main className="space-y-6">
           <SummaryCards summary={data.summary} />
-          <MonthlyChart data={data.monthlyTrend} />
+          <Suspense fallback={<Skeleton className="h-72 w-full rounded-lg" />}>
+            <MonthlyChart data={data.monthlyTrend} />
+          </Suspense>
           <RecentTransactions transactions={data.recentTransactions} />
         </PageShell.Main>
         <PageShell.RightAside>
-          <DashboardRail categoryBreakdown={data.categoryBreakdown} />
+          <Suspense fallback={<Skeleton className="h-72 w-full rounded-lg" />}>
+            <DashboardRail categoryBreakdown={data.categoryBreakdown} />
+          </Suspense>
         </PageShell.RightAside>
       </PageShell>
     </div>

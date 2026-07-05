@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import { AccountFormDialog } from "@/components/AccountFormDialog";
 import { PageShell } from "@/components/layout/PageShell";
 import { useSelectedItem } from "@/hooks/useSelectedItem";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useContainerNarrow } from "@/hooks/useContainerWidth";
 import { AccountListItem } from "@/components/accounts/AccountListItem";
 import { AccountDetailPane } from "@/components/accounts/AccountDetailPane";
 import { AccountBalanceCard } from "@/components/AccountBalanceCard";
@@ -27,9 +27,10 @@ function Accounts() {
   const { data: balances, isLoading: balancesLoading } = useAccountBalances();
 
   const { selectedId, select } = useSelectedItem({ paramKey: "selected" });
-  // Below the @[1100px] split breakpoint, clicking an account opens the legacy
-  // modal instead of selecting it into the (hidden) right pane.
-  const isNarrow = useMediaQuery("(max-width: 1099px)");
+  // Below the @[1100px] split breakpoint the right pane is hidden, so clicking
+  // an account opens the modal instead. Measured on the page region (not the
+  // viewport) to match PageShell's @container pane toggle (review UI-05).
+  const [regionRef, isNarrow] = useContainerNarrow(1100);
 
   const isLoading = accountsLoading || balancesLoading;
 
@@ -77,7 +78,7 @@ function Accounts() {
   };
 
   return (
-    <div className="bg-background">
+    <div ref={regionRef} className="bg-background">
       {/* Page Header */}
       <div className="border-b">
         <div className="container mx-auto max-w-7xl flex items-center justify-between px-4 py-4">
