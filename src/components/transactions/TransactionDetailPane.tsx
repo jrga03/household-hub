@@ -55,14 +55,35 @@ export function TransactionDetailPane({
   return <TransactionDetailContent id={transactionId} onEdit={onEdit} onClear={onClear} />;
 }
 
-function TransactionDetailContent({
+/**
+ * Read-only transaction details with an explicit Edit button.
+ *
+ * Exported for reuse outside the wide-layout detail pane: narrow layouts
+ * render the same content inside a bottom Sheet on row tap (review R38, via
+ * TransactionDetailSheet). `showClose` hides the inline Close button when the
+ * host overlay already provides its own close affordance.
+ */
+export function TransactionDetailContent({
   id,
   onEdit,
   onClear,
+  onDelete,
+  onToggleStatus,
+  showClose = true,
 }: {
   id: string;
   onEdit: (id: string) => void;
   onClear: () => void;
+  /**
+   * Optional per-transaction Delete (confirm flow owned by the host). Narrow
+   * layouts pass this so phones keep 1-tap delete without the bulk toolbar
+   * (review R6/R38); the wide detail pane omits it (table rows already have
+   * a Delete button).
+   */
+  onDelete?: (id: string) => void;
+  /** Optional pending ↔ cleared toggle; labeled from the current status. */
+  onToggleStatus?: (id: string) => void;
+  showClose?: boolean;
 }) {
   const { data, isLoading } = useTransaction(id);
   if (isLoading) {
@@ -77,9 +98,11 @@ function TransactionDetailContent({
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-2">
         <CardTitle className="min-w-0 truncate">{data.description || "Transaction"}</CardTitle>
-        <Button variant="ghost" size="sm" onClick={onClear}>
-          Close
-        </Button>
+        {showClose && (
+          <Button variant="ghost" size="sm" onClick={onClear}>
+            Close
+          </Button>
+        )}
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="text-2xl font-mono tabular-nums">{formatPHP(data.amount_cents)}</div>
@@ -87,6 +110,16 @@ function TransactionDetailContent({
         <Button variant="outline" className="w-full" onClick={() => onEdit(id)}>
           Edit
         </Button>
+        {onToggleStatus && (
+          <Button variant="outline" className="w-full" onClick={() => onToggleStatus(id)}>
+            {data.status === "cleared" ? "Mark pending" : "Mark cleared"}
+          </Button>
+        )}
+        {onDelete && (
+          <Button variant="destructive" className="w-full" onClick={() => onDelete(id)}>
+            Delete
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

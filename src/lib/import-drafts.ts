@@ -203,6 +203,23 @@ export async function getPendingDraftCount(): Promise<number> {
 }
 
 /**
+ * Resolve a draft's category name from an already-loaded category list.
+ *
+ * Pure lookup shared by the drafts review table and the narrow card list so
+ * both presentations render the draft's actual category instead of a
+ * hardcoded "-" (review R36). Returns null when the draft has no category or
+ * the id can't be found (deleted / not-yet-loaded category); callers render a
+ * muted "Uncategorized" fallback for null.
+ */
+export function resolveCategoryName(
+  categoryId: string | null | undefined,
+  categories: readonly { id: string; name: string }[] | undefined
+): string | null {
+  if (!categoryId || !categories) return null;
+  return categories.find((c) => c.id === categoryId)?.name ?? null;
+}
+
+/**
  * Promote confirmed drafts to real transactions via createOfflineTransactionsBatch().
  * Marks drafts as "confirmed" and updates session counters.
  */

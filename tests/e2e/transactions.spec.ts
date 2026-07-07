@@ -30,11 +30,15 @@ test.describe("Transactions", () => {
   test("should edit transaction", async ({ page }) => {
     await page.goto("/transactions");
 
-    // Click first transaction
+    // Click first transaction. Below the @[1500px] container breakpoint this
+    // opens the read-only detail sheet (wide layouts select into the detail
+    // pane instead); both surfaces expose an explicit Edit button.
     await page.click('[data-testid="transaction-row"]:first-child');
 
-    // Edit
-    await page.click("text=Edit");
+    // Edit from the detail sheet. Role-scoped to the dialog: a bare
+    // `text=Edit` first-matches any copy containing the word before the
+    // button and times out on the hit-target check.
+    await page.getByRole("dialog").getByRole("button", { name: "Edit", exact: true }).click();
     await page.fill('[name="description"]', "Updated Description");
     await page.click('button[type="submit"]');
 
@@ -45,14 +49,12 @@ test.describe("Transactions", () => {
   test("should delete transaction", async ({ page }) => {
     await page.goto("/transactions");
 
-    const transactionText = await page
-      .locator('[data-testid="transaction-row"]:first-child')
-      .textContent();
+    const firstRow = page.locator('[data-testid="transaction-row"]').first();
+    const transactionText = await firstRow.textContent();
 
-    // Delete
-    await page.click('[data-testid="transaction-row"]:first-child');
-    await page.click("text=Delete");
-    await page.click("text=Confirm");
+    // Row-level Delete confirms via window.confirm
+    page.on("dialog", (dialog) => dialog.accept());
+    await firstRow.getByRole("button", { name: /^Delete / }).click();
 
     // Verify deleted
     await expect(page.getByText(transactionText!)).not.toBeVisible();

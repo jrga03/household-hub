@@ -72,7 +72,10 @@ export function ColumnMapper({
 
       <div className="space-y-4">
         {FIELDS.map((field) => (
-          <div key={field.key} className="grid grid-cols-[200px_1fr] gap-4 items-center">
+          <div
+            key={field.key}
+            className="grid grid-cols-1 gap-1 sm:grid-cols-[200px_1fr] sm:gap-4 sm:items-center"
+          >
             <label className="text-sm font-medium">
               {field.label}
               {field.required && <span className="text-destructive ml-1">*</span>}

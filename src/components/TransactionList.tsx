@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { format, parseISO } from "date-fns";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -24,20 +24,34 @@ import { hasActiveTransactionFilters } from "@/lib/utils/filters";
 import type { TransactionFilters } from "@/types/transactions";
 import { toast } from "sonner";
 import { handleTransactionDelete } from "@/lib/debts";
+import { confirmAndDeleteTransaction } from "@/lib/delete-transaction";
 import { useQueryClient } from "@tanstack/react-query";
 import { SyncBadge } from "@/components/sync/SyncBadge";
 import { buildEntitySyncStatusMap } from "@/components/sync/queueBadgeStatus";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/dexie/db";
 import { useNavStore } from "@/stores/navStore";
+import { useContainerNarrow } from "@/hooks/useContainerWidth";
 import { cn } from "@/lib/utils";
 
 interface Props {
   filters?: TransactionFilters;
+  /**
+   * Row/card tap: the host decides what "open" means (detail pane selection,
+   * read-only detail sheet, or edit form).
+   */
   onEdit: (id: string) => void;
+  /**
+   * Explicit Edit pencil: always an edit intent. Hosts whose onEdit is an
+   * inspect action (e.g. the transactions route's read-only sheet on narrow
+   * containers) pass this so the pencil still opens the edit form directly.
+   * Falls back to onEdit when absent.
+   */
+  onRequestEdit?: (id: string) => void;
 }
 
-export function TransactionList({ filters, onEdit }: Props) {
+export function TransactionList({ filters, onEdit, onRequestEdit }: Props) {
+  const requestEdit = onRequestEdit ?? onEdit;
   const { data: transactions, isLoading } = useTransactions(filters);
   const toggleStatus = useToggleTransactionStatus();
   const setStatus = useSetTransactionStatus();
@@ -56,22 +70,43 @@ export function TransactionList({ filters, onEdit }: Props) {
     return buildEntitySyncStatusMap(items, "transaction");
   }, []);
 
+  // Presentation mode is decided by the list's OWN container width, not the
+  // viewport: this component embeds in hosts of very different widths (the
+  // transactions main column, the account detail page), so a viewport query
+  // would lie whenever the host is narrower than the window (review R6).
+  // Below 640px the 8-column table pushes the amount off-screen, so we render
+  // a card list instead.
+  const [containerRef, isNarrowContainer] = useContainerNarrow(640);
+  const presentation = isNarrowContainer ? "cards" : "table";
+
   // Set up virtual scrolling (must be before early returns)
   const parentRef = useRef<HTMLDivElement>(null);
 
+  // ONE virtualizer instance shared by both presentations. Do NOT swap to
+  // CSS-only hiding of one of them: measureElement on display:none rows
+  // returns 0 heights and corrupts the offset math (review R6).
   // eslint-disable-next-line react-hooks/incompatible-library -- useVirtualizer returns a mutable instance; no compatible alternative exists
   const rowVirtualizer = useVirtualizer({
     count: transactions?.length ?? 0,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 73, // Initial estimate; real heights measured below
+    // Initial estimates; real heights measured below
+    estimateSize: () => (presentation === "cards" ? 84 : 73),
     overscan: 5, // Render 5 extra items above/below visible area
     // Measure actual row heights so rows with a notes line (two-line cells)
-    // don't overlap or leave gaps against the fixed 73px estimate (UI-08)
+    // don't overlap or leave gaps against the fixed estimate (UI-08)
     measureElement:
       typeof window !== "undefined" && navigator.userAgent.indexOf("Firefox") === -1
         ? (el) => el?.getBoundingClientRect().height
         : undefined,
   });
+
+  // Row heights differ between table rows and cards, so cached measurements
+  // from the previous mode would corrupt positioning after a switch.
+  // measure() drops the measurements cache; the scroll container below is
+  // also keyed by mode so the virtualizer re-observes a fresh element.
+  useEffect(() => {
+    rowVirtualizer.measure();
+  }, [presentation, rowVirtualizer]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked && transactions) {
@@ -140,37 +175,20 @@ export function TransactionList({ filters, onEdit }: Props) {
     }
   };
 
-  const handleDelete = async (id: string, description: string, isTransferLeg: boolean) => {
-    const confirmMessage = isTransferLeg
-      ? `Delete transfer "${description}"?\n\nBoth sides of this transfer will be deleted to keep account balances consistent.`
-      : `Delete transaction "${description}"?\n\nThis will also reverse any debt payments linked to this transaction.`;
-    if (window.confirm(confirmMessage)) {
-      try {
-        // Reverse debt payment FIRST (if linked)
-        const reversalResult = await handleTransactionDelete({ transaction_id: id });
-
-        // Then delete transaction
-        await deleteTransaction.mutateAsync(id);
-
-        // Invalidate debt queries if payment was reversed
-        if (reversalResult) {
-          queryClient.invalidateQueries({ queryKey: ["debts"] });
-          queryClient.invalidateQueries({ queryKey: ["debt-balance"] });
-          toast.success("Transaction deleted and debt balance restored");
-        } else {
-          toast.success("Transaction deleted");
-        }
-      } catch (error) {
-        console.error("Failed to delete:", error);
-        toast.error(error instanceof Error ? error.message : "Failed to delete transaction");
-      }
-    }
-  };
+  const handleDelete = (id: string, description: string, isTransferLeg: boolean) =>
+    // Shared with the detail sheet's Delete button (review R38)
+    confirmAndDeleteTransaction({
+      id,
+      description,
+      isTransferLeg,
+      deleteTransaction: deleteTransaction.mutateAsync,
+      queryClient,
+    });
 
   // Enhanced loading state with spinner
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card p-8">
+      <div ref={containerRef} className="rounded-lg border bg-card p-8">
         <div className="flex items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         </div>
@@ -183,7 +201,7 @@ export function TransactionList({ filters, onEdit }: Props) {
     const hasFilters = hasActiveTransactionFilters(filters);
 
     return (
-      <div className="rounded-lg border bg-card p-12 text-center">
+      <div ref={containerRef} className="rounded-lg border bg-card p-12 text-center">
         <p className="text-lg font-medium text-muted-foreground">
           {hasFilters ? "No transactions match your filters" : "No transactions yet"}
         </p>
@@ -204,8 +222,18 @@ export function TransactionList({ filters, onEdit }: Props) {
   const hasSelection = selectedIds.size > 0;
   const allSelected = transactions && selectedIds.size === transactions.length;
 
+  // Keyboard access for tappable rows/cards. Guarded to the row element
+  // itself so Enter on an inner control doesn't double-fire through bubbling.
+  const handleRowKeyDown = (id: string) => (e: ReactKeyboardEvent<HTMLElement>) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onEdit(id);
+    }
+  };
+
   return (
-    <div className="space-y-4">
+    <div ref={containerRef} className="space-y-4">
       {/* Bulk Actions Toolbar */}
       {hasSelection && (
         <div className="rounded-lg border bg-muted/50 p-3">
@@ -239,41 +267,202 @@ export function TransactionList({ filters, onEdit }: Props) {
         </div>
       )}
 
-      <div className="rounded-lg border bg-card overflow-x-auto">
-        {/* Fixed table header */}
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[50px]">
-                <Checkbox
-                  checked={allSelected}
-                  onCheckedChange={handleSelectAll}
-                  aria-label="Select all"
-                />
-              </TableHead>
-              <TableHead className="w-[100px]">Date</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="hidden md:table-cell">Category</TableHead>
-              <TableHead className="hidden lg:table-cell">Account</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead className="hidden sm:table-cell">Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-        </Table>
+      <div className={cn(presentation === "table" && "rounded-lg border bg-card overflow-x-auto")}>
+        {presentation === "table" ? (
+          /* Fixed table header */
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[50px]">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Select all"
+                  />
+                </TableHead>
+                <TableHead className="w-[100px]">Date</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="hidden md:table-cell">Category</TableHead>
+                <TableHead className="hidden lg:table-cell">Account</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="hidden sm:table-cell">Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+          </Table>
+        ) : (
+          /* Card-mode select-all keeps bulk actions reachable (review R6) */
+          <div className="flex items-center gap-3 px-3 pb-2">
+            <Checkbox
+              checked={allSelected}
+              onCheckedChange={handleSelectAll}
+              aria-label="Select all"
+            />
+            <span className="text-sm text-muted-foreground">Select all</span>
+          </div>
+        )}
 
         {/* Virtualized scrollable body. Fills the available viewport height
             instead of a hardcoded 600px cap, so the tall triple-column layout
-            isn't wasted (UI-08); shrinks to content when the list is short. */}
+            isn't wasted (UI-08); shrinks to content when the list is short.
+            Keyed by presentation so a mode switch remounts the scroll element
+            (fresh observation + scroll reset) alongside the measure() reset. */}
         <div
+          key={presentation}
           ref={parentRef}
           className="overflow-auto"
           style={{
             height: `min(${rowVirtualizer.getTotalSize()}px, calc(100dvh - 16rem))`,
           }}
         >
-          <Table>
-            <TableBody
+          {presentation === "table" ? (
+            <Table>
+              <TableBody
+                style={{
+                  height: `${rowVirtualizer.getTotalSize()}px`,
+                  position: "relative",
+                }}
+              >
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const transaction = transactions[virtualRow.index];
+
+                  return (
+                    <TableRow
+                      key={transaction.id}
+                      data-index={virtualRow.index}
+                      data-testid="transaction-row"
+                      ref={rowVirtualizer.measureElement}
+                      // Whole row tappable: opens the detail pane / detail
+                      // sheet / edit form depending on the host (review R14)
+                      onClick={() => onEdit(transaction.id)}
+                      onKeyDown={handleRowKeyDown(transaction.id)}
+                      tabIndex={0}
+                      className="cursor-pointer"
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        // No fixed height: measureElement reads each row's real
+                        // height so notes rows get the space they need (UI-08)
+                        transform: `translateY(${virtualRow.start}px)`,
+                      }}
+                    >
+                      <TableCell className="w-[50px]">
+                        <Checkbox
+                          checked={selectedIds.has(transaction.id)}
+                          onCheckedChange={(checked: boolean) =>
+                            handleSelectOne(transaction.id, checked)
+                          }
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`Select ${transaction.description}`}
+                        />
+                      </TableCell>
+                      <TableCell className="font-mono text-sm w-[100px]">
+                        {format(parseISO(transaction.date), "MMM dd")}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium">{transaction.description}</div>
+                            {transaction.notes && (
+                              <div className="text-xs text-muted-foreground truncate max-w-xs">
+                                {transaction.notes}
+                              </div>
+                            )}
+                          </div>
+                          <SyncBadge
+                            status={rowSyncStatuses?.get(transaction.id) ?? "synced"}
+                            size="xs"
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {transaction.category ? (
+                          <Badge variant="outline">{transaction.category.name}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        {transaction.account ? (
+                          <span className="text-sm">{transaction.account.name}</span>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          "text-right font-mono",
+                          transaction.type === "income"
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-red-600 dark:text-red-400"
+                        )}
+                      >
+                        {transaction.type === "income" ? "+" : "-"}
+                        {formatPHP(transaction.amount_cents)}
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleStatus.mutate(transaction.id);
+                          }}
+                          className="h-8 w-8 p-0"
+                          aria-label={`Mark ${transaction.description} as ${
+                            transaction.status === "cleared" ? "pending" : "cleared"
+                          }`}
+                        >
+                          {transaction.status === "cleared" ? (
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <Circle className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              requestEdit(transaction.id);
+                            }}
+                            aria-label={`Edit ${transaction.description}`}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(
+                                transaction.id,
+                                transaction.description,
+                                !!transaction.transfer_group_id
+                              );
+                            }}
+                            aria-label={`Delete ${transaction.description}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          ) : (
+            /* Card list for narrow containers: description + meta on the
+               left, signed colored amount right, checkbox selection, sync
+               badge; the whole card is tappable (review R6). Follows the
+               RecentTransactions row pattern. */
+            <div
               style={{
                 height: `${rowVirtualizer.getTotalSize()}px`,
                 position: "relative",
@@ -283,121 +472,88 @@ export function TransactionList({ filters, onEdit }: Props) {
                 const transaction = transactions[virtualRow.index];
 
                 return (
-                  <TableRow
+                  <div
                     key={transaction.id}
                     data-index={virtualRow.index}
+                    data-testid="transaction-row"
                     ref={rowVirtualizer.measureElement}
+                    // Padding (not margin) so measureElement includes the gap
+                    className="pb-2"
                     style={{
                       position: "absolute",
                       top: 0,
                       left: 0,
                       width: "100%",
-                      // No fixed height: measureElement reads each row's real
-                      // height so notes rows get the space they need (UI-08)
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
                   >
-                    <TableCell className="w-[50px]">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => onEdit(transaction.id)}
+                      onKeyDown={handleRowKeyDown(transaction.id)}
+                      aria-label={`View ${transaction.description}`}
+                      className="flex cursor-pointer items-center gap-3 rounded-lg border bg-card p-3 active:bg-accent"
+                    >
                       <Checkbox
                         checked={selectedIds.has(transaction.id)}
                         onCheckedChange={(checked: boolean) =>
                           handleSelectOne(transaction.id, checked)
                         }
+                        onClick={(e) => e.stopPropagation()}
                         aria-label={`Select ${transaction.description}`}
                       />
-                    </TableCell>
-                    <TableCell className="font-mono text-sm w-[100px]">
-                      {format(parseISO(transaction.date), "MMM dd")}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium">{transaction.description}</div>
-                          {transaction.notes && (
-                            <div className="text-xs text-muted-foreground truncate max-w-xs">
-                              {transaction.notes}
-                            </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate font-medium">{transaction.description}</p>
+                          <SyncBadge
+                            status={rowSyncStatuses?.get(transaction.id) ?? "synced"}
+                            size="xs"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{format(parseISO(transaction.date), "MMM d")}</span>
+                          {transaction.category && (
+                            <>
+                              <span>•</span>
+                              <span className="truncate">{transaction.category.name}</span>
+                            </>
+                          )}
+                          {transaction.account && (
+                            <>
+                              <span>•</span>
+                              <span className="truncate">{transaction.account.name}</span>
+                            </>
                           )}
                         </div>
-                        <SyncBadge
-                          status={rowSyncStatuses?.get(transaction.id) ?? "synced"}
-                          size="xs"
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      {transaction.category ? (
-                        <Badge variant="outline">{transaction.category.name}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell">
-                      {transaction.account ? (
-                        <span className="text-sm">{transaction.account.name}</span>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        "text-right font-mono",
-                        transaction.type === "income"
-                          ? "text-green-600 dark:text-green-400"
-                          : "text-red-600 dark:text-red-400"
-                      )}
-                    >
-                      {transaction.type === "income" ? "+" : "-"}
-                      {formatPHP(transaction.amount_cents)}
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleStatus.mutate(transaction.id)}
-                        className="h-8 w-8 p-0"
-                        aria-label={`Mark ${transaction.description} as ${
-                          transaction.status === "cleared" ? "pending" : "cleared"
-                        }`}
-                      >
-                        {transaction.status === "cleared" ? (
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                        ) : (
-                          <Circle className="h-4 w-4 text-muted-foreground" />
+                        {transaction.notes && (
+                          <div className="truncate text-xs text-muted-foreground">
+                            {transaction.notes}
+                          </div>
                         )}
-                      </Button>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onEdit(transaction.id)}
-                          aria-label={`Edit ${transaction.description}`}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            handleDelete(
-                              transaction.id,
-                              transaction.description,
-                              !!transaction.transfer_group_id
-                            )
-                          }
-                          aria-label={`Delete ${transaction.description}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
+                      <div className="shrink-0 text-right">
+                        <p
+                          className={cn(
+                            "font-mono font-semibold",
+                            transaction.type === "income"
+                              ? "text-green-600 dark:text-green-400"
+                              : "text-red-600 dark:text-red-400"
+                          )}
+                        >
+                          {transaction.type === "income" ? "+" : "-"}
+                          {formatPHP(transaction.amount_cents)}
+                        </p>
+                        <p className="text-xs capitalize text-muted-foreground">
+                          {transaction.status}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 );
               })}
-            </TableBody>
-          </Table>
+            </div>
+          )}
         </div>
       </div>
     </div>

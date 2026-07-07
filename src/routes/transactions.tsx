@@ -6,13 +6,21 @@ import { TransactionList } from "@/components/TransactionList";
 import { TransactionFormDialog } from "@/components/TransactionFormDialog";
 import { TransactionFiltersPanel } from "@/components/TransactionFilters";
 import { useDebounce } from "@/hooks/useDebounce";
-import { useTransactions } from "@/lib/supabaseQueries";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useTransactions,
+  useToggleTransactionStatus,
+  useDeleteTransaction,
+} from "@/lib/supabaseQueries";
+import { confirmAndDeleteTransaction } from "@/lib/delete-transaction";
 import { usePrefetchTransactionData } from "@/hooks/usePrefetchTransactionData";
 import { useContainerNarrow } from "@/hooks/useContainerWidth";
 import { useSelectedItem } from "@/hooks/useSelectedItem";
 import { PageShell } from "@/components/layout/PageShell";
 import { TransactionDetailPane } from "@/components/transactions/TransactionDetailPane";
+import { TransactionDetailSheet } from "@/components/transactions/TransactionDetailSheet";
 import { TransactionFilterSheet } from "@/components/transactions/TransactionFilterSheet";
+import { formatPHP } from "@/lib/currency";
 import type { TransactionFilters } from "@/types/transactions";
 
 /**
@@ -48,7 +56,14 @@ function Transactions() {
   const navigate = Route.useNavigate();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Row tapped on a narrow layout: inspected read-only in a bottom sheet
+  const [inspectingId, setInspectingId] = useState<string | null>(null);
   const { selectedId, select, clear } = useSelectedItem({ paramKey: "selected" });
+  // Detail-sheet actions reuse the same mutation paths as the table's per-row
+  // buttons (review R38: card mode has no row-level Delete/status controls)
+  const toggleStatus = useToggleTransactionStatus();
+  const deleteTransaction = useDeleteTransaction();
+  const queryClient = useQueryClient();
   // Below the @[1500px] triple-column breakpoint the detail pane is hidden, so
   // row clicks open the edit modal instead. Measured on the page region (not
   // the viewport) so it agrees with PageShell's @container pane toggle even
@@ -86,8 +101,11 @@ function Transactions() {
 
   const handleRowClick = (id: string) => {
     if (isNarrow) {
-      setEditingId(id);
-      setIsFormOpen(true);
+      // No detail pane below @[1500px]: open a read-only bottom sheet with an
+      // explicit Edit button instead of jumping straight into the edit form
+      // (review R14/R38). Keyed off the container, not the viewport, so it
+      // agrees with PageShell's pane visibility (UI-05).
+      setInspectingId(id);
     } else {
       select(id);
     }
@@ -123,14 +141,34 @@ function Transactions() {
       <PageShell variant="triple">
         <PageShell.Main className="space-y-4">
           <div className="flex items-center justify-between gap-2">
-            <div className="text-sm text-muted-foreground">
-              {transactions?.length || 0} transaction{transactions?.length !== 1 ? "s" : ""}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
+              <span>
+                {transactions?.length || 0} transaction{transactions?.length !== 1 ? "s" : ""}
+              </span>
+              {/* Filtered In/Out totals are otherwise only visible in the
+                  @[1500px] detail pane's filter summary; surface them inline
+                  below that breakpoint (review R38) */}
+              <span className="@[1500px]:hidden font-mono tabular-nums text-green-600 dark:text-green-400">
+                In {formatPHP(filterSummary.totalIn)}
+              </span>
+              <span className="@[1500px]:hidden font-mono tabular-nums text-red-600 dark:text-red-400">
+                Out {formatPHP(filterSummary.totalOut)}
+              </span>
             </div>
             <div className="@[1100px]:hidden">
               <TransactionFilterSheet filters={search} onFiltersChange={updateFilters} />
             </div>
           </div>
-          <TransactionList filters={debouncedFilters} onEdit={handleRowClick} />
+          <TransactionList
+            filters={debouncedFilters}
+            onEdit={handleRowClick}
+            // The pencil is an explicit edit intent: skip the read-only sheet
+            // that narrow-layout row taps open and go straight to the form
+            onRequestEdit={(id) => {
+              setEditingId(id);
+              setIsFormOpen(true);
+            }}
+          />
         </PageShell.Main>
 
         <PageShell.LeftAside className="hidden @[1500px]:block">
@@ -153,6 +191,38 @@ function Transactions() {
       </PageShell>
 
       <TransactionFormDialog open={isFormOpen} onClose={handleClose} editingId={editingId} />
+
+      <TransactionDetailSheet
+        transactionId={inspectingId}
+        onClose={() => setInspectingId(null)}
+        onEdit={(id) => {
+          setInspectingId(null);
+          setEditingId(id);
+          setIsFormOpen(true);
+        }}
+        onDelete={(id) => {
+          const transaction = transactions?.find((t) => t.id === id);
+          void confirmAndDeleteTransaction({
+            id,
+            description: transaction?.description ?? "",
+            isTransferLeg: !!transaction?.transfer_group_id,
+            deleteTransaction: deleteTransaction.mutateAsync,
+            queryClient,
+          }).then((deleted) => {
+            if (deleted) setInspectingId(null);
+          });
+        }}
+        onToggleStatus={(id) => {
+          toggleStatus.mutate(id, {
+            onSuccess: () => {
+              // The toggle hook invalidates the list query; the open sheet
+              // reads ["transaction", id], so refresh that too — the sheet
+              // stays open and the button label flips to the new status
+              void queryClient.invalidateQueries({ queryKey: ["transaction", id] });
+            },
+          });
+        }}
+      />
     </div>
   );
 }

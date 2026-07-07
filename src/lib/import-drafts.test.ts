@@ -16,6 +16,7 @@ import {
   discardDraft,
   restoreDraft,
   restoreDrafts,
+  resolveCategoryName,
 } from "@/lib/import-drafts";
 import type { ParsedTransactionRow } from "@/types/pdf-import";
 
@@ -177,5 +178,35 @@ describe("Import draft discard/restore cycle", () => {
 
     expect((await db.importSessions.get(sessionId))?.discarded_count).toBe(0);
     expect((await db.importDrafts.get(drafts[0].id))?.draft_status).toBe("pending");
+  });
+});
+
+describe("resolveCategoryName", () => {
+  const categories = [
+    { id: "cat-food", name: "Food & Dining" },
+    { id: "cat-transport", name: "Transportation" },
+  ];
+
+  it("resolves the category name when the id is in the list", () => {
+    expect(resolveCategoryName("cat-food", categories)).toBe("Food & Dining");
+    expect(resolveCategoryName("cat-transport", categories)).toBe("Transportation");
+  });
+
+  it("returns null when the draft has no category", () => {
+    expect(resolveCategoryName(undefined, categories)).toBeNull();
+    expect(resolveCategoryName(null, categories)).toBeNull();
+    expect(resolveCategoryName("", categories)).toBeNull();
+  });
+
+  it("returns null when the id is not in the list (deleted category)", () => {
+    expect(resolveCategoryName("cat-gone", categories)).toBeNull();
+  });
+
+  it("returns null when categories are not loaded yet", () => {
+    expect(resolveCategoryName("cat-food", undefined)).toBeNull();
+  });
+
+  it("returns null for an empty category list", () => {
+    expect(resolveCategoryName("cat-food", [])).toBeNull();
   });
 });
