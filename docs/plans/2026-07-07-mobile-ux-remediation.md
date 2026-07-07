@@ -68,11 +68,11 @@ Branch: `mobile-ux-remediation`. Commit per verified phase.
 
 ## Phase 5 — Overlays & feedback (R7, R28, R37, R39, R41)
 
-- [ ] 5.1 UpdatePrompt → persistent sonner toast with Reload action; suppress install prompt while update pending (R7)
-- [ ] 5.2 SyncIssuesPanel width clamp + badge position + shadcn buttons (R28)
-- [ ] 5.3 `useHistoryBackClose` in sheet/dialog wrappers via router.history; TransactionFilterSheet → controlled; `useBlocker` on dirty transaction form (R37)
-- [ ] 5.4 AlertDialog component + swap 5 window.confirm sites; authStore confirm lifted to component layer (R39, decision 6)
-- [ ] 5.5 LoadingSpinner: `role="status"` + sr-only, used everywhere incl. AuthProvider; layout Skeletons for dashboard/transactions/accounts (R41)
+- [x] 5.1 UpdatePrompt → persistent sonner toast with Reload action; suppress install prompt while update pending (R7)
+- [x] 5.2 SyncIssuesPanel width clamp + badge position + shadcn buttons (R28)
+- [x] 5.3 `useHistoryBackClose` in sheet/dialog wrappers via router.history; TransactionFilterSheet → controlled; `useBlocker` on dirty transaction form (R37)
+- [x] 5.4 AlertDialog component + swap 5 window.confirm sites; authStore confirm lifted to component layer (R39, decision 6)
+- [x] 5.5 LoadingSpinner: `role="status"` + sr-only, used everywhere incl. AuthProvider; layout Skeletons for dashboard/transactions/accounts (R41)
 
 ## Phase 6 — Analytics & charts (R8, R18, R32, R33, R40, L)
 
@@ -81,7 +81,7 @@ Branch: `mobile-ux-remediation`. Commit per verified phase.
 - [ ] 6.3 Remove Card-in-Card double wrapping in AnalyticsDashboard (R32)
 - [ ] 6.4 Analytics tabs: text labels on phones + tabs-list height fix (R33)
 - [ ] 6.5 Semantic income/expense/warning color tokens + sweep ~73 usages (R40)
-- [ ] 6.6 Chart polish: shared cents-based axis tick formatter, structural chart skeletons, fix CategoryChart viewport `md:` → container query (L)
+- [ ] 6.6 Chart polish: shared cents-based axis tick formatter, structural chart skeletons, fix CategoryChart viewport `md:` → container query; swap the analytics raw spinners (analytics.tsx ×2, analytics/categories.tsx, CategoryAnalyticsContent.tsx) for LoadingSpinner/skeletons (deferred from 5.5) (L)
 - [ ] 6.7 DELETE dead chart components (decision 5); fix `/analytics/categories` missing `<Outlet>` + Total Spending flex-wrap (L)
 - [ ] 6.8 Category picker → Command combobox with search + Recents from Dexie (L)
 
