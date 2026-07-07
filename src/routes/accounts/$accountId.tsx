@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AccountBalance } from "@/components/AccountBalance";
 import { TransactionList } from "@/components/TransactionList";
+import { TransactionFormDialog } from "@/components/TransactionFormDialog";
 import { useAccountBalance } from "@/lib/supabaseQueries";
 import { formatPHP } from "@/lib/currency";
 
@@ -30,6 +32,18 @@ export const Route = createFileRoute("/accounts/$accountId")({
 function AccountDetailPage() {
   const { accountId } = Route.useParams();
   const { data: balance, isLoading } = useAccountBalance(accountId);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const handleEdit = (id: string) => {
+    setEditingId(id);
+    setIsFormOpen(true);
+  };
+
+  const handleCloseForm = () => {
+    setIsFormOpen(false);
+    setEditingId(null);
+  };
 
   if (isLoading) {
     return (
@@ -97,14 +111,10 @@ function AccountDetailPage() {
       {/* Transactions */}
       <main className="container mx-auto max-w-7xl px-4 py-8">
         <h2 className="text-lg font-semibold mb-4">Transactions</h2>
-        <TransactionList
-          filters={{ accountId }}
-          onEdit={(_id) => {
-            // TODO: Implement transaction editing (future chunk)
-            // Will open TransactionFormDialog with editingId={_id}
-          }}
-        />
+        <TransactionList filters={{ accountId }} onEdit={handleEdit} />
       </main>
+
+      <TransactionFormDialog open={isFormOpen} onClose={handleCloseForm} editingId={editingId} />
     </div>
   );
 }

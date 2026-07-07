@@ -11,17 +11,19 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { CategorySelector } from "@/components/ui/category-selector";
-import { parsePHP, formatPHP } from "@/lib/currency";
 import type { Budget } from "@/lib/supabaseQueries";
-
-const MAX_AMOUNT_CENTS = 999999999;
 
 const budgetSchema = z.object({
   categoryId: z.string().min(1, "Category is required"),
-  amount: z.string().min(1, "Amount is required"),
+  // Cents, validated numerically; CurrencyInput handles parsing/formatting
+  amount_cents: z
+    .number()
+    .int("Amount must be an integer")
+    .min(1, "Amount must be between ₱0.01 and ₱9,999,999.99")
+    .max(999999999, "Amount must be between ₱0.01 and ₱9,999,999.99"),
 });
 
 type BudgetFormData = z.infer<typeof budgetSchema>;
@@ -38,43 +40,35 @@ export function BudgetForm({ open, onClose, onSubmit, existingBudget }: Props) {
     resolver: zodResolver(budgetSchema),
     defaultValues: {
       categoryId: existingBudget?.categoryId || "",
-      amount: existingBudget ? formatPHP(existingBudget.budgetAmountCents).replace("₱", "") : "",
+      amount_cents: existingBudget?.budgetAmountCents ?? 0,
     },
   });
 
-  // Reset form when dialog closes
+  // Load the edited budget's values when the dialog opens (the component
+  // stays mounted between opens, so mount-time defaults are stale) and
+  // clear the form when it closes.
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      form.reset({
+        categoryId: existingBudget?.categoryId || "",
+        amount_cents: existingBudget?.budgetAmountCents ?? 0,
+      });
+    } else {
       form.reset({
         categoryId: "",
-        amount: "",
+        amount_cents: 0,
       });
     }
-  }, [open, form]);
+  }, [open, existingBudget, form]);
 
   const handleSubmit = (data: BudgetFormData) => {
-    try {
-      const amountCents = parsePHP(data.amount);
+    onSubmit({
+      categoryId: data.categoryId,
+      amountCents: data.amount_cents,
+    });
 
-      if (amountCents <= 0 || amountCents > MAX_AMOUNT_CENTS) {
-        form.setError("amount", {
-          message: "Amount must be between ₱0.01 and ₱9,999,999.99",
-        });
-        return;
-      }
-
-      onSubmit({
-        categoryId: data.categoryId,
-        amountCents,
-      });
-
-      form.reset();
-      onClose();
-    } catch {
-      form.setError("amount", {
-        message: "Invalid amount format",
-      });
-    }
+    form.reset();
+    onClose();
   };
 
   return (
@@ -108,15 +102,12 @@ export function BudgetForm({ open, onClose, onSubmit, existingBudget }: Props) {
             {/* Amount */}
             <FormField
               control={form.control}
-              name="amount"
+              name="amount_cents"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Budget Amount</FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <span className="absolute left-3 top-2.5 text-muted-foreground">₱</span>
-                      <Input {...field} type="text" placeholder="1,500.00" className="pl-7" />
-                    </div>
+                    <CurrencyInput {...field} placeholder="1,500.00" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

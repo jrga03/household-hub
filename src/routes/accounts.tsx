@@ -98,6 +98,10 @@ function Accounts() {
           {!accounts || accounts.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">No accounts yet</p>
+              <Button onClick={() => setIsFormOpen(true)} className="mt-4">
+                <Plus className="mr-2 h-4 w-4" />
+                Add your first account
+              </Button>
             </div>
           ) : isNarrow ? (
             <div className="grid gap-3">

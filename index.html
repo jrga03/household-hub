@@ -10,7 +10,11 @@
 
     <!-- PWA Meta Tags -->
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#1e40af" />
+    <!-- Paired metas cover the pre-hydration window via the system scheme;
+         ThemeColorSync rewrites both once the in-app theme resolves.
+         Colors match --background in src/index.css. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a0a0a" />
 
     <!-- iOS Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes" />

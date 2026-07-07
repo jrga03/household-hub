@@ -5,7 +5,7 @@ import { routeTree } from "./routeTree.gen";
 import { Toaster } from "@/components/ui/sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
-import { StorageWarning } from "@/components/StorageWarning";
+import { ThemeColorSync } from "@/components/ThemeColorSync";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { realtimeSync } from "@/lib/realtime-sync";
 import { eventCompactor } from "@/lib/event-compactor";
@@ -93,13 +93,12 @@ function App() {
         disableTransitionOnChange
         storageKey="household-hub-theme"
       >
-        <TooltipProvider>
-          {/* The single offline banner renders in AppLayout (sync/OfflineBanner) */}
+        {/* Keeps the browser-chrome theme-color meta in sync with the
+            resolved (in-app or system) theme */}
+        <ThemeColorSync />
 
-          {/* Storage quota warning (shows at 80%+ usage) */}
-          <div className="fixed top-16 left-4 right-4 z-40 md:left-auto md:w-96">
-            <StorageWarning />
-          </div>
+        <TooltipProvider>
+          {/* Offline + storage banners render in AppLayout's BannerStack */}
 
           <ErrorBoundary>
             <RouterProvider router={router} />

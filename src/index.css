@@ -145,12 +145,52 @@
       min-height: 44px;
       min-width: 44px;
     }
+
+    [data-slot="select-trigger"] {
+      min-height: 44px;
+    }
+
+    /* Menu/select rows share the same ~32px geometry; lift them to 44px */
+    [data-slot="select-item"],
+    [data-slot="dropdown-menu-item"],
+    [data-slot="dropdown-menu-checkbox-item"],
+    [data-slot="dropdown-menu-radio-item"],
+    [data-slot="dropdown-menu-sub-trigger"] {
+      min-height: 44px;
+    }
+
+    /* Expand checkbox/radio hit areas to ~44px without distorting the
+       16px visual (min-height would stretch the box itself) */
+    [data-slot="checkbox"],
+    [data-slot="radio-group-item"] {
+      position: relative;
+    }
+    [data-slot="checkbox"]::after,
+    [data-slot="radio-group-item"]::after {
+      content: "";
+      position: absolute;
+      inset: -14px;
+    }
   }
 
   /* Prevent sticky hover states on touch-only devices */
   @media (hover: none) and (pointer: coarse) {
     a, button, [role="button"] {
       transition-duration: 0s !important;
+    }
+  }
+
+  /* Respect Reduce Motion: collapse animations/transitions to near-zero.
+     Deliberately 0.01ms, NOT 0s - Radix animate-out waits on animationend,
+     which can fail to fire at exactly 0s. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
     }
   }
 }

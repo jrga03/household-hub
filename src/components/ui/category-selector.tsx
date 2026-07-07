@@ -27,7 +27,7 @@ export function CategorySelector({
   if (isLoading) {
     return (
       <Select disabled>
-        <SelectTrigger>
+        <SelectTrigger className="w-full">
           <SelectValue placeholder="Loading categories..." />
         </SelectTrigger>
       </Select>
@@ -36,7 +36,7 @@ export function CategorySelector({
 
   return (
     <Select value={value || undefined} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger>
+      <SelectTrigger className="w-full">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>

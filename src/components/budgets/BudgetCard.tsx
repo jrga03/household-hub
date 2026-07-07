@@ -22,10 +22,20 @@ export function BudgetCard({ budget, onEdit, onDelete }: Props) {
 
         {/* Actions */}
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={() => onEdit(budget)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onEdit(budget)}
+            aria-label={`Edit ${budget.categoryName} budget`}
+          >
             <Pencil className="h-3 w-3" />
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => onDelete(budget.id)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onDelete(budget.id)}
+            aria-label={`Delete ${budget.categoryName} budget`}
+          >
             <Trash2 className="h-3 w-3 text-red-600" />
           </Button>
         </div>

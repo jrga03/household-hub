@@ -100,7 +100,7 @@ export function FilterPanel({ onFilterChange, accounts, categories }: FilterPane
           <div className="space-y-2">
             <Label>Account</Label>
             <Select value={accountId} onValueChange={setAccountId}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="All accounts" />
               </SelectTrigger>
               <SelectContent>
@@ -118,7 +118,7 @@ export function FilterPanel({ onFilterChange, accounts, categories }: FilterPane
           <div className="space-y-2">
             <Label>Category</Label>
             <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="All categories" />
               </SelectTrigger>
               <SelectContent>
@@ -136,7 +136,7 @@ export function FilterPanel({ onFilterChange, accounts, categories }: FilterPane
           <div className="space-y-2">
             <Label>Type</Label>
             <Select value={type} onValueChange={(v) => setType(v as "income" | "expense" | "all")}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="All types" />
               </SelectTrigger>
               <SelectContent>

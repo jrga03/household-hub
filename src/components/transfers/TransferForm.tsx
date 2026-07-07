@@ -1,5 +1,6 @@
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { format } from "date-fns";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -18,7 +19,7 @@ const schema = z
   .object({
     from_account_id: z.string().min(1, "From account required"),
     to_account_id: z.string().min(1, "To account required"),
-    amount_cents: z.number().min(1, "Amount must be positive"),
+    amount_cents: z.number().min(1, "Amount must be positive").max(999999999, "Amount too large"),
     date: z.string(),
     description: z.string().optional(),
   })
@@ -45,7 +46,9 @@ export function TransferForm({
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      date: new Date().toISOString().split("T")[0],
+      // Local calendar day, NOT toISOString(): the UTC day is yesterday
+      // before 8am for UTC+8 users (mobile UX review R21).
+      date: format(new Date(), "yyyy-MM-dd"),
       amount_cents: 0,
     },
   });
@@ -71,7 +74,7 @@ export function TransferForm({
       });
       toast.success("Transfer created successfully");
       form.reset({
-        date: new Date().toISOString().split("T")[0],
+        date: format(new Date(), "yyyy-MM-dd"),
         amount_cents: 0,
       });
       onSuccess?.();
@@ -90,7 +93,7 @@ export function TransferForm({
           <div>
             <label className="text-sm font-medium">From Account</label>
             <Select onValueChange={field.onChange} value={field.value}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select account" />
               </SelectTrigger>
               <SelectContent>
@@ -115,7 +118,7 @@ export function TransferForm({
           <div>
             <label className="text-sm font-medium">To Account</label>
             <Select onValueChange={field.onChange} value={field.value}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select account" />
               </SelectTrigger>
               <SelectContent>

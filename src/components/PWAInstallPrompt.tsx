@@ -133,6 +133,7 @@ export function PWAInstallPrompt() {
                 size="icon"
                 className="size-11 -mr-2 -mt-2"
                 onClick={handleDismiss}
+                aria-label="Dismiss install prompt"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -190,6 +191,7 @@ export function PWAInstallPrompt() {
               size="icon"
               className="size-11 -mr-2 -mt-2"
               onClick={handleDismiss}
+              aria-label="Dismiss install prompt"
             >
               <X className="h-4 w-4" />
             </Button>

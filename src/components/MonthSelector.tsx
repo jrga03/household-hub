@@ -25,7 +25,7 @@ export function MonthSelector({ selectedMonth, onChange }: Props) {
 
   return (
     <div className="flex items-center gap-1 sm:gap-2">
-      <Button variant="outline" size="sm" onClick={handlePrevious}>
+      <Button variant="outline" size="sm" onClick={handlePrevious} aria-label="Previous month">
         <ChevronLeft className="h-4 w-4" />
       </Button>
 
@@ -37,12 +37,7 @@ export function MonthSelector({ selectedMonth, onChange }: Props) {
           {format(selectedMonth, "MMMM yyyy")}
         </span>
         {!isCurrentMonth && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleCurrent}
-            className="hidden sm:inline-flex"
-          >
+          <Button variant="ghost" size="sm" onClick={handleCurrent}>
             Current
           </Button>
         )}
@@ -53,6 +48,7 @@ export function MonthSelector({ selectedMonth, onChange }: Props) {
         size="sm"
         onClick={handleNext}
         disabled={format(addMonths(selectedMonth, 1), "yyyy-MM") > format(currentMonth, "yyyy-MM")}
+        aria-label="Next month"
       >
         <ChevronRight className="h-4 w-4" />
       </Button>

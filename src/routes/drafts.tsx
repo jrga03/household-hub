@@ -31,7 +31,14 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { db } from "@/lib/dexie/db";
-import { getPendingDrafts, updateDraft, discardDraft, confirmDrafts } from "@/lib/import-drafts";
+import {
+  getPendingDrafts,
+  updateDraft,
+  discardDraft,
+  restoreDraft,
+  restoreDrafts,
+  confirmDrafts,
+} from "@/lib/import-drafts";
 import { formatPHP } from "@/lib/currency";
 import { useAuthStore } from "@/stores/authStore";
 import type { ImportDraft } from "@/types/pdf-import";
@@ -97,16 +104,28 @@ function DraftsPage() {
       next.delete(id);
       return next;
     });
-    toast.success("Draft discarded");
+    // Discard is a soft status flip, so Undo just restores the draft to
+    // "pending" and decrements the session's discarded counter (review R2).
+    toast.success("Draft discarded", {
+      action: {
+        label: "Undo",
+        onClick: () => void restoreDraft(id),
+      },
+    });
   };
 
   const handleDiscardSelected = async () => {
-    const count = selected.size;
-    for (const id of selected) {
+    const ids = Array.from(selected);
+    for (const id of ids) {
       await discardDraft(id);
     }
     setSelected(new Set());
-    toast.success(`${count} draft${count !== 1 ? "s" : ""} discarded`);
+    toast.success(`${ids.length} draft${ids.length !== 1 ? "s" : ""} discarded`, {
+      action: {
+        label: "Undo",
+        onClick: () => void restoreDrafts(ids),
+      },
+    });
   };
 
   const handleConfirm = async (ids: string[]) => {
@@ -344,7 +363,12 @@ function DraftsPage() {
                             <TableCell className="hidden lg:table-cell" />
                             <TableCell className="hidden lg:table-cell" />
                             <TableCell>
-                              <Button size="sm" variant="ghost" onClick={saveEdit}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={saveEdit}
+                                aria-label="Save draft changes"
+                              >
                                 <Check className="h-3 w-3" />
                               </Button>
                             </TableCell>
@@ -386,13 +410,13 @@ function DraftsPage() {
                               {draft.source_file_name}
                             </TableCell>
                             <TableCell>
-                              <div className="flex gap-1">
+                              <div className="flex gap-2">
                                 <Button
                                   size="sm"
                                   variant="ghost"
                                   onClick={() => handleConfirm([draft.id])}
                                   disabled={isConfirming}
-                                  title="Confirm"
+                                  aria-label={`Confirm draft ${draft.description}`}
                                 >
                                   <Check className="h-3 w-3" />
                                 </Button>
@@ -400,7 +424,7 @@ function DraftsPage() {
                                   size="sm"
                                   variant="ghost"
                                   onClick={() => startEditing(draft)}
-                                  title="Edit"
+                                  aria-label={`Edit draft ${draft.description}`}
                                 >
                                   <Pencil className="h-3 w-3" />
                                 </Button>
@@ -408,9 +432,9 @@ function DraftsPage() {
                                   size="sm"
                                   variant="ghost"
                                   onClick={() => handleDiscard(draft.id)}
-                                  title="Discard"
+                                  aria-label={`Discard draft ${draft.description}`}
                                 >
-                                  <Trash2 className="h-3 w-3" />
+                                  <Trash2 className="h-3 w-3 text-destructive" />
                                 </Button>
                               </div>
                             </TableCell>

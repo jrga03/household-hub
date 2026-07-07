@@ -196,8 +196,9 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
                         to={item.to}
                         onClick={handleNavigation}
                         className={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+                          "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
                           "hover:bg-accent hover:text-accent-foreground",
+                          "active:bg-accent active:text-accent-foreground",
                           isActive && "bg-accent text-accent-foreground font-medium"
                         )}
                       >
@@ -224,8 +225,9 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
                 to="/settings"
                 onClick={handleNavigation}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+                  "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
                   "hover:bg-accent hover:text-accent-foreground",
+                  "active:bg-accent active:text-accent-foreground",
                   isActiveRoute("/settings") && "bg-accent text-accent-foreground font-medium"
                 )}
               >
@@ -240,7 +242,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
               <Separator className="mb-4" />
               <button
                 onClick={handleSignOut}
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+                className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground active:bg-accent active:text-accent-foreground"
               >
                 <LogOut className="h-5 w-5" />
                 <span className="flex-1 text-left">Sign Out</span>

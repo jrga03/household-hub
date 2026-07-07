@@ -30,7 +30,7 @@ export function UpdatePrompt() {
           <Button onClick={update} size="sm" className="flex-1">
             Reload Now
           </Button>
-          <Button onClick={dismiss} size="sm" variant="outline">
+          <Button onClick={dismiss} size="sm" variant="outline" aria-label="Dismiss update prompt">
             <X className="h-4 w-4" />
           </Button>
         </div>

@@ -191,6 +191,12 @@ export function TransactionFormDialog({
     try {
       const dateStr = format(data.date, "yyyy-MM-dd");
 
+      // Offline saves succeed locally (outbox) but won't reach the server
+      // until connectivity returns; say so instead of the normal copy so the
+      // user isn't surprised when the change is missing on another device.
+      const isOnline = navigator.onLine;
+      const offlineMessage = "Saved on this device, will sync when online";
+
       if (editingId) {
         // Update via offline-first path (includes debt handling)
         const result = await updateOfflineTransaction(
@@ -234,7 +240,7 @@ export function TransactionFormDialog({
           });
         }
 
-        toast.success("Transaction updated");
+        toast.success(isOnline ? "Transaction updated" : offlineMessage);
       } else {
         // Create via offline-first path (includes sync queue + debt handling)
         const result = await createOfflineTransaction(
@@ -258,7 +264,9 @@ export function TransactionFormDialog({
           throw new Error(result.error || "Failed to create transaction");
         }
 
-        if (data.debt_id || data.internal_debt_id) {
+        if (!isOnline) {
+          toast.success(offlineMessage);
+        } else if (data.debt_id || data.internal_debt_id) {
           const debtName = selectedDebt?.name || "debt";
           toast.success(`Transaction saved and payment applied to ${debtName}`);
         } else {
@@ -382,7 +390,7 @@ export function TransactionFormDialog({
           control={form.control}
           render={({ field }) => (
             <Select value={field.value || undefined} onValueChange={field.onChange}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select account" />
               </SelectTrigger>
               <SelectContent>
@@ -437,7 +445,7 @@ export function TransactionFormDialog({
                   onValueChange={(value) => field.onChange(value === "none" ? undefined : value)}
                   disabled={isTransfer}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select a debt (optional)" />
                   </SelectTrigger>
                   <SelectContent>
@@ -520,7 +528,7 @@ export function TransactionFormDialog({
               control={form.control}
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -540,7 +548,7 @@ export function TransactionFormDialog({
               control={form.control}
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

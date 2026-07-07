@@ -362,10 +362,14 @@ description: data.description || `Transfer between accounts`;
 
 ```typescript
 form.reset({
-  date: new Date().toISOString().split("T")[0],
+  date: format(new Date(), "yyyy-MM-dd"),
   amount_cents: 0,
 });
 ```
+
+> Note: this must use date-fns `format` (local calendar day). The earlier
+> `new Date().toISOString().split("T")[0]` snippet produced the UTC day,
+> which is yesterday before 8am for UTC+8 users.
 
 **Smart reset:**
 

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -13,8 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { ColorPicker } from "@/components/ui/color-picker";
 import { useCreateAccount, useUpdateAccount, useAccounts } from "@/lib/supabaseQueries";
-import { parsePHP, formatPHP, validateAmount } from "@/lib/currency";
 import { useAuthStore } from "@/stores/authStore";
 import { AccountType, AccountVisibility } from "@/types/accounts";
 import { toast } from "sonner";
@@ -22,19 +23,12 @@ import { toast } from "sonner";
 const accountSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
   type: z.enum(["bank", "investment", "credit_card", "cash", "e-wallet"]),
-  initial_balance: z.string().refine(
-    (val) => {
-      try {
-        const cents = parsePHP(val);
-        return validateAmount(cents);
-      } catch {
-        return false;
-      }
-    },
-    {
-      message: "Amount must be between ₱0.00 and ₱9,999,999.99",
-    }
-  ),
+  // Cents, validated numerically; CurrencyInput handles parsing/formatting
+  initial_balance_cents: z
+    .number()
+    .int("Amount must be an integer")
+    .min(0, "Amount must be between ₱0.00 and ₱9,999,999.99")
+    .max(999999999, "Amount must be between ₱0.00 and ₱9,999,999.99"),
   visibility: z.enum(["household", "personal"]),
   color: z.string().regex(/^#[0-9A-F]{6}$/i, "Invalid color"),
   icon: z.string().min(1),
@@ -56,17 +50,6 @@ const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: "investment", label: "Investment" },
 ];
 
-const COLORS = [
-  { value: "#3B82F6", label: "Blue" },
-  { value: "#10B981", label: "Green" },
-  { value: "#EF4444", label: "Red" },
-  { value: "#F59E0B", label: "Amber" },
-  { value: "#8B5CF6", label: "Purple" },
-  { value: "#EC4899", label: "Pink" },
-  { value: "#6B7280", label: "Gray" },
-  { value: "#14B8A6", label: "Teal" },
-];
-
 export function AccountFormDialog({ open, onClose, editingId }: Props) {
   const user = useAuthStore((state) => state.user);
   const { data: accounts } = useAccounts();
@@ -78,7 +61,7 @@ export function AccountFormDialog({ open, onClose, editingId }: Props) {
     defaultValues: {
       name: "",
       type: "bank",
-      initial_balance: "0.00",
+      initial_balance_cents: 0,
       visibility: "household",
       color: "#3B82F6",
       icon: "building-2",
@@ -98,9 +81,7 @@ export function AccountFormDialog({ open, onClose, editingId }: Props) {
         form.reset({
           name: account.name,
           type: account.type as AccountType,
-          initial_balance: formatPHP(account.initial_balance_cents ?? 0)
-            .replace("₱", "")
-            .replace(/,/g, ""),
+          initial_balance_cents: account.initial_balance_cents ?? 0,
           visibility: account.visibility as AccountVisibility,
           color: account.color ?? "#3B82F6",
           icon: account.icon ?? "building-2",
@@ -114,7 +95,7 @@ export function AccountFormDialog({ open, onClose, editingId }: Props) {
       const accountData = {
         name: data.name,
         type: data.type,
-        initial_balance_cents: parsePHP(data.initial_balance),
+        initial_balance_cents: data.initial_balance_cents,
         visibility: data.visibility,
         color: data.color,
         icon: data.icon,
@@ -176,7 +157,7 @@ export function AccountFormDialog({ open, onClose, editingId }: Props) {
               value={type}
               onValueChange={(value) => form.setValue("type", value as AccountType)}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -192,17 +173,13 @@ export function AccountFormDialog({ open, onClose, editingId }: Props) {
           {/* Initial Balance */}
           <div>
             <Label htmlFor="initial_balance">Initial Balance (PHP)</Label>
-            <Input
-              id="initial_balance"
-              {...form.register("initial_balance")}
-              placeholder="0.00"
-              type="text"
+            <Controller
+              name="initial_balance_cents"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <CurrencyInput id="initial_balance" {...field} error={fieldState.error?.message} />
+              )}
             />
-            {form.formState.errors.initial_balance && (
-              <p className="text-sm text-destructive mt-1">
-                {form.formState.errors.initial_balance.message}
-              </p>
-            )}
           </div>
 
           {/* Visibility */}
@@ -212,7 +189,7 @@ export function AccountFormDialog({ open, onClose, editingId }: Props) {
               value={visibility}
               onValueChange={(value) => form.setValue("visibility", value as AccountVisibility)}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -222,23 +199,14 @@ export function AccountFormDialog({ open, onClose, editingId }: Props) {
             </Select>
           </div>
 
-          {/* Color */}
+          {/* Color: shared picker (44px touch targets) instead of inline swatches */}
           <div>
             <Label>Color</Label>
-            <div className="flex gap-2 mt-2">
-              {COLORS.map((color) => (
-                <button
-                  key={color.value}
-                  type="button"
-                  onClick={() => form.setValue("color", color.value)}
-                  className={`w-8 h-8 rounded-full border-2 ${
-                    selectedColor === color.value ? "border-primary" : "border-transparent"
-                  }`}
-                  style={{ backgroundColor: color.value }}
-                  title={color.label}
-                  aria-label={`Select ${color.label} color`}
-                />
-              ))}
+            <div className="mt-2">
+              <ColorPicker
+                value={selectedColor}
+                onChange={(color) => form.setValue("color", color)}
+              />
             </div>
           </div>
 

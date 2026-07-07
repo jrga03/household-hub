@@ -32,7 +32,7 @@ export function SummaryCards({ summary }: Props) {
 
   return (
     <div className="@container">
-      <div className="grid gap-4 grid-cols-2 @[900px]:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 @[480px]:grid-cols-2 @[900px]:grid-cols-4">
         {/* Total Income */}
         <Card className="p-4 sm:p-6">
           <div className="flex items-start gap-2">
@@ -41,7 +41,7 @@ export function SummaryCards({ summary }: Props) {
             </div>
             <div className="min-w-0">
               <p className="text-xs sm:text-sm text-muted-foreground">Total Income</p>
-              <h3 className="text-lg sm:text-2xl font-bold font-mono truncate">
+              <h3 className="text-lg sm:text-2xl font-bold font-mono">
                 {formatPHP(summary.totalIncomeCents)}
               </h3>
             </div>
@@ -66,7 +66,7 @@ export function SummaryCards({ summary }: Props) {
             </div>
             <div className="min-w-0">
               <p className="text-xs sm:text-sm text-muted-foreground">Total Expenses</p>
-              <h3 className="text-lg sm:text-2xl font-bold font-mono truncate">
+              <h3 className="text-lg sm:text-2xl font-bold font-mono">
                 {formatPHP(summary.totalExpenseCents)}
               </h3>
             </div>
@@ -104,7 +104,7 @@ export function SummaryCards({ summary }: Props) {
             <div className="min-w-0">
               <p className="text-xs sm:text-sm text-muted-foreground">Net Amount</p>
               <h3
-                className={`text-lg sm:text-2xl font-bold font-mono truncate ${
+                className={`text-lg sm:text-2xl font-bold font-mono ${
                   summary.netAmountCents >= 0 ? "text-green-600" : "text-red-600"
                 }`}
               >
@@ -126,7 +126,7 @@ export function SummaryCards({ summary }: Props) {
             </div>
             <div className="min-w-0">
               <p className="text-xs sm:text-sm text-muted-foreground">Total Balance</p>
-              <h3 className="text-lg sm:text-2xl font-bold font-mono truncate">
+              <h3 className="text-lg sm:text-2xl font-bold font-mono">
                 {formatPHP(summary.totalBalanceCents)}
               </h3>
             </div>

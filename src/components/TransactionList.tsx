@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Edit, Trash2, CheckCircle, Circle, X } from "lucide-react";
+import { Edit, Trash2, CheckCircle, Circle, X, Plus } from "lucide-react";
 import {
   useTransactions,
   useToggleTransactionStatus,
@@ -29,6 +29,7 @@ import { SyncBadge } from "@/components/sync/SyncBadge";
 import { buildEntitySyncStatusMap } from "@/components/sync/queueBadgeStatus";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/dexie/db";
+import { useNavStore } from "@/stores/navStore";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -42,6 +43,7 @@ export function TransactionList({ filters, onEdit }: Props) {
   const setStatus = useSetTransactionStatus();
   const deleteTransaction = useDeleteTransaction();
   const queryClient = useQueryClient();
+  const setQuickAddOpen = useNavStore((state) => state.setQuickAddOpen);
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -185,10 +187,15 @@ export function TransactionList({ filters, onEdit }: Props) {
         <p className="text-lg font-medium text-muted-foreground">
           {hasFilters ? "No transactions match your filters" : "No transactions yet"}
         </p>
-        {hasFilters && (
+        {hasFilters ? (
           <p className="mt-2 text-sm text-muted-foreground">
             Try adjusting your filters or clear them to see all transactions
           </p>
+        ) : (
+          <Button onClick={() => setQuickAddOpen(true)} className="mt-4">
+            <Plus className="mr-2 h-4 w-4" />
+            Add your first transaction
+          </Button>
         )}
       </div>
     );
@@ -219,7 +226,12 @@ export function TransactionList({ filters, onEdit }: Props) {
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
               </Button>
-              <Button variant="ghost" size="sm" onClick={clearSelection}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearSelection}
+                aria-label="Clear selection"
+              >
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -344,6 +356,9 @@ export function TransactionList({ filters, onEdit }: Props) {
                         size="sm"
                         onClick={() => toggleStatus.mutate(transaction.id)}
                         className="h-8 w-8 p-0"
+                        aria-label={`Mark ${transaction.description} as ${
+                          transaction.status === "cleared" ? "pending" : "cleared"
+                        }`}
                       >
                         {transaction.status === "cleared" ? (
                           <CheckCircle className="h-4 w-4 text-green-600" />
@@ -354,7 +369,12 @@ export function TransactionList({ filters, onEdit }: Props) {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => onEdit(transaction.id)}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onEdit(transaction.id)}
+                          aria-label={`Edit ${transaction.description}`}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
@@ -367,6 +387,7 @@ export function TransactionList({ filters, onEdit }: Props) {
                               !!transaction.transfer_group_id
                             )
                           }
+                          aria-label={`Delete ${transaction.description}`}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

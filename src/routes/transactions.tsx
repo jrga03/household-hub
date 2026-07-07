@@ -78,7 +78,10 @@ function Transactions() {
   };
 
   const updateFilters = (newFilters: TransactionFilters) => {
-    navigate({ search: (prev) => ({ ...prev, ...newFilters }) });
+    // replace: true so per-keystroke filter updates (e.g. typing in search)
+    // don't create a history entry each — back-gesture would otherwise replay
+    // every intermediate filter state (review R12).
+    navigate({ search: (prev) => ({ ...prev, ...newFilters }), replace: true });
   };
 
   const handleRowClick = (id: string) => {

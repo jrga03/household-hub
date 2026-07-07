@@ -27,7 +27,7 @@ export default defineConfig({
         name: "Household Hub - Financial Tracker",
         short_name: "HouseholdHub",
         description: "Offline-first household financial tracker",
-        theme_color: "#1e40af",
+        theme_color: "#ffffff",
         background_color: "#ffffff",
         display: "standalone",
         display_override: ["window-controls-overlay", "standalone", "minimal-ui"],

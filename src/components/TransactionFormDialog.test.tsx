@@ -5,11 +5,13 @@
  * - "More options" disclosure hides low-frequency sections by default,
  *   reveals on toggle, and auto-expands when an edited transaction has
  *   non-default values in the collapsed sections
+ * - offline saves toast "saved on this device" instead of the online copy
  */
 
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { TransactionFormDialog } from "./TransactionFormDialog";
 import { createOfflineTransaction, updateOfflineTransaction } from "@/lib/offline/transactions";
 import type { TransactionWithRelations } from "@/types/transactions";
@@ -59,6 +61,18 @@ vi.mock("@/lib/sync/processor", () => ({
   syncProcessor: { processQueue: vi.fn().mockResolvedValue(undefined) },
 }));
 
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn() },
+}));
+
+/** Override the jsdom Navigator.prototype.onLine getter for one test. */
+function setNavigatorOnLine(onLine: boolean) {
+  Object.defineProperty(window.navigator, "onLine", {
+    value: onLine,
+    configurable: true,
+  });
+}
+
 function renderDialog(props: Partial<Parameters<typeof TransactionFormDialog>[0]> = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -103,6 +117,23 @@ beforeEach(() => {
   mockUseTransaction.mockReturnValue({ data: undefined });
   mockIsMobile.mockReturnValue(false);
 });
+
+afterEach(() => {
+  // Remove any per-test own-property override so the prototype getter
+  // (always true in jsdom) is visible again
+  Reflect.deleteProperty(window.navigator, "onLine");
+});
+
+/** Fill the two required fields so submit passes validation. */
+function fillRequiredFields() {
+  const amount = screen.getByLabelText("Amount in Philippine Pesos");
+  fireEvent.focus(amount);
+  fireEvent.change(amount, { target: { value: "100" } });
+  fireEvent.blur(amount);
+  fireEvent.change(screen.getByLabelText("Description"), {
+    target: { value: "Groceries at SM" },
+  });
+}
 
 describe("TransactionFormDialog", () => {
   it("renders a centered Dialog on desktop", () => {
@@ -208,6 +239,69 @@ describe("TransactionFormDialog", () => {
     });
     expect(screen.getByText("Notes too long")).toBeInTheDocument();
     expect(createOfflineTransaction).not.toHaveBeenCalled();
+  });
+
+  it("blocks submit with the max-amount error when the typed amount exceeds the maximum", async () => {
+    renderDialog();
+
+    // ₱99,999,999 exceeds MAX_AMOUNT_CENTS (₱9,999,999.99). The over-max
+    // cents must be committed to form state so zod's .max() blocks submit —
+    // previously the last parseable prefix (₱9,999,999) stayed committed and
+    // submit silently saved a wrong amount.
+    const amount = screen.getByLabelText("Amount in Philippine Pesos");
+    fireEvent.focus(amount);
+    fireEvent.change(amount, { target: { value: "99999999" } });
+    fireEvent.change(screen.getByLabelText("Description"), {
+      target: { value: "Groceries at SM" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /create/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Amount too large")).toBeInTheDocument();
+    });
+    expect(createOfflineTransaction).not.toHaveBeenCalled();
+  });
+
+  it("toasts the normal copy when creating while online", async () => {
+    vi.mocked(createOfflineTransaction).mockResolvedValue({ success: true, isTemporary: false });
+    renderDialog();
+
+    fillRequiredFields();
+    fireEvent.click(screen.getByRole("button", { name: /create/i }));
+
+    await waitFor(() => {
+      expect(createOfflineTransaction).toHaveBeenCalled();
+    });
+    expect(toast.success).toHaveBeenCalledWith("Transaction created");
+  });
+
+  it("toasts the offline copy when creating while offline", async () => {
+    setNavigatorOnLine(false);
+    vi.mocked(createOfflineTransaction).mockResolvedValue({ success: true, isTemporary: false });
+    renderDialog();
+
+    fillRequiredFields();
+    fireEvent.click(screen.getByRole("button", { name: /create/i }));
+
+    await waitFor(() => {
+      expect(createOfflineTransaction).toHaveBeenCalled();
+    });
+    expect(toast.success).toHaveBeenCalledWith("Saved on this device, will sync when online");
+  });
+
+  it("toasts the offline copy when updating while offline", async () => {
+    setNavigatorOnLine(false);
+    mockUseTransaction.mockReturnValue({ data: buildTransaction({}) });
+    vi.mocked(updateOfflineTransaction).mockResolvedValue({ success: true, isTemporary: true });
+    renderDialog({ editingId: "txn-1" });
+
+    fireEvent.click(screen.getByRole("button", { name: /update/i }));
+
+    await waitFor(() => {
+      expect(updateOfflineTransaction).toHaveBeenCalled();
+    });
+    expect(toast.success).toHaveBeenCalledWith("Saved on this device, will sync when online");
   });
 
   it("preserves the debt link when submitting an edit of a debt-linked transaction", async () => {

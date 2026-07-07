@@ -81,7 +81,7 @@ export function ColumnMapper({
               value={mapping[field.key]?.toString() || "none"}
               onValueChange={(value) => handleFieldChange(field.key, value)}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select column..." />
               </SelectTrigger>
               <SelectContent>

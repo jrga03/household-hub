@@ -21,8 +21,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
         info: <InfoIcon className="size-4" />,
         warning: <TriangleAlertIcon className="size-4" />,
         error: <OctagonXIcon className="size-4" />,
-        loading: <Loader2Icon className="size-4 animate-spin" />,
+        loading: <Loader2Icon className="size-4 motion-safe:animate-spin" />,
       }}
+      // Lift mobile toasts clear of the FAB and the iOS home-indicator zone
+      // (review R7); sonner's own mobile breakpoint is <=600px.
+      mobileOffset={{ bottom: "calc(6.5rem + var(--safe-area-bottom))" }}
       style={
         {
           "--normal-bg": "var(--popover)",
