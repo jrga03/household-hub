@@ -61,10 +61,10 @@ Branch: `mobile-ux-remediation`. Commit per verified phase.
 
 ## Phase 4 — Lists & tables on mobile (R6, R14+R38, R36, R24)
 
-- [ ] 4.1 TransactionList card list below container breakpoint (shared virtualizer, RecentTransactions row pattern) (R6)
-- [ ] 4.2 Row tap → read-only bottom Sheet with Edit button (narrow) / detail pane (wide); export TransactionDetailContent; filtered In/Out totals on narrow (R14, R38)
-- [ ] 4.3 Drafts: stacked card list below container breakpoint + bottom Sheet edit; fix read-mode category "-" (R36)
-- [ ] 4.4 ColumnMapper/DuplicateResolver/PreviewStep stack at phone width (R24)
+- [x] 4.1 TransactionList card list below container breakpoint (shared virtualizer, RecentTransactions row pattern) (R6)
+- [x] 4.2 Row tap → read-only bottom Sheet with Edit button (narrow) / detail pane (wide); export TransactionDetailContent; filtered In/Out totals on narrow (R14, R38)
+- [x] 4.3 Drafts: stacked card list below container breakpoint + bottom Sheet edit; fix read-mode category "-" (R36)
+- [x] 4.4 ColumnMapper/DuplicateResolver/PreviewStep stack at phone width (R24)
 
 ## Phase 5 — Overlays & feedback (R7, R28, R37, R39, R41)
 
@@ -100,3 +100,9 @@ Branch: `mobile-ux-remediation`. Commit per verified phase.
 - [ ] 8.1 Fixed bottom tab bar (Dashboard/Transactions/Budgets/Accounts), prefix-matched active state, safe-area padding; consolidate main bottom padding; reposition FAB (R42)
 - [ ] 8.2 iOS splash screens via pwa-asset-generator `--dark-mode` (L)
 - [ ] 8.3 PWA install prompt: iPad detection + FxiOS copy + timer cleanup (L)
+
+## Phase 9 — Final verification (before merge)
+
+- [ ] 9.1 Browser smoke pass at phone width: transactions table/card mode flip across 640px, detail sheet actions, drafts sheet edit, PDF preview cards, FAB quick-add, sync surfaces, banner stacking (jsdom cannot cover virtualizer layout or sheet rendering)
+- [ ] 9.2 Regenerate tests/e2e/layout-baseline.spec.ts screenshot snapshots (visual changes across phases 2-8)
+- [ ] 9.3 Run the E2E suite against the local Supabase stack (start stack manually per Known Infrastructure Issues)
