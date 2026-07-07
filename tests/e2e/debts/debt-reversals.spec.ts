@@ -75,6 +75,8 @@ test.describe("Debt Payment Reversals", () => {
       await page.fill('[name="amount"]', "500.00");
       await page.selectOption('[name="type"]', "expense");
 
+      // Debt link lives behind the "More options" disclosure
+      await page.click('button:has-text("More options")');
       const debtSelector = page.locator('select[name="debt_id"]');
       if (await debtSelector.isVisible({ timeout: 1000 })) {
         await debtSelector.selectOption({ index: 1 });
@@ -168,6 +170,8 @@ test.describe("Debt Payment Reversals", () => {
       await page.fill('[name="amount"]', "300.00");
       await page.selectOption('[name="type"]', "expense");
 
+      // Debt link lives behind the "More options" disclosure
+      await page.click('button:has-text("More options")');
       const debtSelector = page.locator('select[name="debt_id"]');
       if (await debtSelector.isVisible({ timeout: 1000 })) {
         await debtSelector.selectOption({ index: 1 });
@@ -291,6 +295,8 @@ test.describe("Debt Payment Reversals", () => {
       await page.fill('[name="amount"]', "500.00");
       await page.selectOption('[name="type"]', "expense");
 
+      // Debt link lives behind the "More options" disclosure
+      await page.click('button:has-text("More options")');
       const debtSelector = page.locator('select[name="debt_id"]');
       if (await debtSelector.isVisible({ timeout: 1000 })) {
         await debtSelector.selectOption({ index: 1 });
@@ -332,6 +338,8 @@ test.describe("Debt Payment Reversals", () => {
       await page.fill('[name="amount"]', "200.00");
       await page.selectOption('[name="type"]', "expense");
 
+      // Debt link lives behind the "More options" disclosure
+      await page.click('button:has-text("More options")');
       const debtSelector = page.locator('select[name="debt_id"]');
       if (await debtSelector.isVisible({ timeout: 1000 })) {
         await debtSelector.selectOption({ index: 1 });
@@ -350,6 +358,12 @@ test.describe("Debt Payment Reversals", () => {
     await page.click('button:has-text("Edit")');
 
     // Remove debt link (select "None" option)
+    // Debt link lives behind the "More options" disclosure; when editing a
+    // debt-linked transaction it auto-expands, so only expand if collapsed
+    const moreOptions = page.locator('button:has-text("More options")');
+    if ((await moreOptions.getAttribute("aria-expanded")) === "false") {
+      await moreOptions.click();
+    }
     const debtSelector = page.locator('select[name="debt_id"]');
 
     if (await debtSelector.isVisible({ timeout: 1000 })) {

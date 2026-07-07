@@ -37,8 +37,9 @@ export interface TransactionInput {
   notes?: string;
   tagged_user_ids?: string[];
   transfer_group_id?: string | null;
-  debt_id?: string;
-  internal_debt_id?: string;
+  // null = explicit unlink on update; undefined/omitted = leave unchanged
+  debt_id?: string | null;
+  internal_debt_id?: string | null;
   import_key?: string;
 }
 

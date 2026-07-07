@@ -112,8 +112,8 @@ export async function createOfflineTransaction(
           transaction_id: id,
           amount_cents: input.amount_cents,
           payment_date: input.date,
-          debt_id: input.debt_id,
-          internal_debt_id: input.internal_debt_id,
+          debt_id: input.debt_id ?? undefined,
+          internal_debt_id: input.internal_debt_id ?? undefined,
           household_id: DEFAULT_HOUSEHOLD_ID,
         });
       } catch (error) {
@@ -192,6 +192,15 @@ export async function updateOfflineTransaction(
         updates.transfer_group_id === null
           ? undefined
           : (updates.transfer_group_id ?? existing.transfer_group_id),
+      // Debt links follow the same null-vs-undefined contract: an omitted or
+      // undefined key preserves the existing link (e.g. a partial update that
+      // never touched the debt fields), while an explicit null clears it
+      // (the form's "None" option sends null to intentionally unlink).
+      debt_id: updates.debt_id === null ? undefined : (updates.debt_id ?? existing.debt_id),
+      internal_debt_id:
+        updates.internal_debt_id === null
+          ? undefined
+          : (updates.internal_debt_id ?? existing.internal_debt_id),
       tagged_user_ids: updates.tagged_user_ids ?? existing.tagged_user_ids,
       updated_at: new Date().toISOString(),
     };

@@ -22,6 +22,7 @@ import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BudgetsIndexRouteImport } from './routes/budgets/index'
+import { Route as TransactionsNewRouteImport } from './routes/transactions.new'
 import { Route as ImportPdfRouteImport } from './routes/import/pdf'
 import { Route as AnalyticsCategoriesRouteImport } from './routes/analytics/categories'
 import { Route as AccountsAccountIdRouteImport } from './routes/accounts/$accountId'
@@ -91,6 +92,11 @@ const BudgetsIndexRoute = BudgetsIndexRouteImport.update({
   path: '/budgets/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TransactionsNewRoute = TransactionsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => TransactionsRoute,
+} as any)
 const ImportPdfRoute = ImportPdfRouteImport.update({
   id: '/pdf',
   path: '/pdf',
@@ -118,11 +124,12 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
-  '/transactions': typeof TransactionsRoute
+  '/transactions': typeof TransactionsRouteWithChildren
   '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRoute
   '/analytics/categories': typeof AnalyticsCategoriesRoute
   '/import/pdf': typeof ImportPdfRoute
+  '/transactions/new': typeof TransactionsNewRoute
   '/budgets': typeof BudgetsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -136,11 +143,12 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
-  '/transactions': typeof TransactionsRoute
+  '/transactions': typeof TransactionsRouteWithChildren
   '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRoute
   '/analytics/categories': typeof AnalyticsCategoriesRoute
   '/import/pdf': typeof ImportPdfRoute
+  '/transactions/new': typeof TransactionsNewRoute
   '/budgets': typeof BudgetsIndexRoute
 }
 export interface FileRoutesById {
@@ -155,11 +163,12 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
-  '/transactions': typeof TransactionsRoute
+  '/transactions': typeof TransactionsRouteWithChildren
   '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRoute
   '/analytics/categories': typeof AnalyticsCategoriesRoute
   '/import/pdf': typeof ImportPdfRoute
+  '/transactions/new': typeof TransactionsNewRoute
   '/budgets/': typeof BudgetsIndexRoute
 }
 export interface FileRouteTypes {
@@ -180,6 +189,7 @@ export interface FileRouteTypes {
     | '/accounts/$accountId'
     | '/analytics/categories'
     | '/import/pdf'
+    | '/transactions/new'
     | '/budgets'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -198,6 +208,7 @@ export interface FileRouteTypes {
     | '/accounts/$accountId'
     | '/analytics/categories'
     | '/import/pdf'
+    | '/transactions/new'
     | '/budgets'
   id:
     | '__root__'
@@ -216,6 +227,7 @@ export interface FileRouteTypes {
     | '/accounts/$accountId'
     | '/analytics/categories'
     | '/import/pdf'
+    | '/transactions/new'
     | '/budgets/'
   fileRoutesById: FileRoutesById
 }
@@ -230,7 +242,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
-  TransactionsRoute: typeof TransactionsRoute
+  TransactionsRoute: typeof TransactionsRouteWithChildren
   TransfersRoute: typeof TransfersRoute
   BudgetsIndexRoute: typeof BudgetsIndexRoute
 }
@@ -328,6 +340,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BudgetsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/transactions/new': {
+      id: '/transactions/new'
+      path: '/new'
+      fullPath: '/transactions/new'
+      preLoaderRoute: typeof TransactionsNewRouteImport
+      parentRoute: typeof TransactionsRoute
+    }
     '/import/pdf': {
       id: '/import/pdf'
       path: '/pdf'
@@ -387,6 +406,18 @@ const ImportRouteChildren: ImportRouteChildren = {
 const ImportRouteWithChildren =
   ImportRoute._addFileChildren(ImportRouteChildren)
 
+interface TransactionsRouteChildren {
+  TransactionsNewRoute: typeof TransactionsNewRoute
+}
+
+const TransactionsRouteChildren: TransactionsRouteChildren = {
+  TransactionsNewRoute: TransactionsNewRoute,
+}
+
+const TransactionsRouteWithChildren = TransactionsRoute._addFileChildren(
+  TransactionsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountsRoute: AccountsRouteWithChildren,
@@ -398,7 +429,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,
-  TransactionsRoute: TransactionsRoute,
+  TransactionsRoute: TransactionsRouteWithChildren,
   TransfersRoute: TransfersRoute,
   BudgetsIndexRoute: BudgetsIndexRoute,
 }

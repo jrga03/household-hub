@@ -119,7 +119,7 @@ export function AppLayout() {
         {/* Floating Action Button */}
         <QuickActionButton />
 
-        {/* Quick-add dialog (sidebar/drawer CTAs and shortcuts drive navStore) */}
+        {/* Quick-add dialog (FAB, drawer CTA, and shortcuts drive navStore) */}
         <QuickAddTransactionDialog />
 
         {/* PWA Installation Prompt */}
@@ -186,9 +186,10 @@ export function AppLayout() {
 }
 
 /**
- * Single consumer of navStore.quickAddOpen. The sidebar "Add Transaction"
- * button, the mobile drawer CTA, and keyboard shortcuts all set the flag;
- * this renders the dialog for whichever layout branch is mounted.
+ * Single consumer of navStore.quickAddOpen. The mobile FAB, the sidebar
+ * "Add Transaction" button, the mobile drawer CTA, keyboard shortcuts, and
+ * the /transactions/new manifest-shortcut route all set the flag; this
+ * renders the dialog for whichever layout branch is mounted.
  *
  * Mounted conditionally because TransactionFormDialog fetches data on mount.
  */
