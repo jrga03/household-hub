@@ -56,6 +56,8 @@ function Transactions() {
   const navigate = Route.useNavigate();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Controlled so the Sheet wrapper's back-gesture handling can close it (R37)
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   // Row tapped on a narrow layout: inspected read-only in a bottom sheet
   const [inspectingId, setInspectingId] = useState<string | null>(null);
   const { selectedId, select, clear } = useSelectedItem({ paramKey: "selected" });
@@ -156,7 +158,12 @@ function Transactions() {
               </span>
             </div>
             <div className="@[1100px]:hidden">
-              <TransactionFilterSheet filters={search} onFiltersChange={updateFilters} />
+              <TransactionFilterSheet
+                filters={search}
+                onFiltersChange={updateFilters}
+                open={isFilterSheetOpen}
+                onOpenChange={setIsFilterSheetOpen}
+              />
             </div>
           </div>
           <TransactionList

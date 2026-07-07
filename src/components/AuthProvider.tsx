@@ -1,5 +1,7 @@
 import { useEffect, ReactNode } from "react";
 import { useAuthStore } from "@/stores/authStore";
+import { LoadingScreen } from "@/components/LoadingScreen";
+import { ConfirmDialogHost } from "@/components/ConfirmDialog";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const initialize = useAuthStore((state) => state.initialize);
@@ -9,16 +11,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initialize();
   }, [initialize]);
 
+  // Branded, screen-reader-announced boot screen (review R41): every app
+  // boot passes through here, so it must not be a silent unlabeled spinner
   if (!initialized) {
-    return (
-      <div className="flex min-h-dvh items-center justify-center">
-        <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="mt-4 text-sm text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      {/* Single app-level host for the imperative confirm() AlertDialog
+          (review R39). Dark mode is class-based on <html>, so rendering
+          above App's ThemeProvider is fine. */}
+      <ConfirmDialogHost />
+    </>
+  );
 }

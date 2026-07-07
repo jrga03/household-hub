@@ -15,6 +15,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TransactionList } from "./TransactionList";
+import { confirm } from "@/lib/confirm";
 import { formatPHP } from "@/lib/currency";
 import type { TransactionWithRelations } from "@/types/transactions";
 
@@ -44,6 +45,12 @@ vi.mock("dexie-react-hooks", () => ({
 
 vi.mock("@/lib/debts", () => ({
   handleTransactionDelete: vi.fn(),
+}));
+
+// Destructive confirms go through the app-level AlertDialog mechanism
+// (@/lib/confirm, review R39); the host isn't mounted here, so mock it
+vi.mock("@/lib/confirm", () => ({
+  confirm: vi.fn().mockResolvedValue(false),
 }));
 
 vi.mock("@/stores/navStore", () => ({
@@ -184,7 +191,6 @@ describe("row/card tap semantics (R14)", () => {
   });
 
   it("stops propagation on the table row's inner controls", () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
     const onEdit = renderList();
 
     fireEvent.click(screen.getByLabelText("Select Groceries"));
@@ -195,7 +201,7 @@ describe("row/card tap semantics (R14)", () => {
     expect(onEdit).not.toHaveBeenCalled();
     // ... but they still did their own jobs
     expect(toggleMutate).toHaveBeenCalledWith("txn-1");
-    expect(confirmSpy).toHaveBeenCalled();
+    expect(vi.mocked(confirm)).toHaveBeenCalled();
     expect(screen.getByText("1 transaction selected")).toBeInTheDocument();
 
     // Without onRequestEdit the Edit pencil falls back to onEdit, exactly once

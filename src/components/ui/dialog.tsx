@@ -5,8 +5,15 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { XIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useHistoryBackClose } from "@/hooks/useHistoryBackClose";
 
 function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  // Hardware/gesture back closes an open dialog instead of navigating the
+  // route underneath (review R37). Only engages for CONTROLLED usage (`open`
+  // prop provided with an `onOpenChange` to close through); uncontrolled
+  // dialogs keep Radix's internal state and get no history handling.
+  const { open, onOpenChange } = props;
+  useHistoryBackClose(open === true && onOpenChange !== undefined, () => onOpenChange?.(false));
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
 

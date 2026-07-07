@@ -1,40 +1,68 @@
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Download, X } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { useServiceWorker } from "@/hooks/useServiceWorker";
+import { usePwaPromptStore } from "@/stores/pwaPromptStore";
 
 /**
- * UpdatePrompt component displays a notification when a new version of the app is available
+ * Stable toast id: repeated calls update the single toast in place instead of
+ * stacking duplicates, and lets us retract it when the update is dismissed.
+ */
+const UPDATE_TOAST_ID = "sw-update-available";
+
+/**
+ * UpdatePrompt - surfaces "new version available" as a persistent sonner toast
  *
- * Features:
- * - Fixed bottom position with responsive width
- * - Allows user to reload the app immediately or dismiss the prompt
- * - Uses shadcn/ui Alert component for consistent styling
+ * Renders null; all UI goes through the shared Toaster (which already handles
+ * mobile offsets and safe areas, review R7). Behavior:
+ * - Fires ONE persistent toast (duration: Infinity) per waiting service
+ *   worker: the effect is keyed on `needRefresh`, not on renders, and the
+ *   fixed toast id de-duplicates re-mounts.
+ * - "Reload" action runs the existing update/reload logic from
+ *   useServiceWorker (skipWaiting + controllerchange + reload).
+ * - Close button / dismissal clears the service worker's needRefresh flag.
+ * - Mirrors the pending state into pwaPromptStore so PWAInstallPrompt can
+ *   suppress its install card while an update is waiting.
  */
 export function UpdatePrompt() {
   const { needRefresh, update, dismiss } = useServiceWorker();
+  const setUpdatePending = usePwaPromptStore((state) => state.setUpdatePending);
 
-  if (!needRefresh) {
-    return null;
-  }
+  // update/dismiss are re-created by useServiceWorker on every render; hold
+  // the latest in refs (synced in a dep-less effect, per react-hooks/refs) so
+  // the toast effect depends only on needRefresh and cannot re-fire per render.
+  const updateRef = useRef(update);
+  const dismissRef = useRef(dismiss);
+  useEffect(() => {
+    updateRef.current = update;
+    dismissRef.current = dismiss;
+  });
 
-  return (
-    <div className="fixed bottom-[calc(1rem+var(--safe-area-bottom))] left-[calc(1rem+var(--safe-area-left))] right-[calc(1rem+var(--safe-area-right))] z-50 md:left-auto md:w-96">
-      <Alert>
-        <Download className="h-4 w-4" />
-        <AlertTitle>Update Available</AlertTitle>
-        <AlertDescription>
-          A new version of Household Hub is ready. Reload to get the latest features and fixes.
-        </AlertDescription>
-        <div className="col-start-2 mt-4 flex gap-2">
-          <Button onClick={update} size="sm" className="flex-1">
-            Reload Now
-          </Button>
-          <Button onClick={dismiss} size="sm" variant="outline" aria-label="Dismiss update prompt">
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      </Alert>
-    </div>
-  );
+  useEffect(() => {
+    setUpdatePending(needRefresh);
+
+    if (!needRefresh) {
+      // Waiting SW gone (update applied or dismissed elsewhere): retract the
+      // toast if it is still visible.
+      toast.dismiss(UPDATE_TOAST_ID);
+      return;
+    }
+
+    toast("Update available", {
+      id: UPDATE_TOAST_ID,
+      duration: Infinity,
+      closeButton: true,
+      description: "A new version of Household Hub is ready.",
+      action: {
+        label: "Reload",
+        onClick: () => {
+          void updateRef.current();
+        },
+      },
+      onDismiss: () => {
+        dismissRef.current();
+      },
+    });
+  }, [needRefresh, setUpdatePending]);
+
+  return null;
 }

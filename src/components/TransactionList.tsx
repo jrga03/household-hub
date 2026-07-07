@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Edit, Trash2, CheckCircle, Circle, X, Plus } from "lucide-react";
 import {
   useTransactions,
@@ -23,6 +24,7 @@ import { formatPHP } from "@/lib/currency";
 import { hasActiveTransactionFilters } from "@/lib/utils/filters";
 import type { TransactionFilters } from "@/types/transactions";
 import { toast } from "sonner";
+import { confirm } from "@/lib/confirm";
 import { handleTransactionDelete } from "@/lib/debts";
 import { confirmAndDeleteTransaction } from "@/lib/delete-transaction";
 import { useQueryClient } from "@tanstack/react-query";
@@ -134,13 +136,15 @@ export function TransactionList({ filters, onEdit, onRequestEdit }: Props) {
       (t) => selectedIds.has(t.id) && t.transfer_group_id
     );
     const transferNote = includesTransferLeg
-      ? "\n\nSome selections are transfers: deleting one side removes BOTH sides to keep balances consistent."
+      ? " Some selections are transfers: deleting one side removes BOTH sides to keep balances consistent."
       : "";
-    if (
-      window.confirm(
-        `Delete ${count} transaction${count > 1 ? "s" : ""}?\n\nThis will also reverse any debt payments linked to these transactions.${transferNote}`
-      )
-    ) {
+    const confirmed = await confirm({
+      title: `Delete ${count} transaction${count > 1 ? "s" : ""}?`,
+      description: `This will also reverse any debt payments linked to these transactions.${transferNote}`,
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (confirmed) {
       try {
         const promises = Array.from(selectedIds).map(async (id) => {
           // Reverse debt payment FIRST (if linked)
@@ -185,13 +189,44 @@ export function TransactionList({ filters, onEdit, onRequestEdit }: Props) {
       queryClient,
     });
 
-  // Enhanced loading state with spinner
+  // Loading state: skeleton rows shaped like the active presentation (cards
+  // on narrow containers, table rows on wide) so the layout doesn't jump when
+  // real rows arrive (review R41). containerRef stays attached so the
+  // container measurement keeps driving the presentation during loading.
   if (isLoading) {
     return (
-      <div ref={containerRef} className="rounded-lg border bg-card p-8">
-        <div className="flex items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        </div>
+      <div ref={containerRef} aria-busy="true">
+        <span role="status" className="sr-only">
+          Loading transactions
+        </span>
+        {presentation === "cards" ? (
+          <div className="space-y-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-lg border bg-card p-3">
+                <Skeleton className="size-4 rounded-[4px]" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-4 w-3/5" />
+                  <Skeleton className="h-3 w-2/5" />
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-3 w-12" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border bg-card">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 border-b px-4 py-4 last:border-b-0">
+                <Skeleton className="size-4 rounded-[4px]" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 max-w-xs flex-1" />
+                <Skeleton className="ml-auto h-4 w-24" />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }

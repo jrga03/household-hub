@@ -48,10 +48,14 @@ export function AppLayout() {
   // Enable keyboard shortcuts
   useKeyboardShortcuts();
 
-  // Track active route
+  // Track active route. Also a safety net for the nav drawer: close it on any
+  // pathname change — the drawer's own links close it via onClick, but
+  // programmatic navigations and back-gesture pops don't go through those
+  // handlers (review R37).
   useEffect(() => {
     setActiveRoute(router.location.pathname);
-  }, [router.location.pathname, setActiveRoute]);
+    setMobileNavOpen(false);
+  }, [router.location.pathname, setActiveRoute, setMobileNavOpen]);
 
   // Authentication is enforced BEFORE render by the root route's beforeLoad
   // guard (routes/__root.tsx); no effect-based redirects here (review UI-07)

@@ -18,6 +18,7 @@ import { useState, useEffect } from "react";
 import { X, Download, Share } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { usePwaPromptStore } from "@/stores/pwaPromptStore";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -34,6 +35,13 @@ const NEVER_SHOW_KEY = "pwa-install-never-show";
 export function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
+
+  // Coordination with the service-worker update toast (review R7): while an
+  // update is pending the install card is suppressed so the two prompts never
+  // compete for the same bottom slot. Suppression is render-only - the timers
+  // and dismissal bookkeeping below keep running, so the iOS 3s-delay and
+  // 7-day re-prompt behavior is preserved once the update clears.
+  const updatePending = usePwaPromptStore((state) => state.updatePending);
   const [isIOS] = useState(() => {
     return /iPad|iPhone|iPod/.test(navigator.userAgent);
   });
@@ -107,8 +115,9 @@ export function PWAInstallPrompt() {
     setShowPrompt(false);
   };
 
-  // Don't render if already installed or shouldn't show
-  if (isStandalone || !showPrompt) {
+  // Don't render if already installed, shouldn't show, or an app update is
+  // pending (the update toast owns the user's attention, review R7)
+  if (isStandalone || !showPrompt || updatePending) {
     return null;
   }
 

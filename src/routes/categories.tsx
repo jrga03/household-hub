@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCategoriesGrouped } from "@/lib/supabaseQueries";
+import { LoadingSpinner } from "@/components/LoadingScreen";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { useState } from "react";
@@ -19,8 +20,12 @@ function Categories() {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
-          <p className="mt-4 text-sm text-muted-foreground">Loading categories...</p>
+          <LoadingSpinner size="large" className="text-primary" label="Loading categories" />
+          {/* Visible text hidden from screen readers so the spinner's status
+              announcement isn't duplicated (review R41) */}
+          <p className="mt-4 text-sm text-muted-foreground" aria-hidden="true">
+            Loading categories...
+          </p>
         </div>
       </div>
     );

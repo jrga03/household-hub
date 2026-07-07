@@ -10,6 +10,7 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { LoadingSpinner } from "@/components/LoadingScreen";
 import { useLiveQuery } from "dexie-react-hooks";
 import { FileText, Check, CheckCheck, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
@@ -235,8 +236,12 @@ function DraftsPage() {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
-          <p className="mt-4 text-sm text-muted-foreground">Loading drafts...</p>
+          <LoadingSpinner size="large" className="text-primary" label="Loading drafts" />
+          {/* Visible text hidden from screen readers so the spinner's status
+              announcement isn't duplicated (review R41) */}
+          <p className="mt-4 text-sm text-muted-foreground" aria-hidden="true">
+            Loading drafts...
+          </p>
         </div>
       </div>
     );

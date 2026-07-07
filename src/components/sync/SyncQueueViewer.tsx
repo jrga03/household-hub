@@ -1,6 +1,8 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { format } from "date-fns";
-import { RefreshCw, Trash2, AlertCircle, CheckCircle2, Clock, Loader2 } from "lucide-react";
+import { RefreshCw, Trash2, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import { confirm } from "@/lib/confirm";
+import { LoadingSpinner } from "@/components/LoadingScreen";
 import { useAuthStore } from "@/stores/authStore";
 import { getOutstandingQueueItems } from "@/lib/offline/syncQueue";
 import { useSyncProcessor } from "@/hooks/useSyncProcessor";
@@ -103,7 +105,7 @@ export function SyncQueueViewer({ open, onOpenChange }: SyncQueueViewerProps) {
         <div className="mt-6 space-y-6">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <LoadingSpinner className="text-muted-foreground" label="Loading sync queue" />
             </div>
           ) : items.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -173,8 +175,14 @@ function QueueItemCard({ item }: { item: SyncQueueItem }) {
   const retryMutation = useRetrySyncItem();
   const discardMutation = useDiscardSyncItem();
 
-  const handleDiscard = () => {
-    if (window.confirm("Discard this change? This action cannot be undone.")) {
+  const handleDiscard = async () => {
+    const confirmed = await confirm({
+      title: "Discard this change?",
+      description: "This action cannot be undone.",
+      confirmLabel: "Discard",
+      destructive: true,
+    });
+    if (confirmed) {
       discardMutation.mutate(item.id);
     }
   };

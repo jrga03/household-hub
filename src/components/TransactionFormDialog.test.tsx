@@ -9,8 +9,16 @@
  */
 
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  createBrowserHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  Outlet,
+  RouterProvider,
+} from "@tanstack/react-router";
 import { toast } from "sonner";
 import { TransactionFormDialog } from "./TransactionFormDialog";
 import { createOfflineTransaction, updateOfflineTransaction } from "@/lib/offline/transactions";
@@ -73,15 +81,49 @@ function setNavigatorOnLine(onLine: boolean) {
   });
 }
 
-function renderDialog(props: Partial<Parameters<typeof TransactionFormDialog>[0]> = {}) {
+/**
+ * The dialog now calls TanStack Router's useBlocker (dirty-form guard, R37),
+ * so it must render inside a RouterProvider. Browser history (not memory) is
+ * required: createMemoryHistory provides no blocker registry, so history.block
+ * — and therefore useBlocker — is a silent no-op on it.
+ */
+let activeHistory: ReturnType<typeof createBrowserHistory> | undefined;
+
+async function renderDialog(props: Partial<Parameters<typeof TransactionFormDialog>[0]> = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
+  const rootRoute = createRootRoute({
+    component: () => (
+      <>
+        <TransactionFormDialog open onClose={() => {}} {...props} />
+        <Outlet />
+      </>
+    ),
+  });
+  const homeRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/",
+    component: () => <div data-testid="home" />,
+  });
+  const awayRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/away",
+    component: () => <div data-testid="away" />,
+  });
+  activeHistory = createBrowserHistory();
+  const router = createRouter({
+    routeTree: rootRoute.addChildren([homeRoute, awayRoute]),
+    history: activeHistory,
+  });
+  const utils = render(
     <QueryClientProvider client={queryClient}>
-      <TransactionFormDialog open onClose={() => {}} {...props} />
+      <RouterProvider router={router} />
     </QueryClientProvider>
   );
+  // Wait for the router to mount the tree (initial load is async)
+  await screen.findByText(props.editingId ? "Edit Transaction" : "New Transaction");
+  return { ...utils, router };
 }
 
 function buildTransaction(overrides: Partial<TransactionWithRelations>): TransactionWithRelations {
@@ -116,12 +158,18 @@ function buildTransaction(overrides: Partial<TransactionWithRelations>): Transac
 beforeEach(() => {
   mockUseTransaction.mockReturnValue({ data: undefined });
   mockIsMobile.mockReturnValue(false);
+  // Browser history persists across tests in one jsdom instance: reset the
+  // current entry's URL/state so each router starts from a clean "/"
+  window.history.replaceState(null, "", "/");
 });
 
 afterEach(() => {
   // Remove any per-test own-property override so the prototype getter
   // (always true in jsdom) is visible again
   Reflect.deleteProperty(window.navigator, "onLine");
+  // Unpatch window.history (createBrowserHistory monkey-patches pushState)
+  activeHistory?.destroy();
+  activeHistory = undefined;
 });
 
 /** Fill the two required fields so submit passes validation. */
@@ -136,17 +184,17 @@ function fillRequiredFields() {
 }
 
 describe("TransactionFormDialog", () => {
-  it("renders a centered Dialog on desktop", () => {
-    renderDialog();
+  it("renders a centered Dialog on desktop", async () => {
+    await renderDialog();
 
     expect(document.querySelector('[data-slot="dialog-content"]')).toBeInTheDocument();
     expect(document.querySelector('[data-slot="sheet-content"]')).not.toBeInTheDocument();
     expect(screen.getByText("New Transaction")).toBeInTheDocument();
   });
 
-  it("renders a bottom Sheet on mobile with the same fields", () => {
+  it("renders a bottom Sheet on mobile with the same fields", async () => {
     mockIsMobile.mockReturnValue(true);
-    renderDialog();
+    await renderDialog();
 
     expect(document.querySelector('[data-slot="sheet-content"]')).toBeInTheDocument();
     expect(document.querySelector('[data-slot="dialog-content"]')).not.toBeInTheDocument();
@@ -154,8 +202,8 @@ describe("TransactionFormDialog", () => {
     expect(screen.getByRole("button", { name: /create/i })).toBeInTheDocument();
   });
 
-  it("puts the Amount input before the Type radios in DOM order", () => {
-    renderDialog();
+  it("puts the Amount input before the Type radios in DOM order", async () => {
+    await renderDialog();
 
     const amount = screen.getByLabelText("Amount in Philippine Pesos");
     const expenseRadio = screen.getByRole("radio", { name: "Expense" });
@@ -165,8 +213,8 @@ describe("TransactionFormDialog", () => {
     );
   });
 
-  it("hides low-frequency sections behind More options and reveals them on toggle", () => {
-    renderDialog();
+  it("hides low-frequency sections behind More options and reveals them on toggle", async () => {
+    await renderDialog();
 
     expect(screen.queryByText("Link to Debt (Optional)")).not.toBeInTheDocument();
     expect(screen.queryByText("Status")).not.toBeInTheDocument();
@@ -184,11 +232,11 @@ describe("TransactionFormDialog", () => {
     expect(screen.getByText("Notes (optional)")).toBeInTheDocument();
   });
 
-  it("auto-expands More options when editing a transaction with non-default values", () => {
+  it("auto-expands More options when editing a transaction with non-default values", async () => {
     mockUseTransaction.mockReturnValue({
       data: buildTransaction({ status: "cleared", notes: "paid in cash" }),
     });
-    renderDialog({ editingId: "txn-1" });
+    await renderDialog({ editingId: "txn-1" });
 
     expect(screen.getByRole("button", { name: /more options/i })).toHaveAttribute(
       "aria-expanded",
@@ -197,9 +245,9 @@ describe("TransactionFormDialog", () => {
     expect(screen.getByDisplayValue("paid in cash")).toBeInTheDocument();
   });
 
-  it("keeps More options collapsed when editing a transaction with default values", () => {
+  it("keeps More options collapsed when editing a transaction with default values", async () => {
     mockUseTransaction.mockReturnValue({ data: buildTransaction({}) });
-    renderDialog({ editingId: "txn-1" });
+    await renderDialog({ editingId: "txn-1" });
 
     expect(screen.getByRole("button", { name: /more options/i })).toHaveAttribute(
       "aria-expanded",
@@ -208,7 +256,7 @@ describe("TransactionFormDialog", () => {
   });
 
   it("expands More options and shows the error when a collapsed field fails validation", async () => {
-    renderDialog();
+    await renderDialog();
 
     // Make the always-visible fields valid so the collapsed notes field is
     // the only validation failure
@@ -242,7 +290,7 @@ describe("TransactionFormDialog", () => {
   });
 
   it("blocks submit with the max-amount error when the typed amount exceeds the maximum", async () => {
-    renderDialog();
+    await renderDialog();
 
     // ₱99,999,999 exceeds MAX_AMOUNT_CENTS (₱9,999,999.99). The over-max
     // cents must be committed to form state so zod's .max() blocks submit —
@@ -265,7 +313,7 @@ describe("TransactionFormDialog", () => {
 
   it("toasts the normal copy when creating while online", async () => {
     vi.mocked(createOfflineTransaction).mockResolvedValue({ success: true, isTemporary: false });
-    renderDialog();
+    await renderDialog();
 
     fillRequiredFields();
     fireEvent.click(screen.getByRole("button", { name: /create/i }));
@@ -279,7 +327,7 @@ describe("TransactionFormDialog", () => {
   it("toasts the offline copy when creating while offline", async () => {
     setNavigatorOnLine(false);
     vi.mocked(createOfflineTransaction).mockResolvedValue({ success: true, isTemporary: false });
-    renderDialog();
+    await renderDialog();
 
     fillRequiredFields();
     fireEvent.click(screen.getByRole("button", { name: /create/i }));
@@ -294,7 +342,7 @@ describe("TransactionFormDialog", () => {
     setNavigatorOnLine(false);
     mockUseTransaction.mockReturnValue({ data: buildTransaction({}) });
     vi.mocked(updateOfflineTransaction).mockResolvedValue({ success: true, isTemporary: true });
-    renderDialog({ editingId: "txn-1" });
+    await renderDialog({ editingId: "txn-1" });
 
     fireEvent.click(screen.getByRole("button", { name: /update/i }));
 
@@ -309,7 +357,7 @@ describe("TransactionFormDialog", () => {
       data: buildTransaction({ debt_id: "debt-1" }),
     });
     vi.mocked(updateOfflineTransaction).mockResolvedValue({ success: true, isTemporary: true });
-    renderDialog({ editingId: "txn-1" });
+    await renderDialog({ editingId: "txn-1" });
 
     fireEvent.click(screen.getByRole("button", { name: /update/i }));
 
@@ -321,6 +369,56 @@ describe("TransactionFormDialog", () => {
         expect.objectContaining({ debt_id: "debt-1" }),
         "user-1"
       );
+    });
+  });
+
+  describe("dirty-form navigation guard (useBlocker, R37)", () => {
+    it("blocks in-app navigation when the form is dirty and the discard confirm is declined", async () => {
+      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+      const { router } = await renderDialog();
+
+      fillRequiredFields();
+
+      // Push through router.history (same blocker path as router.navigate,
+      // without the app-Register route typing)
+      act(() => {
+        router.history.push("/away");
+      });
+
+      await waitFor(() => {
+        expect(confirmSpy).toHaveBeenCalledWith("Discard unsaved changes?");
+      });
+      expect(router.history.location.pathname).toBe("/");
+    });
+
+    it("navigates when the discard confirm is accepted", async () => {
+      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+      const { router } = await renderDialog();
+
+      fillRequiredFields();
+
+      act(() => {
+        router.history.push("/away");
+      });
+
+      await waitFor(() => {
+        expect(router.history.location.pathname).toBe("/away");
+      });
+      expect(confirmSpy).toHaveBeenCalledWith("Discard unsaved changes?");
+    });
+
+    it("does not prompt when the form is clean", async () => {
+      const confirmSpy = vi.spyOn(window, "confirm");
+      const { router } = await renderDialog();
+
+      act(() => {
+        router.history.push("/away");
+      });
+
+      await waitFor(() => {
+        expect(router.history.location.pathname).toBe("/away");
+      });
+      expect(confirmSpy).not.toHaveBeenCalled();
     });
   });
 });

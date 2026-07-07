@@ -26,6 +26,7 @@ import {
   Outlet,
 } from "@tanstack/react-router";
 import { Route as TransactionsRouteImport } from "@/routes/transactions";
+import { confirm } from "@/lib/confirm";
 import { handleTransactionDelete } from "@/lib/debts";
 import { formatPHP } from "@/lib/currency";
 import type { TransactionWithRelations } from "@/types/transactions";
@@ -92,6 +93,12 @@ vi.mock("dexie-react-hooks", () => ({
 
 vi.mock("@/lib/debts", () => ({
   handleTransactionDelete: vi.fn(),
+}));
+
+// Destructive confirms go through the app-level AlertDialog mechanism
+// (@/lib/confirm, review R39); the host isn't mounted here, so mock it
+vi.mock("@/lib/confirm", () => ({
+  confirm: vi.fn().mockResolvedValue(false),
 }));
 
 // jsdom has no layout; render every row (see TransactionList.test.tsx)
@@ -229,7 +236,7 @@ describe("transactions route on narrow layouts (R14/R38)", () => {
   });
 
   it("deletes from the sheet's Delete button and closes the sheet", async () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.mocked(confirm).mockResolvedValueOnce(true);
     await renderTransactionsRoute();
 
     fireEvent.click(screen.getByRole("button", { name: "View Groceries" }));
@@ -238,8 +245,8 @@ describe("transactions route on narrow layouts (R14/R38)", () => {
 
     // Same flow as the table's per-row Delete: confirm → debt reversal FIRST
     // → delete mutation (shared via confirmAndDeleteTransaction)
-    expect(confirmSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Delete transaction "Groceries"')
+    expect(vi.mocked(confirm)).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Delete transaction "Groceries"?' })
     );
     await waitFor(() => {
       expect(vi.mocked(handleTransactionDelete)).toHaveBeenCalledWith({ transaction_id: "txn-1" });
@@ -251,13 +258,15 @@ describe("transactions route on narrow layouts (R14/R38)", () => {
   });
 
   it("keeps the sheet open and deletes nothing when the confirm is cancelled", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(false);
+    vi.mocked(confirm).mockResolvedValueOnce(false);
     await renderTransactionsRoute();
 
     fireEvent.click(screen.getByRole("button", { name: "View Groceries" }));
     const sheet = await screen.findByRole("dialog");
     fireEvent.click(within(sheet).getByRole("button", { name: "Delete" }));
 
+    // The confirm resolves asynchronously; give the cancelled path a tick
+    await waitFor(() => expect(vi.mocked(confirm)).toHaveBeenCalled());
     expect(deleteMutateAsync).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });

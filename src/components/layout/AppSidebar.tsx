@@ -39,6 +39,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuthStore } from "@/stores/authStore";
 import { useNavStore } from "@/stores/navStore";
+import { signOutWithConfirm } from "@/lib/sign-out";
 import { GlobalSyncStatus } from "@/components/sync/GlobalSyncStatus";
 import { cn } from "@/lib/utils";
 import { getShortcutKey } from "@/hooks/useKeyboardShortcuts";
@@ -173,8 +174,9 @@ export function AppSidebar() {
   };
 
   const handleSignOut = async () => {
-    const signOut = useAuthStore.getState().signOut;
-    await signOut();
+    // Unsynced-changes confirm + export live in the shared component-layer
+    // flow, not the store (review R39)
+    await signOutWithConfirm();
   };
 
   return (

@@ -14,6 +14,8 @@ import {
   useCopyBudgets,
   type Budget,
 } from "@/lib/supabaseQueries";
+import { confirm } from "@/lib/confirm";
+import { LoadingSpinner } from "@/components/LoadingScreen";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/budgets/")({
@@ -61,8 +63,13 @@ function BudgetsPage() {
   };
 
   const handleDelete = async (budgetId: string) => {
-    // TODO: Replace with proper dialog component (see linting errors)
-    if (!window.confirm("Are you sure you want to delete this budget?")) return;
+    const confirmed = await confirm({
+      title: "Delete this budget?",
+      description: "The budget target is removed; the underlying transactions are untouched.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!confirmed) return;
 
     try {
       await deleteBudget.mutateAsync(budgetId);
@@ -101,7 +108,7 @@ function BudgetsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <LoadingSpinner size="large" className="text-primary" label="Loading budgets" />
       </div>
     );
   }

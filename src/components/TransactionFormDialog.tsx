@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useBlocker } from "@tanstack/react-router";
 import { useForm, Controller, type SubmitErrorHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parseISO } from "date-fns";
@@ -27,6 +28,7 @@ import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { calculateDebtBalance } from "@/lib/debts";
 import { listDebts } from "@/lib/debts/crud";
+import { confirmDiscardChanges } from "@/lib/confirm-discard";
 import { createOfflineTransaction, updateOfflineTransaction } from "@/lib/offline/transactions";
 import { syncProcessor } from "@/lib/sync/processor";
 import { useIsMobile } from "@/hooks/useMediaQuery";
@@ -85,6 +87,23 @@ export function TransactionFormDialog({
       debt_id: undefined,
       internal_debt_id: undefined,
     },
+  });
+
+  // Guard in-app navigation while a half-completed form is on screen (review
+  // R37): TanStack Router's useBlocker intercepts pushes/replaces AND the
+  // history pop that the overlay sentinel (useHistoryBackClose inside the
+  // Dialog/Sheet wrappers) turns hardware back into, so a dirty form always
+  // gets a discard confirm. Disabled when clean or closed. The confirm goes
+  // through the confirm-discard injectable so Phase 5.4 can swap
+  // window.confirm for AlertDialog in one place.
+  const { isDirty } = form.formState;
+  useBlocker({
+    shouldBlockFn: async () => {
+      if (!open || !form.formState.isDirty) return false;
+      return !(await confirmDiscardChanges());
+    },
+    disabled: !open || !isDirty,
+    enableBeforeUnload: () => open && form.formState.isDirty,
   });
 
   // Watch form fields for debt selector logic

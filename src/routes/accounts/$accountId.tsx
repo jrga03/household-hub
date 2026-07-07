@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AccountBalance } from "@/components/AccountBalance";
+import { LoadingSpinner } from "@/components/LoadingScreen";
 import { TransactionList } from "@/components/TransactionList";
 import { TransactionFormDialog } from "@/components/TransactionFormDialog";
 import { useAccountBalance } from "@/lib/supabaseQueries";
@@ -48,7 +49,7 @@ function AccountDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-24 bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <LoadingSpinner size="large" className="text-primary" label="Loading account" />
       </div>
     );
   }

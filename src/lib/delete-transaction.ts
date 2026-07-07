@@ -1,17 +1,16 @@
 /**
  * Shared single-transaction delete flow.
  *
- * Confirms with the user (transfer-aware message), reverses any linked debt
- * payment FIRST, then deletes the transaction, then invalidates debt queries
- * and toasts. Used by TransactionList's per-row Delete button and the
- * narrow-layout detail sheet (mobile UX review R38) so the two entry points
- * cannot drift.
- *
- * Phase 5.4 will swap window.confirm for AlertDialog — do not build that here.
+ * Confirms with the user (transfer-aware message, app-level AlertDialog via
+ * `@/lib/confirm` — review R39), reverses any linked debt payment FIRST, then
+ * deletes the transaction, then invalidates debt queries and toasts. Used by
+ * TransactionList's per-row Delete button and the narrow-layout detail sheet
+ * (mobile UX review R38) so the two entry points cannot drift.
  */
 
 import { toast } from "sonner";
 import type { QueryClient } from "@tanstack/react-query";
+import { confirm } from "@/lib/confirm";
 import { handleTransactionDelete } from "@/lib/debts";
 
 interface ConfirmAndDeleteTransactionArgs {
@@ -35,10 +34,17 @@ export async function confirmAndDeleteTransaction({
   deleteTransaction,
   queryClient,
 }: ConfirmAndDeleteTransactionArgs): Promise<boolean> {
-  const confirmMessage = isTransferLeg
-    ? `Delete transfer "${description}"?\n\nBoth sides of this transfer will be deleted to keep account balances consistent.`
-    : `Delete transaction "${description}"?\n\nThis will also reverse any debt payments linked to this transaction.`;
-  if (!window.confirm(confirmMessage)) return false;
+  const confirmed = await confirm({
+    title: isTransferLeg
+      ? `Delete transfer "${description}"?`
+      : `Delete transaction "${description}"?`,
+    description: isTransferLeg
+      ? "Both sides of this transfer will be deleted to keep account balances consistent."
+      : "This will also reverse any debt payments linked to this transaction.",
+    confirmLabel: "Delete",
+    destructive: true,
+  });
+  if (!confirmed) return false;
 
   try {
     // Reverse debt payment FIRST (if linked)

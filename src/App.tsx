@@ -105,7 +105,8 @@ function App() {
           </ErrorBoundary>
           <Toaster />
 
-          {/* Service worker update prompt (bottom-right) */}
+          {/* Service worker update prompt (persistent sonner toast; renders
+              null itself - the Toaster above displays it) */}
           <UpdatePrompt />
         </TooltipProvider>
       </ThemeProvider>

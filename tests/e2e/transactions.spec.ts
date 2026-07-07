@@ -52,9 +52,12 @@ test.describe("Transactions", () => {
     const firstRow = page.locator('[data-testid="transaction-row"]').first();
     const transactionText = await firstRow.textContent();
 
-    // Row-level Delete confirms via window.confirm
-    page.on("dialog", (dialog) => dialog.accept());
+    // Row-level Delete confirms via the app-level AlertDialog (review R39)
     await firstRow.getByRole("button", { name: /^Delete / }).click();
+    await page
+      .getByRole("alertdialog")
+      .getByRole("button", { name: "Delete", exact: true })
+      .click();
 
     // Verify deleted
     await expect(page.getByText(transactionText!)).not.toBeVisible();

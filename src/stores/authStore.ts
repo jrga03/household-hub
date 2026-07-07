@@ -11,10 +11,19 @@ interface AuthState {
   initialized: boolean;
 }
 
+export interface SignOutOptions {
+  /**
+   * Export a CSV backup before local data is cleared. The "you have unsynced
+   * changes — export first?" confirmation lives in the component layer (see
+   * `signOutWithConfirm` in `@/lib/sign-out`), NOT in this store (review R39).
+   */
+  exportFirst?: boolean;
+}
+
 interface AuthActions {
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
+  signOut: (options?: SignOutOptions) => Promise<void>;
   initialize: () => Promise<void>;
 }
 
@@ -28,7 +37,7 @@ interface AuthActions {
  *
  * @returns true if unsynced data exists, false otherwise (or on error)
  */
-async function checkUnsyncedData(): Promise<boolean> {
+export async function checkUnsyncedData(): Promise<boolean> {
   try {
     const queueCount = await db.syncQueue
       .where("status")
@@ -148,36 +157,27 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
     }
   },
 
-  signOut: async () => {
+  signOut: async (options?: SignOutOptions) => {
     set({ loading: true });
     try {
-      // Check for unsynced offline data (Decision #84)
-      const hasOfflineData = await checkUnsyncedData();
+      // Unsynced-data export before logout (Decision #84). Whether to export
+      // is decided by the CALLER (component-layer AlertDialog confirm); this
+      // store never prompts (review R39).
+      if (options?.exportFirst) {
+        try {
+          // Export all transactions
+          const csv = await csvExporter.exportTransactions();
+          const date = new Date().toISOString().split("T")[0];
+          const filename = `household-hub-backup-${date}.csv`;
 
-      if (hasOfflineData) {
-        const shouldExport = window.confirm(
-          "⚠️ You have unsynced offline data.\n\n" +
-            "This data will be lost if you log out now.\n\n" +
-            "Would you like to export it first?"
-        );
+          csvExporter.downloadCsv(csv, filename);
 
-        if (shouldExport) {
-          try {
-            // Export all transactions
-            const csv = await csvExporter.exportTransactions();
-            const date = new Date().toISOString().split("T")[0];
-            const filename = `household-hub-backup-${date}.csv`;
-
-            csvExporter.downloadCsv(csv, filename);
-
-            // Give user time to see the download
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-          } catch (error) {
-            console.error("Export failed:", error);
-            window.alert("Export failed. Please try manual export from Settings.");
-            set({ loading: false });
-            return; // Abort logout if export fails
-          }
+          // Give user time to see the download
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        } catch (error) {
+          console.error("Export failed:", error);
+          // Abort logout if export fails; the caller surfaces the message
+          throw new Error("Export failed. Please try manual export from Settings.");
         }
       }
 

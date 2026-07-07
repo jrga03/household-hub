@@ -38,7 +38,7 @@ vi.mock("@/lib/csv-exporter", () => ({
 }));
 
 // Now import subjects under test
-import { useAuthStore } from "../authStore";
+import { useAuthStore, checkUnsyncedData } from "../authStore";
 import { supabase } from "@/lib/supabase";
 import { db } from "@/lib/dexie/db";
 import { csvExporter } from "@/lib/csv-exporter";
@@ -190,7 +190,11 @@ describe("authStore", () => {
   });
 
   describe("signOut", () => {
-    it("clears IndexedDB and signs out when no unsynced data", async () => {
+    // The "unsynced data → export first?" confirm was LIFTED to the component
+    // layer (signOutWithConfirm in @/lib/sign-out, review R39): the store
+    // never prompts, it just honors the exportFirst option.
+
+    it("clears IndexedDB and signs out", async () => {
       vi.mocked(supabase.auth.signOut).mockResolvedValue({
         error: null,
       } as never);
@@ -207,43 +211,26 @@ describe("authStore", () => {
       expect(useAuthStore.getState().loading).toBe(false);
     });
 
-    it("prompts to export when unsynced data exists", async () => {
-      // Setup: has unsynced data
-      vi.mocked(db.syncQueue.where).mockReturnValue({
-        anyOf: vi.fn().mockReturnValue({
-          count: vi.fn().mockResolvedValue(3),
-        }),
-      } as never);
-
-      // User declines export
-      vi.spyOn(window, "confirm").mockReturnValue(false);
+    it("does not export or prompt without exportFirst", async () => {
+      const confirmSpy = vi.spyOn(window, "confirm");
       vi.mocked(supabase.auth.signOut).mockResolvedValue({
         error: null,
       } as never);
 
       await useAuthStore.getState().signOut();
 
-      expect(window.confirm).toHaveBeenCalled();
-      // Should still sign out even if user declines export
+      expect(confirmSpy).not.toHaveBeenCalled();
+      expect(csvExporter.exportTransactions).not.toHaveBeenCalled();
       expect(supabase.auth.signOut).toHaveBeenCalled();
     });
 
-    it("exports and signs out when user accepts export", async () => {
-      // Setup: has unsynced data
-      vi.mocked(db.syncQueue.where).mockReturnValue({
-        anyOf: vi.fn().mockReturnValue({
-          count: vi.fn().mockResolvedValue(3),
-        }),
-      } as never);
-
-      // User accepts export
-      vi.spyOn(window, "confirm").mockReturnValue(true);
+    it("exports a CSV backup before signing out when exportFirst is set", async () => {
       vi.mocked(csvExporter.exportTransactions).mockResolvedValue("csv-data");
       vi.mocked(supabase.auth.signOut).mockResolvedValue({
         error: null,
       } as never);
 
-      await useAuthStore.getState().signOut();
+      await useAuthStore.getState().signOut({ exportFirst: true });
 
       expect(csvExporter.exportTransactions).toHaveBeenCalled();
       expect(csvExporter.downloadCsv).toHaveBeenCalledWith(
@@ -253,28 +240,36 @@ describe("authStore", () => {
       expect(supabase.auth.signOut).toHaveBeenCalled();
     });
 
-    it("aborts logout if export fails", async () => {
-      // Setup: has unsynced data
+    it("aborts logout and throws if the export fails", async () => {
+      vi.mocked(csvExporter.exportTransactions).mockRejectedValue(new Error("boom"));
+      vi.mocked(supabase.auth.signOut).mockResolvedValue({
+        error: null,
+      } as never);
+
+      await expect(useAuthStore.getState().signOut({ exportFirst: true })).rejects.toThrow(
+        /Export failed/
+      );
+
+      // Should NOT sign out — logout aborted, caller surfaces the error
+      expect(supabase.auth.signOut).not.toHaveBeenCalled();
+      expect(db.delete).not.toHaveBeenCalled();
+      expect(useAuthStore.getState().loading).toBe(false);
+    });
+  });
+
+  describe("checkUnsyncedData", () => {
+    it("returns false when the outbox is clear", async () => {
+      await expect(checkUnsyncedData()).resolves.toBe(false);
+    });
+
+    it("returns true when outstanding queue items exist", async () => {
       vi.mocked(db.syncQueue.where).mockReturnValue({
         anyOf: vi.fn().mockReturnValue({
           count: vi.fn().mockResolvedValue(3),
         }),
       } as never);
 
-      // User accepts export but it fails
-      vi.spyOn(window, "confirm").mockReturnValue(true);
-      vi.spyOn(window, "alert").mockImplementation(() => {});
-      vi.mocked(csvExporter.exportTransactions).mockRejectedValue(new Error("Export failed"));
-      vi.mocked(supabase.auth.signOut).mockResolvedValue({
-        error: null,
-      } as never);
-
-      await useAuthStore.getState().signOut();
-
-      // Should NOT sign out — logout aborted
-      expect(supabase.auth.signOut).not.toHaveBeenCalled();
-      expect(window.alert).toHaveBeenCalledWith(expect.stringContaining("Export failed"));
-      expect(useAuthStore.getState().loading).toBe(false);
+      await expect(checkUnsyncedData()).resolves.toBe(true);
     });
   });
 });
