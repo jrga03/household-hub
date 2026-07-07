@@ -29,10 +29,10 @@ Branch: `mobile-ux-remediation`. Commit per verified phase.
 
 ## Phase 2 — FAB & New Transaction flow (R1, R5, R27, R30, C5)
 
-- [ ] 2.1 FAB = plain Button → `navStore.setQuickAddOpen(true)`; delete dropdown, onContextMenu, "coming soon" placeholders, duplicate dialog (R1)
-- [ ] 2.2 DialogContent primitive: `max-h-[calc(100dvh-2rem)] overflow-y-auto`; delete per-dialog `max-h-[90vh]` copies (R27)
-- [ ] 2.3 TransactionFormDialog renders as bottom Sheet on mobile; Amount→Type→Description→Category→Account order; "More options" disclosure; sticky safe-area footer (R5)
-- [ ] 2.4 Real `/transactions/new` route (opens quick-add, redirects) + styled root `notFoundComponent` (R30, C5)
+- [x] 2.1 FAB = plain Button → `navStore.setQuickAddOpen(true)`; delete dropdown, onContextMenu, "coming soon" placeholders, duplicate dialog (R1)
+- [x] 2.2 DialogContent primitive: `max-h-[calc(100dvh-2rem)] overflow-y-auto`; delete per-dialog `max-h-[90vh]` copies (R27)
+- [x] 2.3 TransactionFormDialog renders as bottom Sheet on mobile; Amount→Type→Description→Category→Account order; "More options" disclosure; sticky safe-area footer (R5)
+- [x] 2.4 Real `/transactions/new` route (opens quick-add, redirects) + styled root `notFoundComponent` (R30, C5)
 
 ## Phase 3 — Quick wins sweep (small items)
 
