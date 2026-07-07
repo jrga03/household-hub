@@ -80,7 +80,7 @@ The components directory contains **all React UI components** for Household Hub,
 
 **Sync & Offline Components:**
 
-- `SyncIndicator.tsx` - Global sync status indicator
+- `sync/GlobalSyncStatus.tsx` - Global sync status indicator (compact/detailed variants; opens the sync queue viewer)
 - `SyncButton.tsx` - Manual sync trigger
 - `SyncStatus.tsx` - Detailed sync status
 - `SyncIssuesPanel.tsx` - Conflict resolution panel

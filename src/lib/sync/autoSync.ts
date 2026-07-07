@@ -74,7 +74,9 @@
  * @module sync/autoSync
  */
 
+import { toast } from "sonner";
 import { syncProcessor } from "./processor";
+import { getFailedCount } from "@/lib/offline/syncQueue";
 import { realtimeSync } from "@/lib/realtime-sync";
 
 /**
@@ -116,6 +118,14 @@ export class AutoSyncManager {
   private readonly RECONNECT_DEBOUNCE_MS = 30 * 1000;
 
   /**
+   * Whether the previous sync run reported TERMINAL failures. Used to toast
+   * exactly once when result.terminalFailures transitions 0 → >0, instead of
+   * re-toasting on every periodic/focus-triggered run (review R3). Reset only
+   * once the outbox holds no failed items again.
+   */
+  private hadSyncFailures = false;
+
+  /**
    * Start auto-sync manager for authenticated user
    *
    * Initializes all event listeners (online, visibility, focus) and starts
@@ -134,6 +144,7 @@ export class AutoSyncManager {
    */
   start(userId: string): void {
     this.userId = userId;
+    this.hadSyncFailures = false;
     this.setupEventListeners();
     this.startPeriodicSync();
     console.log(`[AutoSync] Started for user ${userId}`);
@@ -195,13 +206,17 @@ export class AutoSyncManager {
   /**
    * Handle 'visibilitychange' event - tab visibility changed
    *
-   * Triggers sync when tab becomes visible (!document.hidden).
+   * Triggers sync when tab becomes visible (!document.hidden) AND the
+   * network is reachable. Skipping offline matters: an offline push attempt
+   * burns a retry-budget slot per queued item (the 'online' event will
+   * trigger the sync once connectivity returns).
+   *
    * Covers iOS Safari case where user switches back to app.
    *
    * Arrow function preserves `this` context for event listener.
    */
   private handleVisibilityChange = async () => {
-    if (!document.hidden) {
+    if (!document.hidden && navigator.onLine) {
       console.log("[AutoSync] Visible - triggering sync");
       await this.triggerSync();
     }
@@ -210,12 +225,18 @@ export class AutoSyncManager {
   /**
    * Handle 'focus' event - window regained focus
    *
-   * Triggers sync when window regains focus (user returns to app).
+   * Triggers sync when window regains focus (user returns to app), but only
+   * while online - offline focus events must not attempt network pushes and
+   * burn retry budget (the 'online' trigger covers reconnection).
+   *
    * Covers edge cases missed by visibilitychange on some browsers.
    *
    * Arrow function preserves `this` context for event listener.
    */
   private handleFocus = async () => {
+    if (!navigator.onLine) {
+      return;
+    }
     console.log("[AutoSync] Focused - triggering sync");
     await this.triggerSync();
   };
@@ -274,6 +295,15 @@ export class AutoSyncManager {
         );
       }
 
+      // Surface new TERMINAL failures ONCE (0 → >0 transition) instead of
+      // toasting on every run; the flag resets only when the outbox has no
+      // failed items left, so quiet no-op runs in between don't re-arm the
+      // toast (R3). result.failed also counts retryable errors that were
+      // merely rescheduled with backoff - those self-heal and must NOT toast
+      // (they would contradict the header status and the sync viewer, which
+      // count terminal status === "failed" items only).
+      await this.notifyOnNewFailures(result.terminalFailures);
+
       // 2. Pull: catch up on remote changes (debounced - this re-fetches
       //    rows changed since the last sync across all synced tables).
       //    autoSync is the ONLY trigger source for this; the previous
@@ -287,6 +317,45 @@ export class AutoSyncManager {
     } catch (error) {
       // Log error but don't throw (graceful degradation)
       console.error("[AutoSync] Sync failed:", error);
+    }
+  }
+
+  /**
+   * Fire a single Sonner toast when a sync run produces TERMINAL failures.
+   *
+   * - Counts only items that entered the terminal "failed" status this run
+   *   (result.terminalFailures). Retryable errors rescheduled with backoff
+   *   never toast - they resolve on their own.
+   * - Toasts only on the 0 → >0 transition (no spam from the periodic/focus
+   *   triggers re-running while items stay failed).
+   * - Resets once the local outbox holds no "failed" items (cleared via
+   *   user retry/discard, or a later run succeeding), so a NEW failure
+   *   after recovery toasts again.
+   *
+   * The failure details live in the sync queue viewer (header sync status),
+   * hence the hint instead of an inline action: the viewer is owned by
+   * component-local state and not reachable from this layer.
+   */
+  private async notifyOnNewFailures(terminalFailuresInRun: number): Promise<void> {
+    if (terminalFailuresInRun > 0) {
+      if (!this.hadSyncFailures) {
+        this.hadSyncFailures = true;
+        toast.error(
+          `${terminalFailuresInRun} ${terminalFailuresInRun === 1 ? "change" : "changes"} failed to sync`,
+          {
+            description: "Tap the sync status in the header to review and retry.",
+          }
+        );
+      }
+      return;
+    }
+
+    if (this.hadSyncFailures) {
+      // Only consider failures "cleared" when no terminal items remain
+      const stillFailed = await getFailedCount(this.userId);
+      if (stillFailed === 0) {
+        this.hadSyncFailures = false;
+      }
     }
   }
 

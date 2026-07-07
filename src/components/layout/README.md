@@ -187,8 +187,8 @@ Three main sections:
 
 **5. Sync Status** (lines 158-161):
 
-- Full SyncIndicator display
-- Shows online/offline and sync progress
+- `GlobalSyncStatus` (detailed variant)
+- Shows online/offline, pending/failed counts, and sync progress; tap opens the sync queue viewer
 
 **6. Navigation Items** (lines 163-201):
 
@@ -436,11 +436,13 @@ Preference persisted in context
 
 ### Other Components
 
-**`SyncIndicator`** - Sync status display
+**`GlobalSyncStatus`** - Sync status display
 
-- Location: `src/components/SyncIndicator.tsx`
-- Used in: AppLayout header (mobile), AppSidebar header, MobileNav
-- Props: `compact` (boolean) - Shows icon only or full status
+- Location: `src/components/sync/GlobalSyncStatus.tsx`
+- Used in: AppLayout header (mobile, compact), AppSidebar header (detailed when
+  expanded, compact on the collapsed icon rail), MobileNav (detailed)
+- Props: `variant` ("default" | "compact" | "detailed"), `className`
+- Clicking it opens the `SyncQueueViewer` sheet
 
 **`LoadingScreen`** - Full-page loading spinner
 
@@ -811,7 +813,7 @@ Tablet sidebar defaults to **collapsed**:
 
 ### Navigation Components
 
-- [src/components/SyncIndicator.tsx](../../README.md) - Sync status display
+- [src/components/sync/GlobalSyncStatus.tsx](../../README.md) - Sync status display
 - [src/components/LoadingScreen.tsx](../../README.md) - Loading state display
 - [src/components/TransactionFormDialog.tsx](../../README.md) - Transaction creation form
 

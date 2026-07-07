@@ -1,8 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "./supabase";
+import { useAuthStore } from "@/stores/authStore";
 import {
   isLikelyNetworkError,
   getLocalTransactionsWithRelations,
+  getUnsyncedLocalTransactionsWithRelations,
+  overlayLocalTransactions,
   getLocalActiveAccounts,
   getLocalActiveCategories,
 } from "./offline/reads";
@@ -513,7 +516,22 @@ export function useTransactions(filters?: TransactionFilters) {
         const { data, error } = await query.limit(100); // Pagination later
 
         if (error) throw error;
-        return data as TransactionWithRelations[];
+
+        // Overlay local rows whose outbox items haven't drained yet: a
+        // transaction created seconds ago exists only in Dexie until the
+        // sync processor pushes it, and without the overlay it would vanish
+        // from the list despite the success toast (review R9). Same filters,
+        // same sort, same 100-row cap; local wins for unsynced edits.
+        // Scoped to the signed-in user so another account's queued items on
+        // a shared device never overlay this user's list.
+        const userId = useAuthStore.getState().user?.id;
+        const localUnsynced = userId
+          ? ((await getUnsyncedLocalTransactionsWithRelations(
+              userId,
+              filters
+            )) as unknown as TransactionWithRelations[])
+          : [];
+        return overlayLocalTransactions(data as TransactionWithRelations[], localUnsynced);
       } catch (error) {
         // Offline fallback: same filters and joins served from Dexie
         if (isLikelyNetworkError(error)) {

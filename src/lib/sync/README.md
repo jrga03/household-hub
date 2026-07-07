@@ -427,7 +427,7 @@ const isSyncing = useSyncStore((state) => state.isSyncing);
 
 **UI Indicators:**
 
-- `SyncIndicator` (top-right) shows current status
+- `GlobalSyncStatus` (header/sidebar) shows current status; clicking it opens the `SyncQueueViewer`
 - `OfflineBanner` shows offline state and pending count
 - `SyncIssuesPanel` shows unresolved conflicts
 

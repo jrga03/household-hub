@@ -407,7 +407,7 @@ Sync and offline scenarios tested in `/tests/e2e/`:
 1. **Check sync queue:** Open DevTools → Application → IndexedDB → `householdHubDB` → `syncQueue`
 2. **Check console logs:** Sync processor logs all state transitions
 3. **Check Sentry:** Error tracking for sync failures
-4. **Use SyncIndicator:** Visual indicator in UI (top-right)
+4. **Use GlobalSyncStatus:** Visual indicator in the app header/sidebar (click to open the sync queue viewer)
 5. **Read sync status:** `useSyncStatus()` hook provides current state
 
 ## Module Dependencies

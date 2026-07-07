@@ -26,6 +26,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { calculateDebtBalance } from "@/lib/debts";
 import { listDebts } from "@/lib/debts/crud";
 import { createOfflineTransaction, updateOfflineTransaction } from "@/lib/offline/transactions";
+import { syncProcessor } from "@/lib/sync/processor";
 import { formatPHP } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import type { Debt } from "@/types/debt";
@@ -225,6 +226,18 @@ export function TransactionFormDialog({
       if (data.debt_id || data.internal_debt_id) {
         queryClient.invalidateQueries({ queryKey: ["debts"] });
         queryClient.invalidateQueries({ queryKey: ["debt-balance"] });
+      }
+
+      // Fire-and-forget outbox drain so the change reaches the server right
+      // away when online instead of waiting for the next focus/interval
+      // trigger (review R9). Never blocks or fails the submit. Skipped
+      // offline: processQueue would attempt the network call and burn a
+      // retry-budget slot per queued item, so gate on navigator.onLine.
+      if (user?.id && navigator.onLine) {
+        syncProcessor
+          .processQueue(user.id)
+          .then(() => queryClient.invalidateQueries({ queryKey: ["transactions"] }))
+          .catch(() => {});
       }
 
       handleClose();

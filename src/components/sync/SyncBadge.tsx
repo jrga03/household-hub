@@ -47,7 +47,7 @@ const statusConfig = {
   failed: {
     icon: AlertCircle,
     label: "Failed",
-    tooltip: "Sync failed - will retry",
+    tooltip: "Sync failed - retry from the sync status menu",
     className: "text-red-600 dark:text-red-500",
     bgClassName: "bg-red-50 dark:bg-red-950/30",
   },

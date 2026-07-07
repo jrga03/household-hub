@@ -11,6 +11,8 @@ import { db } from "@/lib/dexie/db";
  * - Online/offline status (browser connectivity)
  * - Pending count: reactive liveQuery on the LOCAL outbox (db.syncQueue),
  *   updating the instant the queue changes - no polling, no network
+ * - Failed count: reactive liveQuery on terminal "failed" outbox items, so
+ *   sync failures surface instead of reading as "All synced" (review R3)
  * - isSyncing: published by the sync processor via useSyncStore, so
  *   background syncs show correctly in every consumer (review SYNC-13)
  * - lastSyncTime: persisted in db.meta by the sync processor (survives
@@ -18,7 +20,7 @@ import { db } from "@/lib/dexie/db";
  *
  * @example
  * ```tsx
- * function SyncIndicator() {
+ * function SyncStatusBadge() {
  *   const { isOnline, pendingCount, isSyncing } = useSyncStatus();
  *   return <Badge>{isSyncing ? "Syncing..." : `${pendingCount} pending`}</Badge>;
  * }
@@ -39,6 +41,16 @@ export function useSyncStatus() {
         .count();
     }, [user?.id]) ?? 0;
 
+  const failedCount =
+    useLiveQuery(async () => {
+      if (!user?.id) return 0;
+      return db.syncQueue
+        .where("status")
+        .equals("failed")
+        .filter((item) => item.user_id === user.id)
+        .count();
+    }, [user?.id]) ?? 0;
+
   const lastSyncTime =
     useLiveQuery(async () => {
       const entry = await db.meta.get("lastSyncTime");
@@ -48,6 +60,7 @@ export function useSyncStatus() {
   return {
     isOnline,
     pendingCount,
+    failedCount,
     isSyncing: status === "syncing",
     lastSyncTime,
   };

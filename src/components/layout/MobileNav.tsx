@@ -21,7 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useAuthStore } from "@/stores/authStore";
 import { useNavStore } from "@/stores/navStore";
-import { SyncIndicator } from "@/components/SyncIndicator";
+import { GlobalSyncStatus } from "@/components/sync/GlobalSyncStatus";
 import { cn } from "@/lib/utils";
 import { useLiveQuery } from "dexie-react-hooks";
 import { getPendingDraftCount } from "@/lib/import-drafts";
@@ -172,9 +172,9 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
           </Button>
         </div>
 
-        {/* Sync Status */}
+        {/* Sync Status (live outbox counts; tap to open the sync queue) */}
         <div className="border-b px-6 py-3">
-          <SyncIndicator />
+          <GlobalSyncStatus variant="detailed" />
         </div>
 
         {/* Navigation Items */}

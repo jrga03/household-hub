@@ -19,6 +19,7 @@ import { SyncProcessor } from "../processor";
 import { supabase } from "@/lib/supabase";
 import { db } from "@/lib/dexie/db";
 import { getPendingQueueItems } from "@/lib/offline/syncQueue";
+import { queryClient } from "@/lib/queryClient";
 
 // ─── Helpers ─────────────────────────────────────
 function makeQueueItem(overrides: Partial<SyncQueueItem> = {}): SyncQueueItem {
@@ -87,12 +88,13 @@ describe("SyncProcessor (local outbox)", () => {
     setupSupabaseMock();
     await db.syncQueue.clear();
     await db.meta.clear();
+    await db.syncIssues.clear();
   });
 
   describe("processQueue", () => {
-    it("returns {synced: 0, failed: 0} with empty queue", async () => {
+    it("returns an all-zero result with empty queue", async () => {
       const result = await processor.processQueue("user-1");
-      expect(result).toEqual({ synced: 0, failed: 0 });
+      expect(result).toEqual({ synced: 0, failed: 0, terminalFailures: 0 });
     });
 
     it("drains queued items and marks them completed locally", async () => {
@@ -102,7 +104,7 @@ describe("SyncProcessor (local outbox)", () => {
 
       const result = await processor.processQueue("user-1");
 
-      expect(result).toEqual({ synced: 2, failed: 0 });
+      expect(result).toEqual({ synced: 2, failed: 0, terminalFailures: 0 });
       const stored1 = await db.syncQueue.get(item1.id);
       const stored2 = await db.syncQueue.get(item2.id);
       expect(stored1?.status).toBe("completed");
@@ -116,7 +118,7 @@ describe("SyncProcessor (local outbox)", () => {
 
       const result = await processor.processQueue("user-1");
 
-      expect(result).toEqual({ synced: 0, failed: 0 });
+      expect(result).toEqual({ synced: 0, failed: 0, terminalFailures: 0 });
       expect(vi.mocked(supabase.from)).not.toHaveBeenCalled();
     });
 
@@ -125,7 +127,7 @@ describe("SyncProcessor (local outbox)", () => {
 
       const result = await processor.processQueue("user-1");
 
-      expect(result).toEqual({ synced: 0, failed: 0 });
+      expect(result).toEqual({ synced: 0, failed: 0, terminalFailures: 0 });
     });
 
     it("concurrent calls share one session (item processed once)", async () => {
@@ -149,9 +151,40 @@ describe("SyncProcessor (local outbox)", () => {
 
       const result = await processor.processQueue("user-1");
 
-      expect(result).toEqual({ synced: 1, failed: 0 });
+      expect(result).toEqual({ synced: 1, failed: 0, terminalFailures: 0 });
       const stored = await db.syncQueue.get(stranded.id);
       expect(stored?.status).toBe("completed");
+    });
+
+    it("counts a rescheduled retryable failure in failed but NOT terminalFailures", async () => {
+      setupSupabaseMock({ insertError: makeSupabaseError("FetchError: network request failed") });
+      await db.syncQueue.add(makeQueueItem());
+
+      const result = await processor.processQueue("user-1");
+
+      // Item went back to "queued" with backoff - it will self-heal, so it
+      // must not be reported as a terminal failure (no user-facing alarm)
+      expect(result).toEqual({ synced: 0, failed: 1, terminalFailures: 0 });
+    });
+
+    it("counts a non-retryable failure in BOTH failed and terminalFailures", async () => {
+      setupSupabaseMock({
+        insertError: makeSupabaseError("violates check constraint on amount_cents"),
+      });
+      await db.syncQueue.add(makeQueueItem());
+
+      const result = await processor.processQueue("user-1");
+
+      expect(result).toEqual({ synced: 0, failed: 1, terminalFailures: 1 });
+    });
+
+    it("counts a retry-exhausted failure as terminal", async () => {
+      setupSupabaseMock({ insertError: makeSupabaseError("Network timeout") });
+      await db.syncQueue.add(makeQueueItem({ retry_count: 3, max_retries: 3 }));
+
+      const result = await processor.processQueue("user-1");
+
+      expect(result).toEqual({ synced: 0, failed: 1, terminalFailures: 1 });
     });
 
     it("persists lastSyncTime in db.meta after a successful sync", async () => {
@@ -161,6 +194,29 @@ describe("SyncProcessor (local outbox)", () => {
 
       const entry = await db.meta.get("lastSyncTime");
       expect(entry?.value).toBeTruthy();
+    });
+
+    it("invalidates transactions/accounts/dashboard queries once per drain that pushed items", async () => {
+      const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+      await db.syncQueue.bulkAdd([makeQueueItem(), makeQueueItem({ entity_id: "entity-2" })]);
+
+      await processor.processQueue("user-1");
+
+      // Once per prefix (not per item), fired after the drain completes
+      expect(invalidateSpy).toHaveBeenCalledTimes(3);
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["transactions"] });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["accounts"] });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["dashboard"] });
+    });
+
+    it("does not invalidate queries when nothing was pushed", async () => {
+      const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+      setupSupabaseMock({ insertError: makeSupabaseError("Network timeout") });
+      await db.syncQueue.add(makeQueueItem());
+
+      await processor.processQueue("user-1");
+
+      expect(invalidateSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -258,6 +314,7 @@ describe("SyncProcessor (local outbox)", () => {
         const result = await processor.processItem(item);
 
         expect(result.success).toBe(false);
+        expect(result.terminal).toBe(true);
         const stored = await db.syncQueue.get(item.id);
         expect(stored?.status).toBe("failed");
         expect(stored?.error_message).toContain(message.split(" on ")[0]);
@@ -272,6 +329,7 @@ describe("SyncProcessor (local outbox)", () => {
       const result = await processor.processItem(item);
 
       expect(result.success).toBe(false);
+      expect(result.terminal).toBeUndefined(); // rescheduled, not terminal
       const stored = await db.syncQueue.get(item.id);
       expect(stored?.status).toBe("queued");
       expect(stored?.retry_count).toBe(1);
@@ -291,9 +349,52 @@ describe("SyncProcessor (local outbox)", () => {
       const result = await processor.processItem(item);
 
       expect(result.success).toBe(false);
+      expect(result.terminal).toBe(true);
       expect(result.error).toContain("Max retries reached");
       const stored = await db.syncQueue.get(item.id);
       expect(stored?.status).toBe("failed");
+    });
+
+    it("logs a non-retryable sync issue on terminal constraint failure (R3)", async () => {
+      setupSupabaseMock({
+        insertError: makeSupabaseError("violates check constraint on amount_cents"),
+      });
+      const item = makeQueueItem();
+      await db.syncQueue.add(item);
+
+      await processor.processItem(item);
+
+      const issues = await db.syncIssues.toArray();
+      expect(issues).toHaveLength(1);
+      expect(issues[0].issueType).toBe("sync-failed");
+      expect(issues[0].entityType).toBe("transaction");
+      expect(issues[0].entityId).toBe(item.entity_id);
+      expect(issues[0].canRetry).toBe(false);
+      expect(issues[0].message).toContain("violates check constraint");
+    });
+
+    it("logs a retryable sync issue when retries are exhausted (R3)", async () => {
+      setupSupabaseMock({ insertError: makeSupabaseError("Network timeout") });
+      const item = makeQueueItem({ retry_count: 3, max_retries: 3 });
+      await db.syncQueue.add(item);
+
+      await processor.processItem(item);
+
+      const issues = await db.syncIssues.toArray();
+      expect(issues).toHaveLength(1);
+      expect(issues[0].issueType).toBe("sync-failed");
+      expect(issues[0].entityId).toBe(item.entity_id);
+      expect(issues[0].canRetry).toBe(true);
+    });
+
+    it("does NOT log a sync issue for a retryable failure that gets rescheduled", async () => {
+      setupSupabaseMock({ insertError: makeSupabaseError("FetchError: network request failed") });
+      const item = makeQueueItem();
+      await db.syncQueue.add(item);
+
+      await processor.processItem(item);
+
+      expect(await db.syncIssues.count()).toBe(0);
     });
   });
 
