@@ -107,5 +107,5 @@ Branch: `mobile-ux-remediation`. Commit per verified phase.
 ## Phase 9 — Final verification (before merge)
 
 - [ ] 9.1 Browser smoke pass at phone width: transactions table/card mode flip across 640px, detail sheet actions, drafts sheet edit, PDF preview cards, FAB quick-add, sync surfaces, banner stacking (jsdom cannot cover virtualizer layout or sheet rendering)
-- [ ] 9.2 Regenerate tests/e2e/layout-baseline.spec.ts screenshot snapshots (visual changes across phases 2-8)
-- [ ] 9.3 Run the E2E suite against the local Supabase stack (start stack manually per Known Infrastructure Issues)
+- [x] 9.2 Regenerate tests/e2e/layout-baseline.spec.ts screenshot snapshots (visual changes across phases 2-8). Done 2026-07-10: chromium + Mobile Chrome regenerated and passing; firefox/webkit/Mobile Safari fail navigation identically on main (pre-existing, logged in CLAUDE.md Known Infrastructure Issues)
+- [x] 9.3 Run the E2E suite against the local Supabase stack. Done 2026-07-10: chromium failure set on the branch is IDENTICAL to main (40 failed / 28 passed / 26 skipped both sides, same tests at shifted line numbers) — zero E2E regressions from phases 1-8. All 40 are pre-existing (broken auth specs + budgets.notes fixture schema drift), logged in CLAUDE.md Known Infrastructure Issues; fixing them is out of scope for this branch
