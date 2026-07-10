@@ -20,6 +20,7 @@
     "test:all": "npm run test:unit -- run && npm run test:e2e",
     "lighthouse": "lhci autorun",
     "size": "node scripts/check-bundle-size.mjs",
+    "generate:splash": "node scripts/generate-splash.mjs",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",

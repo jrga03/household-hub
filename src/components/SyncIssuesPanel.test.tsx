@@ -52,12 +52,14 @@ describe("SyncIssuesPanel (width clamp, badge position, touch targets)", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("lifts the slot above the FAB zone on phones, back down at md+", () => {
+  it("lifts the slot above the FAB zone (over the shared bottom chrome) on phones, back down at md+", () => {
     useSyncIssuesStore.setState({ issues: [buildIssue()] });
     const { container } = render(<SyncIssuesPanel />);
 
     const slot = container.firstChild as HTMLElement;
-    expect(slot.className).toContain("bottom-[calc(5.5rem+var(--safe-area-bottom))]");
+    // --bottom-chrome = tab bar + safe area at mobile widths (review R42),
+    // so the badge clears both the BottomTabBar and the raised FAB
+    expect(slot.className).toContain("bottom-[calc(5.5rem+var(--bottom-chrome))]");
     expect(slot.className).toContain("md:bottom-[calc(1rem+var(--safe-area-bottom))]");
     expect(slot.className).toContain("right-[calc(1rem+var(--safe-area-right))]");
   });

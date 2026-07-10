@@ -12,7 +12,10 @@ import { cn } from "@/lib/utils";
  * QuickAddTransactionDialog, which consumes that flag.
  *
  * Features:
- * - Fixed position bottom-right with safe-area insets
+ * - Fixed position bottom-right, raised 1.5rem above the bottom chrome
+ *   (--bottom-chrome, index.css): on phones that is the BottomTabBar
+ *   footprint (review R42), on tablet/desktop just the safe area — so the
+ *   FAB never sits on the tab bar and keeps its old position elsewhere
  * - Shadow for depth perception
  * - Scale animation on press
  * - Z-index management to stay above content
@@ -42,7 +45,7 @@ export function QuickActionButton({
   return (
     <div
       className={cn(
-        "fixed bottom-[calc(1.5rem+var(--safe-area-bottom))] right-[calc(1.5rem+var(--safe-area-right))] z-50",
+        "fixed bottom-[calc(1.5rem+var(--bottom-chrome))] right-[calc(1.5rem+var(--safe-area-right))] z-50",
         className
       )}
     >

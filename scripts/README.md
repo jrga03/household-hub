@@ -26,6 +26,25 @@ node scripts/generate-icons.js
 
 **Note:** Replace placeholder with actual app icon for production
 
+### `generate-splash.mjs`
+
+**Purpose:** Generate the iOS splash screen set (paired light/dark) from the app icon
+
+**Usage:**
+
+```bash
+npm run generate:splash
+```
+
+**Output:** ~92 PNGs in `/public/splash/` (`apple-splash-*.png` light on #ffffff,
+`apple-splash-dark-*.png` dark on #0a0a0a), one per device size/orientation
+
+**Dependencies:** `pwa-asset-generator` via npx (needs a local Chrome/Chromium)
+
+**Note:** The matching `<link rel="apple-touch-startup-image">` tags live in
+`index.html`; re-run after icon changes, and update the index.html block if the
+tool's device list changes
+
 ### `read-excel-categories.cjs`
 
 **Purpose:** Extract categories from Excel spreadsheet (Savings_Expenses template)

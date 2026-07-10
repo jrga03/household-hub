@@ -22,7 +22,11 @@ export default defineConfig({
       // offline.html is intentionally NOT listed here: the injectManifest
       // "**/*.html" glob already precaches it, and listing it twice created
       // duplicate precache entries.
-      includeAssets: ["icons/*.png", "splash/*.jpg"],
+      // splash/ is intentionally NOT listed either: iOS fetches
+      // apple-touch-startup-image at the OS level (outside the service
+      // worker), so precaching the ~1.5MB splash set would only bloat SW
+      // install. See the matching globIgnores below.
+      includeAssets: ["icons/*.png"],
       manifest: {
         name: "Household Hub - Financial Tracker",
         short_name: "HouseholdHub",
@@ -87,6 +91,10 @@ export default defineConfig({
       // injectManifest configuration (custom SW in src/sw.ts handles caching)
       injectManifest: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,woff,woff2}"],
+        // Keep the iOS splash set (public/splash/, ~92 PNGs / ~1.5MB) out of
+        // the precache manifest: startup images are requested by iOS itself,
+        // not through the service worker, so precaching them is pure waste.
+        globIgnores: ["splash/**"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
       },
       devOptions: {

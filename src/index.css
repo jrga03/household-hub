@@ -62,6 +62,20 @@
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
+  /* Bottom-edge chrome consolidation (mobile UX review R42).
+     --tab-bar-height is the BottomTabBar content row (its total footprint is
+     this + the bottom safe area). --bottom-chrome is THE shared base offset
+     for everything pinned to the bottom edge — FAB, sync-issues badge, sonner
+     toasts, and the <main> bottom padding all derive from it so nothing lands
+     under the tab bar. Default (no tab bar): just the safe area; overridden
+     at mobile widths below. */
+  --tab-bar-height: 3.5rem;
+  --bottom-chrome: var(--safe-area-bottom);
+  /* Toast clearance: sonner's own mobile breakpoint is 600px but the app's
+     mobile branch (tab bar + FAB) extends to 767px, so the FAB-clearing
+     offset must apply through 767px, not 600px. Desktop keeps ~sonner's
+     32px default. Overridden alongside --bottom-chrome below. */
+  --toast-bottom: calc(2rem + var(--bottom-chrome));
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -133,6 +147,21 @@
   --income: oklch(0.792 0.209 151.711); /* green-400 */
   --expense: oklch(0.704 0.191 22.216); /* red-400 */
   --warning: oklch(0.852 0.199 91.936); /* yellow-400 */
+}
+
+/* The bottom tab bar exists only in AppLayout's mobile branch. This media
+   query MUST mirror useIsMobile's breakpoint (max-width: 767px in
+   src/hooks/useMediaQuery.ts) so the CSS offset flips exactly when the
+   React branch does. Known tradeoff: auth routes (/login, /signup) render
+   no tab bar but still get the inflated offset at phone widths — only
+   toasts are affected there, and a too-high toast is harmless. */
+@media (max-width: 767px) {
+  :root {
+    --bottom-chrome: calc(var(--tab-bar-height) + var(--safe-area-bottom));
+    /* Clear the raised FAB (bottom 1.5rem+chrome, 3.5rem tall) too, not just
+       the tab bar — matches the mobileOffset clearance. */
+    --toast-bottom: calc(6.5rem + var(--bottom-chrome));
+  }
 }
 
 @layer base {

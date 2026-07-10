@@ -23,9 +23,14 @@ const Toaster = ({ ...props }: ToasterProps) => {
         error: <OctagonXIcon className="size-4" />,
         loading: <Loader2Icon className="size-4 motion-safe:animate-spin" />,
       }}
-      // Lift mobile toasts clear of the FAB and the iOS home-indicator zone
-      // (review R7); sonner's own mobile breakpoint is <=600px.
-      mobileOffset={{ bottom: "calc(6.5rem + var(--safe-area-bottom))" }}
+      // Lift toasts clear of the bottom tab bar, the FAB, and the iOS
+      // home-indicator zone (reviews R7, R42). --toast-bottom (index.css) is
+      // media-queried at the app's 767px mobile boundary: FAB+tab-bar
+      // clearance through 767px (sonner's own mobile breakpoint is only
+      // 600px, so the desktop `offset` must carry the 601-767px band), and
+      // ~sonner's 32px default on real desktops.
+      mobileOffset={{ bottom: "var(--toast-bottom)" }}
+      offset={{ bottom: "var(--toast-bottom)" }}
       style={
         {
           "--normal-bg": "var(--popover)",

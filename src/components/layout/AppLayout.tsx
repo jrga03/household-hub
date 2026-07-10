@@ -4,6 +4,7 @@ import { Menu } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { AppSidebar } from "./AppSidebar";
+import { BottomTabBar } from "./BottomTabBar";
 import { MobileNav } from "./MobileNav";
 import { QuickActionButton } from "./QuickActionButton";
 import { useNavStore } from "@/stores/navStore";
@@ -20,9 +21,16 @@ import { TransactionFormDialog } from "@/components/TransactionFormDialog";
  * Main application layout component
  *
  * Handles responsive layout logic:
- * - Mobile: Header with hamburger + drawer navigation + FAB
+ * - Mobile: Header with hamburger + drawer navigation + bottom tab bar + FAB
  * - Tablet: Collapsible sidebar (default collapsed) + FAB on touch devices
  * - Desktop: Collapsible sidebar (default expanded) + FAB on touch devices
+ *
+ * Bottom-edge geometry (review R42): everything pinned to the bottom edge
+ * derives from the shared `--bottom-chrome` custom property (index.css),
+ * which equals the BottomTabBar footprint at mobile widths and just the
+ * safe area elsewhere. The tab bar is DELIBERATELY mobile-branch-only:
+ * the tablet/desktop branch (including landscape phones, review C3) keeps
+ * the sidebar + coarse-pointer FAB instead.
  *
  * Features:
  * - Authentication-aware (no nav on login/signup)
@@ -124,16 +132,23 @@ export function AppLayout() {
         {/* Offline + storage banners (shared fixed stack) */}
         <BannerStack />
 
-        {/* Main Content: bottom inset keeps the FAB from covering the last
-            row's amounts on every route (review R13) */}
+        {/* Main Content: bottom inset keeps the tab bar AND the FAB (raised
+            above the bar) from covering the last row's amounts on every route
+            (reviews R13, R42). 5.5rem = 1.5rem FAB gap + 3.5rem FAB + 0.5rem
+            clearance, measured from the top of the bottom chrome. */}
         <main
           id="main-content"
-          className="flex-1 bg-background pb-[calc(5.5rem+var(--safe-area-bottom))]"
+          className="flex-1 bg-background pb-[calc(5.5rem+var(--bottom-chrome))]"
         >
           <Outlet />
         </main>
 
-        {/* Floating Action Button */}
+        {/* Bottom tab bar: one-tap access to the four highest-frequency
+            destinations (review R42) */}
+        <BottomTabBar />
+
+        {/* Floating Action Button (raised above the tab bar via
+            --bottom-chrome) */}
         <QuickActionButton />
 
         {/* Quick-add dialog (FAB, drawer CTA, and shortcuts drive navStore) */}
@@ -186,8 +201,9 @@ export function AppLayout() {
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
               "relative",
               // Same FAB clearance as the mobile branch (review R13): keep the
-              // floating button from covering the last row's amounts
-              isCoarsePointer && "pb-[calc(5.5rem+var(--safe-area-bottom))]"
+              // floating button from covering the last row's amounts. At these
+              // widths --bottom-chrome is just the safe area (no tab bar).
+              isCoarsePointer && "pb-[calc(5.5rem+var(--bottom-chrome))]"
             )}
             tabIndex={-1}
           >

@@ -44,9 +44,10 @@ import { SyncIssueItem } from "./SyncIssueItem";
  * - z-index: 50 (appears above most content)
  * - Width clamped to `min(24rem, 100vw - 2rem)` so the left edge (status
  *   icons, Clear All) never clips on small phones (review R28)
- * - On phones (< md) the whole slot is lifted above the FAB zone
- *   (bottom ~5.5rem, matching the main-content inset from review R13) so the
- *   collapsed badge never contests the FAB corner
+ * - On phones (< md) the whole slot is lifted above the FAB zone: 5.5rem
+ *   above the shared bottom chrome (--bottom-chrome = tab bar + safe area at
+ *   mobile widths, reviews R13/R42), so the collapsed badge never contests
+ *   the FAB corner and never lands under the bottom tab bar
  *
  * Accessibility:
  * - Keyboard navigation supported (tab to badge, enter to expand)
@@ -68,7 +69,7 @@ export function SyncIssuesPanel() {
   if (issues.length === 0) return null;
 
   return (
-    <div className="fixed bottom-[calc(5.5rem+var(--safe-area-bottom))] right-[calc(1rem+var(--safe-area-right))] z-50 md:bottom-[calc(1rem+var(--safe-area-bottom))]">
+    <div className="fixed bottom-[calc(5.5rem+var(--bottom-chrome))] right-[calc(1rem+var(--safe-area-right))] z-50 md:bottom-[calc(1rem+var(--safe-area-bottom))]">
       {/* Collapsed badge (always visible when issues exist) */}
       {!expanded && (
         <Button

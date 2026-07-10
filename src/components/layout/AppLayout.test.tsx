@@ -1,11 +1,16 @@
 /**
- * AppLayout branch tests (mobile UX review C3):
+ * AppLayout branch tests (mobile UX reviews C3, R42):
  *
  * isMobile is width-only (max-width: 767px), so landscape phones
  * (812-932px wide) render the tablet/desktop branch. The FAB must therefore
  * also render in that branch whenever the device's primary pointer is touch
  * ("(pointer: coarse)") — rotating a phone must not delete the primary add
  * action. Mouse-driven desktops stay FAB-free.
+ *
+ * The BottomTabBar (R42) is mobile-branch-ONLY (deliberate scope: the
+ * tablet/desktop branch, including landscape phones, keeps the sidebar +
+ * coarse-pointer FAB) and must never render on auth routes, where AppLayout
+ * early-returns without navigation chrome.
  */
 
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -13,10 +18,11 @@ import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { AppLayout } from "./AppLayout";
 
-const { mockIsMobile, mockIsTablet, mockUseMediaQuery } = vi.hoisted(() => ({
+const { mockIsMobile, mockIsTablet, mockUseMediaQuery, mockPathname } = vi.hoisted(() => ({
   mockIsMobile: vi.fn((): boolean => false),
   mockIsTablet: vi.fn((): boolean => false),
   mockUseMediaQuery: vi.fn((_query: string): boolean => false),
+  mockPathname: vi.fn((): string => "/"),
 }));
 
 vi.mock("@/hooks/useMediaQuery", () => ({
@@ -27,7 +33,7 @@ vi.mock("@/hooks/useMediaQuery", () => ({
 
 vi.mock("@tanstack/react-router", () => ({
   Outlet: () => <div data-testid="outlet" />,
-  useRouterState: () => ({ location: { pathname: "/" } }),
+  useRouterState: () => ({ location: { pathname: mockPathname() } }),
 }));
 
 // Heavy neighbors stubbed out — this test targets branch selection only
@@ -36,6 +42,11 @@ vi.mock("./AppSidebar", () => ({
 }));
 vi.mock("./MobileNav", () => ({
   MobileNav: () => <div data-testid="mobile-nav" />,
+}));
+// The real BottomTabBar needs a RouterProvider (Link active matching); its
+// own semantics are covered in BottomTabBar.test.tsx
+vi.mock("./BottomTabBar", () => ({
+  BottomTabBar: () => <nav data-testid="bottom-tab-bar" />,
 }));
 vi.mock("@/components/ui/sidebar", () => ({
   SidebarProvider: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
@@ -73,6 +84,7 @@ describe("AppLayout FAB branches (review C3)", () => {
     mockIsMobile.mockReturnValue(false);
     mockIsTablet.mockReturnValue(false);
     mockUseMediaQuery.mockReturnValue(false);
+    mockPathname.mockReturnValue("/");
   });
 
   it("renders the FAB in the tablet/desktop branch on coarse-pointer devices (landscape phones)", () => {
@@ -106,4 +118,48 @@ describe("AppLayout FAB branches (review C3)", () => {
     expect(screen.getByTestId("mobile-nav")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: FAB_NAME })).toBeInTheDocument();
   });
+});
+
+describe("AppLayout bottom tab bar placement (review R42)", () => {
+  beforeEach(() => {
+    mockIsMobile.mockReturnValue(false);
+    mockIsTablet.mockReturnValue(false);
+    mockUseMediaQuery.mockReturnValue(false);
+    mockPathname.mockReturnValue("/");
+  });
+
+  it("renders the bottom tab bar in the mobile branch", () => {
+    mockIsMobile.mockReturnValue(true);
+
+    render(<AppLayout />);
+
+    expect(screen.getByTestId("mobile-nav")).toBeInTheDocument();
+    expect(screen.getByTestId("bottom-tab-bar")).toBeInTheDocument();
+  });
+
+  it("does NOT render the tab bar in the tablet/desktop branch, even on coarse pointers (deliberate scope: landscape phones keep sidebar + FAB)", () => {
+    mockIsTablet.mockReturnValue(true);
+    mockUseMediaQuery.mockImplementation((query) => query === "(pointer: coarse)");
+
+    render(<AppLayout />);
+
+    expect(screen.getByTestId("app-sidebar")).toBeInTheDocument();
+    expect(screen.queryByTestId("bottom-tab-bar")).not.toBeInTheDocument();
+  });
+
+  it.each(["/login", "/signup"])(
+    "does NOT render the tab bar (or any nav chrome) on the %s auth route",
+    (authPath) => {
+      mockIsMobile.mockReturnValue(true);
+      mockPathname.mockReturnValue(authPath);
+
+      render(<AppLayout />);
+
+      // Auth early-return: outlet only, no navigation chrome at all
+      expect(screen.getByTestId("outlet")).toBeInTheDocument();
+      expect(screen.queryByTestId("bottom-tab-bar")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("mobile-nav")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: FAB_NAME })).not.toBeInTheDocument();
+    }
+  );
 });
