@@ -76,14 +76,14 @@ Branch: `mobile-ux-remediation`. Commit per verified phase.
 
 ## Phase 6 — Analytics & charts (R8, R18, R32, R33, R40, L)
 
-- [ ] 6.1 Analytics FilterPanel → Sheet below @[1100px]; `placeholderData: keepPreviousData` (R8)
-- [ ] 6.2 CategoryChart: gate slice onClick to hover-capable; real category IDs from processCategoryBreakdown; full legend on mobile (R18)
-- [ ] 6.3 Remove Card-in-Card double wrapping in AnalyticsDashboard (R32)
-- [ ] 6.4 Analytics tabs: text labels on phones + tabs-list height fix (R33)
-- [ ] 6.5 Semantic income/expense/warning color tokens + sweep ~73 usages (R40)
-- [ ] 6.6 Chart polish: shared cents-based axis tick formatter, structural chart skeletons, fix CategoryChart viewport `md:` → container query; swap the analytics raw spinners (analytics.tsx ×2, analytics/categories.tsx, CategoryAnalyticsContent.tsx) for LoadingSpinner/skeletons (deferred from 5.5) (L)
-- [ ] 6.7 DELETE dead chart components (decision 5); fix `/analytics/categories` missing `<Outlet>` + Total Spending flex-wrap (L)
-- [ ] 6.8 Category picker → Command combobox with search + Recents from Dexie (L)
+- [x] 6.1 Analytics FilterPanel → Sheet below @[1100px]; `placeholderData: keepPreviousData` (R8)
+- [x] 6.2 CategoryChart: gate slice onClick to hover-capable; real category IDs from processCategoryBreakdown; full legend on mobile (R18)
+- [x] 6.3 Remove Card-in-Card double wrapping in AnalyticsDashboard (R32)
+- [x] 6.4 Analytics tabs: text labels on phones + tabs-list height fix (R33)
+- [x] 6.5 Semantic income/expense/warning color tokens + sweep ~73 usages (R40)
+- [x] 6.6 Chart polish: shared cents-based axis tick formatter, structural chart skeletons, fix CategoryChart viewport `md:` → container query; swap the analytics raw spinners (analytics.tsx ×2, analytics/categories.tsx, CategoryAnalyticsContent.tsx) for LoadingSpinner/skeletons (deferred from 5.5) (L)
+- [x] 6.7 DELETE dead chart components (decision 5); fix `/analytics/categories` missing `<Outlet>` + Total Spending flex-wrap (L)
+- [x] 6.8 Category picker → Command combobox with search + Recents from Dexie (L)
 
 ## Phase 7 — Data layer & lifecycle (R10, R11, C1–C4)
 
