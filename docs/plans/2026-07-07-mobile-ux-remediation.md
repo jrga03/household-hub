@@ -12,6 +12,9 @@ Branch: `mobile-ux-remediation`. Commit per verified phase.
 - **Filtered totals + count via Supabase RPC** (not PostgREST aggregates). Why: aggregates are disabled by default on Supabase; the count label needs a server answer anyway.
 - **Dead chart components: DELETE** (CategoryInsightsDashboard + orphan charts + BudgetProgressCard). Why: duplicate live charts; git history preserves them.
 - **window.confirm: all five sites → AlertDialog**, authStore's confirm lifted into the component layer (`signOut({ exportFirst })`-style split).
+- **Landscape phones: FAB gated on `(pointer: coarse)` in the tablet branch** rather than rewriting isMobile (C3). Why: isMobile has too many consumers to change safely. Revisit: if landscape needs MobileNav too.
+- **Transactions infinite query has NO maxPages cap** (accepted refetch-all-loaded-pages cost on invalidation). Why: a cap evicts page 1 while the virtualizer renders the full flattened list, dropping top rows mid-scroll. Revisit: implement bidirectional fetch (fetchPreviousPage) if deep-scroll refetch cost bites.
+- **transactions_filter_summary RPC applied to LOCAL dev DB only** (2026-07-10, smoke-tested incl. transfer exclusion). Remote `supabase db push` pending explicit go-ahead.
 - **DEFERRED: swipe actions + haptics (C6).** Optional polish. Revisit: after Phase 8.
 - **DEFERRED: Supabase email-confirmation deep-link audit.** Depends on Supabase dashboard config outside the repo.
 
@@ -87,13 +90,13 @@ Branch: `mobile-ux-remediation`. Commit per verified phase.
 
 ## Phase 7 — Data layer & lifecycle (R10, R11, C1–C4)
 
-- [ ] 7.1 `useInfiniteQuery` pagination + Dexie fallback paging; RPC for filter totals + exact count (R10, decision 4)
-- [ ] 7.2 Offline coverage phase 1: `networkMode: 'always'` + typed OfflineError + explicit offline states (R11)
-- [ ] 7.3 Offline coverage phase 2: dashboard aggregates from Dexie; add Dexie `budgets` store; TransferList offline path (R11)
-- [ ] 7.4 Router `scrollRestoration: true` + verify virtualizer behavior (C1)
-- [ ] 7.5 Session-expiry UX: SIGNED_OUT → navigate, toast, purge query cache (C2)
-- [ ] 7.6 Landscape: pointer/orientation-aware isMobile or FAB in both branches (C3)
-- [ ] 7.7 In-app refresh affordance + error-boundary reload (C4)
+- [x] 7.1 `useInfiniteQuery` pagination + Dexie fallback paging; RPC for filter totals + exact count (R10, decision 4)
+- [x] 7.2 Offline coverage phase 1: `networkMode: 'always'` + typed OfflineError + explicit offline states (R11)
+- [x] 7.3 Offline coverage phase 2: dashboard aggregates from Dexie; add Dexie `budgets` store; TransferList offline path (R11)
+- [x] 7.4 Router `scrollRestoration: true` + verify virtualizer behavior (C1)
+- [x] 7.5 Session-expiry UX: SIGNED_OUT → navigate, toast, purge query cache (C2)
+- [x] 7.6 Landscape: pointer/orientation-aware isMobile or FAB in both branches (C3)
+- [x] 7.7 In-app refresh affordance + error-boundary reload (C4)
 
 ## Phase 8 — Bottom tab bar & PWA polish (R42, L)
 
