@@ -1,8 +1,10 @@
 import { create } from "zustand";
 import { User, Session } from "@supabase/supabase-js";
+import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { db } from "@/lib/dexie/db";
 import { csvExporter } from "@/lib/csv-exporter";
+import { queryClient } from "@/lib/queryClient";
 
 interface AuthState {
   user: User | null;
@@ -68,6 +70,34 @@ async function clearIndexedDB(): Promise<void> {
   }
 }
 
+/**
+ * Navigate to /login from this non-React module (session-expiry UX, review
+ * C2). The router is imported LAZILY: a static edge would create the module
+ * cycle authStore → router → routeTree → routes → authStore and pull the
+ * whole route tree into every unit test that imports this store. At runtime
+ * the router module is already loaded (App.tsx imports it), so the dynamic
+ * import resolves instantly from the module cache.
+ */
+async function navigateToLogin(options?: { preserveRedirect?: boolean }): Promise<void> {
+  try {
+    const { router } = await import("@/router");
+    if (router.state.location.pathname === "/login") return;
+    await router.navigate({
+      to: "/login",
+      // On session expiry, send the user back where they were after re-login
+      // (same shape as the beforeLoad guard in routes/__root.tsx)
+      search: options?.preserveRedirect ? { redirect: router.state.location.href } : {},
+    });
+  } catch (error) {
+    console.error("Failed to navigate to login:", error);
+  }
+}
+
+// Set by the deliberate signOut() action so the onAuthStateChange SIGNED_OUT
+// handler doesn't ALSO purge/toast/navigate for the same transition (the
+// action owns that UX). Reset in the action's finally.
+let deliberateSignOut = false;
+
 // Idempotency for initialize(): AuthProvider and route guards may all call
 // it; they share one in-flight run instead of stacking duplicate
 // onAuthStateChange listeners (review UI-12).
@@ -99,11 +129,37 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
         authSubscription?.unsubscribe();
         const {
           data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
+        } = supabase.auth.onAuthStateChange((event, session) => {
+          const hadUser = useAuthStore.getState().user !== null;
+
           set({
             user: session?.user ?? null,
             session,
           });
+
+          // Session-expiry UX (review C2): a resident PWA can sit signed-in
+          // for days; when the session dies (refresh-token expiry, remote
+          // sign-out) the old behavior kept showing cached financial data and
+          // accepted doomed edits. Purge server-state cache, tell the user,
+          // and route to /login.
+          //
+          // Guards — act ONLY on a real authenticated → signed-out
+          // transition:
+          // - `event === "SIGNED_OUT"` skips TOKEN_REFRESHED / SIGNED_IN /
+          //   INITIAL_SESSION (incl. the null session during boot).
+          // - `hadUser` skips a SIGNED_OUT fired when we never had a user.
+          // - `deliberateSignOut` skips the event echo of the explicit
+          //   signOut() action below, which owns its own purge/toast/navigate
+          //   (no double toast, no double navigation).
+          //
+          // Local Dexie data is intentionally NOT cleared here: unsynced
+          // offline changes must survive an unexpected expiry so they can
+          // sync after re-login. Deliberate sign-out clears it (below).
+          if (event === "SIGNED_OUT" && hadUser && !deliberateSignOut) {
+            queryClient.clear();
+            toast.error("Session expired. Please sign in again.");
+            void navigateToLogin({ preserveRedirect: true });
+          }
         });
         authSubscription = subscription;
       } catch (error) {
@@ -159,6 +215,10 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
 
   signOut: async (options?: SignOutOptions) => {
     set({ loading: true });
+    // The supabase SIGNED_OUT event fires DURING the signOut() await below;
+    // flag it as deliberate so the onAuthStateChange handler stays quiet and
+    // this action's own purge/toast/navigate runs exactly once.
+    deliberateSignOut = true;
     try {
       // Unsynced-data export before logout (Decision #84). Whether to export
       // is decided by the CALLER (component-layer AlertDialog confirm); this
@@ -189,9 +249,18 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
         session: null,
         loading: false,
       });
+
+      // Purge cached server state (shared-phone privacy: IndexedDB is
+      // cleared above, but TanStack Query still held decoded financial data
+      // in memory), confirm, and leave the now-unauthenticated page.
+      queryClient.clear();
+      toast.success("Signed out");
+      void navigateToLogin();
     } catch (error) {
       set({ loading: false });
       throw error;
+    } finally {
+      deliberateSignOut = false;
     }
   },
 }));

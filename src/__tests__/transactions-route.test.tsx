@@ -61,15 +61,31 @@ vi.mock("@/hooks/usePrefetchTransactionData", () => ({
 }));
 
 const mockTransactionsQuery = vi.fn(
-  (): { data: TransactionWithRelations[] | undefined; isLoading: boolean } => ({
+  (): {
+    data: TransactionWithRelations[] | undefined;
+    isLoading: boolean;
+    fetchNextPage: ReturnType<typeof vi.fn>;
+    hasNextPage: boolean;
+    isFetchingNextPage: boolean;
+  } => ({
     data: [],
     isLoading: false,
+    fetchNextPage: vi.fn(),
+    hasNextPage: false,
+    isFetchingNextPage: false,
   })
 );
 const mockTransactionQuery = vi.fn(
   (): { data: TransactionWithRelations | undefined; isLoading: boolean } => ({
     data: undefined,
     isLoading: false,
+  })
+);
+// Server-side filter summary (count + In/Out totals over the WHOLE filtered
+// set, review R10); undefined models "still loading / no answer yet"
+const mockFilterSummaryQuery = vi.fn(
+  (): { data: { count: number; totalInCents: number; totalOutCents: number } | undefined } => ({
+    data: undefined,
   })
 );
 
@@ -79,6 +95,7 @@ const deleteMutateAsync = vi.fn();
 
 vi.mock("@/lib/supabaseQueries", () => ({
   useTransactions: () => mockTransactionsQuery(),
+  useTransactionsFilterSummary: () => mockFilterSummaryQuery(),
   useTransaction: () => mockTransactionQuery(),
   useAccounts: () => ({ data: [] }),
   useCategoriesGrouped: () => ({ data: [], isLoading: false }),
@@ -185,16 +202,36 @@ async function renderTransactionsRoute() {
 
 beforeEach(() => {
   containerNarrow.mockImplementation(() => true);
-  mockTransactionsQuery.mockReturnValue({ data: [groceries, salary], isLoading: false });
+  mockTransactionsQuery.mockReturnValue({
+    data: [groceries, salary],
+    isLoading: false,
+    fetchNextPage: vi.fn(),
+    hasNextPage: false,
+    isFetchingNextPage: false,
+  });
   mockTransactionQuery.mockReturnValue({ data: groceries, isLoading: false });
+  mockFilterSummaryQuery.mockReturnValue({ data: undefined });
 });
 
 describe("transactions route on narrow layouts (R14/R38)", () => {
-  it("shows the filtered In/Out totals inline", async () => {
+  it("shows the filtered In/Out totals inline (loaded-page fallback while the summary loads)", async () => {
     await renderTransactionsRoute();
 
     expect(screen.getByText(`In ${formatPHP(500000)}`)).toBeInTheDocument();
     expect(screen.getByText(`Out ${formatPHP(150050)}`)).toBeInTheDocument();
+  });
+
+  it("uses the server summary for the count and In/Out totals once it resolves (R10)", async () => {
+    // 500 matching rows on the server, only 2 loaded: the header must report
+    // the full filtered set, not the loaded pages
+    mockFilterSummaryQuery.mockReturnValue({
+      data: { count: 500, totalInCents: 777700, totalOutCents: 555500 },
+    });
+    await renderTransactionsRoute();
+
+    expect(screen.getByText("500 transactions")).toBeInTheDocument();
+    expect(screen.getByText(`In ${formatPHP(777700)}`)).toBeInTheDocument();
+    expect(screen.getByText(`Out ${formatPHP(555500)}`)).toBeInTheDocument();
   });
 
   it("opens the read-only detail sheet on card tap instead of the edit form", async () => {

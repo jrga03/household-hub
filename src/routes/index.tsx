@@ -6,6 +6,9 @@ import { SummaryCards } from "@/components/dashboard/SummaryCards";
 import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { ChartCardSkeleton } from "@/components/dashboard/ChartCardSkeleton";
 import { useDashboardData } from "@/lib/supabaseQueries";
+import { isOfflineError } from "@/lib/offline/errors";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { OfflineHint, OfflineEmptyState } from "@/components/sync/OfflineStates";
 import { PageShell } from "@/components/layout/PageShell";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,6 +29,7 @@ export const Route = createFileRoute("/")({
 function DashboardPage() {
   const [selectedMonth, setSelectedMonth] = useState(startOfMonth(new Date()));
   const { data, isLoading, error, refetch } = useDashboardData(selectedMonth);
+  const isOnline = useOnlineStatus();
 
   // Header paints in every state (loading included) so month navigation and
   // the page identity never flash away behind a spinner (review R41)
@@ -48,6 +52,23 @@ function DashboardPage() {
       <div className="bg-background">
         {header}
         <DashboardSkeleton />
+      </div>
+    );
+  }
+
+  // Typed offline state (review R11): the device has never synced, so there
+  // is no local data to compute a dashboard from - say so honestly instead
+  // of rendering a blank page or a scary failure message
+  if (error && isOfflineError(error)) {
+    return (
+      <div className="bg-background">
+        {header}
+        <div className="container mx-auto max-w-7xl px-4">
+          <OfflineEmptyState
+            description="This device hasn't synced any data yet. Reconnect once and your dashboard will be available offline from then on."
+            onRetry={() => refetch()}
+          />
+        </div>
       </div>
     );
   }
@@ -84,6 +105,9 @@ function DashboardPage() {
 
       <PageShell variant="rail">
         <PageShell.Main className="space-y-6">
+          {/* Serving Dexie data while offline: say where the numbers come
+              from (review R11) */}
+          {!isOnline && <OfflineHint />}
           <SummaryCards summary={data.summary} />
           <Suspense fallback={<ChartCardSkeleton />}>
             <MonthlyChart data={data.monthlyTrend} />

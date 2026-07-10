@@ -7,7 +7,7 @@ import { AppSidebar } from "./AppSidebar";
 import { MobileNav } from "./MobileNav";
 import { QuickActionButton } from "./QuickActionButton";
 import { useNavStore } from "@/stores/navStore";
-import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
+import { useIsMobile, useIsTablet, useMediaQuery } from "@/hooks/useMediaQuery";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { cn } from "@/lib/utils";
 import { GlobalSyncStatus } from "@/components/sync/GlobalSyncStatus";
@@ -21,8 +21,8 @@ import { TransactionFormDialog } from "@/components/TransactionFormDialog";
  *
  * Handles responsive layout logic:
  * - Mobile: Header with hamburger + drawer navigation + FAB
- * - Tablet: Collapsible sidebar (default collapsed)
- * - Desktop: Collapsible sidebar (default expanded)
+ * - Tablet: Collapsible sidebar (default collapsed) + FAB on touch devices
+ * - Desktop: Collapsible sidebar (default expanded) + FAB on touch devices
  *
  * Features:
  * - Authentication-aware (no nav on login/signup)
@@ -44,6 +44,14 @@ export function AppLayout() {
   // Responsive breakpoints
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
+
+  // Landscape phones (812-932px wide) fall into the tablet/desktop branch
+  // because isMobile is width-only (review C3). Rewriting isMobile itself is
+  // deliberately out of scope (too many consumers); instead the FAB renders
+  // in the tablet/desktop branch too whenever the device's PRIMARY pointer is
+  // touch, so rotating the phone doesn't delete the primary add action.
+  // Mouse-driven desktops keep their FAB-free layout.
+  const isCoarsePointer = useMediaQuery("(pointer: coarse)");
 
   // Enable keyboard shortcuts
   useKeyboardShortcuts();
@@ -176,13 +184,20 @@ export function AppLayout() {
             className={cn(
               "flex-1 bg-background",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-              "relative"
+              "relative",
+              // Same FAB clearance as the mobile branch (review R13): keep the
+              // floating button from covering the last row's amounts
+              isCoarsePointer && "pb-[calc(5.5rem+var(--safe-area-bottom))]"
             )}
             tabIndex={-1}
           >
             <Outlet />
           </main>
         </div>
+
+        {/* FAB for touch devices that exceed the mobile width breakpoint
+            (landscape phones, tablets — review C3) */}
+        {isCoarsePointer && <QuickActionButton />}
 
         {/* Quick-add dialog (sidebar/drawer CTAs and shortcuts drive navStore) */}
         <QuickAddTransactionDialog />

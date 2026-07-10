@@ -36,6 +36,13 @@ import { useNavStore } from "@/stores/navStore";
 import { useContainerNarrow } from "@/hooks/useContainerWidth";
 import { cn } from "@/lib/utils";
 
+/**
+ * Start fetching the next page when the last rendered virtual row is within
+ * this many rows of the end of the loaded list (TanStack Virtual +
+ * useInfiniteQuery pattern, review R10).
+ */
+const NEXT_PAGE_FETCH_THRESHOLD = 10;
+
 interface Props {
   filters?: TransactionFilters;
   /**
@@ -50,11 +57,25 @@ interface Props {
    * Falls back to onEdit when absent.
    */
   onRequestEdit?: (id: string) => void;
+  /**
+   * Exact server-side count of rows matching the filters (from
+   * transactions_filter_summary). The list only loads pages on demand, so
+   * selection covers loaded rows; this keeps the "N of M selected" label
+   * honest about the full filtered set (review R10). Falls back to the
+   * loaded-row count when the host has no server answer.
+   */
+  totalCount?: number;
 }
 
-export function TransactionList({ filters, onEdit, onRequestEdit }: Props) {
+export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: Props) {
   const requestEdit = onRequestEdit ?? onEdit;
-  const { data: transactions, isLoading } = useTransactions(filters);
+  const {
+    data: transactions,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useTransactions(filters);
   const toggleStatus = useToggleTransactionStatus();
   const setStatus = useSetTransactionStatus();
   const deleteTransaction = useDeleteTransaction();
@@ -109,6 +130,20 @@ export function TransactionList({ filters, onEdit, onRequestEdit }: Props) {
   useEffect(() => {
     rowVirtualizer.measure();
   }, [presentation, rowVirtualizer]);
+
+  // Infinite scroll: when the last rendered virtual row approaches the end
+  // of the loaded rows, pull the next page (review R10). The virtualizer
+  // re-renders on scroll, so lastVirtualIndex advances as the user scrolls.
+  const rowCount = transactions?.length ?? 0;
+  const virtualItems = rowVirtualizer.getVirtualItems();
+  const lastVirtualIndex =
+    virtualItems.length > 0 ? virtualItems[virtualItems.length - 1].index : -1;
+  useEffect(() => {
+    if (lastVirtualIndex < 0 || !hasNextPage || isFetchingNextPage) return;
+    if (lastVirtualIndex >= rowCount - NEXT_PAGE_FETCH_THRESHOLD) {
+      fetchNextPage();
+    }
+  }, [lastVirtualIndex, rowCount, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked && transactions) {
@@ -273,8 +308,11 @@ export function TransactionList({ filters, onEdit, onRequestEdit }: Props) {
       {hasSelection && (
         <div className="rounded-lg border bg-muted/50 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
+            {/* Honest count: selection covers LOADED rows only, so show the
+                selection against the full filtered count from the server
+                summary when the host provides it (review R10) */}
             <span className="text-sm font-medium">
-              {selectedIds.size} transaction{selectedIds.size > 1 ? "s" : ""} selected
+              {selectedIds.size} of {totalCount ?? transactions.length} selected
             </span>
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => handleBulkStatusUpdate("cleared")}>
@@ -586,6 +624,17 @@ export function TransactionList({ filters, onEdit, onRequestEdit }: Props) {
             </div>
           )}
         </div>
+
+        {/* Next-page indicator: small, below the scroll area so it is never
+            clipped by the virtualizer's computed height (review R10) */}
+        {isFetchingNextPage && (
+          <div
+            role="status"
+            className="flex items-center justify-center p-3 text-sm text-muted-foreground"
+          >
+            Loading more transactions…
+          </div>
+        )}
       </div>
     </div>
   );

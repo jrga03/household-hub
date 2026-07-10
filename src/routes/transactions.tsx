@@ -9,6 +9,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useTransactions,
+  useTransactionsFilterSummary,
   useToggleTransactionStatus,
   useDeleteTransaction,
 } from "@/lib/supabaseQueries";
@@ -84,15 +85,31 @@ function Transactions() {
   };
 
   const { data: transactions } = useTransactions(debouncedFilters);
+  // Count + In/Out totals over the WHOLE filtered set (server RPC, or the
+  // full local Dexie dataset when the RPC is unreachable) — summing the
+  // loaded rows was silently wrong past the first page (review R10)
+  const { data: serverSummary } = useTransactionsFilterSummary(debouncedFilters);
 
-  const filterSummary = {
-    count: transactions?.length ?? 0,
-    totalIn:
-      transactions?.filter((t) => t.type === "income").reduce((s, t) => s + t.amount_cents, 0) ?? 0,
-    totalOut:
-      transactions?.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount_cents, 0) ??
-      0,
-  };
+  // Until the summary resolves, fall back to numbers derived from the loaded
+  // pages — all three from ONE source, never a server count next to
+  // client-computed totals
+  const filterSummary = serverSummary
+    ? {
+        count: serverSummary.count,
+        totalIn: serverSummary.totalInCents,
+        totalOut: serverSummary.totalOutCents,
+      }
+    : {
+        count: transactions?.length ?? 0,
+        totalIn:
+          transactions
+            ?.filter((t) => t.type === "income")
+            .reduce((s, t) => s + t.amount_cents, 0) ?? 0,
+        totalOut:
+          transactions
+            ?.filter((t) => t.type === "expense")
+            .reduce((s, t) => s + t.amount_cents, 0) ?? 0,
+      };
 
   const updateFilters = (newFilters: TransactionFilters) => {
     // replace: true so per-keystroke filter updates (e.g. typing in search)
@@ -144,8 +161,10 @@ function Transactions() {
         <PageShell.Main className="space-y-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
+              {/* Exact filtered count (server RPC / full local dataset), not
+                  the loaded-page count (review R10) */}
               <span>
-                {transactions?.length || 0} transaction{transactions?.length !== 1 ? "s" : ""}
+                {filterSummary.count} transaction{filterSummary.count !== 1 ? "s" : ""}
               </span>
               {/* Filtered In/Out totals are otherwise only visible in the
                   @[1500px] detail pane's filter summary; surface them inline
@@ -168,6 +187,7 @@ function Transactions() {
           </div>
           <TransactionList
             filters={debouncedFilters}
+            totalCount={serverSummary?.count}
             onEdit={handleRowClick}
             // The pencil is an explicit edit intent: skip the read-only sheet
             // that narrow-layout row taps open and go straight to the form

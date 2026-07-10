@@ -8,7 +8,10 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { db, type LocalTransaction } from "@/lib/dexie/db";
 import {
   applyTransactionFilters,
+  getLocalTransactionsFilterSummary,
+  getLocalTransactionsWithRelations,
   getUnsyncedLocalTransactionsWithRelations,
+  mergeTransactionPages,
   overlayLocalTransactions,
 } from "./reads";
 import type { SyncQueueItem, SyncQueueStatus, OperationType } from "@/types/sync";
@@ -102,7 +105,7 @@ describe("overlayLocalTransactions", () => {
     expect(merged.map((r) => r.id)).toEqual(["l1", "s1", "s2"]);
   });
 
-  it("keeps the row cap after merging", () => {
+  it("applies an explicit row cap after merging", () => {
     const manyServer = Array.from({ length: 100 }, (_, i) => ({
       id: `s${i}`,
       date: "2026-06-30",
@@ -110,10 +113,90 @@ describe("overlayLocalTransactions", () => {
     }));
     const local = [{ id: "l1", date: "2026-07-04", created_at: "2026-07-04T08:00:00Z" }];
 
-    const merged = overlayLocalTransactions(manyServer, local);
+    const merged = overlayLocalTransactions(manyServer, local, 100);
 
     expect(merged).toHaveLength(100);
     expect(merged[0].id).toBe("l1"); // newest local row displaces the oldest server row
+  });
+
+  it("does not cap the merged list when no limit is given (paged list, R10)", () => {
+    const manyServer = Array.from({ length: 100 }, (_, i) => ({
+      id: `s${i}`,
+      date: "2026-06-30",
+      created_at: `2026-06-30T00:00:${String(i % 60).padStart(2, "0")}Z`,
+    }));
+    const local = [{ id: "l1", date: "2026-07-04", created_at: "2026-07-04T08:00:00Z" }];
+
+    expect(overlayLocalTransactions(manyServer, local)).toHaveLength(101);
+  });
+});
+
+// ─── mergeTransactionPages (pure) ────────────────
+
+describe("mergeTransactionPages", () => {
+  const row = (id: string, date: string, createdAt = `${date}T08:00:00Z`) => ({
+    id,
+    date,
+    created_at: createdAt,
+  });
+
+  it("flattens pages preserving the server sort (date desc, created_at desc)", () => {
+    const merged = mergeTransactionPages([
+      { rows: [row("a", "2026-07-05"), row("b", "2026-07-04")], localOverlay: [] },
+      { rows: [row("c", "2026-07-03"), row("d", "2026-07-02")], localOverlay: [] },
+    ]);
+
+    expect(merged.map((r) => r.id)).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("dedupes a server row repeated across pages (boundary shift between fetches)", () => {
+    // An insert between the two page fetches pushed row "b" from page 1's
+    // window into page 2's window as well
+    const merged = mergeTransactionPages([
+      { rows: [row("a", "2026-07-05"), row("b", "2026-07-04")], localOverlay: [] },
+      { rows: [row("b", "2026-07-04"), row("c", "2026-07-03")], localOverlay: [] },
+    ]);
+
+    expect(merged.map((r) => r.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("overlay row does not duplicate its server echo arriving in a LATER page", () => {
+    // Page 1 was fetched while "x" was still local-only (overlay snapshot
+    // includes it); by page 2's fetch the outbox drained and the server
+    // returns the echo. The local copy must win, exactly once.
+    const localX = { ...row("x", "2026-07-03", "2026-07-03T09:00:00Z"), local: true };
+    const serverX = { ...row("x", "2026-07-03", "2026-07-03T09:00:00Z"), local: false };
+
+    const merged = mergeTransactionPages<typeof localX>([
+      { rows: [row("a", "2026-07-05") as typeof localX], localOverlay: [localX] },
+      { rows: [serverX, row("c", "2026-07-02") as typeof localX], localOverlay: [] },
+    ]);
+
+    expect(merged.filter((r) => r.id === "x")).toHaveLength(1);
+    expect(merged.find((r) => r.id === "x")?.local).toBe(true);
+    expect(merged.map((r) => r.id)).toEqual(["a", "x", "c"]);
+  });
+
+  it("a later page's fresher overlay snapshot wins over an earlier one", () => {
+    const stale = { ...row("x", "2026-07-03"), amount: 1 };
+    const fresh = { ...row("x", "2026-07-03"), amount: 2 };
+
+    const merged = mergeTransactionPages<typeof stale>([
+      { rows: [], localOverlay: [stale] },
+      { rows: [], localOverlay: [fresh] },
+    ]);
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0].amount).toBe(2);
+  });
+
+  it("inserts overlay-only rows in sort position without capping the list", () => {
+    const merged = mergeTransactionPages([
+      { rows: [row("a", "2026-07-05"), row("c", "2026-07-03")], localOverlay: [] },
+      { rows: [row("d", "2026-07-02")], localOverlay: [row("b", "2026-07-04")] },
+    ]);
+
+    expect(merged.map((r) => r.id)).toEqual(["a", "b", "c", "d"]);
   });
 });
 
@@ -229,5 +312,108 @@ describe("getUnsyncedLocalTransactionsWithRelations", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].account).toEqual({ id: "acc-1", name: "BPI Checking" });
     expect(rows[0].category).toBeNull();
+  });
+});
+
+// ─── getLocalTransactionsWithRelations paging ────
+
+describe("getLocalTransactionsWithRelations paging (Dexie fallback for .range())", () => {
+  beforeEach(async () => {
+    await db.transactions.clear();
+    await db.accounts.clear();
+    await db.categories.clear();
+
+    // 7 rows, newest first after sorting: tx-06 … tx-00
+    await db.transactions.bulkAdd(
+      Array.from({ length: 7 }, (_, i) =>
+        makeTransaction({
+          id: `tx-${String(i).padStart(2, "0")}`,
+          date: `2026-07-${String(i + 1).padStart(2, "0")}`,
+          created_at: `2026-07-${String(i + 1).padStart(2, "0")}T10:00:00.000Z`,
+        })
+      )
+    );
+  });
+
+  it("mirrors the server's offset/limit window over the sorted rows", async () => {
+    const page0 = await getLocalTransactionsWithRelations(undefined, { offset: 0, limit: 3 });
+    const page1 = await getLocalTransactionsWithRelations(undefined, { offset: 3, limit: 3 });
+    const page2 = await getLocalTransactionsWithRelations(undefined, { offset: 6, limit: 3 });
+
+    expect(page0.map((t) => t.id)).toEqual(["tx-06", "tx-05", "tx-04"]);
+    expect(page1.map((t) => t.id)).toEqual(["tx-03", "tx-02", "tx-01"]);
+    // Short last page, exactly like .range() past the end
+    expect(page2.map((t) => t.id)).toEqual(["tx-00"]);
+  });
+
+  it("returns an empty page past the end of the dataset", async () => {
+    expect(await getLocalTransactionsWithRelations(undefined, { offset: 9, limit: 3 })).toEqual([]);
+  });
+
+  it("pages the FILTERED set, not the raw table", async () => {
+    await db.transactions.add(
+      makeTransaction({ id: "tx-transfer", date: "2026-07-09", transfer_group_id: "tg-1" })
+    );
+
+    const page0 = await getLocalTransactionsWithRelations(undefined, { offset: 0, limit: 2 });
+
+    // The transfer (newest row) is excluded by default, so the window starts
+    // at the newest non-transfer row
+    expect(page0.map((t) => t.id)).toEqual(["tx-06", "tx-05"]);
+  });
+});
+
+// ─── getLocalTransactionsFilterSummary ───────────
+
+describe("getLocalTransactionsFilterSummary", () => {
+  beforeEach(async () => {
+    await db.transactions.clear();
+  });
+
+  it("computes count and In/Out totals over the FULL dataset with filter mirroring", async () => {
+    await db.transactions.bulkAdd([
+      makeTransaction({ id: "t1", type: "income", amount_cents: 500000 }),
+      makeTransaction({ id: "t2", type: "expense", amount_cents: 150050 }),
+      makeTransaction({ id: "t3", type: "expense", amount_cents: 9950 }),
+      // Transfer leg: excluded by default like the RPC and the list query
+      makeTransaction({
+        id: "t4",
+        type: "expense",
+        amount_cents: 700000,
+        transfer_group_id: "tg-1",
+      }),
+    ]);
+
+    const summary = await getLocalTransactionsFilterSummary();
+
+    expect(summary).toEqual({ count: 3, totalInCents: 500000, totalOutCents: 160000 });
+  });
+
+  it("includes transfers when excludeTransfers is false", async () => {
+    await db.transactions.bulkAdd([
+      makeTransaction({ id: "t1", type: "expense", amount_cents: 10000 }),
+      makeTransaction({
+        id: "t2",
+        type: "expense",
+        amount_cents: 5000,
+        transfer_group_id: "tg-1",
+      }),
+    ]);
+
+    const summary = await getLocalTransactionsFilterSummary({ excludeTransfers: false });
+
+    expect(summary).toEqual({ count: 2, totalInCents: 0, totalOutCents: 15000 });
+  });
+
+  it("applies the same filters as the server query", async () => {
+    await db.transactions.bulkAdd([
+      makeTransaction({ id: "t1", type: "expense", amount_cents: 10000, date: "2026-07-01" }),
+      makeTransaction({ id: "t2", type: "expense", amount_cents: 20000, date: "2026-06-01" }),
+      makeTransaction({ id: "t3", type: "income", amount_cents: 30000, date: "2026-07-02" }),
+    ]);
+
+    const summary = await getLocalTransactionsFilterSummary({ dateFrom: "2026-07-01" });
+
+    expect(summary).toEqual({ count: 2, totalInCents: 30000, totalOutCents: 10000 });
   });
 });

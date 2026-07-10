@@ -24,10 +24,22 @@ vi.mock("@/hooks/useContainerWidth", () => ({
   useContainerNarrow: () => [vi.fn(), mockIsNarrow()],
 }));
 
+interface MockTransactionsResult {
+  data: TransactionWithRelations[] | undefined;
+  isLoading: boolean;
+  fetchNextPage: ReturnType<typeof vi.fn>;
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+}
+
+const fetchNextPage = vi.fn();
 const mockTransactionsQuery = vi.fn(
-  (): { data: TransactionWithRelations[] | undefined; isLoading: boolean } => ({
+  (): MockTransactionsResult => ({
     data: [],
     isLoading: false,
+    fetchNextPage,
+    hasNextPage: false,
+    isFetchingNextPage: false,
   })
 );
 const toggleMutate = vi.fn();
@@ -118,21 +130,32 @@ const fixtures = [
   }),
 ];
 
-function renderList(onEdit = vi.fn(), onRequestEdit?: (id: string) => void) {
+function renderList(onEdit = vi.fn(), onRequestEdit?: (id: string) => void, totalCount?: number) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   render(
     <QueryClientProvider client={queryClient}>
-      <TransactionList onEdit={onEdit} onRequestEdit={onRequestEdit} />
+      <TransactionList onEdit={onEdit} onRequestEdit={onRequestEdit} totalCount={totalCount} />
     </QueryClientProvider>
   );
   return onEdit;
 }
 
+function mockQueryResult(overrides: Partial<MockTransactionsResult> = {}) {
+  mockTransactionsQuery.mockReturnValue({
+    data: fixtures,
+    isLoading: false,
+    fetchNextPage,
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    ...overrides,
+  });
+}
+
 beforeEach(() => {
   mockIsNarrow.mockReturnValue(false);
-  mockTransactionsQuery.mockReturnValue({ data: fixtures, isLoading: false });
+  mockQueryResult();
 });
 
 describe("TransactionList presentation modes (R6)", () => {
@@ -178,7 +201,7 @@ describe("row/card tap semantics (R14)", () => {
     fireEvent.click(screen.getByLabelText("Select Groceries"));
 
     expect(onEdit).not.toHaveBeenCalled();
-    expect(screen.getByText("1 transaction selected")).toBeInTheDocument();
+    expect(screen.getByText("1 of 2 selected")).toBeInTheDocument();
   });
 
   it("calls onEdit when a table row is clicked", () => {
@@ -202,7 +225,7 @@ describe("row/card tap semantics (R14)", () => {
     // ... but they still did their own jobs
     expect(toggleMutate).toHaveBeenCalledWith("txn-1");
     expect(vi.mocked(confirm)).toHaveBeenCalled();
-    expect(screen.getByText("1 transaction selected")).toBeInTheDocument();
+    expect(screen.getByText("1 of 2 selected")).toBeInTheDocument();
 
     // Without onRequestEdit the Edit pencil falls back to onEdit, exactly once
     fireEvent.click(screen.getByLabelText("Edit Groceries"));
@@ -227,5 +250,48 @@ describe("row/card tap semantics (R14)", () => {
     expect(onEdit).toHaveBeenCalledTimes(1);
     expect(onEdit).toHaveBeenCalledWith("txn-1");
     expect(onRequestEdit).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("infinite pagination (R10)", () => {
+  // The virtualizer mock renders EVERY row, so the last virtual index always
+  // sits at the end of the loaded list — exactly the "scrolled near the end"
+  // condition the fetch-next effect watches for.
+  it("fetches the next page when the last virtual row nears the end", () => {
+    mockQueryResult({ hasNextPage: true });
+    renderList();
+
+    expect(fetchNextPage).toHaveBeenCalled();
+  });
+
+  it("does not fetch when there is no next page", () => {
+    mockQueryResult({ hasNextPage: false });
+    renderList();
+
+    expect(fetchNextPage).not.toHaveBeenCalled();
+  });
+
+  it("does not re-fetch while a next page is already loading", () => {
+    mockQueryResult({ hasNextPage: true, isFetchingNextPage: true });
+    renderList();
+
+    expect(fetchNextPage).not.toHaveBeenCalled();
+  });
+
+  it("shows a small loading row while the next page is fetching", () => {
+    mockQueryResult({ isFetchingNextPage: true });
+    renderList();
+
+    expect(screen.getByText("Loading more transactions…")).toBeInTheDocument();
+  });
+
+  it("uses the server total for the selection label when provided", () => {
+    renderList(vi.fn(), undefined, 500);
+
+    fireEvent.click(screen.getByLabelText("Select Groceries"));
+
+    // Honest label: selection covers loaded rows, count shows the full
+    // filtered set from the server summary
+    expect(screen.getByText("1 of 500 selected")).toBeInTheDocument();
   });
 });

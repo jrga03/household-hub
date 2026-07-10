@@ -15,6 +15,9 @@ import {
   type Budget,
 } from "@/lib/supabaseQueries";
 import { confirm } from "@/lib/confirm";
+import { isOfflineError } from "@/lib/offline/errors";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { OfflineHint, OfflineEmptyState } from "@/components/sync/OfflineStates";
 import { LoadingSpinner } from "@/components/LoadingScreen";
 import { toast } from "sonner";
 
@@ -27,7 +30,8 @@ function BudgetsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
 
-  const { data: budgetGroups, isLoading } = useBudgets(selectedMonth);
+  const { data: budgetGroups, isLoading, error, refetch } = useBudgets(selectedMonth);
+  const isOnline = useOnlineStatus();
   const createBudget = useCreateBudget();
   const updateBudget = useUpdateBudget();
   const deleteBudget = useDeleteBudget();
@@ -142,7 +146,21 @@ function BudgetsPage() {
 
       {/* Content */}
       <main className="container mx-auto max-w-7xl px-4 py-8">
-        <BudgetList groups={budgetGroups || []} onEdit={handleEdit} onDelete={handleDelete} />
+        {error && isOfflineError(error) ? (
+          // Typed offline state (review R11): this month's budgets were never
+          // fetched on this device, which is NOT the same as "no budgets" -
+          // keep the MonthSelector usable and say what's actually going on
+          <OfflineEmptyState
+            description="This month's budgets haven't been saved to this device yet. Reconnect to load them - after that they stay available offline."
+            onRetry={() => refetch()}
+          />
+        ) : (
+          <div className="space-y-4">
+            {/* Serving mirrored Dexie data while offline (review R11) */}
+            {!isOnline && <OfflineHint />}
+            <BudgetList groups={budgetGroups || []} onEdit={handleEdit} onDelete={handleDelete} />
+          </div>
+        )}
       </main>
 
       {/* Form Dialog */}

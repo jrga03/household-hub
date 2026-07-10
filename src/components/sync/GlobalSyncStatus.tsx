@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { Cloud, CloudOff, Loader2, AlertCircle, type LucideIcon } from "lucide-react";
+import { Cloud, CloudOff, Loader2, AlertCircle, RefreshCw, type LucideIcon } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSyncStatus } from "@/hooks/useSyncStatus";
+import { useSyncProcessor } from "@/hooks/useSyncProcessor";
 import { SyncQueueViewer } from "@/components/sync/SyncQueueViewer";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -127,6 +129,19 @@ export function getSyncStatusConfig({
 export function GlobalSyncStatus({ variant = "default", className }: GlobalSyncStatusProps) {
   const { isOnline, pendingCount, failedCount, isSyncing, lastSyncTime } = useSyncStatus();
   const [showQueue, setShowQueue] = useState(false);
+  const queryClient = useQueryClient();
+  const syncMutation = useSyncProcessor();
+
+  // READ refresh for the detailed variant (review C4): pull-to-refresh is
+  // disabled (overscroll-behavior: none) and standalone PWAs have no browser
+  // reload button, so this is the explicit "re-fetch everything" affordance.
+  // Marks EVERY query stale + refetching, and pushes the local outbox so the
+  // refetch reflects local changes too (SyncQueueViewer's "Sync now" is the
+  // WRITE half; this covers reads).
+  const handleRefreshData = () => {
+    void queryClient.invalidateQueries();
+    syncMutation.mutate();
+  };
 
   const hasFailures = failedCount > 0;
   const hasPending = pendingCount > 0;
@@ -219,6 +234,23 @@ export function GlobalSyncStatus({ variant = "default", className }: GlobalSyncS
             </div>
           ) : null}
         </button>
+
+        {/* Explicit refresh affordance (review C4) — visible wherever the
+            detailed variant mounts (MobileNav drawer, settings) */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-2 min-h-11 w-full"
+          onClick={handleRefreshData}
+          disabled={syncMutation.isPending}
+        >
+          <RefreshCw
+            className={cn("h-4 w-4", syncMutation.isPending && "animate-spin")}
+            aria-hidden="true"
+          />
+          Refresh data
+        </Button>
+
         <SyncQueueViewer open={showQueue} onOpenChange={setShowQueue} />
       </>
     );

@@ -1,7 +1,6 @@
-import { RouterProvider, createRouter } from "@tanstack/react-router";
+import { RouterProvider } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { ThemeProvider } from "next-themes";
-import { routeTree } from "./routeTree.gen";
 import { Toaster } from "@/components/ui/sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
@@ -9,16 +8,10 @@ import { ThemeColorSync } from "@/components/ThemeColorSync";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { realtimeSync } from "@/lib/realtime-sync";
 import { eventCompactor } from "@/lib/event-compactor";
-
-// Create router instance
-const router = createRouter({ routeTree });
-
-// Type augmentation for router (enables autocomplete)
-declare module "@tanstack/react-router" {
-  interface Register {
-    router: typeof router;
-  }
-}
+// Router singleton + scroll restoration + Register augmentation live in
+// src/router.ts so non-component layers (authStore session expiry) can
+// navigate without importing the React tree.
+import { router } from "@/router";
 
 function App() {
   // Auth initialization lives in ONE place: AuthProvider (main.tsx wraps App
