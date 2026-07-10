@@ -100,9 +100,9 @@ Branch: `mobile-ux-remediation`. Commit per verified phase.
 
 ## Phase 8 — Bottom tab bar & PWA polish (R42, L)
 
-- [ ] 8.1 Fixed bottom tab bar (Dashboard/Transactions/Budgets/Accounts), prefix-matched active state, safe-area padding; consolidate main bottom padding; reposition FAB (R42)
-- [ ] 8.2 iOS splash screens via pwa-asset-generator `--dark-mode` (L)
-- [ ] 8.3 PWA install prompt: iPad detection + FxiOS copy + timer cleanup (L)
+- [x] 8.1 Fixed bottom tab bar (Dashboard/Transactions/Budgets/Accounts), prefix-matched active state, safe-area padding; consolidate main bottom padding; reposition FAB (R42)
+- [x] 8.2 iOS splash screens via pwa-asset-generator `--dark-mode` (L)
+- [x] 8.3 PWA install prompt: iPad detection + FxiOS copy + timer cleanup (L)
 
 ## Phase 9 — Final verification (before merge)
 
