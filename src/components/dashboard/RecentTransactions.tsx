@@ -68,7 +68,7 @@ export function RecentTransactions({ transactions }: Props) {
             <div className="text-right">
               <p
                 className={`font-mono font-semibold ${
-                  transaction.type === "income" ? "text-green-600" : "text-red-600"
+                  transaction.type === "income" ? "text-income" : "text-expense"
                 }`}
               >
                 {transaction.type === "income" ? "+" : "-"}

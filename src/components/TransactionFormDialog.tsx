@@ -514,8 +514,8 @@ export function TransactionFormDialog({
                       <span
                         className={cn(
                           "font-bold",
-                          isOverpayment && "text-red-600 dark:text-red-400",
-                          balanceAfterPayment === 0 && "text-green-600 dark:text-green-400"
+                          isOverpayment && "text-expense",
+                          balanceAfterPayment === 0 && "text-income"
                         )}
                       >
                         {formatPHP(balanceAfterPayment!)}
@@ -523,13 +523,13 @@ export function TransactionFormDialog({
                     </div>
 
                     {isOverpayment && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400 pt-2">
+                      <p className="text-xs text-warning pt-2">
                         ⚠ This will overpay by {formatPHP(Math.abs(balanceAfterPayment!))}
                       </p>
                     )}
 
                     {balanceAfterPayment === 0 && (
-                      <p className="text-xs text-green-600 dark:text-green-400 pt-2">
+                      <p className="text-xs text-income pt-2">
                         ✓ This will pay off the debt completely
                       </p>
                     )}

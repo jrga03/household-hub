@@ -354,7 +354,7 @@ function DraftsPage() {
                             <span
                               className={cn(
                                 "whitespace-nowrap text-sm font-medium",
-                                draft.type === "income" ? "text-green-600" : "text-red-600"
+                                draft.type === "income" ? "text-income" : "text-expense"
                               )}
                             >
                               {draft.type === "income" ? "+" : "-"}

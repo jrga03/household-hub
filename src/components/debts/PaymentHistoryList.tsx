@@ -77,9 +77,9 @@ export function PaymentHistoryList({
                 <p
                   className={cn(
                     "text-lg font-semibold",
-                    isReversal && "text-amber-600 dark:text-amber-400",
+                    isReversal && "text-warning",
                     isReversed && "line-through text-muted-foreground",
-                    payment.is_overpayment && !isReversal && "text-red-600 dark:text-red-400"
+                    payment.is_overpayment && !isReversal && "text-expense"
                   )}
                 >
                   {formatPHP(Math.abs(payment.amount_cents))}
@@ -96,7 +96,7 @@ export function PaymentHistoryList({
 
                 {/* Overpayment warning */}
                 {payment.is_overpayment && payment.overpayment_amount && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                  <p className="text-xs text-warning">
                     ⚠ Overpaid by {formatPHP(payment.overpayment_amount)}
                   </p>
                 )}

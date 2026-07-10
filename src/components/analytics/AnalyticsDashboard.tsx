@@ -56,14 +56,16 @@ export function AnalyticsDashboard({ filters }: AnalyticsDashboardProps) {
     expenseCents: d.expenses,
   }));
 
-  // Convert categoryBreakdown data format for CategoryChart component
+  // Convert categoryBreakdown data format for CategoryChart component.
+  // categoryId is the REAL category id from processCategoryBreakdown, so
+  // click-through lands on /transactions?categoryId=<real id> (review R18)
+  const categoryTotalCents = data.categoryBreakdown.reduce((sum, cat) => sum + cat.valueCents, 0);
   const categoryChartData = data.categoryBreakdown.map((d, index) => ({
-    categoryId: `category-${index}`,
+    categoryId: d.categoryId,
     categoryName: d.name,
     color: generateColor(index),
-    amountCents: d.value * 100, // Convert back to cents
-    percentOfTotal:
-      (d.value / data.categoryBreakdown.reduce((sum, cat) => sum + cat.value, 0)) * 100,
+    amountCents: d.valueCents,
+    percentOfTotal: categoryTotalCents > 0 ? (d.valueCents / categoryTotalCents) * 100 : 0,
   }));
 
   return (
@@ -73,20 +75,20 @@ export function AnalyticsDashboard({ filters }: AnalyticsDashboardProps) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Income</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-600" />
+            <TrendingUp className="h-4 w-4 text-income" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatPHP(data.totalIncome)}</div>
+            <div className="text-2xl font-bold text-income">{formatPHP(data.totalIncome)}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-600" />
+            <TrendingDown className="h-4 w-4 text-expense" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{formatPHP(data.totalExpenses)}</div>
+            <div className="text-2xl font-bold text-expense">{formatPHP(data.totalExpenses)}</div>
           </CardContent>
         </Card>
 
@@ -97,7 +99,7 @@ export function AnalyticsDashboard({ filters }: AnalyticsDashboardProps) {
           </CardHeader>
           <CardContent>
             <div
-              className={`text-2xl font-bold ${netIncome >= 0 ? "text-green-600" : "text-red-600"}`}
+              className={`text-2xl font-bold ${netIncome >= 0 ? "text-income" : "text-expense"}`}
             >
               {formatPHP(Math.abs(netIncome))}
             </div>
@@ -111,33 +113,16 @@ export function AnalyticsDashboard({ filters }: AnalyticsDashboardProps) {
       {/* Insights */}
       <InsightsSection insights={data.insights} />
 
-      {/* Charts Grid */}
+      {/* Charts Grid — MonthlyChart/CategoryChart/BudgetProgressChart render
+          their own Cards; wrapping them again doubled borders and padding and
+          squeezed the plots on phones (review R32). YearOverYearChart is the
+          only chart without a self-wrapping Card, so it keeps the outer one. */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Spending Trend */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Spending Trend</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <MonthlyChart data={monthlyChartData} />
-          </CardContent>
-        </Card>
+        <MonthlyChart data={monthlyChartData} />
 
-        {/* Category Breakdown */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Expenses by Category</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {categoryChartData.length > 0 ? (
-              <CategoryChart data={categoryChartData} />
-            ) : (
-              <div className="text-center py-12 text-muted-foreground">
-                No category data available
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Category Breakdown (CategoryChart renders its own empty state) */}
+        <CategoryChart data={categoryChartData} />
 
         {/* Year-over-Year */}
         <Card>
@@ -149,15 +134,8 @@ export function AnalyticsDashboard({ filters }: AnalyticsDashboardProps) {
           </CardContent>
         </Card>
 
-        {/* Budget Variance */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Budget Progress</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <BudgetProgressChart data={data.budgetVariance} />
-          </CardContent>
-        </Card>
+        {/* Budget Variance (BudgetProgressChart renders its own Cards) */}
+        <BudgetProgressChart data={data.budgetVariance} />
       </div>
     </div>
   );

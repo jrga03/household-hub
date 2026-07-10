@@ -1,4 +1,4 @@
-import { formatPHP } from "@/lib/currency";
+import { formatPHP, formatPHPAxisTick } from "@/lib/currency";
 import {
   LineChart,
   Line,
@@ -21,8 +21,8 @@ interface Props {
 
 interface TooltipPayload {
   month: string;
-  income: number;
-  expense: number;
+  incomeCents: number;
+  expenseCents: number;
 }
 
 interface CustomTooltipProps {
@@ -45,12 +45,12 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
       <p className="font-semibold mb-2">{data.month}</p>
       <div className="space-y-1">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-green-500" />
-          <span className="text-sm">Income: {formatPHP(payload[0].value * 100)}</span>
+          <div className="w-3 h-3 rounded-full bg-income" />
+          <span className="text-sm">Income: {formatPHP(payload[0].value)}</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-red-500" />
-          <span className="text-sm">Expenses: {formatPHP(payload[1].value * 100)}</span>
+          <div className="w-3 h-3 rounded-full bg-expense" />
+          <span className="text-sm">Expenses: {formatPHP(payload[1].value)}</span>
         </div>
       </div>
     </div>
@@ -58,36 +58,33 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
 }
 
 export function MonthlyChart({ data }: Props) {
-  // Convert cents to pesos for better Y-axis display
-  const chartData = data.map((d) => ({
-    ...d,
-    income: d.incomeCents / 100,
-    expense: d.expenseCents / 100,
-  }));
-
+  // Chart data stays in CENTS end to end; formatPHPAxisTick takes cents, so
+  // there is no pesos/cents split between charts (mobile UX review, 100x trap)
   return (
     <Card className="p-4 sm:p-6">
       <h3 className="text-lg font-semibold mb-4">Monthly Trend</h3>
       <ResponsiveContainer width="100%" height={280}>
-        <LineChart data={chartData} margin={{ left: -10, right: 5, top: 5, bottom: 5 }}>
+        <LineChart data={data} margin={{ left: -10, right: 5, top: 5, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-          <YAxis
-            tickFormatter={(value) => {
-              if (value >= 1000000) return `₱${(value / 1000000).toFixed(1)}M`;
-              if (value >= 1000) return `₱${(value / 1000).toFixed(0)}K`;
-              return `₱${value}`;
-            }}
-            tick={{ fontSize: 12 }}
-            width={55}
-          />
+          <YAxis tickFormatter={formatPHPAxisTick} tick={{ fontSize: 12 }} width={55} />
           <Tooltip content={<CustomTooltip />} />
           <Legend />
-          <Line type="monotone" dataKey="income" stroke="#10b981" strokeWidth={2} name="Income" />
+          {/* Recharts stroke takes a CSS color, not a class. Use the raw
+              vars (--income/--expense), NOT var(--color-income): the theme
+              alias is substituted once at :root, so it would not re-resolve
+              under a nested .dark; the raw vars flip with .dark (R40). */}
           <Line
             type="monotone"
-            dataKey="expense"
-            stroke="#ef4444"
+            dataKey="incomeCents"
+            stroke="var(--income)"
+            strokeWidth={2}
+            name="Income"
+          />
+          <Line
+            type="monotone"
+            dataKey="expenseCents"
+            stroke="var(--expense)"
             strokeWidth={2}
             name="Expenses"
           />

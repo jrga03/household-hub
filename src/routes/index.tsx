@@ -4,6 +4,7 @@ import { startOfMonth } from "date-fns";
 import { MonthSelector } from "@/components/MonthSelector";
 import { SummaryCards } from "@/components/dashboard/SummaryCards";
 import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
+import { ChartCardSkeleton } from "@/components/dashboard/ChartCardSkeleton";
 import { useDashboardData } from "@/lib/supabaseQueries";
 import { PageShell } from "@/components/layout/PageShell";
 import { Card } from "@/components/ui/card";
@@ -84,13 +85,13 @@ function DashboardPage() {
       <PageShell variant="rail">
         <PageShell.Main className="space-y-6">
           <SummaryCards summary={data.summary} />
-          <Suspense fallback={<Skeleton className="h-72 w-full rounded-lg" />}>
+          <Suspense fallback={<ChartCardSkeleton />}>
             <MonthlyChart data={data.monthlyTrend} />
           </Suspense>
           <RecentTransactions transactions={data.recentTransactions} />
         </PageShell.Main>
         <PageShell.RightAside>
-          <Suspense fallback={<Skeleton className="h-72 w-full rounded-lg" />}>
+          <Suspense fallback={<ChartCardSkeleton />}>
             <DashboardRail categoryBreakdown={data.categoryBreakdown} />
           </Suspense>
         </PageShell.RightAside>
@@ -130,10 +131,7 @@ function DashboardSkeleton() {
         </div>
 
         {/* MonthlyChart card (structural, not a magic-height block) */}
-        <Card className="p-4 sm:p-6">
-          <Skeleton className="mb-4 h-7 w-40" />
-          <Skeleton className="h-[280px] w-full" />
-        </Card>
+        <ChartCardSkeleton />
 
         {/* RecentTransactions rows */}
         <Card className="p-6">
@@ -157,10 +155,7 @@ function DashboardSkeleton() {
 
       <PageShell.RightAside>
         {/* DashboardRail (category chart card) */}
-        <Card className="p-4 sm:p-6">
-          <Skeleton className="mb-4 h-7 w-40" />
-          <Skeleton className="h-[280px] w-full" />
-        </Card>
+        <ChartCardSkeleton />
       </PageShell.RightAside>
     </PageShell>
   );

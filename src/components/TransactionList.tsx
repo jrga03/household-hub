@@ -429,9 +429,7 @@ export function TransactionList({ filters, onEdit, onRequestEdit }: Props) {
                       <TableCell
                         className={cn(
                           "text-right font-mono",
-                          transaction.type === "income"
-                            ? "text-green-600 dark:text-green-400"
-                            : "text-red-600 dark:text-red-400"
+                          transaction.type === "income" ? "text-income" : "text-expense"
                         )}
                       >
                         {transaction.type === "income" ? "+" : "-"}
@@ -571,9 +569,7 @@ export function TransactionList({ filters, onEdit, onRequestEdit }: Props) {
                         <p
                           className={cn(
                             "font-mono font-semibold",
-                            transaction.type === "income"
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-red-600 dark:text-red-400"
+                            transaction.type === "income" ? "text-income" : "text-expense"
                           )}
                         >
                           {transaction.type === "income" ? "+" : "-"}

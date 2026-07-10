@@ -36,13 +36,13 @@ export function TransactionDetailPane({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <div className="text-xs text-muted-foreground">In</div>
-              <div className="font-mono tabular-nums text-green-600 dark:text-green-400">
+              <div className="font-mono tabular-nums text-income">
                 {formatPHP(filterSummary.totalIn)}
               </div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground">Out</div>
-              <div className="font-mono tabular-nums text-red-600 dark:text-red-400">
+              <div className="font-mono tabular-nums text-expense">
                 {formatPHP(filterSummary.totalOut)}
               </div>
             </div>

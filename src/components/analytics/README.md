@@ -46,6 +46,11 @@ User filters → Filter state → useAnalytics hook → Analytics data → Chart
 3. **Year-over-Year** - `YearOverYearChart` (from charts/) - YoY comparison
 4. **Budget Progress** - `BudgetProgressChart` (from charts/) - Budget vs actual
 
+Note (review R32): `MonthlyChart`, `CategoryChart`, and `BudgetProgressChart`
+render their own Cards, so the dashboard places them directly in the charts
+grid without outer Card wrappers. Only `YearOverYearChart` gets an outer
+Card/CardHeader, since it is the one chart without a self-wrapping Card.
+
 **Dependencies:**
 
 - `useAnalytics` hook for data fetching (src/hooks/useAnalytics.tsx)
@@ -301,7 +306,7 @@ Display red error message with error.message
 
 ### Empty States
 
-- **No category data** - "No category data available" in CategoryChart card
+- **No category data** - "No spending data for this month" (CategoryChart's own empty state)
 - **No insights** - Component gracefully handles empty arrays
 
 ### Responsive Design

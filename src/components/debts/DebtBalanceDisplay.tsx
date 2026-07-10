@@ -40,8 +40,8 @@ export function DebtBalanceDisplay({
   // Color logic for balance display
   const balanceColor = cn(
     "text-3xl font-bold",
-    isPaidOff && "text-green-600 dark:text-green-400",
-    isOverpaid && "text-red-600 dark:text-red-400",
+    isPaidOff && "text-income",
+    isOverpaid && "text-expense",
     !isPaidOff && !isOverpaid && "text-foreground"
   );
 
@@ -64,7 +64,7 @@ export function DebtBalanceDisplay({
 
       {/* Overpayment warning */}
       {isOverpaid && (
-        <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+        <p className="text-sm font-medium text-warning">
           ⚠ Overpaid by {formatPHP(Math.abs(balance))}
         </p>
       )}

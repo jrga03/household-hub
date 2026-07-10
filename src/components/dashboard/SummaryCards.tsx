@@ -36,8 +36,8 @@ export function SummaryCards({ summary }: Props) {
         {/* Total Income */}
         <Card className="p-4 sm:p-6">
           <div className="flex items-start gap-2">
-            <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg shrink-0">
-              <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+            <div className="p-2 bg-income/10 dark:bg-income/15 rounded-lg shrink-0">
+              <TrendingUp className="h-4 w-4 text-income" />
             </div>
             <div className="min-w-0">
               <p className="text-xs sm:text-sm text-muted-foreground">Total Income</p>
@@ -49,7 +49,7 @@ export function SummaryCards({ summary }: Props) {
           {Math.abs(incomeChange) > 0.01 && (
             <div
               className={`text-xs mt-2 flex items-center gap-1 ${
-                incomeChange > 0 ? "text-green-600" : "text-red-600"
+                incomeChange > 0 ? "text-income" : "text-expense"
               }`}
             >
               {incomeChange > 0 ? "+" : ""}
@@ -61,8 +61,8 @@ export function SummaryCards({ summary }: Props) {
         {/* Total Expenses */}
         <Card className="p-4 sm:p-6">
           <div className="flex items-start gap-2">
-            <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg shrink-0">
-              <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
+            <div className="p-2 bg-expense/10 dark:bg-expense/15 rounded-lg shrink-0">
+              <TrendingDown className="h-4 w-4 text-expense" />
             </div>
             <div className="min-w-0">
               <p className="text-xs sm:text-sm text-muted-foreground">Total Expenses</p>
@@ -74,7 +74,7 @@ export function SummaryCards({ summary }: Props) {
           {Math.abs(expenseChange) > 0.01 && (
             <div
               className={`text-xs mt-2 flex items-center gap-1 ${
-                expenseChange > 0 ? "text-red-600" : "text-green-600"
+                expenseChange > 0 ? "text-expense" : "text-income"
               }`}
             >
               {expenseChange > 0 ? "+" : ""}
@@ -105,7 +105,7 @@ export function SummaryCards({ summary }: Props) {
               <p className="text-xs sm:text-sm text-muted-foreground">Net Amount</p>
               <h3
                 className={`text-lg sm:text-2xl font-bold font-mono ${
-                  summary.netAmountCents >= 0 ? "text-green-600" : "text-red-600"
+                  summary.netAmountCents >= 0 ? "text-income" : "text-expense"
                 }`}
               >
                 {formatPHP(summary.netAmountCents)}

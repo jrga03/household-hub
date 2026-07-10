@@ -87,8 +87,12 @@ vi.mock("@/lib/supabaseQueries", () => ({
   useDeleteTransaction: () => ({ mutateAsync: deleteMutateAsync }),
 }));
 
+// Honor the hook's defaultResult (third arg) like the real initial render:
+// TransactionList passes none (sync-status Map fallback), CategorySelector's
+// recent-categories query passes [] (mobile UX 6.8).
 vi.mock("dexie-react-hooks", () => ({
-  useLiveQuery: () => new Map<string, never>(),
+  useLiveQuery: (_querier: unknown, _deps?: unknown, defaultResult?: unknown) =>
+    defaultResult ?? new Map<string, never>(),
 }));
 
 vi.mock("@/lib/debts", () => ({

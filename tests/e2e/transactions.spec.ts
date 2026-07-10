@@ -18,7 +18,11 @@ test.describe("Transactions", () => {
     await page.fill('[name="amount"]', "1500.50");
     await page.selectOption('[name="type"]', "expense");
     await page.selectOption('[name="account"]', { index: 1 });
-    await page.selectOption('[name="category"]', { index: 1 });
+
+    // Category picker is a searchable Popover+Command combobox (mobile UX
+    // 6.8), not a native select
+    await page.getByRole("combobox", { name: "Select category" }).click();
+    await page.getByRole("option").first().click();
 
     await page.click('button[type="submit"]');
 

@@ -105,20 +105,24 @@ summary: {
 └────────────────────────────────────┘
 ```
 
-**Two-panel layout:**
+**Two-panel layout (container-query driven):**
 
-- **Left (50%):** Recharts PieChart with percentage labels
-- **Right (50%):** Interactive legend showing top 5 categories with amounts
+- **Left (50% at `@[600px]`+, full width below):** Recharts PieChart with percentage labels
+- **Right (50% at `@[600px]`+, full width below):** Interactive legend with amounts
+- The card hosts its own `@container`, so it adapts to the dashboard rail or
+  the analytics grid cell it renders in, not the viewport (project layout law)
 
 **Interactive features:**
 
-1. **Clickable pie slices** (lines 86-87)
+1. **Clickable pie slices — hover-capable pointers only** (gated on
+   `useMediaQuery("(hover: hover)")`, review R18)
    - Click any slice → Navigate to /transactions filtered by that category
-   - Cursor changes to pointer on hover
+   - On touch, the first tap shows the tooltip instead (navigation stays on the legend)
 
-2. **Clickable legend items** (lines 103-105)
+2. **Clickable legend items**
    - Click any category in legend → Navigate to /transactions
    - Hover effect: background highlight (hover:bg-accent)
+   - "Uncategorized" (null category id) is not navigable
 
 **Navigation implementation** (lines 48-54):
 
@@ -140,7 +144,7 @@ handleCategoryClick(categoryId) {
 
 ```typescript
 data: Array<{
-  categoryId: string; // For navigation
+  categoryId: string | null; // Real category id for navigation (null = uncategorized)
   categoryName: string; // Display name
   color: string; // Hex color for slice
   amountCents: number; // Amount in cents
@@ -150,8 +154,9 @@ data: Array<{
 
 **Legend behavior:**
 
-- Shows **top 5 categories** only
-- If >5 categories: Shows "+X more categories" message (lines 113-117)
+- Hover-capable pointers: top 5 categories + "+X more categories" message
+- Touch (no hover): ALL categories render, since the legend is the only
+  click-through path there (review R18)
 
 **Empty state:**
 
@@ -235,28 +240,23 @@ transactions: TransactionWithRelations[]
 
 4. **Legend:** Automatic legend showing "Income" and "Expense"
 
-**Data transformation** (lines 61-66):
+**Data stays in CENTS end to end** — the lines plot `incomeCents`/`expenseCents`
+directly. Every currency utility takes cents; a pesos/cents split between
+charts was a 100x trap when consolidating axis formatters (mobile UX review).
 
-Recharts Y-axis displays better with whole numbers, so cents are converted to pesos:
-
-```typescript
-income: incomeCents / 100,    // 150000 cents → 1500 pesos
-expense: expenseCents / 100
-```
-
-**Custom tooltip** (lines 36-58):
+**Custom tooltip:**
 
 - Shows month name
 - Two rows: Income and Expense with color dots
-- Amounts converted back to cents for formatting: `value * 100`
+- Amounts formatted directly: `formatPHP(value)` (value is cents)
 
-**Y-axis formatting** (line 75):
+**Y-axis formatting:**
 
 ```typescript
-tickFormatter={(value) => `₱${value.toLocaleString()}`}
+tickFormatter = { formatPHPAxisTick }; // shared, takes cents
 ```
 
-Displays: ₱1,500 instead of 1500
+Displays compact ticks: "₱1.5k" for 150000 cents
 
 **Data format expected:**
 
@@ -479,8 +479,8 @@ User checks RecentTransactions:
 
 **CategoryChart:**
 
-- Side-by-side pie + legend on desktop (md:flex-row)
-- Stacked on mobile (flex-col)
+- Side-by-side pie + legend when its own container is ≥600px (`@[600px]:flex-row`)
+- Stacked in narrow hosts like the dashboard rail (flex-col)
 
 ### Color Semantics
 

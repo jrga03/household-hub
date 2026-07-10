@@ -150,10 +150,10 @@ function Transactions() {
               {/* Filtered In/Out totals are otherwise only visible in the
                   @[1500px] detail pane's filter summary; surface them inline
                   below that breakpoint (review R38) */}
-              <span className="@[1500px]:hidden font-mono tabular-nums text-green-600 dark:text-green-400">
+              <span className="@[1500px]:hidden font-mono tabular-nums text-income">
                 In {formatPHP(filterSummary.totalIn)}
               </span>
-              <span className="@[1500px]:hidden font-mono tabular-nums text-red-600 dark:text-red-400">
+              <span className="@[1500px]:hidden font-mono tabular-nums text-expense">
                 Out {formatPHP(filterSummary.totalOut)}
               </span>
             </div>

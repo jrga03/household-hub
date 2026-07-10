@@ -16,15 +16,15 @@ export function BudgetProgress({
   isOverBudget,
 }: Props) {
   const getProgressColor = () => {
-    if (isOverBudget) return "bg-red-500";
-    if (percentUsed >= 80) return "bg-yellow-500";
-    return "bg-green-500";
+    if (isOverBudget) return "bg-expense";
+    if (percentUsed >= 80) return "bg-warning";
+    return "bg-income";
   };
 
   const getTextColor = () => {
-    if (isOverBudget) return "text-red-600";
-    if (percentUsed >= 80) return "text-yellow-600";
-    return "text-green-600";
+    if (isOverBudget) return "text-expense";
+    if (percentUsed >= 80) return "text-warning";
+    return "text-income";
   };
 
   return (
@@ -44,7 +44,7 @@ export function BudgetProgress({
 
       {/* Percentage or Over Budget Warning */}
       {isOverBudget ? (
-        <div className="text-xs text-red-600 font-medium">
+        <div className="text-xs text-expense font-medium">
           ⚠️ Over budget by {formatPHP(actualSpentCents - budgetAmountCents)}
         </div>
       ) : (

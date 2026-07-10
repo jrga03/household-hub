@@ -17,6 +17,7 @@ import {
   isValidAmount,
   parsePHPSafe,
   formatNumeric,
+  formatPHPAxisTick,
   addAmounts,
   subtractAmounts,
   multiplyAmount,
@@ -277,6 +278,44 @@ describe("formatNumeric", () => {
   it("handles large amounts", () => {
     expect(formatNumeric(MAX_AMOUNT_CENTS)).toBe("9999999.99");
     expect(formatNumeric(123456789)).toBe("1234567.89");
+  });
+});
+
+describe("formatPHPAxisTick", () => {
+  it("formats zero as ₱0", () => {
+    expect(formatPHPAxisTick(0)).toBe("₱0");
+  });
+
+  it("formats sub-thousand peso values without a suffix", () => {
+    expect(formatPHPAxisTick(50000)).toBe("₱500");
+    expect(formatPHPAxisTick(100)).toBe("₱1");
+  });
+
+  it("shows centavos only when the tick is not a whole peso", () => {
+    expect(formatPHPAxisTick(12345)).toBe("₱123.45");
+  });
+
+  it("formats thousands compactly with a lowercase k", () => {
+    expect(formatPHPAxisTick(1200000)).toBe("₱12k");
+    expect(formatPHPAxisTick(1250000)).toBe("₱12.5k");
+    expect(formatPHPAxisTick(100000)).toBe("₱1k");
+  });
+
+  it("formats millions compactly with M", () => {
+    expect(formatPHPAxisTick(100000000)).toBe("₱1M");
+    expect(formatPHPAxisTick(150000000)).toBe("₱1.5M");
+    expect(formatPHPAxisTick(MAX_AMOUNT_CENTS)).toBe("₱10M");
+  });
+
+  it("takes CENTS, not pesos (the 100x consolidation trap)", () => {
+    // 12,000 pesos passed as pesos would render ₱120 — the wrong magnitude
+    expect(formatPHPAxisTick(1200000)).toBe("₱12k");
+    expect(formatPHPAxisTick(12000)).toBe("₱120");
+  });
+
+  it("places the sign before the peso symbol for negatives", () => {
+    expect(formatPHPAxisTick(-50000)).toBe("-₱500");
+    expect(formatPHPAxisTick(-1250000)).toBe("-₱12.5k");
   });
 });
 

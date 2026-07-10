@@ -18,31 +18,35 @@ interface Props {
 export function BudgetProgressChart({ data }: Props) {
   if (!data || data.length === 0) {
     return (
-      <Card>
-        <CardContent className="pt-6">
-          <p className="text-sm text-muted-foreground">No budgets set for this period</p>
-        </CardContent>
-      </Card>
+      <div>
+        <h3 className="text-lg font-semibold mb-4">Budget Progress</h3>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground">No budgets set for this period</p>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   return (
     <div className="space-y-4">
+      <h3 className="text-lg font-semibold">Budget Progress</h3>
       {data.map((budget) => {
         const isOverBudget = budget.percentUsed > 100;
         const isNearLimit = budget.percentUsed > 80 && budget.percentUsed <= 100;
         const progressColor = isOverBudget
-          ? "bg-red-500"
+          ? "bg-expense"
           : isNearLimit
-            ? "bg-yellow-500"
-            : "bg-green-500";
+            ? "bg-warning"
+            : "bg-income";
 
         return (
           <Card key={budget.category}>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium">{budget.category}</CardTitle>
-                {isOverBudget && <AlertCircle className="h-4 w-4 text-red-500" />}
+                {isOverBudget && <AlertCircle className="h-4 w-4 text-expense" />}
               </div>
             </CardHeader>
             <CardContent>
@@ -60,7 +64,7 @@ export function BudgetProgressChart({ data }: Props) {
                     {formatPHP(budget.actualAmount)} of {formatPHP(budget.budgetAmount)}
                   </span>
                   <span
-                    className={isOverBudget ? "text-red-600 font-medium" : "text-muted-foreground"}
+                    className={isOverBudget ? "text-expense font-medium" : "text-muted-foreground"}
                   >
                     {budget.percentUsed.toFixed(0)}%
                   </span>
@@ -70,15 +74,13 @@ export function BudgetProgressChart({ data }: Props) {
                 <div className="flex items-center gap-1 text-xs">
                   {budget.variance >= 0 ? (
                     <>
-                      <TrendingDown className="h-3 w-3 text-green-600" />
-                      <span className="text-green-600">
-                        {formatPHP(budget.variance)} under budget
-                      </span>
+                      <TrendingDown className="h-3 w-3 text-income" />
+                      <span className="text-income">{formatPHP(budget.variance)} under budget</span>
                     </>
                   ) : (
                     <>
-                      <TrendingUp className="h-3 w-3 text-red-600" />
-                      <span className="text-red-600">
+                      <TrendingUp className="h-3 w-3 text-expense" />
+                      <span className="text-expense">
                         {formatPHP(Math.abs(budget.variance))} over budget
                       </span>
                     </>
