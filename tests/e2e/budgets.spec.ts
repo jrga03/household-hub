@@ -34,12 +34,12 @@ test.describe("Budgets", () => {
 
     await addBtn.click();
 
-    // Fill the budget form
-    const categorySelect = page
-      .locator('select[name="category_id"], [data-testid="category-select"]')
-      .first();
-    if (await categorySelect.isVisible()) {
-      await categorySelect.selectOption({ index: 1 });
+    // Fill the budget form. The category picker is a searchable
+    // Popover+Command combobox (mobile UX 6.8), not a native select
+    const categoryTrigger = page.getByRole("combobox", { name: "Select category" });
+    if (await categoryTrigger.isVisible().catch(() => false)) {
+      await categoryTrigger.click();
+      await page.getByRole("option").first().click();
     }
 
     const amountInput = page.locator('input[name="amount"], input[name="amount_cents"]').first();

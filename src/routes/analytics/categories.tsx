@@ -5,6 +5,7 @@ import { MonthSelector } from "@/components/MonthSelector";
 import { CategoryTotalsGroup } from "@/components/CategoryTotalsGroup";
 import { useCategoryTotalsComparison } from "@/lib/supabaseQueries";
 import { formatPHP } from "@/lib/currency";
+import { LoadingSpinner } from "@/components/LoadingScreen";
 
 export const Route = createFileRoute("/analytics/categories")({
   component: CategoryAnalyticsPage,
@@ -47,7 +48,7 @@ function CategoryAnalyticsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <LoadingSpinner size="large" label="Loading category analytics" />
       </div>
     );
   }
@@ -65,9 +66,11 @@ function CategoryAnalyticsPage() {
             <MonthSelector selectedMonth={selectedMonth} onChange={setSelectedMonth} />
           </div>
 
-          {/* Summary Card */}
+          {/* Summary Card. flex-wrap is load-bearing: a mono currency token
+              can't break, so min-w-0 alone can't stop overflow at 320-375px —
+              the comparison block wraps below instead. */}
           <div className="bg-card rounded-lg border p-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <div>
                 <div className="text-sm text-muted-foreground">Total Spending</div>
                 <div className="text-2xl font-bold font-mono">{formatPHP(totalSpending)}</div>
@@ -77,7 +80,7 @@ function CategoryAnalyticsPage() {
                   <div className="text-sm text-muted-foreground">vs Last Month</div>
                   <div
                     className={`text-lg font-semibold ${
-                      spendingChange > 0 ? "text-red-600" : "text-green-600"
+                      spendingChange > 0 ? "text-expense" : "text-income"
                     }`}
                   >
                     {spendingChange > 0 ? "+" : ""}

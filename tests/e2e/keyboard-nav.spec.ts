@@ -51,7 +51,12 @@ test.describe("Keyboard Navigation", () => {
     await page.keyboard.press("ArrowDown"); // Select account
     await page.keyboard.press("Tab");
 
-    await page.keyboard.press("ArrowDown"); // Select category
+    // Category is a Popover+Command combobox (mobile UX 6.8): Enter opens it
+    // with focus in the search input; ArrowDown + Enter commits an option and
+    // returns focus to the trigger
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Enter");
     await page.keyboard.press("Tab");
 
     await page.keyboard.press("Enter"); // Submit

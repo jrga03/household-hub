@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { formatPHP, parsePHP } from "@/lib/currency";
+import { formatPHP, parsePHP, MAX_AMOUNT_CENTS } from "@/lib/currency";
 
 export interface CurrencyInputProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value"> {
@@ -71,6 +71,32 @@ export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputPro
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const input = e.target.value;
       setDisplayValue(input);
+
+      // Commit on every keystroke, not just blur, so Enter-submit validates
+      // the typed amount instead of a stale value and previews (e.g. debt
+      // balance) update live. parsePHP handles partial input like "1." and
+      // ""; invalid intermediate states are silently ignored until blur.
+      // The format-on-blur effect is gated on !isFocused, so committing here
+      // never reformats (clobbers) the text while the user is typing.
+      try {
+        const cents = parsePHP(input);
+        onChange?.(cents);
+      } catch {
+        // parsePHP also throws when the amount EXCEEDS MAX_AMOUNT_CENTS.
+        // Swallowing that case would leave the last parseable prefix
+        // committed (typing "99999999" keeps ₱9,999,999 in form state while
+        // the input shows ₱99,999,999) and Enter would submit a silently
+        // wrong amount. Commit the over-max cents value instead so the
+        // schema-level .max() rule rejects submit with its "too large" error.
+        const parsed = parseFloat(input.replace(/[₱,\s]/g, ""));
+        if (!isNaN(parsed)) {
+          const cents = Math.round(parsed * 100);
+          if (cents > MAX_AMOUNT_CENTS) {
+            onChange?.(cents);
+          }
+        }
+        // Otherwise not parseable yet (e.g. "abc" or "-"); blur resets the display.
+      }
     };
 
     return (
@@ -93,8 +119,13 @@ export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputPro
           disabled={disabled}
           className={cn("pl-7", error && "border-destructive", className)}
           aria-label="Amount in Philippine Pesos"
-          aria-invalid={!!error}
-          aria-describedby={error ? `${props.id}-error` : undefined}
+          // Only override the aria wiring when this component renders its own
+          // error paragraph; otherwise pass through whatever the host injected
+          // (shadcn FormControl wires aria-invalid/aria-describedby to
+          // FormMessage, and clobbering it breaks the screen-reader
+          // association in forms like BudgetForm).
+          aria-invalid={error ? true : props["aria-invalid"]}
+          aria-describedby={error ? `${props.id}-error` : props["aria-describedby"]}
         />
         {error && (
           <p id={`${props.id}-error`} className="mt-1.5 text-sm text-destructive">

@@ -138,7 +138,7 @@ interface YearOverYear {
 }
 ```
 
-**Lines 25-36** - Data transformation: Converts cents to pesos for Recharts Y-axis
+Chart data stays in cents end to end; the Y-axis uses the shared `formatPHPAxisTick(cents)` from `lib/currency.ts`
 
 **Lines 56-83** - Percentage change summary cards with conditional coloring
 
@@ -162,7 +162,7 @@ interface YearOverYear {
 
 - Height: 300px for charts
 - Width: 100% (responsive)
-- Tooltip formatter: Converts pesos back to PHP format
+- Chart data in CENTS; Y-axis ticks via shared `formatPHPAxisTick(cents)`, tooltips via `formatPHP(cents)`
 
 ### Currency Utilities
 
@@ -342,20 +342,22 @@ value={Math.min(budget.percentUsed, 100)}
 - Prevents overflow/display issues
 - Over-budget status shown via color and text
 
-### 2. Cents to Pesos Conversion
+### 2. Cents Everywhere (No Pesos Conversion)
 
-**YearOverYearChart lines 28-29:**
+**YearOverYearChart keeps chart data in CENTS:**
 
 ```typescript
-income: data.currentYear.income / 100,
-expenses: data.currentYear.expenses / 100,
+income: data.currentYear.income, // cents
+expenses: data.currentYear.expenses, // cents
 ```
 
-**Why convert?**
+**Why?**
 
-- Recharts Y-axis displays better with whole numbers
-- "5000" more readable than "500000"
-- Tooltip converts back with `formatPHP(value * 100)`
+- Every currency utility takes cents; a pesos/cents split between charts was a
+  100x trap when consolidating axis formatters (mobile UX review)
+- Y-axis ticks stay readable via the shared compact formatter:
+  `tickFormatter={formatPHPAxisTick}` (e.g., 1200000 cents → "₱12k")
+- Tooltip formats directly with `formatPHP(value)`
 
 ### 3. Expense Change Color Inversion
 

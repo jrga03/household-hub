@@ -1,24 +1,17 @@
-import { RouterProvider, createRouter } from "@tanstack/react-router";
+import { RouterProvider } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { ThemeProvider } from "next-themes";
-import { routeTree } from "./routeTree.gen";
 import { Toaster } from "@/components/ui/sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
-import { StorageWarning } from "@/components/StorageWarning";
+import { ThemeColorSync } from "@/components/ThemeColorSync";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { realtimeSync } from "@/lib/realtime-sync";
 import { eventCompactor } from "@/lib/event-compactor";
-
-// Create router instance
-const router = createRouter({ routeTree });
-
-// Type augmentation for router (enables autocomplete)
-declare module "@tanstack/react-router" {
-  interface Register {
-    router: typeof router;
-  }
-}
+// Router singleton + scroll restoration + Register augmentation live in
+// src/router.ts so non-component layers (authStore session expiry) can
+// navigate without importing the React tree.
+import { router } from "@/router";
 
 function App() {
   // Auth initialization lives in ONE place: AuthProvider (main.tsx wraps App
@@ -93,20 +86,20 @@ function App() {
         disableTransitionOnChange
         storageKey="household-hub-theme"
       >
-        <TooltipProvider>
-          {/* The single offline banner renders in AppLayout (sync/OfflineBanner) */}
+        {/* Keeps the browser-chrome theme-color meta in sync with the
+            resolved (in-app or system) theme */}
+        <ThemeColorSync />
 
-          {/* Storage quota warning (shows at 80%+ usage) */}
-          <div className="fixed top-16 left-4 right-4 z-40 md:left-auto md:w-96">
-            <StorageWarning />
-          </div>
+        <TooltipProvider>
+          {/* Offline + storage banners render in AppLayout's BannerStack */}
 
           <ErrorBoundary>
             <RouterProvider router={router} />
           </ErrorBoundary>
           <Toaster />
 
-          {/* Service worker update prompt (bottom-right) */}
+          {/* Service worker update prompt (persistent sonner toast; renders
+              null itself - the Toaster above displays it) */}
           <UpdatePrompt />
         </TooltipProvider>
       </ThemeProvider>

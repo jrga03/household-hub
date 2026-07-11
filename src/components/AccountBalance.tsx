@@ -56,12 +56,7 @@ export function AccountBalance({
     <div className="space-y-2">
       {/* Current Balance */}
       <div className={cn("font-mono", size === "large" ? "text-3xl" : "text-xl")}>
-        <div
-          className={cn(
-            "font-bold",
-            isPositive ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-          )}
-        >
+        <div className={cn("font-bold", isPositive ? "text-income" : "text-expense")}>
           {formatPHP(currentBalance)}
         </div>
         <div className="text-xs text-muted-foreground">Current Balance</div>

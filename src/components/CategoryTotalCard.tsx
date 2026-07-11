@@ -63,11 +63,11 @@ export function CategoryTotalCard({ category, previousExpenseCents }: Props) {
       {hasChange && previousExpenseCents !== undefined && (
         <div className="flex items-center gap-1 text-sm">
           {hasIncrease ? (
-            <TrendingUp className="h-3 w-3 text-red-600" />
+            <TrendingUp className="h-3 w-3 text-expense" />
           ) : (
-            <TrendingDown className="h-3 w-3 text-green-600" />
+            <TrendingDown className="h-3 w-3 text-income" />
           )}
-          <span className={hasIncrease ? "text-red-600" : "text-green-600"}>
+          <span className={hasIncrease ? "text-expense" : "text-income"}>
             {Math.abs(change).toFixed(1)}% {hasIncrease ? "increase" : "decrease"}
           </span>
           <span className="text-muted-foreground">from last month</span>

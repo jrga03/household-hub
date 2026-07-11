@@ -6,12 +6,13 @@ Application shell and navigation components providing responsive layouts across 
 
 ## Directory Contents
 
-**4 component files** (32.9 KB total):
+**Component files:**
 
-- **`AppLayout.tsx`** (217 lines, 7.1K) - Main layout orchestrator with responsive breakpoint logic
-- **`AppSidebar.tsx`** (378 lines, 11K) - Desktop/tablet collapsible sidebar navigation
-- **`MobileNav.tsx`** (238 lines, 8.0K) - Mobile drawer navigation
-- **`QuickActionButton.tsx`** (213 lines, 6.8K) - Floating Action Button (FAB) for mobile quick actions
+- **`AppLayout.tsx`** (~230 lines) - Main layout orchestrator with responsive breakpoint logic; also mounts the shared quick-add transaction dialog (`QuickAddTransactionDialog`)
+- **`AppSidebar.tsx`** (~400 lines) - Desktop/tablet collapsible sidebar navigation
+- **`MobileNav.tsx`** (~250 lines) - Mobile drawer navigation
+- **`PageShell.tsx`** (~90 lines) - Route-level layout primitive (variants: centered, rail, split, nav-content, triple; see /CLAUDE.md "PageShell layout primitive")
+- **`QuickActionButton.tsx`** (~65 lines) - Single-action floating action button (FAB) for mobile that opens the quick-add transaction dialog
 
 ## Component Overview
 
@@ -89,7 +90,10 @@ const NO_NAV_ROUTES = ["/login", "/signup"];
 
 **Props:** None (consumes data from stores and hooks)
 
-**Lines 197-216** - `PageTitle` helper component for tablet header (maps route paths to display titles)
+**Helper components** (bottom of file):
+
+- `QuickAddTransactionDialog` - Single consumer of `navStore.quickAddOpen`; renders the shared `TransactionFormDialog` for whichever layout branch is mounted (FAB, sidebar/drawer CTAs, ⌘N, and `/transactions/new` all set the flag)
+- `PageTitle` - Tablet header helper (maps route paths to display titles)
 
 ### AppSidebar.tsx
 
@@ -187,8 +191,8 @@ Three main sections:
 
 **5. Sync Status** (lines 158-161):
 
-- Full SyncIndicator display
-- Shows online/offline and sync progress
+- `GlobalSyncStatus` (detailed variant)
+- Shows online/offline, pending/failed counts, and sync progress; tap opens the sync queue viewer
 
 **6. Navigation Items** (lines 163-201):
 
@@ -216,59 +220,26 @@ const handleNavigation = () => {
 
 ### QuickActionButton.tsx
 
-**Purpose:** Floating Action Button (FAB) for mobile quick actions, positioned bottom-right with dropdown menu.
+**Purpose:** Single-action floating action button (FAB) for mobile, positioned bottom-right. One tap opens the quick-add transaction dialog. There is no dropdown, long-press menu, or secondary action.
+
+**How it works:**
+
+- `onClick` calls `navStore.setQuickAddOpen(true)` — the same path used by MobileNav's "Add Transaction" CTA, the sidebar button, and the ⌘N shortcut
+- The FAB does NOT own a dialog: AppLayout mounts a single `QuickAddTransactionDialog` that consumes `navStore.quickAddOpen` and renders `TransactionFormDialog`
 
 **Visual design:**
 
 - **Size:** 56x56px (h-14 w-14)
 - **Shape:** Circular (rounded-full)
 - **Color:** Primary with shadow (shadow-lg)
-- **Position:** Fixed bottom-right (bottom-6 right-6)
+- **Position:** Fixed bottom-right with safe-area insets (`bottom-[calc(1.5rem+var(--safe-area-bottom))]`, `right-[calc(1.5rem+var(--safe-area-right))]`)
 - **Z-index:** 50 (stays above content)
+- **Feedback:** `active:scale-95` press animation, focus-visible ring
 
-**Interaction modes:**
-
-1. **Single tap:** Opens "Add Transaction" dialog
-2. **Long press / right-click:** Opens dropdown menu with 3 options
-3. **Dropdown open:** Plus icon morphs to X icon
-
-**Quick actions menu:**
-
-- **Add Transaction** (primary action)
-- **Add Account** (placeholder - coming soon)
-- **Add Category** (placeholder - coming soon)
-
-**Menu positioning:**
-
-- **Align:** End (right-aligned)
-- **Side:** Top (opens above button)
-- **Offset:** 16px spacing from button
-
-**Lines 86-89** - Context menu handler (right-click / long-press):
-
-```typescript
-onContextMenu={(e) => {
-  e.preventDefault();
-  setDropdownOpen(true);
-}}
-```
-
-**Lines 165-212** - `SpeedDialFAB` alternative implementation (not currently used):
-
-- Secondary actions fan out from main button
-- Smooth expand/collapse animation
-- Plus icon rotates 45° when expanded (becomes X)
-
-**Route hiding** (lines 46-52):
+**Route hiding** (lines 34-40):
 
 - FAB hidden on `/login` and `/signup` pages
 - Configurable via `hideOnRoutes` prop
-
-**Dialogs integrated:**
-
-- TransactionFormDialog (implemented)
-- AccountFormDialog (placeholder, lines 130-141)
-- CategoryFormDialog (placeholder, lines 143-154)
 
 ## Responsive Breakpoint Strategy
 
@@ -399,8 +370,8 @@ Preference persisted in context
 
 - Location: `src/stores/navStore.ts`
 - Used for: `mobileNavOpen`, `activeRoute`, `quickAddOpen`
-- Updated by: AppLayout (route tracking)
-- Read by: MobileNav, AppSidebar
+- Updated by: AppLayout (route tracking); `quickAddOpen` set by QuickActionButton, AppSidebar, MobileNav, keyboard shortcuts, and the `/transactions/new` route
+- Read by: MobileNav, AppSidebar, AppLayout's `QuickAddTransactionDialog`
 
 ### Hooks
 
@@ -429,18 +400,15 @@ Preference persisted in context
 - Used by: MobileNav
 - Features: Slide animation, backdrop, accessibility
 
-**shadcn/ui DropdownMenu** - Dropdown menu
-
-- Used by: QuickActionButton
-- Features: Positioning, keyboard navigation
-
 ### Other Components
 
-**`SyncIndicator`** - Sync status display
+**`GlobalSyncStatus`** - Sync status display
 
-- Location: `src/components/SyncIndicator.tsx`
-- Used in: AppLayout header (mobile), AppSidebar header, MobileNav
-- Props: `compact` (boolean) - Shows icon only or full status
+- Location: `src/components/sync/GlobalSyncStatus.tsx`
+- Used in: AppLayout header (mobile, compact), AppSidebar header (detailed when
+  expanded, compact on the collapsed icon rail), MobileNav (detailed)
+- Props: `variant` ("default" | "compact" | "detailed"), `className`
+- Clicking it opens the `SyncQueueViewer` sheet
 
 **`LoadingScreen`** - Full-page loading spinner
 
@@ -450,7 +418,8 @@ Preference persisted in context
 **`TransactionFormDialog`** - Transaction creation form
 
 - Location: `src/components/TransactionFormDialog.tsx`
-- Opened by: QuickActionButton, AppSidebar "Add Transaction" button
+- Mounted by: AppLayout's `QuickAddTransactionDialog` (single consumer of `navStore.quickAddOpen`)
+- Opened by: QuickActionButton (FAB), AppSidebar "Add Transaction" button, MobileNav drawer CTA, ⌘N shortcut, and the `/transactions/new` PWA manifest shortcut route — all of which set `navStore.quickAddOpen`
 
 ## Key Features
 
@@ -517,11 +486,12 @@ Visual feedback shows current location:
 
 Multiple entry points for adding transactions:
 
-- **Mobile:** FAB (floating bottom-right)
+- **Mobile:** FAB (floating bottom-right) and MobileNav drawer CTA
 - **Tablet/Desktop:** "Add Transaction" button in sidebar
 - **Keyboard:** ⌘N shortcut anywhere in app
+- **PWA:** `/transactions/new` manifest shortcut route
 
-**Consistent experience:** All methods open same `TransactionFormDialog`
+**Consistent experience:** Every entry point sets `navStore.quickAddOpen`; AppLayout's `QuickAddTransactionDialog` renders the single shared `TransactionFormDialog`
 
 ### 7. Sync Status Visibility
 
@@ -624,12 +594,6 @@ active: scale-95;
 - Provides tactile feedback
 - Smooth 200ms transition
 
-**Icon morph:**
-
-- Plus icon when closed
-- Rotates to X icon when dropdown open
-- Signals expanded state
-
 ### Active State Styling
 
 **Sidebar:**
@@ -686,11 +650,10 @@ active: scale-95;
 
 ### Dialog Lazy Loading
 
-**QuickActionButton dialogs:**
+**Quick-add dialog (AppLayout's `QuickAddTransactionDialog`):**
 
-- Only render when needed
-- `{dialogOpen && <Dialog />}`
-- Reduces initial bundle parse time
+- Mounted conditionally: `if (!quickAddOpen) return null;`
+- `TransactionFormDialog` fetches data on mount, so it only renders when open
 
 ## Critical Implementation Notes
 
@@ -811,7 +774,7 @@ Tablet sidebar defaults to **collapsed**:
 
 ### Navigation Components
 
-- [src/components/SyncIndicator.tsx](../../README.md) - Sync status display
+- [src/components/sync/GlobalSyncStatus.tsx](../../README.md) - Sync status display
 - [src/components/LoadingScreen.tsx](../../README.md) - Loading state display
 - [src/components/TransactionFormDialog.tsx](../../README.md) - Transaction creation form
 
@@ -819,7 +782,6 @@ Tablet sidebar defaults to **collapsed**:
 
 - [src/components/ui/sidebar.tsx](../ui/) - shadcn/ui sidebar components
 - [src/components/ui/sheet.tsx](../ui/) - shadcn/ui drawer component
-- [src/components/ui/dropdown-menu.tsx](../ui/) - shadcn/ui dropdown
 
 ### Hooks
 

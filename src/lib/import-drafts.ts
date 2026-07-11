@@ -124,6 +124,64 @@ export async function discardDraft(id: string): Promise<void> {
 }
 
 /**
+ * Restore discarded drafts back to "pending" (Undo for discardDraft).
+ *
+ * Reverses the soft status flip and decrements each session's
+ * discarded_count by however many of its drafts were restored.
+ * Drafts that are not currently "discarded" are skipped, so a stale
+ * Undo (e.g. after the draft was already restored) is a no-op.
+ *
+ * @returns number of drafts actually restored
+ */
+export async function restoreDrafts(ids: string[]): Promise<number> {
+  const now = new Date().toISOString();
+
+  return db.transaction("rw", db.importDrafts, db.importSessions, async () => {
+    const drafts = await db.importDrafts.bulkGet(ids);
+    const discarded = drafts.filter(
+      (d): d is ImportDraft => d !== undefined && d.draft_status === "discarded"
+    );
+
+    if (discarded.length === 0) return 0;
+
+    await Promise.all(
+      discarded.map((draft) =>
+        db.importDrafts.update(draft.id, {
+          draft_status: "pending" as DraftStatus,
+          updated_at: now,
+        })
+      )
+    );
+
+    // Group by session and decrement counters (never below zero)
+    const sessionCounts = new Map<string, number>();
+    for (const draft of discarded) {
+      sessionCounts.set(draft.importSessionId, (sessionCounts.get(draft.importSessionId) || 0) + 1);
+    }
+
+    for (const [sessionId, count] of sessionCounts) {
+      await db.importSessions
+        .where("id")
+        .equals(sessionId)
+        .modify((session: ImportSession) => {
+          session.discarded_count = Math.max(0, session.discarded_count - count);
+        });
+    }
+
+    return discarded.length;
+  });
+}
+
+/**
+ * Restore a single discarded draft back to "pending" (Undo for discardDraft).
+ *
+ * @returns true if the draft was restored, false if it wasn't discarded
+ */
+export async function restoreDraft(id: string): Promise<boolean> {
+  return (await restoreDrafts([id])) === 1;
+}
+
+/**
  * Get all pending/editing drafts, optionally filtered by session.
  */
 export async function getPendingDrafts(sessionId?: string): Promise<ImportDraft[]> {
@@ -142,6 +200,23 @@ export async function getPendingDrafts(sessionId?: string): Promise<ImportDraft[
  */
 export async function getPendingDraftCount(): Promise<number> {
   return db.importDrafts.where("draft_status").anyOf("pending", "editing").count();
+}
+
+/**
+ * Resolve a draft's category name from an already-loaded category list.
+ *
+ * Pure lookup shared by the drafts review table and the narrow card list so
+ * both presentations render the draft's actual category instead of a
+ * hardcoded "-" (review R36). Returns null when the draft has no category or
+ * the id can't be found (deleted / not-yet-loaded category); callers render a
+ * muted "Uncategorized" fallback for null.
+ */
+export function resolveCategoryName(
+  categoryId: string | null | undefined,
+  categories: readonly { id: string; name: string }[] | undefined
+): string | null {
+  if (!categoryId || !categories) return null;
+  return categories.find((c) => c.id === categoryId)?.name ?? null;
 }
 
 /**

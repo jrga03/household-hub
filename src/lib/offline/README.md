@@ -381,7 +381,7 @@ export async function createOfflineTag(tag: Tag): Promise<Result<Tag>> {
 **UI Indicators:**
 
 - `OfflineBanner` - Shows offline status and pending count
-- `SyncIndicator` - Shows sync status (idle/syncing/error)
+- `GlobalSyncStatus` - Shows sync status (offline/syncing/failed/pending/synced)
 - Badge on sync button - Pending count
 
 **Programmatic:**

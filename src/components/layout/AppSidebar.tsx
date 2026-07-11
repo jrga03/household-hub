@@ -39,7 +39,8 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuthStore } from "@/stores/authStore";
 import { useNavStore } from "@/stores/navStore";
-import { SyncIndicator } from "@/components/SyncIndicator";
+import { signOutWithConfirm } from "@/lib/sign-out";
+import { GlobalSyncStatus } from "@/components/sync/GlobalSyncStatus";
 import { cn } from "@/lib/utils";
 import { getShortcutKey } from "@/hooks/useKeyboardShortcuts";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -173,8 +174,9 @@ export function AppSidebar() {
   };
 
   const handleSignOut = async () => {
-    const signOut = useAuthStore.getState().signOut;
-    await signOut();
+    // Unsynced-changes confirm + export live in the shared component-layer
+    // flow, not the store (review R39)
+    await signOutWithConfirm();
   };
 
   return (
@@ -214,9 +216,17 @@ export function AppSidebar() {
           </Button>
         </div>
 
-        {/* Sync Status */}
+        {/* Sync Status (live outbox counts; click to open the sync queue) */}
         <div className="px-2 pt-2 pb-1">
-          <SyncIndicator compact={!open} />
+          {/* Collapsed icon rail is 3rem (48px) wide; the compact trigger's
+              default 44px floor would overflow it inside the px-2 wrapper,
+              so shrink the trigger to rail size here only (cn uses
+              tailwind-merge, so these override the component's min-h-11
+              min-w-11). Mobile mounts keep the 44px touch target. */}
+          <GlobalSyncStatus
+            variant={open ? "detailed" : "compact"}
+            className={open ? undefined : "size-8 min-h-8 min-w-8 p-0"}
+          />
         </div>
       </SidebarHeader>
 

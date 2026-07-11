@@ -1,29 +1,37 @@
 import { format } from "date-fns";
-import { Calendar as CalendarIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { parseLocalDate } from "@/lib/utils/dates";
 
 interface DatePickerProps {
   value?: Date;
   onChange: (date: Date | undefined) => void;
   disabled?: boolean;
+  /** Kept for API compatibility; native date inputs do not render placeholders. */
   placeholder?: string;
 }
 
-export function DatePicker({
-  value,
-  onChange,
-  disabled,
-  placeholder = "Pick a date",
-}: DatePickerProps) {
+/**
+ * Date picker built directly on the native `<input type="date">`.
+ *
+ * Previously this was a Button → Popover → unstyled native input stack that
+ * needed three taps on touch and never auto-closed (mobile UX review R20).
+ * The native control opens the platform date UI in one tap and needs no
+ * dismissal handling.
+ *
+ * Contract: consumers pass `Date | undefined` via RHF Controller; the input
+ * emits local-midnight Dates (never UTC-midnight — `new Date("yyyy-MM-dd")`
+ * parses as UTC and shifts the calendar day for UTC+ users).
+ */
+export function DatePicker({ value, onChange, disabled, placeholder }: DatePickerProps) {
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.value) {
       onChange(undefined);
       return;
     }
 
-    const date = new Date(e.target.value);
+    // Parse "yyyy-MM-dd" as a LOCAL date. new Date("yyyy-MM-dd") would parse
+    // as UTC midnight, which is the previous calendar day for UTC+ timezones.
+    const date = parseLocalDate(e.target.value);
 
     // Validate that date is valid
     if (isNaN(date.getTime())) {
@@ -43,32 +51,14 @@ export function DatePicker({
   };
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={cn(
-            "w-full justify-start text-left font-normal",
-            !value && "text-muted-foreground"
-          )}
-          disabled={disabled}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {value ? format(value, "PPP") : <span>{placeholder}</span>}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <div className="p-3">
-          <input
-            type="date"
-            value={value ? format(value, "yyyy-MM-dd") : ""}
-            onChange={handleDateChange}
-            max={format(new Date(), "yyyy-MM-dd")}
-            className="w-full"
-            aria-label="Select transaction date"
-          />
-        </div>
-      </PopoverContent>
-    </Popover>
+    <Input
+      type="date"
+      value={value ? format(value, "yyyy-MM-dd") : ""}
+      onChange={handleDateChange}
+      max={format(new Date(), "yyyy-MM-dd")}
+      disabled={disabled}
+      placeholder={placeholder}
+      aria-label="Select transaction date"
+    />
   );
 }

@@ -1,4 +1,5 @@
 import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 /**
  * Full-screen loading component
@@ -22,11 +23,18 @@ export function LoadingScreen() {
         {/* App Name */}
         <h1 className="text-xl font-semibold">Household Hub</h1>
 
-        {/* Loading Spinner */}
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        {/* Loading Spinner (carries the role="status" announcement) */}
+        <LoadingSpinner
+          size="large"
+          className="text-muted-foreground"
+          label="Loading Household Hub"
+        />
 
-        {/* Loading Text */}
-        <p className="text-sm text-muted-foreground">Loading...</p>
+        {/* Visible loading text; hidden from screen readers so the spinner's
+            status announcement isn't duplicated */}
+        <p className="text-sm text-muted-foreground" aria-hidden="true">
+          Loading...
+        </p>
       </div>
     </div>
   );
@@ -35,13 +43,20 @@ export function LoadingScreen() {
 /**
  * Inline loading spinner for smaller contexts
  * Can be used in buttons, cards, or inline with content
+ *
+ * Accessibility (review R41): the `role="status"` + sr-only text live INSIDE
+ * this component — an aria-label on the SVG alone is unreliable — so every
+ * usage is announced without call sites doing anything.
  */
 export function LoadingSpinner({
-  className = "",
+  className,
   size = "default",
+  label = "Loading",
 }: {
   className?: string;
   size?: "small" | "default" | "large";
+  /** Screen-reader announcement, e.g. "Loading budgets" */
+  label?: string;
 }) {
   const sizeClasses = {
     small: "h-4 w-4",
@@ -50,6 +65,9 @@ export function LoadingSpinner({
   };
 
   return (
-    <Loader2 className={`animate-spin ${sizeClasses[size]} ${className}`} aria-label="Loading" />
+    <span role="status" className="inline-flex items-center justify-center">
+      <Loader2 aria-hidden="true" className={cn("animate-spin", sizeClasses[size], className)} />
+      <span className="sr-only">{label}</span>
+    </span>
   );
 }

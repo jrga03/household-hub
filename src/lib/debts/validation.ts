@@ -284,7 +284,7 @@ export const createExternalDebtSchema = z.object({
     .number()
     .int("Amount must be a whole number")
     .min(100, "Amount must be at least ₱1.00")
-    .max(99999999900, "Amount must not exceed ₱999,999,999.00"),
+    .max(CURRENCY_LIMITS.MAX_CENTS, "Amount must not exceed ₱9,999,999.99"),
 
   description: z.string().max(500, "Description must be 500 characters or less").optional(),
 
@@ -327,7 +327,7 @@ export const createInternalDebtSchema = z
       .number()
       .int("Amount must be a whole number")
       .min(100, "Amount must be at least ₱1.00")
-      .max(99999999900, "Amount must not exceed ₱999,999,999.00"),
+      .max(CURRENCY_LIMITS.MAX_CENTS, "Amount must not exceed ₱9,999,999.99"),
 
     description: z.string().max(500, "Description must be 500 characters or less").optional(),
 
@@ -404,7 +404,7 @@ export function parseAmountInput(input: string): number | null {
     const cents = Math.round(pesos * 100);
 
     // Validate range
-    if (cents < 100 || cents > 99999999900) {
+    if (cents < CURRENCY_LIMITS.MIN_DEBT || cents > CURRENCY_LIMITS.MAX_CENTS) {
       return null;
     }
 

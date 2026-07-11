@@ -46,25 +46,25 @@ export function BudgetProgressBar({ target, actual, categoryName }: BudgetProgre
   // Determine status based on percentage
   const status = percentage < 80 ? "under" : percentage <= 100 ? "near" : "over";
 
-  // Color mappings for status badges
+  // Color mappings for status badges (semantic tokens flip with .dark, R40)
   const statusColors = {
-    under: "text-green-600 bg-green-100 dark:bg-green-900/20 dark:text-green-400",
-    near: "text-amber-600 bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400",
-    over: "text-red-600 bg-red-100 dark:bg-red-900/20 dark:text-red-400",
+    under: "text-income bg-income/10 dark:bg-income/15",
+    near: "text-warning bg-warning/10 dark:bg-warning/15",
+    over: "text-expense bg-expense/10 dark:bg-expense/15",
   };
 
   // Progress bar indicator colors
   const progressColors = {
-    under: "bg-green-600 dark:bg-green-500",
-    near: "bg-amber-500 dark:bg-amber-400",
-    over: "bg-red-600 dark:bg-red-500",
+    under: "bg-income",
+    near: "bg-warning",
+    over: "bg-expense",
   };
 
   // Text colors for remaining amount
   const remainingColors = {
-    under: "text-green-600 dark:text-green-400",
-    near: "text-amber-600 dark:text-amber-400",
-    over: "text-red-600 dark:text-red-400",
+    under: "text-income",
+    near: "text-warning",
+    over: "text-expense",
   };
 
   return (

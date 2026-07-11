@@ -131,7 +131,7 @@ export function CategoryFormDialog({ open, onClose, editingId, defaultParentId }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{editingId ? "Edit Category" : "Create Category"}</DialogTitle>
         </DialogHeader>
@@ -158,7 +158,7 @@ export function CategoryFormDialog({ open, onClose, editingId, defaultParentId }
               value={parentId ?? "none"}
               onValueChange={(value) => form.setValue("parent_id", value === "none" ? null : value)}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

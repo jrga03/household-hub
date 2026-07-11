@@ -44,6 +44,8 @@ test.describe("Debt Payment Workflows", () => {
     await page.selectOption('[name="type"]', "expense");
 
     // Link to debt (if debt selector exists)
+    // Debt link lives behind the "More options" disclosure
+    await page.click('button:has-text("More options")');
     const debtSelector = page.locator('select[name="debt_id"], select[name="debtId"]');
 
     if (await debtSelector.isVisible({ timeout: 1000 })) {
@@ -95,6 +97,8 @@ test.describe("Debt Payment Workflows", () => {
       await page.fill('[name="amount"]', "100.00");
       await page.selectOption('[name="type"]', "expense");
 
+      // Debt link lives behind the "More options" disclosure
+      await page.click('button:has-text("More options")');
       const debtSelector = page.locator('select[name="debt_id"]');
       if (await debtSelector.isVisible({ timeout: 1000 })) {
         await debtSelector.selectOption({ index: 1 });
@@ -132,6 +136,8 @@ test.describe("Debt Payment Workflows", () => {
     await page.selectOption('[name="type"]', "expense");
 
     // Select debt
+    // Debt link lives behind the "More options" disclosure
+    await page.click('button:has-text("More options")');
     const debtSelector = page.locator('select[name="debt_id"]');
 
     if (await debtSelector.isVisible({ timeout: 1000 })) {
@@ -186,6 +192,8 @@ test.describe("Debt Payment Workflows", () => {
       await page.fill('[name="amount"]', targetBalance);
       await page.selectOption('[name="type"]', "expense");
 
+      // Debt link lives behind the "More options" disclosure
+      await page.click('button:has-text("More options")');
       const debtSelector = page.locator('select[name="debt_id"]');
       if (await debtSelector.isVisible({ timeout: 1000 })) {
         await debtSelector.selectOption({ index: 1 });
@@ -261,6 +269,8 @@ test.describe("Debt Payment Workflows", () => {
         await page.fill('[name="amount"]', amount);
         await page.selectOption('[name="type"]', "expense");
 
+        // Debt link lives behind the "More options" disclosure
+        await page.click('button:has-text("More options")');
         const debtSelector = page.locator('select[name="debt_id"]');
         if (await debtSelector.isVisible({ timeout: 1000 })) {
           await debtSelector.selectOption({ index: 1 });

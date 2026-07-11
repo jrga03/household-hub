@@ -1,8 +1,11 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLiveQuery } from "dexie-react-hooks";
 import { format } from "date-fns";
-import { RefreshCw, Trash2, AlertCircle, CheckCircle2, Clock, Loader2 } from "lucide-react";
+import { RefreshCw, Trash2, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import { confirm } from "@/lib/confirm";
+import { LoadingSpinner } from "@/components/LoadingScreen";
 import { useAuthStore } from "@/stores/authStore";
 import { getOutstandingQueueItems } from "@/lib/offline/syncQueue";
+import { useSyncProcessor } from "@/hooks/useSyncProcessor";
 import {
   useRetrySyncItem,
   useDiscardSyncItem,
@@ -19,7 +22,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface SyncQueueViewerProps {
@@ -34,12 +36,13 @@ interface SyncQueueViewerProps {
  * Groups items by entity type and shows status, retry count, and actions.
  *
  * Features:
- * - Real-time pending item list
+ * - Live outstanding-item list (Dexie useLiveQuery on the local outbox -
+ *   updates the instant the queue changes, no polling)
  * - Grouped by entity type (transactions, accounts, categories)
+ * - Explicit "Sync now" (drains the whole outbox via the sync processor)
  * - Retry failed items
  * - Discard stuck items (with confirmation)
  * - Shows error messages
- * - Auto-refreshes every 10 seconds
  *
  * @example
  * const [isOpen, setIsOpen] = useState(false);
@@ -47,17 +50,22 @@ interface SyncQueueViewerProps {
  */
 export function SyncQueueViewer({ open, onOpenChange }: SyncQueueViewerProps) {
   const user = useAuthStore((state) => state.user);
-  const queryClient = useQueryClient();
   const retryAllMutation = useRetryAllFailed();
+  const syncMutation = useSyncProcessor();
 
-  // Fetch outstanding queue items (queued + syncing + failed) from the
-  // local outbox - a cheap IndexedDB read, no network involved
-  const { data: items = [], isLoading } = useQuery({
-    queryKey: ["sync-queue", "outstanding"],
-    queryFn: () => (user?.id ? getOutstandingQueueItems(user.id) : []),
-    enabled: !!user?.id && open,
-    refetchInterval: 10000, // Refresh every 10 seconds
-  });
+  // Outstanding queue items (queued + syncing + failed) from the local
+  // outbox - reactive IndexedDB read, no network involved (patterns:
+  // TransactionList.tsx, useSyncStatus.ts). Gated on `open`: the viewer is
+  // always-mounted by every GlobalSyncStatus instance (up to 3 concurrent),
+  // so without the gate the whole queue would be re-read and re-sorted on
+  // every db.syncQueue write while the sheet is closed.
+  const liveItems = useLiveQuery(
+    async () => (open && user?.id ? getOutstandingQueueItems(user.id) : []),
+    [user?.id, open]
+  );
+  // Loading only matters while the sheet is open; closed viewers resolve to []
+  const isLoading = liveItems === undefined;
+  const items = liveItems ?? [];
 
   // Group items by entity type
   const groupedItems = items.reduce(
@@ -97,7 +105,7 @@ export function SyncQueueViewer({ open, onOpenChange }: SyncQueueViewerProps) {
         <div className="mt-6 space-y-6">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <LoadingSpinner className="text-muted-foreground" label="Loading sync queue" />
             </div>
           ) : items.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -145,13 +153,11 @@ export function SyncQueueViewer({ open, onOpenChange }: SyncQueueViewerProps) {
             <Button
               variant="outline"
               className="w-full"
-              onClick={() => {
-                queryClient.invalidateQueries({ queryKey: ["sync-queue", "pending"] });
-                toast.info("Refreshing sync queue...");
-              }}
+              onClick={() => syncMutation.mutate()}
+              disabled={syncMutation.isPending}
             >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              <RefreshCw className={cn("h-4 w-4 mr-2", syncMutation.isPending && "animate-spin")} />
+              {syncMutation.isPending ? "Syncing..." : "Sync now"}
             </Button>
           </div>
         )}
@@ -169,8 +175,14 @@ function QueueItemCard({ item }: { item: SyncQueueItem }) {
   const retryMutation = useRetrySyncItem();
   const discardMutation = useDiscardSyncItem();
 
-  const handleDiscard = () => {
-    if (window.confirm("Discard this change? This action cannot be undone.")) {
+  const handleDiscard = async () => {
+    const confirmed = await confirm({
+      title: "Discard this change?",
+      description: "This action cannot be undone.",
+      confirmLabel: "Discard",
+      destructive: true,
+    });
+    if (confirmed) {
       discardMutation.mutate(item.id);
     }
   };

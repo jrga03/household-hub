@@ -1,11 +1,20 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "./supabase";
+import { useAuthStore } from "@/stores/authStore";
 import {
   isLikelyNetworkError,
   getLocalTransactionsWithRelations,
+  getLocalTransactionsFilterSummary,
+  getUnsyncedLocalTransactionsWithRelations,
+  mergeTransactionPages,
   getLocalActiveAccounts,
   getLocalActiveCategories,
+  type TransactionsListPage,
+  type TransactionsFilterSummary,
 } from "./offline/reads";
+import { getLocalDashboardData, hasLocalFinancialData } from "./offline/aggregates";
+import { getLocalBudgetGroups, mirrorBudgetsForMonth } from "./offline/budgets";
+import { OfflineError } from "./offline/errors";
 import { Account, AccountInsert, AccountUpdate } from "@/types/accounts";
 import type {
   Category,
@@ -448,84 +457,211 @@ export function useArchiveCategory() {
  * to keep account balances in sync
  */
 
-// Fetch transactions with filters
-export function useTransactions(filters?: TransactionFilters) {
-  return useQuery({
-    queryKey: ["transactions", filters],
-    queryFn: async () => {
-      let query = supabase
-        .from("transactions")
-        .select(
-          `
+/** Rows fetched per page of the transactions list (review R10). */
+export const TRANSACTIONS_PAGE_SIZE = 50;
+
+/**
+ * Builds the filtered transactions list query (shared filter mapping for
+ * every page fetch). Filters convert camelCase to snake_case for the DB.
+ */
+function buildTransactionsListQuery(filters?: TransactionFilters) {
+  let query = supabase
+    .from("transactions")
+    .select(
+      `
           *,
           account:accounts(id, name),
           category:categories(id, name, color)
         `
-        )
-        .order("date", { ascending: false })
-        .order("created_at", { ascending: false });
+    )
+    .order("date", { ascending: false })
+    .order("created_at", { ascending: false });
 
-      // Apply filters (convert camelCase to snake_case for database)
-      if (filters?.dateFrom) {
-        query = query.gte("date", filters.dateFrom);
-      }
+  if (filters?.dateFrom) {
+    query = query.gte("date", filters.dateFrom);
+  }
 
-      if (filters?.dateTo) {
-        query = query.lte("date", filters.dateTo);
-      }
+  if (filters?.dateTo) {
+    query = query.lte("date", filters.dateTo);
+  }
 
-      if (filters?.accountId) {
-        query = query.eq("account_id", filters.accountId);
-      }
+  if (filters?.accountId) {
+    query = query.eq("account_id", filters.accountId);
+  }
 
-      if (filters?.categoryId) {
-        query = query.eq("category_id", filters.categoryId);
-      }
+  if (filters?.categoryId) {
+    query = query.eq("category_id", filters.categoryId);
+  }
 
-      if (filters?.status) {
-        query = query.eq("status", filters.status);
-      }
+  if (filters?.status) {
+    query = query.eq("status", filters.status);
+  }
 
-      if (filters?.type) {
-        query = query.eq("type", filters.type);
-      }
+  if (filters?.type) {
+    query = query.eq("type", filters.type);
+  }
 
-      // Amount range filtering
-      if (filters?.amountMin !== undefined) {
-        query = query.gte("amount_cents", filters.amountMin);
-      }
+  // Amount range filtering
+  if (filters?.amountMin !== undefined) {
+    query = query.gte("amount_cents", filters.amountMin);
+  }
 
-      if (filters?.amountMax !== undefined) {
-        query = query.lte("amount_cents", filters.amountMax);
-      }
+  if (filters?.amountMax !== undefined) {
+    query = query.lte("amount_cents", filters.amountMax);
+  }
 
-      // Full-text search on description and notes (case-insensitive)
-      if (filters?.search) {
-        query = query.or(`description.ilike.%${filters.search}%,notes.ilike.%${filters.search}%`);
-      }
+  // Full-text search on description and notes (case-insensitive)
+  if (filters?.search) {
+    query = query.or(`description.ilike.%${filters.search}%,notes.ilike.%${filters.search}%`);
+  }
 
-      // CRITICAL: Exclude transfers by default (unless explicitly set to false)
-      if (filters?.excludeTransfers !== false) {
-        query = query.is("transfer_group_id", null);
-      }
+  // CRITICAL: Exclude transfers by default (unless explicitly set to false)
+  if (filters?.excludeTransfers !== false) {
+    query = query.is("transfer_group_id", null);
+  }
+
+  return query;
+}
+
+/**
+ * Fetch transactions with filters, paged via useInfiniteQuery (review R10:
+ * the old query hard-capped the list at 100 rows with no next page).
+ *
+ * - Each page is a `.range()` window of TRANSACTIONS_PAGE_SIZE rows; a full
+ *   page means there may be more (getNextPageParam), a short page ends it.
+ * - `data` is the FLATTENED list (select → mergeTransactionPages), so
+ *   consumers keep receiving TransactionWithRelations[].
+ * - Unsynced-row overlay (review R9): each page fetch also snapshots the
+ *   locally unsynced rows, but the overlay is merged once over the
+ *   flattened list — never per page — so a local row cannot duplicate its
+ *   server echo arriving in a later page (see TransactionsListPage docs).
+ * - Offline fallback mirrors the same paging window from Dexie. Those pages
+ *   need no overlay: db.transactions already holds the unsynced rows.
+ */
+export function useTransactions(filters?: TransactionFilters) {
+  return useInfiniteQuery({
+    queryKey: ["transactions", filters],
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }): Promise<TransactionsListPage<TransactionWithRelations>> => {
+      const from = pageParam * TRANSACTIONS_PAGE_SIZE;
+      const to = from + TRANSACTIONS_PAGE_SIZE - 1;
 
       try {
-        const { data, error } = await query.limit(100); // Pagination later
+        const { data, error } = await buildTransactionsListQuery(filters).range(from, to);
 
         if (error) throw error;
-        return data as TransactionWithRelations[];
+
+        // Overlay snapshot: local rows whose outbox items haven't drained
+        // yet (created seconds ago, or edited offline). Scoped to the
+        // signed-in user so another account's queued items on a shared
+        // device never overlay this user's list.
+        const userId = useAuthStore.getState().user?.id;
+        const localOverlay = userId
+          ? ((await getUnsyncedLocalTransactionsWithRelations(
+              userId,
+              filters
+            )) as unknown as TransactionWithRelations[])
+          : [];
+        return { rows: data as TransactionWithRelations[], localOverlay };
       } catch (error) {
-        // Offline fallback: same filters and joins served from Dexie
+        // Offline fallback: same filters, joins and paging served from Dexie
         if (isLikelyNetworkError(error)) {
           console.warn("[useTransactions] Network unavailable - reading from Dexie");
-          return (await getLocalTransactionsWithRelations(
-            filters
-          )) as unknown as TransactionWithRelations[];
+          const rows = (await getLocalTransactionsWithRelations(filters, {
+            offset: from,
+            limit: TRANSACTIONS_PAGE_SIZE,
+          })) as unknown as TransactionWithRelations[];
+          return { rows, localOverlay: [] };
         }
         throw error;
       }
     },
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.rows.length === TRANSACTIONS_PAGE_SIZE ? allPages.length : undefined,
+    // No maxPages cap: invalidation refetches every loaded page sequentially,
+    // which is accepted cost for typical few-page sessions. A cap would evict
+    // page 1 while the virtualizer still renders the full flattened list,
+    // dropping the top rows mid-scroll — do not add maxPages without also
+    // implementing bidirectional fetch (see plan doc Decisions & Deferrals).
+    select: (data) => mergeTransactionPages(data.pages),
     staleTime: 2 * 60 * 1000, // 2 minutes
+    networkMode: "always", // run the queryFn offline so the Dexie fallback can serve
+  });
+}
+
+/**
+ * Raw row shape returned by the transactions_filter_summary RPC (BIGINTs
+ * arrive as JSON numbers; amounts are capped well below 2^53).
+ */
+interface TransactionsFilterSummaryRow {
+  txn_count: number | string;
+  total_in_cents: number | string;
+  total_out_cents: number | string;
+}
+
+export type { TransactionsFilterSummary };
+
+/**
+ * Exact count + In/Out totals for the CURRENT filter set, computed
+ * server-side over the whole filtered dataset (review R10: the old header
+ * summed the loaded rows, silently wrong past the row cap).
+ *
+ * - RPC transactions_filter_summary runs SECURITY INVOKER, so RLS scopes the
+ *   answer to exactly the rows the user could list.
+ * - Fallback: when the RPC is unreachable or fails, the summary is computed
+ *   from the FULL local Dexie dataset with the same filter semantics. All
+ *   three numbers always come from one source — never a server count next
+ *   to client totals.
+ * - Keyed under the ["transactions"] prefix so every existing
+ *   invalidateQueries({ queryKey: ["transactions"] }) call (mutations,
+ *   post-sync drain) refreshes the summary alongside the list.
+ */
+export function useTransactionsFilterSummary(filters?: TransactionFilters) {
+  return useQuery({
+    queryKey: ["transactions", "filter-summary", filters],
+    queryFn: async (): Promise<TransactionsFilterSummary> => {
+      try {
+        const { data, error } = await supabase.rpc("transactions_filter_summary", {
+          p_date_from: filters?.dateFrom ?? null,
+          p_date_to: filters?.dateTo ?? null,
+          p_account_id: filters?.accountId ?? null,
+          p_category_id: filters?.categoryId ?? null,
+          p_status: filters?.status ?? null,
+          p_type: filters?.type ?? null,
+          p_amount_min: filters?.amountMin ?? null,
+          p_amount_max: filters?.amountMax ?? null,
+          p_search: filters?.search ?? null,
+          // CRITICAL: transfers excluded unless explicitly included, matching
+          // the list query and the analytics rule
+          p_exclude_transfers: filters?.excludeTransfers !== false,
+        });
+
+        if (error) throw error;
+
+        const rows = (data ?? []) as TransactionsFilterSummaryRow[];
+        const row = Array.isArray(rows) ? rows[0] : (rows as TransactionsFilterSummaryRow);
+        return {
+          count: Number(row?.txn_count ?? 0),
+          totalInCents: Number(row?.total_in_cents ?? 0),
+          totalOutCents: Number(row?.total_out_cents ?? 0),
+        };
+      } catch (error) {
+        if (isLikelyNetworkError(error)) {
+          console.warn(
+            "[useTransactionsFilterSummary] network unreachable - computing from Dexie",
+            error
+          );
+          return getLocalTransactionsFilterSummary(filters);
+        }
+        // Non-network failures (RPC not deployed, RLS/permission errors) must
+        // be loud, not silently served from the sparse local mirror next to a
+        // server-fetched list: rethrow so the route derives the header numbers
+        // from the loaded pages (one source) until the RPC is reachable.
+        console.error("[useTransactionsFilterSummary] RPC failed", error);
+        throw error;
+      }
+    },
+    staleTime: 2 * 60 * 1000, // matches the list query so the numbers agree
     networkMode: "always", // run the queryFn offline so the Dexie fallback can serve
   });
 }
@@ -955,192 +1091,213 @@ export interface DashboardData {
  * @example
  * const { data, isLoading } = useDashboardData(startOfMonth(new Date()));
  */
-export function useDashboardData(currentMonth: Date) {
-  return useQuery({
-    queryKey: ["dashboard", format(currentMonth, "yyyy-MM")],
-    queryFn: async (): Promise<DashboardData> => {
-      const monthStart = startOfMonth(currentMonth);
-      const monthEnd = endOfMonth(currentMonth);
-      const previousMonthStart = startOfMonth(subMonths(currentMonth, 1));
-      const previousMonthEnd = endOfMonth(subMonths(currentMonth, 1));
+async function fetchDashboardDataFromServer(currentMonth: Date): Promise<DashboardData> {
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
+  const previousMonthStart = startOfMonth(subMonths(currentMonth, 1));
+  const previousMonthEnd = endOfMonth(subMonths(currentMonth, 1));
 
-      const sixMonthsAgo = subMonths(monthStart, 5);
+  const sixMonthsAgo = subMonths(monthStart, 5);
 
-      // All seven data sources are independent; fetch them in parallel
-      // instead of paying 7 sequential round trips per dashboard load.
-      const [
-        currentResult,
-        previousResult,
-        trendResult,
-        categoriesResult,
-        accountsResult,
-        balanceDeltasResult,
-        recentResult,
-      ] = await Promise.all([
-        // 1. Current month transactions (exclude transfers)
-        supabase
-          .from("transactions")
-          .select("id, amount_cents, type, category_id, status, date")
-          .is("transfer_group_id", null) // Exclude transfers
-          .gte("date", format(monthStart, "yyyy-MM-dd"))
-          .lte("date", format(monthEnd, "yyyy-MM-dd")),
-        // 2. Previous month for comparison
-        supabase
-          .from("transactions")
-          .select("amount_cents, type")
-          .is("transfer_group_id", null)
-          .gte("date", format(previousMonthStart, "yyyy-MM-dd"))
-          .lte("date", format(previousMonthEnd, "yyyy-MM-dd")),
-        // 3. Last 6 months for trend
-        supabase
-          .from("transactions")
-          .select("date, amount_cents, type")
-          .is("transfer_group_id", null)
-          .gte("date", format(sixMonthsAgo, "yyyy-MM-dd"))
-          .lte("date", format(monthEnd, "yyyy-MM-dd")),
-        // 4. Categories for breakdown
-        supabase.from("categories").select("id, name, color").eq("is_active", true),
-        // 5. Accounts for count and total balance
-        supabase.from("accounts").select("id, initial_balance_cents").eq("is_active", true),
-        // 6. Per-account balance deltas, aggregated server-side (INCLUDE
-        //    transfers). Replaces an unbounded fetch of every transaction row,
-        //    which PostgREST silently capped at max-rows (review DATA-02).
-        supabase.rpc("get_account_balances"),
-        // 7. Recent transactions (last 10)
-        supabase
-          .from("transactions")
-          .select(
-            `
+  // All seven data sources are independent; fetch them in parallel
+  // instead of paying 7 sequential round trips per dashboard load.
+  const [
+    currentResult,
+    previousResult,
+    trendResult,
+    categoriesResult,
+    accountsResult,
+    balanceDeltasResult,
+    recentResult,
+  ] = await Promise.all([
+    // 1. Current month transactions (exclude transfers)
+    supabase
+      .from("transactions")
+      .select("id, amount_cents, type, category_id, status, date")
+      .is("transfer_group_id", null) // Exclude transfers
+      .gte("date", format(monthStart, "yyyy-MM-dd"))
+      .lte("date", format(monthEnd, "yyyy-MM-dd")),
+    // 2. Previous month for comparison
+    supabase
+      .from("transactions")
+      .select("amount_cents, type")
+      .is("transfer_group_id", null)
+      .gte("date", format(previousMonthStart, "yyyy-MM-dd"))
+      .lte("date", format(previousMonthEnd, "yyyy-MM-dd")),
+    // 3. Last 6 months for trend
+    supabase
+      .from("transactions")
+      .select("date, amount_cents, type")
+      .is("transfer_group_id", null)
+      .gte("date", format(sixMonthsAgo, "yyyy-MM-dd"))
+      .lte("date", format(monthEnd, "yyyy-MM-dd")),
+    // 4. Categories for breakdown
+    supabase.from("categories").select("id, name, color").eq("is_active", true),
+    // 5. Accounts for count and total balance
+    supabase.from("accounts").select("id, initial_balance_cents").eq("is_active", true),
+    // 6. Per-account balance deltas, aggregated server-side (INCLUDE
+    //    transfers). Replaces an unbounded fetch of every transaction row,
+    //    which PostgREST silently capped at max-rows (review DATA-02).
+    supabase.rpc("get_account_balances"),
+    // 7. Recent transactions (last 10)
+    supabase
+      .from("transactions")
+      .select(
+        `
           *,
           account:accounts(id, name),
           category:categories(id, name, color)
         `
-          )
-          .order("date", { ascending: false })
-          .order("created_at", { ascending: false })
-          .limit(10),
-      ]);
+      )
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(10),
+  ]);
 
-      if (currentResult.error) throw currentResult.error;
-      if (previousResult.error) throw previousResult.error;
-      if (trendResult.error) throw trendResult.error;
-      if (categoriesResult.error) throw categoriesResult.error;
-      if (accountsResult.error) throw accountsResult.error;
-      if (balanceDeltasResult.error) throw balanceDeltasResult.error;
-      if (recentResult.error) throw recentResult.error;
+  if (currentResult.error) throw currentResult.error;
+  if (previousResult.error) throw previousResult.error;
+  if (trendResult.error) throw trendResult.error;
+  if (categoriesResult.error) throw categoriesResult.error;
+  if (accountsResult.error) throw accountsResult.error;
+  if (balanceDeltasResult.error) throw balanceDeltasResult.error;
+  if (recentResult.error) throw recentResult.error;
 
-      const currentTransactions = currentResult.data;
-      const previousTransactions = previousResult.data;
-      const trendTransactions = trendResult.data;
-      const categories = categoriesResult.data;
-      const accounts = accountsResult.data;
-      const balanceDeltas = (balanceDeltasResult.data ?? []) as AccountBalanceDeltaRow[];
-      const recentTransactions = recentResult.data;
+  const currentTransactions = currentResult.data;
+  const previousTransactions = previousResult.data;
+  const trendTransactions = trendResult.data;
+  const categories = categoriesResult.data;
+  const accounts = accountsResult.data;
+  const balanceDeltas = (balanceDeltasResult.data ?? []) as AccountBalanceDeltaRow[];
+  const recentTransactions = recentResult.data;
 
-      // Calculate summary
-      const totalIncome = (currentTransactions || [])
-        .filter((t) => t.type === "income")
-        .reduce((sum, t) => sum + t.amount_cents, 0);
+  // Calculate summary
+  const totalIncome = (currentTransactions || [])
+    .filter((t) => t.type === "income")
+    .reduce((sum, t) => sum + t.amount_cents, 0);
 
-      const totalExpense = (currentTransactions || [])
-        .filter((t) => t.type === "expense")
-        .reduce((sum, t) => sum + t.amount_cents, 0);
+  const totalExpense = (currentTransactions || [])
+    .filter((t) => t.type === "expense")
+    .reduce((sum, t) => sum + t.amount_cents, 0);
 
-      const previousIncome = (previousTransactions || [])
-        .filter((t) => t.type === "income")
-        .reduce((sum, t) => sum + t.amount_cents, 0);
+  const previousIncome = (previousTransactions || [])
+    .filter((t) => t.type === "income")
+    .reduce((sum, t) => sum + t.amount_cents, 0);
 
-      const previousExpense = (previousTransactions || [])
-        .filter((t) => t.type === "expense")
-        .reduce((sum, t) => sum + t.amount_cents, 0);
+  const previousExpense = (previousTransactions || [])
+    .filter((t) => t.type === "expense")
+    .reduce((sum, t) => sum + t.amount_cents, 0);
 
-      // Enhanced metrics per DATABASE.md Monthly Summary Query spec
-      const uniqueDates = new Set((currentTransactions || []).map((t) => t.date));
-      const uniqueCategoryIds = new Set(
-        (currentTransactions || []).filter((t) => t.category_id).map((t) => t.category_id)
-      );
-      const clearedTransactions = (currentTransactions || []).filter((t) => t.status === "cleared");
-      const pendingTransactions = (currentTransactions || []).filter((t) => t.status === "pending");
+  // Enhanced metrics per DATABASE.md Monthly Summary Query spec
+  const uniqueDates = new Set((currentTransactions || []).map((t) => t.date));
+  const uniqueCategoryIds = new Set(
+    (currentTransactions || []).filter((t) => t.category_id).map((t) => t.category_id)
+  );
+  const clearedTransactions = (currentTransactions || []).filter((t) => t.status === "cleared");
+  const pendingTransactions = (currentTransactions || []).filter((t) => t.status === "pending");
 
-      // Calculate total balance across active accounts (INCLUDE transfers)
-      const deltaByAccount = new Map(
-        balanceDeltas.map((d) => [d.account_id, d.cleared_delta_cents + d.pending_delta_cents])
-      );
-      const totalBalance = (accounts || []).reduce(
-        (sum, account) =>
-          sum + (account.initial_balance_cents || 0) + (deltaByAccount.get(account.id) ?? 0),
-        0
-      );
+  // Calculate total balance across active accounts (INCLUDE transfers)
+  const deltaByAccount = new Map(
+    balanceDeltas.map((d) => [d.account_id, d.cleared_delta_cents + d.pending_delta_cents])
+  );
+  const totalBalance = (accounts || []).reduce(
+    (sum, account) =>
+      sum + (account.initial_balance_cents || 0) + (deltaByAccount.get(account.id) ?? 0),
+    0
+  );
 
-      // Calculate monthly trend
-      const monthlyTrend: Array<{ month: string; incomeCents: number; expenseCents: number }> = [];
-      for (let i = 5; i >= 0; i--) {
-        const month = subMonths(currentMonth, i);
-        const monthKey = format(month, "yyyy-MM");
-        const monthTransactions = (trendTransactions || []).filter(
-          (t) => format(new Date(t.date), "yyyy-MM") === monthKey
-        );
+  // Calculate monthly trend
+  const monthlyTrend: Array<{ month: string; incomeCents: number; expenseCents: number }> = [];
+  for (let i = 5; i >= 0; i--) {
+    const month = subMonths(currentMonth, i);
+    const monthKey = format(month, "yyyy-MM");
+    const monthTransactions = (trendTransactions || []).filter(
+      (t) => format(new Date(t.date), "yyyy-MM") === monthKey
+    );
 
-        const income = monthTransactions
-          .filter((t) => t.type === "income")
-          .reduce((sum, t) => sum + t.amount_cents, 0);
+    const income = monthTransactions
+      .filter((t) => t.type === "income")
+      .reduce((sum, t) => sum + t.amount_cents, 0);
 
-        const expense = monthTransactions
-          .filter((t) => t.type === "expense")
-          .reduce((sum, t) => sum + t.amount_cents, 0);
+    const expense = monthTransactions
+      .filter((t) => t.type === "expense")
+      .reduce((sum, t) => sum + t.amount_cents, 0);
 
-        monthlyTrend.push({
-          month: format(month, "MMM"),
-          incomeCents: income,
-          expenseCents: expense,
-        });
-      }
+    monthlyTrend.push({
+      month: format(month, "MMM"),
+      incomeCents: income,
+      expenseCents: expense,
+    });
+  }
 
-      // Calculate category breakdown
-      const categoryTotals = new Map<string, number>();
-      (currentTransactions || [])
-        .filter((t) => t.type === "expense" && t.category_id)
-        .forEach((t) => {
-          const existing = categoryTotals.get(t.category_id!) || 0;
-          categoryTotals.set(t.category_id!, existing + t.amount_cents);
-        });
+  // Calculate category breakdown
+  const categoryTotals = new Map<string, number>();
+  (currentTransactions || [])
+    .filter((t) => t.type === "expense" && t.category_id)
+    .forEach((t) => {
+      const existing = categoryTotals.get(t.category_id!) || 0;
+      categoryTotals.set(t.category_id!, existing + t.amount_cents);
+    });
 
-      const categoryBreakdown = Array.from(categoryTotals.entries())
-        .map(([categoryId, amount]) => {
-          const category = (categories || []).find((c) => c.id === categoryId);
-          return {
-            categoryId, // Include for click navigation
-            categoryName: category?.name || "Unknown",
-            color: category?.color || "#6B7280",
-            amountCents: amount,
-            percentOfTotal: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
-          };
-        })
-        .sort((a, b) => b.amountCents - a.amountCents)
-        .slice(0, 10); // Top 10 categories
-
+  const categoryBreakdown = Array.from(categoryTotals.entries())
+    .map(([categoryId, amount]) => {
+      const category = (categories || []).find((c) => c.id === categoryId);
       return {
-        summary: {
-          totalIncomeCents: totalIncome,
-          totalExpenseCents: totalExpense,
-          netAmountCents: totalIncome - totalExpense,
-          transactionCount: (currentTransactions || []).length,
-          accountCount: (accounts || []).length,
-          totalBalanceCents: totalBalance,
-          previousMonthIncomeCents: previousIncome,
-          previousMonthExpenseCents: previousExpense,
-          // Enhanced metrics
-          activeDays: uniqueDates.size,
-          uniqueCategories: uniqueCategoryIds.size,
-          clearedCount: clearedTransactions.length,
-          pendingCount: pendingTransactions.length,
-        },
-        monthlyTrend,
-        categoryBreakdown,
-        recentTransactions: recentTransactions || [],
+        categoryId, // Include for click navigation
+        categoryName: category?.name || "Unknown",
+        color: category?.color || "#6B7280",
+        amountCents: amount,
+        percentOfTotal: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
       };
+    })
+    .sort((a, b) => b.amountCents - a.amountCents)
+    .slice(0, 10); // Top 10 categories
+
+  return {
+    summary: {
+      totalIncomeCents: totalIncome,
+      totalExpenseCents: totalExpense,
+      netAmountCents: totalIncome - totalExpense,
+      transactionCount: (currentTransactions || []).length,
+      accountCount: (accounts || []).length,
+      totalBalanceCents: totalBalance,
+      previousMonthIncomeCents: previousIncome,
+      previousMonthExpenseCents: previousExpense,
+      // Enhanced metrics
+      activeDays: uniqueDates.size,
+      uniqueCategories: uniqueCategoryIds.size,
+      clearedCount: clearedTransactions.length,
+      pendingCount: pendingTransactions.length,
+    },
+    monthlyTrend,
+    categoryBreakdown,
+    recentTransactions: recentTransactions || [],
+  };
+}
+
+export function useDashboardData(currentMonth: Date) {
+  return useQuery({
+    queryKey: ["dashboard", format(currentMonth, "yyyy-MM")],
+    queryFn: async (): Promise<DashboardData> => {
+      try {
+        return await fetchDashboardDataFromServer(currentMonth);
+      } catch (error) {
+        // Offline fallback (review R11): recompute the same aggregates from
+        // the local Dexie mirrors - identical month bounds, transfer
+        // exclusion, and balance semantics (see offline/aggregates.ts).
+        if (isLikelyNetworkError(error)) {
+          console.warn("[useDashboardData] Network unavailable - computing from Dexie");
+          if (!(await hasLocalFinancialData())) {
+            // Fresh device that never synced: all-zero aggregates would be a
+            // false dashboard, so surface a typed offline state instead
+            throw new OfflineError("your dashboard");
+          }
+          return (await getLocalDashboardData(currentMonth)) as unknown as DashboardData;
+        }
+        throw error;
+      }
     },
     staleTime: 30 * 1000, // 30 seconds
+    networkMode: "always", // run the queryFn offline so the Dexie fallback can serve
   });
 }
 
@@ -1192,118 +1349,179 @@ export interface BudgetGroup {
  * const { data: budgetGroups, isLoading } = useBudgets(new Date(2024, 0, 1));
  * // Returns budgets grouped by parent category with actual spending
  */
+/**
+ * Server budget row shape (the columns the Dexie mirror stores, matching the
+ * budgets table minus the generated month_key). See offline/budgets.ts.
+ */
+interface ServerBudgetRow {
+  id: string;
+  household_id: string;
+  category_id: string;
+  month: string;
+  amount_cents: number;
+  currency_code: string;
+  created_at: string;
+  updated_at: string;
+}
+
+async function fetchBudgetGroupsFromServer(month: Date): Promise<BudgetGroup[]> {
+  const monthStart = startOfMonth(month);
+  const monthEnd = endOfMonth(month);
+  const monthKey = format(monthStart, "yyyy-MM-dd");
+
+  // 1. Fetch budgets for this month (full row so the Dexie mirror keeps
+  //    the server shape; month_key is generated server-side and skipped)
+  const { data: budgets, error: budgetsError } = await supabase
+    .from("budgets")
+    .select(
+      `
+          id,
+          household_id,
+          category_id,
+          month,
+          amount_cents,
+          currency_code,
+          created_at,
+          updated_at,
+          categories(id, name, color, parent_id)
+        `
+    )
+    .eq("month", monthKey);
+
+  if (budgetsError) throw budgetsError;
+
+  // Mirror this month's budget targets into Dexie so Budgets renders
+  // offline (review R11). Budgets have no outbox/realtime path, so this
+  // successful read IS the mirror. Reference targets only (Decision #80):
+  // actual spending stays derived from transactions. Mirror failures must
+  // never break the online read.
+  try {
+    await mirrorBudgetsForMonth(
+      monthKey,
+      ((budgets ?? []) as ServerBudgetRow[]).map((b) => ({
+        id: b.id,
+        household_id: b.household_id,
+        category_id: b.category_id,
+        month: b.month,
+        amount_cents: b.amount_cents,
+        currency_code: b.currency_code,
+        created_at: b.created_at,
+        updated_at: b.updated_at,
+      }))
+    );
+  } catch (mirrorError) {
+    console.warn("[useBudgets] Failed to mirror budgets into Dexie:", mirrorError);
+  }
+
+  // 2. Fetch parent categories
+  const { data: parents, error: parentsError } = await supabase
+    .from("categories")
+    .select("id, name, color")
+    .is("parent_id", null);
+
+  if (parentsError) throw parentsError;
+
+  // 3. Fetch actual spending for these categories
+  // CRITICAL: Exclude transfers from spending calculation
+  const categoryIds = budgets.map((b: { categories: { id: string }[] | { id: string } }) => {
+    const cat = Array.isArray(b.categories) ? b.categories[0] : b.categories;
+    return cat.id;
+  });
+
+  const { data: transactions, error: transactionsError } = await supabase
+    .from("transactions")
+    .select("category_id, amount_cents, type")
+    .in("category_id", categoryIds)
+    .is("transfer_group_id", null) // ← Exclude transfers
+    .eq("type", "expense")
+    .gte("date", format(monthStart, "yyyy-MM-dd"))
+    .lte("date", format(monthEnd, "yyyy-MM-dd"));
+
+  if (transactionsError) throw transactionsError;
+
+  // Calculate spending per category
+  const spendingMap = new Map<string, number>();
+  transactions?.forEach((t) => {
+    const existing = spendingMap.get(t.category_id) || 0;
+    spendingMap.set(t.category_id, existing + t.amount_cents);
+  });
+
+  // Build budget objects
+  const budgetObjects: Budget[] = budgets.map(
+    (b: {
+      id: string;
+      amount_cents: number;
+      categories:
+        | { id: string; name: string; color: string; parent_id: string | null }[]
+        | { id: string; name: string; color: string; parent_id: string | null };
+    }) => {
+      const category = Array.isArray(b.categories) ? b.categories[0] : b.categories;
+      const parent = parents?.find((p) => p.id === category.parent_id);
+      const actualSpent = spendingMap.get(category.id) || 0;
+      const remaining = b.amount_cents - actualSpent;
+      const percentUsed = b.amount_cents > 0 ? (actualSpent / b.amount_cents) * 100 : 0;
+
+      return {
+        id: b.id,
+        categoryId: category.id,
+        categoryName: category.name,
+        categoryColor: category.color,
+        parentCategoryName: parent?.name || "Uncategorized",
+        budgetAmountCents: b.amount_cents,
+        actualSpentCents: actualSpent,
+        remainingCents: remaining,
+        percentUsed,
+        isOverBudget: actualSpent > b.amount_cents,
+      };
+    }
+  );
+
+  // Group by parent category
+  const groupMap = new Map<string, BudgetGroup>();
+
+  budgetObjects.forEach((budget) => {
+    const parentName = budget.parentCategoryName;
+
+    if (!groupMap.has(parentName)) {
+      const parent = parents.find((p) => p.name === parentName);
+      groupMap.set(parentName, {
+        parentName,
+        parentColor: parent?.color || "#6B7280",
+        totalBudgetCents: 0,
+        totalSpentCents: 0,
+        budgets: [],
+      });
+    }
+
+    const group = groupMap.get(parentName)!;
+    group.totalBudgetCents += budget.budgetAmountCents;
+    group.totalSpentCents += budget.actualSpentCents;
+    group.budgets.push(budget);
+  });
+
+  return Array.from(groupMap.values());
+}
+
 export function useBudgets(month: Date) {
   return useQuery({
     queryKey: ["budgets", format(month, "yyyy-MM")],
     queryFn: async (): Promise<BudgetGroup[]> => {
-      const monthStart = startOfMonth(month);
-      const monthEnd = endOfMonth(month);
-      const monthKey = format(monthStart, "yyyy-MM-dd");
-
-      // 1. Fetch budgets for this month
-      const { data: budgets, error: budgetsError } = await supabase
-        .from("budgets")
-        .select(
-          `
-          id,
-          category_id,
-          amount_cents,
-          categories(id, name, color, parent_id)
-        `
-        )
-        .eq("month", monthKey);
-
-      if (budgetsError) throw budgetsError;
-
-      // 2. Fetch parent categories
-      const { data: parents, error: parentsError } = await supabase
-        .from("categories")
-        .select("id, name, color")
-        .is("parent_id", null);
-
-      if (parentsError) throw parentsError;
-
-      // 3. Fetch actual spending for these categories
-      // CRITICAL: Exclude transfers from spending calculation
-      const categoryIds = budgets.map((b: { categories: { id: string }[] | { id: string } }) => {
-        const cat = Array.isArray(b.categories) ? b.categories[0] : b.categories;
-        return cat.id;
-      });
-
-      const { data: transactions, error: transactionsError } = await supabase
-        .from("transactions")
-        .select("category_id, amount_cents, type")
-        .in("category_id", categoryIds)
-        .is("transfer_group_id", null) // ← Exclude transfers
-        .eq("type", "expense")
-        .gte("date", format(monthStart, "yyyy-MM-dd"))
-        .lte("date", format(monthEnd, "yyyy-MM-dd"));
-
-      if (transactionsError) throw transactionsError;
-
-      // Calculate spending per category
-      const spendingMap = new Map<string, number>();
-      transactions?.forEach((t) => {
-        const existing = spendingMap.get(t.category_id) || 0;
-        spendingMap.set(t.category_id, existing + t.amount_cents);
-      });
-
-      // Build budget objects
-      const budgetObjects: Budget[] = budgets.map(
-        (b: {
-          id: string;
-          amount_cents: number;
-          categories:
-            | { id: string; name: string; color: string; parent_id: string | null }[]
-            | { id: string; name: string; color: string; parent_id: string | null };
-        }) => {
-          const category = Array.isArray(b.categories) ? b.categories[0] : b.categories;
-          const parent = parents?.find((p) => p.id === category.parent_id);
-          const actualSpent = spendingMap.get(category.id) || 0;
-          const remaining = b.amount_cents - actualSpent;
-          const percentUsed = b.amount_cents > 0 ? (actualSpent / b.amount_cents) * 100 : 0;
-
-          return {
-            id: b.id,
-            categoryId: category.id,
-            categoryName: category.name,
-            categoryColor: category.color,
-            parentCategoryName: parent?.name || "Uncategorized",
-            budgetAmountCents: b.amount_cents,
-            actualSpentCents: actualSpent,
-            remainingCents: remaining,
-            percentUsed,
-            isOverBudget: actualSpent > b.amount_cents,
-          };
+      try {
+        return await fetchBudgetGroupsFromServer(month);
+      } catch (error) {
+        // Offline fallback (review R11): mirrored targets + actual spending
+        // recomputed from local transactions (offline/budgets.ts). Throws a
+        // typed OfflineError when this month was never mirrored here, so the
+        // route can show an honest offline state instead of "no budgets".
+        if (isLikelyNetworkError(error)) {
+          console.warn("[useBudgets] Network unavailable - reading from Dexie");
+          return getLocalBudgetGroups(month);
         }
-      );
-
-      // Group by parent category
-      const groupMap = new Map<string, BudgetGroup>();
-
-      budgetObjects.forEach((budget) => {
-        const parentName = budget.parentCategoryName;
-
-        if (!groupMap.has(parentName)) {
-          const parent = parents.find((p) => p.name === parentName);
-          groupMap.set(parentName, {
-            parentName,
-            parentColor: parent?.color || "#6B7280",
-            totalBudgetCents: 0,
-            totalSpentCents: 0,
-            budgets: [],
-          });
-        }
-
-        const group = groupMap.get(parentName)!;
-        group.totalBudgetCents += budget.budgetAmountCents;
-        group.totalSpentCents += budget.actualSpentCents;
-        group.budgets.push(budget);
-      });
-
-      return Array.from(groupMap.values());
+        throw error;
+      }
     },
     staleTime: 30 * 1000,
+    networkMode: "always", // run the queryFn offline so the Dexie fallback can serve
   });
 }
 

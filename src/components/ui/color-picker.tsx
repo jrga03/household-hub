@@ -15,7 +15,8 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
           type="button"
           onClick={() => onChange(color.value)}
           className={cn(
-            "w-8 h-8 rounded-full border-2 transition-all",
+            // size-11 = 44px: minimum comfortable touch target (mobile UX review R23)
+            "size-11 rounded-full border-2 transition-all",
             value === color.value
               ? "border-primary ring-2 ring-primary ring-offset-2"
               : "border-transparent hover:scale-110"

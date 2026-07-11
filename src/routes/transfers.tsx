@@ -4,6 +4,7 @@ import { useAccounts } from "@/lib/supabaseQueries";
 import { TransferForm } from "@/components/transfers/TransferForm";
 import { TransferList } from "@/components/transfers/TransferList";
 import { Button } from "@/components/ui/button";
+import { LoadingSpinner } from "@/components/LoadingScreen";
 
 export const Route = createFileRoute("/transfers")({
   component: TransfersPage,
@@ -29,8 +30,12 @@ function TransfersPage() {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
-          <p className="mt-4 text-sm text-muted-foreground">Loading accounts...</p>
+          <LoadingSpinner size="large" className="text-primary" label="Loading accounts" />
+          {/* Visible text hidden from screen readers so the spinner's status
+              announcement isn't duplicated (review R41) */}
+          <p className="mt-4 text-sm text-muted-foreground" aria-hidden="true">
+            Loading accounts...
+          </p>
         </div>
       </div>
     );

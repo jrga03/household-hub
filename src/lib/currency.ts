@@ -280,6 +280,40 @@ export function formatNumeric(cents: number): string {
 }
 
 /**
+ * Formats integer cents as a compact axis tick label for charts.
+ *
+ * Shared Y-axis tick formatter for all Recharts axes (mobile UX review, low
+ * item "YearOverYearChart raw Y-axis ticks"). Takes CENTS, like every other
+ * currency utility — callers must pass cents-based chart data, never pesos.
+ *
+ * @param cents - Integer amount in cents (1 PHP = 100 cents)
+ * @returns Compact currency string (e.g., "₱12k", "₱1.5M")
+ *
+ * @example
+ * formatPHPAxisTick(0)            // "₱0"
+ * formatPHPAxisTick(50000)        // "₱500"
+ * formatPHPAxisTick(1200000)      // "₱12k"
+ * formatPHPAxisTick(1250000)      // "₱12.5k"
+ * formatPHPAxisTick(150000000)    // "₱1.5M"
+ * formatPHPAxisTick(-50000)       // "-₱500"
+ */
+export function formatPHPAxisTick(cents: number): string {
+  const sign = cents < 0 ? "-" : "";
+  const pesos = Math.abs(cents) / 100;
+
+  // Trim a redundant ".0" so round values render as "₱12k", not "₱12.0k"
+  const trim = (value: string): string => value.replace(/\.0$/, "");
+
+  if (pesos >= 1_000_000) {
+    return `${sign}${PESO_SIGN}${trim((pesos / 1_000_000).toFixed(1))}M`;
+  }
+  if (pesos >= 1_000) {
+    return `${sign}${PESO_SIGN}${trim((pesos / 1_000).toFixed(1))}k`;
+  }
+  return `${sign}${PESO_SIGN}${Number.isInteger(pesos) ? pesos.toLocaleString("en-PH") : pesos.toFixed(2)}`;
+}
+
+/**
  * Adds two amounts safely, ensuring no overflow.
  *
  * @param a - First amount in cents

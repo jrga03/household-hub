@@ -26,7 +26,7 @@ export function SettingsNav({ activeId }: SettingsNavProps) {
           key={id}
           href={`#${id}`}
           className={cn(
-            "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors whitespace-nowrap",
+            "flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors whitespace-nowrap",
             "hover:bg-accent hover:text-accent-foreground",
             activeId === id ? "bg-accent text-accent-foreground" : "text-muted-foreground"
           )}

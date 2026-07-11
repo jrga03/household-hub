@@ -53,9 +53,16 @@ export class ErrorBoundary extends Component<Props, State> {
               {this.state.error.message}
             </pre>
           )}
-          <Button variant="outline" onClick={this.handleReset}>
-            Try Again
-          </Button>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Button variant="outline" onClick={this.handleReset}>
+              Try Again
+            </Button>
+            {/* Standalone PWA escape hatch (review C4): overscroll-behavior
+                disables pull-to-refresh and installed mode has no browser
+                chrome, so without this a wedged screen requires force-killing
+                the app */}
+            <Button onClick={() => window.location.reload()}>Reload app</Button>
+          </div>
         </div>
       );
     }

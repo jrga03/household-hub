@@ -4,7 +4,8 @@
  * Provides a user-friendly installation prompt for PWA with:
  * - Cross-platform support (Chrome/Edge, iOS Safari, Firefox)
  * - beforeinstallprompt event handling for Chromium browsers
- * - Custom iOS Safari instructions
+ * - Custom iOS instructions (incl. iPadOS, which reports as "Macintosh";
+ *   Firefox-iOS gets "open in Safari" copy since it can't install itself)
  * - Dismissal with "don't show again" option
  * - Local storage persistence
  * - Responsive design with mobile-optimized layout
@@ -18,6 +19,7 @@ import { useState, useEffect } from "react";
 import { X, Download, Share } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { usePwaPromptStore } from "@/stores/pwaPromptStore";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -34,9 +36,23 @@ const NEVER_SHOW_KEY = "pwa-install-never-show";
 export function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
+
+  // Coordination with the service-worker update toast (review R7): while an
+  // update is pending the install card is suppressed so the two prompts never
+  // compete for the same bottom slot. Suppression is render-only - the timers
+  // and dismissal bookkeeping below keep running, so the iOS 3s-delay and
+  // 7-day re-prompt behavior is preserved once the update clears.
+  const updatePending = usePwaPromptStore((state) => state.updatePending);
   const [isIOS] = useState(() => {
-    return /iPad|iPhone|iPod/.test(navigator.userAgent);
+    // iPadOS 13+ reports "Macintosh" in the UA (desktop-class browsing); no
+    // real Mac has a touch screen, so Macintosh + multi-touch means iPad.
+    const isIPadOS = navigator.userAgent.includes("Macintosh") && navigator.maxTouchPoints > 1;
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) || isIPadOS;
   });
+  // Firefox on iOS has no "Add to Home Screen" in its share sheet, so it needs
+  // "open in Safari" instructions. Safari and Chrome-iOS (CriOS) both offer it
+  // directly (Chrome since iOS 16.4), so they share the standard copy.
+  const [isFxiOS] = useState(() => navigator.userAgent.includes("FxiOS"));
   const [isStandalone] = useState(() => {
     return (
       window.matchMedia("(display-mode: standalone)").matches ||
@@ -58,24 +74,32 @@ export function PWAInstallPrompt() {
       return;
     }
 
+    // Both timer ids are kept so cleanup can cancel them: without the
+    // clearTimeouts an unmount inside the 2s/3s window left a state update
+    // firing against an unmounted component (deferred from Phase 5 to here).
+    let chromiumTimer: number | undefined;
+    let iosTimer: number | undefined;
+
     // Handle beforeinstallprompt for Chromium browsers
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
 
       // Show prompt after short delay for better UX
-      setTimeout(() => setShowPrompt(true), 2000);
+      chromiumTimer = window.setTimeout(() => setShowPrompt(true), 2000);
     };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
     // For iOS, show prompt after delay if criteria met
     if (isIOS && !isStandalone) {
-      setTimeout(() => setShowPrompt(true), 3000);
+      iosTimer = window.setTimeout(() => setShowPrompt(true), 3000);
     }
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.clearTimeout(chromiumTimer);
+      window.clearTimeout(iosTimer);
     };
   }, [isIOS, isStandalone]);
 
@@ -107,15 +131,16 @@ export function PWAInstallPrompt() {
     setShowPrompt(false);
   };
 
-  // Don't render if already installed or shouldn't show
-  if (isStandalone || !showPrompt) {
+  // Don't render if already installed, shouldn't show, or an app update is
+  // pending (the update toast owns the user's attention, review R7)
+  if (isStandalone || !showPrompt || updatePending) {
     return null;
   }
 
   // iOS Safari installation instructions
   if (isIOS) {
     return (
-      <div className="fixed bottom-[calc(1rem+var(--safe-area-bottom))] left-[calc(1rem+var(--safe-area-left))] right-[calc(1rem+var(--safe-area-right))] z-50 md:left-auto md:w-96">
+      <div className="fixed bottom-[calc(1rem+var(--bottom-chrome))] left-[calc(1rem+var(--safe-area-left))] right-[calc(1rem+var(--safe-area-right))] z-50 md:left-auto md:w-96">
         <Card className="border-2 border-primary shadow-lg">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
@@ -133,6 +158,7 @@ export function PWAInstallPrompt() {
                 size="icon"
                 className="size-11 -mr-2 -mt-2"
                 onClick={handleDismiss}
+                aria-label="Dismiss install prompt"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -144,17 +170,33 @@ export function PWAInstallPrompt() {
               <p className="text-muted-foreground">
                 Install this app for quick access and offline support:
               </p>
-              <ol className="space-y-2 pl-4 list-decimal">
-                <li className="flex items-center gap-2">
-                  Tap the <Share className="inline h-4 w-4" /> share button
-                </li>
-                <li className="flex items-center gap-2">
-                  Select <strong>&quot;Add to Home Screen&quot;</strong>
-                </li>
-                <li>
-                  Tap <strong>&quot;Add&quot;</strong> to install
-                </li>
-              </ol>
+              {isFxiOS ? (
+                // Firefox on iOS can't add to the home screen itself; the
+                // install has to happen from Safari.
+                <ol className="space-y-2 pl-4 list-decimal">
+                  <li>
+                    Open this page in <strong>Safari</strong>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    Tap the <Share className="inline h-4 w-4" /> share button
+                  </li>
+                  <li className="flex items-center gap-2">
+                    Select <strong>&quot;Add to Home Screen&quot;</strong>
+                  </li>
+                </ol>
+              ) : (
+                <ol className="space-y-2 pl-4 list-decimal">
+                  <li className="flex items-center gap-2">
+                    Tap the <Share className="inline h-4 w-4" /> share button
+                  </li>
+                  <li className="flex items-center gap-2">
+                    Select <strong>&quot;Add to Home Screen&quot;</strong>
+                  </li>
+                  <li>
+                    Tap <strong>&quot;Add&quot;</strong> to install
+                  </li>
+                </ol>
+              )}
             </div>
 
             <div className="flex gap-2">
@@ -170,7 +212,7 @@ export function PWAInstallPrompt() {
 
   // Chromium/Edge installation prompt
   return (
-    <div className="fixed bottom-[calc(1rem+var(--safe-area-bottom))] left-[calc(1rem+var(--safe-area-left))] right-[calc(1rem+var(--safe-area-right))] z-50 md:left-auto md:w-96">
+    <div className="fixed bottom-[calc(1rem+var(--bottom-chrome))] left-[calc(1rem+var(--safe-area-left))] right-[calc(1rem+var(--safe-area-right))] z-50 md:left-auto md:w-96">
       <Card className="border-2 border-primary shadow-lg">
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
@@ -190,6 +232,7 @@ export function PWAInstallPrompt() {
               size="icon"
               className="size-11 -mr-2 -mt-2"
               onClick={handleDismiss}
+              aria-label="Dismiss install prompt"
             >
               <X className="h-4 w-4" />
             </Button>

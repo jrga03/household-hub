@@ -1,8 +1,11 @@
-import { useEffect } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useEffect, useState } from "react";
+import { useBlocker } from "@tanstack/react-router";
+import { useForm, Controller, type SubmitErrorHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parseISO } from "date-fns";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,7 +28,10 @@ import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { calculateDebtBalance } from "@/lib/debts";
 import { listDebts } from "@/lib/debts/crud";
+import { confirmDiscardChanges } from "@/lib/confirm-discard";
 import { createOfflineTransaction, updateOfflineTransaction } from "@/lib/offline/transactions";
+import { syncProcessor } from "@/lib/sync/processor";
+import { useIsMobile } from "@/hooks/useMediaQuery";
 import { formatPHP } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import type { Debt } from "@/types/debt";
@@ -37,6 +43,15 @@ interface Props {
   defaultType?: "income" | "expense";
 }
 
+/**
+ * Fields that live behind the "More options" disclosure. RHF keeps values for
+ * unmounted fields (shouldUnregister defaults to false), so a validation error
+ * on one of these while the section is collapsed would make submit a silent
+ * no-op: handleSubmit rejects but shouldFocusError cannot focus an unmounted
+ * input. onInvalid re-expands the section so the error is visible.
+ */
+const COLLAPSED_FIELDS = ["notes", "debt_id", "internal_debt_id", "status", "visibility"] as const;
+
 export function TransactionFormDialog({
   open,
   onClose,
@@ -45,6 +60,11 @@ export function TransactionFormDialog({
 }: Props) {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
+  // Low-frequency sections (debt link, status, visibility, notes) live behind
+  // this disclosure; auto-expanded when an edited transaction has non-default
+  // values there so editing never hides filled-in data (review R5).
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
   const { data: accounts } = useAccounts();
   // Fetch only the row being edited, not the whole (100-row, joined) list.
   // The old useTransactions() subscription also couldn't reach rows past 100
@@ -67,6 +87,23 @@ export function TransactionFormDialog({
       debt_id: undefined,
       internal_debt_id: undefined,
     },
+  });
+
+  // Guard in-app navigation while a half-completed form is on screen (review
+  // R37): TanStack Router's useBlocker intercepts pushes/replaces AND the
+  // history pop that the overlay sentinel (useHistoryBackClose inside the
+  // Dialog/Sheet wrappers) turns hardware back into, so a dirty form always
+  // gets a discard confirm. Disabled when clean or closed. The confirm goes
+  // through the confirm-discard injectable so Phase 5.4 can swap
+  // window.confirm for AlertDialog in one place.
+  const { isDirty } = form.formState;
+  useBlocker({
+    shouldBlockFn: async () => {
+      if (!open || !form.formState.isDirty) return false;
+      return !(await confirmDiscardChanges());
+    },
+    disabled: !open || !isDirty,
+    enableBeforeUnload: () => open && form.formState.isDirty,
   });
 
   // Watch form fields for debt selector logic
@@ -124,6 +161,7 @@ export function TransactionFormDialog({
       debt_id: undefined,
       internal_debt_id: undefined,
     });
+    setShowMoreOptions(false);
     onClose();
   };
 
@@ -141,13 +179,42 @@ export function TransactionFormDialog({
         status: editingTransaction.status,
         visibility: editingTransaction.visibility,
         notes: editingTransaction.notes,
+        debt_id: editingTransaction.debt_id ?? undefined,
+        internal_debt_id: editingTransaction.internal_debt_id ?? undefined,
       });
+
+      // Auto-expand "More options" when any collapsed section differs from
+      // its default, so editing never hides filled-in data.
+      if (
+        editingTransaction.status !== "pending" ||
+        editingTransaction.visibility !== "household" ||
+        !!editingTransaction.notes ||
+        !!editingTransaction.debt_id ||
+        !!editingTransaction.internal_debt_id
+      ) {
+        setShowMoreOptions(true);
+      }
     }
   }, [editingId, editingTransaction, reset]);
+
+  // Second argument to handleSubmit: when validation fails on a field hidden
+  // inside the collapsed "More options" section, expand it so the error
+  // paragraph renders instead of the submit silently doing nothing.
+  const onInvalid: SubmitErrorHandler<TransactionFormData> = (errors) => {
+    if (COLLAPSED_FIELDS.some((field) => field in errors)) {
+      setShowMoreOptions(true);
+    }
+  };
 
   const onSubmit = async (data: TransactionFormData) => {
     try {
       const dateStr = format(data.date, "yyyy-MM-dd");
+
+      // Offline saves succeed locally (outbox) but won't reach the server
+      // until connectivity returns; say so instead of the normal copy so the
+      // user isn't surprised when the change is missing on another device.
+      const isOnline = navigator.onLine;
+      const offlineMessage = "Saved on this device, will sync when online";
 
       if (editingId) {
         // Update via offline-first path (includes debt handling)
@@ -160,8 +227,12 @@ export function TransactionFormDialog({
             type: data.type,
             account_id: data.account_id || undefined,
             category_id: data.category_id || undefined,
-            debt_id: data.debt_id || undefined,
-            internal_debt_id: data.internal_debt_id || undefined,
+            // Explicit null = intentional unlink (debt Select's "None");
+            // updateOfflineTransaction preserves the link only when the key
+            // is undefined/omitted. The form holds the current link after
+            // the edit reset, so an empty value means the user cleared it.
+            debt_id: data.debt_id || null,
+            internal_debt_id: data.internal_debt_id || null,
             status: data.status,
             visibility: data.visibility,
             notes: data.notes || undefined,
@@ -188,7 +259,7 @@ export function TransactionFormDialog({
           });
         }
 
-        toast.success("Transaction updated");
+        toast.success(isOnline ? "Transaction updated" : offlineMessage);
       } else {
         // Create via offline-first path (includes sync queue + debt handling)
         const result = await createOfflineTransaction(
@@ -212,7 +283,9 @@ export function TransactionFormDialog({
           throw new Error(result.error || "Failed to create transaction");
         }
 
-        if (data.debt_id || data.internal_debt_id) {
+        if (!isOnline) {
+          toast.success(offlineMessage);
+        } else if (data.debt_id || data.internal_debt_id) {
           const debtName = selectedDebt?.name || "debt";
           toast.success(`Transaction saved and payment applied to ${debtName}`);
         } else {
@@ -227,6 +300,18 @@ export function TransactionFormDialog({
         queryClient.invalidateQueries({ queryKey: ["debt-balance"] });
       }
 
+      // Fire-and-forget outbox drain so the change reaches the server right
+      // away when online instead of waiting for the next focus/interval
+      // trigger (review R9). Never blocks or fails the submit. Skipped
+      // offline: processQueue would attempt the network call and burn a
+      // retry-budget slot per queued item, so gate on navigator.onLine.
+      if (user?.id && navigator.onLine) {
+        syncProcessor
+          .processQueue(user.id)
+          .then(() => queryClient.invalidateQueries({ queryKey: ["transactions"] }))
+          .catch(() => {});
+      }
+
       handleClose();
     } catch (error) {
       console.error("Failed to save transaction:", error);
@@ -234,125 +319,139 @@ export function TransactionFormDialog({
     }
   };
 
-  return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{editingId ? "Edit Transaction" : "New Transaction"}</DialogTitle>
-        </DialogHeader>
+  const title = editingId ? "Edit Transaction" : "New Transaction";
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          {/* Type (Income/Expense) */}
-          <div>
-            <Label>Type</Label>
-            <Controller
-              name="type"
-              control={form.control}
-              render={({ field }) => (
-                <RadioGroup
-                  value={field.value}
-                  onValueChange={field.onChange}
-                  className="flex gap-4 mt-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="expense" id="expense" />
-                    <Label htmlFor="expense" className="font-normal cursor-pointer">
-                      Expense
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="income" id="income" />
-                    <Label htmlFor="income" className="font-normal cursor-pointer">
-                      Income
-                    </Label>
-                  </div>
-                </RadioGroup>
-              )}
-            />
-          </div>
-
-          {/* Amount */}
-          <div>
-            <Label htmlFor="amount">Amount</Label>
-            <Controller
-              name="amount_cents"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <CurrencyInput
-                  id="amount"
-                  {...field}
-                  error={fieldState.error?.message}
-                  autoFocus
-                  autoComplete="off"
-                />
-              )}
-            />
-          </div>
-
-          {/* Date */}
-          <div>
-            <Label>Date</Label>
-            <Controller
-              name="date"
-              control={form.control}
-              render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} />}
-            />
-            {form.formState.errors.date && (
-              <p className="text-sm text-destructive mt-1">{form.formState.errors.date.message}</p>
-            )}
-          </div>
-
-          {/* Description */}
-          <div>
-            <Label htmlFor="description">Description</Label>
-            <Input
-              id="description"
-              {...form.register("description")}
-              placeholder="e.g., Groceries at SM"
+  // Shared between the mobile Sheet and desktop Dialog shells; both scroll
+  // containers host the same fields and the sticky footer (review R5).
+  const formBody = (
+    <form
+      onSubmit={form.handleSubmit(onSubmit, onInvalid)}
+      className={cn("space-y-4", isMobile && "px-4")}
+    >
+      {/* Amount */}
+      <div>
+        <Label htmlFor="amount">Amount</Label>
+        <Controller
+          name="amount_cents"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <CurrencyInput
+              id="amount"
+              {...field}
+              error={fieldState.error?.message}
+              autoFocus
               autoComplete="off"
             />
-            {form.formState.errors.description && (
-              <p className="text-sm text-destructive mt-1">
-                {form.formState.errors.description.message}
-              </p>
-            )}
-          </div>
+          )}
+        />
+      </div>
 
-          {/* Account */}
-          <div>
-            <Label htmlFor="account">Account (optional)</Label>
-            <Controller
-              name="account_id"
-              control={form.control}
-              render={({ field }) => (
-                <Select value={field.value || undefined} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {accounts?.map((account) => (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </div>
+      {/* Type (Income/Expense) */}
+      <div>
+        <Label>Type</Label>
+        <Controller
+          name="type"
+          control={form.control}
+          render={({ field }) => (
+            <RadioGroup
+              value={field.value}
+              onValueChange={field.onChange}
+              className="flex gap-4 mt-2"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="expense" id="expense" />
+                <Label htmlFor="expense" className="font-normal cursor-pointer">
+                  Expense
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="income" id="income" />
+                <Label htmlFor="income" className="font-normal cursor-pointer">
+                  Income
+                </Label>
+              </div>
+            </RadioGroup>
+          )}
+        />
+      </div>
 
-          {/* Category */}
-          <div>
-            <Label>Category (optional)</Label>
-            <Controller
-              name="category_id"
-              control={form.control}
-              render={({ field }) => (
-                <CategorySelector value={field.value} onChange={field.onChange} />
-              )}
-            />
-          </div>
+      {/* Description */}
+      <div>
+        <Label htmlFor="description">Description</Label>
+        <Input
+          id="description"
+          {...form.register("description")}
+          placeholder="e.g., Groceries at SM"
+          autoComplete="off"
+        />
+        {form.formState.errors.description && (
+          <p className="text-sm text-destructive mt-1">
+            {form.formState.errors.description.message}
+          </p>
+        )}
+      </div>
 
+      {/* Category */}
+      <div>
+        <Label>Category (optional)</Label>
+        <Controller
+          name="category_id"
+          control={form.control}
+          render={({ field }) => <CategorySelector value={field.value} onChange={field.onChange} />}
+        />
+      </div>
+
+      {/* Account */}
+      <div>
+        <Label htmlFor="account">Account (optional)</Label>
+        <Controller
+          name="account_id"
+          control={form.control}
+          render={({ field }) => (
+            <Select value={field.value || undefined} onValueChange={field.onChange}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select account" />
+              </SelectTrigger>
+              <SelectContent>
+                {accounts?.map((account) => (
+                  <SelectItem key={account.id} value={account.id}>
+                    {account.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+      </div>
+
+      {/* Date */}
+      <div>
+        <Label>Date</Label>
+        <Controller
+          name="date"
+          control={form.control}
+          render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} />}
+        />
+        {form.formState.errors.date && (
+          <p className="text-sm text-destructive mt-1">{form.formState.errors.date.message}</p>
+        )}
+      </div>
+
+      {/* More options disclosure: debt link, status, visibility, notes */}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="w-full justify-start gap-1 px-0"
+        onClick={() => setShowMoreOptions(!showMoreOptions)}
+        aria-expanded={showMoreOptions}
+      >
+        {showMoreOptions ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        More options
+      </Button>
+
+      {showMoreOptions && (
+        <>
           {/* Debt Selector */}
           <div>
             <Label htmlFor="debt">Link to Debt (Optional)</Label>
@@ -365,7 +464,7 @@ export function TransactionFormDialog({
                   onValueChange={(value) => field.onChange(value === "none" ? undefined : value)}
                   disabled={isTransfer}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select a debt (optional)" />
                   </SelectTrigger>
                   <SelectContent>
@@ -415,8 +514,8 @@ export function TransactionFormDialog({
                       <span
                         className={cn(
                           "font-bold",
-                          isOverpayment && "text-red-600 dark:text-red-400",
-                          balanceAfterPayment === 0 && "text-green-600 dark:text-green-400"
+                          isOverpayment && "text-expense",
+                          balanceAfterPayment === 0 && "text-income"
                         )}
                       >
                         {formatPHP(balanceAfterPayment!)}
@@ -424,13 +523,13 @@ export function TransactionFormDialog({
                     </div>
 
                     {isOverpayment && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400 pt-2">
+                      <p className="text-xs text-warning pt-2">
                         ⚠ This will overpay by {formatPHP(Math.abs(balanceAfterPayment!))}
                       </p>
                     )}
 
                     {balanceAfterPayment === 0 && (
-                      <p className="text-xs text-green-600 dark:text-green-400 pt-2">
+                      <p className="text-xs text-income pt-2">
                         ✓ This will pay off the debt completely
                       </p>
                     )}
@@ -448,7 +547,7 @@ export function TransactionFormDialog({
               control={form.control}
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -468,7 +567,7 @@ export function TransactionFormDialog({
               control={form.control}
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -493,18 +592,50 @@ export function TransactionFormDialog({
               rows={3}
               autoComplete="off"
             />
+            {form.formState.errors.notes && (
+              <p className="text-sm text-destructive mt-1">{form.formState.errors.notes.message}</p>
+            )}
           </div>
+        </>
+      )}
 
-          {/* Actions */}
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? "Saving..." : editingId ? "Update" : "Create"}
-            </Button>
-          </div>
-        </form>
+      {/* Actions: sticky footer inside the scroll container (review R5) */}
+      <div
+        className={cn(
+          "sticky bottom-0 flex justify-end gap-2 border-t bg-background pt-4",
+          isMobile ? "-mx-4 px-4 pb-[calc(1rem+var(--safe-area-bottom))]" : "-mx-6 -mb-6 px-6 pb-6"
+        )}
+      >
+        <Button type="button" variant="outline" onClick={handleClose}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting ? "Saving..." : editingId ? "Update" : "Create"}
+        </Button>
+      </div>
+    </form>
+  );
+
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={handleClose}>
+        <SheetContent side="bottom">
+          <SheetHeader>
+            <SheetTitle>{title}</SheetTitle>
+          </SheetHeader>
+          {formBody}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        {formBody}
       </DialogContent>
     </Dialog>
   );

@@ -17,6 +17,8 @@
 import { useState } from "react";
 import { CheckCircle, XCircle, AlertCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { SyncIssue } from "@/stores/syncIssuesStore";
 
 /**
@@ -147,30 +149,35 @@ export function SyncIssueItem({ issue, onRetry, onDismiss }: SyncIssueItemProps)
           )}
         </div>
 
-        {/* Actions (right) */}
-        <div className="flex gap-2">
+        {/* Actions (right): shadcn icon Buttons inherit the coarse-pointer
+            44px touch-target floor (review R28) */}
+        <div className="-my-1 -mr-2 flex gap-1">
           {/* Retry button (only if retryable) */}
           {issue.canRetry && (
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleRetry}
               disabled={isRetrying}
-              className="p-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 disabled:opacity-50 transition"
+              className="text-blue-600 hover:text-blue-700 dark:text-blue-400"
               title="Retry sync"
               aria-label="Retry sync"
             >
-              <RefreshCw className={`w-4 h-4 ${isRetrying ? "animate-spin" : ""}`} />
-            </button>
+              <RefreshCw className={cn("size-4", isRetrying && "animate-spin")} />
+            </Button>
           )}
 
           {/* Dismiss button (always shown) */}
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onDismiss}
-            className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition"
+            className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
             title="Dismiss"
             aria-label="Dismiss issue"
           >
-            <XCircle className="w-4 h-4" />
-          </button>
+            <XCircle className="size-4" />
+          </Button>
         </div>
       </div>
     </div>

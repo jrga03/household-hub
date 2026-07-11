@@ -62,7 +62,7 @@ export function DuplicateResolver({ duplicates, onResolve, onCancel }: Duplicate
       <div className="space-y-4 max-h-96 overflow-y-auto">
         {duplicates.map((match) => (
           <div key={match.importIndex} className="border rounded-lg p-4 space-y-3">
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-4 text-sm">
               <div>
                 <p className="font-medium mb-1">Existing Transaction</p>
                 <p>{match.existingTransaction.description}</p>

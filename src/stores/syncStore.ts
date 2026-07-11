@@ -9,7 +9,7 @@ import { create } from "zustand";
  * 3. Number of pending changes waiting to sync
  *
  * Used by:
- * - SyncIndicator component for UI feedback
+ * - GlobalSyncStatus component (via useSyncStatus) for UI feedback
  * - RealtimeSync service for status updates
  * - Sync queue processor for pending count tracking
  */

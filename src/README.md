@@ -42,7 +42,8 @@ This directory contains all application source code for Household Hub, implement
   - Creates TanStack Router instance from `routeTree.gen.ts`
   - Initializes realtime sync and background sync
   - Sets up event compaction (daily at 3 AM)
-  - Renders global UI (OfflineBanner, SyncIndicator, PWA prompts)
+  - Renders global UI (StorageWarning, Toaster, PWA update prompt); the
+    offline banner and `GlobalSyncStatus` sync indicator render in AppLayout
 
 - **`sw.ts`** - Service worker for PWA functionality (sw.ts:1)
   - Workbox-based caching strategies
@@ -175,7 +176,7 @@ All currency operations use PHP (Philippine Peso) stored as **integer cents**. U
 
 ### Debugging Sync Issues
 
-1. Check `SyncIndicator` component (top-right of app)
+1. Check the `GlobalSyncStatus` indicator (app header / sidebar) - click it to open the sync queue viewer
 2. Open browser console for sync logs
 3. Inspect `sync_queue` table in IndexedDB (DevTools → Application)
 4. See [lib/sync/README.md](./lib/sync/) and [lib/offline/README.md](./lib/offline/) for sync architecture

@@ -46,6 +46,14 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  /* Semantic financial colors (review R40): money-in, money-out, and
+     budget/money warnings. Light shades are -700 (green-600 and yellow-600
+     fail WCAG AA on white at body sizes); dark shades are -400 (red-600
+     fails on the dark card). Use text-income, text-expense, text-warning —
+     never raw green, red, or yellow classes for money intent. */
+  --color-income: var(--income);
+  --color-expense: var(--expense);
+  --color-warning: var(--warning);
 }
 
 :root {
@@ -54,6 +62,20 @@
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
+  /* Bottom-edge chrome consolidation (mobile UX review R42).
+     --tab-bar-height is the BottomTabBar content row (its total footprint is
+     this + the bottom safe area). --bottom-chrome is THE shared base offset
+     for everything pinned to the bottom edge — FAB, sync-issues badge, sonner
+     toasts, and the <main> bottom padding all derive from it so nothing lands
+     under the tab bar. Default (no tab bar): just the safe area; overridden
+     at mobile widths below. */
+  --tab-bar-height: 3.5rem;
+  --bottom-chrome: var(--safe-area-bottom);
+  /* Toast clearance: sonner's own mobile breakpoint is 600px but the app's
+     mobile branch (tab bar + FAB) extends to 767px, so the FAB-clearing
+     offset must apply through 767px, not 600px. Desktop keeps ~sonner's
+     32px default. Overridden alongside --bottom-chrome below. */
+  --toast-bottom: calc(2rem + var(--bottom-chrome));
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -85,6 +107,9 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --income: oklch(0.527 0.154 150.069); /* green-700 */
+  --expense: oklch(0.505 0.213 27.518); /* red-700 */
+  --warning: oklch(0.554 0.135 66.442); /* yellow-700 */
 }
 
 .dark {
@@ -119,6 +144,24 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --income: oklch(0.792 0.209 151.711); /* green-400 */
+  --expense: oklch(0.704 0.191 22.216); /* red-400 */
+  --warning: oklch(0.852 0.199 91.936); /* yellow-400 */
+}
+
+/* The bottom tab bar exists only in AppLayout's mobile branch. This media
+   query MUST mirror useIsMobile's breakpoint (max-width: 767px in
+   src/hooks/useMediaQuery.ts) so the CSS offset flips exactly when the
+   React branch does. Known tradeoff: auth routes (/login, /signup) render
+   no tab bar but still get the inflated offset at phone widths — only
+   toasts are affected there, and a too-high toast is harmless. */
+@media (max-width: 767px) {
+  :root {
+    --bottom-chrome: calc(var(--tab-bar-height) + var(--safe-area-bottom));
+    /* Clear the raised FAB (bottom 1.5rem+chrome, 3.5rem tall) too, not just
+       the tab bar — matches the mobileOffset clearance. */
+    --toast-bottom: calc(6.5rem + var(--bottom-chrome));
+  }
 }
 
 @layer base {
@@ -135,7 +178,8 @@
   }
 
   /* Prevent pull-to-refresh and rubber-band overscroll on root viewport */
-  html, body {
+  html,
+  body {
     overscroll-behavior: none;
   }
 
@@ -145,12 +189,65 @@
       min-height: 44px;
       min-width: 44px;
     }
+
+    [data-slot="select-trigger"] {
+      min-height: 44px;
+    }
+
+    /* Tab triggers are ~29px tall by default (review R33). The 44px floor
+       MUST be paired with height:auto on the list — its fixed h-9 would
+       otherwise overflow around the taller triggers. */
+    [data-slot="tabs-list"] {
+      height: auto;
+    }
+    [data-slot="tabs-trigger"] {
+      min-height: 44px;
+    }
+
+    /* Menu/select rows share the same ~32px geometry; lift them to 44px */
+    [data-slot="select-item"],
+    [data-slot="command-item"],
+    [data-slot="dropdown-menu-item"],
+    [data-slot="dropdown-menu-checkbox-item"],
+    [data-slot="dropdown-menu-radio-item"],
+    [data-slot="dropdown-menu-sub-trigger"] {
+      min-height: 44px;
+    }
+
+    /* Expand checkbox/radio hit areas to ~44px without distorting the
+       16px visual (min-height would stretch the box itself) */
+    [data-slot="checkbox"],
+    [data-slot="radio-group-item"] {
+      position: relative;
+    }
+    [data-slot="checkbox"]::after,
+    [data-slot="radio-group-item"]::after {
+      content: "";
+      position: absolute;
+      inset: -14px;
+    }
   }
 
   /* Prevent sticky hover states on touch-only devices */
   @media (hover: none) and (pointer: coarse) {
-    a, button, [role="button"] {
+    a,
+    button,
+    [role="button"] {
       transition-duration: 0s !important;
+    }
+  }
+
+  /* Respect Reduce Motion: collapse animations/transitions to near-zero.
+     Deliberately 0.01ms, NOT 0s - Radix animate-out waits on animationend,
+     which can fail to fire at exactly 0s. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
     }
   }
 }

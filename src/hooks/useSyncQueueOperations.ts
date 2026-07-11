@@ -107,10 +107,15 @@ export function useRetryAllFailed() {
  * @example
  * const discardMutation = useDiscardSyncItem();
  *
- * const handleDiscard = () => {
- *   if (confirm("Discard this change? Cannot be undone.")) {
- *     discardMutation.mutate(itemId);
- *   }
+ * const handleDiscard = async () => {
+ *   // App-level AlertDialog, not window.confirm (review R39)
+ *   const confirmed = await confirm({
+ *     title: "Discard this change?",
+ *     description: "This action cannot be undone.",
+ *     confirmLabel: "Discard",
+ *     destructive: true,
+ *   });
+ *   if (confirmed) discardMutation.mutate(itemId);
  * };
  */
 export function useDiscardSyncItem() {

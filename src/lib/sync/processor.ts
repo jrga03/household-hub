@@ -37,7 +37,9 @@ import {
   cleanupCompletedItems,
 } from "@/lib/offline/syncQueue";
 import { calculateRetryDelay } from "./retry";
+import { syncIssuesManager } from "./SyncIssuesManager";
 import { useSyncStore } from "@/stores/syncStore";
+import { queryClient } from "@/lib/queryClient";
 import type { SyncQueueItem, SyncQueueStatus, EntityType } from "@/types/sync";
 
 /**
@@ -48,6 +50,32 @@ interface ProcessItemResult {
   success: boolean;
   /** Error message if failed */
   error?: string;
+  /**
+   * True when the item entered the terminal "failed" status (non-retryable
+   * error, or retry budget exhausted). Rescheduled retryable failures leave
+   * this unset - they go back to "queued" and self-heal via backoff.
+   */
+  terminal?: boolean;
+}
+
+/**
+ * Result of draining the queue in one processing session.
+ */
+export interface ProcessQueueResult {
+  /** Items successfully pushed to the server this run */
+  synced: number;
+  /**
+   * Every item that did not sync this run, INCLUDING retryable failures that
+   * were merely rescheduled with backoff. Useful for logging/metrics, but do
+   * NOT alert the user on this count - rescheduled items retry automatically.
+   */
+  failed: number;
+  /**
+   * Items that entered the terminal "failed" status this run. This is the
+   * count that should surface to the user (matches the sync viewer and
+   * useSyncStatus, which count status === "failed" only).
+   */
+  terminalFailures: number;
 }
 
 /**
@@ -67,7 +95,7 @@ export class SyncProcessor {
    * Active processing promise (null when idle)
    * If multiple calls happen simultaneously, they all await the same promise
    */
-  private processingPromise: Promise<{ synced: number; failed: number }> | null = null;
+  private processingPromise: Promise<ProcessQueueResult> | null = null;
 
   /**
    * Tracks whether executeProcessing is still actively running.
@@ -90,7 +118,7 @@ export class SyncProcessor {
    * @param userId - User ID (items are stamped with their creator; filters
    *                 out items from another account on a shared device)
    */
-  async processQueue(userId: string): Promise<{ synced: number; failed: number }> {
+  async processQueue(userId: string): Promise<ProcessQueueResult> {
     // If already processing, return the existing promise (prevents race condition)
     if (this.processingPromise) {
       return this.processingPromise;
@@ -99,11 +127,11 @@ export class SyncProcessor {
     // Guard against starting a new session while a timed-out one is still executing
     if (this.isExecuting) {
       console.warn("Sync executor still running from timed-out session - skipping");
-      return { synced: 0, failed: 0 };
+      return { synced: 0, failed: 0, terminalFailures: 0 };
     }
 
     let timeoutId: ReturnType<typeof setTimeout>;
-    const timeoutPromise = new Promise<{ synced: number; failed: number }>((_, reject) => {
+    const timeoutPromise = new Promise<ProcessQueueResult>((_, reject) => {
       timeoutId = setTimeout(() => {
         reject(new Error(`Sync processing timed out after ${this.PROCESSING_TIMEOUT_MS}ms`));
       }, this.PROCESSING_TIMEOUT_MS);
@@ -117,7 +145,7 @@ export class SyncProcessor {
       return result;
     } catch (error) {
       console.error("Sync processing failed or timed out:", error);
-      return { synced: 0, failed: 0 };
+      return { synced: 0, failed: 0, terminalFailures: 0 };
     } finally {
       this.processingPromise = null;
     }
@@ -126,11 +154,12 @@ export class SyncProcessor {
   /**
    * Internal method that performs the actual queue processing.
    */
-  private async executeProcessing(userId: string): Promise<{ synced: number; failed: number }> {
+  private async executeProcessing(userId: string): Promise<ProcessQueueResult> {
     this.isExecuting = true;
     const store = useSyncStore.getState();
     let synced = 0;
     let failed = 0;
+    let terminalFailures = 0;
 
     try {
       // Recover items stranded in "syncing" by a previous crash (SYNC-08)
@@ -140,7 +169,7 @@ export class SyncProcessor {
       const items = await getPendingQueueItems(userId);
 
       if (items.length === 0) {
-        return { synced: 0, failed: 0 };
+        return { synced: 0, failed: 0, terminalFailures: 0 };
       }
 
       console.log(`Processing ${items.length} queue items`);
@@ -153,6 +182,9 @@ export class SyncProcessor {
           synced++;
         } else {
           failed++;
+          if (result.terminal) {
+            terminalFailures++;
+          }
         }
       }
 
@@ -163,6 +195,13 @@ export class SyncProcessor {
         store.setLastSyncTime(now);
         // Persist for reloads: useSyncStatus reads this via liveQuery
         await db.meta.put({ key: "lastSyncTime", value: now.toISOString() });
+
+        // Local changes just reached the cloud: refresh the server-state
+        // queries once per drain so lists/balances pick up the synced rows
+        // (review R9). Fire-and-forget - refetching must not block sync.
+        for (const queryKey of [["transactions"], ["accounts"], ["dashboard"]]) {
+          queryClient.invalidateQueries({ queryKey }).catch(() => {});
+        }
       }
 
       // Clean up old completed items to prevent unbounded growth
@@ -183,7 +222,7 @@ export class SyncProcessor {
         .setStatus(typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "online");
     }
 
-    return { synced, failed };
+    return { synced, failed, terminalFailures };
   }
 
   /**
@@ -311,7 +350,9 @@ export class SyncProcessor {
     if (isNonRetryable) {
       console.log(`Non-retryable error for item ${item.id} - failing immediately:`, errorMessage);
       await this.updateQueueStatus(item.id, "failed", errorMessage);
-      return { success: false, error: errorMessage };
+      // Data problem: automatic retries won't fix it, so canRetry is false
+      await this.logTerminalFailure(item, error, errorMessage, false);
+      return { success: false, error: errorMessage, terminal: true };
     }
 
     if (item.retry_count >= item.max_retries) {
@@ -319,7 +360,9 @@ export class SyncProcessor {
         `Max retries (${item.max_retries}) reached for item ${item.id} - failing permanently`
       );
       await this.updateQueueStatus(item.id, "failed", errorMessage);
-      return { success: false, error: `Max retries reached: ${errorMessage}` };
+      // Transient-looking error that exhausted its budget: manual retry may work
+      await this.logTerminalFailure(item, error, errorMessage, true);
+      return { success: false, error: `Max retries reached: ${errorMessage}`, terminal: true };
     }
 
     // Schedule the retry instead of sleeping: the item becomes due again
@@ -341,6 +384,32 @@ export class SyncProcessor {
     });
 
     return { success: false, error: errorMessage };
+  }
+
+  /**
+   * Surface a TERMINAL failure (status "failed") in the sync-issues UI.
+   *
+   * This is the only reliable hook point: item-level failures resolve
+   * processQueue normally, so useSyncProcessor's onError never fires for
+   * them and the failure would otherwise be invisible (review R3).
+   * Logging failures must never break queue processing.
+   */
+  private async logTerminalFailure(
+    item: SyncQueueItem,
+    error: unknown,
+    errorMessage: string,
+    canRetry: boolean
+  ): Promise<void> {
+    try {
+      await syncIssuesManager.logSyncFailure(
+        item.entity_type,
+        item.entity_id,
+        error instanceof Error ? error : new Error(errorMessage),
+        canRetry
+      );
+    } catch (logError) {
+      console.warn(`Failed to log sync issue for item ${item.id}:`, logError);
+    }
   }
 
   /**

@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useAccounts } from "@/lib/supabaseQueries";
 import { hasActiveTransactionFilters } from "@/lib/utils/filters";
+import { parseLocalDate } from "@/lib/utils/dates";
 import { parsePHP, formatPHP } from "@/lib/currency";
 import type { TransactionFilters as FilterCriteria } from "@/types/transactions";
 
@@ -209,6 +210,8 @@ export function TransactionFiltersPanel({ filters, onFiltersChange }: Transactio
       <div className="relative">
         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
+          type="search"
+          enterKeyHint="search"
           placeholder="Search transactions..."
           value={searchInput}
           onChange={(e) => handleSearchChange(e.target.value)}
@@ -266,7 +269,7 @@ export function TransactionFiltersPanel({ filters, onFiltersChange }: Transactio
             <div className="space-y-2">
               <Label>From Date</Label>
               <DatePicker
-                value={filters.dateFrom ? new Date(filters.dateFrom) : undefined}
+                value={filters.dateFrom ? parseLocalDate(filters.dateFrom) : undefined}
                 onChange={handleDateFromChange}
                 placeholder="Start date"
               />
@@ -276,7 +279,7 @@ export function TransactionFiltersPanel({ filters, onFiltersChange }: Transactio
             <div className="space-y-2">
               <Label>To Date</Label>
               <DatePicker
-                value={filters.dateTo ? new Date(filters.dateTo) : undefined}
+                value={filters.dateTo ? parseLocalDate(filters.dateTo) : undefined}
                 onChange={handleDateToChange}
                 placeholder="End date"
               />
@@ -316,7 +319,7 @@ export function TransactionFiltersPanel({ filters, onFiltersChange }: Transactio
                   })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="All accounts" />
                 </SelectTrigger>
                 <SelectContent>
@@ -357,7 +360,7 @@ export function TransactionFiltersPanel({ filters, onFiltersChange }: Transactio
                   })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="All types" />
                 </SelectTrigger>
                 <SelectContent>
@@ -380,7 +383,7 @@ export function TransactionFiltersPanel({ filters, onFiltersChange }: Transactio
                   })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
                 <SelectContent>

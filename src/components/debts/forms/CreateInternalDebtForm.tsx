@@ -115,7 +115,7 @@ export function CreateInternalDebtForm({
                 <FormLabel>Who Owes Money</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
                   </FormControl>
@@ -138,7 +138,7 @@ export function CreateInternalDebtForm({
                 <FormLabel>{fromType === "user" ? "Select User" : "Select Account"}</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder={`Select ${fromType}`} />
                     </SelectTrigger>
                   </FormControl>
@@ -164,7 +164,7 @@ export function CreateInternalDebtForm({
                 <FormLabel>Who Is Owed Money</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
                   </FormControl>
@@ -187,7 +187,7 @@ export function CreateInternalDebtForm({
                 <FormLabel>{toType === "user" ? "Select User" : "Select Account"}</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder={`Select ${toType}`} />
                     </SelectTrigger>
                   </FormControl>

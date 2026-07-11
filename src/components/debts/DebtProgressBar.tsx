@@ -32,10 +32,10 @@ export function DebtProgressBar({ paid, total, className }: DebtProgressBarProps
 
   // Determine color based on progress
   const getProgressColor = () => {
-    if (isOverpaid) return "bg-amber-500";
-    if (percentage >= 67) return "bg-green-500";
-    if (percentage >= 34) return "bg-amber-500";
-    return "bg-red-500";
+    if (isOverpaid) return "bg-warning";
+    if (percentage >= 67) return "bg-income";
+    if (percentage >= 34) return "bg-warning";
+    return "bg-expense";
   };
 
   return (

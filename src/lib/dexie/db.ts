@@ -93,6 +93,26 @@ export interface LocalCategory {
   updated_at: string;
 }
 
+/**
+ * Local budget target mirrored from Supabase (added in version 10).
+ *
+ * Budgets have no offline mutation path and no realtime subscription, so
+ * this store is populated by useBudgets mirroring the month's server rows
+ * on every successful fetch (review R11). Budgets are reference targets
+ * only (Decision #80): actual spending is ALWAYS computed from
+ * db.transactions, never stored here.
+ */
+export interface LocalBudget {
+  id: string;
+  household_id: string;
+  category_id: string;
+  month: string; // First day of month as ISO date string, e.g. "2026-07-01"
+  amount_cents: number; // BIGINT cents target (always >= 0)
+  currency_code: string; // 'PHP' only for MVP
+  created_at: string; // ISO timestamp
+  updated_at: string; // ISO timestamp
+}
+
 // SyncQueueItem lives in @/types/sync (the full outbox row shape, including
 // idempotency/clock metadata and retry scheduling). Re-exported below for
 // convenience since the table is defined here.
@@ -217,6 +237,9 @@ export class HouseholdHubDB extends Dexie {
   // PDF import draft tables (added in version 8)
   importDrafts!: Table<ImportDraft, string>;
   importSessions!: Table<ImportSession, string>;
+
+  // Budget targets mirror (added in version 10, review R11)
+  budgets!: Table<LocalBudget, string>;
 
   constructor() {
     super("HouseholdHubDB");
@@ -599,6 +622,32 @@ export class HouseholdHubDB extends Dexie {
               payment.amount_cents = -payment.amount_cents;
             }
           });
+      });
+
+    // ========================================================================
+    // Version 10: Add budgets store (offline budgets mirror, review R11)
+    // ========================================================================
+    // Delta-only declaration (see the version 9 note: unchanged tables are
+    // inherited). Budget targets have no outbox/realtime path, so useBudgets
+    // mirrors the month's server rows into this store on every successful
+    // fetch and serves them back when the network is unreachable. Reference
+    // targets only (Decision #80): no rollover, actuals always come from
+    // db.transactions.
+    //
+    // Indexes:
+    // - month: the hot filter (all queries are per-month, "yyyy-MM-01")
+    // - category_id: per-category lookups
+    // - [month+category_id]: mirrors the server's unique
+    //   (household_id, category_id, month) access pattern for single-budget
+    //   lookups within a month
+    this.version(10)
+      .stores({
+        budgets: "id, month, category_id, [month+category_id]",
+      })
+      .upgrade((_tx) => {
+        // New empty table - no data migration needed
+        console.log("[Dexie Migration v9→v10] Adding budgets store for offline budget targets");
+        return Promise.resolve();
       });
 
     // ========================================================================

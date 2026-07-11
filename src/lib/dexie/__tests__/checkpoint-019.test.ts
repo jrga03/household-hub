@@ -34,7 +34,7 @@ describe("Checkpoint 019: Dexie Setup", () => {
     await expect(db.open()).resolves.toBeDefined();
   });
 
-  it("2. All 13 tables exist", () => {
+  it("2. All 14 tables exist", () => {
     const tableNames = db.tables.map((t) => t.name);
 
     // Original 7 tables
@@ -60,7 +60,10 @@ describe("Checkpoint 019: Dexie Setup", () => {
     expect(tableNames).toContain("importDrafts");
     expect(tableNames).toContain("importSessions");
 
-    expect(tableNames.length).toBe(13);
+    // Version 10 addition (offline budgets mirror, review R11)
+    expect(tableNames).toContain("budgets");
+
+    expect(tableNames.length).toBe(14);
   });
 
   it("3. Can store and retrieve transaction data", async () => {

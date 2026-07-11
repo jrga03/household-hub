@@ -84,17 +84,15 @@ export function OfflineBanner({ className, dismissible = true }: OfflineBannerPr
     return null;
   }
 
+  // Positioning is owned by the parent banner container (AppLayout's
+  // BannerStack), so banners stack instead of overpainting (review R29).
+
   // Reconnected message
   if (showReconnected) {
     return (
-      <div
-        className={cn(
-          "fixed top-[calc(4rem+var(--safe-area-top))] left-0 right-0 z-40 animate-in slide-in-from-top duration-300",
-          className
-        )}
-      >
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="flex items-center justify-between gap-4 rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30 px-4 py-3 shadow-lg">
+      <div className={cn("animate-in slide-in-from-top duration-300", className)}>
+        <div className="mx-auto w-full max-w-7xl px-4">
+          <div className="pointer-events-auto flex items-center justify-between gap-4 rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30 px-4 py-3 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="flex-shrink-0">
                 <Wifi className="h-5 w-5 text-green-600 dark:text-green-500" aria-hidden="true" />
@@ -117,15 +115,12 @@ export function OfflineBanner({ className, dismissible = true }: OfflineBannerPr
   // Offline banner
   return (
     <div
-      className={cn(
-        "fixed top-[calc(4rem+var(--safe-area-top))] left-0 right-0 z-40 animate-in slide-in-from-top duration-300",
-        className
-      )}
+      className={cn("animate-in slide-in-from-top duration-300", className)}
       role="alert"
       aria-live="polite"
     >
-      <div className="mx-auto max-w-7xl px-4">
-        <div className="flex items-center justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 px-4 py-3 shadow-lg">
+      <div className="mx-auto w-full max-w-7xl px-4">
+        <div className="pointer-events-auto flex items-center justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 px-4 py-3 shadow-lg">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className="flex-shrink-0">
               <CloudOff className="h-5 w-5 text-amber-600 dark:text-amber-500" aria-hidden="true" />

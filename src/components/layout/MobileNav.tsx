@@ -1,9 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  LayoutDashboard,
-  Receipt,
-  CreditCard,
-  Target,
   Tags,
   BarChart3,
   ArrowLeftRight,
@@ -21,7 +17,8 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useAuthStore } from "@/stores/authStore";
 import { useNavStore } from "@/stores/navStore";
-import { SyncIndicator } from "@/components/SyncIndicator";
+import { signOutWithConfirm } from "@/lib/sign-out";
+import { GlobalSyncStatus } from "@/components/sync/GlobalSyncStatus";
 import { cn } from "@/lib/utils";
 import { useLiveQuery } from "dexie-react-hooks";
 import { getPendingDraftCount } from "@/lib/import-drafts";
@@ -32,6 +29,12 @@ import { getPendingDraftCount } from "@/lib/import-drafts";
  * Uses Sheet component for a sliding drawer from the left.
  * Auto-closes on navigation to provide smooth UX.
  *
+ * Holds the LONG TAIL of navigation only: the four highest-frequency
+ * destinations (Dashboard, Transactions, Budgets, Accounts) live in the
+ * fixed BottomTabBar (review R42) and are deliberately NOT listed here to
+ * avoid duplication. The quick-add CTA, sync row, Settings, and sign out
+ * stay in the drawer.
+ *
  * Features:
  * - Full-height drawer with scrollable content
  * - Touch-friendly navigation items
@@ -40,6 +43,7 @@ import { getPendingDraftCount } from "@/lib/import-drafts";
  * - Auto-close on route change
  *
  * @see src/components/layout/AppLayout.tsx - Parent layout component
+ * @see src/components/layout/BottomTabBar.tsx - Primary destinations
  */
 
 interface MobileNavProps {
@@ -54,19 +58,12 @@ interface NavItem {
   badge?: number | string;
 }
 
+// Dashboard/Transactions/Budgets/Accounts are in the BottomTabBar (R42),
+// not here — the drawer lists only the long tail.
 const navItems: { section: string; items: NavItem[] }[] = [
-  {
-    section: "Core Financial",
-    items: [
-      { to: "/", label: "Dashboard", icon: LayoutDashboard },
-      { to: "/transactions", label: "Transactions", icon: Receipt },
-      { to: "/accounts", label: "Accounts", icon: CreditCard },
-    ],
-  },
   {
     section: "Planning & Analysis",
     items: [
-      { to: "/budgets", label: "Budgets", icon: Target },
       { to: "/categories", label: "Categories", icon: Tags },
       { to: "/analytics", label: "Analytics", icon: BarChart3 },
     ],
@@ -111,8 +108,9 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
   };
 
   const handleSignOut = async () => {
-    const signOut = useAuthStore.getState().signOut;
-    await signOut();
+    // Unsynced-changes confirm + export live in the shared component-layer
+    // flow, not the store (review R39)
+    await signOutWithConfirm();
     onOpenChange(false);
   };
 
@@ -172,9 +170,9 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
           </Button>
         </div>
 
-        {/* Sync Status */}
+        {/* Sync Status (live outbox counts; tap to open the sync queue) */}
         <div className="border-b px-6 py-3">
-          <SyncIndicator />
+          <GlobalSyncStatus variant="detailed" />
         </div>
 
         {/* Navigation Items */}
@@ -196,8 +194,9 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
                         to={item.to}
                         onClick={handleNavigation}
                         className={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+                          "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
                           "hover:bg-accent hover:text-accent-foreground",
+                          "active:bg-accent active:text-accent-foreground",
                           isActive && "bg-accent text-accent-foreground font-medium"
                         )}
                       >
@@ -224,8 +223,9 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
                 to="/settings"
                 onClick={handleNavigation}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+                  "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
                   "hover:bg-accent hover:text-accent-foreground",
+                  "active:bg-accent active:text-accent-foreground",
                   isActiveRoute("/settings") && "bg-accent text-accent-foreground font-medium"
                 )}
               >
@@ -240,7 +240,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
               <Separator className="mb-4" />
               <button
                 onClick={handleSignOut}
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+                className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground active:bg-accent active:text-accent-foreground"
               >
                 <LogOut className="h-5 w-5" />
                 <span className="flex-1 text-left">Sign Out</span>

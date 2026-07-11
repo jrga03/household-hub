@@ -4,6 +4,7 @@ import { useAccounts, useAccountBalances } from "@/lib/supabaseQueries";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { AccountFormDialog } from "@/components/AccountFormDialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PageShell } from "@/components/layout/PageShell";
 import { useSelectedItem } from "@/hooks/useSelectedItem";
 import { useContainerNarrow } from "@/hooks/useContainerWidth";
@@ -34,13 +35,53 @@ function Accounts() {
 
   const isLoading = accountsLoading || balancesLoading;
 
+  // Header paints in every state; the loading body is shaped like the real
+  // account list rows so nothing jumps when data lands (review R41)
+  const header = (
+    <div className="border-b">
+      <div className="container mx-auto max-w-7xl flex items-center justify-between px-4 py-4">
+        <div>
+          <h1 className="text-xl font-bold">Accounts</h1>
+          <p className="text-sm text-muted-foreground">Manage your financial accounts</p>
+        </div>
+        <Button onClick={() => setIsFormOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Account
+        </Button>
+      </div>
+    </div>
+  );
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
-          <p className="mt-4 text-sm text-muted-foreground">Loading accounts...</p>
-        </div>
+      <div className="bg-background">
+        {header}
+        <PageShell variant="split">
+          <PageShell.Main>
+            <span role="status" className="sr-only">
+              Loading accounts
+            </span>
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="w-full rounded-lg border px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </PageShell.Main>
+          <PageShell.RightAside className="hidden @[1100px]:block">
+            <div className="rounded-lg border bg-card p-6">
+              <Skeleton className="mb-4 h-6 w-40" />
+              <Skeleton className="h-40 w-full" />
+            </div>
+          </PageShell.RightAside>
+        </PageShell>
       </div>
     );
   }
@@ -80,24 +121,17 @@ function Accounts() {
   return (
     <div ref={regionRef} className="bg-background">
       {/* Page Header */}
-      <div className="border-b">
-        <div className="container mx-auto max-w-7xl flex items-center justify-between px-4 py-4">
-          <div>
-            <h1 className="text-xl font-bold">Accounts</h1>
-            <p className="text-sm text-muted-foreground">Manage your financial accounts</p>
-          </div>
-          <Button onClick={() => setIsFormOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Account
-          </Button>
-        </div>
-      </div>
+      {header}
 
       <PageShell variant="split">
         <PageShell.Main>
           {!accounts || accounts.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">No accounts yet</p>
+              <Button onClick={() => setIsFormOpen(true)} className="mt-4">
+                <Plus className="mr-2 h-4 w-4" />
+                Add your first account
+              </Button>
             </div>
           ) : isNarrow ? (
             <div className="grid gap-3">

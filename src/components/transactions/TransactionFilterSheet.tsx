@@ -7,11 +7,23 @@ import type { TransactionFilters } from "@/types/transactions";
 interface TransactionFilterSheetProps {
   filters: TransactionFilters;
   onFiltersChange: (next: TransactionFilters) => void;
+  /**
+   * Controlled open state (owned by the route) so the shared Sheet wrapper's
+   * back-gesture handling can close this sheet — uncontrolled Radix state is
+   * invisible to it (review R37).
+   */
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export function TransactionFilterSheet({ filters, onFiltersChange }: TransactionFilterSheetProps) {
+export function TransactionFilterSheet({
+  filters,
+  onFiltersChange,
+  open,
+  onOpenChange,
+}: TransactionFilterSheetProps) {
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetTrigger asChild>
         <Button variant="outline" size="sm">
           <Filter className="mr-2 h-4 w-4" />

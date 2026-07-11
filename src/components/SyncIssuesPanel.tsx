@@ -1,7 +1,8 @@
 /**
  * SyncIssuesPanel Component - Advanced sync issue management UI
  *
- * Bottom-right expandable panel that provides transparency into sync operations:
+ * Right-anchored expandable panel (lifted above the FAB zone on phones) that
+ * provides transparency into sync operations:
  * - Conflict resolutions (what was chosen and why)
  * - Sync failures (network errors, retries)
  * - Validation errors (data issues)
@@ -26,6 +27,7 @@
 
 import { useState } from "react";
 import { AlertCircle, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useSyncIssuesStore } from "@/stores/syncIssuesStore";
 import { syncIssuesManager } from "@/lib/sync/SyncIssuesManager";
 import { SyncIssueItem } from "./SyncIssueItem";
@@ -33,18 +35,24 @@ import { SyncIssueItem } from "./SyncIssueItem";
 /**
  * SyncIssuesPanel - Main component for displaying sync issues
  *
- * Renders in bottom-right corner of screen (fixed positioning).
+ * Renders right-anchored above the bottom edge (fixed positioning).
  * Self-hiding when no issues exist.
  *
  * Visual Design:
  * - Collapsed: Amber badge with AlertCircle icon + count
  * - Expanded: Panel with header, scrollable list, footer
  * - z-index: 50 (appears above most content)
+ * - Width clamped to `min(24rem, 100vw - 2rem)` so the left edge (status
+ *   icons, Clear All) never clips on small phones (review R28)
+ * - On phones (< md) the whole slot is lifted above the FAB zone: 5.5rem
+ *   above the shared bottom chrome (--bottom-chrome = tab bar + safe area at
+ *   mobile widths, reviews R13/R42), so the collapsed badge never contests
+ *   the FAB corner and never lands under the bottom tab bar
  *
  * Accessibility:
  * - Keyboard navigation supported (tab to badge, enter to expand)
  * - ARIA labels on all buttons
- * - Focus management when expanding
+ * - Controls are shadcn Buttons, inheriting the coarse-pointer 44px floor
  *
  * @example
  * // Add to root layout
@@ -61,25 +69,25 @@ export function SyncIssuesPanel() {
   if (issues.length === 0) return null;
 
   return (
-    <div className="fixed bottom-[calc(1rem+var(--safe-area-bottom))] right-[calc(1rem+var(--safe-area-right))] max-w-md z-50">
+    <div className="fixed bottom-[calc(5.5rem+var(--bottom-chrome))] right-[calc(1rem+var(--safe-area-right))] z-50 md:bottom-[calc(1rem+var(--safe-area-bottom))]">
       {/* Collapsed badge (always visible when issues exist) */}
       {!expanded && (
-        <button
+        <Button
           onClick={() => setExpanded(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg shadow-lg hover:bg-amber-600 transition"
+          className="bg-amber-500 text-white shadow-lg hover:bg-amber-600 active:bg-amber-600"
           title={`${issues.length} sync ${issues.length === 1 ? "issue" : "issues"}`}
           aria-label={`${issues.length} sync ${issues.length === 1 ? "issue" : "issues"}. Click to expand.`}
         >
-          <AlertCircle className="w-5 h-5" aria-hidden="true" />
+          <AlertCircle className="size-5" aria-hidden="true" />
           <span className="font-medium">
             {issues.length} Sync {issues.length === 1 ? "Issue" : "Issues"}
           </span>
-        </button>
+        </Button>
       )}
 
       {/* Expanded panel */}
       {expanded && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden w-96">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden w-[min(24rem,calc(100vw-2rem-var(--safe-area-right)))]">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-800">
             <div className="flex items-center gap-2">
@@ -91,14 +99,16 @@ export function SyncIssuesPanel() {
                 Sync Issues ({issues.length})
               </h3>
             </div>
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setExpanded(false)}
-              className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition"
+              className="-my-2 -mr-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
               title="Close panel"
               aria-label="Close sync issues panel"
             >
-              <XCircle className="w-5 h-5" />
-            </button>
+              <XCircle className="size-5" />
+            </Button>
           </div>
 
           {/* Issues list (scrollable) */}
@@ -119,13 +129,15 @@ export function SyncIssuesPanel() {
 
           {/* Footer with Clear All button */}
           <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-600 flex gap-2">
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => syncIssuesManager.clearAll()}
-              className="text-xs px-3 py-1 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition"
+              className="text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
               aria-label="Clear all sync issues"
             >
               Clear All
-            </button>
+            </Button>
           </div>
         </div>
       )}

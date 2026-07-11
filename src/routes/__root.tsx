@@ -1,4 +1,4 @@
-import { createRootRoute, redirect } from "@tanstack/react-router";
+import { createRootRoute, Link, redirect } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 import { useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
@@ -7,6 +7,8 @@ import { syncIssuesManager } from "@/lib/sync/SyncIssuesManager";
 import { SyncIssuesPanel } from "@/components/SyncIssuesPanel";
 import { ensureDeviceRegistered, triggerDeviceLastSeenUpdate } from "@/lib/device-registration";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 /**
  * Root Component with Device Registration, Auto-Sync, and Sync Issues Panel
@@ -100,6 +102,29 @@ function RootComponent() {
   );
 }
 
+/**
+ * Styled not-found fallback for bad deep links (e.g. stale PWA shortcuts or
+ * OS-cached manifest URLs). Renders inside the app shell in place of the
+ * route outlet, replacing TanStack Router's bare default text.
+ */
+function NotFoundComponent() {
+  return (
+    <div className="flex min-h-[60dvh] items-center justify-center p-4">
+      <Card className="w-full max-w-sm text-center">
+        <CardHeader>
+          <CardTitle>Page not found</CardTitle>
+          <CardDescription>This page doesn&apos;t exist or may have moved.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild>
+            <Link to="/">Go to Dashboard</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 /** Routes reachable without a session */
 const PUBLIC_ROUTES = ["/login", "/signup"];
 
@@ -118,4 +143,5 @@ export const Route = createRootRoute({
     }
   },
   component: RootComponent,
+  notFoundComponent: NotFoundComponent,
 });

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { startOfMonth, subYears, format, differenceInDays } from "date-fns";
 
@@ -8,7 +8,7 @@ interface Transaction {
   date: string;
   type: "income" | "expense";
   amount_cents: number;
-  category_id: string;
+  category_id: string | null;
   account_id: string;
   description: string;
   categories?: { name: string };
@@ -21,8 +21,9 @@ interface MonthlyTrendData {
 }
 
 interface CategoryBreakdown {
+  categoryId: string | null; // Real category id for click-through navigation (null = uncategorized)
   name: string;
-  value: number; // in pesos (for Recharts)
+  valueCents: number; // in cents
 }
 
 interface BudgetVariance {
@@ -211,6 +212,9 @@ export function useAnalytics(startDate: Date, endDate: Date, filters?: Analytics
       };
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
+    // Applying filters changes the query key; keep showing the previous
+    // dashboard instead of collapsing to a full-height spinner (review R8).
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -250,25 +254,35 @@ function processMonthlyTrend(data: Transaction[]): MonthlyTrendData[] {
 /**
  * Helper: Group by category and return top 10
  *
+ * Groups by REAL category id (not display name) so chart click-through can
+ * navigate to /transactions?categoryId=<real id> (mobile UX review R18).
+ * Transactions without a category are grouped under a null id and shown as
+ * "Uncategorized"; they are not navigable.
+ *
  * @param data - Transaction data array
- * @returns Top 10 expense categories (values in pesos for Recharts)
+ * @returns Top 10 expense categories (values in cents)
  */
 function processCategoryBreakdown(data: Transaction[]): CategoryBreakdown[] {
-  const grouped: Record<string, number> = {};
+  const grouped = new Map<string | null, CategoryBreakdown>();
 
   data
     .filter((t) => t.type === "expense") // Only expenses for category breakdown
     .forEach((t) => {
-      const categoryName = t.categories?.name || "Uncategorized";
-      grouped[categoryName] = (grouped[categoryName] || 0) + t.amount_cents;
+      const categoryId = t.category_id ?? null;
+      const existing = grouped.get(categoryId);
+      if (existing) {
+        existing.valueCents += t.amount_cents;
+      } else {
+        grouped.set(categoryId, {
+          categoryId,
+          name: t.categories?.name || "Uncategorized",
+          valueCents: t.amount_cents,
+        });
+      }
     });
 
-  return Object.entries(grouped)
-    .map(([name, totalCents]) => ({
-      name,
-      value: totalCents / 100, // Convert to pesos for Recharts display
-    }))
-    .sort((a, b) => b.value - a.value)
+  return Array.from(grouped.values())
+    .sort((a, b) => b.valueCents - a.valueCents)
     .slice(0, 10); // Top 10 categories
 }
 
@@ -304,6 +318,9 @@ function processBudgetVariance(
   transactions
     .filter((t) => t.type === "expense")
     .forEach((t) => {
+      // Uncategorized spending can never match a budget (budgets always
+      // reference a category), so skip null category ids
+      if (t.category_id === null) return;
       spendingByCategory[t.category_id] = (spendingByCategory[t.category_id] || 0) + t.amount_cents;
     });
 

@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getDeviceId } from "@/lib/dexie/deviceManager";
+import { isLikelyNetworkError } from "@/lib/offline/reads";
+import { getLocalTransfers, groupTransferLegs, type TransferLeg } from "@/lib/offline/transfers";
 
 export function useCreateTransfer() {
   const queryClient = useQueryClient();
@@ -78,12 +80,13 @@ export function useTransfers(householdId: string) {
   return useQuery({
     queryKey: ["transfers", householdId],
     queryFn: async () => {
-      // OPTIMIZED: Fetch ALL transfer transactions in a single query
-      // This eliminates the N+1 query problem (was 1 + N queries, now just 1)
-      const { data, error } = await supabase
-        .from("transactions")
-        .select(
-          `
+      try {
+        // OPTIMIZED: Fetch ALL transfer transactions in a single query
+        // This eliminates the N+1 query problem (was 1 + N queries, now just 1)
+        const { data, error } = await supabase
+          .from("transactions")
+          .select(
+            `
           id,
           date,
           amount_cents,
@@ -92,80 +95,45 @@ export function useTransfers(householdId: string) {
           type,
           account:accounts!transactions_account_id_fkey(id, name)
         `
-        )
-        .eq("household_id", householdId)
-        .not("transfer_group_id", "is", null)
-        .order("date", { ascending: false });
+          )
+          .eq("household_id", householdId)
+          .not("transfer_group_id", "is", null)
+          .order("date", { ascending: false });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      // Group transactions by transfer_group_id on the client side
-      // This is fast and avoids multiple database queries
-      type TransferTransaction = {
-        id: string;
-        date: string;
-        amount_cents: number;
-        description: string;
-        transfer_group_id: string | null;
-        type: string;
-        account: { id: string; name: string } | null;
-      };
+        // Pairing lives in offline/transfers.ts (groupTransferLegs) so the
+        // server path and the Dexie fallback can never drift (review R11)
+        const legs: TransferLeg[] = (data ?? []).map((transaction) => {
+          // Supabase joins return arrays; extract the first element for single-record joins
+          const accountData = Array.isArray(transaction.account)
+            ? (transaction.account[0] ?? null)
+            : transaction.account;
 
-      const transferGroups = new Map<
-        string,
-        {
-          expense: TransferTransaction | null;
-          income: TransferTransaction | null;
+          return {
+            id: transaction.id,
+            date: transaction.date,
+            amount_cents: transaction.amount_cents,
+            description: transaction.description,
+            transfer_group_id: transaction.transfer_group_id,
+            type: transaction.type,
+            account: accountData ? { id: accountData.id, name: accountData.name } : null,
+          };
+        });
+
+        return groupTransferLegs(legs);
+      } catch (error) {
+        // Offline fallback (review R11): the same transfer pairs read from
+        // the local Dexie mirror (transfer_group_id NOT NULL), grouped by
+        // the exact same pairing function
+        if (isLikelyNetworkError(error)) {
+          console.warn("[useTransfers] Network unavailable - reading from Dexie");
+          return getLocalTransfers(householdId);
         }
-      >();
-
-      data?.forEach((transaction) => {
-        const groupId = transaction.transfer_group_id!;
-
-        if (!transferGroups.has(groupId)) {
-          transferGroups.set(groupId, { expense: null, income: null });
-        }
-
-        // Supabase joins return arrays; extract the first element for single-record joins
-        const accountData = Array.isArray(transaction.account)
-          ? (transaction.account[0] ?? null)
-          : transaction.account;
-
-        const mapped: TransferTransaction = {
-          id: transaction.id,
-          date: transaction.date,
-          amount_cents: transaction.amount_cents,
-          description: transaction.description,
-          transfer_group_id: transaction.transfer_group_id,
-          type: transaction.type,
-          account: accountData ? { id: accountData.id, name: accountData.name } : null,
-        };
-
-        const group = transferGroups.get(groupId)!;
-        if (transaction.type === "expense") {
-          group.expense = mapped;
-        } else {
-          group.income = mapped;
-        }
-      });
-
-      // Build final result with only complete pairs
-      // Filter out incomplete pairs (safety check for data integrity)
-      return Array.from(transferGroups.values())
-        .filter((g) => g.expense && g.income) // Only show complete transfer pairs
-        .map((g) => ({
-          id: g.expense!.id,
-          date: g.expense!.date,
-          amount_cents: g.expense!.amount_cents,
-          transfer_group_id: g.expense!.transfer_group_id,
-          description: g.expense!.description,
-          from_account: g.expense!.account,
-          to_account: g.income!.account,
-          from_account_name: g.expense!.account?.name || "Unknown",
-          to_account_name: g.income!.account?.name || "Unknown",
-        }))
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        throw error;
+      }
     },
     staleTime: 30 * 1000, // Cache for 30 seconds - transfers don't change frequently
+    networkMode: "always", // run the queryFn offline so the Dexie fallback can serve
   });
 }
