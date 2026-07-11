@@ -196,8 +196,12 @@ async function renderTransactionsRoute() {
       <RouterProvider router={router} />
     </QueryClientProvider>
   );
-  // Wait for the route to mount
-  await screen.findByText("Track your income and expenses");
+  // Wait for the route to mount. The FIRST router mount in this file is a cold
+  // start — Vitest transforms the route's full subtree (PageShell, list, filters,
+  // gesture handling) on first import — which can exceed findByText's default
+  // 1000ms timeout, so whichever test runs first would flake out (later mounts
+  // are warm and resolve well under it). Give the mount realistic headroom.
+  await screen.findByText("Track your income and expenses", undefined, { timeout: 5000 });
 }
 
 beforeEach(() => {
