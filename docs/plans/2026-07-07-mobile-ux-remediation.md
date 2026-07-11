@@ -14,7 +14,7 @@ Branch: `mobile-ux-remediation`. Commit per verified phase.
 - **window.confirm: all five sites → AlertDialog**, authStore's confirm lifted into the component layer (`signOut({ exportFirst })`-style split).
 - **Landscape phones: FAB gated on `(pointer: coarse)` in the tablet branch** rather than rewriting isMobile (C3). Why: isMobile has too many consumers to change safely. Revisit: if landscape needs MobileNav too.
 - **Transactions infinite query has NO maxPages cap** (accepted refetch-all-loaded-pages cost on invalidation). Why: a cap evicts page 1 while the virtualizer renders the full flattened list, dropping top rows mid-scroll. Revisit: implement bidirectional fetch (fetchPreviousPage) if deep-scroll refetch cost bites.
-- **transactions_filter_summary RPC applied to LOCAL dev DB only** (2026-07-10, smoke-tested incl. transfer exclusion). Remote `supabase db push` pending explicit go-ahead.
+- **transactions_filter_summary RPC applied to LOCAL (2026-07-10) AND REMOTE (2026-07-11) DBs.** Smoke-tested incl. transfer exclusion; remote confirmed via `supabase migration list --linked` (20260710120000 present in both Local and Remote columns).
 - **DEFERRED: swipe actions + haptics (C6).** Optional polish. Revisit: after Phase 8.
 - **DEFERRED: Supabase email-confirmation deep-link audit.** Depends on Supabase dashboard config outside the repo.
 
