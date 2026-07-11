@@ -198,6 +198,97 @@ describe("mergeTransactionPages", () => {
 
     expect(merged.map((r) => r.id)).toEqual(["a", "b", "c", "d"]);
   });
+
+  // ── Overlay × windowing (maxPages, bidirectional) ──────────────────────
+  describe("overlay × windowing (maxPages)", () => {
+    it("applies the overlay when page 0 is present in the window", () => {
+      const localOnly = row("new", "2026-07-06", "2026-07-06T09:00:00Z"); // newest → top
+      const merged = mergeTransactionPages(
+        [
+          { rows: [row("a", "2026-07-05"), row("b", "2026-07-04")], localOverlay: [localOnly] },
+          { rows: [row("c", "2026-07-03")], localOverlay: [] },
+        ],
+        [0, 1] // page 0 is in the window
+      );
+
+      // Just-created local row lands at the top (its sort position)
+      expect(merged.map((r) => r.id)).toEqual(["new", "a", "b", "c"]);
+    });
+
+    it("SKIPS the overlay when page 0 has been evicted (deep window)", () => {
+      // User scrolled deep: window is pages 5,6,7 — page 0 gone. A brand-new
+      // local row (newest date) must NOT be injected here, or it would park a
+      // top-of-list row at the wrong position deep in the window.
+      const localOnly = row("new", "2026-07-06", "2026-07-06T09:00:00Z");
+      const merged = mergeTransactionPages(
+        [
+          { rows: [row("p5", "2026-06-10"), row("p6", "2026-06-09")], localOverlay: [localOnly] },
+          { rows: [row("p7", "2026-06-08")], localOverlay: [] },
+        ],
+        [5, 6, 7] // page 0 NOT in the window
+      );
+
+      expect(merged.map((r) => r.id)).toEqual(["p5", "p6", "p7"]);
+      expect(merged.find((r) => r.id === "new")).toBeUndefined();
+    });
+
+    it("still dedupes an overlay row against its server echo even in a deep window", () => {
+      // The overlay is skipped for edits too when page 0 is gone, but the
+      // SERVER echo (already synced) still shows once — no duplication.
+      const echoRow = row("x", "2026-06-10", "2026-06-10T08:00:00Z");
+      const localEcho = { ...echoRow, edited: true };
+      const merged = mergeTransactionPages<typeof localEcho>(
+        [
+          {
+            rows: [echoRow as typeof localEcho, row("p6", "2026-06-09") as typeof localEcho],
+            localOverlay: [localEcho],
+          },
+        ],
+        [5] // page 0 evicted → overlay skipped
+      );
+
+      // Exactly one "x", and it is the server copy (overlay skipped deep)
+      expect(merged.filter((r) => r.id === "x")).toHaveLength(1);
+      expect(merged.find((r) => r.id === "x")?.edited).toBeUndefined();
+    });
+
+    it("applies the overlay edit (local wins) when page 0 is present", () => {
+      const echoRow = row("x", "2026-07-04", "2026-07-04T08:00:00Z");
+      const localEcho = { ...echoRow, edited: true };
+      const merged = mergeTransactionPages<typeof localEcho>(
+        [{ rows: [echoRow as typeof localEcho], localOverlay: [localEcho] }],
+        [0]
+      );
+
+      expect(merged.filter((r) => r.id === "x")).toHaveLength(1);
+      expect(merged.find((r) => r.id === "x")?.edited).toBe(true);
+    });
+
+    it("defaults to applying the overlay when pageParams is omitted (back-compat)", () => {
+      const localOnly = row("new", "2026-07-06", "2026-07-06T09:00:00Z");
+      const merged = mergeTransactionPages([
+        { rows: [row("a", "2026-07-05")], localOverlay: [localOnly] },
+      ]);
+
+      expect(merged.map((r) => r.id)).toEqual(["new", "a"]);
+    });
+
+    it("does not duplicate rows across a prepend boundary (evicted page re-loaded)", () => {
+      // Simulate a windowed set after fetchPreviousPage prepended page 1 in
+      // front of pages 2,3. An insert between fetches pushed "b" so it appears
+      // at the tail of the prepended page AND the head of the next page.
+      const merged = mergeTransactionPages(
+        [
+          { rows: [row("a", "2026-07-05"), row("b", "2026-07-04")], localOverlay: [] },
+          { rows: [row("b", "2026-07-04"), row("c", "2026-07-03")], localOverlay: [] },
+        ],
+        [1, 2]
+      );
+
+      expect(merged.map((r) => r.id)).toEqual(["a", "b", "c"]);
+      expect(merged.filter((r) => r.id === "b")).toHaveLength(1);
+    });
+  });
 });
 
 // ─── applyTransactionFilters (pure) ──────────────

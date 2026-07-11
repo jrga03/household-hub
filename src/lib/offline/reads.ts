@@ -234,10 +234,28 @@ export interface TransactionsListPage<T> {
  *   look like data loss.
  * - Re-sorted by the server ordering (date desc, created_at desc); no cap.
  *
+ * OVERLAY × WINDOWING (maxPages): the infinite query caps its in-memory
+ * window to a few pages so invalidation refetches cheaply, so `pageParams`
+ * may no longer start at 0 once the user has scrolled deep (page 0 evicted).
+ * The unsynced overlay only makes sense at the TOP of the list: a just-created
+ * or freshly-edited local row sorts to the newest position (page 0). Injecting
+ * it into a deep window (page 0 gone) would wrongly park a top-of-list row at
+ * the end of, say, page 12 — visible at the wrong position. So the overlay is
+ * applied ONLY when page 0 is present in the window (`pageParams` includes 0);
+ * when page 0 has been evicted the overlay is skipped for that window, and the
+ * row reappears in place the moment the user scrolls back to the top and page 0
+ * is re-fetched. Dedup against a server echo is unaffected (still by id).
+ *
  * Pure function - exported for unit tests.
+ *
+ * @param pages       the (possibly windowed) fetched pages, in window order
+ * @param pageParams  the ABSOLUTE page index of each page (parallel to
+ *                     `pages`); the overlay is applied only if 0 is present.
+ *                     Omitted → treated as page 0 present (back-compat).
  */
 export function mergeTransactionPages<T extends MergeableTransactionRow>(
-  pages: Array<TransactionsListPage<T>>
+  pages: Array<TransactionsListPage<T>>,
+  pageParams?: readonly number[]
 ): T[] {
   const byId = new Map<string, T>();
   for (const page of pages) {
@@ -247,9 +265,15 @@ export function mergeTransactionPages<T extends MergeableTransactionRow>(
       }
     }
   }
-  for (const page of pages) {
-    for (const row of page.localOverlay) {
-      byId.set(row.id, row); // local wins; later (fresher) snapshots override
+
+  // Apply the unsynced overlay only when the top page (index 0) is in the
+  // window — that is where a new/edited local row belongs. See doc block.
+  const hasPageZero = pageParams === undefined || pageParams.includes(0);
+  if (hasPageZero) {
+    for (const page of pages) {
+      for (const row of page.localOverlay) {
+        byId.set(row.id, row); // local wins; later (fresher) snapshots override
+      }
     }
   }
 

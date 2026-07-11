@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { format, parseISO } from "date-fns";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -35,6 +41,7 @@ import { db } from "@/lib/dexie/db";
 import { useNavStore } from "@/stores/navStore";
 import { useContainerNarrow } from "@/hooks/useContainerWidth";
 import { cn } from "@/lib/utils";
+import { shouldAnchorPrepend } from "@/components/transactionListPrepend";
 
 /**
  * Start fetching the next page when the last rendered virtual row is within
@@ -42,6 +49,13 @@ import { cn } from "@/lib/utils";
  * useInfiniteQuery pattern, review R10).
  */
 const NEXT_PAGE_FETCH_THRESHOLD = 10;
+
+/**
+ * Start fetching the PREVIOUS page (an earlier page evicted by the maxPages
+ * window) when the first rendered virtual row is within this many rows of the
+ * top of the loaded list. Mirrors NEXT_PAGE_FETCH_THRESHOLD for scroll-back.
+ */
+const PREV_PAGE_FETCH_THRESHOLD = 10;
 
 interface Props {
   filters?: TransactionFilters;
@@ -75,6 +89,9 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    fetchPreviousPage,
+    hasPreviousPage,
+    isFetchingPreviousPage,
   } = useTransactions(filters);
   const toggleStatus = useToggleTransactionStatus();
   const setStatus = useSetTransactionStatus();
@@ -115,6 +132,12 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
     // Initial estimates; real heights measured below
     estimateSize: () => (presentation === "cards" ? 84 : 73),
     overscan: 5, // Render 5 extra items above/below visible area
+    // Key rows by transaction id, NOT index, so a row's identity (and its
+    // cached measured height) survives a prepend: fetchPreviousPage grows the
+    // flattened list at the top and shifts every index down, but the keyed
+    // measurements stay attached to the right rows so the scroll-anchor
+    // compensation below reads correct offsets (bidirectional windowing).
+    getItemKey: (index) => transactions?.[index]?.id ?? index,
     // Measure actual row heights so rows with a notes line (two-line cells)
     // don't overlap or leave gaps against the fixed estimate (UI-08)
     measureElement:
@@ -138,12 +161,156 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
   const virtualItems = rowVirtualizer.getVirtualItems();
   const lastVirtualIndex =
     virtualItems.length > 0 ? virtualItems[virtualItems.length - 1].index : -1;
+  const firstVirtualIndex = virtualItems.length > 0 ? virtualItems[0].index : -1;
   useEffect(() => {
     if (lastVirtualIndex < 0 || !hasNextPage || isFetchingNextPage) return;
     if (lastVirtualIndex >= rowCount - NEXT_PAGE_FETCH_THRESHOLD) {
       fetchNextPage();
     }
   }, [lastVirtualIndex, rowCount, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // ── Prev-fetch loop-break (finding 2) ──────────────────────────────────
+  // The near-top trigger below would re-fire the moment a prepend settles if
+  // the anchor ever no-ops (parentRef null, delta 0, measurementsCache miss):
+  // firstVirtualIndex stays <= threshold and fetchPreviousPage cascades all
+  // the way back to page 0 in one burst, refilling far more than maxPages.
+  // isFetchingPreviousPage only guards CONCURRENT fetches, not this
+  // settle-refetch cascade. So gate on an explicit user-scroll gesture: the
+  // ref is ARMED on each scroll event and DISARMED when a prev-fetch is
+  // issued, giving at most one prev-fetch per scroll-to-top gesture. A
+  // deliberate scroll up through several evicted pages re-arms on each new
+  // scroll, so that legitimate flow still loads one earlier page per gesture.
+  const prevFetchArmedRef = useRef(false);
+
+  // Set true in the SAME handler that calls fetchPreviousPage, read by the
+  // prepend scroll-anchor (finding 1) so it compensates ONLY for a real
+  // fetchPreviousPage prepend, never an R9 overlay insert of a just-created
+  // transaction (which also grows the list + changes the top id).
+  const pendingPrevPrependRef = useRef(false);
+
+  // The anchor writes scrollTop programmatically, which fires a synthetic
+  // scroll event. Suppress arming for exactly that write so the prepend it
+  // just resolved cannot immediately re-arm the trigger (would defeat
+  // finding 2's loop-break).
+  const suppressScrollArmRef = useRef(false);
+
+  useEffect(() => {
+    const scrollEl = parentRef.current;
+    if (!scrollEl) return;
+    const onScroll = () => {
+      if (suppressScrollArmRef.current) {
+        suppressScrollArmRef.current = false;
+        return;
+      }
+      prevFetchArmedRef.current = true;
+    };
+    scrollEl.addEventListener("scroll", onScroll, { passive: true });
+    return () => scrollEl.removeEventListener("scroll", onScroll);
+    // Re-bind when the scroll element remounts (presentation switch is keyed).
+  }, [presentation]);
+
+  // Scroll-back: when the first rendered virtual row nears the top of the
+  // loaded window, pull the PREVIOUS page — an earlier page the maxPages cap
+  // evicted (bidirectional windowing). Guarded on hasPreviousPage so it never
+  // fires at the true top of the dataset (page 0 loaded), and on the
+  // scroll-armed ref so a settled prepend cannot cascade (finding 2).
+  useEffect(() => {
+    if (firstVirtualIndex < 0 || !hasPreviousPage || isFetchingPreviousPage) return;
+    if (!prevFetchArmedRef.current) return;
+    if (firstVirtualIndex <= PREV_PAGE_FETCH_THRESHOLD) {
+      prevFetchArmedRef.current = false; // one prev-fetch per scroll gesture
+      pendingPrevPrependRef.current = true; // arm the anchor for THIS prepend
+      fetchPreviousPage();
+    }
+  }, [firstVirtualIndex, hasPreviousPage, isFetchingPreviousPage, fetchPreviousPage]);
+
+  // ── Scroll anchoring on prepend ────────────────────────────────────────
+  // fetchPreviousPage prepends rows: the flattened list grows at the TOP and
+  // every virtual index shifts down. Without compensation the viewport would
+  // jump down by the height of the prepended rows. We anchor on the row that
+  // was first BEFORE the prepend (identity preserved by getItemKey): remember
+  // that row's id, its measured `start`, and the scrollTop as of the LAST
+  // committed render, and after a top-prepend restore scrollTop so that same
+  // row stays put.
+  //
+  // ONLY a fetchPreviousPage prepend anchors (finding 1). An R9 overlay insert
+  // of a just-created transaction ALSO grows the list and changes the index-0
+  // id, but there the user is at the true top and the new row should scroll
+  // INTO view — anchoring would push it out. shouldAnchorPrepend gates on the
+  // pendingPrevPrependRef flag (armed only when we call fetchPreviousPage) plus
+  // a page-sized growth check, so an overlay +1 never anchors.
+  //
+  // The reverse case (scrolling down evicts the TOP page) needs no anchoring:
+  // eviction happens above the viewport, and the virtualizer's total size /
+  // offsets are recomputed from the remaining measured rows before paint, so
+  // the anchor row keeps its position.
+  //
+  // The anchor snapshot is the PREVIOUS commit's values (prevAnchorRef), never
+  // the current render's — on the render that commits the prepend, the first
+  // rendered row is already the newly prepended one, so anchoring to it would
+  // be a no-op. We compare that snapshot against the new list to compute the
+  // scrollTop delta, then refresh the snapshot for the next commit.
+  const prevAnchorRef = useRef<{
+    firstId: string | undefined;
+    start: number;
+    scrollTop: number;
+    rowCount: number;
+  }>({ firstId: undefined, start: 0, scrollTop: 0, rowCount: 0 });
+
+  const firstRenderedId =
+    firstVirtualIndex >= 0 ? transactions?.[firstVirtualIndex]?.id : undefined;
+  const firstRenderedStart = virtualItems.length > 0 ? virtualItems[0].start : 0;
+
+  useLayoutEffect(() => {
+    const scrollEl = parentRef.current;
+    const prev = prevAnchorRef.current;
+    const topRowId = transactions && transactions.length > 0 ? transactions[0].id : undefined;
+
+    // Only compensate for a genuine fetchPreviousPage prepend; consume the
+    // flag either way so it never leaks into a later commit.
+    const cameFromPrevFetch = pendingPrevPrependRef.current;
+    pendingPrevPrependRef.current = false;
+
+    const anchor = shouldAnchorPrepend({
+      prevRowCount: prev.rowCount,
+      rowCount,
+      prevFirstId: prev.firstId,
+      firstId: topRowId,
+      cameFromPrevFetch,
+    });
+
+    if (anchor && scrollEl && prev.firstId) {
+      // The anchor is the row that was first-rendered before the prepend. Find
+      // where it sits NOW and shift scrollTop by how far it moved down, so it
+      // stays at the same viewport position — no visible jump.
+      //
+      // NOTE: freshly prepended rows have never been rendered, so the
+      // virtualizer positions them with estimateSize (73px table / 84px cards)
+      // until they scroll into view — the `start` we read here is
+      // estimate-derived, not measured. For variable-height cards (rows with a
+      // notes line) that estimate can differ from the real height, leaving a
+      // small residual jump that self-heals once the prepended rows measure on
+      // scroll. Confirm this stays within tolerance on the manual device pass.
+      const anchorIndex = transactions?.findIndex((t) => t.id === prev.firstId) ?? -1;
+      const newStart =
+        anchorIndex >= 0 ? rowVirtualizer.measurementsCache[anchorIndex]?.start : undefined;
+      if (typeof newStart === "number") {
+        const delta = newStart - prev.start;
+        if (delta !== 0) {
+          suppressScrollArmRef.current = true; // ignore the synthetic scroll
+          scrollEl.scrollTop = prev.scrollTop + delta;
+        }
+      }
+    }
+
+    // Refresh the snapshot for the next commit from the just-committed render.
+    prevAnchorRef.current = {
+      firstId: firstRenderedId,
+      start: firstRenderedStart,
+      scrollTop: scrollEl?.scrollTop ?? 0,
+      rowCount,
+    };
+  }, [rowCount, transactions, rowVirtualizer, firstRenderedId, firstRenderedStart]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked && transactions) {
@@ -372,6 +539,19 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
               aria-label="Select all"
             />
             <span className="text-sm text-muted-foreground">Select all</span>
+          </div>
+        )}
+
+        {/* Earlier-page indicator: shown at the TOP while an evicted earlier
+            page is re-fetched on scroll-back (mirrors the bottom next-page
+            row). Outside the scroll body so it never perturbs the virtualizer
+            offset math or the prepend scroll-anchor. */}
+        {isFetchingPreviousPage && (
+          <div
+            role="status"
+            className="flex items-center justify-center p-3 text-sm text-muted-foreground"
+          >
+            Loading earlier transactions…
           </div>
         )}
 

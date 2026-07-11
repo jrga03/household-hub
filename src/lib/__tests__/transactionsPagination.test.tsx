@@ -35,6 +35,7 @@ import {
   useTransactions,
   useTransactionsFilterSummary,
   TRANSACTIONS_PAGE_SIZE,
+  TRANSACTIONS_MAX_PAGES,
 } from "@/lib/supabaseQueries";
 
 // ─── Helpers ─────────────────────────────────────
@@ -261,6 +262,152 @@ describe("useTransactions infinite pagination (R10)", () => {
     await waitFor(() => expect(result.current.data).toHaveLength(60));
     // Short second page (10 rows) ends pagination offline too
     expect(result.current.hasNextPage).toBe(false);
+  });
+});
+
+// ─── Windowed + bidirectional paging (maxPages) ──
+
+/**
+ * Pages forward `count` times, waiting for each page to settle before the
+ * next fetch. Rapid successive fetchNextPage calls while a page is still
+ * loading are dropped by TanStack Query, so we must let each land.
+ */
+async function pageForward(result: { current: ReturnType<typeof useTransactions> }, count: number) {
+  for (let i = 0; i < count; i++) {
+    await act(async () => {
+      await result.current.fetchNextPage();
+    });
+    await waitFor(() => expect(result.current.isFetchingNextPage).toBe(false));
+  }
+}
+
+describe("useTransactions windowed bidirectional paging (maxPages)", () => {
+  it("caps the in-memory window at TRANSACTIONS_MAX_PAGES, evicting the oldest page", async () => {
+    // Enough rows to page well past the cap
+    const dataset = makeServerDataset(TRANSACTIONS_PAGE_SIZE * (TRANSACTIONS_MAX_PAGES + 2));
+    const { range } = mockTransactionsRange((from, to) => ({
+      data: dataset.slice(from, to + 1),
+      error: null,
+    }));
+
+    const { result } = renderHook(() => useTransactions(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    // Page forward past the cap: MAX_PAGES + 1 total fetches beyond the first
+    await pageForward(result, TRANSACTIONS_MAX_PAGES + 1);
+
+    // Window is capped: the flattened list never exceeds MAX_PAGES worth of rows
+    await waitFor(() =>
+      expect(result.current.data?.length).toBe(TRANSACTIONS_PAGE_SIZE * TRANSACTIONS_MAX_PAGES)
+    );
+
+    // getNextPageParam used the ABSOLUTE index (page's own param), so the last
+    // fetched .range() window is the correct absolute offset even after
+    // eviction — not `allPages.length` (which caps at MAX_PAGES).
+    const lastFetchedPage = TRANSACTIONS_MAX_PAGES + 1; // 0-based: pages 0..MAX+1 fetched
+    expect(range).toHaveBeenCalledWith(
+      lastFetchedPage * TRANSACTIONS_PAGE_SIZE,
+      (lastFetchedPage + 1) * TRANSACTIONS_PAGE_SIZE - 1
+    );
+
+    // The top page (page 0) has been evicted, so scrolling back is possible
+    expect(result.current.hasPreviousPage).toBe(true);
+  });
+
+  it("fetchPreviousPage re-loads an evicted earlier page at the correct ABSOLUTE offset", async () => {
+    const dataset = makeServerDataset(TRANSACTIONS_PAGE_SIZE * (TRANSACTIONS_MAX_PAGES + 2));
+    const { range } = mockTransactionsRange((from, to) => ({
+      data: dataset.slice(from, to + 1),
+      error: null,
+    }));
+
+    const { result } = renderHook(() => useTransactions(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    await pageForward(result, TRANSACTIONS_MAX_PAGES + 1);
+    expect(result.current.hasPreviousPage).toBe(true);
+    // Window head is page 2 after fetching pages 0..MAX+1 (page 0,1 evicted)
+    expect(result.current.data?.[0]?.id).toBe("srv-100");
+
+    range.mockClear();
+
+    // Scroll back: prepend the previous page
+    await act(async () => {
+      await result.current.fetchPreviousPage();
+    });
+    await waitFor(() => expect(result.current.isFetchingPreviousPage).toBe(false));
+
+    // getPreviousPageParam returned the first page's param - 1 (absolute): the
+    // window head was page 2, so previous is page 1 → offset 1*SIZE.
+    const prevAbsolutePage = 1;
+    expect(range).toHaveBeenCalledWith(
+      prevAbsolutePage * TRANSACTIONS_PAGE_SIZE,
+      (prevAbsolutePage + 1) * TRANSACTIONS_PAGE_SIZE - 1
+    );
+    // The prepended page slid the window head to page 1 (srv-050); still capped
+    expect(result.current.data?.[0]?.id).toBe("srv-050");
+    expect(result.current.data?.length).toBe(TRANSACTIONS_PAGE_SIZE * TRANSACTIONS_MAX_PAGES);
+
+    // Flattened order remains globally sorted (no duplicate rows across the
+    // prepend boundary): the newly prepended page's rows precede the rest.
+    const ids = result.current.data?.map((t) => t.id) ?? [];
+    expect(new Set(ids).size).toBe(ids.length); // no duplicates
+  });
+
+  it("stops paging back at page 0 (getPreviousPageParam returns undefined)", async () => {
+    // Only two pages of data, so we never evict; hasPreviousPage is false at
+    // the top because the first page's absolute param is 0.
+    const dataset = makeServerDataset(TRANSACTIONS_PAGE_SIZE + 5);
+    mockTransactionsRange((from, to) => ({ data: dataset.slice(from, to + 1), error: null }));
+
+    const { result } = renderHook(() => useTransactions(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    // Never scrolled away from the top → no previous page
+    expect(result.current.hasPreviousPage).toBe(false);
+  });
+
+  it("bidirectional paging works offline against the Dexie fallback", async () => {
+    // Network always fails → the queryFn serves the offset/limit window from
+    // Dexie. Absolute pageParam drives the offset in BOTH directions.
+    mockTransactionsRange(() => {
+      throw new Error("Failed to fetch");
+    });
+
+    const total = TRANSACTIONS_PAGE_SIZE * (TRANSACTIONS_MAX_PAGES + 2);
+    // Newest-first by created_at; loc-000 newest
+    await db.transactions.bulkAdd(
+      Array.from({ length: total }, (_, i) => {
+        const d = new Date(new Date("2026-07-01T10:00:00.000Z").getTime() - i * 60_000);
+        return makeLocalTransaction({
+          id: `loc-${String(i).padStart(3, "0")}`,
+          date: "2026-07-01",
+          created_at: d.toISOString(),
+        });
+      })
+    );
+
+    const { result } = renderHook(() => useTransactions(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    // Page forward past the cap
+    await pageForward(result, TRANSACTIONS_MAX_PAGES + 1);
+    await waitFor(() =>
+      expect(result.current.data?.length).toBe(TRANSACTIONS_PAGE_SIZE * TRANSACTIONS_MAX_PAGES)
+    );
+    expect(result.current.hasPreviousPage).toBe(true);
+
+    // Scroll back offline: prepend the evicted earlier page from Dexie
+    await act(async () => {
+      await result.current.fetchPreviousPage();
+    });
+    await waitFor(() => expect(result.current.isFetchingPreviousPage).toBe(false));
+    // Window head is page 1 → first row is loc at offset 50
+    await waitFor(() => expect(result.current.data?.[0]?.id).toBe("loc-050"));
+    expect(result.current.data?.length).toBe(TRANSACTIONS_PAGE_SIZE * TRANSACTIONS_MAX_PAGES);
+
+    const ids = result.current.data?.map((t) => t.id) ?? [];
+    expect(new Set(ids).size).toBe(ids.length); // no duplicates across boundary
   });
 });
 

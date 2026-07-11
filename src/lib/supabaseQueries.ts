@@ -461,6 +461,17 @@ export function useArchiveCategory() {
 export const TRANSACTIONS_PAGE_SIZE = 50;
 
 /**
+ * Max pages kept in the in-memory infinite-query window. Caps invalidation
+ * cost: a refetch re-runs at most this many page fetches (4 × 50 = 200 rows)
+ * instead of every page ever loaded (up to ~200 pages at the 10k target).
+ * Scrolling past the window evicts the far edge and re-fetches it on the way
+ * back via getPreviousPageParam/getNextPageParam. Chosen at 4 so a typical
+ * session (a few hundred rows) never evicts, while a deep scroll still bounds
+ * refetch to a handful of requests. See useTransactions doc block.
+ */
+export const TRANSACTIONS_MAX_PAGES = 4;
+
+/**
  * Builds the filtered transactions list query (shared filter mapping for
  * every page fetch). Filters convert camelCase to snake_case for the DB.
  */
@@ -527,7 +538,8 @@ function buildTransactionsListQuery(filters?: TransactionFilters) {
  * Fetch transactions with filters, paged via useInfiniteQuery (review R10:
  * the old query hard-capped the list at 100 rows with no next page).
  *
- * - Each page is a `.range()` window of TRANSACTIONS_PAGE_SIZE rows; a full
+ * - Each page is a `.range()` window of TRANSACTIONS_PAGE_SIZE rows keyed by
+ *   an ABSOLUTE page index (pageParam): from = pageParam * PAGE_SIZE. A full
  *   page means there may be more (getNextPageParam), a short page ends it.
  * - `data` is the FLATTENED list (select → mergeTransactionPages), so
  *   consumers keep receiving TransactionWithRelations[].
@@ -537,12 +549,28 @@ function buildTransactionsListQuery(filters?: TransactionFilters) {
  *   server echo arriving in a later page (see TransactionsListPage docs).
  * - Offline fallback mirrors the same paging window from Dexie. Those pages
  *   need no overlay: db.transactions already holds the unsynced rows.
+ *
+ * WINDOWED + BIDIRECTIONAL (maxPages): the in-memory window is capped to
+ * TRANSACTIONS_MAX_PAGES pages so an invalidation (every create/edit/delete,
+ * post-sync drain, "Refresh data") refetches at most a few pages instead of
+ * ALL loaded pages (up to ~200 at the 10k target). Because the cap can evict
+ * the earliest page while the user is scrolled deep, the query is TRULY
+ * bidirectional: getNextPageParam and getPreviousPageParam are both derived
+ * from the page's OWN absolute param (never `allPages.length`, which is only
+ * the next index while nothing has been evicted). Scrolling back up past the
+ * window re-fetches the evicted earlier pages via fetchPreviousPage. Because
+ * pageParam is the ABSOLUTE index, the offset math (from = pageParam * SIZE)
+ * stays correct in both directions. The overlay is applied only when page 0
+ * is in the window (see mergeTransactionPages); the TransactionList anchors
+ * scroll on prepend so the viewport does not jump.
  */
 export function useTransactions(filters?: TransactionFilters) {
   return useInfiniteQuery({
     queryKey: ["transactions", filters],
     initialPageParam: 0,
     queryFn: async ({ pageParam }): Promise<TransactionsListPage<TransactionWithRelations>> => {
+      // pageParam is the ABSOLUTE page index, so this offset stays correct
+      // whether the page was reached by paging forward or back (prepend).
       const from = pageParam * TRANSACTIONS_PAGE_SIZE;
       const to = from + TRANSACTIONS_PAGE_SIZE - 1;
 
@@ -564,7 +592,9 @@ export function useTransactions(filters?: TransactionFilters) {
           : [];
         return { rows: data as TransactionWithRelations[], localOverlay };
       } catch (error) {
-        // Offline fallback: same filters, joins and paging served from Dexie
+        // Offline fallback: same filters, joins and paging served from Dexie.
+        // Bidirectional works here too: the absolute pageParam drives the
+        // offset, so fetchPreviousPage reads the earlier window from Dexie.
         if (isLikelyNetworkError(error)) {
           console.warn("[useTransactions] Network unavailable - reading from Dexie");
           const rows = (await getLocalTransactionsWithRelations(filters, {
@@ -576,14 +606,20 @@ export function useTransactions(filters?: TransactionFilters) {
         throw error;
       }
     },
-    getNextPageParam: (lastPage, allPages) =>
-      lastPage.rows.length === TRANSACTIONS_PAGE_SIZE ? allPages.length : undefined,
-    // No maxPages cap: invalidation refetches every loaded page sequentially,
-    // which is accepted cost for typical few-page sessions. A cap would evict
-    // page 1 while the virtualizer still renders the full flattened list,
-    // dropping the top rows mid-scroll — do not add maxPages without also
-    // implementing bidirectional fetch (see plan doc Decisions & Deferrals).
-    select: (data) => mergeTransactionPages(data.pages),
+    // Absolute next index from the last page's OWN param. `allPages.length`
+    // would be wrong once maxPages has evicted a page.
+    getNextPageParam: (lastPage, _allPages, lastPageParam) =>
+      lastPage.rows.length === TRANSACTIONS_PAGE_SIZE ? lastPageParam + 1 : undefined,
+    // Absolute previous index from the first page's OWN param; stop at 0.
+    getPreviousPageParam: (_firstPage, _allPages, firstPageParam) =>
+      firstPageParam > 0 ? firstPageParam - 1 : undefined,
+    // Cap the in-memory window so invalidation refetches at most this many
+    // pages, not every loaded page. Bidirectional fetch (above) re-loads
+    // evicted pages on scroll-back; the list anchors scroll on prepend.
+    maxPages: TRANSACTIONS_MAX_PAGES,
+    // Pass the absolute page params so the overlay is applied only when page 0
+    // is in the window (a new/edited local row belongs at the top, review R9).
+    select: (data) => mergeTransactionPages(data.pages, data.pageParams),
     staleTime: 2 * 60 * 1000, // 2 minutes
     networkMode: "always", // run the queryFn offline so the Dexie fallback can serve
   });
