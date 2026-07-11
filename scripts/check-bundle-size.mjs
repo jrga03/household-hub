@@ -13,7 +13,10 @@
  * the Radix primitives the always-mounted layout uses, lucide icons). Driving
  * it under the 200KB aspiration needs an icon-strategy / Radix-lazy pass and
  * is tracked separately. BUDGET below locks in the current state as a
- * regression ceiling, not the final goal.
+ * regression ceiling, not the final goal. Bumped 340->355 in 2026-07 for the
+ * @supabase/supabase-js 2.75->2.110 upgrade (+~15KB eager JS, which also
+ * removed the vulnerable transitive `ws` dep and required Node 22); the
+ * icon-strategy / Radix-lazy pass remains the way to earn this headroom back.
  *
  * Run: npm run build && npm run size
  */
@@ -22,7 +25,7 @@ import { gzipSync } from "node:zlib";
 import { join } from "node:path";
 
 const DIST = "dist";
-const BUDGET_KB = 340; // gzip regression ceiling (current ~322); aspiration is <200
+const BUDGET_KB = 355; // gzip regression ceiling (current ~351 after supabase 2.110); aspiration is <200
 const MANIFEST = join(DIST, ".vite", "manifest.json");
 
 if (!existsSync(MANIFEST)) {
