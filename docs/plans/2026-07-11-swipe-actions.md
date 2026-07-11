@@ -15,6 +15,7 @@
 ### Task 1: Add the gesture dependency
 
 **Files:**
+
 - Modify: `package.json`, `package-lock.json`
 
 **Step 1:** `npm install @use-gesture/react` (headless pointer/drag gestures, ~4KB).
@@ -22,6 +23,7 @@
 **Step 2:** Verify it resolves: `node -e "require.resolve('@use-gesture/react')"` → prints a path, no error.
 
 **Step 3: Commit**
+
 ```bash
 git add package.json package-lock.json
 git commit -m "build: add @use-gesture/react for swipe actions"
@@ -34,10 +36,12 @@ git commit -m "build: add @use-gesture/react for swipe actions"
 Extract the two decisions that need no DOM, so the tuning logic is unit-tested even though the gesture itself can't be.
 
 **Files:**
+
 - Create: `src/lib/gestures/swipe.ts`
 - Test: `src/lib/gestures/swipe.test.ts`
 
 **Step 1: Write the failing test**
+
 ```typescript
 import { describe, it, expect } from "vitest";
 import { resolveSwipeAxis, resolveSnap, AXIS_LOCK_PX, SNAP_RATIO } from "./swipe";
@@ -74,6 +78,7 @@ describe("resolveSnap (40% open threshold)", () => {
 **Step 2: Run to verify it fails** — `npx vitest run src/lib/gestures/swipe.test.ts` → FAIL (module missing).
 
 **Step 3: Implement**
+
 ```typescript
 /** Pixels of movement before the axis lock commits. Direction-dominant:
  *  the larger axis wins; a tie is scroll (protect the list). */
@@ -98,6 +103,7 @@ export function resolveSnap(offsetX: number, trayWidth: number): "open" | "close
 **Step 4: Run to verify it passes** — `npx vitest run src/lib/gestures/swipe.test.ts` → PASS.
 
 **Step 5: Commit**
+
 ```bash
 git add src/lib/gestures/swipe.ts src/lib/gestures/swipe.test.ts
 git commit -m "feat: pure swipe axis-lock and snap decision helpers"
@@ -108,12 +114,14 @@ git commit -m "feat: pure swipe axis-lock and snap decision helpers"
 ### Task 3: SwipeableRow component (TDD for structure/a11y; gesture feel is device-tested)
 
 **Files:**
+
 - Create: `src/components/transactions/SwipeableRow.tsx`
 - Test: `src/components/transactions/SwipeableRow.test.tsx`
 
 **Behavior:** absolutely-positioned right-edge tray `[ Clear ][ Delete ]` (Delete outermost); a foreground layer holding `children`, moved by `transform: translateX`. `useDrag` with `resolveSwipeAxis` gating (only capture when axis === "x"), rubber-band past `-TRAY_WIDTH`, `resolveSnap` on release. Props: `{ isOpen, onOpenChange(open), onClear(), onDelete(), clearLabel, children }`. `touch-action: pan-y` on the root. Tray buttons `aria-hidden` + `tabIndex=-1` while closed.
 
 **Step 1: Write the failing test** (structure + a11y — jsdom can't drive the drag):
+
 ```typescript
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
@@ -150,6 +158,7 @@ describe("SwipeableRow", () => {
 **Step 2: Run to verify it fails** — FAIL (module missing).
 
 **Step 3: Implement** `SwipeableRow.tsx`. Key points (write the full component):
+
 - `TRAY_WIDTH = 144` (2 × 72px buttons).
 - `useDrag(({ movement:[mx], down, last, ... }) => {...}, { axis: undefined, filterTaps: true, pointer:{touch:true} })` — do axis lock manually with `resolveSwipeAxis(Math.abs(mx), Math.abs(my))`, ignore the gesture until it resolves to `"x"`; once `"y"`, bail for the rest of the gesture.
 - Track `x` in a spring/state; clamp to `[-TRAY_WIDTH * 1.2, 0]` with rubber-band past `-TRAY_WIDTH`.
@@ -161,6 +170,7 @@ describe("SwipeableRow", () => {
 **Step 4: Run to verify it passes** — `npx vitest run src/components/transactions/SwipeableRow.test.tsx` → PASS.
 
 **Step 5: Commit**
+
 ```bash
 git add src/components/transactions/SwipeableRow.tsx src/components/transactions/SwipeableRow.test.tsx
 git commit -m "feat: SwipeableRow with transform-only left-swipe tray"
@@ -171,6 +181,7 @@ git commit -m "feat: SwipeableRow with transform-only left-swipe tray"
 ### Task 4: Wire openRowId + close-on-scroll into TransactionList
 
 **Files:**
+
 - Modify: `src/components/TransactionList.tsx` (card branch ~line 405+, the `data-testid="transaction-row"` cards ~line 661)
 - Test: `src/components/TransactionList.test.tsx` (extend)
 
@@ -179,6 +190,7 @@ git commit -m "feat: SwipeableRow with transform-only left-swipe tray"
 **Step 2: Write the failing test** — wrap two card rows, opening one closes the other; a scroll event closes any open row. (Assert via `onOpenChange`/state exposed through the rows; if the virtualizer mock hides rows in jsdom, test the pure `openRowId` reducer instead — extract `nextOpenRowId(current, id, open)` and a `closeOnScroll` no-arg reset, and unit-test those.)
 
 **Step 3: Implement:**
+
 - Add `const [openRowId, setOpenRowId] = useState<string | null>(null)` in the card branch.
 - Wrap each card in `<SwipeableRow isOpen={openRowId === t.id} onOpenChange={(o) => setOpenRowId(o ? t.id : null)} ...>`.
 - Subscribe to the virtualizer scroll element: on `scroll`, `setOpenRowId(null)` (throttle with rAF). Attach via the existing `parentRef`/scroll container from Phase 4.
@@ -187,6 +199,7 @@ git commit -m "feat: SwipeableRow with transform-only left-swipe tray"
 **Step 4: Run** — `npx vitest run src/components/TransactionList.test.tsx` → PASS.
 
 **Step 5: Commit**
+
 ```bash
 git add src/components/TransactionList.tsx src/components/TransactionList.test.tsx
 git commit -m "feat: single-open swipe row state + close-on-scroll in transaction list"
@@ -197,12 +210,14 @@ git commit -m "feat: single-open swipe row state + close-on-scroll in transactio
 ### Task 5: Wire the Clear and Delete actions (reuse existing paths)
 
 **Files:**
+
 - Modify: `src/components/TransactionList.tsx`
 - Test: `src/components/TransactionList.test.tsx` (extend)
 
 **Step 1: Write the failing test** — tapping the tray Delete calls the same delete path as the row Delete button (mock `confirmAndDeleteTransaction`); tapping Clear calls `useToggleTransactionStatus().mutate(id)`; both then close the row (`openRowId → null`).
 
 **Step 2: Implement:**
+
 - `onDelete` → the existing `handleDelete(t)` (which already calls `confirmAndDeleteTransaction({ id, description, isTransferLeg, deleteTransaction, queryClient })`). On resolve, `setOpenRowId(null)`.
 - `onClear` → `toggleStatus.mutate(t.id)` from `useToggleTransactionStatus()`; `setOpenRowId(null)`.
 - `clearLabel` = `t.status === "pending" ? "Mark cleared" : "Mark pending"`.
@@ -210,6 +225,7 @@ git commit -m "feat: single-open swipe row state + close-on-scroll in transactio
 **Step 3: Run** — PASS.
 
 **Step 4: Commit**
+
 ```bash
 git add src/components/TransactionList.tsx src/components/TransactionList.test.tsx
 git commit -m "feat: wire swipe tray to delete-confirm and status-toggle"
@@ -220,6 +236,7 @@ git commit -m "feat: wire swipe tray to delete-confirm and status-toggle"
 ### Task 6: Reduced-motion + a11y polish
 
 **Files:**
+
 - Modify: `src/components/transactions/SwipeableRow.tsx`
 
 **Step 1:** Ensure the open/close transition uses a class covered by the Phase 3 `@media (prefers-reduced-motion: reduce)` block in `src/index.css` (durations flattened to 0.01ms). Verify by reading that block; if the transition is inline-style, switch to a utility class so the rule applies.
@@ -227,6 +244,7 @@ git commit -m "feat: wire swipe tray to delete-confirm and status-toggle"
 **Step 2:** Confirm the detail sheet still exposes Edit/Delete/status (unchanged) so swipe remains purely additive — no keyboard/SR regression.
 
 **Step 3: Commit** (if any change)
+
 ```bash
 git add src/components/transactions/SwipeableRow.tsx
 git commit -m "polish: respect reduced-motion for swipe tray animation"
@@ -236,9 +254,18 @@ git commit -m "polish: respect reduced-motion for swipe tray animation"
 
 ### Task 7: Manual device pass (cannot be unit-tested)
 
+> Status: Tasks 1-6 built, reviewed, committed. This device pass is the remaining
+> gate before the git-remote push. Review (2026-07-11) verified in code: the
+> virtualizer height invariant, pagination-listener coexistence (close-on-scroll
+> merged into the single existing scroll handler, touches no pagination refs),
+> single-open state, action reuse, reduced-motion class coverage, no-any. The
+> items below are the DEVICE-ONLY unknowns the review flagged.
+
 Run `npm run dev`, open on a real phone (or device emulation with touch). Verify, and record results in this plan doc:
-- Vertical scroll is never hijacked by a near-vertical thumb arc (axis lock at 10px feels right).
+
+- **[review finding 1, fixed — confirm it worked]** Vertical scroll is never hijacked by a near-vertical thumb arc. `touch-action: pan-y` was moved onto the element `useDrag` binds to (the foreground); confirm iOS Safari cleanly hands off vertical panning while horizontal swipe still captures.
 - Tray snaps open past ~40%, closed under; rubber-band past full width feels natural.
+- **[review finding 2 — decide on device]** A gesture between 3px (tap) and 10px (axis lock) on an OPEN row is currently a no-op (neither closes nor navigates). If that imprecise-tap dead zone feels bad, lower `AXIS_LOCK_PX` toward 3 or close an open row on a below-threshold release. Not a correctness bug.
 - Opening row B closes row A; scrolling closes any open row.
 - Delete opens the AlertDialog; Clear toggles status; both close the tray.
 - No virtualizer jump/flicker while swiping or after an action removes a row.
@@ -247,6 +274,14 @@ Run `npm run dev`, open on a real phone (or device emulation with touch). Verify
 If the 10px / 40% thresholds feel off, tune `AXIS_LOCK_PX` / `SNAP_RATIO` in `src/lib/gestures/swipe.ts` and re-test. Commit any tuning with a note of what felt wrong.
 
 ---
+
+### Caveat (out of scope, pre-existing): Clear action offline behavior
+
+`useToggleTransactionStatus` (reused per Task 5) is not offline-first and has no
+error toast — offline, a Clear silently fails while the tray has already closed.
+This is pre-existing behavior shared by the desktop table and detail sheet, not a
+swipe regression. Making that hook offline-first (optimistic + outbox + onError)
+would improve every caller; deferred.
 
 ### Task 8 (fast-follow, gated on Task 7 success): Drafts rows
 

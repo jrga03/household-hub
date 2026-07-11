@@ -42,6 +42,8 @@ import { useNavStore } from "@/stores/navStore";
 import { useContainerNarrow } from "@/hooks/useContainerWidth";
 import { cn } from "@/lib/utils";
 import { shouldAnchorPrepend } from "@/components/transactionListPrepend";
+import { SwipeableRow } from "@/components/transactions/SwipeableRow";
+import { nextOpenRowId } from "@/components/transactionSwipeState";
 
 /**
  * Start fetching the next page when the last rendered virtual row is within
@@ -101,6 +103,13 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Single-open swipe-row state (card presentation only). A row is open iff
+  // openRowId === txn.id, so opening one closes any other for free. Kept as a
+  // ref mirror too so the scroll listener can read it without re-subscribing.
+  const [openRowId, setOpenRowId] = useState<string | null>(null);
+  const openRowIdRef = useRef<string | null>(null);
+  openRowIdRef.current = openRowId;
 
   // Transactions with outstanding outbox items (reactive, local IndexedDB).
   // Rows absent from the map have no pending local changes; failed items
@@ -194,10 +203,26 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
   // finding 2's loop-break).
   const suppressScrollArmRef = useRef(false);
 
+  // Close-on-scroll: any open swipe row is dismissed as the list scrolls, so a
+  // recycled/scrolled-away row can never leave a phantom-open tray. rAF-coalesced
+  // so a scroll burst schedules at most one setState. Shares the SAME scroll
+  // handler/listener as the prev-fetch arming below (do NOT add a second listener
+  // — that risks racing prevFetchArmedRef / suppressScrollArmRef).
+  const closeRowRafRef = useRef<number | null>(null);
   useEffect(() => {
     const scrollEl = parentRef.current;
     if (!scrollEl) return;
     const onScroll = () => {
+      // Close-on-scroll runs for BOTH real and synthetic scrolls (the anchor's
+      // programmatic scrollTop write should also dismiss any open tray). Only
+      // schedule when a row is actually open, so idle scrolling costs nothing.
+      if (openRowIdRef.current !== null && closeRowRafRef.current === null) {
+        closeRowRafRef.current = window.requestAnimationFrame(() => {
+          closeRowRafRef.current = null;
+          setOpenRowId(null);
+        });
+      }
+
       if (suppressScrollArmRef.current) {
         suppressScrollArmRef.current = false;
         return;
@@ -205,7 +230,13 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
       prevFetchArmedRef.current = true;
     };
     scrollEl.addEventListener("scroll", onScroll, { passive: true });
-    return () => scrollEl.removeEventListener("scroll", onScroll);
+    return () => {
+      scrollEl.removeEventListener("scroll", onScroll);
+      if (closeRowRafRef.current !== null) {
+        window.cancelAnimationFrame(closeRowRafRef.current);
+        closeRowRafRef.current = null;
+      }
+    };
     // Re-bind when the scroll element remounts (presentation switch is keyed).
   }, [presentation]);
 
@@ -721,6 +752,22 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
             >
               {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                 const transaction = transactions[virtualRow.index];
+                const rowOpen = openRowId === transaction.id;
+                // Clear/Pending label mirrors the current status (same
+                // semantics as the table's status toggle button).
+                const clearLabel =
+                  transaction.status === "pending" ? "Mark cleared" : "Mark pending";
+
+                // Foreground tap: when the tray is OPEN a tap closes it
+                // (an open row must not fight the tap target); when closed it
+                // is the existing detail/edit open (review R14).
+                const handleForegroundTap = () => {
+                  if (rowOpen) {
+                    setOpenRowId(null);
+                    return;
+                  }
+                  onEdit(transaction.id);
+                };
 
                 return (
                   <div
@@ -728,7 +775,11 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
                     data-index={virtualRow.index}
                     data-testid="transaction-row"
                     ref={rowVirtualizer.measureElement}
-                    // Padding (not margin) so measureElement includes the gap
+                    // Padding (not margin) so measureElement includes the gap.
+                    // INVARIANT: this wrapper's height must NEVER change on
+                    // swipe — SwipeableRow only translates a foreground layer,
+                    // so measureElement stays stable and the virtualizer is
+                    // unaware of the gesture.
                     className="pb-2"
                     style={{
                       position: "absolute",
@@ -738,66 +789,88 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
                   >
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => onEdit(transaction.id)}
-                      onKeyDown={handleRowKeyDown(transaction.id)}
-                      aria-label={`View ${transaction.description}`}
-                      className="flex cursor-pointer items-center gap-3 rounded-lg border bg-card p-3 active:bg-accent"
+                    <SwipeableRow
+                      isOpen={rowOpen}
+                      onOpenChange={(open) =>
+                        setOpenRowId((current) => nextOpenRowId(current, transaction.id, open))
+                      }
+                      clearLabel={clearLabel}
+                      onClear={() => {
+                        toggleStatus.mutate(transaction.id);
+                        setOpenRowId(null);
+                      }}
+                      onDelete={() => {
+                        // Reuse the shared confirm+delete path (review R38); the
+                        // row unmounts on confirm, so closing here just tidies
+                        // the tray on cancel/failure.
+                        void handleDelete(
+                          transaction.id,
+                          transaction.description,
+                          !!transaction.transfer_group_id
+                        ).finally(() => setOpenRowId(null));
+                      }}
                     >
-                      <Checkbox
-                        checked={selectedIds.has(transaction.id)}
-                        onCheckedChange={(checked: boolean) =>
-                          handleSelectOne(transaction.id, checked)
-                        }
-                        onClick={(e) => e.stopPropagation()}
-                        aria-label={`Select ${transaction.description}`}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="truncate font-medium">{transaction.description}</p>
-                          <SyncBadge
-                            status={rowSyncStatuses?.get(transaction.id) ?? "synced"}
-                            size="xs"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{format(parseISO(transaction.date), "MMM d")}</span>
-                          {transaction.category && (
-                            <>
-                              <span>•</span>
-                              <span className="truncate">{transaction.category.name}</span>
-                            </>
-                          )}
-                          {transaction.account && (
-                            <>
-                              <span>•</span>
-                              <span className="truncate">{transaction.account.name}</span>
-                            </>
-                          )}
-                        </div>
-                        {transaction.notes && (
-                          <div className="truncate text-xs text-muted-foreground">
-                            {transaction.notes}
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={handleForegroundTap}
+                        onKeyDown={handleRowKeyDown(transaction.id)}
+                        aria-label={`View ${transaction.description}`}
+                        className="flex cursor-pointer items-center gap-3 rounded-lg border bg-card p-3 active:bg-accent"
+                      >
+                        <Checkbox
+                          checked={selectedIds.has(transaction.id)}
+                          onCheckedChange={(checked: boolean) =>
+                            handleSelectOne(transaction.id, checked)
+                          }
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`Select ${transaction.description}`}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="truncate font-medium">{transaction.description}</p>
+                            <SyncBadge
+                              status={rowSyncStatuses?.get(transaction.id) ?? "synced"}
+                              size="xs"
+                            />
                           </div>
-                        )}
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p
-                          className={cn(
-                            "font-mono font-semibold",
-                            transaction.type === "income" ? "text-income" : "text-expense"
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{format(parseISO(transaction.date), "MMM d")}</span>
+                            {transaction.category && (
+                              <>
+                                <span>•</span>
+                                <span className="truncate">{transaction.category.name}</span>
+                              </>
+                            )}
+                            {transaction.account && (
+                              <>
+                                <span>•</span>
+                                <span className="truncate">{transaction.account.name}</span>
+                              </>
+                            )}
+                          </div>
+                          {transaction.notes && (
+                            <div className="truncate text-xs text-muted-foreground">
+                              {transaction.notes}
+                            </div>
                           )}
-                        >
-                          {transaction.type === "income" ? "+" : "-"}
-                          {formatPHP(transaction.amount_cents)}
-                        </p>
-                        <p className="text-xs capitalize text-muted-foreground">
-                          {transaction.status}
-                        </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p
+                            className={cn(
+                              "font-mono font-semibold",
+                              transaction.type === "income" ? "text-income" : "text-expense"
+                            )}
+                          >
+                            {transaction.type === "income" ? "+" : "-"}
+                            {formatPHP(transaction.amount_cents)}
+                          </p>
+                          <p className="text-xs capitalize text-muted-foreground">
+                            {transaction.status}
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    </SwipeableRow>
                   </div>
                 );
               })}

@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TransactionList } from "./TransactionList";
 import { confirm } from "@/lib/confirm";
@@ -293,5 +293,73 @@ describe("infinite pagination (R10)", () => {
     // Honest label: selection covers loaded rows, count shows the full
     // filtered set from the server summary
     expect(screen.getByText("1 of 500 selected")).toBeInTheDocument();
+  });
+});
+
+// Helper: the SwipeableRow tray lives inside each card's transaction-row.
+function trayFor(description: string) {
+  const card = screen.getByRole("button", { name: `View ${description}` });
+  // The tray buttons are siblings of the foreground inside the SwipeableRow
+  // wrapper, so scope to the whole row container.
+  const row = card.closest('[data-testid="transaction-row"]');
+  if (!row) throw new Error("row not found");
+  return within(row as HTMLElement);
+}
+
+describe("swipe-tray actions on cards (Task 4/5)", () => {
+  beforeEach(() => {
+    mockIsNarrow.mockReturnValue(true); // card presentation
+  });
+
+  it("renders a Clear/Delete tray per card with a status-derived Clear label", () => {
+    // Both fixtures default to pending → Clear label is "Mark cleared"
+    renderList();
+    const tray = trayFor("Groceries");
+    expect(tray.getByRole("button", { name: "Mark cleared" })).toBeInTheDocument();
+    expect(tray.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+  });
+
+  it("labels Clear as 'Mark pending' when the row is already cleared", () => {
+    mockTransactionsQuery.mockReturnValue({
+      data: [buildTransaction({ id: "txn-1", description: "Groceries", status: "cleared" })],
+      isLoading: false,
+      fetchNextPage,
+      hasNextPage: false,
+      isFetchingNextPage: false,
+    });
+    renderList();
+    const tray = trayFor("Groceries");
+    expect(tray.getByRole("button", { name: "Mark pending" })).toBeInTheDocument();
+  });
+
+  it("tray Clear toggles status via the shared toggle hook", () => {
+    const onEdit = renderList();
+    const tray = trayFor("Groceries");
+
+    fireEvent.click(tray.getByRole("button", { name: "Mark cleared" }));
+
+    expect(toggleMutate).toHaveBeenCalledWith("txn-1");
+    // Acting on the tray must not open the detail sheet
+    expect(onEdit).not.toHaveBeenCalled();
+  });
+
+  it("tray Delete routes through the shared confirm+delete path", () => {
+    const onEdit = renderList();
+    const tray = trayFor("Groceries");
+
+    fireEvent.click(tray.getByRole("button", { name: "Delete" }));
+
+    // Same confirm mechanism as the per-row / detail-sheet Delete (review R38)
+    expect(vi.mocked(confirm)).toHaveBeenCalled();
+    expect(onEdit).not.toHaveBeenCalled();
+  });
+
+  it("a closed-row foreground tap still opens the detail (onEdit)", () => {
+    const onEdit = renderList();
+
+    // No swipe driven → row is closed → tap opens as before
+    fireEvent.click(screen.getByRole("button", { name: "View Groceries" }));
+
+    expect(onEdit).toHaveBeenCalledWith("txn-1");
   });
 });
