@@ -193,6 +193,9 @@ describe("useHistoryBackClose", () => {
     expect(indexOf(history)).toBe(1);
 
     act(() => setOpenControls.a(false));
+    // The consume decision is deferred one microtask (so a same-task
+    // navigation is never rolled back); flush it before asserting.
+    await act(async () => {});
     expect(indexOf(history)).toBe(0);
     expect(closeSpies.a).not.toHaveBeenCalled();
 
@@ -206,6 +209,9 @@ describe("useHistoryBackClose", () => {
     act(() => setOpenControls.a(true));
     act(() => setOpenControls.a(false));
     act(() => setOpenControls.a(true));
+    // Let the deferred consume settle and the re-arm land (in a browser this
+    // happens at the task boundary, before any further user input can arrive)
+    await act(async () => {});
     expect(indexOf(history)).toBe(1);
 
     act(() => history.back());
@@ -317,6 +323,30 @@ describe("useHistoryBackClose with browser-like async pop timing", () => {
     expect(indexOf(history)).toBe(0);
   });
 
+  it("does not roll back a navigation pushed right after the overlay closed (drawer-link tap)", async () => {
+    const { history } = await setup({ asyncBack: true });
+
+    act(() => setOpenControls.a(true));
+    expect(indexOf(history)).toBe(1);
+
+    // A drawer-link tap closes the overlay AND navigates in one task, but in
+    // that order: TanStack Router's Link handler flushes the close render
+    // (and this hook's cleanup) via flushSync BEFORE router.navigate()
+    // commits the push. The cleanup's consuming back() is therefore already
+    // queued when the new location lands, and the traversal executes AFTER
+    // it — the reverse ordering of "does not roll back a navigation
+    // performed while the overlay was open" above. Regression test for the
+    // dead mobile drawer (Settings tap bounced back, 2026-07-13).
+    act(() => setOpenControls.a(false)); // cleanup queues the async consuming back()
+    act(() => history.push("/other")); // push lands before that pop
+    await act(async () => {});
+
+    // The queued pop must NOT consume the navigation
+    expect(history.location.pathname).toBe("/other");
+    expect(indexOf(history)).toBe(2);
+    expect(closeSpies.a).not.toHaveBeenCalled();
+  });
+
   it("StrictMode double effect run does not close an overlay that is open at mount", async () => {
     const { history } = await setup({ asyncBack: true, strictMode: true, openAtMountHost: true });
 
@@ -352,6 +382,54 @@ describe("useHistoryBackClose with browser-like async pop timing", () => {
     act(() => history.back());
     await waitFor(() => expect(closeSpies.a).toHaveBeenCalledTimes(1));
     expect(indexOf(history)).toBe(0);
+  });
+
+  it("a navigation racing the in-flight consuming back() does not wedge future arming", async () => {
+    const { history } = await setup({ asyncBack: true });
+
+    act(() => setOpenControls.a(true)); // sentinel @1
+    act(() => setOpenControls.a(false)); // reserves the consume, defers the decision
+    await Promise.resolve(); // decision microtask runs: back() issued, pop still in flight
+    act(() => history.push("/other")); // push lands inside the traversal window (@2)
+    await act(async () => {}); // pop lands — on the pushed entry, back at the sentinel (@1)
+
+    // The pop swallowing the racing push is the documented residual cost of a
+    // queued traversal; what must NOT happen is the pending-consume
+    // reservation wedging (it would park every future arm in `waiters`
+    // forever). A newly opened overlay must still arm and close on back.
+    act(() => setOpenControls.b(true));
+    await act(async () => {});
+    expect(indexOf(history)).toBe(2);
+
+    act(() => history.back());
+    await waitFor(() => expect(closeSpies.b).toHaveBeenCalledTimes(1));
+    expect(indexOf(history)).toBe(1);
+  });
+
+  it("a throwing back() does not leak the pending-consume reservation", async () => {
+    const { history } = await setup();
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    act(() => setOpenControls.a(true));
+    const realBack = history.back.bind(history);
+    history.back = () => {
+      history.back = realBack; // one-shot failure
+      throw new Error("simulated traversal failure");
+    };
+    act(() => setOpenControls.a(false));
+    await act(async () => {}); // decision microtask: back() throws
+
+    // The reservation must settle anyway so the next overlay still arms
+    // (its sentinel stacks on top of the now-stale one) and back still
+    // closes it.
+    act(() => setOpenControls.b(true));
+    await act(async () => {});
+    expect(indexOf(history)).toBe(2);
+
+    act(() => history.back());
+    await waitFor(() => expect(closeSpies.b).toHaveBeenCalledTimes(1));
+    expect(indexOf(history)).toBe(1);
+    consoleError.mockRestore();
   });
 
   it("closing a still-deferred overlay before the pop lands pushes nothing", async () => {

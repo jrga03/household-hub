@@ -16,7 +16,10 @@ import type { RegisteredRouter, RouterHistory } from "@tanstack/react-router";
  * - Closed by back: the pop consumed the sentinel; nothing else to do.
  * - Closed by other means (X button, Escape, backdrop, programmatic): the
  *   effect cleanup consumes the sentinel with `history.back()` so no stale
- *   duplicate entry is left behind.
+ *   duplicate entry is left behind. The back() is deferred one microtask
+ *   with a re-check, so a navigation committed in the same task (a nav-link
+ *   tap that closes the overlay before the router's push lands) is never
+ *   rolled back — see consumeSentinel.
  * - Stacked overlays each push their own sentinel; back closes the top-most
  *   one at a time (same-href pushes are recognized as sibling sentinels and
  *   do not disarm this instance).
@@ -29,12 +32,13 @@ import type { RegisteredRouter, RouterHistory } from "@tanstack/react-router";
  * when B's mount effect runs. Without coordination B would read its
  * baseIndex from A's still-current sentinel, push on top of it, and A's
  * landing pop would then drop the index to B's baseIndex — instantly closing
- * B. So every sentinel-consuming back() registers a PENDING CONSUME settled
- * by a one-shot history subscription when the pop actually lands, and a
- * newly-arming instance defers its sentinel push until all pending consumes
- * have settled, THEN reads baseIndex. Memory history (used in most tests)
- * pops synchronously, so consumes settle inline and arming stays fully
- * synchronous there.
+ * B. So every sentinel-consuming close reserves a PENDING CONSUME
+ * synchronously (settled by a one-shot history subscription when its pop
+ * lands, or cancelled by the microtask re-check), and a newly-arming
+ * instance defers its sentinel push until all pending consumes have
+ * settled, THEN reads baseIndex. The consume decision itself is always one
+ * microtask deferred — even on memory history (used in most tests), where
+ * the pop then lands synchronously once issued.
  *
  * Edge cases intentionally NOT handled (kept simple on purpose — history
  * manipulation is risky):
@@ -48,6 +52,13 @@ import type { RegisteredRouter, RouterHistory } from "@tanstack/react-router";
  *   entry stays in the stack (again one extra back press). A hardware back
  *   while it is still open closes it AND reverts to the pre-change URL
  *   (back-as-undo).
+ * - A navigation that commits while a consuming back() traversal is already
+ *   IN FLIGHT (cross-task: e.g. an after-save callback navigating right as
+ *   a sheet closes) still gets popped by that traversal — queued browser
+ *   traversals execute even if a push lands in between, and nothing can
+ *   recall them. The bookkeeping settles regardless (the consume
+ *   subscription raises its landing threshold when it sees the racing
+ *   push), so back-close handling keeps working afterwards.
  */
 
 interface HistoryBookkeeping {
@@ -69,26 +80,88 @@ function getBookkeeping(history: RouterHistory): HistoryBookkeeping {
   return book;
 }
 
+function settleConsume(book: HistoryBookkeeping): void {
+  book.pendingConsumes -= 1;
+  if (book.pendingConsumes === 0) {
+    const waiters = book.waiters.splice(0);
+    for (const waiter of waiters) waiter();
+  }
+}
+
 /**
  * Consume a sentinel with `history.back()`, tracking the traversal as a
  * pending consume until the pop lands (index drops to `targetIndex` or
  * below). A pop blocked by a `useBlocker` (dirty-form discard prompt)
  * notifies with the index unchanged, so it neither settles the consume nor
  * disarms anyone — matching the pre-existing blocked-pop behavior.
+ *
+ * The back() itself is DEFERRED one microtask, with the sentinel re-checked
+ * before issuing it. Reason: a nav-link tap inside an overlay closes it AND
+ * navigates in the same task, but in that order — TanStack Router's Link
+ * handler flushes the close render (and this hook's effect cleanup) via
+ * flushSync BEFORE router.navigate() commits the push. At cleanup time the
+ * sentinel still looks topmost even though a push is in flight; consuming
+ * synchronously queues an async back() traversal that executes AFTER that
+ * push and yanks the user off the route they just navigated to (the dead
+ * mobile drawer, 2026-07-13). The router updates its in-memory location
+ * synchronously on push, so by microtask time an in-flight navigation is
+ * visible: the consume is then cancelled and the sentinel stays buried
+ * (same documented tradeoff as a push landing first: one extra same-URL
+ * back press later). The pendingConsumes reservation still happens
+ * SYNCHRONOUSLY so a same-commit successor overlay (handoff, StrictMode)
+ * keeps deferring its arm until this decision settles, exactly as before.
  */
-function consumeSentinel(history: RouterHistory, targetIndex: number): void {
+function consumeSentinel(
+  history: RouterHistory,
+  targetIndex: number,
+  sentinelIndex: number,
+  sentinelKey: string | undefined
+): void {
   const book = getBookkeeping(history);
   book.pendingConsumes += 1;
-  const unsubscribe = history.subscribe(({ location }) => {
-    if (location.state.__TSR_index > targetIndex) return;
-    unsubscribe();
-    book.pendingConsumes -= 1;
-    if (book.pendingConsumes === 0) {
-      const waiters = book.waiters.splice(0);
-      for (const waiter of waiters) waiter();
+  queueMicrotask(() => {
+    let consuming = false;
+    let unsubscribe: (() => void) | undefined;
+    try {
+      const { state } = history.location;
+      const currentKey = state.__TSR_key ?? state.key;
+      if (state.__TSR_index !== sentinelIndex || currentKey !== sentinelKey) {
+        // The sentinel is no longer the current entry — a navigation
+        // committed in the same task, a replace changed its key, or a
+        // stacked sibling's sentinel is still above it. Backing out now
+        // would roll a navigation back (or pop the wrong entry); leave it
+        // buried instead. `finally` settles the reservation.
+        return;
+      }
+      // Settle when the traversal lands. Normally that is the base entry
+      // (`targetIndex`); if a navigation slips into the traversal's
+      // in-flight window, the pop executes from the pushed entry and lands
+      // back ON the sentinel — raise the threshold so the reservation still
+      // settles instead of parking every future arm in `waiters` forever.
+      // (That racing navigation getting popped is the residual cost of a
+      // queued traversal; see "Edge cases intentionally NOT handled".)
+      let threshold = targetIndex;
+      unsubscribe = history.subscribe(({ location, action }) => {
+        if (action.type === "PUSH" && location.state.__TSR_index > sentinelIndex) {
+          threshold = sentinelIndex;
+          return;
+        }
+        if (location.state.__TSR_index > threshold) return;
+        unsubscribe?.();
+        settleConsume(book);
+      });
+      history.back();
+      consuming = true;
+    } catch (error) {
+      // A torn-down or throwing history must not leak the reservation —
+      // that would silently disable back-close handling for the whole
+      // session. Nothing upstream can catch a microtask throw, so log it.
+      unsubscribe?.();
+      console.error("useHistoryBackClose: consuming the sentinel failed", error);
+    } finally {
+      if (!consuming) settleConsume(book);
     }
   });
-  history.back();
 }
 
 export function useHistoryBackClose(open: boolean, onClose: () => void): void {
@@ -142,13 +215,15 @@ export function useHistoryBackClose(open: boolean, onClose: () => void): void {
         unsubscribe();
         if (!armed) return;
         armed = false;
-        const { state } = history.location;
-        const currentKey = state.__TSR_key ?? state.key;
-        // Closed by other means with the sentinel still on top and unreplaced:
-        // consume it so the stack keeps no stale duplicate entry.
-        if (state.__TSR_index === sentinelIndex && currentKey === sentinelKey) {
-          consumeSentinel(history, baseIndex);
-        }
+        // Closed by other means: consume the sentinel so the stack keeps no
+        // stale duplicate entry. Whether it is actually still the current
+        // entry is decided one microtask later inside consumeSentinel — it
+        // can change within this task (an in-flight navigation push, a
+        // replace, a stacked sibling's deferred consume popping first), and
+        // deciding synchronously here rolled same-task navigations back (the
+        // dead mobile drawer, 2026-07-13). The reservation itself is taken
+        // synchronously so same-commit successors keep deferring their arm.
+        consumeSentinel(history, baseIndex, sentinelIndex, sentinelKey);
       };
     };
 

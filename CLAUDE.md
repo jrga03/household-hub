@@ -399,6 +399,17 @@ See docs/initial plan/DECISIONS.md for complete rationale.
 - **Storage quota**: Monitor with `navigator.storage.estimate()`
   - Warn at 80%, prune at 95%
 
+### PWA Update Flow
+
+- **Update-handoff stale-chunk window (known, self-healing)**: after the user
+  accepts the update prompt, `skipWaiting` + `clients.claim()` purge old-hash
+  chunks up to ~3s before `useServiceWorker`'s reload lands (and indefinitely
+  for a second un-reloaded window / iOS-restored page); a code-split route tap
+  in that state triggers TanStack Router's built-in one-shot
+  module-not-found → `location.reload()`, so it presents as a single
+  unexpected reload, never a dead UI. No code change warranted (verified
+  2026-07-13).
+
 ### Free Tier Limits
 
 - **Supabase**: 500MB database (sufficient for years)
