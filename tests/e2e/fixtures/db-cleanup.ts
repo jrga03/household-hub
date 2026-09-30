@@ -41,7 +41,18 @@ const adminClient =
     : null;
 
 /**
- * Delete test transactions (description contains "[E2E]")
+ * Delete only the transactions a test created, by exact description. Specs run
+ * fully parallel, so a pattern-wide delete would remove a sibling's rows.
+ */
+export async function deleteTestTransactions(descriptions: string[]) {
+  if (!adminClient || descriptions.length === 0) return;
+  const { error } = await adminClient.from("transactions").delete().in("description", descriptions);
+  if (error) console.error("Failed to delete test transactions:", error);
+}
+
+/**
+ * Delete every [E2E] transaction. Full sweep for cleanupAll only; never call
+ * it from a per-test hook.
  */
 export async function cleanupTestTransactions(userId?: string) {
   if (!adminClient) return;

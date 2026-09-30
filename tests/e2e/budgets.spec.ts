@@ -31,7 +31,7 @@ test.describe("Budgets", () => {
 
   test("create budget: fill form and verify in list", async ({ page }) => {
     category = await createTestCategory("Budget");
-    test.skip(!category, "Admin client unavailable - cannot create an isolated budget category");
+    expect(category, "admin client (.env.test) is required to seed a category").not.toBeNull();
 
     // Scoped to <main>: the sidebar's "Add Transaction" button precedes the
     // page's own controls in the DOM

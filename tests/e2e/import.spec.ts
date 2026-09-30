@@ -1,11 +1,21 @@
 import { test, expect } from "@playwright/test";
 import { login } from "./fixtures/helpers";
-import { cleanupTestTransactions } from "./fixtures/db-cleanup";
+import { deleteTestTransactions } from "./fixtures/db-cleanup";
+import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import path from "path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const importedDescriptions = readFileSync(
+  path.resolve(__dirname, "fixtures/test-import.csv"),
+  "utf-8"
+)
+  .trim()
+  .split("\n")
+  .slice(1)
+  .map((line) => line.split(",")[1]);
 
 test.describe("CSV Import Wizard", () => {
   test.beforeEach(async ({ page }) => {
@@ -13,7 +23,7 @@ test.describe("CSV Import Wizard", () => {
   });
 
   test.afterEach(async () => {
-    await cleanupTestTransactions();
+    await deleteTestTransactions(importedDescriptions);
   });
 
   test("upload CSV file and navigate through wizard steps", async ({ page }) => {

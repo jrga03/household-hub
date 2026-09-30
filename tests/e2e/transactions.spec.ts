@@ -1,14 +1,18 @@
 import { test, expect, type Page } from "@playwright/test";
 import { login } from "./fixtures/helpers";
 import {
-  cleanupTestTransactions,
   createTestCategory,
   deleteTestCategory,
+  deleteTestTransactions,
   type TestCategory,
 } from "./fixtures/db-cleanup";
 
+let createdDescriptions: string[] = [];
+
 function uniqueDescription(label: string) {
-  return `[E2E] ${label} ${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+  const description = `[E2E] ${label} ${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+  createdDescriptions.push(description);
+  return description;
 }
 
 function transactionRow(page: Page, description: string) {
@@ -50,7 +54,8 @@ test.describe("Transactions", () => {
   });
 
   test.afterEach(async () => {
-    await cleanupTestTransactions();
+    await deleteTestTransactions(createdDescriptions);
+    createdDescriptions = [];
     await deleteTestCategory(category);
     category = null;
   });
@@ -67,6 +72,7 @@ test.describe("Transactions", () => {
   test("should edit transaction", async ({ page }) => {
     const description = uniqueDescription("Edit");
     const updatedDescription = `${description} Updated`;
+    createdDescriptions.push(updatedDescription);
     await createExpense(page, { description, amount: "250.00", category: category!.name });
 
     // Below the @[1500px] container breakpoint a row click opens the
