@@ -1090,7 +1090,16 @@ At 90 minutes, or once the root cause is confirmed, whichever comes first, go to
 **Task 8 notes** (fill in during execution):
 
 - Hypotheses tested:
-- Outcome:
+  - H1 app points at the wrong Supabase port: ruled out. `.env.local`/`.env.test` and `supabase status` all say `127.0.0.1:54331`; the lifecycle port bug is not hit because the stack was already running.
+  - H2 sign-in is broken: ruled out. Failure snapshots show the authenticated sidebar; the specs expected `/dashboard` (a legacy redirect to `/`), a "welcome" text and a `User menu` control that no longer exist. Fixed in the auth spec.
+  - H3 preview serves a stale bundle: confirmed as a trap. `dist/` was built 2026-07-13; `npm run preview` serves it as-is. Rebuilt before every run.
+  - H4 transactions `beforeEach` races login: confirmed. It navigated to `/transactions` before the submit finished and landed on `/login`. Switched to the shared `login()` helper.
+  - H5 budgets locators hit layout chrome: confirmed. `h1` first-matched the hidden tablet-header title; the Add button clause matched the sidebar's "Add Transaction". Scoped to `<main>`.
+  - H6 transaction form locators are stale: confirmed (`[name="description"]` first-matches `<meta>`; type is a radio group; account is a Radix Select). Rewritten with roles, [E2E]-prefixed data and cleanup.
+  - H7 category combobox has no accessible name: confirmed app a11y bug (CategorySelector dropped FormControl's id/aria props). Fixed with a unit test.
+  - H8 no categories to pick: confirmed, local DB has 0 categories. Each test now seeds and deletes its own uniquely named [E2E] category (the old shared `cleanupTestCategories()` would race parallel specs).
+  - H9 category option click intercepted by the dialog: confirmed genuine app bug. Dialog 1.1.19 nests `react-dismissable-layer@1.1.15`, popover uses the hoisted 1.1.11, so the popover inherits `pointer-events: none` from body. Vite `resolve.dedupe` fails to build (`useDismissableLayerSurface` missing in 1.1.11). Needs a coordinated `@radix-ui/*` upgrade; not done here.
+- Outcome: B. Smoke is 7 passed / 4 failed on chromium; the 4 failures are all H9. Recorded in CLAUDE.md Known Infrastructure Issues.
 
 ---
 
