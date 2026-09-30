@@ -1146,7 +1146,7 @@ Expected: the first grep prints nothing. The second grep will print non-money us
 - In `docs/plans/2026-09-30-phase-0-live-bugs-design.md` section 6, tick each completed item.
 - In `docs/plans/2026-09-30-guardrails-roadmap.md` Phase 0, tick each completed item; for the E2E item, add ` (outcome: A|B, see Task 8 notes)`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add docs/plans/2026-09-30-phase-0-live-bugs-design.md docs/plans/2026-09-30-guardrails-roadmap.md docs/plans/2026-09-30-phase-0-live-bugs.md

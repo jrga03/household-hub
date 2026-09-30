@@ -153,7 +153,7 @@ Note that `parsePHP` is itself `Math.round(parseFloat(s) * 100)`, so the value o
 
 The second selector is allowlisted for `src/lib/sync/**` and `src/lib/debts/sync.ts`. `src/hooks/useTransfers.ts:42` matches it today and is triaged in Phase 0: if `TransferForm` really goes straight to Supabase, it is routed through `src/lib/offline/transfers.ts`.
 
-**Test layer.** `src/lib/offline/outbox.invariant.test.ts`, table-driven over every exported mutation in `src/lib/offline/*` and `src/lib/debts/*` (fake-indexeddb is already a devDependency). For each mutation: (a) calling it adds at least one `syncQueue` row; (b) when `buildSyncQueueItem` is stubbed to throw, the entity table is unchanged, which proves the write and the enqueue share one transaction. A new exported mutation that is missing from the table fails the test via an exhaustiveness check over the module's exports.
+**Test layer.** `src/lib/offline/outbox.invariant.test.ts`, table-driven over every exported mutation in `src/lib/offline/*` and `src/lib/debts/*` (fake-indexeddb is already a devDependency). For each mutation: (a) calling it adds at least one `syncQueue` row; (b) when `db.syncQueue.bulkAdd` rejects inside the transaction, the entity table is unchanged, which proves the write and the enqueue share one transaction. (Stubbing `buildSyncQueueItem` does not prove this: queue items are built before the transaction opens.) A new exported mutation that is missing from the table fails the test via an exhaustiveness check over the module's exports.
 
 **Dexie schema snapshot.** Extend `db.upgrade.test.ts` with a snapshot of each version's `stores()` argument, so editing an already-shipped version fails a test instead of corrupting upgrades in the field.
 
@@ -347,11 +347,21 @@ Specified in `docs/plans/2026-09-30-phase-0-live-bugs-design.md`, which supersed
 - [x] Fix `cleanupTestBudgets` (no `notes` column; key E2E budgets by category and month instead) and the auth specs; get `test:e2e:smoke` green on chromium (outcome: A, smoke 11/11 on chromium after Task 8b; see Task 8 notes)
 - [x] Fix the five ad hoc money parses per site (not all through `parsePHP`: `transactions.tsx:49-50` parse URL params that are already cents)
 
+### Phase 0.5: Remaining Supabase writes onto the outbox
+
+Added 2026-09-30. `src/lib/supabaseQueries.ts` has 15 direct writes from live hooks; Phase 0 did not clear them (see the Phase 0 design's Decisions & Deferrals).
+
+- [ ] Transactions: `useUpdateTransaction`, `useDeleteTransaction`, `useSetTransactionStatus`, `useToggleTransactionStatus` through `src/lib/offline/transactions.ts`, with enqueue-then-drain-and-invalidate
+- [ ] Accounts: create and deactivate through `src/lib/offline/accounts.ts`
+- [ ] Categories: create and deactivate through `src/lib/offline/categories.ts`
+- [ ] Budgets: insert, upsert, delete through `src/lib/offline/budgets.ts`
+- [ ] Then flip the Phase 1 Supabase-write selector from `warn` to `error`
+
 ### Phase 1: Cheap wins
 
 - [ ] Wire `jsx-a11y` recommended into `eslint.config.js`; fix 10 violations
 - [ ] Enable `noImplicitOverride` and `verbatimModuleSyntax`; fix 12 errors
-- [ ] Add the Dexie-write, Supabase-write, money, data-access, and `.from("transactions")` selectors (4.4 to 4.6) as `error`; all known violations are cleared by Phase 0
+- [ ] Add the Dexie-write, money, data-access, and `.from("transactions")` selectors (4.4 to 4.6) as `error`, and the Supabase-write selector as `warn` until Phase 0.5 is done
 - [ ] Add `tsconfig.tests.json` (with explicit `@types/node`) and `tsconfig.strict.json`; run both in CI
 - [ ] Add the four hooks (4.9) and merge them into the existing `.claude/settings.json`
 - [ ] Dependabot config and `audit` job (4.11)
