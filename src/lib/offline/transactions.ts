@@ -22,6 +22,7 @@
 import { db, type LocalTransaction } from "@/lib/dexie/db";
 import { deviceManager } from "@/lib/dexie/deviceManager";
 import { buildSyncQueueItem } from "./syncQueue";
+import { ensureLocalRow } from "./ensureLocal";
 import { processDebtPayment, handleTransactionEdit, handleTransactionDelete } from "@/lib/debts";
 import type { TransactionInput, OfflineOperationResult } from "./types";
 import type { SyncQueueItem } from "@/types/sync";
@@ -168,7 +169,7 @@ export async function updateOfflineTransaction(
 ): Promise<OfflineOperationResult<LocalTransaction>> {
   try {
     // Get existing transaction
-    const existing = await db.transactions.get(id);
+    const existing = await ensureLocalRow("transactions", id);
     if (!existing) {
       return {
         success: false,
@@ -279,7 +280,7 @@ export async function deleteOfflineTransaction(
 ): Promise<OfflineOperationResult<void>> {
   try {
     // Verify transaction exists before attempting delete
-    const existing = await db.transactions.get(id);
+    const existing = await ensureLocalRow("transactions", id);
     if (!existing) {
       return {
         success: false,

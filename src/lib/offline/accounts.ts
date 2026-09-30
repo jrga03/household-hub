@@ -17,6 +17,7 @@
 
 import { db, type LocalAccount } from "@/lib/dexie/db";
 import { buildSyncQueueItem } from "./syncQueue";
+import { ensureLocalRow } from "./ensureLocal";
 import type { AccountInput, OfflineOperationResult } from "./types";
 
 /**
@@ -182,7 +183,7 @@ export async function updateOfflineAccount(
 ): Promise<OfflineOperationResult<LocalAccount>> {
   try {
     // Fetch existing account from IndexedDB
-    const existing = await db.accounts.get(id);
+    const existing = await ensureLocalRow("accounts", id);
 
     if (!existing) {
       return {

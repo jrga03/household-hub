@@ -18,6 +18,7 @@
 
 import { db, type LocalCategory } from "@/lib/dexie/db";
 import { buildSyncQueueItem } from "./syncQueue";
+import { ensureLocalRow } from "./ensureLocal";
 import type { CategoryInput, OfflineOperationResult } from "./types";
 
 /**
@@ -193,7 +194,7 @@ export async function updateOfflineCategory(
 ): Promise<OfflineOperationResult<LocalCategory>> {
   try {
     // Fetch existing category from IndexedDB
-    const existing = await db.categories.get(id);
+    const existing = await ensureLocalRow("categories", id);
 
     if (!existing) {
       return {

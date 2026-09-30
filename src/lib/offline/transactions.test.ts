@@ -14,9 +14,10 @@
  * @module offline/transactions.test
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { db, type LocalTransaction } from "@/lib/dexie/db";
 import { handleTransactionEdit } from "@/lib/debts";
+import { supabase } from "@/lib/supabase";
 import {
   createOfflineTransaction,
   updateOfflineTransaction,
@@ -32,16 +33,28 @@ vi.mock("@/lib/debts", () => ({
   handleTransactionDelete: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/lib/supabase", () => ({ supabase: { from: vi.fn() } }));
+
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 describe("Offline Transaction Operations", () => {
   // Use a valid UUID format for test user ID (Supabase expects UUID)
   const testUserId = "12345678-1234-5678-1234-567812345678";
 
+  // The @/lib/supabase mock above has no `auth`, so deviceManager's
+  // best-effort device registration (unrelated to what these tests cover)
+  // throws internally and logs a warning it already treats as non-fatal.
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(async () => {
     await db.transactions.clear();
     await db.syncQueue.clear();
     await db.meta.clear();
+    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
   });
 
   it("should create transaction with a client-generated UUID and queue it", async () => {
@@ -144,6 +157,39 @@ describe("Offline Transaction Operations", () => {
     // Verify create + delete outbox items
     const ops = (await db.syncQueue.toArray()).map((item) => item.operation.op).sort();
     expect(ops).toEqual(["create", "delete"]);
+  });
+
+  it("updates a transaction that exists only on the server (fetch on miss)", async () => {
+    const serverRow = {
+      id: "server-only-1",
+      household_id: "00000000-0000-0000-0000-000000000001",
+      date: "2025-01-10",
+      description: "Old row",
+      amount_cents: 1000,
+      type: "expense",
+      currency_code: "PHP",
+      status: "pending",
+      visibility: "household",
+      created_by_user_id: testUserId,
+      tagged_user_ids: [],
+      device_id: "dev-1",
+      created_at: "2025-01-10T00:00:00.000Z",
+      updated_at: "2025-01-10T00:00:00.000Z",
+    };
+    const maybeSingle = vi.fn().mockResolvedValue({ data: serverRow, error: null });
+    vi.mocked(supabase.from).mockReturnValue({
+      select: () => ({ eq: () => ({ maybeSingle }) }),
+    } as never);
+
+    const result = await updateOfflineTransaction(
+      "server-only-1",
+      { status: "cleared" },
+      testUserId
+    );
+
+    expect(result.success).toBe(true);
+    expect((await db.transactions.get("server-only-1"))?.status).toBe("cleared");
+    expect(await db.syncQueue.count()).toBe(1);
   });
 });
 
