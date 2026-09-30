@@ -18,15 +18,11 @@ import { getLocalBudgetGroups, mirrorBudgetsForMonth } from "./offline/budgets";
 import { OfflineError } from "./offline/errors";
 import { createOfflineAccount, updateOfflineAccount } from "./offline/accounts";
 import { createOfflineCategory, updateOfflineCategory } from "./offline/categories";
-import {
-  updateOfflineTransaction,
-  deleteOfflineTransaction,
-  updateOfflineTransactionsStatus,
-} from "./offline/transactions";
+import { deleteOfflineTransaction, updateOfflineTransactionsStatus } from "./offline/transactions";
 import { ensureLocalRow } from "./offline/ensureLocal";
 import { afterOutboxWrite } from "./offline/afterWrite";
 import { duplicateAccountNameError, duplicateCategoryNameError } from "./offline/duplicateNames";
-import type { AccountInput, CategoryInput, TransactionInput } from "./offline/types";
+import type { AccountInput, CategoryInput } from "./offline/types";
 import { Account } from "@/types/accounts";
 import type { Category, CategoryWithChildren } from "@/types/categories";
 import type { TransactionFilters, TransactionWithRelations } from "@/types/transactions";
@@ -707,21 +703,6 @@ export function useTransaction(id: string) {
       return data as TransactionWithRelations;
     },
     enabled: !!id, // skip when there is no id (e.g. create mode)
-  });
-}
-
-// Update transaction
-export function useUpdateTransaction() {
-  const queryClient = useQueryClient();
-  const userId = useAuthStore((state) => state.user?.id);
-
-  return useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Partial<TransactionInput> }) => {
-      const result = await updateOfflineTransaction(id, updates, requireUserId(userId));
-      if (!result.success) throw new Error(result.error ?? "Failed to update transaction");
-      return result.data;
-    },
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [["transactions"], ["accounts"]]),
   });
 }
 

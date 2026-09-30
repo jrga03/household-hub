@@ -262,7 +262,7 @@ export async function updateOfflineTransaction(
 /**
  * Sets an explicit status on a batch of transactions in one local outbox
  * write. All-or-nothing: if any id cannot be found (locally or on the
- * server), nothing is written.
+ * server), no update is written.
  *
  * @param ids - Transaction UUIDs to update
  * @param status - The status to apply to every transaction

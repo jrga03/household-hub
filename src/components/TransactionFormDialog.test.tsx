@@ -43,7 +43,6 @@ vi.mock("@/hooks/useMediaQuery", async (importOriginal) => {
 vi.mock("@/lib/supabaseQueries", () => ({
   useAccounts: () => ({ data: [] }),
   useCategoriesGrouped: () => ({ data: [], isLoading: false }),
-  useUpdateTransaction: () => ({ mutateAsync: vi.fn() }),
   useTransaction: (id: string) => mockUseTransaction(id),
 }));
 

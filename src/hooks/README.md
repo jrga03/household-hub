@@ -297,36 +297,30 @@ export function useOfflineTransactions(filters?: {
 }
 ```
 
-### Optimistic Updates
+### Outbox Writes Instead of Optimistic Updates
 
-For instant UI feedback:
+Writes land in IndexedDB (entity + sync-queue item in one Dexie transaction)
+before any network call, so there is no optimistic cache patching or rollback.
+The list query overlays unsynced local rows, and `afterOutboxWrite`
+invalidates the given keys now and again after the queue drains.
 
 **Pattern:**
 
 ```typescript
-export function useUpdateTransaction() {
+export function useToggleTransactionStatus() {
   const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id);
 
   return useMutation({
-    mutationFn: updateOfflineTransaction,
-    onMutate: async (variables) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["transactions"] });
-
-      // Snapshot previous value
-      const previous = queryClient.getQueryData(["transactions"]);
-
-      // Optimistically update cache
-      queryClient.setQueryData(["transactions"], (old: Transaction[]) =>
-        old.map((t) => (t.id === variables.id ? { ...t, ...variables.changes } : t))
-      );
-
-      return { previous };
+    mutationFn: async (id: string) => {
+      const existing = await ensureLocalRow("transactions", id);
+      if (!existing) throw new Error("Transaction not found");
+      const newStatus = existing.status === "pending" ? "cleared" : "pending";
+      const result = await updateOfflineTransactionsStatus([id], newStatus, requireUserId(userId));
+      if (!result.success) throw new Error(result.error ?? "Failed to update status");
+      return newStatus;
     },
-    onError: (err, variables, context) => {
-      // Rollback on error
-      queryClient.setQueryData(["transactions"], context.previous);
-    },
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [["transactions"], ["transaction"]]),
   });
 }
 ```

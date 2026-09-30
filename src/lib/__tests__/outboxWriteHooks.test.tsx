@@ -19,7 +19,6 @@ import {
   useCreateCategory,
   useUpdateAccount,
   useUpdateCategory,
-  useUpdateTransaction,
   useDeleteTransaction,
   useSetTransactionStatus,
   useToggleTransactionStatus,
@@ -225,17 +224,12 @@ describe("transaction write hooks", () => {
     vi.mocked(updateOfflineTransactionsStatus).mockResolvedValue(ok);
   });
 
-  it("update, delete, and bulk status go through the outbox", async () => {
-    await renderWithClient(() => useUpdateTransaction()).result.current.mutateAsync({
-      id: "t1",
-      updates: { description: "New" },
-    });
+  it("delete and bulk status go through the outbox", async () => {
     await renderWithClient(() => useDeleteTransaction()).result.current.mutateAsync("t2");
     const status = await renderWithClient(() =>
       useSetTransactionStatus()
     ).result.current.mutateAsync({ ids: ["t3", "t4"], status: "cleared" });
 
-    expect(updateOfflineTransaction).toHaveBeenCalledWith("t1", { description: "New" }, "user-1");
     expect(deleteOfflineTransaction).toHaveBeenCalledWith("t2", "user-1");
     expect(updateOfflineTransactionsStatus).toHaveBeenCalledWith(["t3", "t4"], "cleared", "user-1");
     expect(status).toBe("cleared");

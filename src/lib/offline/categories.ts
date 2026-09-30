@@ -43,14 +43,14 @@ function householdCategories(householdId: string): Promise<LocalCategory[]> {
 }
 
 /**
- * Creates a new category offline with temporary ID.
+ * Creates a new category offline.
  *
- * The category is immediately written to IndexedDB and will be synced to
- * Supabase when connectivity is restored. The temporary ID will be replaced
- * with a permanent UUID during sync.
+ * The category and its sync queue item are written to IndexedDB in one Dexie
+ * transaction and synced to Supabase when online. The ID is a client UUID
+ * that the server keeps.
  *
  * Field Generation:
- * - id: `temp-${nanoid()}` - Temporary identifier replaced during sync
+ * - id: crypto.randomUUID()
  * - household_id: Hardcoded for MVP single household mode
  * - parent_id: Optional for two-level hierarchy (undefined for parent categories)
  * - color: Defaults to gray (#6B7280) if not provided
@@ -65,37 +65,13 @@ function householdCategories(householdId: string): Promise<LocalCategory[]> {
  * - Hierarchy validation happens during sync, not offline
  *
  * Error Handling:
- * - IndexedDB quota exceeded: Returns error with quota message
+ * - Duplicate active name under the same parent: Returns a readable error
+ * - IndexedDB errors: Returns error with details
  * - All errors logged to console but don't throw
  *
  * @param input - Category data from form (excluding generated fields)
  * @param userId - User ID for sync queue attribution
  * @returns Promise resolving to result with success status and data/error
- *
- * @example
- * // Create parent category
- * const result = await createOfflineCategory({
- *   name: "Food & Dining",
- *   color: "#10B981",
- *   icon: "utensils",
- *   sort_order: 0,
- *   is_active: true,
- * }, "user-123");
- *
- * @example
- * // Create child category
- * const result = await createOfflineCategory({
- *   name: "Groceries",
- *   parent_id: "cat-123",
- *   color: "#10B981",
- *   icon: "shopping-cart",
- *   sort_order: 0,
- *   is_active: true,
- * }, "user-123");
- *
- * if (result.success) {
- *   console.log("Category created:", result.data.id);
- * }
  */
 export async function createOfflineCategory(
   input: CategoryInput,
@@ -171,8 +147,8 @@ export async function createOfflineCategory(
  * - All other fields remain unchanged
  *
  * Validation:
- * - Category must exist in IndexedDB
- * - Returns error if category not found
+ * - Category must exist locally or on the server
+ * - A rename or move must not collide with an active sibling
  * - Hierarchy validation happens during sync, not offline
  *
  * Error Handling:
@@ -180,26 +156,10 @@ export async function createOfflineCategory(
  * - IndexedDB errors: Returns error with details
  * - All errors logged to console but don't throw
  *
- * @param id - Category ID (can be temporary or permanent)
+ * @param id - Category ID
  * @param updates - Partial category data to update
  * @param userId - User ID for sync queue attribution
  * @returns Promise resolving to result with success status and data/error
- *
- * @example
- * const result = await updateOfflineCategory("temp-abc123", {
- *   name: "Food & Drink (Updated)",
- *   color: "#059669",
- * }, "user-123");
- *
- * if (result.success) {
- *   console.log("Category updated:", result.data.name);
- * }
- *
- * @example
- * // Move category to different parent
- * const result = await updateOfflineCategory("cat-123", {
- *   parent_id: "cat-456", // New parent
- * }, "user-123");
  */
 export async function updateOfflineCategory(
   id: string,
@@ -295,13 +255,6 @@ export async function updateOfflineCategory(
  * @param id - Category ID to deactivate
  * @param userId - User ID for sync queue attribution
  * @returns Promise resolving to result with success status and data/error
- *
- * @example
- * const result = await deactivateOfflineCategory("temp-abc123", "user-123");
- *
- * if (result.success) {
- *   console.log("Category deactivated:", result.data.name);
- * }
  */
 export async function deactivateOfflineCategory(
   id: string,

@@ -48,14 +48,14 @@ function householdAccounts(householdId: string): Promise<LocalAccount[]> {
 }
 
 /**
- * Creates a new account offline with temporary ID.
+ * Creates a new account offline.
  *
- * The account is immediately written to IndexedDB and will be synced to
- * Supabase when connectivity is restored. The temporary ID will be replaced
- * with a permanent UUID during sync.
+ * The account and its sync queue item are written to IndexedDB in one Dexie
+ * transaction and synced to Supabase when online. The ID is a client UUID
+ * that the server keeps.
  *
  * Field Generation:
- * - id: `temp-${nanoid()}` - Temporary identifier replaced during sync
+ * - id: crypto.randomUUID()
  * - household_id: Hardcoded for MVP single household mode
  * - currency_code: Hardcoded to "PHP" for MVP
  * - owner_user_id: Set to userId if visibility is "personal", undefined for "household"
@@ -65,30 +65,13 @@ function householdAccounts(householdId: string): Promise<LocalAccount[]> {
  * - created_at/updated_at: Current ISO timestamp
  *
  * Error Handling:
- * - IndexedDB quota exceeded: Returns error with quota message
+ * - Duplicate active name in the household: Returns a readable error
+ * - IndexedDB errors: Returns error with details
  * - All errors logged to console but don't throw
  *
  * @param input - Account data from form (excluding generated fields)
  * @param userId - Authenticated user ID from auth store
  * @returns Promise resolving to result with success status and data/error
- *
- * @example
- * const result = await createOfflineAccount(
- *   {
- *     name: "BDO Checking",
- *     type: "bank",
- *     initial_balance_cents: 500000, // ₱5,000.00
- *     visibility: "household",
- *     color: "#1E40AF",
- *     icon: "bank",
- *     is_active: true,
- *   },
- *   "user-123"
- * );
- *
- * if (result.success) {
- *   console.log("Account created:", result.data.id);
- * }
  */
 export async function createOfflineAccount(
   input: AccountInput,
@@ -167,27 +150,17 @@ export async function createOfflineAccount(
  * - All other fields remain unchanged
  *
  * Validation:
- * - Account must exist in IndexedDB
- * - Returns error if account not found
+ * - Account must exist locally or on the server
+ * - A rename must not collide with another active account in the household
  *
  * Error Handling:
  * - Account not found: Returns error with "not found" message
  * - IndexedDB errors: Returns error with details
  * - All errors logged to console but don't throw
  *
- * @param id - Account ID (can be temporary or permanent)
+ * @param id - Account ID
  * @param updates - Partial account data to update
  * @returns Promise resolving to result with success status and data/error
- *
- * @example
- * const result = await updateOfflineAccount("temp-abc123", {
- *   name: "BDO Savings (Updated)",
- *   initial_balance_cents: 600000, // Updated balance
- * });
- *
- * if (result.success) {
- *   console.log("Account updated:", result.data.name);
- * }
  */
 export async function updateOfflineAccount(
   id: string,
@@ -296,13 +269,6 @@ export async function updateOfflineAccount(
  *
  * @param id - Account ID to deactivate
  * @returns Promise resolving to result with success status and data/error
- *
- * @example
- * const result = await deactivateOfflineAccount("temp-abc123");
- *
- * if (result.success) {
- *   console.log("Account deactivated:", result.data.name);
- * }
  */
 export async function deactivateOfflineAccount(
   id: string,
