@@ -1,4 +1,8 @@
 import { test, expect } from "@playwright/test";
+import { login } from "./fixtures/helpers";
+
+// The dashboard lives at "/"; /dashboard is a legacy redirect
+const isDashboard = (url: URL) => url.pathname === "/";
 
 test.describe("Authentication", () => {
   test("should sign up new user", async ({ page }) => {
@@ -10,9 +14,10 @@ test.describe("Authentication", () => {
 
     await page.click('button[type="submit"]');
 
-    // Should redirect to dashboard
-    await expect(page).toHaveURL(/\/dashboard/);
-    await expect(page.getByText(/welcome/i)).toBeVisible();
+    await expect(page).toHaveURL(isDashboard);
+    await expect(
+      page.getByRole("main").getByRole("heading", { level: 1, name: "Dashboard" })
+    ).toBeVisible();
   });
 
   test("should sign in existing user", async ({ page }) => {
@@ -23,21 +28,14 @@ test.describe("Authentication", () => {
 
     await page.click('button[type="submit"]');
 
-    await expect(page).toHaveURL(/\/dashboard/);
+    await expect(page).toHaveURL(isDashboard);
   });
 
-  test("should sign out", async ({ page, context: _context }) => {
-    // Sign in first
-    await page.goto("/login");
-    await page.fill('[name="email"]', "test@example.com");
-    await page.fill('[name="password"]', "TestPassword123!");
-    await page.click('button[type="submit"]');
+  test("should sign out", async ({ page }) => {
+    await login(page);
 
-    // Sign out
-    await page.click('[aria-label="User menu"]');
-    await page.click("text=Sign out");
+    await page.getByRole("button", { name: "Sign Out" }).click();
 
-    // Should redirect to login
     await expect(page).toHaveURL(/\/login/);
   });
 
