@@ -51,14 +51,50 @@ export async function cleanupTestTransactions(userId?: string) {
   if (error) console.error("Failed to cleanup test transactions:", error);
 }
 
+export const TEST_BUDGET_CATEGORY = "[E2E] Budget Category";
+
 /**
- * Delete test budgets (notes contain "[E2E]")
+ * Create an [E2E] parent/child category pair to budget against. Budgets are
+ * UNIQUE(household_id, category_id, month), so budgeting a real category
+ * would collide with user data and with leaked runs.
  */
-export async function cleanupTestBudgets(userId?: string) {
+export async function createTestBudgetCategory(): Promise<string | null> {
+  if (!adminClient) return null;
+  const { data: parent, error: parentError } = await adminClient
+    .from("categories")
+    .insert({ name: "[E2E] Budget Parent" })
+    .select("id")
+    .single();
+  if (parentError || !parent) {
+    console.error("Failed to create test budget parent category:", parentError);
+    return null;
+  }
+  const { error } = await adminClient
+    .from("categories")
+    .insert({ name: TEST_BUDGET_CATEGORY, parent_id: parent.id });
+  if (error) {
+    console.error("Failed to create test budget category:", error);
+    return null;
+  }
+  return TEST_BUDGET_CATEGORY;
+}
+
+/**
+ * Delete budgets on [E2E] categories. budgets has no notes column.
+ */
+export async function cleanupTestBudgets() {
   if (!adminClient) return;
-  const query = adminClient.from("budgets").delete().ilike("notes", "%[E2E]%");
-  if (userId) query.eq("created_by_user_id", userId);
-  const { error } = await query;
+  const { data: categories, error: lookupError } = await adminClient
+    .from("categories")
+    .select("id")
+    .ilike("name", "%[E2E]%");
+  if (lookupError) {
+    console.error("Failed to look up test budget categories:", lookupError);
+    return;
+  }
+  const categoryIds = (categories ?? []).map((category) => category.id);
+  if (categoryIds.length === 0) return;
+  const { error } = await adminClient.from("budgets").delete().in("category_id", categoryIds);
   if (error) console.error("Failed to cleanup test budgets:", error);
 }
 
@@ -102,7 +138,7 @@ export async function cleanupTestCategories() {
 export async function cleanupAll(userId?: string) {
   await cleanupTestTransfers(userId);
   await cleanupTestTransactions(userId);
-  await cleanupTestBudgets(userId);
+  await cleanupTestBudgets();
   await cleanupTestCategories();
 }
 

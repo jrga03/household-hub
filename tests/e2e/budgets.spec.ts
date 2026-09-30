@@ -1,6 +1,10 @@
 import { test, expect } from "@playwright/test";
 import { login } from "./fixtures/helpers";
-import { cleanupTestBudgets } from "./fixtures/db-cleanup";
+import {
+  cleanupTestBudgets,
+  cleanupTestCategories,
+  createTestBudgetCategory,
+} from "./fixtures/db-cleanup";
 
 test.describe("Budgets", () => {
   test.beforeEach(async ({ page }) => {
@@ -10,6 +14,7 @@ test.describe("Budgets", () => {
 
   test.afterEach(async () => {
     await cleanupTestBudgets();
+    await cleanupTestCategories();
   });
 
   test("renders budget list page", async ({ page }) => {
@@ -20,6 +25,12 @@ test.describe("Budgets", () => {
   });
 
   test("create budget: fill form and verify in list", async ({ page }) => {
+    const categoryName = await createTestBudgetCategory();
+    test.skip(
+      !categoryName,
+      "Admin client unavailable - cannot create an isolated budget category"
+    );
+
     // Click add budget button
     const addBtn = page
       .locator(
@@ -37,28 +48,22 @@ test.describe("Budgets", () => {
     // Fill the budget form. The category picker is a searchable
     // Popover+Command combobox (mobile UX 6.8), not a native select
     const categoryTrigger = page.getByRole("combobox", { name: "Select category" });
-    if (await categoryTrigger.isVisible().catch(() => false)) {
-      await categoryTrigger.click();
-      await page.getByRole("option").first().click();
-    }
+    await categoryTrigger.click();
+    await page
+      .getByRole("option", { name: new RegExp(categoryName!.replace(/[[\]]/g, "\\$&")) })
+      .click();
 
     const amountInput = page.locator('input[name="amount"], input[name="amount_cents"]').first();
     if (await amountInput.isVisible()) {
       await amountInput.fill("5000");
     }
 
-    // Add [E2E] marker in notes if available
-    const notesInput = page.locator('textarea[name="notes"], input[name="notes"]').first();
-    if (await notesInput.isVisible().catch(() => false)) {
-      await notesInput.fill("[E2E] Test budget");
-    }
-
     // Submit
     const submitBtn = page.locator('button[type="submit"]').first();
     await submitBtn.click();
 
-    // Verify creation (toast or list update)
-    await page.waitForTimeout(1000);
+    // Verify creation
+    await expect(page.getByText(categoryName!).first()).toBeVisible({ timeout: 10000 });
   });
 
   test("verify over-budget warning visual", async ({ page }) => {
