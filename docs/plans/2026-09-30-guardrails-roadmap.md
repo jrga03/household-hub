@@ -342,7 +342,7 @@ New rules land as `warn` when they have existing violations, then flip to `error
 
 Specified in `docs/plans/2026-09-30-phase-0-live-bugs-design.md`, which supersedes the items below where they differ.
 
-- [ ] Route CSV import writes (`src/routes/import.tsx:234`, `:271`) through `createOfflineTransactionsBatch` and `updateOfflineTransaction`; add a test that a CSV import produces sync-queue items
+- [ ] Make `src/routes/import.tsx` a layout (`<Outlet />` + redirect) so `/import/pdf` renders the PDF wizard instead of the retired CSV page; delete the CSV-only page, store, and `DuplicateResolver`. The CSV writes at `:234`/`:271` go with it; CSV import is rebuilt on the draft pipeline later
 - [ ] Route transfer creation through the outbox: `TransferForm` calls `useTransfers.ts:42`, which inserts straight into Supabase. Add `createOfflineTransfer` to `src/lib/offline/transfers.ts` (only read helpers exist there today)
 - [ ] Fix `cleanupTestBudgets` (no `notes` column; key E2E budgets by category and month instead) and the auth specs; get `test:e2e:smoke` green on chromium
 - [ ] Fix the five ad hoc money parses per site (not all through `parsePHP`: `transactions.tsx:49-50` parse URL params that are already cents)
