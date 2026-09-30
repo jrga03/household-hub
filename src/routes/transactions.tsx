@@ -22,6 +22,7 @@ import { TransactionDetailPane } from "@/components/transactions/TransactionDeta
 import { TransactionDetailSheet } from "@/components/transactions/TransactionDetailSheet";
 import { TransactionFilterSheet } from "@/components/transactions/TransactionFilterSheet";
 import { formatPHP } from "@/lib/currency";
+import { transactionsSearchSchema } from "@/lib/validations/transactionsSearch";
 import type { TransactionFilters } from "@/types/transactions";
 
 /**
@@ -34,22 +35,8 @@ import type { TransactionFilters } from "@/types/transactions";
  */
 export const Route = createFileRoute("/transactions")({
   component: Transactions,
-  validateSearch: (
-    search: Record<string, unknown>
-  ): TransactionFilters & { selected?: string } => ({
-    dateFrom: (search.dateFrom as string) || undefined,
-    dateTo: (search.dateTo as string) || undefined,
-    accountId: (search.accountId as string) || undefined,
-    categoryId: (search.categoryId as string) || undefined,
-    status: search.status === "pending" || search.status === "cleared" ? search.status : null,
-    type: search.type === "income" || search.type === "expense" ? search.type : null,
-    search: (search.search as string) || undefined,
-    // CRITICAL: Default to true (hide transfers) unless explicitly "false"
-    excludeTransfers: search.excludeTransfers === "false" ? false : true,
-    amountMin: search.amountMin ? Number(search.amountMin) : undefined,
-    amountMax: search.amountMax ? Number(search.amountMax) : undefined,
-    selected: typeof search.selected === "string" ? search.selected : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): TransactionFilters & { selected?: string } =>
+    transactionsSearchSchema.parse(search),
 });
 
 function Transactions() {
