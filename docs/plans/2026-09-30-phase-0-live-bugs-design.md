@@ -65,12 +65,12 @@ TDD for sections 1 to 3; each test is written and seen failing first.
 
 One commit per item, in this order: import route (live user-facing bug, smallest), money, transfer, E2E. Check off the matching roadmap items as each lands.
 
-- [ ] Import route layout and CSV page retirement (section 2)
-- [ ] Money parsing (section 3)
-- [ ] Offline transfer creation (section 1)
-- [ ] E2E budgets fixture (section 4)
-- [ ] E2E auth investigation and outcome (section 4)
-- [ ] Radix upgrade so dialog pickers accept pointer input (Task 8b)
+- [x] Import route layout and CSV page retirement (section 2)
+- [x] Money parsing (section 3)
+- [x] Offline transfer creation (section 1)
+- [x] E2E budgets fixture (section 4)
+- [x] E2E auth investigation and outcome (section 4)
+- [x] Radix upgrade so dialog pickers accept pointer input (Task 8b)
 
 ## Out of scope
 

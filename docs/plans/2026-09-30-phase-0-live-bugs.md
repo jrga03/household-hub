@@ -35,7 +35,7 @@
 
 - Produces: `Route` from `src/routes/import.tsx` with `options.beforeLoad` (redirects `/import` to `/import/pdf`) and `options.component` (renders `<Outlet />`).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/routes/import.test.tsx`:
 
@@ -92,12 +92,12 @@ describe("/import layout route", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run src/routes/import.test.tsx`
 Expected: both tests FAIL with `Unable to find an element by: [data-testid="route-import-pdf"]`, and the DOM dump shows `Import Transactions` (the CSV page).
 
-- [ ] **Step 3: Rewrite `src/routes/import.tsx`**
+- [x] **Step 3: Rewrite `src/routes/import.tsx`**
 
 Replace the whole file with:
 
@@ -123,12 +123,12 @@ function ImportLayout() {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run src/routes/import.test.tsx`
 Expected: `2 passed`.
 
-- [ ] **Step 5: Delete the CSV-only modules and confirm nothing else imports them**
+- [x] **Step 5: Delete the CSV-only modules and confirm nothing else imports them**
 
 ```bash
 git rm src/stores/importStore.ts src/stores/__tests__/importStore.test.ts src/components/DuplicateResolver.tsx
@@ -137,17 +137,17 @@ grep -rn "importStore\"\|/importStore'\|DuplicateResolver" src --exclude=routeTr
 
 Expected: the grep prints only README lines and the comment in `src/stores/pdfImportStore.ts:7`. Any other hit is a real import: stop and restore the file with `git checkout HEAD -- <path>`.
 
-- [ ] **Step 6: Update the references**
+- [x] **Step 6: Update the references**
 
 - `src/stores/pdfImportStore.ts:7`: change `* Follows the same pattern as importStore.ts for CSV imports.` to `* Zustand store for the PDF import wizard.`
 - `src/components/README.md` and `src/stores/README.md`: delete the entries (headings, bullets, or table rows) that describe `DuplicateResolver` and `importStore`. Find them with `grep -n "DuplicateResolver\|importStore" src/components/README.md src/stores/README.md`.
 
-- [ ] **Step 7: Typecheck, lint, and run the full unit suite**
+- [x] **Step 7: Typecheck, lint, and run the full unit suite**
 
 Run: `npx tsc --noEmit -p tsconfig.json && npm run lint && npx vitest run`
 Expected: exit 0; the vitest summary line reads `Test Files  N passed`, with no failures.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add -A src/routes/import.tsx src/routes/import.test.tsx src/stores src/components/README.md src/components/DuplicateResolver.tsx
@@ -172,7 +172,7 @@ CSV import will be rebuilt on the draft pipeline."
 
 - Produces: `parsePHPUnbounded(input: string): number | null` from `@/lib/currency`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add `parsePHPUnbounded` to the import from `./currency` at the top of `src/lib/currency.test.ts`, then append:
 
@@ -196,12 +196,12 @@ describe("parsePHPUnbounded", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run src/lib/currency.test.ts -t parsePHPUnbounded`
 Expected: FAIL with `parsePHPUnbounded is not a function` (or a missing-export error).
 
-- [ ] **Step 3: Implement it in `src/lib/currency.ts`, directly after `parsePHP`**
+- [x] **Step 3: Implement it in `src/lib/currency.ts`, directly after `parsePHP`**
 
 ```ts
 /**
@@ -220,12 +220,12 @@ export function parsePHPUnbounded(input: string): number | null {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run src/lib/currency.test.ts`
 Expected: all tests pass, including the three new `parsePHPUnbounded` tests.
 
-- [ ] **Step 5: Use it in `currency-input.tsx`**
+- [x] **Step 5: Use it in `currency-input.tsx`**
 
 Change line 4 to:
 
@@ -251,12 +251,12 @@ Replace the `catch` block of `handleChange` with the version below. The comment 
       }
 ```
 
-- [ ] **Step 6: Run the existing currency-input regression tests**
+- [x] **Step 6: Run the existing currency-input regression tests**
 
 Run: `npx vitest run src/components/ui/currency-input.test.tsx`
 Expected: all pass, including `commits the over-max cents value instead of leaving a truncated prefix committed`.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/lib/currency.ts src/lib/currency.test.ts src/components/ui/currency-input.tsx
@@ -278,7 +278,7 @@ git commit -m "refactor(currency): parse over-max input via parsePHPUnbounded"
 - Consumes: `parsePHPSafe(input: string | number): { success: true; value: number } | { success: false; error: CurrencyError }` from `@/lib/currency` (existing).
 - Produces: `parseAmountInput(input: string): number | null`, signature unchanged.
 
-- [ ] **Step 1: Write the characterisation tests**
+- [x] **Step 1: Write the characterisation tests**
 
 These lock in current behaviour so the refactor can't change it. Create `src/lib/debts/parseAmountInput.test.ts`:
 
@@ -306,12 +306,12 @@ describe("parseAmountInput", () => {
 });
 ```
 
-- [ ] **Step 2: Run them against the current code**
+- [x] **Step 2: Run them against the current code**
 
 Run: `npx vitest run src/lib/debts/parseAmountInput.test.ts`
 Expected: `3 passed`. These are characterisation tests, so they pass before the refactor.
 
-- [ ] **Step 3: Replace the body of `parseAmountInput`**
+- [x] **Step 3: Replace the body of `parseAmountInput`**
 
 In `src/lib/debts/validation.ts`, add `import { parsePHPSafe } from "@/lib/currency";` next to the other imports (lines 8-10), then replace the function with:
 
@@ -331,12 +331,12 @@ export function parseAmountInput(input: string): number | null {
 }
 ```
 
-- [ ] **Step 4: Re-run the tests**
+- [x] **Step 4: Re-run the tests**
 
 Run: `npx vitest run src/lib/debts/parseAmountInput.test.ts`
 Expected: `3 passed`.
 
-- [ ] **Step 5: Fix the draft amount edit in `src/routes/drafts.tsx`**
+- [x] **Step 5: Fix the draft amount edit in `src/routes/drafts.tsx`**
 
 Change line 56 to `import { formatPHP, parsePHPSafe } from "@/lib/currency";`, then replace the amount `Input`'s `onChange` (currently `amount_cents: Math.round(Number(e.target.value) * 100)`) with:
 
@@ -351,12 +351,12 @@ Change line 56 to `import { formatPHP, parsePHPSafe } from "@/lib/currency";`, t
 
 Negative input is now ignored instead of stored. An empty field still commits `0` (`parsePHPSafe("")` returns 0), so the user can clear the field while retyping.
 
-- [ ] **Step 6: Typecheck and run the debts suite**
+- [x] **Step 6: Typecheck and run the debts suite**
 
 Run: `npx tsc --noEmit -p tsconfig.json && npx vitest run src/lib/debts`
 Expected: exit 0, all debts tests pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/lib/debts/validation.ts src/lib/debts/parseAmountInput.test.ts src/routes/drafts.tsx
@@ -379,7 +379,7 @@ Draft edits stored negative cents from Number(e.target.value)."
 
 - Produces: `transactionsSearchSchema`, a Zod object whose `parse(search: Record<string, unknown>)` returns `TransactionFilters & { selected?: string }`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `src/lib/validations/__tests__/transactionsSearch.test.ts`:
 
@@ -445,12 +445,12 @@ describe("transactionsSearchSchema", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run src/lib/validations/__tests__/transactionsSearch.test.ts`
 Expected: FAIL with `Failed to resolve import "../transactionsSearch"`.
 
-- [ ] **Step 3: Implement `src/lib/validations/transactionsSearch.ts`**
+- [x] **Step 3: Implement `src/lib/validations/transactionsSearch.ts`**
 
 ```ts
 import { z } from "zod";
@@ -487,12 +487,12 @@ export const transactionsSearchSchema = z.object({
 });
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run src/lib/validations/__tests__/transactionsSearch.test.ts`
 Expected: `5 passed`.
 
-- [ ] **Step 5: Use the schema in `src/routes/transactions.tsx`**
+- [x] **Step 5: Use the schema in `src/routes/transactions.tsx`**
 
 Add `import { transactionsSearchSchema } from "@/lib/validations/transactionsSearch";` below the `formatPHP` import (line 24). Keep the doc comment above `export const Route`, and replace the `validateSearch` property with:
 
@@ -501,12 +501,12 @@ Add `import { transactionsSearchSchema } from "@/lib/validations/transactionsSea
     transactionsSearchSchema.parse(search),
 ```
 
-- [ ] **Step 6: Typecheck and run the transactions route tests**
+- [x] **Step 6: Typecheck and run the transactions route tests**
 
 Run: `npx tsc --noEmit -p tsconfig.json && npx vitest run src/__tests__/transactions-route.test.tsx src/lib/validations`
 Expected: exit 0, all pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/lib/validations/transactionsSearch.ts src/lib/validations/__tests__/transactionsSearch.test.ts src/routes/transactions.tsx
@@ -547,7 +547,7 @@ export function createOfflineTransfer(
 ): Promise<OfflineOperationResult<LocalTransaction[]>>;
 ```
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `src/lib/offline/transfers.test.ts`:
 
@@ -652,12 +652,12 @@ describe("createOfflineTransfer", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run src/lib/offline/transfers.test.ts`
 Expected: the new `createOfflineTransfer` tests FAIL with `createOfflineTransfer is not a function`; the existing pairing tests still pass.
 
-- [ ] **Step 3: Implement it in `src/lib/offline/transfers.ts`**
+- [x] **Step 3: Implement it in `src/lib/offline/transfers.ts`**
 
 Replace the single `import { db } from "@/lib/dexie/db";` line with:
 
@@ -728,17 +728,17 @@ export async function createOfflineTransfer(
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run src/lib/offline/transfers.test.ts`
 Expected: all tests pass (existing pairing tests plus 4 new ones).
 
-- [ ] **Step 5: Check for an import cycle**
+- [x] **Step 5: Check for an import cycle**
 
 Run: `npx tsc --noEmit -p tsconfig.json && npx vitest run src/lib/offline`
 Expected: exit 0, all offline tests pass. If a test fails with `Cannot access '...' before initialization`, it is a cycle through `./transactions` → `@/lib/debts` → `./transfers`. Fix it by moving `createOfflineTransfer` and `TransferInput` into a new `src/lib/offline/createTransfer.ts` (and its tests into `createTransfer.test.ts`), then update the Task 6 import paths to match.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/offline/transfers.ts src/lib/offline/transfers.test.ts
@@ -762,7 +762,7 @@ git commit -m "feat(offline): createOfflineTransfer writes both legs through the
 - Consumes: `createOfflineTransfer`, `TransferInput` from `@/lib/offline/transfers` (Task 5).
 - Produces: `useCreateTransfer()`, whose `mutateAsync` takes `TransferInput & { user_id: string }` and resolves to the created `LocalTransaction[]`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/hooks/useTransfers.test.tsx`:
 
@@ -834,12 +834,12 @@ describe("useCreateTransfer", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run src/hooks/useTransfers.test.tsx`
 Expected: FAIL. The first test fails because `createOfflineTransfer` was not called (the old hook calls `supabase.from`, which the mock turns into a thrown `TypeError`).
 
-- [ ] **Step 3: Rewrite `useCreateTransfer` and its imports**
+- [x] **Step 3: Rewrite `useCreateTransfer` and its imports**
 
 In `src/hooks/useTransfers.ts`, replace lines 1-5 (the imports) with:
 
@@ -881,23 +881,23 @@ export function useCreateTransfer() {
 
 `supabase` stays imported because `useTransfers` (the read hook) still uses it.
 
-- [ ] **Step 4: Drop `householdId` from `TransferForm` and its callers**
+- [x] **Step 4: Drop `householdId` from `TransferForm` and its callers**
 
 - `src/components/transfers/TransferForm.tsx`: delete `householdId,` from the destructured props (line 35), `householdId: string;` from the props type (line 40), and `household_id: householdId,` from the `mutateAsync` call (line 72).
 - `src/components/transfers/TransferForm.test.tsx:46`: delete `householdId="hh-1"`.
 - `src/routes/transfers.tsx:102`: change to `<TransferForm accounts={accountOptions} userId={user.id} />`.
 
-- [ ] **Step 5: Run the tests and typecheck**
+- [x] **Step 5: Run the tests and typecheck**
 
 Run: `npx tsc --noEmit -p tsconfig.json && npx vitest run src/hooks/useTransfers.test.tsx src/components/transfers`
 Expected: exit 0; `useTransfers.test.tsx` shows `2 passed`, and the TransferForm tests pass.
 
-- [ ] **Step 6: Confirm no direct Supabase transaction insert remains in hooks or components**
+- [x] **Step 6: Confirm no direct Supabase transaction insert remains in hooks or components**
 
 Run: `grep -rn 'from("transactions").insert' src/hooks src/components src/routes`
 Expected: no output.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/hooks/useTransfers.ts src/hooks/useTransfers.test.tsx src/components/transfers/TransferForm.tsx src/components/transfers/TransferForm.test.tsx src/routes/transfers.tsx
@@ -921,7 +921,7 @@ failed offline and skipped the sync queue and event log."
 
 - Produces: `createTestBudgetCategory(): Promise<string | null>` (returns the child category name, or `null` when the admin client is unavailable); `cleanupTestBudgets(): Promise<void>`.
 
-- [ ] **Step 1: Replace `cleanupTestBudgets` and add the category helper**
+- [x] **Step 1: Replace `cleanupTestBudgets` and add the category helper**
 
 In `tests/e2e/fixtures/db-cleanup.ts`, replace the `cleanupTestBudgets` function and its doc comment with:
 
@@ -978,7 +978,7 @@ In `cleanupAll`, change `await cleanupTestBudgets(userId);` to `await cleanupTes
 
 Each test creates a fresh pair; `afterEach` (Step 2) deletes every `[E2E]` category, which cascades to their budgets.
 
-- [ ] **Step 2: Budget against the E2E category in `tests/e2e/budgets.spec.ts`**
+- [x] **Step 2: Budget against the E2E category in `tests/e2e/budgets.spec.ts`**
 
 Change the fixture import to:
 
@@ -1024,23 +1024,23 @@ Replace `await page.waitForTimeout(1000);` with an assertion that the budget sho
 await expect(page.getByText(categoryName!).first()).toBeVisible({ timeout: 10000 });
 ```
 
-- [ ] **Step 3: Update CLAUDE.md**
+- [x] **Step 3: Update CLAUDE.md**
 
 In the Known Infrastructure Issues E2E entry, delete this clause: `test cleanup helpers reference a \`budgets.notes\` column that does not exist in the schema (error \`42703\` during fixture cleanup);`. Leave the rest of the entry.
 
-- [ ] **Step 4: Type-check the edited fixtures**
+- [x] **Step 4: Type-check the edited fixtures**
 
 `tests/` is outside every tsconfig, so check the two files directly:
 
 Run: `npx tsc --noEmit --skipLibCheck --module esnext --moduleResolution bundler --target es2022 --esModuleInterop tests/e2e/fixtures/db-cleanup.ts tests/e2e/budgets.spec.ts`
 Expected: exit 0. If it reports only missing Node types (`process`, `path`), those are the gap the roadmap's `tsconfig.tests.json` closes; list them in the commit body and go on.
 
-- [ ] **Step 5: Run the budgets spec if the local stack is up**
+- [x] **Step 5: Run the budgets spec if the local stack is up**
 
 Run: `supabase status -o env | grep API_URL && npx playwright test --project=chromium tests/e2e/budgets.spec.ts --reporter=list`
 Expected: the output has no `42703` error lines. The specs may still fail at `login` while the auth issue is open (Task 8); record the result in the commit body.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tests/e2e/fixtures/db-cleanup.ts tests/e2e/budgets.spec.ts CLAUDE.md
@@ -1058,7 +1058,7 @@ Diagnosis, not TDD. **Required skill: superpowers:systematic-debugging.** Time b
 
 **Files:** determined by the root cause. Possible outcomes are listed in Step 5.
 
-- [ ] **Step 1: Confirm the stack and the URL the tests use**
+- [x] **Step 1: Confirm the stack and the URL the tests use**
 
 ```bash
 supabase status -o env | grep -E "^API_URL|^ANON_KEY" | sed 's/=.*KEY=.*/=<redacted>/'
@@ -1069,20 +1069,20 @@ grep -n "HEALTH_URL\|54321\|54331" scripts/supabase-lifecycle.mjs
 
 Write down what the app under test points at (host:port) and what `supabase status` reports. If they differ, that is hypothesis #1.
 
-- [ ] **Step 2: Reproduce with artifacts**
+- [x] **Step 2: Reproduce with artifacts**
 
 Run: `npx playwright test --project=chromium tests/e2e/auth.spec.ts --reporter=list --trace=on`
 Then read `test-results/*/error-context.md` for each failed test (use the Read tool) and quote the first error.
 
-- [ ] **Step 3: Form one hypothesis at a time and test it minimally**
+- [x] **Step 3: Form one hypothesis at a time and test it minimally**
 
 Follow systematic-debugging phases 1-3. For each hypothesis, record it and its result in the Task 8 notes at the bottom of this plan.
 
-- [ ] **Step 4: Stop at the time box**
+- [x] **Step 4: Stop at the time box**
 
 At 90 minutes, or once the root cause is confirmed, whichever comes first, go to Step 5.
 
-- [ ] **Step 5: Close out with exactly one outcome**
+- [x] **Step 5: Close out with exactly one outcome**
 
 - **Outcome A (code/config cause fixed):** apply the fix with a test where one is expressible. Then run `npm run test:e2e:smoke` and quote its summary line. The exit criterion is chromium smoke passing. Update the CLAUDE.md E2E entry to reflect the new baseline. Commit as `fix(e2e): <root cause>`.
 - **Outcome B (environmental, or unresolved at the time box):** add or update an entry under CLAUDE.md "Known Infrastructure Issues" recording the symptom, the hypotheses ruled out, and the most likely remaining cause, and verify it is in place with `grep -n "Authentication" CLAUDE.md`. Commit as `docs(claude): record E2E auth investigation findings`.
@@ -1111,12 +1111,12 @@ Added 2026-09-30 after Task 8 (see spec Decisions & Deferrals). Exploratory depe
 
 **Bug:** `@radix-ui/react-dialog@1.1.19` depends on `react-dismissable-layer@1.1.15`; `react-popover@1.1.15`, `react-select`, `react-menu`, `react-tooltip` resolve `1.1.11`. Two copies of the layer stack mean a Popover opened inside a Dialog is treated as outside the Dialog and inherits `pointer-events: none`. Keyboard selection still works; mouse and touch do not.
 
-- [ ] **Step 1: Record the baseline.** `npm ls @radix-ui/react-dismissable-layer` (expect two versions) and `npm run test:e2e:smoke` (expect the 4 failures at the category option click).
-- [ ] **Step 2: Upgrade every direct `@radix-ui/*` dependency together** to its latest version within the current major (`npm install @radix-ui/react-<name>@^<major> ...` for each one in `package.json`).
-- [ ] **Step 3: Verify a single copy.** `npm ls @radix-ui/react-dismissable-layer` must show exactly one version. If not, find the lagging package with `npm ls` and upgrade it too. Do not use `overrides` or `resolve.dedupe` unless every package already agrees on the same major, and say so in the commit body if you do.
-- [ ] **Step 4: Unit suite, lint, build.** `npm run lint && npx vitest run && npm run build` all exit 0.
-- [ ] **Step 5: Smoke.** `npm run test:e2e:smoke` on chromium. Exit criterion: 0 failed. The steps after the category click have never run before, so failures there are new diagnosis work within this task (systematic debugging), not reasons to weaken assertions.
-- [ ] **Step 6: Commit** as `fix(deps): upgrade @radix-ui together so dialog pickers accept pointer input`, body naming the duplicated package and versions.
+- [x] **Step 1: Record the baseline.** `npm ls @radix-ui/react-dismissable-layer` (expect two versions) and `npm run test:e2e:smoke` (expect the 4 failures at the category option click).
+- [x] **Step 2: Upgrade every direct `@radix-ui/*` dependency together** to its latest version within the current major (`npm install @radix-ui/react-<name>@^<major> ...` for each one in `package.json`).
+- [x] **Step 3: Verify a single copy.** `npm ls @radix-ui/react-dismissable-layer` must show exactly one version. If not, find the lagging package with `npm ls` and upgrade it too. Do not use `overrides` or `resolve.dedupe` unless every package already agrees on the same major, and say so in the commit body if you do.
+- [x] **Step 4: Unit suite, lint, build.** `npm run lint && npx vitest run && npm run build` all exit 0.
+- [x] **Step 5: Smoke.** `npm run test:e2e:smoke` on chromium. Exit criterion: 0 failed. The steps after the category click have never run before, so failures there are new diagnosis work within this task (systematic debugging), not reasons to weaken assertions.
+- [x] **Step 6: Commit** as `fix(deps): upgrade @radix-ui together so dialog pickers accept pointer input`, body naming the duplicated package and versions.
 
 ---
 
@@ -1127,12 +1127,12 @@ Added 2026-09-30 after Task 8 (see spec Decisions & Deferrals). Exploratory depe
 - Modify: `docs/plans/2026-09-30-phase-0-live-bugs-design.md` (section 6 checkboxes)
 - Modify: `docs/plans/2026-09-30-guardrails-roadmap.md` (Phase 0 checkboxes)
 
-- [ ] **Step 1: Full verification**
+- [x] **Step 1: Full verification**
 
 Run: `npm run lint; echo "lint exit $?"; npx vitest run; echo "vitest exit $?"; npm run build; echo "build exit $?"`
 Expected: all three exits are `0`. Quote the vitest `Tests` summary line and the build's final line.
 
-- [ ] **Step 2: Confirm the Phase 1 selectors would now find no violations**
+- [x] **Step 2: Confirm the Phase 1 selectors would now find no violations**
 
 ```bash
 grep -rnE "db\.(transactions|accounts|categories|budgets|debts|internalDebts|debtPayments)\.(add|put|update|delete|bulkAdd|bulkPut|bulkUpdate|bulkDelete|clear)\(" src --include=*.ts --include=*.tsx | grep -vE "src/lib/(offline|debts|sync|dexie)/|\.test\.|__tests__"
@@ -1141,7 +1141,7 @@ grep -rnE "\b(parseFloat|Number)\(" src --include=*.ts --include=*.tsx | grep -v
 
 Expected: the first grep prints nothing. The second grep will print non-money uses of `Number(` (ids, counts, dates). List each remaining hit with a one-line classification (money / not money) in the completion message; any **money** hit is a Phase 0 gap to raise with the user, not something to fix silently.
 
-- [ ] **Step 3: Tick the checkboxes**
+- [x] **Step 3: Tick the checkboxes**
 
 - In `docs/plans/2026-09-30-phase-0-live-bugs-design.md` section 6, tick each completed item.
 - In `docs/plans/2026-09-30-guardrails-roadmap.md` Phase 0, tick each completed item; for the E2E item, add ` (outcome: A|B, see Task 8 notes)`.
