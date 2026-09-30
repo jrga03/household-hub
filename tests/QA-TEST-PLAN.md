@@ -24,7 +24,7 @@ This document serves as the master QA test plan for the Household Hub applicatio
 | **Budgets**           | budgetCalculations.test.ts                                   | budgets.spec.ts                          | budgets.md (6)       |
 | **Transfers**         | —                                                            | transfers.spec.ts                        | transfers.md (5)     |
 | **Categories**        | —                                                            | categories.spec.ts                       | categories.md (5)    |
-| **CSV Import**        | duplicate-detector.test.ts, importStore.test.ts              | import.spec.ts                           | import-export.md (4) |
+| **CSV Import**        | duplicate-detector.test.ts                                   | —                                        | import-export.md (4) |
 | **CSV Export**        | —                                                            | settings.spec.ts                         | import-export.md (2) |
 | **Analytics**         | —                                                            | analytics.spec.ts                        | analytics.md (4)     |
 | **Debts**             | —                                                            | debts/\*.spec.ts (existing)              | debts.md (5)         |
@@ -49,7 +49,6 @@ This document serves as the master QA test plan for the Household Hub applicatio
 | `src/stores/__tests__/conflictStore.test.ts`        | 8     | Add/remove/clear conflicts, pending count                   |
 | `src/stores/__tests__/syncIssuesStore.test.ts`      | 8     | Add/remove/clear sync issues                                |
 | `src/stores/__tests__/navStore.test.ts`             | 10    | Sidebar, mobile nav, quick add, localStorage persist        |
-| `src/stores/__tests__/importStore.test.ts`          | 14    | CSV import wizard state machine                             |
 | `src/stores/__tests__/authStore.test.ts`            | 12    | Auth lifecycle, unsynced data warning, export abort         |
 | `src/lib/validations/__tests__/transaction.test.ts` | 22    | Zod schema: date, description, amount, enums, cross-field   |
 | `src/lib/__tests__/duplicate-detector.test.ts`      | 16    | Fingerprint generation, duplicate detection                 |
@@ -59,15 +58,14 @@ This document serves as the master QA test plan for the Household Hub applicatio
 
 ### E2E Spec Files (New)
 
-| File                           | Tests | Cleanup Method             |
-| ------------------------------ | ----- | -------------------------- |
-| `tests/e2e/dashboard.spec.ts`  | 4     | None (read-only)           |
-| `tests/e2e/budgets.spec.ts`    | 3     | `deleteTestCategory()`     |
-| `tests/e2e/transfers.spec.ts`  | 3     | `cleanupTestTransfers()`   |
-| `tests/e2e/categories.spec.ts` | 4     | `cleanupTestCategories()`  |
-| `tests/e2e/import.spec.ts`     | 2     | `deleteTestTransactions()` |
-| `tests/e2e/analytics.spec.ts`  | 4     | None (read-only)           |
-| `tests/e2e/settings.spec.ts`   | 4     | None (read-only)           |
+| File                           | Tests | Cleanup Method            |
+| ------------------------------ | ----- | ------------------------- |
+| `tests/e2e/dashboard.spec.ts`  | 4     | None (read-only)          |
+| `tests/e2e/budgets.spec.ts`    | 3     | `deleteTestCategory()`    |
+| `tests/e2e/transfers.spec.ts`  | 3     | `cleanupTestTransfers()`  |
+| `tests/e2e/categories.spec.ts` | 4     | `cleanupTestCategories()` |
+| `tests/e2e/analytics.spec.ts`  | 4     | None (read-only)          |
+| `tests/e2e/settings.spec.ts`   | 4     | None (read-only)          |
 
 ## Test Data Requirements
 

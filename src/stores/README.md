@@ -231,12 +231,12 @@ export const useAuthStore = create<AuthState>((set) => ({
 **Computed Values:**
 
 ```typescript
-export const useImportStore = create<ImportState>((set, get) => ({
-  duplicates: [],
+export const useMyStore = create<MyState>((set, get) => ({
+  items: [],
 
   // Computed value
-  get duplicateCount() {
-    return get().duplicates.length;
+  get itemCount() {
+    return get().items.length;
   },
 }));
 ```
