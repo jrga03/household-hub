@@ -281,8 +281,8 @@ export function TransactionFormDialog({
         queryClient,
         user?.id,
         data.debt_id || data.internal_debt_id
-          ? [["transactions"], ["debts"], ["debt-balance"]]
-          : [["transactions"]]
+          ? [["transactions"], ["transaction"], ["debts"], ["debt-balance"]]
+          : [["transactions"], ["transaction"]]
       );
 
       handleClose();

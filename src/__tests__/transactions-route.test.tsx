@@ -325,11 +325,9 @@ describe("transactions route on narrow layouts (R14/R38)", () => {
     // Groceries is pending, so the toggle offers "Mark cleared"
     fireEvent.click(within(sheet).getByRole("button", { name: "Mark cleared" }));
 
-    expect(toggleMutate).toHaveBeenCalledWith(
-      "txn-1",
-      expect.objectContaining({ onSuccess: expect.any(Function) })
-    );
-    // The sheet stays open (label refreshes via the invalidated query)
+    expect(toggleMutate).toHaveBeenCalledWith("txn-1");
+    // The sheet stays open; the toggle hook refreshes ["transaction"] after
+    // the drain so the label flips
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 

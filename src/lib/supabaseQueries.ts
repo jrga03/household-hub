@@ -733,7 +733,8 @@ export function useDeleteTransaction() {
       const result = await deleteOfflineTransaction(id, requireUserId(userId));
       if (!result.success) throw new Error(result.error ?? "Failed to delete transaction");
     },
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [["transactions"], ["accounts"]]),
+    onSuccess: () =>
+      afterOutboxWrite(queryClient, userId, [["transactions"], ["transaction"], ["accounts"]]),
   });
 }
 
@@ -759,6 +760,7 @@ export function useSetTransactionStatus() {
     onSuccess: () =>
       afterOutboxWrite(queryClient, userId, [
         ["transactions"],
+        ["transaction"],
         ["account-balance"],
         ["account-balances"],
       ]),
@@ -778,7 +780,8 @@ export function useToggleTransactionStatus() {
       if (!result.success) throw new Error(result.error ?? "Failed to update status");
       return newStatus;
     },
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [["transactions"]]),
+    // ["transaction"] refreshes an open detail sheet once the drain lands
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [["transactions"], ["transaction"]]),
   });
 }
 

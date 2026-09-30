@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { renderHook } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
@@ -13,6 +13,7 @@ import {
   updateOfflineTransactionsStatus,
 } from "@/lib/offline/transactions";
 import { ensureLocalRow } from "@/lib/offline/ensureLocal";
+import { syncProcessor } from "@/lib/sync/processor";
 import {
   useCreateAccount,
   useCreateCategory,
@@ -251,5 +252,52 @@ describe("transaction write hooks", () => {
     expect(updateOfflineTransaction).not.toHaveBeenCalled();
     expect(newStatus).toBe("cleared");
     expect(supabase.from).not.toHaveBeenCalled();
+  });
+
+  describe("refreshes the detail query after the drain", () => {
+    async function invalidatedKeysAfterDrain(run: (queryClient: QueryClient) => Promise<unknown>) {
+      let finishDrain: () => void = () => {};
+      vi.mocked(syncProcessor.processQueue).mockReturnValue(
+        new Promise((resolve) => {
+          finishDrain = () => resolve({ synced: 1, failed: 0, terminalFailures: 0 });
+        })
+      );
+      const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+      const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+
+      await run(queryClient);
+      invalidate.mockClear();
+      finishDrain();
+      await waitFor(() => expect(invalidate).toHaveBeenCalled());
+      return invalidate.mock.calls.map(([filters]) => filters?.queryKey);
+    }
+
+    it("toggle", async () => {
+      vi.mocked(ensureLocalRow).mockResolvedValue({ id: "t5", status: "pending" } as never);
+      const keys = await invalidatedKeysAfterDrain((queryClient) =>
+        renderWithClient(
+          () => useToggleTransactionStatus(),
+          queryClient
+        ).result.current.mutateAsync("t5")
+      );
+      expect(keys).toContainEqual(["transaction"]);
+    });
+
+    it("bulk status", async () => {
+      const keys = await invalidatedKeysAfterDrain((queryClient) =>
+        renderWithClient(() => useSetTransactionStatus(), queryClient).result.current.mutateAsync({
+          ids: ["t1"],
+          status: "cleared",
+        })
+      );
+      expect(keys).toContainEqual(["transaction"]);
+    });
+
+    it("delete", async () => {
+      const keys = await invalidatedKeysAfterDrain((queryClient) =>
+        renderWithClient(() => useDeleteTransaction(), queryClient).result.current.mutateAsync("t2")
+      );
+      expect(keys).toContainEqual(["transaction"]);
+    });
   });
 });

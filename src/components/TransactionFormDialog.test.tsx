@@ -393,6 +393,20 @@ describe("TransactionFormDialog", () => {
     });
   });
 
+  it("refreshes the open detail query after an edit drains", async () => {
+    const invalidate = vi.spyOn(QueryClient.prototype, "invalidateQueries");
+    mockUseTransaction.mockReturnValue({ data: buildTransaction({}) });
+    vi.mocked(updateOfflineTransaction).mockResolvedValue({ success: true, isTemporary: true });
+    await renderDialog({ editingId: "txn-1" });
+
+    fireEvent.click(screen.getByRole("button", { name: /update/i }));
+
+    await waitFor(() => {
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: ["transaction"] });
+    });
+    invalidate.mockRestore();
+  });
+
   describe("dirty-form navigation guard (useBlocker, R37)", () => {
     it("blocks in-app navigation when the form is dirty and the discard confirm is declined", async () => {
       const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);

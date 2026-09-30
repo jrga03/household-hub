@@ -226,16 +226,7 @@ function Transactions() {
             if (deleted) setInspectingId(null);
           });
         }}
-        onToggleStatus={(id) => {
-          toggleStatus.mutate(id, {
-            onSuccess: () => {
-              // The toggle hook invalidates the list query; the open sheet
-              // reads ["transaction", id], so refresh that too — the sheet
-              // stays open and the button label flips to the new status
-              void queryClient.invalidateQueries({ queryKey: ["transaction", id] });
-            },
-          });
-        }}
+        onToggleStatus={(id) => toggleStatus.mutate(id)}
       />
     </div>
   );
