@@ -48,6 +48,9 @@ jobs:
     needs: ci
     if: github.event_name == 'push'
     timeout-minutes: 30
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
     steps:
       - name: Check for E2E credentials
@@ -82,13 +85,6 @@ jobs:
       - name: Install Playwright browsers
         if: steps.check-creds.outputs.has_credentials == 'true'
         run: npx playwright install --with-deps
-
-      - name: Build application
-        if: steps.check-creds.outputs.has_credentials == 'true'
-        run: npm run build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Run E2E tests
         if: steps.check-creds.outputs.has_credentials == 'true'
