@@ -43,8 +43,10 @@ vi.mock("@/lib/offline/transactions", () => ({
 }));
 vi.mock("@/lib/offline/ensureLocal", () => ({ ensureLocalRow: vi.fn() }));
 
-function renderWithClient<T>(hook: () => T) {
-  const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+function renderWithClient<T>(
+  hook: () => T,
+  queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+) {
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
@@ -110,6 +112,106 @@ describe("account and category write hooks", () => {
         initial_balance_cents: 0,
       })
     ).rejects.toThrow("disk full");
+  });
+});
+
+describe("duplicate-name check against the query cache", () => {
+  const accountInput = {
+    name: "bdo",
+    type: "bank" as const,
+    visibility: "household" as const,
+    initial_balance_cents: 0,
+  };
+
+  function clientWith(queryKey: string[], rows: unknown[]) {
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    queryClient.setQueryData(queryKey, rows);
+    return queryClient;
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.setState({ user: { id: "user-1" } as User });
+    vi.mocked(createOfflineAccount).mockResolvedValue(ok);
+    vi.mocked(updateOfflineAccount).mockResolvedValue(ok);
+    vi.mocked(createOfflineCategory).mockResolvedValue(ok);
+    vi.mocked(updateOfflineCategory).mockResolvedValue(ok);
+  });
+
+  it("rejects creating an account whose name is already in the cached list", async () => {
+    const queryClient = clientWith(["accounts"], [{ id: "acc-1", name: "BDO", is_active: true }]);
+    const { result } = renderWithClient(() => useCreateAccount(), queryClient);
+
+    await expect(result.current.mutateAsync(accountInput)).rejects.toThrow(
+      'An account named "bdo" already exists'
+    );
+    expect(createOfflineAccount).not.toHaveBeenCalled();
+  });
+
+  it("rejects renaming an account onto another cached account's name", async () => {
+    const queryClient = clientWith(
+      ["accounts"],
+      [
+        { id: "acc-1", name: "BDO", is_active: true },
+        { id: "acc-2", name: "BPI", is_active: true },
+      ]
+    );
+    const { result } = renderWithClient(() => useUpdateAccount(), queryClient);
+
+    await expect(
+      result.current.mutateAsync({ id: "acc-2", updates: { name: "bdo" } })
+    ).rejects.toThrow('An account named "bdo" already exists');
+    expect(updateOfflineAccount).not.toHaveBeenCalled();
+  });
+
+  it("lets an account keep its own cached name", async () => {
+    const queryClient = clientWith(["accounts"], [{ id: "acc-1", name: "BDO", is_active: true }]);
+    const { result } = renderWithClient(() => useUpdateAccount(), queryClient);
+
+    await result.current.mutateAsync({ id: "acc-1", updates: { name: "BDO" } });
+
+    expect(updateOfflineAccount).toHaveBeenCalled();
+  });
+
+  it("rejects creating a category that duplicates a cached sibling", async () => {
+    const queryClient = clientWith(
+      ["categories"],
+      [{ id: "cat-1", name: "Food", parent_id: null, is_active: true }]
+    );
+    const { result } = renderWithClient(() => useCreateCategory(), queryClient);
+
+    await expect(result.current.mutateAsync({ name: "food", parent_id: null })).rejects.toThrow(
+      'A category named "food" already exists'
+    );
+    expect(createOfflineCategory).not.toHaveBeenCalled();
+  });
+
+  it("rejects renaming a category onto a cached sibling's name", async () => {
+    const queryClient = clientWith(
+      ["categories"],
+      [
+        { id: "cat-1", name: "Food", parent_id: null, is_active: true },
+        { id: "cat-2", name: "Transport", parent_id: null, is_active: true },
+      ]
+    );
+    const { result } = renderWithClient(() => useUpdateCategory(), queryClient);
+
+    await expect(
+      result.current.mutateAsync({ id: "cat-2", updates: { name: "Food" } })
+    ).rejects.toThrow('A category named "Food" already exists');
+    expect(updateOfflineCategory).not.toHaveBeenCalled();
+  });
+
+  it("allows a cached name under a different parent", async () => {
+    const queryClient = clientWith(
+      ["categories"],
+      [{ id: "cat-1", name: "Other", parent_id: "p-1", is_active: true }]
+    );
+    const { result } = renderWithClient(() => useCreateCategory(), queryClient);
+
+    await result.current.mutateAsync({ name: "Other", parent_id: "p-2" });
+
+    expect(createOfflineCategory).toHaveBeenCalled();
   });
 });
 

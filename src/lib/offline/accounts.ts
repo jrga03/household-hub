@@ -18,6 +18,7 @@
 import { db, type LocalAccount } from "@/lib/dexie/db";
 import { buildSyncQueueItem } from "./syncQueue";
 import { ensureLocalRow } from "./ensureLocal";
+import { duplicateAccountNameError } from "./duplicateNames";
 import type { AccountInput, OfflineOperationResult } from "./types";
 
 /**
@@ -41,6 +42,10 @@ const DEFAULT_COLOR = "#3B82F6";
  * Default account icon if not provided.
  */
 const DEFAULT_ICON = "wallet";
+
+function householdAccounts(householdId: string): Promise<LocalAccount[]> {
+  return db.accounts.filter((account) => account.household_id === householdId).toArray();
+}
 
 /**
  * Creates a new account offline with temporary ID.
@@ -90,6 +95,14 @@ export async function createOfflineAccount(
   userId: string
 ): Promise<OfflineOperationResult<LocalAccount>> {
   try {
+    const duplicateError = duplicateAccountNameError(
+      await householdAccounts(DEFAULT_HOUSEHOLD_ID),
+      input.name
+    );
+    if (duplicateError) {
+      return { success: false, error: duplicateError, isTemporary: false };
+    }
+
     const now = new Date().toISOString();
 
     // Map AccountInput → LocalAccount by adding generated fields
@@ -191,6 +204,17 @@ export async function updateOfflineAccount(
         error: `Account with ID "${id}" not found`,
         isTemporary: false,
       };
+    }
+
+    if (updates.name !== undefined && updates.name !== existing.name) {
+      const duplicateError = duplicateAccountNameError(
+        await householdAccounts(existing.household_id),
+        updates.name,
+        id
+      );
+      if (duplicateError) {
+        return { success: false, error: duplicateError, isTemporary: false };
+      }
     }
 
     // Apply updates to existing account

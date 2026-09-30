@@ -84,4 +84,62 @@ describe("offline accounts", () => {
     expect((await db.accounts.get(created.data!.id))?.is_active).toBe(false);
     expect(await db.syncQueue.count()).toBe(1);
   });
+
+  describe("duplicate names", () => {
+    const base = {
+      type: "bank" as const,
+      visibility: "household" as const,
+      initial_balance_cents: 0,
+    };
+
+    it("rejects a create whose name matches an active account, ignoring case", async () => {
+      await createOfflineAccount({ ...base, name: "BDO Savings" }, userId);
+      await db.syncQueue.clear();
+
+      const result = await createOfflineAccount({ ...base, name: "  bdo savings " }, userId);
+
+      expect(result).toMatchObject({
+        success: false,
+        error: 'An account named "bdo savings" already exists',
+      });
+      expect(await db.accounts.count()).toBe(1);
+      expect(await db.syncQueue.count()).toBe(0);
+    });
+
+    it("allows reusing the name of an archived account", async () => {
+      const old = await createOfflineAccount({ ...base, name: "Cash" }, userId);
+      await deactivateOfflineAccount(old.data!.id, userId);
+
+      const result = await createOfflineAccount({ ...base, name: "Cash" }, userId);
+
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects renaming onto another active account's name", async () => {
+      await createOfflineAccount({ ...base, name: "BPI" }, userId);
+      const other = await createOfflineAccount({ ...base, name: "Metrobank" }, userId);
+      await db.syncQueue.clear();
+
+      const result = await updateOfflineAccount(other.data!.id, { name: "bpi" }, userId);
+
+      expect(result).toMatchObject({
+        success: false,
+        error: 'An account named "bpi" already exists',
+      });
+      expect((await db.accounts.get(other.data!.id))?.name).toBe("Metrobank");
+      expect(await db.syncQueue.count()).toBe(0);
+    });
+
+    it("allows an update that keeps the account's own name", async () => {
+      const created = await createOfflineAccount({ ...base, name: "BPI" }, userId);
+
+      const result = await updateOfflineAccount(
+        created.data!.id,
+        { name: "BPI", color: "#000000" },
+        userId
+      );
+
+      expect(result.success).toBe(true);
+    });
+  });
 });

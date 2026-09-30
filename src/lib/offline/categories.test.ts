@@ -46,4 +46,56 @@ describe("offline categories", () => {
     const ops = (await db.syncQueue.toArray()).map((item) => item.operation.op);
     expect(ops).toEqual(["update", "update"]);
   });
+
+  describe("duplicate names", () => {
+    it("rejects a create whose name matches an active sibling, ignoring case", async () => {
+      await createOfflineCategory({ name: "Food" }, userId);
+      await db.syncQueue.clear();
+
+      const result = await createOfflineCategory({ name: "FOOD", parent_id: null }, userId);
+
+      expect(result).toMatchObject({
+        success: false,
+        error: 'A category named "FOOD" already exists',
+      });
+      expect(await db.categories.count()).toBe(1);
+      expect(await db.syncQueue.count()).toBe(0);
+    });
+
+    it("allows the same name under a different parent", async () => {
+      const food = await createOfflineCategory({ name: "Food" }, userId);
+      const bills = await createOfflineCategory({ name: "Bills" }, userId);
+      await createOfflineCategory({ name: "Other", parent_id: food.data!.id }, userId);
+
+      const result = await createOfflineCategory(
+        { name: "Other", parent_id: bills.data!.id },
+        userId
+      );
+
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects renaming onto an active sibling's name", async () => {
+      await createOfflineCategory({ name: "Food" }, userId);
+      const other = await createOfflineCategory({ name: "Transport" }, userId);
+      await db.syncQueue.clear();
+
+      const result = await updateOfflineCategory(other.data!.id, { name: "food" }, userId);
+
+      expect(result).toMatchObject({
+        success: false,
+        error: 'A category named "food" already exists',
+      });
+      expect(await db.syncQueue.count()).toBe(0);
+    });
+
+    it("allows reusing the name of an archived category", async () => {
+      const old = await createOfflineCategory({ name: "Misc" }, userId);
+      await deactivateOfflineCategory(old.data!.id, userId);
+
+      const result = await createOfflineCategory({ name: "Misc" }, userId);
+
+      expect(result.success).toBe(true);
+    });
+  });
 });

@@ -19,6 +19,7 @@
 import { db, type LocalCategory } from "@/lib/dexie/db";
 import { buildSyncQueueItem } from "./syncQueue";
 import { ensureLocalRow } from "./ensureLocal";
+import { duplicateCategoryNameError } from "./duplicateNames";
 import type { CategoryInput, OfflineOperationResult } from "./types";
 
 /**
@@ -36,6 +37,10 @@ const DEFAULT_COLOR = "#6B7280";
  * Default category icon if not provided.
  */
 const DEFAULT_ICON = "folder";
+
+function householdCategories(householdId: string): Promise<LocalCategory[]> {
+  return db.categories.filter((category) => category.household_id === householdId).toArray();
+}
 
 /**
  * Creates a new category offline with temporary ID.
@@ -97,6 +102,15 @@ export async function createOfflineCategory(
   userId: string
 ): Promise<OfflineOperationResult<LocalCategory>> {
   try {
+    const duplicateError = duplicateCategoryNameError(
+      await householdCategories(DEFAULT_HOUSEHOLD_ID),
+      input.name,
+      input.parent_id
+    );
+    if (duplicateError) {
+      return { success: false, error: duplicateError, isTemporary: false };
+    }
+
     const now = new Date().toISOString();
 
     // Map CategoryInput → LocalCategory by adding generated fields
@@ -215,6 +229,21 @@ export async function updateOfflineCategory(
       ...(updates.is_active !== undefined && { is_active: updates.is_active }),
       updated_at: new Date().toISOString(),
     };
+
+    const nameOrParentChanged =
+      updated.name !== existing.name ||
+      (updated.parent_id ?? null) !== (existing.parent_id ?? null);
+    if (nameOrParentChanged) {
+      const duplicateError = duplicateCategoryNameError(
+        await householdCategories(existing.household_id),
+        updated.name,
+        updated.parent_id,
+        id
+      );
+      if (duplicateError) {
+        return { success: false, error: duplicateError, isTemporary: false };
+      }
+    }
 
     const queueItem = await buildSyncQueueItem(
       "category",

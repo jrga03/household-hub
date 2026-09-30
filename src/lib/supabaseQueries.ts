@@ -24,6 +24,7 @@ import {
 } from "./offline/transactions";
 import { ensureLocalRow } from "./offline/ensureLocal";
 import { afterOutboxWrite } from "./offline/afterWrite";
+import { duplicateAccountNameError, duplicateCategoryNameError } from "./offline/duplicateNames";
 import type { AccountInput, CategoryInput, TransactionInput } from "./offline/types";
 import { Account } from "@/types/accounts";
 import type { Category, CategoryWithChildren } from "@/types/categories";
@@ -86,6 +87,11 @@ export function useCreateAccount() {
 
   return useMutation({
     mutationFn: async (account: AccountInput) => {
+      const duplicateError = duplicateAccountNameError(
+        queryClient.getQueryData<Account[]>(["accounts"]) ?? [],
+        account.name
+      );
+      if (duplicateError) throw new Error(duplicateError);
       const result = await createOfflineAccount(account, requireUserId(userId));
       if (!result.success) throw new Error(result.error ?? "Failed to create account");
       return result.data;
@@ -101,6 +107,14 @@ export function useUpdateAccount() {
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<AccountInput> }) => {
+      if (updates.name !== undefined) {
+        const duplicateError = duplicateAccountNameError(
+          queryClient.getQueryData<Account[]>(["accounts"]) ?? [],
+          updates.name,
+          id
+        );
+        if (duplicateError) throw new Error(duplicateError);
+      }
       const result = await updateOfflineAccount(id, updates, requireUserId(userId));
       if (!result.success) throw new Error(result.error ?? "Failed to update account");
       return result.data;
@@ -382,6 +396,12 @@ export function useCreateCategory() {
 
   return useMutation({
     mutationFn: async (category: CategoryInput) => {
+      const duplicateError = duplicateCategoryNameError(
+        queryClient.getQueryData<Category[]>(["categories"]) ?? [],
+        category.name,
+        category.parent_id
+      );
+      if (duplicateError) throw new Error(duplicateError);
       const result = await createOfflineCategory(category, requireUserId(userId));
       if (!result.success) throw new Error(result.error ?? "Failed to create category");
       return result.data;
@@ -397,6 +417,14 @@ export function useUpdateCategory() {
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<CategoryInput> }) => {
+      const cached = queryClient.getQueryData<Category[]>(["categories"]) ?? [];
+      const current = cached.find((category) => category.id === id);
+      const name = updates.name ?? current?.name;
+      if (name !== undefined) {
+        const parentId = updates.parent_id !== undefined ? updates.parent_id : current?.parent_id;
+        const duplicateError = duplicateCategoryNameError(cached, name, parentId, id);
+        if (duplicateError) throw new Error(duplicateError);
+      }
       const result = await updateOfflineCategory(id, updates, requireUserId(userId));
       if (!result.success) throw new Error(result.error ?? "Failed to update category");
       return result.data;
