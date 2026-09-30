@@ -1103,6 +1103,23 @@ At 90 minutes, or once the root cause is confirmed, whichever comes first, go to
 
 ---
 
+### Task 8b: Upgrade `@radix-ui/*` so pickers inside dialogs accept pointer input
+
+Added 2026-09-30 after Task 8 (see spec Decisions & Deferrals). Exploratory dependency work, so steps are prose; each still ends in a check.
+
+**Files:** `package.json`, `package-lock.json`; any `src/components/ui/*` shadcn wrapper only if an upgraded Radix API forces a change.
+
+**Bug:** `@radix-ui/react-dialog@1.1.19` depends on `react-dismissable-layer@1.1.15`; `react-popover@1.1.15`, `react-select`, `react-menu`, `react-tooltip` resolve `1.1.11`. Two copies of the layer stack mean a Popover opened inside a Dialog is treated as outside the Dialog and inherits `pointer-events: none`. Keyboard selection still works; mouse and touch do not.
+
+- [ ] **Step 1: Record the baseline.** `npm ls @radix-ui/react-dismissable-layer` (expect two versions) and `npm run test:e2e:smoke` (expect the 4 failures at the category option click).
+- [ ] **Step 2: Upgrade every direct `@radix-ui/*` dependency together** to its latest version within the current major (`npm install @radix-ui/react-<name>@^<major> ...` for each one in `package.json`).
+- [ ] **Step 3: Verify a single copy.** `npm ls @radix-ui/react-dismissable-layer` must show exactly one version. If not, find the lagging package with `npm ls` and upgrade it too. Do not use `overrides` or `resolve.dedupe` unless every package already agrees on the same major, and say so in the commit body if you do.
+- [ ] **Step 4: Unit suite, lint, build.** `npm run lint && npx vitest run && npm run build` all exit 0.
+- [ ] **Step 5: Smoke.** `npm run test:e2e:smoke` on chromium. Exit criterion: 0 failed. The steps after the category click have never run before, so failures there are new diagnosis work within this task (systematic debugging), not reasons to weaken assertions.
+- [ ] **Step 6: Commit** as `fix(deps): upgrade @radix-ui together so dialog pickers accept pointer input`, body naming the duplicated package and versions.
+
+---
+
 ### Task 9: Final verification and roadmap update
 
 **Files:**

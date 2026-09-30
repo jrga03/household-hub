@@ -70,6 +70,7 @@ One commit per item, in this order: import route (live user-facing bug, smallest
 - [ ] Offline transfer creation (section 1)
 - [ ] E2E budgets fixture (section 4)
 - [ ] E2E auth investigation and outcome (section 4)
+- [ ] Radix upgrade so dialog pickers accept pointer input (Task 8b)
 
 ## Out of scope
 
@@ -86,3 +87,6 @@ One commit per item, in this order: import route (live user-facing bug, smallest
 - **URL search params validated with Zod in `validateSearch`.** Why: `src/routes/README.md` already documents this pattern, and it is the first step of Phase 2's validation at boundaries. Revisit: never.
 - **E2E auth work is time-boxed with an environmental fallback.** Why: the root cause is unknown, and the data-loss fixes should not wait on it. Revisit: if logged as environmental, when the infrastructure entry is picked up.
 - **Specs live in `docs/plans/`, not `docs/superpowers/specs/`.** Why: repo convention. Revisit: never.
+- **Radix `@radix-ui/*` upgrade is added to this branch as Task 8b (decided 2026-09-30).** Why: Task 8 found two copies of `@radix-ui/react-dismissable-layer` (dialog 1.1.15, popover/select/menu/tooltip 1.1.11, split introduced in `1c5b5f3`), so the category picker inside the transaction and budget dialogs ignores mouse and touch. Upgrading all `@radix-ui/*` together is the fix; `resolve.dedupe` breaks the build. Revisit: never; success is one `dismissable-layer` version in `npm ls` and chromium smoke green.
+- **E2E scripts build before running (decided 2026-09-30).** Why: Playwright's preview served a `dist/` from 2026-07-13, so E2E tested stale code. Revisit: if build time makes local E2E iteration painful, switch to a dev-server `webServer` instead.
+- **E2E transaction cleanup is per-test, not a global `[E2E]` wipe.** Why: `fullyParallel: true` lets one test's `afterEach` delete a sibling's row mid-test. Revisit: never.
