@@ -115,8 +115,7 @@ describe("offline accounts", () => {
 
       expect(result).toMatchObject({
         success: false,
-        error:
-          'An archived account named "cash" already exists. Restore it or choose another name.',
+        error: 'An archived account named "cash" already exists. Choose another name.',
       });
       expect(await db.syncQueue.count()).toBe(0);
     });
@@ -130,8 +129,7 @@ describe("offline accounts", () => {
 
       expect(result).toMatchObject({
         success: false,
-        error:
-          'An archived account named "Cash" already exists. Restore it or choose another name.',
+        error: 'An archived account named "Cash" already exists. Choose another name.',
       });
     });
 

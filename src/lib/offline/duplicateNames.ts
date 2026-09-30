@@ -38,7 +38,7 @@ function duplicateError(
   return null;
 }
 
-const restoreHint = "Restore it or choose another name.";
+const renameHint = "Choose another name.";
 
 export function duplicateAccountNameError(
   accounts: readonly NamedRow[],
@@ -49,7 +49,7 @@ export function duplicateAccountNameError(
   return duplicateError(
     findNamed(accounts, name, excludeId),
     `An account named "${displayName}" already exists`,
-    `An archived account named "${displayName}" already exists. ${restoreHint}`
+    `An archived account named "${displayName}" already exists. ${renameHint}`
   );
 }
 
@@ -67,6 +67,6 @@ export function duplicateCategoryNameError(
   return duplicateError(
     findNamed(siblings, name, excludeId),
     `A category named "${displayName}" already exists`,
-    isTopLevel ? null : `An archived category named "${displayName}" already exists. ${restoreHint}`
+    isTopLevel ? null : `An archived category named "${displayName}" already exists. ${renameHint}`
   );
 }
