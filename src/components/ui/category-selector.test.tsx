@@ -165,6 +165,17 @@ beforeEach(async () => {
 // ---------------------------------------------------------------------------
 
 describe("CategorySelector combobox", () => {
+  it("takes its accessible name from an associated label", () => {
+    render(
+      <>
+        <label htmlFor="budget-category">Category</label>
+        <CategorySelector id="budget-category" value={undefined} onChange={() => {}} />
+      </>
+    );
+
+    expect(screen.getByRole("combobox", { name: "Category" })).toBeInTheDocument();
+  });
+
   it("renders the placeholder on the trigger and the grouped hierarchy when opened", async () => {
     render(<CategorySelector value={undefined} onChange={() => {}} />);
 

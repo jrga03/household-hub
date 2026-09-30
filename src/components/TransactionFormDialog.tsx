@@ -393,11 +393,13 @@ export function TransactionFormDialog({
 
       {/* Category */}
       <div>
-        <Label>Category (optional)</Label>
+        <Label htmlFor="category">Category (optional)</Label>
         <Controller
           name="category_id"
           control={form.control}
-          render={({ field }) => <CategorySelector value={field.value} onChange={field.onChange} />}
+          render={({ field }) => (
+            <CategorySelector id="category" value={field.value} onChange={field.onChange} />
+          )}
         />
       </div>
 
@@ -409,7 +411,7 @@ export function TransactionFormDialog({
           control={form.control}
           render={({ field }) => (
             <Select value={field.value || undefined} onValueChange={field.onChange}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger id="account" className="w-full">
                 <SelectValue placeholder="Select account" />
               </SelectTrigger>
               <SelectContent>

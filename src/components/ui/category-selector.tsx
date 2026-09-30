@@ -14,7 +14,7 @@
  * onChange fires with the selected child category id.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ComponentProps } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 
@@ -32,7 +32,14 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { Category } from "@/types/categories";
 
-interface CategorySelectorProps {
+// FormControl (and plain <Label htmlFor>) label the trigger through these;
+// a combobox takes no name from its contents, so without them it is unnamed
+type TriggerLabelProps = Pick<
+  ComponentProps<"button">,
+  "id" | "aria-describedby" | "aria-invalid" | "aria-label"
+>;
+
+interface CategorySelectorProps extends TriggerLabelProps {
   value?: string | null;
   onChange: (value: string) => void;
   disabled?: boolean;
@@ -84,6 +91,7 @@ export function CategorySelector({
   onChange,
   disabled,
   placeholder = "Select category",
+  ...triggerLabelProps
 }: CategorySelectorProps) {
   const [open, setOpen] = useState(false);
   const { data: categories, isLoading } = useCategoriesGrouped();
@@ -153,6 +161,7 @@ export function CategorySelector({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
+          {...triggerLabelProps}
           type="button"
           role="combobox"
           aria-expanded={open}
