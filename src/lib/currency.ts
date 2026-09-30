@@ -160,22 +160,10 @@ export function parsePHP(input: string | number): number {
 }
 
 /**
- * Parses peso input to cents WITHOUT the MAX_AMOUNT_CENTS check. For inputs
- * that must commit an over-max value so form validation can reject it.
- * Returns null for empty, non-numeric, or negative input.
- *
- * Use case: Currency input component that needs to commit over-max values
- * so the schema-level .max() rule can reject them (not silently truncate).
- *
- * @param input - User input string
- * @returns Integer amount in cents, or null if not parseable
- *
- * @example
- * parsePHPUnbounded("₱1,500.50")  // 150050
- * parsePHPUnbounded("99999999")   // 9999999900 (over max, but committed anyway)
- * parsePHPUnbounded("abc")        // null
- * parsePHPUnbounded("-5")         // null
- * parsePHPUnbounded("")           // null
+ * Parses peso input to cents WITHOUT the MAX_AMOUNT_CENTS check, so a
+ * currency input can commit an over-max value for the schema's .max() rule
+ * to reject instead of silently truncating it. Returns null for empty,
+ * non-numeric, or negative input.
  */
 export function parsePHPUnbounded(input: string): number | null {
   const cleaned = input.replace(/[₱,\s]/g, "");

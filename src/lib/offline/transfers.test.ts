@@ -14,8 +14,9 @@ import {
   type TransferLeg,
 } from "./transfers";
 
-// Lets a test make queue-item construction fail, to prove the entity write and
-// the enqueue share one Dexie transaction
+// Lets a test make queue-item construction fail, to prove there's no partial
+// write: queue items are built before the Dexie transaction opens, so a
+// build failure must leave no transaction rows behind either
 const queueBuild = vi.hoisted(() => ({ fail: false }));
 vi.mock("./syncQueue", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./syncQueue")>();
@@ -271,10 +272,15 @@ describe("createOfflineTransfer", () => {
 
   it("writes nothing when building a queue item fails", async () => {
     queueBuild.fail = true;
-    const result = await createOfflineTransfer(input, userId);
-    expect(result.success).toBe(false);
-    expect(await db.transactions.count()).toBe(0);
-    expect(await db.syncQueue.count()).toBe(0);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const result = await createOfflineTransfer(input, userId);
+      expect(result.success).toBe(false);
+      expect(await db.transactions.count()).toBe(0);
+      expect(await db.syncQueue.count()).toBe(0);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("rejects a same-account transfer and invalid amounts without writing", async () => {
