@@ -361,7 +361,7 @@ Added 2026-09-30. `src/lib/supabaseQueries.ts` has 15 direct writes from live ho
 ### Follow-ups recorded 2026-09-30
 
 - Supabase-write selector allowlist: `src/lib/dexie/deviceManager.ts` and `src/lib/device-registration.ts` (device registry/heartbeat, not household data; see the Phase 0.5a design Decisions & Deferrals).
-- Transfer delete removes both legs through the outbox (today only the chosen leg is deleted; the server unlinks the other).
+- Transfer delete: the server already deletes both legs (`20260702120000_security_hardening.sql`), but `deleteOfflineTransaction` removes only the chosen leg locally until the realtime echo; consider deleting both legs locally.
 - `CurrencyInput` hardcodes `aria-label="Amount in Philippine Pesos"`, overriding visible field labels (Phase 1 jsx-a11y; update `tests/e2e/budgets.spec.ts` locator with it).
 
 ### Future: full local copy (deferred 2026-09-30)
