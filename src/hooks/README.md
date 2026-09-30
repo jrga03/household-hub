@@ -119,16 +119,16 @@ For create/update/delete operations:
 ```typescript
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-export function useCreateTransaction() {
+export function useCreateCategory() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (transaction) => {
-      return await createOfflineTransaction(transaction);
+    mutationFn: async (category) => {
+      return await createOfflineCategory(category);
     },
     onSuccess: () => {
       // Invalidate cache to trigger refetch
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
   });
 }

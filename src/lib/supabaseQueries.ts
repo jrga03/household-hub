@@ -27,12 +27,7 @@ import { afterOutboxWrite } from "./offline/afterWrite";
 import type { AccountInput, CategoryInput, TransactionInput } from "./offline/types";
 import { Account } from "@/types/accounts";
 import type { Category, CategoryWithChildren } from "@/types/categories";
-import type {
-  Transaction,
-  TransactionInsert,
-  TransactionFilters,
-  TransactionWithRelations,
-} from "@/types/transactions";
+import type { TransactionFilters, TransactionWithRelations } from "@/types/transactions";
 
 /**
  * TanStack Query hooks for accounts CRUD operations
@@ -111,22 +106,6 @@ export function useUpdateAccount() {
       return result.data;
     },
     onSuccess: () => afterOutboxWrite(queryClient, userId, [["accounts"]]),
-  });
-}
-
-// Archive account (soft delete)
-export function useArchiveAccount() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("accounts").update({ is_active: false }).eq("id", id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
-    },
   });
 }
 
@@ -426,22 +405,6 @@ export function useUpdateCategory() {
   });
 }
 
-// Archive category (soft delete)
-export function useArchiveCategory() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("categories").update({ is_active: false }).eq("id", id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
-    },
-  });
-}
-
 /**
  * TanStack Query hooks for transactions CRUD operations
  * CRITICAL: Always invalidate both ["transactions"] and ["accounts"] on mutations
@@ -714,28 +677,6 @@ export function useTransaction(id: string) {
       return data as TransactionWithRelations;
     },
     enabled: !!id, // skip when there is no id (e.g. create mode)
-  });
-}
-
-// Create transaction
-export function useCreateTransaction() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (transaction: TransactionInsert) => {
-      const { data, error } = await supabase
-        .from("transactions")
-        .insert(transaction)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data as Transaction;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["accounts"] }); // Balance updated
-    },
   });
 }
 
