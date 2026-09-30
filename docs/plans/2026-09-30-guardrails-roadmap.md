@@ -356,6 +356,11 @@ Added 2026-09-30. `src/lib/supabaseQueries.ts` has 15 direct writes from live ho
 - [ ] Categories: create and deactivate through `src/lib/offline/categories.ts`
 - [ ] Budgets: insert, upsert, delete through `src/lib/offline/budgets.ts`
 - [ ] Then flip the Phase 1 Supabase-write selector from `warn` to `error`
+- Approach (decided 2026-09-30): outbox mutations fetch the single row from Supabase and store it locally when it is missing from IndexedDB ("fetch on miss"), then apply the change and enqueue. Offline, the UI only shows local rows, so a missing row and no network cannot coincide.
+
+### Future: full local copy (deferred 2026-09-30)
+
+IndexedDB is not a full mirror: the reconnection catch-up pulls only rows changed since its cursor, and a fresh device starts with the last 24 hours (`src/lib/realtime-sync.ts` `fetchLatestChanges`). Offline reads on a fresh device therefore miss older data. Backfill every transaction, account, category, and budget on first login (paginated, storage-quota aware, with progress UI). Revisit: after Phase 0.5, or sooner if offline reads of older data are reported missing.
 
 ### Phase 1: Cheap wins
 
