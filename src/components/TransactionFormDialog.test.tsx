@@ -372,6 +372,27 @@ describe("TransactionFormDialog", () => {
     });
   });
 
+  it("sends null for account, category, and notes the user cleared so the edit clears them", async () => {
+    mockUseTransaction.mockReturnValue({
+      data: buildTransaction({ notes: "Old note" }),
+    });
+    vi.mocked(updateOfflineTransaction).mockResolvedValue({ success: true, isTemporary: true });
+    await renderDialog({ editingId: "txn-1" });
+
+    fireEvent.change(await screen.findByLabelText("Notes (optional)"), {
+      target: { value: "" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /update/i }));
+
+    await waitFor(() => {
+      expect(updateOfflineTransaction).toHaveBeenCalledWith(
+        "txn-1",
+        expect.objectContaining({ account_id: null, category_id: null, notes: null }),
+        "user-1"
+      );
+    });
+  });
+
   describe("dirty-form navigation guard (useBlocker, R37)", () => {
     it("blocks in-app navigation when the form is dirty and the discard confirm is declined", async () => {
       const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);

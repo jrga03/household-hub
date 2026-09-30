@@ -52,6 +52,25 @@ describe("offline accounts", () => {
     expect(queue[0].operation.op).toBe("update");
   });
 
+  it("queues a cleared owner_user_id when a personal account becomes household", async () => {
+    const created = await createOfflineAccount(
+      { name: "Mine", type: "bank", visibility: "personal", initial_balance_cents: 0 },
+      userId
+    );
+    await db.syncQueue.clear();
+
+    const result = await updateOfflineAccount(
+      created.data!.id,
+      { visibility: "household" },
+      userId
+    );
+
+    expect(result.success).toBe(true);
+    const [queued] = await db.syncQueue.toArray();
+    expect(queued.operation.payload).toHaveProperty("owner_user_id", undefined);
+    expect(queued.operation.payload.visibility).toBe("household");
+  });
+
   it("deactivates by queueing an update with is_active false", async () => {
     const created = await createOfflineAccount(
       { name: "Old", type: "bank", visibility: "household", initial_balance_cents: 0 },

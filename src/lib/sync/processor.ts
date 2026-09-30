@@ -294,7 +294,13 @@ export class SyncProcessor {
   ): Promise<void> {
     const tableName = this.getTableName(entityType);
 
-    const { error } = await supabase.from(tableName).update(payload).eq("id", entityId);
+    // Offline updates store a cleared field as undefined; JSON drops undefined
+    // keys, so without this the server would silently keep the old value.
+    const serverPayload = Object.fromEntries(
+      Object.entries(payload).map(([key, value]) => [key, value === undefined ? null : value])
+    );
+
+    const { error } = await supabase.from(tableName).update(serverPayload).eq("id", entityId);
 
     if (error) {
       throw error;

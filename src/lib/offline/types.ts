@@ -30,11 +30,12 @@ export interface TransactionInput {
   description: string;
   amount_cents: number;
   type: "income" | "expense";
-  account_id?: string;
-  category_id?: string;
+  // null = explicit clear on update; undefined/omitted = leave unchanged
+  account_id?: string | null;
+  category_id?: string | null;
   status: "pending" | "cleared";
   visibility: "household" | "personal";
-  notes?: string;
+  notes?: string | null;
   tagged_user_ids?: string[];
   transfer_group_id?: string | null;
   // null = explicit unlink on update; undefined/omitted = leave unchanged

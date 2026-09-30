@@ -224,17 +224,17 @@ export function TransactionFormDialog({
             description: data.description,
             amount_cents: data.amount_cents,
             type: data.type,
-            account_id: data.account_id || undefined,
-            category_id: data.category_id || undefined,
-            // Explicit null = intentional unlink (debt Select's "None");
-            // updateOfflineTransaction preserves the link only when the key
-            // is undefined/omitted. The form holds the current link after
-            // the edit reset, so an empty value means the user cleared it.
+            // Explicit null = intentional clear/unlink; updateOfflineTransaction
+            // keeps the old value only when the key is undefined/omitted. The
+            // form holds the current values after the edit reset, so an empty
+            // value means the user cleared it.
+            account_id: data.account_id || null,
+            category_id: data.category_id || null,
             debt_id: data.debt_id || null,
             internal_debt_id: data.internal_debt_id || null,
             status: data.status,
             visibility: data.visibility,
-            notes: data.notes || undefined,
+            notes: data.notes || null,
           },
           user?.id || ""
         );

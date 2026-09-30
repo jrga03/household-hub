@@ -65,15 +65,19 @@ function setupSupabaseMock(
     updateError?: unknown;
     deleteError?: unknown;
     onTable?: (table: string) => void;
+    onUpdate?: (payload: Record<string, unknown>) => void;
   } = {}
 ) {
-  const { insertError = null, updateError = null, deleteError = null, onTable } = options;
+  const { insertError = null, updateError = null, deleteError = null, onTable, onUpdate } = options;
 
   vi.mocked(supabase.from).mockImplementation(((table: string) => {
     onTable?.(table);
     return {
       insert: vi.fn(() => Promise.resolve({ error: insertError })),
-      update: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: updateError })) })),
+      update: vi.fn((payload: Record<string, unknown>) => {
+        onUpdate?.(payload);
+        return { eq: vi.fn(() => Promise.resolve({ error: updateError })) };
+      }),
       delete: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: deleteError })) })),
     };
   }) as never);
@@ -262,6 +266,30 @@ describe("SyncProcessor (local outbox)", () => {
 
       const result = await processor.processItem(item);
       expect(result.success).toBe(true);
+    });
+
+    it("sends a cleared (undefined) update field as null so the server clears it", async () => {
+      const sent: Record<string, unknown>[] = [];
+      setupSupabaseMock({ onUpdate: (payload) => sent.push(payload) });
+      const item = makeQueueItem({
+        entity_type: "account",
+        operation: {
+          op: "update",
+          payload: { visibility: "household", owner_user_id: undefined },
+          idempotencyKey: "key-clear",
+          lamportClock: 2,
+          vectorClock: {},
+        },
+      });
+      await db.syncQueue.add(item);
+      const stored = await db.syncQueue.get(item.id);
+
+      const result = await processor.processItem(stored!);
+
+      expect(result.success).toBe(true);
+      expect(sent).toHaveLength(1);
+      expect(sent[0]).toEqual({ visibility: "household", owner_user_id: null });
+      expect(JSON.parse(JSON.stringify(sent[0]))).toHaveProperty("owner_user_id", null);
     });
 
     it("handles delete: calls Supabase delete", async () => {

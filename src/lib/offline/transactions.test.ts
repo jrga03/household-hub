@@ -265,6 +265,27 @@ describe("updateOfflineTransaction debt link merge", () => {
     expect((await db.transactions.get(tx.id))?.debt_id).toBeUndefined();
   });
 
+  it("clears account, category, and notes on explicit null and queues the cleared keys", async () => {
+    const tx = makeTransaction({ account_id: "acc-1", category_id: "cat-1", notes: "Old" });
+    await db.transactions.add(tx);
+
+    const result = await updateOfflineTransaction(
+      tx.id,
+      { account_id: null, category_id: null, notes: null },
+      testUserId
+    );
+
+    expect(result.success).toBe(true);
+    const stored = await db.transactions.get(tx.id);
+    expect(stored?.account_id).toBeUndefined();
+    expect(stored?.category_id).toBeUndefined();
+    expect(stored?.notes).toBeUndefined();
+    const [queueItem] = await db.syncQueue.toArray();
+    expect(queueItem.operation.payload).toHaveProperty("account_id", undefined);
+    expect(queueItem.operation.payload).toHaveProperty("category_id", undefined);
+    expect(queueItem.operation.payload).toHaveProperty("notes", undefined);
+  });
+
   it("carries the preserved link into the sync queue payload", async () => {
     const tx = makeTransaction({ debt_id: "debt-1" });
     await db.transactions.add(tx);
