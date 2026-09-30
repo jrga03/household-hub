@@ -14,7 +14,7 @@
  * @module offline/transactions.test
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { db, type LocalTransaction } from "@/lib/dexie/db";
 import { handleTransactionEdit } from "@/lib/debts";
 import { supabase } from "@/lib/supabase";
@@ -33,7 +33,15 @@ vi.mock("@/lib/debts", () => ({
   handleTransactionDelete: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("@/lib/supabase", () => ({ supabase: { from: vi.fn() } }));
+// deviceManager's best-effort device registration (unrelated to what these
+// tests cover) calls supabase.auth.getUser() on every create; stub it as
+// unauthenticated so it returns early instead of throwing on a missing auth.
+vi.mock("@/lib/supabase", () => ({
+  supabase: {
+    from: vi.fn(),
+    auth: { getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }) },
+  },
+}));
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -41,20 +49,16 @@ describe("Offline Transaction Operations", () => {
   // Use a valid UUID format for test user ID (Supabase expects UUID)
   const testUserId = "12345678-1234-5678-1234-567812345678";
 
-  // The @/lib/supabase mock above has no `auth`, so deviceManager's
-  // best-effort device registration (unrelated to what these tests cover)
-  // throws internally and logs a warning it already treats as non-fatal.
-  let warnSpy: ReturnType<typeof vi.spyOn>;
-
   beforeEach(async () => {
     await db.transactions.clear();
     await db.syncQueue.clear();
     await db.meta.clear();
-    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    warnSpy.mockRestore();
+    // Re-set defensively: the global afterEach clears mocks, and a reset
+    // (vs. clear) would wipe this resolved value.
+    vi.mocked(supabase.auth.getUser).mockResolvedValue({
+      data: { user: null },
+      error: null,
+    } as never);
   });
 
   it("should create transaction with a client-generated UUID and queue it", async () => {
