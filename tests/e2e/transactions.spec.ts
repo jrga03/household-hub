@@ -4,7 +4,10 @@ import {
   createTestCategory,
   deleteTestCategory,
   deleteTestTransactions,
+  createTestAccount,
+  deleteTestAccount,
   type TestCategory,
+  type TestAccount,
 } from "./fixtures/db-cleanup";
 
 let createdDescriptions: string[] = [];
@@ -21,7 +24,12 @@ function transactionRow(page: Page, description: string) {
 
 async function createExpense(
   page: Page,
-  { description, amount, category }: { description: string; amount: string; category: string }
+  {
+    description,
+    amount,
+    category,
+    account,
+  }: { description: string; amount: string; category: string; account: string }
 ) {
   await page.goto("/transactions");
   // The page's own button, not the sidebar's global quick-add
@@ -33,7 +41,7 @@ async function createExpense(
   await dialog.getByRole("textbox", { name: "Description" }).fill(description);
 
   await dialog.getByRole("combobox", { name: "Account" }).click();
-  await page.getByRole("option").first().click();
+  await page.getByRole("option", { name: account, exact: true }).click();
 
   // Category picker is a searchable Popover+Command combobox (mobile UX 6.8)
   await dialog.getByRole("combobox", { name: "Category" }).click();
@@ -45,11 +53,14 @@ async function createExpense(
 
 test.describe("Transactions", () => {
   let category: TestCategory | null = null;
+  let account: TestAccount | null = null;
 
   test.beforeEach(async ({ page }) => {
     // The local stack has no seeded categories; each test brings its own
     category = await createTestCategory("Transactions");
     expect(category, "admin client (.env.test) is required to seed a category").not.toBeNull();
+    account = await createTestAccount("Transactions");
+    expect(account, "admin client (.env.test) is required to seed an account").not.toBeNull();
     await login(page);
   });
 
@@ -58,11 +69,18 @@ test.describe("Transactions", () => {
     createdDescriptions = [];
     await deleteTestCategory(category);
     category = null;
+    await deleteTestAccount(account);
+    account = null;
   });
 
   test("should create new transaction", async ({ page }) => {
     const description = uniqueDescription("Create");
-    await createExpense(page, { description, amount: "1500.50", category: category!.name });
+    await createExpense(page, {
+      description,
+      amount: "1500.50",
+      category: category!.name,
+      account: account!.name,
+    });
 
     const row = transactionRow(page, description);
     await expect(row).toBeVisible();
@@ -73,7 +91,12 @@ test.describe("Transactions", () => {
     const description = uniqueDescription("Edit");
     const updatedDescription = `${description} Updated`;
     createdDescriptions.push(updatedDescription);
-    await createExpense(page, { description, amount: "250.00", category: category!.name });
+    await createExpense(page, {
+      description,
+      amount: "250.00",
+      category: category!.name,
+      account: account!.name,
+    });
 
     // Below the @[1500px] container breakpoint a row click opens the
     // read-only detail sheet, which exposes an explicit Edit button
@@ -89,7 +112,12 @@ test.describe("Transactions", () => {
 
   test("should delete transaction", async ({ page }) => {
     const description = uniqueDescription("Delete");
-    await createExpense(page, { description, amount: "99.00", category: category!.name });
+    await createExpense(page, {
+      description,
+      amount: "99.00",
+      category: category!.name,
+      account: account!.name,
+    });
 
     const row = transactionRow(page, description);
     await expect(row).toBeVisible();

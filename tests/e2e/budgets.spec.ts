@@ -1,6 +1,11 @@
 import { test, expect } from "@playwright/test";
 import { login } from "./fixtures/helpers";
-import { createTestCategory, deleteTestCategory, type TestCategory } from "./fixtures/db-cleanup";
+import {
+  createTestCategory,
+  deleteTestCategory,
+  getTestBudget,
+  type TestCategory,
+} from "./fixtures/db-cleanup";
 
 test.describe("Budgets", () => {
   let category: TestCategory | null = null;
@@ -38,10 +43,7 @@ test.describe("Budgets", () => {
     await categoryTrigger.click();
     await page.getByRole("option", { name: category!.name, exact: true }).click();
 
-    const amountInput = page.locator('input[name="amount"], input[name="amount_cents"]').first();
-    if (await amountInput.isVisible()) {
-      await amountInput.fill("5000");
-    }
+    await page.getByRole("textbox", { name: "Amount in Philippine Pesos" }).fill("5000");
 
     // Submit
     const submitBtn = page.locator('button[type="submit"]').first();
@@ -49,6 +51,10 @@ test.describe("Budgets", () => {
 
     // Verify creation
     await expect(page.getByText(category!.name).first()).toBeVisible({ timeout: 10000 });
+
+    await expect
+      .poll(async () => (await getTestBudget(category!.childId))?.amount_cents, { timeout: 15000 })
+      .toBe(500000);
   });
 
   test("verify over-budget warning visual", async ({ page }) => {

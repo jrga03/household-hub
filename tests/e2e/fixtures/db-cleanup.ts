@@ -64,6 +64,7 @@ export async function cleanupTestTransactions(userId?: string) {
 
 export interface TestCategory {
   parentId: string;
+  childId: string;
   name: string;
 }
 
@@ -86,12 +87,16 @@ export async function createTestCategory(label: string): Promise<TestCategory | 
     return null;
   }
   const name = `[E2E] ${label} ${suffix}`;
-  const { error } = await adminClient.from("categories").insert({ name, parent_id: parent.id });
-  if (error) {
+  const { data: child, error } = await adminClient
+    .from("categories")
+    .insert({ name, parent_id: parent.id })
+    .select("id")
+    .single();
+  if (error || !child) {
     console.error("Failed to create test category:", error);
     return null;
   }
-  return { parentId: parent.id, name };
+  return { parentId: parent.id, childId: child.id, name };
 }
 
 /** Delete one test category pair; the child and its budgets cascade. */
@@ -99,6 +104,45 @@ export async function deleteTestCategory(category: TestCategory | null) {
   if (!adminClient || !category) return;
   const { error } = await adminClient.from("categories").delete().eq("id", category.parentId);
   if (error) console.error("Failed to delete test category:", error);
+}
+
+export interface TestAccount {
+  id: string;
+  name: string;
+}
+
+/** Uniquely named [E2E] account so specs never depend on pre-existing data. */
+export async function createTestAccount(label: string): Promise<TestAccount | null> {
+  if (!adminClient) return null;
+  const name = `[E2E] ${label} ${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+  const { data, error } = await adminClient
+    .from("accounts")
+    .insert({ name, type: "bank" })
+    .select("id")
+    .single();
+  if (error || !data) {
+    console.error("Failed to create test account:", error);
+    return null;
+  }
+  return { id: data.id, name };
+}
+
+/** Transactions reference accounts ON DELETE SET NULL, so delete them first. */
+export async function deleteTestAccount(account: TestAccount | null) {
+  if (!adminClient || !account) return;
+  const { error } = await adminClient.from("accounts").delete().eq("id", account.id);
+  if (error) console.error("Failed to delete test account:", error);
+}
+
+export async function getTestBudget(categoryId: string) {
+  if (!adminClient) return null;
+  const { data, error } = await adminClient
+    .from("budgets")
+    .select("amount_cents")
+    .eq("category_id", categoryId)
+    .maybeSingle();
+  if (error) console.error("Failed to read test budget:", error);
+  return data;
 }
 
 /**
