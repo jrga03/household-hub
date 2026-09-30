@@ -51,32 +51,43 @@ export async function cleanupTestTransactions(userId?: string) {
   if (error) console.error("Failed to cleanup test transactions:", error);
 }
 
-export const TEST_BUDGET_CATEGORY = "[E2E] Budget Category";
+export interface TestCategory {
+  parentId: string;
+  name: string;
+}
 
 /**
- * Create an [E2E] parent/child category pair to budget against. Budgets are
- * UNIQUE(household_id, category_id, month), so budgeting a real category
- * would collide with user data and with leaked runs.
+ * Create a uniquely named [E2E] parent/child category pair (the picker only
+ * offers child categories). Unique per call so parallel specs never share or
+ * delete each other's category, and budgets on it never collide with user
+ * data (budgets are UNIQUE(household_id, category_id, month)).
  */
-export async function createTestBudgetCategory(): Promise<string | null> {
+export async function createTestCategory(label: string): Promise<TestCategory | null> {
   if (!adminClient) return null;
+  const suffix = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
   const { data: parent, error: parentError } = await adminClient
     .from("categories")
-    .insert({ name: "[E2E] Budget Parent" })
+    .insert({ name: `[E2E] ${label} Parent ${suffix}` })
     .select("id")
     .single();
   if (parentError || !parent) {
-    console.error("Failed to create test budget parent category:", parentError);
+    console.error("Failed to create test parent category:", parentError);
     return null;
   }
-  const { error } = await adminClient
-    .from("categories")
-    .insert({ name: TEST_BUDGET_CATEGORY, parent_id: parent.id });
+  const name = `[E2E] ${label} ${suffix}`;
+  const { error } = await adminClient.from("categories").insert({ name, parent_id: parent.id });
   if (error) {
-    console.error("Failed to create test budget category:", error);
+    console.error("Failed to create test category:", error);
     return null;
   }
-  return TEST_BUDGET_CATEGORY;
+  return { parentId: parent.id, name };
+}
+
+/** Delete one test category pair; the child and its budgets cascade. */
+export async function deleteTestCategory(category: TestCategory | null) {
+  if (!adminClient || !category) return;
+  const { error } = await adminClient.from("categories").delete().eq("id", category.parentId);
+  if (error) console.error("Failed to delete test category:", error);
 }
 
 /**

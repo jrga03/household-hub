@@ -1,79 +1,111 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+import { login } from "./fixtures/helpers";
+import {
+  cleanupTestTransactions,
+  createTestCategory,
+  deleteTestCategory,
+  type TestCategory,
+} from "./fixtures/db-cleanup";
+
+function uniqueDescription(label: string) {
+  return `[E2E] ${label} ${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+}
+
+function transactionRow(page: Page, description: string) {
+  return page.getByRole("main").getByTestId("transaction-row").filter({ hasText: description });
+}
+
+async function createExpense(
+  page: Page,
+  { description, amount, category }: { description: string; amount: string; category: string }
+) {
+  await page.goto("/transactions");
+  // The page's own button, not the sidebar's global quick-add
+  await page.getByRole("main").getByRole("button", { name: "Add Transaction" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "New Transaction" });
+  await dialog.getByRole("textbox", { name: "Amount in Philippine Pesos" }).fill(amount);
+  await dialog.getByRole("radio", { name: "Expense" }).click();
+  await dialog.getByRole("textbox", { name: "Description" }).fill(description);
+
+  await dialog.getByRole("combobox", { name: "Account" }).click();
+  await page.getByRole("option").first().click();
+
+  // Category picker is a searchable Popover+Command combobox (mobile UX 6.8)
+  await dialog.getByRole("combobox", { name: "Category" }).click();
+  await page.getByRole("option", { name: category, exact: true }).click();
+
+  await dialog.getByRole("button", { name: "Create" }).click();
+  await expect(dialog).toBeHidden();
+}
 
 test.describe("Transactions", () => {
+  let category: TestCategory | null = null;
+
   test.beforeEach(async ({ page }) => {
-    // Login before each test
-    await page.goto("/login");
-    await page.fill('[name="email"]', "test@example.com");
-    await page.fill('[name="password"]', "TestPassword123!");
-    await page.click('button[type="submit"]');
+    // The local stack has no seeded categories; each test brings its own
+    category = await createTestCategory("Transactions");
+    expect(category, "admin client (.env.test) is required to seed a category").not.toBeNull();
+    await login(page);
+  });
+
+  test.afterEach(async () => {
+    await cleanupTestTransactions();
+    await deleteTestCategory(category);
+    category = null;
   });
 
   test("should create new transaction", async ({ page }) => {
-    await page.goto("/transactions");
-    await page.click("text=Add Transaction");
+    const description = uniqueDescription("Create");
+    await createExpense(page, { description, amount: "1500.50", category: category!.name });
 
-    // Fill form
-    await page.fill('[name="description"]', "Test Expense");
-    await page.fill('[name="amount"]', "1500.50");
-    await page.selectOption('[name="type"]', "expense");
-    await page.selectOption('[name="account"]', { index: 1 });
-
-    // Category picker is a searchable Popover+Command combobox (mobile UX
-    // 6.8), not a native select
-    await page.getByRole("combobox", { name: "Select category" }).click();
-    await page.getByRole("option").first().click();
-
-    await page.click('button[type="submit"]');
-
-    // Verify created
-    await expect(page.getByText("Test Expense")).toBeVisible();
-    await expect(page.getByText("₱1,500.50")).toBeVisible();
+    const row = transactionRow(page, description);
+    await expect(row).toBeVisible();
+    await expect(row).toContainText("₱1,500.50");
   });
 
   test("should edit transaction", async ({ page }) => {
-    await page.goto("/transactions");
+    const description = uniqueDescription("Edit");
+    const updatedDescription = `${description} Updated`;
+    await createExpense(page, { description, amount: "250.00", category: category!.name });
 
-    // Click first transaction. Below the @[1500px] container breakpoint this
-    // opens the read-only detail sheet (wide layouts select into the detail
-    // pane instead); both surfaces expose an explicit Edit button.
-    await page.click('[data-testid="transaction-row"]:first-child');
-
-    // Edit from the detail sheet. Role-scoped to the dialog: a bare
-    // `text=Edit` first-matches any copy containing the word before the
-    // button and times out on the hit-target check.
+    // Below the @[1500px] container breakpoint a row click opens the
+    // read-only detail sheet, which exposes an explicit Edit button
+    await transactionRow(page, description).click();
     await page.getByRole("dialog").getByRole("button", { name: "Edit", exact: true }).click();
-    await page.fill('[name="description"]', "Updated Description");
-    await page.click('button[type="submit"]');
 
-    // Verify updated
-    await expect(page.getByText("Updated Description")).toBeVisible();
+    const form = page.getByRole("dialog", { name: "Edit Transaction" });
+    await form.getByRole("textbox", { name: "Description" }).fill(updatedDescription);
+    await form.getByRole("button", { name: "Update" }).click();
+
+    await expect(transactionRow(page, updatedDescription)).toBeVisible();
   });
 
   test("should delete transaction", async ({ page }) => {
-    await page.goto("/transactions");
+    const description = uniqueDescription("Delete");
+    await createExpense(page, { description, amount: "99.00", category: category!.name });
 
-    const firstRow = page.locator('[data-testid="transaction-row"]').first();
-    const transactionText = await firstRow.textContent();
+    const row = transactionRow(page, description);
+    await expect(row).toBeVisible();
 
     // Row-level Delete confirms via the app-level AlertDialog (review R39)
-    await firstRow.getByRole("button", { name: /^Delete / }).click();
+    await row.getByRole("button", { name: `Delete ${description}` }).click();
     await page
       .getByRole("alertdialog")
       .getByRole("button", { name: "Delete", exact: true })
       .click();
 
-    // Verify deleted
-    await expect(page.getByText(transactionText!)).not.toBeVisible();
+    await expect(row).toHaveCount(0);
   });
 
-  test("should calculate account balance correctly", async ({ page }) => {
+  test("should display account balances in PHP format", async ({ page }) => {
     await page.goto("/accounts");
 
-    // Get first account balance
-    const balance = await page.locator('[data-testid="account-balance"]:first-child').textContent();
+    const firstAccount = page
+      .getByRole("main")
+      .getByRole("link", { name: /Current Balance/ })
+      .first();
 
-    // Verify format
-    expect(balance).toMatch(/₱[\d,]+\.\d{2}/);
+    await expect(firstAccount).toContainText(/₱[\d,]+\.\d{2}/);
   });
 });

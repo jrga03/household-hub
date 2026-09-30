@@ -2,11 +2,14 @@ import { test, expect } from "@playwright/test";
 import { login } from "./fixtures/helpers";
 import {
   cleanupTestBudgets,
-  cleanupTestCategories,
-  createTestBudgetCategory,
+  createTestCategory,
+  deleteTestCategory,
+  type TestCategory,
 } from "./fixtures/db-cleanup";
 
 test.describe("Budgets", () => {
+  let category: TestCategory | null = null;
+
   test.beforeEach(async ({ page }) => {
     await login(page);
     await page.goto("/budgets");
@@ -14,44 +17,31 @@ test.describe("Budgets", () => {
 
   test.afterEach(async () => {
     await cleanupTestBudgets();
-    await cleanupTestCategories();
+    await deleteTestCategory(category);
+    category = null;
   });
 
   test("renders budget list page", async ({ page }) => {
     await expect(page).toHaveURL(/\/budgets/);
-    // Page should have a heading or budget content
-    const heading = page.locator("h1, h2, [data-testid='budget-list']").first();
+    // Scoped to <main>: the tablet header's page-title h1 comes first in the
+    // DOM and is hidden at desktop widths
+    const heading = page.getByRole("main").getByRole("heading", { level: 1, name: "Budgets" });
     await expect(heading).toBeVisible({ timeout: 10000 });
   });
 
   test("create budget: fill form and verify in list", async ({ page }) => {
-    const categoryName = await createTestBudgetCategory();
-    test.skip(
-      !categoryName,
-      "Admin client unavailable - cannot create an isolated budget category"
-    );
+    category = await createTestCategory("Budget");
+    test.skip(!category, "Admin client unavailable - cannot create an isolated budget category");
 
-    // Click add budget button
-    const addBtn = page
-      .locator(
-        '[data-testid="add-budget-btn"], button:has-text("Add Budget"), button:has-text("Add")'
-      )
-      .first();
-
-    if (!(await addBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
-      test.skip(true, "Add budget button not found - feature may not be implemented yet");
-      return;
-    }
-
-    await addBtn.click();
+    // Scoped to <main>: the sidebar's "Add Transaction" button precedes the
+    // page's own controls in the DOM
+    await page.getByRole("main").getByRole("button", { name: "Add Budget" }).click();
 
     // Fill the budget form. The category picker is a searchable
     // Popover+Command combobox (mobile UX 6.8), not a native select
-    const categoryTrigger = page.getByRole("combobox", { name: "Select category" });
+    const categoryTrigger = page.getByRole("combobox", { name: "Category" });
     await categoryTrigger.click();
-    await page
-      .getByRole("option", { name: new RegExp(categoryName!.replace(/[[\]]/g, "\\$&")) })
-      .click();
+    await page.getByRole("option", { name: category!.name, exact: true }).click();
 
     const amountInput = page.locator('input[name="amount"], input[name="amount_cents"]').first();
     if (await amountInput.isVisible()) {
@@ -63,7 +53,7 @@ test.describe("Budgets", () => {
     await submitBtn.click();
 
     // Verify creation
-    await expect(page.getByText(categoryName!).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(category!.name).first()).toBeVisible({ timeout: 10000 });
   });
 
   test("verify over-budget warning visual", async ({ page }) => {
