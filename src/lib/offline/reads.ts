@@ -159,6 +159,25 @@ export async function getUnsyncedLocalTransactionsWithRelations(
   return withLocalRelations(applyTransactionFilters(localRows, filters));
 }
 
+/**
+ * Transactions this user deleted locally whose delete has not reached the
+ * server yet. The server page still returns them until the drain lands, so
+ * the list hides them to make a delete disappear immediately online.
+ */
+export async function getPendingTransactionDeleteIds(userId: string): Promise<string[]> {
+  const deletes = await db.syncQueue
+    .where("status")
+    .anyOf("queued", "syncing")
+    .filter(
+      (item) =>
+        item.user_id === userId &&
+        item.entity_type === "transaction" &&
+        item.operation.op === "delete"
+    )
+    .toArray();
+  return deletes.map((item) => item.entity_id);
+}
+
 /** Minimal row shape needed to merge and re-sort transaction lists. */
 interface MergeableTransactionRow {
   id: string;
@@ -214,6 +233,7 @@ export function overlayLocalTransactions<T extends MergeableTransactionRow>(
 export interface TransactionsListPage<T> {
   rows: T[];
   localOverlay: T[];
+  pendingDeleteIds?: string[];
 }
 
 /**
@@ -274,6 +294,13 @@ export function mergeTransactionPages<T extends MergeableTransactionRow>(
       for (const row of page.localOverlay) {
         byId.set(row.id, row); // local wins; later (fresher) snapshots override
       }
+    }
+  }
+
+  // Pending deletes apply on every page, not just the top one
+  for (const page of pages) {
+    for (const id of page.pendingDeleteIds ?? []) {
+      byId.delete(id);
     }
   }
 

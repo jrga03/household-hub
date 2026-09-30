@@ -148,6 +148,35 @@ describe("SyncProcessor (local outbox)", () => {
       expect(tables.filter((t) => t === "transactions")).toHaveLength(1);
     });
 
+    it("runs one extra pass for writes queued while a drain is in flight", async () => {
+      const lateItem = makeQueueItem({ entity_id: "entity-late" });
+      const inserted: unknown[] = [];
+      let lateCalls: Promise<unknown>[] = [];
+      vi.mocked(supabase.from).mockImplementation((() => ({
+        insert: vi.fn(async (payload: unknown) => {
+          inserted.push(payload);
+          if (inserted.length === 1) {
+            await db.syncQueue.add(lateItem);
+            lateCalls = [processor.processQueue("user-1"), processor.processQueue("user-1")];
+          }
+          return { error: null };
+        }),
+      })) as never);
+      const passes = vi.spyOn(
+        processor as unknown as { executeProcessing: (userId: string) => Promise<unknown> },
+        "executeProcessing"
+      );
+      await db.syncQueue.add(makeQueueItem());
+
+      const result = await processor.processQueue("user-1");
+
+      expect(result).toEqual({ synced: 2, failed: 0, terminalFailures: 0 });
+      expect(passes).toHaveBeenCalledTimes(2);
+      expect(inserted).toHaveLength(2);
+      expect((await db.syncQueue.get(lateItem.id))?.status).toBe("completed");
+      expect(await Promise.all(lateCalls)).toEqual([result, result]);
+    });
+
     it("resets items stranded in 'syncing' by a crash and processes them", async () => {
       const staleTime = new Date(Date.now() - 10 * 60 * 1000).toISOString();
       const stranded = makeQueueItem({ status: "syncing", updated_at: staleTime });
@@ -200,16 +229,17 @@ describe("SyncProcessor (local outbox)", () => {
       expect(entry?.value).toBeTruthy();
     });
 
-    it("invalidates transactions/accounts/dashboard/transfers queries once per drain that pushed items", async () => {
+    it("invalidates transactions/accounts/categories/dashboard/transfers queries once per drain that pushed items", async () => {
       const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
       await db.syncQueue.bulkAdd([makeQueueItem(), makeQueueItem({ entity_id: "entity-2" })]);
 
       await processor.processQueue("user-1");
 
       // Once per prefix (not per item), fired after the drain completes
-      expect(invalidateSpy).toHaveBeenCalledTimes(4);
+      expect(invalidateSpy).toHaveBeenCalledTimes(5);
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["transactions"] });
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["accounts"] });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["categories"] });
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["dashboard"] });
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["transfers"] });
     });

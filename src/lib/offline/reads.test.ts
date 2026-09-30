@@ -10,6 +10,7 @@ import {
   applyTransactionFilters,
   getLocalTransactionsFilterSummary,
   getLocalTransactionsWithRelations,
+  getPendingTransactionDeleteIds,
   getUnsyncedLocalTransactionsWithRelations,
   mergeTransactionPages,
   overlayLocalTransactions,
@@ -321,6 +322,26 @@ describe("applyTransactionFilters", () => {
   });
 });
 
+describe("mergeTransactionPages pending deletes", () => {
+  it("drops rows whose delete is pending, on any page", () => {
+    const row = (id: string, date: string) => ({ id, date, created_at: `${date}T00:00:00Z` });
+
+    const merged = mergeTransactionPages(
+      [
+        {
+          rows: [row("a", "2026-07-05"), row("b", "2026-07-04")],
+          localOverlay: [],
+          pendingDeleteIds: ["b"],
+        },
+        { rows: [row("c", "2026-07-03")], localOverlay: [], pendingDeleteIds: ["c"] },
+      ],
+      [3, 4]
+    );
+
+    expect(merged.map((r) => r.id)).toEqual(["a"]);
+  });
+});
+
 // ─── getUnsyncedLocalTransactionsWithRelations ───
 
 describe("getUnsyncedLocalTransactionsWithRelations", () => {
@@ -403,6 +424,26 @@ describe("getUnsyncedLocalTransactionsWithRelations", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].account).toEqual({ id: "acc-1", name: "BPI Checking" });
     expect(rows[0].category).toBeNull();
+  });
+});
+
+describe("getPendingTransactionDeleteIds", () => {
+  beforeEach(async () => {
+    await db.syncQueue.clear();
+  });
+
+  it("returns this user's transaction deletes that have not synced yet", async () => {
+    await db.syncQueue.bulkAdd([
+      makeQueueItem("tx-queued", "queued", "delete"),
+      makeQueueItem("tx-syncing", "syncing", "delete"),
+      makeQueueItem("tx-done", "completed", "delete"),
+      makeQueueItem("tx-update", "queued", "update"),
+      makeQueueItem("tx-theirs", "queued", "delete", "user-2"),
+    ]);
+
+    const ids = await getPendingTransactionDeleteIds("user-1");
+
+    expect([...ids].sort()).toEqual(["tx-queued", "tx-syncing"]);
   });
 });
 

@@ -105,6 +105,12 @@ export class SyncProcessor {
   private isExecuting = false;
 
   /**
+   * Set when processQueue is called while a drain is in flight: that drain
+   * fetched its items before the new write existed, so it runs once more.
+   */
+  private pendingRerun = false;
+
+  /**
    * Maximum time (ms) before a processing session is considered stuck.
    */
   private readonly PROCESSING_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
@@ -114,13 +120,15 @@ export class SyncProcessor {
    *
    * Main entry point for sync operations. Called by autoSyncManager
    * (online/focus/interval triggers) and useSyncProcessor (manual button).
+   * Calls during an active drain share its promise and schedule one extra
+   * pass, which the shared promise includes.
    *
    * @param userId - User ID (items are stamped with their creator; filters
    *                 out items from another account on a shared device)
    */
   async processQueue(userId: string): Promise<ProcessQueueResult> {
-    // If already processing, return the existing promise (prevents race condition)
     if (this.processingPromise) {
+      this.pendingRerun = true;
       return this.processingPromise;
     }
 
@@ -130,24 +138,43 @@ export class SyncProcessor {
       return { synced: 0, failed: 0, terminalFailures: 0 };
     }
 
-    let timeoutId: ReturnType<typeof setTimeout>;
+    this.processingPromise = this.drainWithReruns(userId);
+
+    try {
+      return await this.processingPromise;
+    } finally {
+      this.processingPromise = null;
+    }
+  }
+
+  private async drainWithReruns(userId: string): Promise<ProcessQueueResult> {
+    const total: ProcessQueueResult = { synced: 0, failed: 0, terminalFailures: 0 };
+    do {
+      this.pendingRerun = false;
+      const result = await this.runSessionWithTimeout(userId);
+      total.synced += result.synced;
+      total.failed += result.failed;
+      total.terminalFailures += result.terminalFailures;
+    } while (this.pendingRerun && !this.isExecuting);
+    this.pendingRerun = false;
+    return total;
+  }
+
+  private async runSessionWithTimeout(userId: string): Promise<ProcessQueueResult> {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const timeoutPromise = new Promise<ProcessQueueResult>((_, reject) => {
       timeoutId = setTimeout(() => {
         reject(new Error(`Sync processing timed out after ${this.PROCESSING_TIMEOUT_MS}ms`));
       }, this.PROCESSING_TIMEOUT_MS);
     });
 
-    this.processingPromise = Promise.race([this.executeProcessing(userId), timeoutPromise]);
-
     try {
-      const result = await this.processingPromise;
-      clearTimeout(timeoutId!);
-      return result;
+      return await Promise.race([this.executeProcessing(userId), timeoutPromise]);
     } catch (error) {
       console.error("Sync processing failed or timed out:", error);
       return { synced: 0, failed: 0, terminalFailures: 0 };
     } finally {
-      this.processingPromise = null;
+      clearTimeout(timeoutId);
     }
   }
 
@@ -199,7 +226,13 @@ export class SyncProcessor {
         // Local changes just reached the cloud: refresh the server-state
         // queries once per drain so lists/balances pick up the synced rows
         // (review R9). Fire-and-forget - refetching must not block sync.
-        for (const queryKey of [["transactions"], ["accounts"], ["dashboard"], ["transfers"]]) {
+        for (const queryKey of [
+          ["transactions"],
+          ["accounts"],
+          ["categories"],
+          ["dashboard"],
+          ["transfers"],
+        ]) {
           queryClient.invalidateQueries({ queryKey }).catch(() => {});
         }
       }

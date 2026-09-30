@@ -233,6 +233,25 @@ describe("useTransactions infinite pagination (R10)", () => {
     expect(afterPage2.find((t) => t.id === echo.id)?.description).toBe("local unsynced edit");
   });
 
+  it("hides a server row whose delete is still queued in the outbox", async () => {
+    const dataset = makeServerDataset(3);
+    await db.syncQueue.add({
+      ...makeQueueItem(dataset[1].id),
+      operation: {
+        op: "delete",
+        payload: { id: dataset[1].id },
+        idempotencyKey: "k",
+        lamportClock: 2,
+      },
+    });
+    mockTransactionsRange((from, to) => ({ data: dataset.slice(from, to + 1), error: null }));
+
+    const { result } = renderHook(() => useTransactions(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.map((t) => t.id)).toEqual([dataset[0].id, dataset[2].id]);
+  });
+
   it("pages the Dexie fallback with the same offset/limit when the network fails", async () => {
     mockTransactionsRange(() => {
       throw new Error("Failed to fetch");

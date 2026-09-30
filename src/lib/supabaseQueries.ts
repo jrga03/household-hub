@@ -5,6 +5,7 @@ import {
   isLikelyNetworkError,
   getLocalTransactionsWithRelations,
   getLocalTransactionsFilterSummary,
+  getPendingTransactionDeleteIds,
   getUnsyncedLocalTransactionsWithRelations,
   mergeTransactionPages,
   getLocalActiveAccounts,
@@ -572,7 +573,8 @@ export function useTransactions(filters?: TransactionFilters) {
               filters
             )) as unknown as TransactionWithRelations[])
           : [];
-        return { rows: data as TransactionWithRelations[], localOverlay };
+        const pendingDeleteIds = userId ? await getPendingTransactionDeleteIds(userId) : [];
+        return { rows: data as TransactionWithRelations[], localOverlay, pendingDeleteIds };
       } catch (error) {
         // Offline fallback: same filters, joins and paging served from Dexie.
         // Bidirectional works here too: the absolute pageParam drives the
