@@ -106,13 +106,33 @@ describe("offline accounts", () => {
       expect(await db.syncQueue.count()).toBe(0);
     });
 
-    it("allows reusing the name of an archived account", async () => {
+    it("rejects reusing the name of an archived account (the server constraint is not partial)", async () => {
       const old = await createOfflineAccount({ ...base, name: "Cash" }, userId);
       await deactivateOfflineAccount(old.data!.id, userId);
+      await db.syncQueue.clear();
 
-      const result = await createOfflineAccount({ ...base, name: "Cash" }, userId);
+      const result = await createOfflineAccount({ ...base, name: "cash" }, userId);
 
-      expect(result.success).toBe(true);
+      expect(result).toMatchObject({
+        success: false,
+        error:
+          'An archived account named "cash" already exists. Restore it or choose another name.',
+      });
+      expect(await db.syncQueue.count()).toBe(0);
+    });
+
+    it("rejects renaming onto an archived account's name", async () => {
+      const old = await createOfflineAccount({ ...base, name: "Cash" }, userId);
+      await deactivateOfflineAccount(old.data!.id, userId);
+      const other = await createOfflineAccount({ ...base, name: "Wallet" }, userId);
+
+      const result = await updateOfflineAccount(other.data!.id, { name: "Cash" }, userId);
+
+      expect(result).toMatchObject({
+        success: false,
+        error:
+          'An archived account named "Cash" already exists. Restore it or choose another name.',
+      });
     });
 
     it("rejects renaming onto another active account's name", async () => {

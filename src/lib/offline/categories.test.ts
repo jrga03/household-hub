@@ -89,7 +89,42 @@ describe("offline categories", () => {
       expect(await db.syncQueue.count()).toBe(0);
     });
 
-    it("allows reusing the name of an archived category", async () => {
+    it("rejects reusing the name of an archived child category under the same parent", async () => {
+      const food = await createOfflineCategory({ name: "Food" }, userId);
+      const old = await createOfflineCategory({ name: "Snacks", parent_id: food.data!.id }, userId);
+      await deactivateOfflineCategory(old.data!.id, userId);
+      await db.syncQueue.clear();
+
+      const result = await createOfflineCategory(
+        { name: "snacks", parent_id: food.data!.id },
+        userId
+      );
+
+      expect(result).toMatchObject({
+        success: false,
+        error:
+          'An archived category named "snacks" already exists. Restore it or choose another name.',
+      });
+      expect(await db.syncQueue.count()).toBe(0);
+    });
+
+    it("rejects moving a category onto an archived sibling's name", async () => {
+      const food = await createOfflineCategory({ name: "Food" }, userId);
+      const old = await createOfflineCategory({ name: "Snacks", parent_id: food.data!.id }, userId);
+      await deactivateOfflineCategory(old.data!.id, userId);
+      const loose = await createOfflineCategory({ name: "Snacks" }, userId);
+
+      const result = await updateOfflineCategory(
+        loose.data!.id,
+        { parent_id: food.data!.id },
+        userId
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("archived category");
+    });
+
+    it("allows a top-level category to reuse an archived top-level name", async () => {
       const old = await createOfflineCategory({ name: "Misc" }, userId);
       await deactivateOfflineCategory(old.data!.id, userId);
 
