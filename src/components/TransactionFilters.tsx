@@ -335,8 +335,9 @@ export function TransactionFiltersPanel({ filters, onFiltersChange }: Transactio
 
             {/* Category Filter */}
             <div className="space-y-2">
-              <Label>Category</Label>
+              <Label htmlFor="filter-category">Category</Label>
               <CategorySelector
+                id="filter-category"
                 value={filters.categoryId}
                 onChange={(value) =>
                   onFiltersChange({
