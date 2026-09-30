@@ -1,6 +1,7 @@
 /**
  * /import is the parent of /import/pdf. Without an <Outlet> the child never
- * mounts, so these mount the real /import route options over a stub child.
+ * mounts, so these reparent the real /import Route via `.update()` over a
+ * stub child.
  */
 
 import { describe, expect, it } from "vitest";
@@ -13,7 +14,7 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { Route as ImportRoute } from "./import";
+import { Route as ImportRoute } from "../routes/import";
 
 function renderAt(initialPath: string) {
   const rootRoute = createRootRoute({ component: () => <Outlet /> });
