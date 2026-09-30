@@ -63,7 +63,7 @@ export interface LocalAccount {
   id: string;
   household_id: string;
   name: string;
-  type: "bank" | "investment" | "credit_card" | "cash";
+  type: "bank" | "investment" | "credit_card" | "cash" | "e-wallet";
   initial_balance_cents: number;
   currency_code: string; // 'PHP' only for MVP (Phase 2: multi-currency)
   visibility: "household" | "personal";

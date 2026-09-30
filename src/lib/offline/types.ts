@@ -57,7 +57,8 @@ export interface AccountInput {
   initial_balance_cents: number;
   color?: string;
   icon?: string;
-  is_active: boolean;
+  is_active?: boolean;
+  sort_order?: number;
 }
 
 /**
@@ -70,8 +71,8 @@ export interface CategoryInput {
   parent_id?: string | null;
   color?: string;
   icon?: string;
-  sort_order: number;
-  is_active: boolean;
+  sort_order?: number;
+  is_active?: boolean;
 }
 
 /**

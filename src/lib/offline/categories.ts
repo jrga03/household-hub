@@ -106,8 +106,8 @@ export async function createOfflineCategory(
       parent_id: input.parent_id ?? undefined, // Convert null to undefined for consistency
       color: input.color || DEFAULT_COLOR,
       icon: input.icon || DEFAULT_ICON,
-      sort_order: input.sort_order,
-      is_active: input.is_active,
+      sort_order: input.sort_order ?? 0,
+      is_active: input.is_active ?? true,
       created_at: now,
       updated_at: now,
     };

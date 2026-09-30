@@ -96,15 +96,15 @@ export async function createOfflineAccount(
       id: crypto.randomUUID(),
       household_id: DEFAULT_HOUSEHOLD_ID,
       name: input.name,
-      type: input.type === "e-wallet" ? "cash" : input.type, // Map e-wallet to cash for MVP
+      type: input.type,
       initial_balance_cents: input.initial_balance_cents,
       currency_code: DEFAULT_CURRENCY_CODE,
       visibility: input.visibility,
       owner_user_id: input.visibility === "personal" ? userId : undefined,
       color: input.color || DEFAULT_COLOR,
       icon: input.icon || DEFAULT_ICON,
-      sort_order: 0, // Default to 0, can be updated later
-      is_active: input.is_active,
+      sort_order: input.sort_order ?? 0,
+      is_active: input.is_active ?? true,
       created_at: now,
       updated_at: now,
     };
@@ -196,9 +196,7 @@ export async function updateOfflineAccount(
     const updated: LocalAccount = {
       ...existing,
       ...(updates.name !== undefined && { name: updates.name }),
-      ...(updates.type !== undefined && {
-        type: updates.type === "e-wallet" ? "cash" : updates.type,
-      }),
+      ...(updates.type !== undefined && { type: updates.type }),
       ...(updates.initial_balance_cents !== undefined && {
         initial_balance_cents: updates.initial_balance_cents,
       }),
@@ -207,6 +205,7 @@ export async function updateOfflineAccount(
       }),
       ...(updates.color !== undefined && { color: updates.color }),
       ...(updates.icon !== undefined && { icon: updates.icon }),
+      ...(updates.sort_order !== undefined && { sort_order: updates.sort_order }),
       ...(updates.is_active !== undefined && {
         is_active: updates.is_active,
       }),
