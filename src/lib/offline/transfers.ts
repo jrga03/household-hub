@@ -12,7 +12,10 @@
  * @module offline/transfers
  */
 
-import { db } from "@/lib/dexie/db";
+import { db, type LocalTransaction } from "@/lib/dexie/db";
+import { validateAmount } from "@/lib/currency";
+import { createOfflineTransactionsBatch } from "./transactions";
+import type { OfflineOperationResult } from "./types";
 
 /** One transaction leg of a transfer, shaped like the Supabase select. */
 export interface TransferLeg {
@@ -108,4 +111,58 @@ export async function getLocalTransfers(householdId: string): Promise<TransferGr
   }));
 
   return groupTransferLegs(legs);
+}
+
+export interface TransferInput {
+  from_account_id: string;
+  to_account_id: string;
+  from_account_name: string;
+  to_account_name: string;
+  amount_cents: number;
+  date: string;
+  description?: string;
+}
+
+/**
+ * Creates both legs of a transfer through the outbox: one Dexie transaction
+ * writes the two rows and their two sync-queue items. The legs sync as two
+ * ordinary creates; the server's check_transfer_integrity() accepts either
+ * leg first and validates the second against it.
+ */
+export async function createOfflineTransfer(
+  input: TransferInput,
+  userId: string
+): Promise<OfflineOperationResult<LocalTransaction[]>> {
+  if (input.from_account_id === input.to_account_id) {
+    return { success: false, error: "Cannot transfer to the same account", isTemporary: false };
+  }
+  if (input.amount_cents === 0 || !validateAmount(input.amount_cents)) {
+    return { success: false, error: "Invalid transfer amount", isTemporary: false };
+  }
+
+  const shared = {
+    date: input.date,
+    amount_cents: input.amount_cents,
+    status: "pending",
+    visibility: "household",
+    transfer_group_id: crypto.randomUUID(),
+  } as const;
+
+  return createOfflineTransactionsBatch(
+    [
+      {
+        ...shared,
+        type: "expense",
+        account_id: input.from_account_id,
+        description: input.description || `Transfer to ${input.to_account_name}`,
+      },
+      {
+        ...shared,
+        type: "income",
+        account_id: input.to_account_id,
+        description: input.description || `Transfer from ${input.from_account_name}`,
+      },
+    ],
+    userId
+  );
 }

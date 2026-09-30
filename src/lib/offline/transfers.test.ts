@@ -5,9 +5,29 @@
  * cover both sides' grouping semantics.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { db, type LocalAccount, type LocalTransaction } from "@/lib/dexie/db";
-import { getLocalTransfers, groupTransferLegs, type TransferLeg } from "./transfers";
+import {
+  createOfflineTransfer,
+  getLocalTransfers,
+  groupTransferLegs,
+  type TransferLeg,
+} from "./transfers";
+
+// Lets a test make queue-item construction fail, to prove the entity write and
+// the enqueue share one Dexie transaction
+const queueBuild = vi.hoisted(() => ({ fail: false }));
+vi.mock("./syncQueue", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./syncQueue")>();
+  return {
+    ...actual,
+    buildSyncQueueItem: vi.fn((...args: Parameters<typeof actual.buildSyncQueueItem>) =>
+      queueBuild.fail
+        ? Promise.reject(new Error("queue build failed"))
+        : actual.buildSyncQueueItem(...args)
+    ),
+  };
+});
 
 // ─── Fixture helpers ─────────────────────────────
 
@@ -189,5 +209,83 @@ describe("getLocalTransfers", () => {
 
   it("returns [] when the device has no mirrored transfers", async () => {
     expect(await getLocalTransfers("hh-1")).toEqual([]);
+  });
+});
+
+// ─── createOfflineTransfer ───────────────────────
+
+describe("createOfflineTransfer", () => {
+  const userId = "12345678-1234-5678-1234-567812345678";
+  const input = {
+    from_account_id: "acc-from",
+    to_account_id: "acc-to",
+    from_account_name: "Checking",
+    to_account_name: "Savings",
+    amount_cents: 250000,
+    date: "2026-09-30",
+  };
+
+  beforeEach(async () => {
+    queueBuild.fail = false;
+    await db.transactions.clear();
+    await db.syncQueue.clear();
+  });
+
+  it("writes an expense and an income leg in one transfer group, each queued as a create", async () => {
+    const result = await createOfflineTransfer(input, userId);
+    expect(result.success).toBe(true);
+
+    const rows = await db.transactions.toArray();
+    expect(rows).toHaveLength(2);
+    const expense = rows.find((row) => row.type === "expense");
+    const income = rows.find((row) => row.type === "income");
+
+    expect(expense).toMatchObject({
+      account_id: "acc-from",
+      amount_cents: 250000,
+      date: "2026-09-30",
+      description: "Transfer to Savings",
+      status: "pending",
+      visibility: "household",
+    });
+    expect(income).toMatchObject({
+      account_id: "acc-to",
+      amount_cents: 250000,
+      description: "Transfer from Checking",
+    });
+    expect(expense?.transfer_group_id).toBeTruthy();
+    expect(income?.transfer_group_id).toBe(expense?.transfer_group_id);
+
+    const queue = await db.syncQueue.toArray();
+    expect(queue).toHaveLength(2);
+    expect(queue.every((item) => item.entity_type === "transaction")).toBe(true);
+    expect(queue.every((item) => item.operation.op === "create")).toBe(true);
+    expect(queue.map((item) => item.entity_id).sort()).toEqual(rows.map((row) => row.id).sort());
+  });
+
+  it("uses the given description for both legs", async () => {
+    await createOfflineTransfer({ ...input, description: "Rent float" }, userId);
+    const rows = await db.transactions.toArray();
+    expect(rows.map((row) => row.description)).toEqual(["Rent float", "Rent float"]);
+  });
+
+  it("writes nothing when building a queue item fails", async () => {
+    queueBuild.fail = true;
+    const result = await createOfflineTransfer(input, userId);
+    expect(result.success).toBe(false);
+    expect(await db.transactions.count()).toBe(0);
+    expect(await db.syncQueue.count()).toBe(0);
+  });
+
+  it("rejects a same-account transfer and invalid amounts without writing", async () => {
+    const sameAccount = await createOfflineTransfer(
+      { ...input, to_account_id: "acc-from" },
+      userId
+    );
+    const zero = await createOfflineTransfer({ ...input, amount_cents: 0 }, userId);
+    const fractional = await createOfflineTransfer({ ...input, amount_cents: 10.5 }, userId);
+
+    expect([sameAccount.success, zero.success, fractional.success]).toEqual([false, false, false]);
+    expect(await db.transactions.count()).toBe(0);
   });
 });
