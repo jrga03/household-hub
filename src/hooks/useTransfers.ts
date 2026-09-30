@@ -1,72 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { getDeviceId } from "@/lib/dexie/deviceManager";
 import { isLikelyNetworkError } from "@/lib/offline/reads";
-import { getLocalTransfers, groupTransferLegs, type TransferLeg } from "@/lib/offline/transfers";
+import {
+  createOfflineTransfer,
+  getLocalTransfers,
+  groupTransferLegs,
+  type TransferInput,
+  type TransferLeg,
+} from "@/lib/offline/transfers";
 
 export function useCreateTransfer() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      from_account_id,
-      to_account_id,
-      from_account_name,
-      to_account_name,
-      amount_cents,
-      date,
-      description,
-      household_id,
-      user_id,
-    }: {
-      from_account_id: string;
-      to_account_id: string;
-      from_account_name: string;
-      to_account_name: string;
-      amount_cents: number;
-      date: string;
-      description: string;
-      household_id: string;
-      user_id: string;
-    }) => {
-      const transfer_group_id = crypto.randomUUID();
-      const device_id = await getDeviceId(); // Use hybrid device ID strategy
-
-      // Create expense (from account)
-      // Use user's description if provided, otherwise use default
-      const expenseDescription = description || `Transfer to ${to_account_name}`;
-      const incomeDescription = description || `Transfer from ${from_account_name}`;
-
-      // Both legs in one statement: PostgREST wraps a multi-row insert in a
-      // single database transaction, so a transfer can never be half-created.
-      const { error } = await supabase.from("transactions").insert([
-        {
-          household_id,
-          account_id: from_account_id,
-          date,
-          description: expenseDescription,
-          amount_cents,
-          type: "expense",
-          transfer_group_id,
-          created_by_user_id: user_id,
-          device_id,
-        },
-        {
-          household_id,
-          account_id: to_account_id,
-          date,
-          description: incomeDescription,
-          amount_cents,
-          type: "income",
-          transfer_group_id,
-          created_by_user_id: user_id,
-          device_id,
-        },
-      ]);
-
-      if (error) throw error;
-
-      return { transfer_group_id };
+    mutationFn: async ({ user_id, ...transfer }: TransferInput & { user_id: string }) => {
+      const result = await createOfflineTransfer(transfer, user_id);
+      if (!result.success) {
+        throw new Error(result.error ?? "Failed to create transfer");
+      }
+      return result.data ?? [];
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transactions"] });

@@ -32,12 +32,10 @@ type FormData = z.infer<typeof schema>;
 
 export function TransferForm({
   accounts,
-  householdId,
   userId,
   onSuccess,
 }: {
   accounts: Array<{ id: string; name: string }>;
-  householdId: string;
   userId: string;
   onSuccess?: () => void;
 }) {
@@ -69,7 +67,6 @@ export function TransferForm({
         from_account_name: fromAccount.name,
         to_account_name: toAccount.name,
         description: data.description || `Transfer between accounts`,
-        household_id: householdId,
         user_id: userId,
       });
       toast.success("Transfer created successfully");

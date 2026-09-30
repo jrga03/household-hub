@@ -43,7 +43,6 @@ describe("TransferForm", () => {
           { id: "acc-1", name: "Checking" },
           { id: "acc-2", name: "Savings" },
         ]}
-        householdId="hh-1"
         userId="user-1"
       />
     );

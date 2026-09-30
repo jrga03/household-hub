@@ -99,7 +99,7 @@ function TransfersPage() {
               </p>
             </div>
           ) : (
-            <TransferForm accounts={accountOptions} householdId={householdId} userId={user.id} />
+            <TransferForm accounts={accountOptions} userId={user.id} />
           )}
         </div>
 
