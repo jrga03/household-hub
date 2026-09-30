@@ -351,10 +351,10 @@ Specified in `docs/plans/2026-09-30-phase-0-live-bugs-design.md`, which supersed
 
 Added 2026-09-30. `src/lib/supabaseQueries.ts` has 15 direct writes from live hooks; Phase 0 did not clear them (see the Phase 0 design's Decisions & Deferrals).
 
-- [ ] Transactions: `useUpdateTransaction`, `useDeleteTransaction`, `useSetTransactionStatus`, `useToggleTransactionStatus` through `src/lib/offline/transactions.ts`, with enqueue-then-drain-and-invalidate
-- [ ] Accounts: create and deactivate through `src/lib/offline/accounts.ts`
-- [ ] Categories: create and deactivate through `src/lib/offline/categories.ts`
-- [ ] Budgets: insert, upsert, delete through `src/lib/offline/budgets.ts`
+- [x] Transactions: `useUpdateTransaction`, `useDeleteTransaction`, `useSetTransactionStatus`, `useToggleTransactionStatus` through `src/lib/offline/transactions.ts`, with enqueue-then-drain-and-invalidate
+- [x] Accounts: create and deactivate through `src/lib/offline/accounts.ts`
+- [x] Categories: create and deactivate through `src/lib/offline/categories.ts`
+- [ ] Budgets: insert, upsert, delete through `src/lib/offline/budgets.ts` (0.5b: `budgets.month_key` is a generated column, so the outbox update payload must omit it)
 - [ ] Then flip the Phase 1 Supabase-write selector from `warn` to `error`
 - Approach (decided 2026-09-30): outbox mutations fetch the single row from Supabase and store it locally when it is missing from IndexedDB ("fetch on miss"), then apply the change and enqueue. Offline, the UI only shows local rows, so a missing row and no network cannot coincide.
 
@@ -366,7 +366,7 @@ IndexedDB is not a full mirror: the reconnection catch-up pulls only rows change
 
 - [ ] Wire `jsx-a11y` recommended into `eslint.config.js`; fix 10 violations
 - [ ] Enable `noImplicitOverride` and `verbatimModuleSyntax`; fix 12 errors
-- [ ] Add the Dexie-write, money, data-access, and `.from("transactions")` selectors (4.4 to 4.6) as `error`, and the Supabase-write selector as `warn` until Phase 0.5 is done
+- [ ] Add the Dexie-write, money, data-access, and `.from("transactions")` selectors (4.4 to 4.6) as `error`, and the Supabase-write selector as `warn` until Phase 0.5b is done
 - [ ] Add `tsconfig.tests.json` (with explicit `@types/node`) and `tsconfig.strict.json`; run both in CI
 - [ ] Add the four hooks (4.9) and merge them into the existing `.claude/settings.json`
 - [ ] Dependabot config and `audit` job (4.11)
