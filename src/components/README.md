@@ -101,7 +101,6 @@ The components directory contains **all React UI components** for Household Hub,
 
 - `ExportButton.tsx` - CSV/JSON export button
 - `ColumnMapper.tsx` - CSV column mapping UI
-- `DuplicateResolver.tsx` - Duplicate detection UI
 
 **Auth Components:**
 

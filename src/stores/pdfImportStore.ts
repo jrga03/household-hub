@@ -4,7 +4,7 @@
  * Manages state for the multi-step PDF import wizard:
  * upload → bank → extracting → preview → account → duplicates → confirming → complete
  *
- * Follows the same pattern as importStore.ts for CSV imports.
+ * Zustand store for the PDF import wizard.
  *
  * @module stores/pdfImportStore
  */

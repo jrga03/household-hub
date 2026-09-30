@@ -154,36 +154,6 @@ const issues = useSyncIssuesStore((state) => state.issues);
 const unreadCount = useSyncIssuesStore((state) => state.unreadCount);
 ```
 
-### importStore.ts (148 lines)
-
-**Purpose:** CSV import process state
-
-**State:**
-
-- `step` - Current import step (upload | map | resolve | import)
-- `file` - Uploaded CSV file
-- `columns` - Detected columns
-- `mapping` - Column mapping configuration
-- `duplicates` - Detected duplicate transactions
-- `progress` - Import progress percentage
-
-**Actions:**
-
-- `setStep(step)` - Navigate between import steps
-- `setFile(file)` - Store uploaded file
-- `setMapping(mapping)` - Store column mapping
-- `setDuplicates(duplicates)` - Store detected duplicates
-- `reset()` - Reset import state
-
-**Usage:**
-
-```typescript
-import { useImportStore } from "@/stores/importStore";
-
-const step = useImportStore((state) => state.step);
-const setStep = useImportStore((state) => state.setStep);
-```
-
 ## Zustand Pattern
 
 ### Store Definition
