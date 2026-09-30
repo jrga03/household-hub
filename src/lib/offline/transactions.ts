@@ -285,7 +285,9 @@ export async function updateOfflineTransactionsStatus(
       updated.push({ ...existing, status, updated_at: now });
     }
 
-    // Built before the transaction opens, like createOfflineTransactionsBatch
+    // Built before the transaction opens, like createOfflineTransactionsBatch.
+    // Changed fields only, so a status flip never overwrites another
+    // device's edits to the rest of the row.
     const queueItems: SyncQueueItem[] = [];
     for (const transaction of updated) {
       queueItems.push(
@@ -293,7 +295,7 @@ export async function updateOfflineTransactionsStatus(
           "transaction",
           transaction.id,
           "update",
-          transaction as unknown as Record<string, unknown>,
+          { status, updated_at: now },
           userId
         )
       );

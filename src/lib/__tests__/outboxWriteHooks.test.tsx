@@ -247,7 +247,8 @@ describe("transaction write hooks", () => {
       useToggleTransactionStatus()
     ).result.current.mutateAsync("t5");
 
-    expect(updateOfflineTransaction).toHaveBeenCalledWith("t5", { status: "cleared" }, "user-1");
+    expect(updateOfflineTransactionsStatus).toHaveBeenCalledWith(["t5"], "cleared", "user-1");
+    expect(updateOfflineTransaction).not.toHaveBeenCalled();
     expect(newStatus).toBe("cleared");
     expect(supabase.from).not.toHaveBeenCalled();
   });

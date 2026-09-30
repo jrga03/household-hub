@@ -341,6 +341,22 @@ describe("updateOfflineTransactionsStatus", () => {
     expect(await db.syncQueue.count()).toBe(2);
   });
 
+  it("queues only status and updated_at while keeping the local row whole", async () => {
+    const a = await createOfflineTransaction({ ...baseInput, description: "A" }, testUserId);
+    await db.syncQueue.clear();
+
+    await updateOfflineTransactionsStatus([a.data!.id], "cleared", testUserId);
+
+    const [queueItem] = await db.syncQueue.toArray();
+    expect(Object.keys(queueItem.operation.payload).sort()).toEqual(["status", "updated_at"]);
+    expect(queueItem.operation.payload.status).toBe("cleared");
+    expect(await db.transactions.get(a.data!.id)).toMatchObject({
+      description: "A",
+      amount_cents: baseInput.amount_cents,
+      status: "cleared",
+    });
+  });
+
   it("changes nothing when one id cannot be found", async () => {
     const a = await createOfflineTransaction({ ...baseInput, description: "A" }, testUserId);
     await db.syncQueue.clear();

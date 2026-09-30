@@ -774,11 +774,7 @@ export function useToggleTransactionStatus() {
       const existing = await ensureLocalRow("transactions", id);
       if (!existing) throw new Error("Transaction not found");
       const newStatus = existing.status === "pending" ? "cleared" : "pending";
-      const result = await updateOfflineTransaction(
-        id,
-        { status: newStatus },
-        requireUserId(userId)
-      );
+      const result = await updateOfflineTransactionsStatus([id], newStatus, requireUserId(userId));
       if (!result.success) throw new Error(result.error ?? "Failed to update status");
       return newStatus;
     },
