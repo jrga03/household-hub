@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { isLikelyNetworkError } from "@/lib/offline/reads";
+import { syncProcessor } from "@/lib/sync/processor";
 import {
   createOfflineTransfer,
   getLocalTransfers,
@@ -20,10 +21,23 @@ export function useCreateTransfer() {
       }
       return result.data ?? [];
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["transfers"] });
       queryClient.invalidateQueries({ queryKey: ["accounts"] }); // Balances updated
+
+      // Fire-and-forget outbox drain so the transfer shows up in "Recent
+      // Transfers" right away instead of waiting for the next sync trigger
+      // (same pattern as TransactionFormDialog). Skipped offline.
+      if (navigator.onLine) {
+        syncProcessor
+          .processQueue(variables.user_id)
+          .then(() => {
+            queryClient.invalidateQueries({ queryKey: ["transfers"] });
+            queryClient.invalidateQueries({ queryKey: ["accounts"] });
+          })
+          .catch(() => {});
+      }
     },
   });
 }

@@ -196,17 +196,18 @@ describe("SyncProcessor (local outbox)", () => {
       expect(entry?.value).toBeTruthy();
     });
 
-    it("invalidates transactions/accounts/dashboard queries once per drain that pushed items", async () => {
+    it("invalidates transactions/accounts/dashboard/transfers queries once per drain that pushed items", async () => {
       const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
       await db.syncQueue.bulkAdd([makeQueueItem(), makeQueueItem({ entity_id: "entity-2" })]);
 
       await processor.processQueue("user-1");
 
       // Once per prefix (not per item), fired after the drain completes
-      expect(invalidateSpy).toHaveBeenCalledTimes(3);
+      expect(invalidateSpy).toHaveBeenCalledTimes(4);
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["transactions"] });
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["accounts"] });
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["dashboard"] });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["transfers"] });
     });
 
     it("does not invalidate queries when nothing was pushed", async () => {

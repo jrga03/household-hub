@@ -199,7 +199,7 @@ export class SyncProcessor {
         // Local changes just reached the cloud: refresh the server-state
         // queries once per drain so lists/balances pick up the synced rows
         // (review R9). Fire-and-forget - refetching must not block sync.
-        for (const queryKey of [["transactions"], ["accounts"], ["dashboard"]]) {
+        for (const queryKey of [["transactions"], ["accounts"], ["dashboard"], ["transfers"]]) {
           queryClient.invalidateQueries({ queryKey }).catch(() => {});
         }
       }
