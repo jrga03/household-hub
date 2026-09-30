@@ -16,7 +16,6 @@ import {
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { useCreateAccount, useUpdateAccount, useAccounts } from "@/lib/supabaseQueries";
-import { useAuthStore } from "@/stores/authStore";
 import { AccountType, AccountVisibility } from "@/types/accounts";
 import { toast } from "sonner";
 
@@ -51,7 +50,6 @@ const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
 ];
 
 export function AccountFormDialog({ open, onClose, editingId }: Props) {
-  const user = useAuthStore((state) => state.user);
   const { data: accounts } = useAccounts();
   const createAccount = useCreateAccount();
   const updateAccount = useUpdateAccount();
@@ -99,7 +97,6 @@ export function AccountFormDialog({ open, onClose, editingId }: Props) {
         visibility: data.visibility,
         color: data.color,
         icon: data.icon,
-        owner_user_id: data.visibility === "personal" ? user?.id : null,
         // Set sort_order to end of list when creating
         ...(editingId ? {} : { sort_order: accounts?.length ?? 0 }),
       };

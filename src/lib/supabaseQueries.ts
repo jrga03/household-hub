@@ -15,13 +15,12 @@ import {
 import { getLocalDashboardData, hasLocalFinancialData } from "./offline/aggregates";
 import { getLocalBudgetGroups, mirrorBudgetsForMonth } from "./offline/budgets";
 import { OfflineError } from "./offline/errors";
-import { Account, AccountInsert, AccountUpdate } from "@/types/accounts";
-import type {
-  Category,
-  CategoryInsert,
-  CategoryUpdate,
-  CategoryWithChildren,
-} from "@/types/categories";
+import { createOfflineAccount, updateOfflineAccount } from "./offline/accounts";
+import { createOfflineCategory, updateOfflineCategory } from "./offline/categories";
+import { afterOutboxWrite } from "./offline/afterWrite";
+import type { AccountInput, CategoryInput } from "./offline/types";
+import { Account } from "@/types/accounts";
+import type { Category, CategoryWithChildren } from "@/types/categories";
 import type {
   Transaction,
   TransactionInsert,
@@ -75,42 +74,38 @@ export function useAccounts() {
   return useQuery(accountsQueryOptions());
 }
 
+function requireUserId(userId: string | undefined): string {
+  if (!userId) throw new Error("You must be signed in to save changes");
+  return userId;
+}
+
 // Create account
 export function useCreateAccount() {
   const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id);
 
   return useMutation({
-    mutationFn: async (account: AccountInsert) => {
-      const { data, error } = await supabase.from("accounts").insert(account).select().single();
-
-      if (error) throw error;
-      return data;
+    mutationFn: async (account: AccountInput) => {
+      const result = await createOfflineAccount(account, requireUserId(userId));
+      if (!result.success) throw new Error(result.error ?? "Failed to create account");
+      return result.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
-    },
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [["accounts"]]),
   });
 }
 
 // Update account
 export function useUpdateAccount() {
   const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id);
 
   return useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: AccountUpdate }) => {
-      const { data, error } = await supabase
-        .from("accounts")
-        .update(updates)
-        .eq("id", id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<AccountInput> }) => {
+      const result = await updateOfflineAccount(id, updates, requireUserId(userId));
+      if (!result.success) throw new Error(result.error ?? "Failed to update account");
+      return result.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
-    },
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [["accounts"]]),
   });
 }
 
@@ -399,39 +394,30 @@ export function useCategoriesGrouped() {
 // Create category
 export function useCreateCategory() {
   const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id);
 
   return useMutation({
-    mutationFn: async (category: CategoryInsert) => {
-      const { data, error } = await supabase.from("categories").insert(category).select().single();
-
-      if (error) throw error;
-      return data;
+    mutationFn: async (category: CategoryInput) => {
+      const result = await createOfflineCategory(category, requireUserId(userId));
+      if (!result.success) throw new Error(result.error ?? "Failed to create category");
+      return result.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
-    },
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [["categories"]]),
   });
 }
 
 // Update category
 export function useUpdateCategory() {
   const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id);
 
   return useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: CategoryUpdate }) => {
-      const { data, error } = await supabase
-        .from("categories")
-        .update(updates)
-        .eq("id", id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<CategoryInput> }) => {
+      const result = await updateOfflineCategory(id, updates, requireUserId(userId));
+      if (!result.success) throw new Error(result.error ?? "Failed to update category");
+      return result.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
-    },
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [["categories"]]),
   });
 }
 
