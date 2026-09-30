@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { formatPHP, parsePHP, MAX_AMOUNT_CENTS } from "@/lib/currency";
+import { formatPHP, parsePHP, parsePHPUnbounded, MAX_AMOUNT_CENTS } from "@/lib/currency";
 
 export interface CurrencyInputProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value"> {
@@ -88,12 +88,9 @@ export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputPro
         // the input shows ₱99,999,999) and Enter would submit a silently
         // wrong amount. Commit the over-max cents value instead so the
         // schema-level .max() rule rejects submit with its "too large" error.
-        const parsed = parseFloat(input.replace(/[₱,\s]/g, ""));
-        if (!isNaN(parsed)) {
-          const cents = Math.round(parsed * 100);
-          if (cents > MAX_AMOUNT_CENTS) {
-            onChange?.(cents);
-          }
+        const cents = parsePHPUnbounded(input);
+        if (cents !== null && cents > MAX_AMOUNT_CENTS) {
+          onChange?.(cents);
         }
         // Otherwise not parseable yet (e.g. "abc" or "-"); blur resets the display.
       }

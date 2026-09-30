@@ -13,6 +13,7 @@ import { describe, it, expect } from "vitest";
 import {
   formatPHP,
   parsePHP,
+  parsePHPUnbounded,
   validateAmount,
   isValidAmount,
   parsePHPSafe,
@@ -398,6 +399,24 @@ describe("percentageOf", () => {
   it("handles fractional percentages", () => {
     expect(percentageOf(100000, 0.5)).toBe(500); // 0.5% of ₱1,000
     expect(percentageOf(100000, 10.5)).toBe(10500); // 10.5% of ₱1,000
+  });
+});
+
+describe("parsePHPUnbounded", () => {
+  it("parses formatted peso input to cents", () => {
+    expect(parsePHPUnbounded("₱1,500.50")).toBe(150050);
+    expect(parsePHPUnbounded(" 12.3 ")).toBe(1230);
+  });
+
+  it("returns values above MAX_AMOUNT_CENTS instead of throwing", () => {
+    expect(parsePHPUnbounded("99999999")).toBe(9999999900);
+  });
+
+  it("returns null for empty, non-numeric, and negative input", () => {
+    expect(parsePHPUnbounded("")).toBeNull();
+    expect(parsePHPUnbounded("abc")).toBeNull();
+    expect(parsePHPUnbounded("-")).toBeNull();
+    expect(parsePHPUnbounded("-5")).toBeNull();
   });
 });
 
