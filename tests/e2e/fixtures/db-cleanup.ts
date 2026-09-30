@@ -102,7 +102,8 @@ export async function deleteTestCategory(category: TestCategory | null) {
 }
 
 /**
- * Delete budgets on [E2E] categories. budgets has no notes column.
+ * Delete budgets on every [E2E] category. Full sweep for cleanupAll only;
+ * per-test hooks rely on deleteTestCategory cascading to budgets.
  */
 export async function cleanupTestBudgets() {
   if (!adminClient) return;

@@ -1,11 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { login } from "./fixtures/helpers";
-import {
-  cleanupTestBudgets,
-  createTestCategory,
-  deleteTestCategory,
-  type TestCategory,
-} from "./fixtures/db-cleanup";
+import { createTestCategory, deleteTestCategory, type TestCategory } from "./fixtures/db-cleanup";
 
 test.describe("Budgets", () => {
   let category: TestCategory | null = null;
@@ -16,7 +11,7 @@ test.describe("Budgets", () => {
   });
 
   test.afterEach(async () => {
-    await cleanupTestBudgets();
+    // Deleting the category cascades to its budgets
     await deleteTestCategory(category);
     category = null;
   });

@@ -18,6 +18,9 @@ const importedDescriptions = readFileSync(
   .map((line) => line.split(",")[1]);
 
 test.describe("CSV Import Wizard", () => {
+  // Both tests import the same fixed CSV rows and delete them by description
+  test.describe.configure({ mode: "serial" });
+
   test.beforeEach(async ({ page }) => {
     await login(page);
   });

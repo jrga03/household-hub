@@ -59,15 +59,15 @@ This document serves as the master QA test plan for the Household Hub applicatio
 
 ### E2E Spec Files (New)
 
-| File                           | Tests | Cleanup Method              |
-| ------------------------------ | ----- | --------------------------- |
-| `tests/e2e/dashboard.spec.ts`  | 4     | None (read-only)            |
-| `tests/e2e/budgets.spec.ts`    | 3     | `cleanupTestBudgets()`      |
-| `tests/e2e/transfers.spec.ts`  | 3     | `cleanupTestTransfers()`    |
-| `tests/e2e/categories.spec.ts` | 4     | `cleanupTestCategories()`   |
-| `tests/e2e/import.spec.ts`     | 2     | `cleanupTestTransactions()` |
-| `tests/e2e/analytics.spec.ts`  | 4     | None (read-only)            |
-| `tests/e2e/settings.spec.ts`   | 4     | None (read-only)            |
+| File                           | Tests | Cleanup Method             |
+| ------------------------------ | ----- | -------------------------- |
+| `tests/e2e/dashboard.spec.ts`  | 4     | None (read-only)           |
+| `tests/e2e/budgets.spec.ts`    | 3     | `deleteTestCategory()`     |
+| `tests/e2e/transfers.spec.ts`  | 3     | `cleanupTestTransfers()`   |
+| `tests/e2e/categories.spec.ts` | 4     | `cleanupTestCategories()`  |
+| `tests/e2e/import.spec.ts`     | 2     | `deleteTestTransactions()` |
+| `tests/e2e/analytics.spec.ts`  | 4     | None (read-only)           |
+| `tests/e2e/settings.spec.ts`   | 4     | None (read-only)           |
 
 ## Test Data Requirements
 
