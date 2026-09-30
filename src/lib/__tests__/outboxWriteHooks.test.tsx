@@ -8,10 +8,20 @@ import { useAuthStore } from "@/stores/authStore";
 import { createOfflineAccount, updateOfflineAccount } from "@/lib/offline/accounts";
 import { createOfflineCategory, updateOfflineCategory } from "@/lib/offline/categories";
 import {
+  updateOfflineTransaction,
+  deleteOfflineTransaction,
+  updateOfflineTransactionsStatus,
+} from "@/lib/offline/transactions";
+import { ensureLocalRow } from "@/lib/offline/ensureLocal";
+import {
   useCreateAccount,
   useCreateCategory,
   useUpdateAccount,
   useUpdateCategory,
+  useUpdateTransaction,
+  useDeleteTransaction,
+  useSetTransactionStatus,
+  useToggleTransactionStatus,
 } from "@/lib/supabaseQueries";
 
 vi.mock("@/lib/supabase", () => ({ supabase: { from: vi.fn() } }));
@@ -26,6 +36,12 @@ vi.mock("@/lib/offline/categories", () => ({
   createOfflineCategory: vi.fn(),
   updateOfflineCategory: vi.fn(),
 }));
+vi.mock("@/lib/offline/transactions", () => ({
+  updateOfflineTransaction: vi.fn(),
+  deleteOfflineTransaction: vi.fn(),
+  updateOfflineTransactionsStatus: vi.fn(),
+}));
+vi.mock("@/lib/offline/ensureLocal", () => ({ ensureLocalRow: vi.fn() }));
 
 function renderWithClient<T>(hook: () => T) {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
@@ -94,5 +110,43 @@ describe("account and category write hooks", () => {
         initial_balance_cents: 0,
       })
     ).rejects.toThrow("disk full");
+  });
+});
+
+describe("transaction write hooks", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.setState({ user: { id: "user-1" } as User });
+    vi.mocked(updateOfflineTransaction).mockResolvedValue(ok);
+    vi.mocked(deleteOfflineTransaction).mockResolvedValue({ success: true, isTemporary: true });
+    vi.mocked(updateOfflineTransactionsStatus).mockResolvedValue(ok);
+  });
+
+  it("update, delete, and bulk status go through the outbox", async () => {
+    await renderWithClient(() => useUpdateTransaction()).result.current.mutateAsync({
+      id: "t1",
+      updates: { description: "New" },
+    });
+    await renderWithClient(() => useDeleteTransaction()).result.current.mutateAsync("t2");
+    const status = await renderWithClient(() =>
+      useSetTransactionStatus()
+    ).result.current.mutateAsync({ ids: ["t3", "t4"], status: "cleared" });
+
+    expect(updateOfflineTransaction).toHaveBeenCalledWith("t1", { description: "New" }, "user-1");
+    expect(deleteOfflineTransaction).toHaveBeenCalledWith("t2", "user-1");
+    expect(updateOfflineTransactionsStatus).toHaveBeenCalledWith(["t3", "t4"], "cleared", "user-1");
+    expect(status).toBe("cleared");
+    expect(supabase.from).not.toHaveBeenCalled();
+  });
+
+  it("toggle flips the local status", async () => {
+    vi.mocked(ensureLocalRow).mockResolvedValue({ id: "t5", status: "pending" } as never);
+    const newStatus = await renderWithClient(() =>
+      useToggleTransactionStatus()
+    ).result.current.mutateAsync("t5");
+
+    expect(updateOfflineTransaction).toHaveBeenCalledWith("t5", { status: "cleared" }, "user-1");
+    expect(newStatus).toBe("cleared");
+    expect(supabase.from).not.toHaveBeenCalled();
   });
 });

@@ -21,7 +21,7 @@ import {
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { DatePicker } from "@/components/ui/date-picker";
 import { CategorySelector } from "@/components/ui/category-selector";
-import { useAccounts, useUpdateTransaction, useTransaction } from "@/lib/supabaseQueries";
+import { useAccounts, useTransaction } from "@/lib/supabaseQueries";
 import { transactionSchema, type TransactionFormData } from "@/lib/validations/transaction";
 import { useAuthStore } from "@/stores/authStore";
 import { toast } from "sonner";
@@ -70,7 +70,6 @@ export function TransactionFormDialog({
   // The old useTransactions() subscription also couldn't reach rows past 100
   // or any transfer leg (review DATA-06).
   const { data: editingTransaction } = useTransaction(editingId ?? "");
-  const updateTransaction = useUpdateTransaction();
 
   const form = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
@@ -241,22 +240,7 @@ export function TransactionFormDialog({
         );
 
         if (!result.success) {
-          // Fallback to direct Supabase update for non-temp IDs
-          await updateTransaction.mutateAsync({
-            id: editingId,
-            updates: {
-              date: dateStr,
-              description: data.description,
-              amount_cents: data.amount_cents,
-              type: data.type,
-              account_id: data.account_id || null,
-              category_id: data.category_id || null,
-              debt_id: data.debt_id || null,
-              internal_debt_id: data.internal_debt_id || null,
-              status: data.status,
-              notes: data.notes || null,
-            },
-          });
+          throw new Error(result.error ?? "Failed to update transaction");
         }
 
         toast.success(isOnline ? "Transaction updated" : offlineMessage);

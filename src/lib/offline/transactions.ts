@@ -260,6 +260,62 @@ export async function updateOfflineTransaction(
 }
 
 /**
+ * Sets an explicit status on a batch of transactions in one local outbox
+ * write. All-or-nothing: if any id cannot be found (locally or on the
+ * server), nothing is written.
+ *
+ * @param ids - Transaction UUIDs to update
+ * @param status - The status to apply to every transaction
+ * @param userId - User ID for sync queue attribution
+ * @returns Promise resolving to result with the updated transactions or error
+ */
+export async function updateOfflineTransactionsStatus(
+  ids: string[],
+  status: "pending" | "cleared",
+  userId: string
+): Promise<OfflineOperationResult<LocalTransaction[]>> {
+  try {
+    const now = new Date().toISOString();
+    const updated: LocalTransaction[] = [];
+    for (const id of ids) {
+      const existing = await ensureLocalRow("transactions", id);
+      if (!existing) {
+        return { success: false, error: `Transaction ${id} not found`, isTemporary: false };
+      }
+      updated.push({ ...existing, status, updated_at: now });
+    }
+
+    // Built before the transaction opens, like createOfflineTransactionsBatch
+    const queueItems: SyncQueueItem[] = [];
+    for (const transaction of updated) {
+      queueItems.push(
+        await buildSyncQueueItem(
+          "transaction",
+          transaction.id,
+          "update",
+          transaction as unknown as Record<string, unknown>,
+          userId
+        )
+      );
+    }
+
+    await db.transaction("rw", db.transactions, db.syncQueue, async () => {
+      await db.transactions.bulkPut(updated);
+      await db.syncQueue.bulkAdd(queueItems);
+    });
+
+    return { success: true, data: updated, isTemporary: true };
+  } catch (error) {
+    console.error("Failed to update offline transaction statuses:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+      isTemporary: false,
+    };
+  }
+}
+
+/**
  * Deletes a transaction offline.
  *
  * Reverses any linked debt payment first (preserving the audit trail), then

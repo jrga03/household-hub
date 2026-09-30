@@ -17,14 +17,19 @@ import { getLocalBudgetGroups, mirrorBudgetsForMonth } from "./offline/budgets";
 import { OfflineError } from "./offline/errors";
 import { createOfflineAccount, updateOfflineAccount } from "./offline/accounts";
 import { createOfflineCategory, updateOfflineCategory } from "./offline/categories";
+import {
+  updateOfflineTransaction,
+  deleteOfflineTransaction,
+  updateOfflineTransactionsStatus,
+} from "./offline/transactions";
+import { ensureLocalRow } from "./offline/ensureLocal";
 import { afterOutboxWrite } from "./offline/afterWrite";
-import type { AccountInput, CategoryInput } from "./offline/types";
+import type { AccountInput, CategoryInput, TransactionInput } from "./offline/types";
 import { Account } from "@/types/accounts";
 import type { Category, CategoryWithChildren } from "@/types/categories";
 import type {
   Transaction,
   TransactionInsert,
-  TransactionUpdate,
   TransactionFilters,
   TransactionWithRelations,
 } from "@/types/transactions";
@@ -737,46 +742,35 @@ export function useCreateTransaction() {
 // Update transaction
 export function useUpdateTransaction() {
   const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id);
 
   return useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: TransactionUpdate }) => {
-      const { data, error } = await supabase
-        .from("transactions")
-        .update(updates)
-        .eq("id", id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data as Transaction;
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<TransactionInput> }) => {
+      const result = await updateOfflineTransaction(id, updates, requireUserId(userId));
+      if (!result.success) throw new Error(result.error ?? "Failed to update transaction");
+      return result.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
-    },
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [["transactions"], ["accounts"]]),
   });
 }
 
 // Delete transaction
 export function useDeleteTransaction() {
   const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id);
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("transactions").delete().eq("id", id);
-
-      if (error) throw error;
+      const result = await deleteOfflineTransaction(id, requireUserId(userId));
+      if (!result.success) throw new Error(result.error ?? "Failed to delete transaction");
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
-    },
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [["transactions"], ["accounts"]]),
   });
 }
 
-// Toggle status (pending ↔ cleared)
 /**
- * Sets an explicit status on a batch of transactions in a single UPDATE.
+ * Sets an explicit status on a batch of transactions in one local outbox
+ * write.
  *
  * Use this for bulk actions ("Mark Cleared" / "Mark Pending"). Unlike
  * useToggleTransactionStatus, mixed selections converge on the requested
@@ -784,53 +778,42 @@ export function useDeleteTransaction() {
  */
 export function useSetTransactionStatus() {
   const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id);
 
   return useMutation({
     mutationFn: async ({ ids, status }: { ids: string[]; status: "pending" | "cleared" }) => {
-      const { error } = await supabase.from("transactions").update({ status }).in("id", ids);
-
-      if (error) throw error;
-
+      const result = await updateOfflineTransactionsStatus(ids, status, requireUserId(userId));
+      if (!result.success) throw new Error(result.error ?? "Failed to update status");
       return status;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      // Status moves amounts between the cleared/pending balance splits
-      queryClient.invalidateQueries({ queryKey: ["account-balance"] });
-      queryClient.invalidateQueries({ queryKey: ["account-balances"] });
-    },
+    // Status moves amounts between the cleared/pending balance splits
+    onSuccess: () =>
+      afterOutboxWrite(queryClient, userId, [
+        ["transactions"],
+        ["account-balance"],
+        ["account-balances"],
+      ]),
   });
 }
 
 export function useToggleTransactionStatus() {
   const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id);
 
   return useMutation({
     mutationFn: async (id: string) => {
-      // Fetch current status with proper error handling
-      const { data: current, error: fetchError } = await supabase
-        .from("transactions")
-        .select("status")
-        .eq("id", id)
-        .single();
-
-      if (fetchError) throw fetchError; // Throw actual error (RLS, network, etc.)
-      if (!current) throw new Error("Transaction not found");
-
-      const newStatus = current.status === "pending" ? "cleared" : "pending";
-
-      const { error: updateError } = await supabase
-        .from("transactions")
-        .update({ status: newStatus })
-        .eq("id", id);
-
-      if (updateError) throw updateError;
-
-      return newStatus; // Return new status for optimistic updates
+      const existing = await ensureLocalRow("transactions", id);
+      if (!existing) throw new Error("Transaction not found");
+      const newStatus = existing.status === "pending" ? "cleared" : "pending";
+      const result = await updateOfflineTransaction(
+        id,
+        { status: newStatus },
+        requireUserId(userId)
+      );
+      if (!result.success) throw new Error(result.error ?? "Failed to update status");
+      return newStatus;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
-    },
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [["transactions"]]),
   });
 }
 

@@ -22,6 +22,7 @@ import {
   createOfflineTransaction,
   updateOfflineTransaction,
   deleteOfflineTransaction,
+  updateOfflineTransactionsStatus,
 } from "./transactions";
 
 // Debt side-effects (payment creation/reversal) are exercised in the debts
@@ -278,5 +279,64 @@ describe("updateOfflineTransaction debt link merge", () => {
     expect(vi.mocked(handleTransactionEdit)).toHaveBeenCalledWith(
       expect.objectContaining({ transaction_id: tx.id, new_debt_id: "debt-1" })
     );
+  });
+});
+
+describe("updateOfflineTransactionsStatus", () => {
+  const testUserId = "12345678-1234-5678-1234-567812345678";
+  const baseInput = {
+    date: "2024-01-15",
+    description: "x",
+    amount_cents: 1000,
+    type: "expense" as const,
+    status: "pending" as const,
+    visibility: "household" as const,
+  };
+
+  beforeEach(async () => {
+    await db.transactions.clear();
+    await db.syncQueue.clear();
+    await db.meta.clear();
+    vi.mocked(supabase.auth.getUser).mockResolvedValue({
+      data: { user: null },
+      error: null,
+    } as never);
+  });
+
+  it("updates every row and queues one update each", async () => {
+    const a = await createOfflineTransaction({ ...baseInput, description: "A" }, testUserId);
+    const b = await createOfflineTransaction({ ...baseInput, description: "B" }, testUserId);
+    await db.syncQueue.clear();
+
+    const result = await updateOfflineTransactionsStatus(
+      [a.data!.id, b.data!.id],
+      "cleared",
+      testUserId
+    );
+
+    expect(result.success).toBe(true);
+    expect((await db.transactions.get(a.data!.id))?.status).toBe("cleared");
+    expect((await db.transactions.get(b.data!.id))?.status).toBe("cleared");
+    expect(await db.syncQueue.count()).toBe(2);
+  });
+
+  it("changes nothing when one id cannot be found", async () => {
+    const a = await createOfflineTransaction({ ...baseInput, description: "A" }, testUserId);
+    await db.syncQueue.clear();
+    vi.mocked(supabase.from).mockReturnValue({
+      select: () => ({
+        eq: () => ({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) }),
+      }),
+    } as never);
+
+    const result = await updateOfflineTransactionsStatus(
+      [a.data!.id, "missing"],
+      "cleared",
+      testUserId
+    );
+
+    expect(result.success).toBe(false);
+    expect((await db.transactions.get(a.data!.id))?.status).toBe(baseInput.status);
+    expect(await db.syncQueue.count()).toBe(0);
   });
 });
