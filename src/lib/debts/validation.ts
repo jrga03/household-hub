@@ -8,6 +8,7 @@
 import { db } from "@/lib/dexie/db";
 import type { DebtFormData, InternalDebtFormData, EntityType } from "@/types/debt";
 import { z } from "zod";
+import { parsePHPSafe } from "@/lib/currency";
 
 // =====================================================
 // Types
@@ -389,29 +390,11 @@ export async function isDebtNameUnique(
  * @returns Amount in cents or null if invalid
  */
 export function parseAmountInput(input: string): number | null {
-  try {
-    // Remove currency symbol, commas, spaces
-    const cleaned = input.replace(/[₱,\s]/g, "");
-
-    // Parse as float
-    const pesos = parseFloat(cleaned);
-
-    if (isNaN(pesos) || pesos < 0) {
-      return null;
-    }
-
-    // Convert to cents
-    const cents = Math.round(pesos * 100);
-
-    // Validate range
-    if (cents < CURRENCY_LIMITS.MIN_DEBT || cents > CURRENCY_LIMITS.MAX_CENTS) {
-      return null;
-    }
-
-    return cents;
-  } catch {
+  const result = parsePHPSafe(input);
+  if (!result.success || result.value < CURRENCY_LIMITS.MIN_DEBT) {
     return null;
   }
+  return result.value;
 }
 
 /**

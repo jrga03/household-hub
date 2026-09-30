@@ -53,7 +53,7 @@ import {
   confirmDrafts,
   resolveCategoryName,
 } from "@/lib/import-drafts";
-import { formatPHP } from "@/lib/currency";
+import { formatPHP, parsePHPSafe } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import { useContainerNarrow } from "@/hooks/useContainerWidth";
 import { useAuthStore } from "@/stores/authStore";
@@ -455,12 +455,12 @@ function DraftsPage() {
                                   className="h-8 w-28 text-right"
                                   type="number"
                                   value={(editValues.amount_cents || 0) / 100}
-                                  onChange={(e) =>
-                                    setEditValues((v) => ({
-                                      ...v,
-                                      amount_cents: Math.round(Number(e.target.value) * 100),
-                                    }))
-                                  }
+                                  onChange={(e) => {
+                                    const parsed = parsePHPSafe(e.target.value);
+                                    if (parsed.success) {
+                                      setEditValues((v) => ({ ...v, amount_cents: parsed.value }));
+                                    }
+                                  }}
                                 />
                               </TableCell>
                               <TableCell>
