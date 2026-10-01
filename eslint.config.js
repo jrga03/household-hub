@@ -4,6 +4,27 @@ import tsParser from "@typescript-eslint/parser";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
 import prettier from "eslint-config-prettier";
+import { builtinRules } from "eslint/use-at-your-own-risk";
+
+// The core no-restricted-syntax rule, registered once per invariant. Flat config
+// replaces a rule's options wholesale per rule ID, so one shared array could not
+// carry four different allowlists (Phase 1a design, section 1).
+const restrictedSyntax = builtinRules.get("no-restricted-syntax");
+const architecturePlugin = {
+  rules: {
+    "no-direct-dexie-writes": restrictedSyntax,
+    "no-direct-supabase-writes": restrictedSyntax,
+    "no-ad-hoc-money-parse": restrictedSyntax,
+    "no-raw-transactions-from": restrictedSyntax,
+  },
+};
+
+const srcTestFiles = [
+  "src/**/*.test.{ts,tsx}",
+  "src/**/*.spec.ts",
+  "src/**/__tests__/**",
+  "src/test/**",
+];
 
 export default [
   {
@@ -343,6 +364,105 @@ export default [
       react: {
         version: "detect",
       },
+    },
+  },
+  // Architecture rules (roadmap 4.4-4.6). Each error message says why the rule
+  // exists and what to do instead.
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { arch: architecturePlugin },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [
+      ...srcTestFiles,
+      "src/lib/offline/**",
+      "src/lib/debts/**",
+      "src/lib/sync/**",
+      "src/lib/dexie/**",
+    ],
+    rules: {
+      "arch/no-direct-dexie-writes": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.object.object.name='db'][callee.object.property.name=/^(transactions|accounts|categories|budgets|debts|internalDebts|debtPayments)$/][callee.property.name=/^(add|put|update|delete|bulkAdd|bulkPut|bulkUpdate|bulkDelete|clear)$/]",
+          message:
+            "Entity writes go through src/lib/offline/* (or src/lib/debts/*), which write the row and its sync-queue item in one Dexie transaction. A direct db.<table> write never reaches Supabase (IMP-01).",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [
+      ...srcTestFiles,
+      "src/lib/sync/**",
+      "src/lib/dexie/deviceManager.ts",
+      "src/lib/device-registration.ts",
+    ],
+    rules: {
+      "arch/no-direct-supabase-writes": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.property.name=/^(insert|upsert|update|delete)$/][callee.object.callee.property.name='from']",
+          message:
+            "Supabase entity writes belong to the sync processor (src/lib/sync). Write through src/lib/offline/* instead; a direct write skips the outbox, the event log, and offline support.",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [...srcTestFiles, "src/lib/currency.ts", "src/lib/supabaseQueries.ts"],
+    rules: {
+      "arch/no-ad-hoc-money-parse": [
+        "error",
+        {
+          selector: "CallExpression[callee.name=/^(parseFloat|Number)$/]",
+          message:
+            "Parse peso input with parsePHP, parsePHPSafe, or parsePHPUnbounded from @/lib/currency, which return validated integer cents. URL amount params are already cents: validate them in the route's search schema (see src/lib/validations/transactionsSearch.ts). For a number that is not an amount, disable this line with a `-- reason`.",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [
+      ...srcTestFiles,
+      "src/lib/supabaseQueries.ts",
+      "src/lib/sync/**",
+      "src/lib/debts/**",
+      "src/lib/realtime-sync.ts",
+    ],
+    rules: {
+      "arch/no-raw-transactions-from": [
+        "error",
+        {
+          selector: "CallExpression[callee.property.name='from'] > Literal[value='transactions']",
+          message:
+            "Read transactions through src/lib/supabaseQueries.ts, which owns transfer exclusion for analytics and budget reads (and, from Phase 2, the transactions_non_transfer view).",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/routes/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"],
+    ignores: srcTestFiles,
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/lib/supabase"],
+              message:
+                "Routes and components fetch through a hook or @/lib/supabaseQueries so reads get the Dexie offline fallback and shared query keys.",
+            },
+          ],
+        },
+      ],
     },
   },
   prettier,
