@@ -370,12 +370,20 @@ IndexedDB is not a full mirror: the reconnection catch-up pulls only rows change
 
 ### Phase 1: Cheap wins
 
-- [ ] Wire `jsx-a11y` recommended into `eslint.config.js`; fix 10 violations
-- [ ] Enable `noImplicitOverride` and `verbatimModuleSyntax`; fix 12 errors
-- [ ] Add the Dexie-write, money, data-access, and `.from("transactions")` selectors (4.4 to 4.6) as `error`, and the Supabase-write selector as `error`, allowlisting `src/lib/sync/**`, `src/lib/debts/sync.ts`, `src/lib/dexie/deviceManager.ts`, and `src/lib/device-registration.ts`
-- [ ] Add `tsconfig.tests.json` (with explicit `@types/node`) and `tsconfig.strict.json`; run both in CI
+Split 2026-10-01 into 1a and 1b. Counts re-measured at `913efac`; 1a is specified in `docs/plans/2026-10-01-phase-1a-cheap-wins-design.md`, which supersedes the items below where they differ.
+
+**Phase 1a** (branch `phase-1a-cheap-wins`):
+
+- [ ] Wire `jsx-a11y` recommended into `eslint.config.js`; fix 7 sites (9 hits), plus the `CurrencyInput` `aria-label` follow-up
+- [ ] Enable `noImplicitOverride` and `verbatimModuleSyntax`; fix 10 errors (2 + 8)
+- [ ] Add the Dexie-write, Supabase-write, money, and `.from("transactions")` rules as aliased `arch/*` rules, and the data-access import rule, all as `error`. Supabase-write allowlist: `src/lib/sync/**`, `src/lib/dexie/deviceManager.ts`, `src/lib/device-registration.ts` (`debts/sync.ts` no longer writes). Move the 3 raw transactions reads and the analytics route's Supabase import first
+- [ ] Add `tsconfig.tests.json` (with explicit `@types/node`); fix 5 errors; run in CI
 - [ ] Add the four hooks (4.9) and merge them into the existing `.claude/settings.json`
-- [ ] Dependabot config and `audit` job (4.11)
+- [ ] Dependabot config, `packageManager`, `.nvmrc` in CI, `audit` job (production deps blocking, full audit report-only), non-breaking `npm audit fix`
+
+**Phase 1b** (own spec and branch, after 1a merges):
+
+- [ ] Add `tsconfig.strict.json` (`noUncheckedIndexedAccess` over sync, offline, debts) and fix all 190 errors it reports, transitive files included; run in CI
 
 ### Phase 2: Contracts
 
@@ -435,11 +443,13 @@ Confirmed in review on 2026-09-30:
 - **Mutation testing, jscpd, oxlint deferred.** Why: cost outweighs benefit at current size. Revisit after Phase 3.
 - **Phase 0.5a/0.5b pushed without a device check (decided 2026-10-01).** Why: the user could not test on a phone at the time. Revisit: on the next phone session, check (1) switching an account personal to household, (2) recreating an archived account name (should be rejected with "Choose another name"), (3) adding/editing a budget and seeing it on a second device or browser.
 
+- **Phase 1 split into 1a (guardrails) and 1b (`tsconfig.strict.json`) (decided 2026-10-01).** Why: the strict program reports 190 errors once transitive imports are counted (`TransactionList` 59), and the user chose to fix all of them rather than filter to scope; a separate branch keeps the cheap guardrails from waiting on UI-heavy fixes. Consequence: Phase 3's `noUncheckedIndexedAccess` buckets shrink. Revisit: 1b spec. The rest of the 1a decisions (aliased `arch/*` rules, prod-only audit gate, reads moved into `supabaseQueries.ts`) are in the 1a design's Decisions & Deferrals.
+
 ## Resume state (2026-10-01)
 
-- Phases 0, 0.5a, and 0.5b are merged and pushed (`main` = `60ed1b6`). Per-phase specs and plans: `docs/plans/2026-09-30-phase-0-live-bugs*`, `docs/plans/2026-09-30-phase-0.5a-outbox-writes*`, `docs/plans/2026-10-01-phase-0.5b-budget-outbox*`.
-- Next: Phase 1 (section 5 "Phase 1: Cheap wins"). Not started; no branch.
-- Phase 1 counts in sections 4.7/4.8 (10 jsx-a11y violations, 12 tsconfig errors, 73/54/44 type-aware hits) were measured at `c7d19c7`, before Phases 0-0.5 changed ~60 files; re-measure before planning.
+- Phases 0, 0.5a, and 0.5b are merged and pushed (`main` = `913efac`). Per-phase specs and plans: `docs/plans/2026-09-30-phase-0-live-bugs*`, `docs/plans/2026-09-30-phase-0.5a-outbox-writes*`, `docs/plans/2026-10-01-phase-0.5b-budget-outbox*`.
+- Phase 1a: design `docs/plans/2026-10-01-phase-1a-cheap-wins-design.md` written on branch `phase-1a-cheap-wins`; implementation plan next. Phase 1b not started.
+- Phase 1 counts were re-measured at `913efac` (table in the 1a design). The section 4.7 type-aware counts (73/54/44) are still from `c7d19c7`; re-measure before Phase 3.
 - The section 4.4 money-selector message ("use parsePHP") is superseded: per the Phase 0 design's Decisions & Deferrals it must point at `parsePHP`/`parsePHPSafe`/`parsePHPUnbounded` and at route search schemas (`src/lib/validations/transactionsSearch.ts`), since URL amount params are already cents.
 - Unverified: the four device checks in the Decisions entry above; the full (non-smoke) E2E suite and non-chromium browsers since Phase 0.
 - Test hygiene seen on the last push: `npx vitest run` passes (72 files / 918 tests) but prints heavy stderr from older suites (`[Debt Sync] Unexpected error adding to sync queue: Not authenticated` repeated, plus processor error-path logs). Not a failure; worth a cleanup item if Phase 1 adds a "pristine test output" gate.
