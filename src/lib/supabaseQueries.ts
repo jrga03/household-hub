@@ -1354,7 +1354,7 @@ async function fetchBudgetGroupsFromServer(month: Date): Promise<BudgetGroup[]> 
   if (budgetsError) throw budgetsError;
 
   // Mirror this month's budget targets into Dexie so Budgets renders
-  // offline (review R11). Budgets have no outbox/realtime path, so this
+  // offline (review R11). Budgets have no realtime path, so this
   // successful read IS the mirror. Reference targets only (Decision #80):
   // actual spending stays derived from transactions. Mirror failures must
   // never break the online read.
@@ -1492,7 +1492,7 @@ export function useBudgets(month: Date) {
  * Creates a new budget for a category and month, through the offline outbox.
  *
  * Note: Database enforces unique constraint on (household_id, category_id, month).
- * Attempting to create duplicate budgets will fail.
+ * A create for an already-budgeted category updates that budget instead.
  *
  * @returns Mutation hook for creating budgets
  */

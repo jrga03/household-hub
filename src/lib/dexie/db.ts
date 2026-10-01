@@ -628,7 +628,7 @@ export class HouseholdHubDB extends Dexie {
     // Version 10: Add budgets store (offline budgets mirror, review R11)
     // ========================================================================
     // Delta-only declaration (see the version 9 note: unchanged tables are
-    // inherited). Budget targets have no outbox/realtime path, so useBudgets
+    // inherited). Budget targets have no realtime path, so useBudgets
     // mirrors the month's server rows into this store on every successful
     // fetch and serves them back when the network is unreachable. Reference
     // targets only (Decision #80): no rollover, actuals always come from
