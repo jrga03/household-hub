@@ -1,4 +1,4 @@
-import { useEffect, ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { ConfirmDialogHost } from "@/components/ConfirmDialog";

@@ -30,7 +30,7 @@ import { ensureLocalRow } from "./offline/ensureLocal";
 import { afterOutboxWrite } from "./offline/afterWrite";
 import { duplicateAccountNameError, duplicateCategoryNameError } from "./offline/duplicateNames";
 import type { AccountInput, CategoryInput } from "./offline/types";
-import { Account } from "@/types/accounts";
+import type { Account } from "@/types/accounts";
 import type { Category, CategoryWithChildren } from "@/types/categories";
 import type { TransactionFilters, TransactionWithRelations } from "@/types/transactions";
 

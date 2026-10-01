@@ -16,7 +16,7 @@ import {
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { useCreateAccount, useUpdateAccount, useAccounts } from "@/lib/supabaseQueries";
-import { AccountType, AccountVisibility } from "@/types/accounts";
+import type { AccountType, AccountVisibility } from "@/types/accounts";
 import { toast } from "sonner";
 
 const accountSchema = z.object({

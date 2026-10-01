@@ -19,6 +19,8 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
 
     /* Path Aliases */
     "baseUrl": ".",

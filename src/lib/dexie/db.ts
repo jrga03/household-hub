@@ -16,7 +16,7 @@
  * @module dexie/db
  */
 
-import Dexie, { Table } from "dexie";
+import Dexie, { type Table } from "dexie";
 import { reportError } from "@/lib/sentry";
 import type { Debt, InternalDebt, DebtPayment } from "@/types/debt";
 import type { ImportDraft, ImportSession } from "@/types/pdf-import";

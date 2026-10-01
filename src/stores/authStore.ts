@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { User, Session } from "@supabase/supabase-js";
+import type { User, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { db } from "@/lib/dexie/db";
