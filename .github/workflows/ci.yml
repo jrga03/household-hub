@@ -18,7 +18,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version-file: .nvmrc
           cache: "npm"
 
       - name: Install dependencies
@@ -80,7 +80,7 @@ jobs:
         if: steps.check-creds.outputs.has_credentials == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version-file: .nvmrc
           cache: "npm"
 
       - name: Install dependencies
@@ -107,3 +107,25 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      # Blocking gate: only what ships to users. Dev-only advisories (the
+      # @lhci/cli/lighthouse chain has no non-breaking fix) are reported below.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Audit all dependencies (report only)
+        continue-on-error: true
+        run: npm audit --audit-level=high

@@ -1,0 +1,19 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # All @radix-ui/* must move together: mixed versions split
+      # react-dismissable-layer and break pointer events in dialogs (CLAUDE.md).
+      radix:
+        patterns: ["@radix-ui/*"]
+        update-types: [major, minor, patch]
+      minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
