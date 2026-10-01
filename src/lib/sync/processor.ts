@@ -232,6 +232,7 @@ export class SyncProcessor {
           ["categories"],
           ["dashboard"],
           ["transfers"],
+          ["budgets"],
         ]) {
           queryClient.invalidateQueries({ queryKey }).catch(() => {});
         }
@@ -305,7 +306,11 @@ export class SyncProcessor {
   ): Promise<void> {
     const tableName = this.getTableName(entityType);
 
-    const { error } = await supabase.from(tableName).insert(payload);
+    const table = supabase.from(tableName);
+    const { error } =
+      entityType === "budget"
+        ? await table.upsert(payload, { onConflict: "household_id,category_id,month" })
+        : await table.insert(payload);
 
     if (error) {
       const isDuplicatePkey = error.code === "23505" && error.message.includes("_pkey");

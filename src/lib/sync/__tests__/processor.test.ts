@@ -56,6 +56,7 @@ function makeSupabaseError(message: string, code?: string): Error & { code?: str
 /**
  * Configure the supabase.from mock. The processor uses exactly three shapes:
  * - insert(payload)            → awaited directly
+ * - upsert(payload, options)   → awaited directly (for budgets)
  * - update(payload).eq(...)    → awaited after .eq
  * - delete().eq(...)           → awaited after .eq
  */
@@ -64,16 +65,30 @@ function setupSupabaseMock(
     insertError?: unknown;
     updateError?: unknown;
     deleteError?: unknown;
+    upsertError?: unknown;
     onTable?: (table: string) => void;
     onUpdate?: (payload: Record<string, unknown>) => void;
+    onUpsert?: (payload: unknown, options: unknown) => void;
   } = {}
 ) {
-  const { insertError = null, updateError = null, deleteError = null, onTable, onUpdate } = options;
+  const {
+    insertError = null,
+    updateError = null,
+    deleteError = null,
+    upsertError = null,
+    onTable,
+    onUpdate,
+    onUpsert,
+  } = options;
 
   vi.mocked(supabase.from).mockImplementation(((table: string) => {
     onTable?.(table);
     return {
       insert: vi.fn(() => Promise.resolve({ error: insertError })),
+      upsert: vi.fn((payload: unknown, upsertOptions: unknown) => {
+        onUpsert?.(payload, upsertOptions);
+        return Promise.resolve({ error: upsertError });
+      }),
       update: vi.fn((payload: Record<string, unknown>) => {
         onUpdate?.(payload);
         return { eq: vi.fn(() => Promise.resolve({ error: updateError })) };
@@ -229,19 +244,20 @@ describe("SyncProcessor (local outbox)", () => {
       expect(entry?.value).toBeTruthy();
     });
 
-    it("invalidates transactions/accounts/categories/dashboard/transfers queries once per drain that pushed items", async () => {
+    it("invalidates transactions/accounts/categories/dashboard/transfers/budgets queries once per drain that pushed items", async () => {
       const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
       await db.syncQueue.bulkAdd([makeQueueItem(), makeQueueItem({ entity_id: "entity-2" })]);
 
       await processor.processQueue("user-1");
 
       // Once per prefix (not per item), fired after the drain completes
-      expect(invalidateSpy).toHaveBeenCalledTimes(5);
+      expect(invalidateSpy).toHaveBeenCalledTimes(6);
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["transactions"] });
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["accounts"] });
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["categories"] });
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["dashboard"] });
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["transfers"] });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["budgets"] });
     });
 
     it("does not invalidate queries when nothing was pushed", async () => {
@@ -454,6 +470,44 @@ describe("SyncProcessor (local outbox)", () => {
       await processor.processItem(item);
 
       expect(await db.syncIssues.count()).toBe(0);
+    });
+  });
+
+  describe("budget creates", () => {
+    it("upserts on household, category, and month instead of inserting", async () => {
+      const upserts: Array<{ payload: unknown; options: unknown }> = [];
+      setupSupabaseMock({ onUpsert: (payload, options) => upserts.push({ payload, options }) });
+      const payload = { id: "b1", category_id: "c1", month: "2026-10-01", amount_cents: 5000 };
+      await db.syncQueue.add(
+        makeQueueItem({
+          entity_type: "budget",
+          entity_id: "b1",
+          operation: {
+            op: "create",
+            payload,
+            idempotencyKey: "dev-1-budget-b1-1",
+            lamportClock: 1,
+            vectorClock: {},
+          },
+        })
+      );
+
+      await processor.processQueue("user-1");
+
+      expect(upserts).toEqual([
+        { payload, options: { onConflict: "household_id,category_id,month" } },
+      ]);
+    });
+
+    it("still inserts creates for other entities", async () => {
+      const upserts: unknown[] = [];
+      setupSupabaseMock({ onUpsert: (payload) => upserts.push(payload) });
+      await db.syncQueue.add(makeQueueItem());
+
+      const result = await processor.processQueue("user-1");
+
+      expect(result.synced).toBe(1);
+      expect(upserts).toHaveLength(0);
     });
   });
 
