@@ -135,6 +135,12 @@ function splitSegments(command) {
       inWord = true;
       continue;
     }
+    // An apostrophe in a comment must not open a quote that swallows later lines.
+    if (char === "#" && !inWord) {
+      const newline = command.indexOf("\n", i);
+      i = newline === -1 ? command.length : newline - 1;
+      continue;
+    }
     // $(( a << b )) is a shift, not a heredoc.
     if (command.startsWith("$((", i)) {
       const end = arithmeticEnd(command, i);
@@ -174,6 +180,10 @@ function splitSegments(command) {
   return segments;
 }
 
+function isCommand(name, binary) {
+  return name === binary || name.endsWith(`/${binary}`);
+}
+
 // Wrappers (npx, sudo -u x, time, xargs, then, {) vary too much to model, so any
 // unquoted command word anywhere in a segment is checked.
 function segmentReason(tokens, options) {
@@ -182,8 +192,8 @@ function segmentReason(tokens, options) {
     const name = tokens[i].text;
     const args = tokens.slice(i + 1).map((token) => token.text);
     const reason =
-      (name === "git" ? forcePushReason(args) : null) ??
-      (name === "supabase"
+      (isCommand(name, "git") ? forcePushReason(args) : null) ??
+      (isCommand(name, "supabase")
         ? supabaseReason(
             tokens
               .slice(i)
@@ -192,7 +202,7 @@ function segmentReason(tokens, options) {
               .join(" ")
           )
         : null) ??
-      (name === "rm" || name.endsWith("/rm") ? recursiveRmReason(args, options) : null);
+      (isCommand(name, "rm") ? recursiveRmReason(args, options) : null);
     if (reason) return reason;
   }
   return null;
