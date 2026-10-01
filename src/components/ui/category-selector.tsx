@@ -14,7 +14,7 @@
  * onChange fires with the selected child category id.
  */
 
-import { useMemo, useState, type ComponentProps } from "react";
+import { useId, useMemo, useState, type ComponentProps } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 
@@ -94,6 +94,7 @@ export function CategorySelector({
   ...triggerLabelProps
 }: CategorySelectorProps) {
   const [open, setOpen] = useState(false);
+  const popupId = useId();
   const { data: categories, isLoading } = useCategoriesGrouped();
 
   // Most recent N distinct category ids from local transactions, newest
@@ -165,6 +166,7 @@ export function CategorySelector({
           type="button"
           role="combobox"
           aria-expanded={open}
+          aria-controls={popupId}
           disabled={disabled || isLoading}
           data-slot="select-trigger"
           data-placeholder={selected ? undefined : ""}
@@ -191,7 +193,11 @@ export function CategorySelector({
           <ChevronDownIcon className="size-4 opacity-50" />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-(--radix-popover-trigger-width) min-w-56 p-0" align="start">
+      <PopoverContent
+        id={popupId}
+        className="w-(--radix-popover-trigger-width) min-w-56 p-0"
+        align="start"
+      >
         <Command filter={commandFilter}>
           <CommandInput placeholder="Search categories..." />
           <CommandList>

@@ -3,6 +3,7 @@ import typescript from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import prettier from "eslint-config-prettier";
 import { builtinRules } from "eslint/use-at-your-own-risk";
 
@@ -366,6 +367,7 @@ export default [
       },
     },
   },
+  { ...jsxA11y.flatConfigs.recommended, files: ["src/**/*.tsx"] },
   // Architecture rules (roadmap 4.4-4.6). Each error message says why the rule
   // exists and what to do instead.
   {

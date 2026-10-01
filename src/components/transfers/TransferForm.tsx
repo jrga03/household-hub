@@ -88,9 +88,11 @@ export function TransferForm({
         control={form.control}
         render={({ field, fieldState }) => (
           <div>
-            <label className="text-sm font-medium">From Account</label>
+            <label htmlFor="transfer-from-account" className="text-sm font-medium">
+              From Account
+            </label>
             <Select onValueChange={field.onChange} value={field.value}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger id="transfer-from-account" className="w-full">
                 <SelectValue placeholder="Select account" />
               </SelectTrigger>
               <SelectContent>
@@ -113,9 +115,11 @@ export function TransferForm({
         control={form.control}
         render={({ field, fieldState }) => (
           <div>
-            <label className="text-sm font-medium">To Account</label>
+            <label htmlFor="transfer-to-account" className="text-sm font-medium">
+              To Account
+            </label>
             <Select onValueChange={field.onChange} value={field.value}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger id="transfer-to-account" className="w-full">
                 <SelectValue placeholder="Select account" />
               </SelectTrigger>
               <SelectContent>
@@ -138,8 +142,10 @@ export function TransferForm({
         control={form.control}
         render={({ field, fieldState }) => (
           <div>
-            <label className="text-sm font-medium">Amount</label>
-            <CurrencyInput {...field} error={fieldState.error?.message} />
+            <label htmlFor="transfer-amount" className="text-sm font-medium">
+              Amount
+            </label>
+            <CurrencyInput id="transfer-amount" {...field} error={fieldState.error?.message} />
           </div>
         )}
       />

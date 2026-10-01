@@ -119,25 +119,38 @@ export function CategoryChart({ data }: Props) {
 
           {/* Legend with click handlers */}
           <div className="w-full @[600px]:w-1/2 space-y-2">
-            {legendItems.map((category) => (
-              <div
-                key={category.categoryId ?? category.categoryName}
-                className={cn(
-                  "flex items-center justify-between p-2 rounded transition-colors",
-                  category.categoryId && "cursor-pointer hover:bg-accent"
-                )}
-                onClick={() => handleCategoryClick(category.categoryId)}
-              >
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: category.color }}
-                  />
-                  <span className="text-sm">{category.categoryName}</span>
+            {legendItems.map((category) => {
+              const rowContent = (
+                <>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: category.color }}
+                    />
+                    <span className="text-sm">{category.categoryName}</span>
+                  </div>
+                  <span className="text-sm font-mono">{formatPHP(category.amountCents)}</span>
+                </>
+              );
+              const rowClassName =
+                "flex w-full items-center justify-between p-2 rounded transition-colors";
+
+              // Uncategorized has no id to filter by, so it is not interactive
+              return category.categoryId ? (
+                <button
+                  key={category.categoryId}
+                  type="button"
+                  className={cn(rowClassName, "text-left cursor-pointer hover:bg-accent")}
+                  onClick={() => handleCategoryClick(category.categoryId)}
+                >
+                  {rowContent}
+                </button>
+              ) : (
+                <div key={category.categoryName} className={rowClassName}>
+                  {rowContent}
                 </div>
-                <span className="text-sm font-mono">{formatPHP(category.amountCents)}</span>
-              </div>
-            ))}
+              );
+            })}
             {hiddenCount > 0 && (
               <p className="text-xs text-muted-foreground text-center mt-2">
                 +{hiddenCount} more {hiddenCount === 1 ? "category" : "categories"}

@@ -137,7 +137,7 @@ describe("CurrencyInput", () => {
       />
     );
 
-    const input = getInput();
+    const input = screen.getByRole("textbox");
     expect(input).toHaveAttribute("aria-invalid", "true");
     expect(input).toHaveAttribute("aria-describedby", "amount-error");
     expect(screen.getByText("Amount too large")).toHaveAttribute("id", "amount-error");
@@ -154,5 +154,28 @@ describe("CurrencyInput", () => {
 
     expect(onChange).toHaveBeenLastCalledWith(150050);
     expect(input.value).toBe("1,500.50");
+  });
+});
+
+describe("CurrencyInput labelling", () => {
+  it("is named by its visible label when the host passes an id", () => {
+    render(
+      <>
+        <label htmlFor="budget-amount">Budget Amount</label>
+        <CurrencyInput id="budget-amount" value={0} />
+      </>
+    );
+    const input = screen.getByLabelText("Budget Amount");
+    expect(input).not.toHaveAttribute("aria-label");
+  });
+
+  it("keeps an explicit aria-label", () => {
+    render(<CurrencyInput aria-label="Original amount" value={0} />);
+    expect(screen.getByLabelText("Original amount")).toBeInTheDocument();
+  });
+
+  it("falls back to the generic label when nothing names it", () => {
+    render(<CurrencyInput value={0} />);
+    expect(screen.getByLabelText("Amount in Philippine Pesos")).toBeInTheDocument();
   });
 });

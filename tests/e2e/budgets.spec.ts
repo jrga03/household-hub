@@ -43,7 +43,7 @@ test.describe("Budgets", () => {
     await categoryTrigger.click();
     await page.getByRole("option", { name: category!.name, exact: true }).click();
 
-    await page.getByRole("textbox", { name: "Amount in Philippine Pesos" }).fill("5000");
+    await page.getByRole("textbox", { name: "Budget Amount", exact: true }).fill("5000");
 
     // Submit
     const submitBtn = page.locator('button[type="submit"]').first();

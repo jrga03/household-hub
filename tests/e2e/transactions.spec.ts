@@ -36,7 +36,7 @@ async function createExpense(
   await page.getByRole("main").getByRole("button", { name: "Add Transaction" }).click();
 
   const dialog = page.getByRole("dialog", { name: "New Transaction" });
-  await dialog.getByRole("textbox", { name: "Amount in Philippine Pesos" }).fill(amount);
+  await dialog.getByRole("textbox", { name: "Amount", exact: true }).fill(amount);
   await dialog.getByRole("radio", { name: "Expense" }).click();
   await dialog.getByRole("textbox", { name: "Description" }).fill(description);
 

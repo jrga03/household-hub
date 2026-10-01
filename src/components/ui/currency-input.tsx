@@ -115,7 +115,13 @@ export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputPro
           onBlur={handleBlur}
           disabled={disabled}
           className={cn("pl-7", error && "border-destructive", className)}
-          aria-label="Amount in Philippine Pesos"
+          // A host label (id + htmlFor, shadcn FormControl's injected id, or
+          // aria-labelledby) names the field; the generic name is a fallback only.
+          aria-label={
+            props.id || props["aria-label"] || props["aria-labelledby"]
+              ? props["aria-label"]
+              : "Amount in Philippine Pesos"
+          }
           // Only override the aria wiring when this component renders its own
           // error paragraph; otherwise pass through whatever the host injected
           // (shadcn FormControl wires aria-invalid/aria-describedby to

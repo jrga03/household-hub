@@ -173,7 +173,7 @@ afterEach(() => {
 
 /** Fill the two required fields so submit passes validation. */
 function fillRequiredFields() {
-  const amount = screen.getByLabelText("Amount in Philippine Pesos");
+  const amount = screen.getByLabelText("Amount");
   fireEvent.focus(amount);
   fireEvent.change(amount, { target: { value: "100" } });
   fireEvent.blur(amount);
@@ -191,20 +191,26 @@ describe("TransactionFormDialog", () => {
     expect(screen.getByText("New Transaction")).toBeInTheDocument();
   });
 
+  it("focuses the Amount field when the dialog opens", async () => {
+    await renderDialog();
+
+    await waitFor(() => expect(screen.getByLabelText("Amount")).toHaveFocus());
+  });
+
   it("renders a bottom Sheet on mobile with the same fields", async () => {
     mockIsMobile.mockReturnValue(true);
     await renderDialog();
 
     expect(document.querySelector('[data-slot="sheet-content"]')).toBeInTheDocument();
     expect(document.querySelector('[data-slot="dialog-content"]')).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Amount in Philippine Pesos")).toBeInTheDocument();
+    expect(screen.getByLabelText("Amount")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /create/i })).toBeInTheDocument();
   });
 
   it("puts the Amount input before the Type radios in DOM order", async () => {
     await renderDialog();
 
-    const amount = screen.getByLabelText("Amount in Philippine Pesos");
+    const amount = screen.getByLabelText("Amount");
     const expenseRadio = screen.getByRole("radio", { name: "Expense" });
     // DOCUMENT_POSITION_FOLLOWING: expenseRadio comes after amount
     expect(amount.compareDocumentPosition(expenseRadio) & amount.DOCUMENT_POSITION_FOLLOWING).toBe(
@@ -259,7 +265,7 @@ describe("TransactionFormDialog", () => {
 
     // Make the always-visible fields valid so the collapsed notes field is
     // the only validation failure
-    const amount = screen.getByLabelText("Amount in Philippine Pesos");
+    const amount = screen.getByLabelText("Amount");
     fireEvent.focus(amount);
     fireEvent.change(amount, { target: { value: "100" } });
     fireEvent.blur(amount);
@@ -295,7 +301,7 @@ describe("TransactionFormDialog", () => {
     // cents must be committed to form state so zod's .max() blocks submit —
     // previously the last parseable prefix (₱9,999,999) stayed committed and
     // submit silently saved a wrong amount.
-    const amount = screen.getByLabelText("Amount in Philippine Pesos");
+    const amount = screen.getByLabelText("Amount");
     fireEvent.focus(amount);
     fireEvent.change(amount, { target: { value: "99999999" } });
     fireEvent.change(screen.getByLabelText("Description"), {

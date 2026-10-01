@@ -165,6 +165,17 @@ beforeEach(async () => {
 // ---------------------------------------------------------------------------
 
 describe("CategorySelector combobox", () => {
+  it("points the combobox at the popup it controls", async () => {
+    render(<CategorySelector value={undefined} onChange={() => {}} />);
+    const trigger = getTrigger();
+    await openPicker();
+    const controlsId = trigger.getAttribute("aria-controls");
+    expect(controlsId).toBeTruthy();
+    expect(document.getElementById(controlsId!)).toContainElement(
+      screen.getByPlaceholderText("Search categories...")
+    );
+  });
+
   it("takes its accessible name from an associated label", () => {
     render(
       <>

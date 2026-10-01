@@ -100,9 +100,10 @@ function Categories() {
                 {parent.children.length > 0 && (
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {parent.children.map((child) => (
-                      <div
+                      <button
                         key={child.id}
-                        className="flex items-center gap-3 rounded-md border p-3 hover:bg-accent cursor-pointer transition-colors"
+                        type="button"
+                        className="flex w-full items-center gap-3 rounded-md border p-3 text-left hover:bg-accent cursor-pointer transition-colors"
                         onClick={() => {
                           setEditingId(child.id);
                           setDefaultParentId(null);
@@ -111,7 +112,7 @@ function Categories() {
                         style={{ borderLeftWidth: "3px", borderLeftColor: child.color }}
                       >
                         <span className="text-sm font-medium">{child.name}</span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 )}

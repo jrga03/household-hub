@@ -312,7 +312,6 @@ export function TransactionFormDialog({
               id="amount"
               {...field}
               error={fieldState.error?.message}
-              autoFocus
               autoComplete="off"
             />
           )}
