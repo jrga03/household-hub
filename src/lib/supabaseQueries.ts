@@ -26,6 +26,7 @@ import { OfflineError } from "./offline/errors";
 import { createOfflineAccount, updateOfflineAccount } from "./offline/accounts";
 import { createOfflineCategory, updateOfflineCategory } from "./offline/categories";
 import { deleteOfflineTransaction, updateOfflineTransactionsStatus } from "./offline/transactions";
+import type { TransferLeg } from "./offline/transfers";
 import { ensureLocalRow } from "./offline/ensureLocal";
 import { afterOutboxWrite } from "./offline/afterWrite";
 import { duplicateAccountNameError, duplicateCategoryNameError } from "./offline/duplicateNames";
@@ -772,6 +773,108 @@ export function useToggleTransactionStatus() {
     },
     // ["transaction"] refreshes an open detail sheet once the drain lands
     onSuccess: () => afterOutboxWrite(queryClient, userId, [["transactions"], ["transaction"]]),
+  });
+}
+
+/**
+ * Raw transactions reads for analytics and transfers. Every `.from("transactions")`
+ * read lives in this file (lint rule arch/no-raw-transactions-from) so transfer
+ * exclusion is decided in one place.
+ */
+
+export interface AnalyticsTransactionRow {
+  id: string;
+  date: string;
+  type: "income" | "expense";
+  amount_cents: number;
+  category_id: string | null;
+  account_id: string;
+  description: string;
+  categories?: { name: string };
+}
+
+export interface TransactionReadFilters {
+  accountId?: string;
+  categoryId?: string;
+  type?: "income" | "expense";
+}
+
+export interface IsoDateRange {
+  startDate: string;
+  endDate: string;
+}
+
+function nonTransferTransactionsQuery(
+  columns: string,
+  range: IsoDateRange,
+  filters: TransactionReadFilters
+) {
+  let query = supabase
+    .from("transactions")
+    .select(columns)
+    .gte("date", range.startDate)
+    .lte("date", range.endDate)
+    .is("transfer_group_id", null); // transfers are account movements, never income or spending
+
+  if (filters.accountId) query = query.eq("account_id", filters.accountId);
+  if (filters.categoryId) query = query.eq("category_id", filters.categoryId);
+  if (filters.type) query = query.eq("type", filters.type);
+  return query;
+}
+
+export async function fetchAnalyticsTransactions(
+  range: IsoDateRange,
+  filters: TransactionReadFilters = {}
+): Promise<AnalyticsTransactionRow[]> {
+  const { data, error } = await nonTransferTransactionsQuery("*, categories(name)", range, filters);
+  if (error) throw error;
+  return (data ?? []) as unknown as AnalyticsTransactionRow[];
+}
+
+export async function fetchAnalyticsTransactionTotals(
+  range: IsoDateRange,
+  filters: TransactionReadFilters = {}
+): Promise<Array<Pick<AnalyticsTransactionRow, "type" | "amount_cents">>> {
+  const { data, error } = await nonTransferTransactionsQuery("type, amount_cents", range, filters);
+  if (error) throw error;
+  return (data ?? []) as unknown as Array<Pick<AnalyticsTransactionRow, "type" | "amount_cents">>;
+}
+
+export async function fetchTransferLegs(householdId: string): Promise<TransferLeg[]> {
+  const { data, error } = await supabase
+    .from("transactions")
+    .select(
+      `
+      id,
+      date,
+      amount_cents,
+      description,
+      transfer_group_id,
+      type,
+      account:accounts!transactions_account_id_fkey(id, name)
+    `
+    )
+    .eq("household_id", householdId)
+    .not("transfer_group_id", "is", null)
+    .order("date", { ascending: false });
+
+  if (error) throw error;
+
+  return (data ?? []).map((transaction) => {
+    // Supabase joins return arrays; extract the first element for single-record joins
+    const accountData = Array.isArray(transaction.account)
+      ? (transaction.account[0] ?? null)
+      : transaction.account;
+
+    return {
+      id: transaction.id,
+      date: transaction.date,
+      amount_cents: transaction.amount_cents,
+      description: transaction.description,
+      transfer_group_id: transaction.transfer_group_id,
+      type: transaction.type,
+      account: accountData ? { id: accountData.id, name: accountData.name } : null,
+    };
   });
 }
 

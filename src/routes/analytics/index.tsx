@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AnalyticsDashboard,
@@ -9,8 +9,7 @@ import { FilterPanel } from "@/components/analytics/FilterPanel";
 import { AnalyticsFilterSheet } from "@/components/analytics/AnalyticsFilterSheet";
 import { LoadingSpinner } from "@/components/LoadingScreen";
 import { BarChart3, TrendingUp, PieChart } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { useAccounts, useCategories } from "@/lib/supabaseQueries";
 import { subMonths, startOfMonth, endOfMonth } from "date-fns";
 
 // Lazy import for category analytics (simulates code splitting benefit)
@@ -29,29 +28,14 @@ function Analytics() {
     endDate: endOfMonth(new Date()),
   });
 
-  const { data: accounts = [] } = useQuery({
-    queryKey: ["accounts"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("accounts").select("id, name").order("name");
-      if (error) throw error;
-      return data;
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const { data: categories = [] } = useQuery({
-    queryKey: ["categories"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("id, name")
-        .is("parent_id", null)
-        .order("name");
-      if (error) throw error;
-      return data;
-    },
-    staleTime: 5 * 60 * 1000,
-  });
+  // Shared hooks, not private queries: the old route cached its own fetch under
+  // the shared ["accounts"]/["categories"] keys and poisoned every other picker (DATA-06).
+  const { data: accounts = [] } = useAccounts();
+  const { data: allCategories = [] } = useCategories();
+  const categories = useMemo(
+    () => allCategories.filter((category) => category.parent_id === null),
+    [allCategories]
+  );
 
   return (
     <div className="bg-background">

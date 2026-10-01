@@ -1,19 +1,16 @@
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import {
+  fetchAnalyticsTransactions,
+  fetchAnalyticsTransactionTotals,
+  type AnalyticsTransactionRow,
+} from "@/lib/supabaseQueries";
 import { startOfMonth, subYears, format, differenceInDays } from "date-fns";
 
-// Types for analytics data
-interface Transaction {
-  id: string;
-  date: string;
-  type: "income" | "expense";
-  amount_cents: number;
-  category_id: string | null;
-  account_id: string;
-  description: string;
-  categories?: { name: string };
-}
+type Transaction = AnalyticsTransactionRow;
+type TransactionAmount = Pick<Transaction, "type" | "amount_cents">;
 
+// Types for analytics data
 interface MonthlyTrendData {
   month: string;
   income: number; // in cents
@@ -102,30 +99,15 @@ export function useAnalytics(startDate: Date, endDate: Date, filters?: Analytics
       filters,
     ],
     queryFn: async (): Promise<AnalyticsData> => {
-      // Base query with transfer exclusion
-      let query = supabase
-        .from("transactions")
-        .select("*, categories(name)")
-        .gte("date", format(startDate, "yyyy-MM-dd"))
-        .lte("date", format(endDate, "yyyy-MM-dd"))
-        .is("transfer_group_id", null); // CRITICAL: Exclude transfers!
-
-      // Apply filters
-      if (filters?.accountId) {
-        query = query.eq("account_id", filters.accountId);
-      }
-      if (filters?.categoryId) {
-        query = query.eq("category_id", filters.categoryId);
-      }
-      if (filters?.type) {
-        query = query.eq("type", filters.type);
-      }
-
-      const { data: transactionData, error } = await query;
-
-      if (error) {
-        throw new Error(`Failed to fetch analytics: ${error.message}`);
-      }
+      const range = {
+        startDate: format(startDate, "yyyy-MM-dd"),
+        endDate: format(endDate, "yyyy-MM-dd"),
+      };
+      const transactionData = await fetchAnalyticsTransactions(range, filters).catch(
+        (error: { message: string }) => {
+          throw new Error(`Failed to fetch analytics: ${error.message}`);
+        }
+      );
 
       // Fetch budget data for variance (raw data for all months in period)
       const { data: rawBudgets, error: budgetError } = await supabase
@@ -165,41 +147,25 @@ export function useAnalytics(startDate: Date, endDate: Date, filters?: Analytics
       const prevYearStart = subYears(startDate, 1);
       const prevYearEnd = subYears(endDate, 1);
 
-      let prevQuery = supabase
-        .from("transactions")
-        .select("type, amount_cents")
-        .gte("date", format(prevYearStart, "yyyy-MM-dd"))
-        .lte("date", format(prevYearEnd, "yyyy-MM-dd"))
-        .is("transfer_group_id", null); // CRITICAL: Exclude transfers from YoY!
-
-      // Apply same filters for fair comparison
-      if (filters?.accountId) {
-        prevQuery = prevQuery.eq("account_id", filters.accountId);
-      }
-      if (filters?.categoryId) {
-        prevQuery = prevQuery.eq("category_id", filters.categoryId);
-      }
-      if (filters?.type) {
-        prevQuery = prevQuery.eq("type", filters.type);
-      }
-
-      const { data: prevYearData, error: prevYearError } = await prevQuery;
-
-      if (prevYearError) {
+      const prevYearData = await fetchAnalyticsTransactionTotals(
+        {
+          startDate: format(prevYearStart, "yyyy-MM-dd"),
+          endDate: format(prevYearEnd, "yyyy-MM-dd"),
+        },
+        filters
+      ).catch((prevYearError: unknown) => {
         console.warn("Failed to fetch previous year data:", prevYearError);
-      }
+        return [];
+      });
 
       // Process all data
-      const monthlyTrend = processMonthlyTrend(transactionData || []);
-      const categoryBreakdown = processCategoryBreakdown(transactionData || []);
-      const totalIncome = calculateTotal(transactionData || [], "income");
-      const totalExpenses = calculateTotal(transactionData || [], "expense");
-      const budgetVariance = processBudgetVariance(budgetData || [], transactionData || []);
-      const yearOverYear = processYearOverYear(
-        transactionData || [],
-        (prevYearData as typeof transactionData) || []
-      );
-      const insights = processInsights(transactionData || [], startDate, endDate);
+      const monthlyTrend = processMonthlyTrend(transactionData);
+      const categoryBreakdown = processCategoryBreakdown(transactionData);
+      const totalIncome = calculateTotal(transactionData, "income");
+      const totalExpenses = calculateTotal(transactionData, "expense");
+      const budgetVariance = processBudgetVariance(budgetData, transactionData);
+      const yearOverYear = processYearOverYear(transactionData, prevYearData);
+      const insights = processInsights(transactionData, startDate, endDate);
 
       return {
         monthlyTrend,
@@ -293,7 +259,7 @@ function processCategoryBreakdown(data: Transaction[]): CategoryBreakdown[] {
  * @param type - Transaction type to sum
  * @returns Total amount in cents
  */
-function calculateTotal(data: Transaction[], type: "income" | "expense"): number {
+function calculateTotal(data: TransactionAmount[], type: "income" | "expense"): number {
   return data.filter((t) => t.type === type).reduce((sum, t) => sum + t.amount_cents, 0);
 }
 
@@ -348,8 +314,8 @@ function processBudgetVariance(
  * @returns YoY comparison with absolute and percentage changes
  */
 function processYearOverYear(
-  currentData: Transaction[],
-  previousData: Transaction[]
+  currentData: TransactionAmount[],
+  previousData: TransactionAmount[]
 ): YearOverYear {
   const currentIncome = calculateTotal(currentData, "income");
   const currentExpenses = calculateTotal(currentData, "expense");
