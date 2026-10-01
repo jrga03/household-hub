@@ -9,6 +9,7 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { db, type LocalBudget, type LocalCategory, type LocalTransaction } from "@/lib/dexie/db";
+import type { SyncQueueItem } from "@/types/sync";
 import {
   budgetMonthKey,
   getLocalBudgetGroups,
@@ -220,5 +221,84 @@ describe("mirrorBudgetsForMonth + getLocalBudgetGroups", () => {
 
     expect(await hasMirroredBudgets(JULY_KEY)).toBe(true);
     expect(await getLocalBudgetGroups(JULY)).toEqual([]);
+  });
+});
+
+// ─── Pending sync queue handling ──────────────────
+
+describe("mirrorBudgetsForMonth with pending sync queue items", () => {
+  beforeEach(async () => {
+    await db.budgets.clear();
+    await db.meta.clear();
+    await db.syncQueue.clear();
+  });
+
+  async function queueBudgetOp(
+    entityId: string,
+    op: "create" | "update" | "delete"
+  ): Promise<void> {
+    await db.syncQueue.add({
+      id: crypto.randomUUID(),
+      household_id: "hh-1",
+      entity_type: "budget",
+      entity_id: entityId,
+      operation: {
+        op,
+        payload: { id: entityId },
+        idempotencyKey: `k-${entityId}-${op}`,
+        lamportClock: 1,
+      },
+      device_id: "dev-1",
+      user_id: "user-1",
+      status: "queued",
+      retry_count: 0,
+      max_retries: 3,
+      error_message: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      synced_at: null,
+      next_retry_at: null,
+    } as SyncQueueItem);
+  }
+
+  it("keeps a local budget with a pending create when the server does not have it yet", async () => {
+    const local = makeBudget({ id: "local-1", category_id: "cat-food", amount_cents: 70000 });
+    await db.budgets.put(local);
+    await queueBudgetOp("local-1", "create");
+
+    await mirrorBudgetsForMonth(JULY_KEY, []);
+
+    expect(await db.budgets.get("local-1")).toEqual(local);
+  });
+
+  it("prefers a pending local row over a server row for the same category", async () => {
+    const local = makeBudget({ id: "local-1", category_id: "cat-food", amount_cents: 70000 });
+    await db.budgets.put(local);
+    await queueBudgetOp("local-1", "update");
+
+    await mirrorBudgetsForMonth(JULY_KEY, [
+      makeBudget({ id: "server-1", category_id: "cat-food", amount_cents: 10000 }),
+    ]);
+
+    expect(await db.budgets.where("month").equals(JULY_KEY).toArray()).toEqual([local]);
+  });
+
+  it("does not resurrect a budget with a pending delete", async () => {
+    await queueBudgetOp("server-1", "delete");
+
+    await mirrorBudgetsForMonth(JULY_KEY, [makeBudget({ id: "server-1" })]);
+
+    expect(await db.budgets.get("server-1")).toBeUndefined();
+  });
+
+  it("ignores completed queue items", async () => {
+    const local = makeBudget({ id: "local-1" });
+    await db.budgets.put(local);
+    await queueBudgetOp("local-1", "create");
+    await db.syncQueue.toCollection().modify({ status: "completed" });
+
+    await mirrorBudgetsForMonth(JULY_KEY, []);
+
+    expect(await db.budgets.get("local-1")).toBeUndefined();
   });
 });

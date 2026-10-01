@@ -1,13 +1,16 @@
 /**
  * Local Dexie mirror + offline reads for budget targets (review R11)
  *
- * Budgets are the one core entity with NO other path into IndexedDB: budget
- * mutations write straight to Supabase and there is no realtime subscription
- * for the budgets table. So useBudgets (lib/supabaseQueries.ts) calls
+ * Budgets are the one core entity with NO realtime subscription: budget
+ * mutations go through the local outbox (db.syncQueue, entity_type: "budget")
+ * and there is no realtime path. So useBudgets (lib/supabaseQueries.ts) calls
  * `mirrorBudgetsForMonth` after every successful fetch - the read IS the
  * mirror - and `getLocalBudgetGroups` rebuilds the exact BudgetGroup[] shape
  * offline: mirrored targets + actual spending recomputed from
  * db.transactions (expenses only, transfers excluded, same month bounds).
+ *
+ * The mirror preserves budgets with pending unsynced work (creates/updates)
+ * and excludes budgets with pending deletes.
  *
  * Budgets are reference targets only (Decision #80): no rollover, nothing
  * derived is ever stored.
@@ -37,16 +40,40 @@ function mirrorMarkerKey(monthKey: string): string {
 }
 
 /**
- * Replaces the month's mirrored budget rows with the server result and
- * records the mirror marker, atomically. Replacement (not merge) is correct
- * here: the server result is the complete set for the month, so rows deleted
- * server-side disappear locally too.
+ * Replaces the month's mirrored rows with the server result, except budgets
+ * with unsynced local work: a pending create/update keeps the local row (it
+ * wins over a server row for the same category), a pending delete keeps the
+ * server row out. Atomic with the mirror marker.
  */
 export async function mirrorBudgetsForMonth(monthKey: string, rows: LocalBudget[]): Promise<void> {
-  await db.transaction("rw", db.budgets, db.meta, async () => {
+  await db.transaction("rw", db.budgets, db.meta, db.syncQueue, async () => {
+    const pending = await db.syncQueue
+      .filter(
+        (item) =>
+          item.entity_type === "budget" && (item.status === "queued" || item.status === "syncing")
+      )
+      .toArray();
+    const pendingDeletes = new Set(
+      pending.filter((item) => item.operation.op === "delete").map((item) => item.entity_id)
+    );
+    const pendingWrites = new Set(
+      pending.filter((item) => item.operation.op !== "delete").map((item) => item.entity_id)
+    );
+
+    const keptLocal = (await db.budgets.where("month").equals(monthKey).toArray()).filter(
+      (budget) => pendingWrites.has(budget.id)
+    );
+    const keptIds = new Set(keptLocal.map((budget) => budget.id));
+    const keptCategories = new Set(keptLocal.map((budget) => budget.category_id));
+    const serverRows = rows.filter(
+      (row) =>
+        !pendingDeletes.has(row.id) && !keptIds.has(row.id) && !keptCategories.has(row.category_id)
+    );
+
     await db.budgets.where("month").equals(monthKey).delete();
-    if (rows.length > 0) {
-      await db.budgets.bulkPut(rows);
+    const merged = [...serverRows, ...keptLocal];
+    if (merged.length > 0) {
+      await db.budgets.bulkPut(merged);
     }
     await db.meta.put({ key: mirrorMarkerKey(monthKey), value: new Date().toISOString() });
   });
