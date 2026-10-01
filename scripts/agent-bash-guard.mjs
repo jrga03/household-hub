@@ -23,17 +23,10 @@ function isDangerousTarget(rawTarget, { projectDir, tmpDirs }) {
   return ![projectDir, ...tmpDirs].some((dir) => isInside(path, dir));
 }
 
-function gitSubcommandIndex(args) {
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === "-C" || args[i] === "-c") i++;
-    else if (!args[i].startsWith("-")) return i;
-  }
-  return -1;
-}
-
-function forcePushReason(command, args) {
-  if (command !== "git") return null;
-  const subcommandIndex = gitSubcommandIndex(args);
+function forcePushReason(args) {
+  const subcommandIndex = args.findIndex(
+    (token, i) => !token.startsWith("-") && args[i - 1] !== "-C" && args[i - 1] !== "-c"
+  );
   if (subcommandIndex === -1 || args[subcommandIndex] !== "push") return null;
   const forced = args
     .slice(subcommandIndex + 1)
@@ -56,8 +49,7 @@ function supabaseReason(segment) {
   return null;
 }
 
-function recursiveRmReason(command, args, options) {
-  if (command !== "rm" && !command.endsWith("/rm")) return null;
+function recursiveRmReason(args, options) {
   const recursive = args.some(
     (arg) => arg === "--recursive" || (/^-[a-zA-Z]+$/.test(arg) && /[rR]/.test(arg))
   );
@@ -81,20 +73,37 @@ function skipHeredocBodies(command, start, delimiters) {
   return position;
 }
 
-// Splits on unquoted && || ; | and newlines. Quoted strings become one token, and
-// heredoc bodies are dropped, so text inside messages is never read as a command.
+function arithmeticEnd(command, dollarIndex) {
+  let depth = 0;
+  for (let i = dollarIndex + 1; i < command.length; i++) {
+    if (command[i] === "(") depth++;
+    else if (command[i] === ")" && --depth === 0) return i;
+  }
+  return command.length - 1;
+}
+
+function isSingleAmpersand(command, i) {
+  return (
+    command[i] === "&" && command[i - 1] !== ">" && command[i + 1] !== ">" && command[i + 1] !== "&"
+  );
+}
+
+// Splits on unquoted && || ; | & and newlines into { text, quoted } tokens, and
+// drops heredoc bodies, so text inside quotes or messages is never a command.
 function splitSegments(command) {
   const segments = [];
   const heredocDelimiters = [];
   let tokens = [];
   let word = "";
   let inWord = false;
+  let quoted = false;
   let quote = null;
 
   const endWord = () => {
-    if (inWord) tokens.push(word);
+    if (inWord) tokens.push({ text: word, quoted });
     word = "";
     inWord = false;
+    quoted = false;
   };
   const endSegment = () => {
     endWord();
@@ -114,6 +123,11 @@ function splitSegments(command) {
     if (char === "'" || char === '"') {
       quote = char;
       inWord = true;
+      quoted = true;
+      continue;
+    }
+    if (char === "\\" && command[i + 1] === "\n") {
+      i++;
       continue;
     }
     if (char === "\\" && i + 1 < command.length) {
@@ -121,8 +135,16 @@ function splitSegments(command) {
       inWord = true;
       continue;
     }
+    // $(( a << b )) is a shift, not a heredoc.
+    if (command.startsWith("$((", i)) {
+      const end = arithmeticEnd(command, i);
+      word += command.slice(i, end + 1);
+      inWord = true;
+      i = end;
+      continue;
+    }
     if (command.startsWith("<<", i) && command[i + 2] !== "<") {
-      const heredoc = /^<<-?\s*(['"]?)([^\s'"]+)\1/.exec(command.slice(i));
+      const heredoc = /^<<-?\s*\\?(['"]?)([^\s'"]+)\1/.exec(command.slice(i));
       if (heredoc) {
         endWord();
         heredocDelimiters.push(heredoc[2]);
@@ -136,9 +158,9 @@ function splitSegments(command) {
       continue;
     }
     const operator = ["&&", "||", ";", "|"].find((op) => command.startsWith(op, i));
-    if (operator) {
+    if (operator || isSingleAmpersand(command, i)) {
       endSegment();
-      i += operator.length - 1;
+      i += (operator ?? "&").length - 1;
       continue;
     }
     if (/\s/.test(char)) {
@@ -152,29 +174,33 @@ function splitSegments(command) {
   return segments;
 }
 
-function commandIndex(tokens) {
-  let index = 0;
-  while (
-    index < tokens.length &&
-    (tokens[index] === "sudo" ||
-      tokens[index] === "command" ||
-      /^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[index]))
-  ) {
-    index++;
+// Wrappers (npx, sudo -u x, time, xargs, then, {) vary too much to model, so any
+// unquoted command word anywhere in a segment is checked.
+function segmentReason(tokens, options) {
+  for (let i = 0; i < tokens.length; i++) {
+    if (tokens[i].quoted) continue;
+    const name = tokens[i].text;
+    const args = tokens.slice(i + 1).map((token) => token.text);
+    const reason =
+      (name === "git" ? forcePushReason(args) : null) ??
+      (name === "supabase"
+        ? supabaseReason(
+            tokens
+              .slice(i)
+              .filter((token) => !token.quoted)
+              .map((token) => token.text)
+              .join(" ")
+          )
+        : null) ??
+      (name === "rm" || name.endsWith("/rm") ? recursiveRmReason(args, options) : null);
+    if (reason) return reason;
   }
-  return index;
+  return null;
 }
 
 export function blockedReason(command, options) {
   for (const segment of splitSegments(command)) {
-    const index = commandIndex(segment);
-    if (index >= segment.length) continue;
-    const name = segment[index];
-    const args = segment.slice(index + 1);
-    const reason =
-      forcePushReason(name, args) ??
-      (name === "supabase" ? supabaseReason(segment.slice(index).join(" ")) : null) ??
-      recursiveRmReason(name, args, options);
+    const reason = segmentReason(segment, options);
     if (reason) return reason;
   }
   return null;

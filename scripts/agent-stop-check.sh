@@ -14,7 +14,15 @@ changed=$( { git diff --name-only --diff-filter=ACMR "$base"; git ls-files --oth
 [ -z "$changed" ] && exit 0
 
 marker="${TMPDIR:-/tmp}/household-hub-stop-${session}"
-current=$( { printf '%s\n' "$changed"; cat $changed; cat eslint.config.js tsconfig.json tsconfig.tests.json 2>/dev/null; } | git hash-object --stdin)
+# Deletions, a moved HEAD, and dependency changes can break the build without
+# touching any changed file, so they are part of the cache key.
+current=$( {
+  printf '%s\n' "$changed"
+  cat $changed
+  git diff --name-status "$base"
+  git rev-parse HEAD
+  cat eslint.config.js tsconfig.json tsconfig.tests.json package-lock.json 2>/dev/null
+} | git hash-object --stdin)
 if [ -f "$marker" ]; then
   previous=$(cat "$marker")
   if [ "$previous" = "pass:$current" ] || [ "$previous" = "block:$current" ]; then

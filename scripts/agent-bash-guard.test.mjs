@@ -30,6 +30,18 @@ describe("blockedReason", () => {
     "git -c http.extraHeader=x push -f origin main",
     "FOO=1 git push --force",
     "cd /repo; rm -rf ~/x",
+    "npx supabase db push",
+    "npx supabase db reset --linked",
+    "sleep 1 & rm -rf ~",
+    "git fetch & git push -f",
+    "{ rm -rf ~; }",
+    "if true; then rm -rf ~; fi",
+    "time rm -rf ~",
+    "xargs rm -rf ~/x",
+    "sudo -u root rm -rf /etc",
+    "echo $((1<<2))\nrm -rf ~",
+    "cat <<\\EOF\nhello\nEOF\nrm -rf ~",
+    "rm -rf \\\n/etc",
   ])("blocks %s", (command) => {
     expect(blockedReason(command, options)).toEqual(expect.any(String));
   });
@@ -53,6 +65,10 @@ describe("blockedReason", () => {
     "git stash push -f",
     "git commit -F - <<'EOF'\ngit push -f is blocked by the guard\nEOF",
     'git commit -m "mention supabase db push"',
+    "npm run build 2>&1 | tail -5",
+    "node script.mjs > out.log 2>&1 &",
+    'echo "use npx supabase db push carefully"',
+    'git log --grep="push -f"',
   ])("allows %s", (command) => {
     expect(blockedReason(command, options)).toBeNull();
   });
