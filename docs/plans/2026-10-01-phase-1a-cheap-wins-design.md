@@ -99,7 +99,7 @@ As roadmap section 4.9, merged into `.claude/settings.json` next to `statusLine`
 - `agent-stop-check.sh`: section 4.9's script, plus: when a changed file is under `tests/` or is `playwright.config.ts`, also run `npx tsc --noEmit -p tsconfig.tests.json`. It caches a pass per tree hash, so unchanged turns skip the checks.
 - `agent-lint-file.sh`: `tool_input.file_path` under `src/` ending `.ts`/`.tsx` → `npx eslint <file>`; exit 2 with the output on failure.
 - `agent-bash-guard.mjs` (Node, not bash, so the matching is a pure function with a Vitest test in `scripts/agent-bash-guard.test.mjs`): exit 2 with a reason for `git push` with `--force`/`-f`/`--force-with-lease`, `supabase db push`, `supabase db (reset|push) ... --linked`, and `rm -rf`/`rm -fr` whose target is `/`, `~`, `$HOME`, a path starting `..`, or an absolute path outside `$CLAUDE_PROJECT_DIR` and `${TMPDIR:-/tmp}`. It is quote-aware and matches `push` only as the git subcommand.
-- `agent-session-start.sh`: `git status -sb`, `git log --oneline -10`, and the path of the newest file in `docs/plans/`, returned as `hookSpecificOutput.additionalContext`.
+- `agent-session-start.sh`: `git status -sb`, `git log --oneline -10`, and every `docs/plans/` path touched by the most recent plans commit, returned as `hookSpecificOutput.additionalContext`.
 
 **Verification:** each script runs directly with crafted stdin JSON, one passing and one failing case each, exit codes shown. The Stop hook is run against a deliberately broken file twice: the first run exits 2, the second (same tree) exits 0, which is the loop guard section 6 asks to verify. A live check in a fresh Claude session follows, since hook config is read at session start.
 
