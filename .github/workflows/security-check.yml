@@ -113,6 +113,13 @@ jobs:
           # Store audit results (production deps only)
           npm audit --json --omit=dev > audit-results.json || true
 
+      # Report-only: dev-only advisories (the @lhci/cli/lighthouse chain has no
+      # non-breaking fix) stay visible without failing the build. The step above
+      # is the blocking gate for what ships to users.
+      - name: Audit all dependencies (report only)
+        continue-on-error: true
+        run: npm audit --audit-level=high
+
       - name: Upload audit results
         if: always()
         uses: actions/upload-artifact@v4
