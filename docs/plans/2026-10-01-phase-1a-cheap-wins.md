@@ -34,7 +34,7 @@
 
 **Interfaces:** none.
 
-- [ ] **Step 1: Enable the flags and confirm the failures**
+- [x] **Step 1: Enable the flags and confirm the failures**
 
 In `tsconfig.json`, under `/* Linting */`, after `"noUncheckedSideEffectImports": true,` add:
 
@@ -46,7 +46,7 @@ In `tsconfig.json`, under `/* Linting */`, after `"noUncheckedSideEffectImports"
 Run: `npx tsc --noEmit -p tsconfig.json 2>&1 | grep -c "error TS"; echo "exit $?"`
 Expected: `10` (2 × TS4114 in `ErrorBoundary.tsx`, 8 × TS1484).
 
-- [ ] **Step 2: Fix `ErrorBoundary.tsx`**
+- [x] **Step 2: Fix `ErrorBoundary.tsx`**
 
 ```tsx
   override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -56,7 +56,7 @@ Expected: `10` (2 × TS4114 in `ErrorBoundary.tsx`, 8 × TS1484).
   override render() {
 ```
 
-- [ ] **Step 3: Fix the eight type-only imports**
+- [x] **Step 3: Fix the eight type-only imports**
 
 | File                                      | New import line                                                           |
 | ----------------------------------------- | ------------------------------------------------------------------------- |
@@ -69,13 +69,13 @@ Expected: `10` (2 × TS4114 in `ErrorBoundary.tsx`, 8 × TS1484).
 
 If any of these files also imports a value from the same module on that line, keep the value import and mark only the types with inline `type`.
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 Run: `npx tsc --noEmit -p tsconfig.json; echo "exit $?"` → `exit 0`.
 Run: `npm run build; echo "exit $?"` → `exit 0` (the build runs `tsc -b`, so the flags gate it).
 Run the standard check from Global Constraints → 72 files / 918 tests, exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tsconfig.json src/components/ErrorBoundary.tsx src/components/AccountFormDialog.tsx src/components/AuthProvider.tsx src/lib/dexie/db.ts src/lib/supabaseQueries.ts src/stores/authStore.ts src/types/accounts.ts
@@ -105,7 +105,7 @@ git commit -m "build(ts): enable noImplicitOverride and verbatimModuleSyntax"
   - `fetchTransferLegs(householdId: string): Promise<TransferLeg[]>` — throws the Supabase error
 - Consumes: `TransferLeg` from `@/lib/offline/transfers`; `useAccounts`, `useCategories` (existing).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `src/lib/__tests__/transactionReads.test.ts`:
 
@@ -252,12 +252,12 @@ describe("fetchTransferLegs", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `npx vitest run src/lib/__tests__/transactionReads.test.ts; echo "exit $?"`
 Expected: FAIL, the three functions are not exported.
 
-- [ ] **Step 3: Add the read functions to `supabaseQueries.ts`**
+- [x] **Step 3: Add the read functions to `supabaseQueries.ts`**
 
 Add to the imports near the other `./offline/*` imports:
 
@@ -373,11 +373,11 @@ export async function fetchTransferLegs(householdId: string): Promise<TransferLe
 
 If `tsc` rejects a `(data ?? []) as X[]` cast because the dynamic `select(columns)` infers an error type, change only that line to `as unknown as X[]` and say so in the task report. Do not add `any`.
 
-- [ ] **Step 4: Run the new test**
+- [x] **Step 4: Run the new test**
 
 Run: `npx vitest run src/lib/__tests__/transactionReads.test.ts; echo "exit $?"` → 4 passed, exit 0.
 
-- [ ] **Step 5: Point `useAnalytics` at the new functions**
+- [x] **Step 5: Point `useAnalytics` at the new functions**
 
 In `src/hooks/useAnalytics.ts`:
 
@@ -453,7 +453,7 @@ function processYearOverYear(
 ): YearOverYear {
 ```
 
-- [ ] **Step 6: Point `useTransfers` at `fetchTransferLegs`**
+- [x] **Step 6: Point `useTransfers` at `fetchTransferLegs`**
 
 In `src/hooks/useTransfers.ts`, replace `import { supabase } from "@/lib/supabase";` with `import { fetchTransferLegs } from "@/lib/supabaseQueries";`, remove `type TransferLeg` from the `@/lib/offline/transfers` import, and replace the body of the `try` block with:
 
@@ -465,7 +465,7 @@ return groupTransferLegs(await fetchTransferLegs(householdId));
 
 The `catch` block (network fallback to `getLocalTransfers`) is unchanged.
 
-- [ ] **Step 7: Analytics route uses the shared hooks**
+- [x] **Step 7: Analytics route uses the shared hooks**
 
 In `src/routes/analytics/index.tsx`:
 
@@ -485,14 +485,14 @@ const categories = useMemo(
 );
 ```
 
-- [ ] **Step 8: Verify**
+- [x] **Step 8: Verify**
 
 Run: `grep -rn 'from("transactions")' src --include='*.ts' --include='*.tsx' | grep -v "\.test\.\|__tests__" | grep -vE "^src/lib/(supabaseQueries\.ts|sync/|debts/|realtime-sync\.ts)"; echo "exit $?"` → no lines, `exit 1`.
 Run: `grep -rn "lib/supabase\"" src/routes src/components; echo "exit $?"` → no lines, `exit 1`.
 Run the standard check → exit 0; tests = baseline + 4.
 Run: `npm run build; echo "exit $?"` → exit 0.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/lib/supabaseQueries.ts src/hooks/useAnalytics.ts src/hooks/useTransfers.ts src/routes/analytics/index.tsx src/lib/__tests__/transactionReads.test.ts
@@ -513,7 +513,7 @@ git commit -m "refactor(queries): move raw transactions reads into supabaseQueri
 - Consumes: Task 2 (no `.from("transactions")` or `@/lib/supabase` import left outside the allowlists).
 - Produces: rule IDs `arch/no-direct-dexie-writes`, `arch/no-direct-supabase-writes`, `arch/no-ad-hoc-money-parse`, `arch/no-raw-transactions-from`, plus core `no-restricted-imports` on routes/components.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/__tests__/architecture-lint.test.ts`:
 
@@ -581,12 +581,12 @@ describe.each(cases)("$rule", ({ rule, code, flagged, allowed }) => {
 });
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `npx vitest run src/lib/__tests__/architecture-lint.test.ts; echo "exit $?"`
 Expected: the five `fires in …` tests FAIL (the `arch/*` rules are not defined, and `no-restricted-imports` is not configured); the silent tests pass.
 
-- [ ] **Step 3: Add the rules to `eslint.config.js`**
+- [x] **Step 3: Add the rules to `eslint.config.js`**
 
 Add to the imports:
 
@@ -722,12 +722,12 @@ Insert these objects in the exported array immediately before the final `prettie
   },
 ```
 
-- [ ] **Step 4: Run the test and the full lint**
+- [x] **Step 4: Run the test and the full lint**
 
 Run: `npx vitest run src/lib/__tests__/architecture-lint.test.ts; echo "exit $?"` → 15 passed, exit 0.
 Run: `npm run lint; echo "exit $?"` → no output problems, exit 0. If any real file is reported, stop and report it: Task 2 and the measurements say there are none.
 
-- [ ] **Step 5: Standard check, then commit**
+- [x] **Step 5: Standard check, then commit**
 
 Run the standard check → exit 0; tests = Task 2 count + 15.
 
@@ -754,7 +754,7 @@ git commit -m "build(lint): enforce outbox, money, data-access, and transactions
 
 **Interfaces:** none.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `src/components/ui/currency-input.test.tsx`:
 
@@ -807,12 +807,12 @@ it("focuses the Amount field when the dialog opens", async () => {
 });
 ```
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `npx vitest run src/components/ui/currency-input.test.tsx src/components/ui/category-selector.test.tsx src/components/TransactionFormDialog.test.tsx; echo "exit $?"`
 Expected: FAIL on "is named by its visible label…", "keeps an explicit aria-label" (the hardcoded label overrides both), and "focuses the Amount field" (`getByLabelText("Amount")` finds nothing: the input is named "Amount in Philippine Pesos"). "points the combobox…" may already pass (Radix injects `aria-controls` at runtime); that is fine, it guards Step 9.
 
-- [ ] **Step 3: Fix `CurrencyInput`**
+- [x] **Step 3: Fix `CurrencyInput`**
 
 In `src/components/ui/currency-input.tsx`, replace `aria-label="Amount in Philippine Pesos"` with:
 
@@ -826,14 +826,14 @@ In `src/components/ui/currency-input.tsx`, replace `aria-label="Amount in Philip
           }
 ```
 
-- [ ] **Step 4: Update the label queries that relied on the hardcoded name**
+- [x] **Step 4: Update the label queries that relied on the hardcoded name**
 
 - `src/components/TransactionFormDialog.test.tsx`: every `screen.getByLabelText("Amount in Philippine Pesos")` becomes `screen.getByLabelText("Amount")` (lines ~176, 200, 207, 262, 298). The dialog's `<Label htmlFor="amount">Amount</Label>` now names the input.
 - `src/components/ui/currency-input.test.tsx`: `getInput()` stays as is (its harness passes no id, so the fallback applies).
 - `tests/e2e/transactions.spec.ts:39`: `dialog.getByRole("textbox", { name: "Amount", exact: true })`.
 - `tests/e2e/budgets.spec.ts:46`: `page.getByRole("textbox", { name: "Budget Amount", exact: true })` (BudgetForm's `FormLabel` text).
 
-- [ ] **Step 5: Wire jsx-a11y and see the violations**
+- [x] **Step 5: Wire jsx-a11y and see the violations**
 
 In `eslint.config.js` add `import jsxA11y from "eslint-plugin-jsx-a11y";` and, immediately after the `// Main source code (React app)` object, add:
 
@@ -844,7 +844,7 @@ In `eslint.config.js` add `import jsxA11y from "eslint-plugin-jsx-a11y";` and, i
 Run: `npx eslint src 2>&1 | grep jsx-a11y; echo "exit $?"`
 Expected: 9 lines: `TransferForm.tsx` 91/116/141 (label-has-associated-control), `CategoryChart.tsx:123` and `routes/categories.tsx:103` (click-events-have-key-events, no-static-element-interactions), `TransactionFormDialog.tsx:315` (no-autofocus), `ui/category-selector.tsx:166` (role-has-required-aria-props).
 
-- [ ] **Step 6: Fix `TransferForm.tsx` labels**
+- [x] **Step 6: Fix `TransferForm.tsx` labels**
 
 ```tsx
             <label htmlFor="transfer-from-account" className="text-sm font-medium">From Account</label>
@@ -863,7 +863,7 @@ Expected: 9 lines: `TransferForm.tsx` 91/116/141 (label-has-associated-control),
             <CurrencyInput id="transfer-amount" {...field} error={fieldState.error?.message} />
 ```
 
-- [ ] **Step 7: Make the clickable rows real buttons**
+- [x] **Step 7: Make the clickable rows real buttons**
 
 `src/components/dashboard/CategoryChart.tsx`, replace the `legendItems.map(...)` callback body with:
 
@@ -918,22 +918,22 @@ Expected: 9 lines: `TransferForm.tsx` 91/116/141 (label-has-associated-control),
 </button>
 ```
 
-- [ ] **Step 8: Remove `autoFocus` from the amount field**
+- [x] **Step 8: Remove `autoFocus` from the amount field**
 
 In `src/components/TransactionFormDialog.tsx`, delete the `autoFocus` line on the `CurrencyInput` (line ~315). Radix Dialog and Sheet already move focus to the first tabbable element on open, and Amount is the first field (the file's header comment says so). The new test from Step 1 proves it.
 
-- [ ] **Step 9: Give the category combobox its controlled element**
+- [x] **Step 9: Give the category combobox its controlled element**
 
 In `src/components/ui/category-selector.tsx`, change the React import to `import { useId, useMemo, useState, type ComponentProps } from "react";`. In the component body, next to the other hooks, add `const popupId = useId();`. On the trigger `<button>` add `aria-controls={popupId}` after `aria-expanded={open}`. On `<PopoverContent` add `id={popupId}`. Radix merges child props over its own, so both ends use `popupId`.
 
-- [ ] **Step 10: Verify**
+- [x] **Step 10: Verify**
 
 Run: `npx eslint src 2>&1 | grep -c jsx-a11y; echo "exit $?"` → `0`.
 Run: `npx vitest run src/components/ui/currency-input.test.tsx src/components/ui/category-selector.test.tsx src/components/TransactionFormDialog.test.tsx; echo "exit $?"` → all pass.
 Run the standard check → exit 0; tests = Task 3 count + 5.
 Run: `npm run build && PW_TEST_HTML_REPORT_OPEN=never npx playwright test --project=chromium tests/e2e/budgets.spec.ts tests/e2e/transactions.spec.ts --reporter=list; echo "exit $?"` with the local stack running (`supabase status -o env` shows `API_URL`; if it is not running, `supabase start` first). Expected: every test that passes on `main` still passes; quote the summary line. (`npm run test:e2e:smoke` in Task 8 is the full gate.)
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add eslint.config.js src/components/transfers/TransferForm.tsx src/components/dashboard/CategoryChart.tsx src/routes/categories.tsx src/components/TransactionFormDialog.tsx src/components/TransactionFormDialog.test.tsx src/components/ui/category-selector.tsx src/components/ui/category-selector.test.tsx src/components/ui/currency-input.tsx src/components/ui/currency-input.test.tsx tests/e2e/budgets.spec.ts tests/e2e/transactions.spec.ts
@@ -953,7 +953,7 @@ git commit -m "feat(a11y): wire jsx-a11y; label amount fields by their visible l
 
 **Interfaces:** none.
 
-- [ ] **Step 1: Add the config and dependency, confirm the failures**
+- [x] **Step 1: Add the config and dependency, confirm the failures**
 
 `tsconfig.tests.json`:
 
@@ -972,7 +972,7 @@ Run: `npm install --save-dev @types/node@^24.7.2; echo "exit $?"` → exit 0.
 Run: `npx tsc --noEmit -p tsconfig.tests.json 2>&1 | grep "error TS"; echo "exit $?"`
 Expected: exactly 4 errors: `debt-payments.spec.ts(314)` TS6133 `_debts`, `debt-reversals.spec.ts(370)` TS2345, `debt-reversals.spec.ts(373)` TS6133 `_warning`, `fixtures/helpers.ts(1)` TS1484 `Page`.
 
-- [ ] **Step 2: Fix them**
+- [x] **Step 2: Fix them**
 
 - `tests/e2e/fixtures/helpers.ts:1`: `import type { Page } from "@playwright/test";`. If the line imports values too, mark only `Page` with inline `type`.
 - `tests/e2e/debts/debt-payments.spec.ts:314`: delete the `const _debts = page.locator('[data-testid="debt-card"]');` line. It was never asserted; keep the two comment lines below it.
@@ -981,7 +981,7 @@ Expected: exactly 4 errors: `debt-payments.spec.ts(314)` TS6133 `_debts`, `debt-
 
 Run: `npx tsc --noEmit -p tsconfig.tests.json; echo "exit $?"` → `exit 0`.
 
-- [ ] **Step 3: Add the CI step**
+- [x] **Step 3: Add the CI step**
 
 In `.github/workflows/ci.yml`, in the `ci` job, after the `Run linter` step:
 
@@ -992,7 +992,7 @@ In `.github/workflows/ci.yml`, in the `ci` job, after the `Run linter` step:
   run: npx tsc --noEmit -p tsconfig.tests.json
 ```
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 Run: `npm ls @types/node --depth=0; echo "exit $?"` → lists `@types/node@24.x`, exit 0.
 Run the standard check → exit 0, test count unchanged from Task 4.
@@ -1016,7 +1016,7 @@ git commit -m "build(ts): type-check tests/ and the Playwright config in CI"
 
 - Produces: `blockedReason(command: string, options: { projectDir: string; tmpDirs: string[] }): string | null` exported from `scripts/agent-bash-guard.mjs`.
 
-- [ ] **Step 1: Write the failing guard test**
+- [x] **Step 1: Write the failing guard test**
 
 `scripts/agent-bash-guard.test.mjs`:
 
@@ -1073,7 +1073,7 @@ describe("blockedReason", () => {
 
 Run: `npx vitest run scripts/agent-bash-guard.test.mjs; echo "exit $?"` → FAIL (module not found).
 
-- [ ] **Step 2: Implement the guard**
+- [x] **Step 2: Implement the guard**
 
 `scripts/agent-bash-guard.mjs`:
 
@@ -1170,7 +1170,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 
 Run: `npx vitest run scripts/agent-bash-guard.test.mjs; echo "exit $?"` → 32 passed, exit 0. If a case fails, fix the guard, not the test, unless the case contradicts the spec; report any such case.
 
-- [ ] **Step 3: Write the three shell hooks**
+- [x] **Step 3: Write the three shell hooks**
 
 `scripts/agent-stop-check.sh`:
 
@@ -1245,7 +1245,7 @@ Most recently committed plan doc: ${newest_plan:-none}" \
 
 Run: `chmod +x scripts/agent-stop-check.sh scripts/agent-lint-file.sh scripts/agent-session-start.sh scripts/agent-bash-guard.mjs; echo "exit $?"` → exit 0.
 
-- [ ] **Step 4: Merge the hooks into `.claude/settings.json`**
+- [x] **Step 4: Merge the hooks into `.claude/settings.json`**
 
 ```json
 {
@@ -1292,7 +1292,7 @@ Run: `chmod +x scripts/agent-stop-check.sh scripts/agent-lint-file.sh scripts/ag
 }
 ```
 
-- [ ] **Step 5: Exercise every script directly**
+- [x] **Step 5: Exercise every script directly**
 
 Run each and record the printed exit code. `P` is the repo root.
 
@@ -1324,7 +1324,7 @@ git status -s   # expect: only the Task 6 files
 
 Every expectation must match. Quote each exit code in the task report.
 
-- [ ] **Step 6: Standard check and commit**
+- [x] **Step 6: Standard check and commit**
 
 Run the standard check → exit 0; tests = Task 5 count + 32.
 
@@ -1348,7 +1348,7 @@ The live in-session check happens after the branch is done (Task 8, Step 5), bec
 
 **Interfaces:** none.
 
-- [ ] **Step 1: Dependabot config**
+- [x] **Step 1: Dependabot config**
 
 `.github/dependabot.yml`:
 
@@ -1374,7 +1374,7 @@ updates:
       interval: monthly
 ```
 
-- [ ] **Step 2: Pin the toolchain**
+- [x] **Step 2: Pin the toolchain**
 
 In `package.json`, add after `"type"` (or after `"version"` if there is no `"type"`): `"packageManager": "npm@10.9.8",`.
 
@@ -1390,7 +1390,7 @@ with
 node-version-file: .nvmrc
 ```
 
-- [ ] **Step 3: Audit job**
+- [x] **Step 3: Audit job** (superseded 2026-10-01: consolidated into security-check.yml, see design Decisions)
 
 Append to `jobs:` in `.github/workflows/ci.yml`:
 
@@ -1418,14 +1418,14 @@ audit:
       run: npm audit --audit-level=high
 ```
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 Run: `node -e 'for (const f of [".github/dependabot.yml",".github/workflows/ci.yml",".github/workflows/security-check.yml"]) { require("fs").readFileSync(f,"utf8"); } console.log("read ok")'; npx --yes yaml-lint .github/dependabot.yml .github/workflows/ci.yml .github/workflows/security-check.yml; echo "exit $?"` → `exit 0`. If `yaml-lint` cannot be fetched, use `npx prettier --check` on the three files instead and quote its output.
 Run: `grep -n 'node-version' .github/workflows/*.yml` → only `node-version-file: .nvmrc` lines.
 Run: `npm install --package-lock-only; git diff --stat package-lock.json; echo "exit $?"` → the lockfile is unchanged or changes only its `packageManager` echo; exit 0.
 Run: `npm audit --omit=dev --audit-level=high; echo "exit $?"` → still `exit 1` here (`seroval`); Task 8 fixes it. Quote the line naming `seroval`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add .github/dependabot.yml .github/workflows/ci.yml .github/workflows/security-check.yml package.json package-lock.json
@@ -1445,14 +1445,14 @@ git commit -m "ci: Dependabot, .nvmrc-pinned Node, packageManager, and audit job
 
 **Interfaces:** none.
 
-- [ ] **Step 1: Apply the non-breaking fixes**
+- [x] **Step 1: Apply the non-breaking fixes**
 
 Run: `npm audit fix; echo "exit $?"`. Never `--force`.
 Run: `npm audit --omit=dev --audit-level=high; echo "exit $?"` → `exit 0`.
 Run: `npm audit --audit-level=high 2>&1 | tail -3` → quote it. Remaining advisories should be the `@lhci/cli`/`lighthouse` chain only; list any others in the report.
 Run: `npm ls @radix-ui/react-dismissable-layer` → a single version. If not, revert the lockfile (`git checkout package-lock.json package.json`), and report instead of continuing.
 
-- [ ] **Step 2: Full acceptance**
+- [x] **Step 2: Full acceptance**
 
 Each must succeed; quote the evidence line:
 
@@ -1469,14 +1469,14 @@ PW_TEST_HTML_REPORT_OPEN=never npm run test:e2e:smoke; echo "exit $?"   # expect
 
 A smoke failure is a regression only if it passes on `main` (CLAUDE.md Known Infrastructure Issues: compare with `git stash`/`main` before debugging).
 
-- [ ] **Step 3: Commit the lockfile**
+- [x] **Step 3: Commit the lockfile**
 
 ```bash
 git add package-lock.json package.json
 git commit -m "chore(deps): apply non-breaking npm audit fixes"
 ```
 
-- [ ] **Step 4: Update the docs**
+- [x] **Step 4: Update the docs**
 
 - This plan: tick every completed step.
 - Roadmap: tick the six Phase 1a items; replace the Phase 1a line in `## Resume state` with the branch head, the acceptance numbers from Step 2, and "next: final whole-branch review, then merge; then Phase 1b brainstorm".
