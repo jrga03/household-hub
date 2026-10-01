@@ -27,6 +27,11 @@ jobs:
       - name: Run linter
         run: npm run lint
 
+      # src is type-checked by `npm run build` (tsc -b); tests/ and the Playwright
+      # config are outside that program, so they get their own pass.
+      - name: Typecheck tests
+        run: npx tsc --noEmit -p tsconfig.tests.json
+
       - name: Run unit tests
         run: npx vitest run # `run` = single pass (bare `vitest` is watch mode)
 

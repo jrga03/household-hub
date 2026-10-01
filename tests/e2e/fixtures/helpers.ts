@@ -1,4 +1,4 @@
-import { Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { testUsers } from "./test-users";
 
 export async function login(page: Page, userKey: "primary" | "secondary" = "primary") {

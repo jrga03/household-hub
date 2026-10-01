@@ -311,8 +311,6 @@ test.describe("Debt Payment Workflows", () => {
         await hasPaymentsFilter.check();
 
         // Verify filtered results
-        const _debts = page.locator('[data-testid="debt-card"]');
-
         // All shown debts should have at least one payment
         // (This would require checking payment count on each card)
       } else {
