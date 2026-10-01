@@ -433,3 +433,13 @@ Confirmed in review on 2026-09-30:
 - **Hand-written `queryKeys` object, not `@lukemorales/query-key-factory`.** Why: no new dependency; the existing `xQueryOptions` pattern already covers co-locating key and fetch function, and the plugin's `prefer-query-options` now enforces it. Revisit if key/fetch drift keeps happening.
 - **Directory-scoped lint rules instead of `eslint-plugin-boundaries`.** Why: the codebase has no feature-slice layering; five restricted rules cover the known incidents. Revisit if a `features/` structure is adopted.
 - **Mutation testing, jscpd, oxlint deferred.** Why: cost outweighs benefit at current size. Revisit after Phase 3.
+- **Phase 0.5a/0.5b pushed without a device check (decided 2026-10-01).** Why: the user could not test on a phone at the time. Revisit: on the next phone session, check (1) switching an account personal to household, (2) recreating an archived account name (should be rejected with "Choose another name"), (3) adding/editing a budget and seeing it on a second device or browser.
+
+## Resume state (2026-10-01)
+
+- Phases 0, 0.5a, and 0.5b are merged and pushed (`main` = `60ed1b6`). Per-phase specs and plans: `docs/plans/2026-09-30-phase-0-live-bugs*`, `docs/plans/2026-09-30-phase-0.5a-outbox-writes*`, `docs/plans/2026-10-01-phase-0.5b-budget-outbox*`.
+- Next: Phase 1 (section 5 "Phase 1: Cheap wins"). Not started; no branch.
+- Phase 1 counts in sections 4.7/4.8 (10 jsx-a11y violations, 12 tsconfig errors, 73/54/44 type-aware hits) were measured at `c7d19c7`, before Phases 0-0.5 changed ~60 files; re-measure before planning.
+- The section 4.4 money-selector message ("use parsePHP") is superseded: per the Phase 0 design's Decisions & Deferrals it must point at `parsePHP`/`parsePHPSafe`/`parsePHPUnbounded` and at route search schemas (`src/lib/validations/transactionsSearch.ts`), since URL amount params are already cents.
+- Unverified: the four device checks in the Decisions entry above; the full (non-smoke) E2E suite and non-chromium browsers since Phase 0.
+- Test hygiene seen on the last push: `npx vitest run` passes (72 files / 918 tests) but prints heavy stderr from older suites (`[Debt Sync] Unexpected error adding to sync queue: Not authenticated` repeated, plus processor error-path logs). Not a failure; worth a cleanup item if Phase 1 adds a "pristine test output" gate.
