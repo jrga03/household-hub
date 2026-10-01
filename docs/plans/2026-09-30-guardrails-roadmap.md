@@ -372,7 +372,7 @@ IndexedDB is not a full mirror: the reconnection catch-up pulls only rows change
 
 Split 2026-10-01 into 1a and 1b. Counts re-measured at `913efac`; 1a is specified in `docs/plans/2026-10-01-phase-1a-cheap-wins-design.md`, which supersedes the items below where they differ.
 
-**Phase 1a** (branch `phase-1a-cheap-wins`):
+**Phase 1a** (merged 2026-10-01 at `0db3d4d`):
 
 - [x] Wire `jsx-a11y` recommended into `eslint.config.js`; fix 7 sites (9 hits), plus the `CurrencyInput` `aria-label` follow-up
 - [x] Enable `noImplicitOverride` and `verbatimModuleSyntax`; fix 10 errors (2 + 8)
@@ -448,7 +448,7 @@ Confirmed in review on 2026-09-30:
 ## Resume state (2026-10-01)
 
 - Phases 0, 0.5a, and 0.5b are merged and pushed (`main` = `913efac`). Per-phase specs and plans: `docs/plans/2026-09-30-phase-0-live-bugs*`, `docs/plans/2026-09-30-phase-0.5a-outbox-writes*`, `docs/plans/2026-10-01-phase-0.5b-budget-outbox*`.
-- Phase 1a: implemented on branch `phase-1a-cheap-wins` (head `cbd5b3a`, final whole-branch review fixes applied). Acceptance: tsc (both programs) exit 0, lint 0/0, vitest 75 files / 1012 tests, build ok, bundle 352.5 KB gz (budget 355), E2E smoke 11 passed, production audit 0 vulnerabilities. Next: live hook check, then merge; then Phase 1b brainstorm.
+- Phase 1a: merged to `main` at `0db3d4d` (fast-forward, 2026-10-01); push pending (run from the user's terminal, SSH). Acceptance at `0db3d4d`: tsc (both programs) exit 0, lint 0/0, vitest 75 files / 1012 tests, build ok, bundle 352.5 KB gz (budget 355; `main` before 1a was 352.2), production audit 0 vulnerabilities. E2E smoke 11 passed was measured at `330fab9`; later commits touched only hooks, the lint test, and docs. Live hooks: PreToolUse guard and PostToolUse lint verified in-session; SessionStart context and the Stop hook are not yet seen in a fresh session. Next: Phase 1b brainstorm (`tsconfig.strict.json`, 190 errors).
 - Phase 1 counts were re-measured at `913efac` (table in the 1a design). The section 4.7 type-aware counts (73/54/44) are still from `c7d19c7`; re-measure before Phase 3.
 - The section 4.4 money-selector message ("use parsePHP") is superseded: per the Phase 0 design's Decisions & Deferrals it must point at `parsePHP`/`parsePHPSafe`/`parsePHPUnbounded` and at route search schemas (`src/lib/validations/transactionsSearch.ts`), since URL amount params are already cents.
 - Unverified: the four device checks in the Decisions entry above; the full (non-smoke) E2E suite and non-chromium browsers since Phase 0.

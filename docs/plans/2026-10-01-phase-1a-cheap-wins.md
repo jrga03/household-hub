@@ -1486,7 +1486,7 @@ git add docs/plans/2026-09-30-guardrails-roadmap.md docs/plans/2026-10-01-phase-
 git commit -m "docs(plans): mark Phase 1a tasks complete"
 ```
 
-- [ ] **Step 5: Live hook check (controller, not a subagent)**
+- [x] **Step 5: Live hook check (controller, not a subagent)** (partial 2026-10-01: PreToolUse guard refused `rm -rf ~/…` and PostToolUse lint flagged an `any` probe in-session; SessionStart and Stop await a fresh session)
 
 In a fresh Claude Code session in this repo: confirm the SessionStart context appears; ask it to run `git push --force` and confirm the refusal; have it edit a `src` file to add an `any` and confirm the PostToolUse feedback. Record the results in the roadmap's Resume state.
 
