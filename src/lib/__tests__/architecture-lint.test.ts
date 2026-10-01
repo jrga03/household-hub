@@ -59,3 +59,15 @@ describe.each(cases)("$rule", ({ rule, code, flagged, allowed }) => {
     expect(await ruleIds(code, flagged.replace(/\.tsx?$/, ".test.ts"))).not.toContain(rule);
   });
 });
+
+// Deliberately not allowlisted (design Decisions & Deferrals): debt sync must stay visible to the rule.
+it("arch/no-direct-supabase-writes fires in src/lib/debts/sync.ts", async () => {
+  const code =
+    'import { supabase } from "@/lib/supabase";\nexport const write = () => supabase.from("debts").update({}).eq("id", "x");\n';
+  expect(await ruleIds(code, "src/lib/debts/sync.ts")).toContain("arch/no-direct-supabase-writes");
+});
+
+it("no-restricted-imports fires for the .ts-suffixed supabase import", async () => {
+  const code = 'import { supabase } from "@/lib/supabase.ts";\nexport { supabase };\n';
+  expect(await ruleIds(code, "src/routes/probe.tsx")).toContain("no-restricted-imports");
+});

@@ -23,11 +23,20 @@ function isDangerousTarget(rawTarget, { projectDir, tmpDirs }) {
   return ![projectDir, ...tmpDirs].some((dir) => isInside(path, dir));
 }
 
-function forcePushReason(tokens) {
-  const pushIndex = tokens.indexOf("push");
-  if (tokens[0] !== "git" || pushIndex === -1) return null;
-  const forced = tokens
-    .slice(pushIndex + 1)
+function gitSubcommandIndex(args) {
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "-C" || args[i] === "-c") i++;
+    else if (!args[i].startsWith("-")) return i;
+  }
+  return -1;
+}
+
+function forcePushReason(command, args) {
+  if (command !== "git") return null;
+  const subcommandIndex = gitSubcommandIndex(args);
+  if (subcommandIndex === -1 || args[subcommandIndex] !== "push") return null;
+  const forced = args
+    .slice(subcommandIndex + 1)
     .some(
       (token) =>
         token.startsWith("--force") ||
@@ -47,10 +56,8 @@ function supabaseReason(segment) {
   return null;
 }
 
-function recursiveRmReason(tokens, options) {
-  const rmIndex = tokens.findIndex((token) => token === "rm" || token.endsWith("/rm"));
-  if (rmIndex === -1) return null;
-  const args = tokens.slice(rmIndex + 1);
+function recursiveRmReason(command, args, options) {
+  if (command !== "rm" && !command.endsWith("/rm")) return null;
   const recursive = args.some(
     (arg) => arg === "--recursive" || (/^-[a-zA-Z]+$/.test(arg) && /[rR]/.test(arg))
   );
@@ -63,20 +70,123 @@ function recursiveRmReason(tokens, options) {
     : null;
 }
 
+function skipHeredocBodies(command, start, delimiters) {
+  let position = start;
+  while (delimiters.length > 0 && position < command.length) {
+    const newline = command.indexOf("\n", position);
+    const lineEnd = newline === -1 ? command.length : newline;
+    if (command.slice(position, lineEnd).trim() === delimiters[0]) delimiters.shift();
+    position = lineEnd + 1;
+  }
+  return position;
+}
+
+// Splits on unquoted && || ; | and newlines. Quoted strings become one token, and
+// heredoc bodies are dropped, so text inside messages is never read as a command.
+function splitSegments(command) {
+  const segments = [];
+  const heredocDelimiters = [];
+  let tokens = [];
+  let word = "";
+  let inWord = false;
+  let quote = null;
+
+  const endWord = () => {
+    if (inWord) tokens.push(word);
+    word = "";
+    inWord = false;
+  };
+  const endSegment = () => {
+    endWord();
+    if (tokens.length > 0) segments.push(tokens);
+    tokens = [];
+  };
+
+  for (let i = 0; i < command.length; i++) {
+    const char = command[i];
+    if (quote) {
+      const escapedInDoubleQuotes = quote === '"' && char === "\\" && /["\\]/.test(command[i + 1]);
+      if (char === quote) quote = null;
+      else if (escapedInDoubleQuotes) word += command[++i];
+      else word += char;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+      inWord = true;
+      continue;
+    }
+    if (char === "\\" && i + 1 < command.length) {
+      word += command[++i];
+      inWord = true;
+      continue;
+    }
+    if (command.startsWith("<<", i) && command[i + 2] !== "<") {
+      const heredoc = /^<<-?\s*(['"]?)([^\s'"]+)\1/.exec(command.slice(i));
+      if (heredoc) {
+        endWord();
+        heredocDelimiters.push(heredoc[2]);
+        i += heredoc[0].length - 1;
+        continue;
+      }
+    }
+    if (char === "\n") {
+      endSegment();
+      i = skipHeredocBodies(command, i + 1, heredocDelimiters) - 1;
+      continue;
+    }
+    const operator = ["&&", "||", ";", "|"].find((op) => command.startsWith(op, i));
+    if (operator) {
+      endSegment();
+      i += operator.length - 1;
+      continue;
+    }
+    if (/\s/.test(char)) {
+      endWord();
+      continue;
+    }
+    word += char;
+    inWord = true;
+  }
+  endSegment();
+  return segments;
+}
+
+function commandIndex(tokens) {
+  let index = 0;
+  while (
+    index < tokens.length &&
+    (tokens[index] === "sudo" ||
+      tokens[index] === "command" ||
+      /^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[index]))
+  ) {
+    index++;
+  }
+  return index;
+}
+
 export function blockedReason(command, options) {
-  for (const segment of command.split(/&&|\|\||;|\||\n/)) {
-    const tokens = segment.trim().split(/\s+/).filter(Boolean);
-    if (tokens[0] === "sudo") tokens.shift();
-    if (tokens.length === 0) continue;
+  for (const segment of splitSegments(command)) {
+    const index = commandIndex(segment);
+    if (index >= segment.length) continue;
+    const name = segment[index];
+    const args = segment.slice(index + 1);
     const reason =
-      forcePushReason(tokens) ?? supabaseReason(segment) ?? recursiveRmReason(tokens, options);
+      forcePushReason(name, args) ??
+      (name === "supabase" ? supabaseReason(segment.slice(index).join(" ")) : null) ??
+      recursiveRmReason(name, args, options);
     if (reason) return reason;
   }
   return null;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const input = JSON.parse(readFileSync(0, "utf8"));
+  let input;
+  try {
+    input = JSON.parse(readFileSync(0, "utf8"));
+  } catch {
+    process.exit(0);
+  }
   const reason = blockedReason(input.tool_input?.command ?? "", {
     projectDir: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
     tmpDirs: [process.env.TMPDIR, "/tmp", "/private/tmp"].filter(Boolean),

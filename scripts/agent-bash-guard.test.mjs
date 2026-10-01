@@ -25,6 +25,11 @@ describe("blockedReason", () => {
     "rm -r /etc",
     "sudo rm -rf /var/lib/thing",
     "rm --recursive --force /opt",
+    "command rm -rf /etc",
+    "git -C /x push --force",
+    "git -c http.extraHeader=x push -f origin main",
+    "FOO=1 git push --force",
+    "cd /repo; rm -rf ~/x",
   ])("blocks %s", (command) => {
     expect(blockedReason(command, options)).toEqual(expect.any(String));
   });
@@ -42,6 +47,12 @@ describe("blockedReason", () => {
     "rm -rf /private/tmp/claude-501/scratch",
     "rm notes.txt",
     "npm run lint",
+    'git commit -m "docs: never git push --force"',
+    'git commit -m "x; git push -f later"',
+    'gh pr create --title "fix: rm -rf /tmp handling"',
+    "git stash push -f",
+    "git commit -F - <<'EOF'\ngit push -f is blocked by the guard\nEOF",
+    'git commit -m "mention supabase db push"',
   ])("allows %s", (command) => {
     expect(blockedReason(command, options)).toBeNull();
   });

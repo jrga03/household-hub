@@ -2,6 +2,7 @@
 # Lint + typecheck what changed on this branch. Blocks the stop once per
 # distinct working-tree state: Claude gets one chance to fix each failure,
 # and an unfixable failure cannot loop because the tree hash stops changing.
+# A pass is cached per tree hash too, so turns with no edits skip the checks.
 set -u
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 input=$(cat)
@@ -12,6 +13,15 @@ changed=$( { git diff --name-only --diff-filter=ACMR "$base"; git ls-files --oth
   | grep -E '\.(ts|tsx)$' | sort -u)
 [ -z "$changed" ] && exit 0
 
+marker="${TMPDIR:-/tmp}/household-hub-stop-${session}"
+current=$( { printf '%s\n' "$changed"; cat $changed; cat eslint.config.js tsconfig.json tsconfig.tests.json 2>/dev/null; } | git hash-object --stdin)
+if [ -f "$marker" ]; then
+  previous=$(cat "$marker")
+  if [ "$previous" = "pass:$current" ] || [ "$previous" = "block:$current" ]; then
+    exit 0 # unchanged since a pass, or the same failing tree already blocked once
+  fi
+fi
+
 typecheck_tests=""
 if printf '%s\n' "$changed" | grep -qE '^(tests/|playwright\.config\.ts$)'; then
   typecheck_tests="yes"
@@ -21,13 +31,10 @@ fi
 output=$(npx eslint $changed 2>&1 \
   && npx tsc --noEmit -p tsconfig.json 2>&1 \
   && { [ -z "$typecheck_tests" ] || npx tsc --noEmit -p tsconfig.tests.json 2>&1; })
-[ $? -eq 0 ] && exit 0
-
-marker="${TMPDIR:-/tmp}/household-hub-stop-${session}"
-current=$(cat $changed | git hash-object --stdin)
-if [ -f "$marker" ] && [ "$(cat "$marker")" = "$current" ]; then
-  exit 0 # same tree as the last block: no progress, let the stop through
+if [ $? -eq 0 ]; then
+  printf 'pass:%s' "$current" > "$marker"
+  exit 0
 fi
-printf '%s' "$current" > "$marker"
+printf 'block:%s' "$current" > "$marker"
 echo "$output" | tail -40 >&2
 exit 2

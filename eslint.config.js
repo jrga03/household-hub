@@ -458,7 +458,7 @@ export default [
         {
           patterns: [
             {
-              group: ["**/lib/supabase"],
+              group: ["**/lib/supabase", "**/lib/supabase.ts"],
               message:
                 "Routes and components fetch through a hook or @/lib/supabaseQueries so reads get the Dexie offline fallback and shared query keys.",
             },
