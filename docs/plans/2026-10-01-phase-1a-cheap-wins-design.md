@@ -22,7 +22,7 @@ The roadmap's Phase 1 counts were measured at `c7d19c7`, before Phases 0 to 0.5 
 | Money selector                            | 5       | 0 outside ignores    | only `currency.ts`, `supabaseQueries.ts`                                                                                                                                                                                                                                                                         |
 | Supabase import in routes/components      | 1       | 1                    | `routes/analytics/index.tsx:13` (accounts and categories lists for the filter panel)                                                                                                                                                                                                                             |
 | `.from("transactions")` outside allowlist | 4       | 3                    | `hooks/useAnalytics.ts:107,169`, `hooks/useTransfers.ts:42`, all reads                                                                                                                                                                                                                                           |
-| `tsconfig.tests.json` errors              | n/a     | 5                    | 2 TS7016, 2 TS6133, 1 TS2345 in `tests/e2e/`                                                                                                                                                                                                                                                                     |
+| `tsconfig.tests.json` errors              | n/a     | 4                    | with the new flags and `allowJs`: 2 TS6133, 1 TS2345 (`debts/*.spec.ts`), 1 TS1484 (`fixtures/helpers.ts`); without `allowJs`, 2 TS7016 for `scripts/supabase-lifecycle.mjs`                                                                                                                                     |
 | `tsconfig.strict.json` errors             | unknown | 190                  | Phase 1b                                                                                                                                                                                                                                                                                                         |
 | `npm run lint` baseline                   | n/a     | 0 errors, 0 warnings |                                                                                                                                                                                                                                                                                                                  |
 | `npm audit --omit=dev --audit-level=high` | n/a     | fails                | 1 critical: `seroval` (transitive, non-breaking fix)                                                                                                                                                                                                                                                             |
@@ -70,7 +70,7 @@ All five land as `error`. The money message follows the Phase 0 decision (not on
 ### Code moves that make `error` possible
 
 - The analytics query in `useAnalytics.ts` (both the current and previous-year reads) and the transfers query in `useTransfers.ts` move into `supabaseQueries.ts` as exported functions; the hooks call them. No query text or behaviour changes; the hooks' query keys stay as they are (Phase 2 owns key changes).
-- `routes/analytics/index.tsx` stops importing `supabase`. Its accounts and categories list queries use existing hooks if their shape fits the filter panel; otherwise new read functions in `supabaseQueries.ts` behind small hooks.
+- `routes/analytics/index.tsx` stops importing `supabase` and uses `useAccounts()` and `useCategories()` (top-level categories filtered in the route). This also fixes a live DATA-06 recurrence: the route cached its own fetch under the shared `["accounts"]` and `["categories"]` keys (all accounts including archived, parents-only categories), so visiting Analytics poisoned every other picker until the stale time ran out. The filter panel now lists active accounts in `sort_order`, like every other picker.
 
 ### Proof each rule fires
 
@@ -89,7 +89,7 @@ All five land as `error`. The money message follows the Phase 0 decision (not on
 ## 3. TypeScript
 
 - `tsconfig.json`: add `noImplicitOverride` and `verbatimModuleSyntax`; fix the 2 + 8 errors (`override` on `ErrorBoundary` members, `import type`).
-- `tsconfig.tests.json`: extends `./tsconfig.json`, `compilerOptions.types: ["node"]`, includes `tests/**/*.ts` and `playwright.config.ts`. Add `@types/node` as an explicit devDependency at the major already installed transitively. Fix the 5 errors.
+- `tsconfig.tests.json`: extends `./tsconfig.json`, `compilerOptions.types: ["node"]`, includes `tests/**/*.ts` and `playwright.config.ts`. `allowJs: true` so `scripts/supabase-lifecycle.mjs` is typed by inference instead of needing a declaration file. Add `@types/node` as an explicit devDependency at the major already installed transitively (24). Fix the 4 errors.
 - CI: a `Typecheck tests` step in the existing `ci` job runs `npx tsc --noEmit -p tsconfig.tests.json`. (`npm run build` already type-checks `src` via `tsc -b`. The job split is Phase 2.)
 
 ## 4. Claude Code hooks
@@ -98,7 +98,7 @@ As roadmap section 4.9, merged into `.claude/settings.json` next to `statusLine`
 
 - `agent-stop-check.sh`: section 4.9's script, plus: when a changed file is under `tests/` or is `playwright.config.ts`, also run `npx tsc --noEmit -p tsconfig.tests.json`.
 - `agent-lint-file.sh`: `tool_input.file_path` under `src/` ending `.ts`/`.tsx` → `npx eslint <file>`; exit 2 with the output on failure.
-- `agent-bash-guard.sh`: exit 2 with a reason for `git push` with `--force`/`-f`/`--force-with-lease`, `supabase db push`, `supabase db (reset|push) ... --linked`, and `rm -rf`/`rm -fr` whose target is `/`, `~`, `$HOME`, a path starting `..`, or an absolute path outside `$CLAUDE_PROJECT_DIR` and `${TMPDIR:-/tmp}`.
+- `agent-bash-guard.mjs` (Node, not bash, so the matching is a pure function with a Vitest test in `scripts/agent-bash-guard.test.mjs`): exit 2 with a reason for `git push` with `--force`/`-f`/`--force-with-lease`, `supabase db push`, `supabase db (reset|push) ... --linked`, and `rm -rf`/`rm -fr` whose target is `/`, `~`, `$HOME`, a path starting `..`, or an absolute path outside `$CLAUDE_PROJECT_DIR` and `${TMPDIR:-/tmp}`.
 - `agent-session-start.sh`: `git status -sb`, `git log --oneline -10`, and the path of the newest file in `docs/plans/`, returned as `hookSpecificOutput.additionalContext`.
 
 **Verification:** each script runs directly with crafted stdin JSON, one passing and one failing case each, exit codes shown. The Stop hook is run against a deliberately broken file twice: the first run exits 2, the second (same tree) exits 0, which is the loop guard section 6 asks to verify. A live check in a fresh Claude session follows, since hook config is read at session start.
@@ -119,7 +119,7 @@ Each task is one commit and leaves `tsc`, lint, and unit tests green.
 2. Move the three transactions reads and the analytics route's Supabase import
 3. `arch` plugin, the four rules, the import rule, and `architecture-lint.test.ts`
 4. jsx-a11y wiring and fixes, `CurrencyInput` label, budgets E2E locator
-5. `tsconfig.tests.json`, `@types/node`, 5 fixes, CI step
+5. `tsconfig.tests.json`, `@types/node`, 4 fixes, CI step
 6. Hook scripts, settings merge, scripted verification
 7. Dependabot, `packageManager`, `.nvmrc` in CI, `audit` job
 8. `npm audit fix` lockfile
@@ -151,5 +151,7 @@ Not verified by this phase: the device checks pending from 0.5a/0.5b, the full E
 - **The three `.from("transactions")` reads move into `supabaseQueries.ts` now (decided 2026-10-01).** Why: lets the rule land as `error` with no temporary allowlist; Phase 2's view switch then edits one file. Revisit: never.
 - **Audit gate is production-only; the full audit is report-only (decided 2026-10-01).** Why: the `@lhci/cli`/`lighthouse` chain has no non-breaking fix, and dev-only advisories do not ship to users. Revisit: when Dependabot's lighthouse 13 PR merges, consider making the full audit blocking.
 - **`tsconfig.strict.json` moves to Phase 1b and fixes all 190 errors, transitive files included (decided 2026-10-01).** Why: the user chose full enforcement over a filtered scope; splitting keeps the guardrails from waiting on UI-heavy fixes. Consequence: Phase 3's `noUncheckedIndexedAccess` buckets shrink by `TransactionList` and `bdo-credit-card`. Revisit: 1b spec.
+- **Analytics route uses the shared account and category hooks (decided 2026-10-01, found while planning).** Why: its private queries reused the shared keys with a different fetch (DATA-06 recurrence). Cost: the filter lists active accounts only, ordered by `sort_order`. Revisit: never.
+- **Bash guard is a Node module, not a bash script.** Why: command parsing in bash regex is fragile and untestable; a pure function gets a unit test. Revisit: never.
 - **Deferred: pristine unit-test output gate.** `npx vitest run` passes but prints heavy stderr from older suites. Revisit: after Phase 1b.
 - **Note for Phase 2: `realtime-sync.ts` writes entity tables via `getTable()`.** The `readDb` facade must allowlist it.
