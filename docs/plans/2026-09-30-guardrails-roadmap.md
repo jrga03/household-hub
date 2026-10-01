@@ -377,7 +377,7 @@ Split 2026-10-01 into 1a and 1b. Counts re-measured at `913efac`; 1a is specifie
 - [x] Wire `jsx-a11y` recommended into `eslint.config.js`; fix 7 sites (9 hits), plus the `CurrencyInput` `aria-label` follow-up
 - [x] Enable `noImplicitOverride` and `verbatimModuleSyntax`; fix 10 errors (2 + 8)
 - [x] Add the Dexie-write, Supabase-write, money, and `.from("transactions")` rules as aliased `arch/*` rules, and the data-access import rule, all as `error`. Supabase-write allowlist: `src/lib/sync/**`, `src/lib/dexie/deviceManager.ts`, `src/lib/device-registration.ts` (`debts/sync.ts` no longer writes). Move the 3 raw transactions reads and the analytics route's Supabase import first
-- [x] Add `tsconfig.tests.json` (with explicit `@types/node`); fix 5 errors; run in CI
+- [x] Add `tsconfig.tests.json` (with explicit `@types/node`); fix 4 errors; run in CI
 - [x] Add the four hooks (4.9) and merge them into the existing `.claude/settings.json`
 - [x] Dependabot config, `packageManager`, `.nvmrc` in CI, audit gate (the existing Security Checks job: production deps blocking, plus a report-only full audit), non-breaking `npm audit fix`
 
@@ -448,7 +448,7 @@ Confirmed in review on 2026-09-30:
 ## Resume state (2026-10-01)
 
 - Phases 0, 0.5a, and 0.5b are merged and pushed (`main` = `913efac`). Per-phase specs and plans: `docs/plans/2026-09-30-phase-0-live-bugs*`, `docs/plans/2026-09-30-phase-0.5a-outbox-writes*`, `docs/plans/2026-10-01-phase-0.5b-budget-outbox*`.
-- Phase 1a: implemented on branch `phase-1a-cheap-wins` (head `5b517fc`). Acceptance: tsc (both programs) exit 0, lint 0/0, vitest 75 files / 974 tests, build ok, bundle 352.5 KB gz (budget 355), E2E smoke 11 passed, production audit 0 vulnerabilities. Next: live hook check, final whole-branch review, then merge; then Phase 1b brainstorm.
+- Phase 1a: implemented on branch `phase-1a-cheap-wins` (head `ca92e23`, final whole-branch review fixes applied). Acceptance: tsc (both programs) exit 0, lint 0/0, vitest 75 files / 974 tests, build ok, bundle 352.5 KB gz (budget 355), E2E smoke 11 passed, production audit 0 vulnerabilities. Next: live hook check, then merge; then Phase 1b brainstorm.
 - Phase 1 counts were re-measured at `913efac` (table in the 1a design). The section 4.7 type-aware counts (73/54/44) are still from `c7d19c7`; re-measure before Phase 3.
 - The section 4.4 money-selector message ("use parsePHP") is superseded: per the Phase 0 design's Decisions & Deferrals it must point at `parsePHP`/`parsePHPSafe`/`parsePHPUnbounded` and at route search schemas (`src/lib/validations/transactionsSearch.ts`), since URL amount params are already cents.
 - Unverified: the four device checks in the Decisions entry above; the full (non-smoke) E2E suite and non-chromium browsers since Phase 0.

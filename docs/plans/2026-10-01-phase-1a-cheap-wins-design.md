@@ -96,9 +96,9 @@ All five land as `error`. The money message follows the Phase 0 decision (not on
 
 As roadmap section 4.9, merged into `.claude/settings.json` next to `statusLine`, with scripts under `scripts/` that parse stdin with `node -e`:
 
-- `agent-stop-check.sh`: section 4.9's script, plus: when a changed file is under `tests/` or is `playwright.config.ts`, also run `npx tsc --noEmit -p tsconfig.tests.json`.
+- `agent-stop-check.sh`: section 4.9's script, plus: when a changed file is under `tests/` or is `playwright.config.ts`, also run `npx tsc --noEmit -p tsconfig.tests.json`. It caches a pass per tree hash, so unchanged turns skip the checks.
 - `agent-lint-file.sh`: `tool_input.file_path` under `src/` ending `.ts`/`.tsx` → `npx eslint <file>`; exit 2 with the output on failure.
-- `agent-bash-guard.mjs` (Node, not bash, so the matching is a pure function with a Vitest test in `scripts/agent-bash-guard.test.mjs`): exit 2 with a reason for `git push` with `--force`/`-f`/`--force-with-lease`, `supabase db push`, `supabase db (reset|push) ... --linked`, and `rm -rf`/`rm -fr` whose target is `/`, `~`, `$HOME`, a path starting `..`, or an absolute path outside `$CLAUDE_PROJECT_DIR` and `${TMPDIR:-/tmp}`.
+- `agent-bash-guard.mjs` (Node, not bash, so the matching is a pure function with a Vitest test in `scripts/agent-bash-guard.test.mjs`): exit 2 with a reason for `git push` with `--force`/`-f`/`--force-with-lease`, `supabase db push`, `supabase db (reset|push) ... --linked`, and `rm -rf`/`rm -fr` whose target is `/`, `~`, `$HOME`, a path starting `..`, or an absolute path outside `$CLAUDE_PROJECT_DIR` and `${TMPDIR:-/tmp}`. It is quote-aware and matches `push` only as the git subcommand.
 - `agent-session-start.sh`: `git status -sb`, `git log --oneline -10`, and the path of the newest file in `docs/plans/`, returned as `hookSpecificOutput.additionalContext`.
 
 **Verification:** each script runs directly with crafted stdin JSON, one passing and one failing case each, exit codes shown. The Stop hook is run against a deliberately broken file twice: the first run exits 2, the second (same tree) exits 0, which is the loop guard section 6 asks to verify. A live check in a fresh Claude session follows, since hook config is read at session start.
@@ -107,7 +107,7 @@ As roadmap section 4.9, merged into `.claude/settings.json` next to `statusLine`
 
 - `.github/dependabot.yml`: `npm` weekly with minor and patch grouped and majors as separate PRs; `github-actions` monthly.
 - `package.json`: `"packageManager": "npm@10.9.8"`. Both workflows switch `setup-node` from `node-version: "22"` to `node-version-file: .nvmrc` (`v22`).
-- New `audit` job in `ci.yml`: blocking `npm audit --omit=dev --audit-level=high`; a second step `npm audit --audit-level=high` with `continue-on-error: true` so dev-dependency advisories stay visible.
+- New `audit` job in `ci.yml`: blocking `npm audit --omit=dev --audit-level=high`; a second step `npm audit --audit-level=high` with `continue-on-error: true` so dev-dependency advisories stay visible (superseded: consolidated into the existing Security Checks job, see Decisions & Deferrals "One audit gate").
 - Run `npm audit fix` (non-breaking only, never `--force`) as the last task, lockfile in its own commit, gated on the full acceptance run because it bumps `vite` and `vitest`. The `lighthouse` 13 major is left to Dependabot.
 
 ## 6. Task order
@@ -121,7 +121,7 @@ Each task is one commit and leaves `tsc`, lint, and unit tests green.
 4. jsx-a11y wiring and fixes, `CurrencyInput` label, budgets E2E locator
 5. `tsconfig.tests.json`, `@types/node`, 4 fixes, CI step
 6. Hook scripts, settings merge, scripted verification
-7. Dependabot, `packageManager`, `.nvmrc` in CI, `audit` job
+7. Dependabot, `packageManager`, `.nvmrc` in CI, `audit` job (superseded: consolidated into the existing Security Checks job, see Decisions & Deferrals "One audit gate")
 8. `npm audit fix` lockfile
 
 Execution: subagent-driven development with a reviewer per task and a final whole-branch review on the strongest model. Reviewer claims are checked against current code before acting on them.
@@ -157,3 +157,8 @@ Not verified by this phase: the device checks pending from 0.5a/0.5b, the full E
 - **Note for Phase 2: `realtime-sync.ts` writes entity tables via `getTable()`.** The `readDb` facade must allowlist it.
 - **One audit gate, in Security Checks (decided 2026-10-01).** Why: `.github/workflows/security-check.yml` already ran a blocking `npm audit --audit-level=high --omit=dev` (the roadmap baseline said there was no audit, which was wrong; that workflow also runs Lighthouse CI, so `@lhci/cli` is used in CI). The new ci.yml job was removed and the report-only full audit was added to the existing job. Revisit: never.
 - **Deferred: `tests/e2e/debts/debt-reversals.spec.ts` "remove debt link" test is dead.** Why: the app's debt picker is a Radix Select (`value="none"`), so `select[name="debt_id"]` never matches and the test always skips; the `selectOption` fix in Task 5 only satisfies the type check. Revisit: when the debts E2E specs are reworked; rewrite against the Radix combobox.
+- **Stop hook caches passes per tree state (decided 2026-10-01, final review).** Why: the full check cost about 8s on every turn, including turns with no edits. The hash covers changed files and the lint/type configs. Revisit: never.
+- **Deferred: Bash guard false negatives.** `bash -c "..."`, `xargs rm -rf`, `find ... -exec rm -rf`, `rm -rf $PWD`/`$(pwd)/..`, `rm -rf .git` are not caught. The guard is best-effort; Claude Code's permission prompts are the primary control. Revisit: if one of these is ever attempted in practice.
+- **Deferred: lint selector gaps.** `db.table("x").add()`, `Number.parseFloat`, `window.Number`, and unary `+` are not caught. Revisit: Phase 2 (`readDb` facade and branded `Cents` close them at the type layer).
+- **Deferred: remaining dev-only audit advisories.** These are the `@lhci/cli`/`lighthouse` chain, `vitest`/`@vitest/mocker` (needs a vitest major), and `qs`. The full audit is report-only, and the production gate is clean. Revisit: when Dependabot's major PRs for lighthouse/vitest land.
+- **Deferred: Analytics parent-category filter likely shows nothing (pre-existing, found by the final review).** `FilterPanel` offers top-level categories, but `fetchAnalyticsTransactions` filters `category_id = <parent id>` while transactions carry child ids. Not confirmed against live data. Not a regression: the old route behaved the same. Revisit: next analytics work; fix by expanding a parent to its child ids with `.in`.
