@@ -354,8 +354,8 @@ Added 2026-09-30. `src/lib/supabaseQueries.ts` has 15 direct writes from live ho
 - [x] Transactions: `useUpdateTransaction`, `useDeleteTransaction`, `useSetTransactionStatus`, `useToggleTransactionStatus` through `src/lib/offline/transactions.ts`, with enqueue-then-drain-and-invalidate
 - [x] Accounts: create and deactivate through `src/lib/offline/accounts.ts`
 - [x] Categories: create and deactivate through `src/lib/offline/categories.ts`
-- [ ] Budgets: insert, upsert, delete through `src/lib/offline/budgets.ts` (0.5b: `budgets.month_key` is a generated column, so the outbox update payload must omit it)
-- [ ] Then flip the Phase 1 Supabase-write selector from `warn` to `error`
+- [x] Budgets: insert, upsert, delete through `src/lib/offline/budgets.ts` (0.5b: `budgets.month_key` is a generated column, so the outbox update payload must omit it)
+- [ ] Phase 1 lands the Supabase-write selector as `error` (Phase 0.5 complete 2026-10-01)
 - Approach (decided 2026-09-30): outbox mutations fetch the single row from Supabase and store it locally when it is missing from IndexedDB ("fetch on miss"), then apply the change and enqueue. Offline, the UI only shows local rows, so a missing row and no network cannot coincide.
 
 ### Follow-ups recorded 2026-09-30
@@ -372,7 +372,7 @@ IndexedDB is not a full mirror: the reconnection catch-up pulls only rows change
 
 - [ ] Wire `jsx-a11y` recommended into `eslint.config.js`; fix 10 violations
 - [ ] Enable `noImplicitOverride` and `verbatimModuleSyntax`; fix 12 errors
-- [ ] Add the Dexie-write, money, data-access, and `.from("transactions")` selectors (4.4 to 4.6) as `error`, and the Supabase-write selector as `warn` until Phase 0.5b is done
+- [ ] Add the Dexie-write, money, data-access, and `.from("transactions")` selectors (4.4 to 4.6) as `error`, and the Supabase-write selector as `error`, allowlisting `src/lib/sync/**`, `src/lib/debts/sync.ts`, `src/lib/dexie/deviceManager.ts`, and `src/lib/device-registration.ts`
 - [ ] Add `tsconfig.tests.json` (with explicit `@types/node`) and `tsconfig.strict.json`; run both in CI
 - [ ] Add the four hooks (4.9) and merge them into the existing `.claude/settings.json`
 - [ ] Dependabot config and `audit` job (4.11)
