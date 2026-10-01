@@ -448,7 +448,7 @@ Confirmed in review on 2026-09-30:
 ## Resume state (2026-10-01)
 
 - Phases 0, 0.5a, and 0.5b are merged and pushed (`main` = `913efac`). Per-phase specs and plans: `docs/plans/2026-09-30-phase-0-live-bugs*`, `docs/plans/2026-09-30-phase-0.5a-outbox-writes*`, `docs/plans/2026-10-01-phase-0.5b-budget-outbox*`.
-- Phase 1a: implemented on branch `phase-1a-cheap-wins` (head `ca92e23`, final whole-branch review fixes applied). Acceptance: tsc (both programs) exit 0, lint 0/0, vitest 75 files / 974 tests, build ok, bundle 352.5 KB gz (budget 355), E2E smoke 11 passed, production audit 0 vulnerabilities. Next: live hook check, then merge; then Phase 1b brainstorm.
+- Phase 1a: implemented on branch `phase-1a-cheap-wins` (head `a96c55f`, final whole-branch review fixes applied). Acceptance: tsc (both programs) exit 0, lint 0/0, vitest 75 files / 1003 tests, build ok, bundle 352.5 KB gz (budget 355), E2E smoke 11 passed, production audit 0 vulnerabilities. Next: live hook check, then merge; then Phase 1b brainstorm.
 - Phase 1 counts were re-measured at `913efac` (table in the 1a design). The section 4.7 type-aware counts (73/54/44) are still from `c7d19c7`; re-measure before Phase 3.
 - The section 4.4 money-selector message ("use parsePHP") is superseded: per the Phase 0 design's Decisions & Deferrals it must point at `parsePHP`/`parsePHPSafe`/`parsePHPUnbounded` and at route search schemas (`src/lib/validations/transactionsSearch.ts`), since URL amount params are already cents.
 - Unverified: the four device checks in the Decisions entry above; the full (non-smoke) E2E suite and non-chromium browsers since Phase 0.
