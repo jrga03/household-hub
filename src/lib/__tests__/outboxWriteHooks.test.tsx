@@ -13,6 +13,12 @@ import {
   updateOfflineTransactionsStatus,
 } from "@/lib/offline/transactions";
 import { ensureLocalRow } from "@/lib/offline/ensureLocal";
+import {
+  createOfflineBudget,
+  updateOfflineBudget,
+  deleteOfflineBudget,
+  copyOfflineBudgets,
+} from "@/lib/offline/budgets";
 import { syncProcessor } from "@/lib/sync/processor";
 import {
   useCreateAccount,
@@ -22,6 +28,10 @@ import {
   useDeleteTransaction,
   useSetTransactionStatus,
   useToggleTransactionStatus,
+  useCreateBudget,
+  useUpdateBudget,
+  useDeleteBudget,
+  useCopyBudgets,
 } from "@/lib/supabaseQueries";
 
 vi.mock("@/lib/supabase", () => ({ supabase: { from: vi.fn() } }));
@@ -42,6 +52,13 @@ vi.mock("@/lib/offline/transactions", () => ({
   updateOfflineTransactionsStatus: vi.fn(),
 }));
 vi.mock("@/lib/offline/ensureLocal", () => ({ ensureLocalRow: vi.fn() }));
+vi.mock("@/lib/offline/budgets", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/offline/budgets")>()),
+  createOfflineBudget: vi.fn(),
+  updateOfflineBudget: vi.fn(),
+  deleteOfflineBudget: vi.fn(),
+  copyOfflineBudgets: vi.fn(),
+}));
 
 function renderWithClient<T>(
   hook: () => T,
@@ -293,5 +310,60 @@ describe("transaction write hooks", () => {
       );
       expect(keys).toContainEqual(["transaction"]);
     });
+  });
+});
+
+describe("budget write hooks", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.setState({ user: { id: "user-1" } as User });
+    vi.mocked(createOfflineBudget).mockResolvedValue(ok);
+    vi.mocked(updateOfflineBudget).mockResolvedValue(ok);
+    vi.mocked(deleteOfflineBudget).mockResolvedValue({ success: true, isTemporary: true });
+    vi.mocked(copyOfflineBudgets).mockResolvedValue({
+      success: true,
+      data: [{}, {}] as never,
+      isTemporary: true,
+    });
+  });
+
+  it("create, update, delete, and copy go through the outbox, never Supabase", async () => {
+    const month = new Date(2026, 9, 1);
+    await renderWithClient(() => useCreateBudget()).result.current.mutateAsync({
+      categoryId: "c1",
+      month,
+      amountCents: 5000,
+    });
+    await renderWithClient(() => useUpdateBudget()).result.current.mutateAsync({
+      id: "b1",
+      amountCents: 6000,
+    });
+    await renderWithClient(() => useDeleteBudget()).result.current.mutateAsync("b2");
+    const count = await renderWithClient(() => useCopyBudgets()).result.current.mutateAsync({
+      fromMonth: new Date(2026, 8, 1),
+      toMonth: month,
+    });
+
+    expect(createOfflineBudget).toHaveBeenCalledWith(
+      { categoryId: "c1", month, amountCents: 5000 },
+      "user-1"
+    );
+    expect(updateOfflineBudget).toHaveBeenCalledWith("b1", 6000, "user-1");
+    expect(deleteOfflineBudget).toHaveBeenCalledWith("b2", "user-1");
+    expect(copyOfflineBudgets).toHaveBeenCalledWith(new Date(2026, 8, 1), month, "user-1");
+    expect(count).toBe(2);
+    expect(supabase.from).not.toHaveBeenCalled();
+  });
+
+  it("surfaces the copy error message", async () => {
+    vi.mocked(copyOfflineBudgets).mockResolvedValue({
+      success: false,
+      error: "No budgets found for previous month",
+      isTemporary: false,
+    });
+    const { result } = renderWithClient(() => useCopyBudgets());
+    await expect(
+      result.current.mutateAsync({ fromMonth: new Date(2026, 8, 1), toMonth: new Date(2026, 9, 1) })
+    ).rejects.toThrow("No budgets found for previous month");
   });
 });

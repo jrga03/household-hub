@@ -14,7 +14,14 @@ import {
   type TransactionsFilterSummary,
 } from "./offline/reads";
 import { getLocalDashboardData, hasLocalFinancialData } from "./offline/aggregates";
-import { getLocalBudgetGroups, mirrorBudgetsForMonth } from "./offline/budgets";
+import {
+  getLocalBudgetGroups,
+  mirrorBudgetsForMonth,
+  createOfflineBudget,
+  updateOfflineBudget,
+  deleteOfflineBudget,
+  copyOfflineBudgets,
+} from "./offline/budgets";
 import { OfflineError } from "./offline/errors";
 import { createOfflineAccount, updateOfflineAccount } from "./offline/accounts";
 import { createOfflineCategory, updateOfflineCategory } from "./offline/categories";
@@ -1482,7 +1489,7 @@ export function useBudgets(month: Date) {
 }
 
 /**
- * Creates a new budget for a category and month.
+ * Creates a new budget for a category and month, through the offline outbox.
  *
  * Note: Database enforces unique constraint on (household_id, category_id, month).
  * Attempting to create duplicate budgets will fail.
@@ -1491,32 +1498,20 @@ export function useBudgets(month: Date) {
  */
 export function useCreateBudget() {
   const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id);
 
   return useMutation({
     mutationFn: async (data: { categoryId: string; month: Date; amountCents: number }) => {
-      const monthKey = format(startOfMonth(data.month), "yyyy-MM-dd");
-
-      const { data: budget, error } = await supabase
-        .from("budgets")
-        .insert({
-          category_id: data.categoryId,
-          month: monthKey,
-          amount_cents: data.amountCents,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return budget;
+      const result = await createOfflineBudget(data, requireUserId(userId));
+      if (!result.success) throw new Error(result.error ?? "Failed to create budget");
+      return result.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["budgets"] });
-    },
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [["budgets"]]),
   });
 }
 
 /**
- * Updates an existing budget's amount.
+ * Updates an existing budget's amount, through the offline outbox.
  *
  * Note: Category cannot be changed when editing - only the amount can be updated.
  * To change category, delete and create new budget.
@@ -1525,27 +1520,20 @@ export function useCreateBudget() {
  */
 export function useUpdateBudget() {
   const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id);
 
   return useMutation({
     mutationFn: async (data: { id: string; amountCents: number }) => {
-      const { data: budget, error } = await supabase
-        .from("budgets")
-        .update({ amount_cents: data.amountCents })
-        .eq("id", data.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return budget;
+      const result = await updateOfflineBudget(data.id, data.amountCents, requireUserId(userId));
+      if (!result.success) throw new Error(result.error ?? "Failed to update budget");
+      return result.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["budgets"] });
-    },
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [["budgets"]]),
   });
 }
 
 /**
- * Deletes a budget.
+ * Deletes a budget, through the offline outbox.
  *
  * Note: Deleting a budget does not affect transactions or actual spending data.
  *
@@ -1553,21 +1541,19 @@ export function useUpdateBudget() {
  */
 export function useDeleteBudget() {
   const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id);
 
   return useMutation({
     mutationFn: async (budgetId: string) => {
-      const { error } = await supabase.from("budgets").delete().eq("id", budgetId);
-
-      if (error) throw error;
+      const result = await deleteOfflineBudget(budgetId, requireUserId(userId));
+      if (!result.success) throw new Error(result.error ?? "Failed to delete budget");
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["budgets"] });
-    },
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [["budgets"]]),
   });
 }
 
 /**
- * Copies budgets from one month to another.
+ * Copies budgets from one month to another, through the offline outbox.
  *
  * Useful for replicating previous month's budget targets without manual re-entry.
  * Note: This is a convenience feature - budgets are independent per month (no rollover).
@@ -1576,41 +1562,14 @@ export function useDeleteBudget() {
  */
 export function useCopyBudgets() {
   const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id);
 
   return useMutation({
     mutationFn: async (data: { fromMonth: Date; toMonth: Date }) => {
-      const fromKey = format(startOfMonth(data.fromMonth), "yyyy-MM-dd");
-      const toKey = format(startOfMonth(data.toMonth), "yyyy-MM-dd");
-
-      // Fetch budgets from previous month
-      const { data: existingBudgets, error: fetchError } = await supabase
-        .from("budgets")
-        .select("category_id, amount_cents")
-        .eq("month", fromKey);
-
-      if (fetchError) throw fetchError;
-
-      if (!existingBudgets || existingBudgets.length === 0) {
-        throw new Error("No budgets found for previous month");
-      }
-
-      // Insert budgets for new month using upsert to handle partial copies
-      const newBudgets = existingBudgets.map((b) => ({
-        category_id: b.category_id,
-        month: toKey,
-        amount_cents: b.amount_cents,
-      }));
-
-      const { error: insertError } = await supabase
-        .from("budgets")
-        .upsert(newBudgets, { onConflict: "household_id,category_id,month" });
-
-      if (insertError) throw insertError;
-
-      return newBudgets.length;
+      const result = await copyOfflineBudgets(data.fromMonth, data.toMonth, requireUserId(userId));
+      if (!result.success) throw new Error(result.error ?? "Failed to copy budgets");
+      return result.data?.length ?? 0;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["budgets"] });
-    },
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [["budgets"]]),
   });
 }
