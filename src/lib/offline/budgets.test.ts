@@ -7,16 +7,28 @@
  * "no budgets".
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { db, type LocalBudget, type LocalCategory, type LocalTransaction } from "@/lib/dexie/db";
 import type { SyncQueueItem } from "@/types/sync";
+import { supabase } from "@/lib/supabase";
 import {
   budgetMonthKey,
+  copyOfflineBudgets,
+  createOfflineBudget,
+  deleteOfflineBudget,
   getLocalBudgetGroups,
   hasMirroredBudgets,
   mirrorBudgetsForMonth,
+  updateOfflineBudget,
 } from "./budgets";
 import { OfflineError } from "./errors";
+
+vi.mock("@/lib/supabase", () => ({
+  supabase: {
+    from: vi.fn(),
+    auth: { getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }) },
+  },
+}));
 
 // ─── Fixture helpers ─────────────────────────────
 
@@ -300,5 +312,140 @@ describe("mirrorBudgetsForMonth with pending sync queue items", () => {
     await mirrorBudgetsForMonth(JULY_KEY, []);
 
     expect(await db.budgets.get("local-1")).toBeUndefined();
+  });
+});
+
+// ─── Offline budget mutations ─────────────────────
+
+describe("offline budget mutations", () => {
+  const userId = "12345678-1234-5678-1234-567812345678";
+  const OCTOBER = new Date(2026, 9, 10);
+  const OCTOBER_KEY = "2026-10-01";
+
+  beforeEach(async () => {
+    await db.budgets.clear();
+    await db.syncQueue.clear();
+    await db.meta.clear();
+    vi.mocked(supabase.auth.getUser).mockResolvedValue({
+      data: { user: null },
+      error: null,
+    } as never);
+  });
+
+  it("creates a budget and queues a create without created_at", async () => {
+    const result = await createOfflineBudget(
+      { categoryId: "cat-food", month: OCTOBER, amountCents: 500000 },
+      userId
+    );
+
+    expect(result.success).toBe(true);
+    expect(await db.budgets.get(result.data!.id)).toMatchObject({
+      category_id: "cat-food",
+      month: OCTOBER_KEY,
+      amount_cents: 500000,
+    });
+    const [item] = await db.syncQueue.toArray();
+    expect(item).toMatchObject({ entity_type: "budget", entity_id: result.data!.id });
+    expect(item.operation.op).toBe("create");
+    expect(item.operation.payload).not.toHaveProperty("created_at");
+  });
+
+  it("turns a create for an existing category and month into an update", async () => {
+    const first = await createOfflineBudget(
+      { categoryId: "cat-food", month: OCTOBER, amountCents: 1000 },
+      userId
+    );
+    await db.syncQueue.clear();
+
+    const second = await createOfflineBudget(
+      { categoryId: "cat-food", month: OCTOBER, amountCents: 2000 },
+      userId
+    );
+
+    expect(second.data!.id).toBe(first.data!.id);
+    expect(await db.budgets.count()).toBe(1);
+    const [item] = await db.syncQueue.toArray();
+    expect(item.operation.op).toBe("update");
+  });
+
+  it("queues only the changed fields on update", async () => {
+    const created = await createOfflineBudget(
+      { categoryId: "cat-food", month: OCTOBER, amountCents: 1000 },
+      userId
+    );
+    await db.syncQueue.clear();
+
+    await updateOfflineBudget(created.data!.id, 3000, userId);
+
+    const [item] = await db.syncQueue.toArray();
+    expect(Object.keys(item.operation.payload).sort()).toEqual(["amount_cents", "updated_at"]);
+    expect((await db.budgets.get(created.data!.id))?.amount_cents).toBe(3000);
+  });
+
+  it("deletes a budget and queues a delete", async () => {
+    const created = await createOfflineBudget(
+      { categoryId: "cat-food", month: OCTOBER, amountCents: 1000 },
+      userId
+    );
+    await db.syncQueue.clear();
+
+    const result = await deleteOfflineBudget(created.data!.id, userId);
+
+    expect(result.success).toBe(true);
+    expect(await db.budgets.get(created.data!.id)).toBeUndefined();
+    expect((await db.syncQueue.toArray())[0].operation.op).toBe("delete");
+  });
+
+  it("rejects an invalid amount and a missing budget without writing", async () => {
+    expect(
+      (await createOfflineBudget({ categoryId: "c", month: OCTOBER, amountCents: -1 }, userId))
+        .success
+    ).toBe(false);
+    expect((await updateOfflineBudget("missing", 1000, userId)).success).toBe(false);
+    expect((await deleteOfflineBudget("missing", userId)).success).toBe(false);
+    expect(await db.syncQueue.count()).toBe(0);
+  });
+
+  it("copies from a mirrored month, updating existing targets and creating the rest", async () => {
+    await mirrorBudgetsForMonth("2026-09-01", [
+      makeBudget({ id: "s1", month: "2026-09-01", category_id: "cat-food", amount_cents: 1000 }),
+      makeBudget({ id: "s2", month: "2026-09-01", category_id: "cat-rent", amount_cents: 2000 }),
+    ]);
+    const existing = await createOfflineBudget(
+      { categoryId: "cat-food", month: OCTOBER, amountCents: 1 },
+      userId
+    );
+    await db.syncQueue.clear();
+
+    const result = await copyOfflineBudgets(new Date(2026, 8, 1), OCTOBER, userId);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toHaveLength(2);
+    expect((await db.budgets.get(existing.data!.id))?.amount_cents).toBe(1000);
+    const ops = (await db.syncQueue.toArray()).map((item) => item.operation.op).sort();
+    expect(ops).toEqual(["create", "update"]);
+    expect(supabase.from).not.toHaveBeenCalled();
+  });
+
+  it("copies from the server when the source month was never mirrored", async () => {
+    const eq = vi
+      .fn()
+      .mockResolvedValue({ data: [{ category_id: "cat-food", amount_cents: 4000 }], error: null });
+    vi.mocked(supabase.from).mockReturnValue({ select: () => ({ eq }) } as never);
+
+    const result = await copyOfflineBudgets(new Date(2026, 8, 1), OCTOBER, userId);
+
+    expect(eq).toHaveBeenCalledWith("month", "2026-09-01");
+    expect(result.data?.[0]).toMatchObject({
+      category_id: "cat-food",
+      month: OCTOBER_KEY,
+      amount_cents: 4000,
+    });
+  });
+
+  it("reports an empty source month", async () => {
+    await mirrorBudgetsForMonth("2026-09-01", []);
+    const result = await copyOfflineBudgets(new Date(2026, 8, 1), OCTOBER, userId);
+    expect(result).toMatchObject({ success: false, error: "No budgets found for previous month" });
   });
 });

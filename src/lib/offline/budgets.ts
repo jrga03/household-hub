@@ -26,9 +26,16 @@
 import { startOfMonth, endOfMonth, format } from "date-fns";
 import { db, type LocalBudget } from "@/lib/dexie/db";
 import { OfflineError } from "./errors";
+import { buildSyncQueueItem } from "./syncQueue";
+import { validateAmount } from "@/lib/currency";
+import type { OfflineOperationResult } from "./types";
+import { supabase } from "@/lib/supabase";
+import type { SyncQueueItem } from "@/types/sync";
 // Type-only import: erased at compile time, so no runtime cycle with
 // supabaseQueries (which imports this module for the fallback).
 import type { Budget, BudgetGroup } from "@/lib/supabaseQueries";
+
+const DEFAULT_HOUSEHOLD_ID = "00000000-0000-0000-0000-000000000001";
 
 /** Month key used by both the server query and the Dexie mirror ("yyyy-MM-01"). */
 export function budgetMonthKey(month: Date): string {
@@ -180,4 +187,212 @@ export async function getLocalBudgetGroups(month: Date): Promise<BudgetGroup[]> 
   });
 
   return Array.from(groupMap.values());
+}
+
+// ─── Offline budget mutations ─────────────────────
+
+export interface BudgetInput {
+  categoryId: string;
+  month: Date;
+  amountCents: number;
+}
+
+// created_at is left to the server: a conflict upsert must not rewrite it
+function createPayload(budget: LocalBudget): Record<string, unknown> {
+  return {
+    id: budget.id,
+    household_id: budget.household_id,
+    category_id: budget.category_id,
+    month: budget.month,
+    amount_cents: budget.amount_cents,
+    currency_code: budget.currency_code,
+  };
+}
+
+function newBudget(
+  categoryId: string,
+  monthKey: string,
+  amountCents: number,
+  now: string
+): LocalBudget {
+  return {
+    id: crypto.randomUUID(),
+    household_id: DEFAULT_HOUSEHOLD_ID,
+    category_id: categoryId,
+    month: monthKey,
+    amount_cents: amountCents,
+    currency_code: "PHP",
+    created_at: now,
+    updated_at: now,
+  };
+}
+
+function failure<T>(error: unknown, fallback: string): OfflineOperationResult<T> {
+  return {
+    success: false,
+    error: error instanceof Error ? error.message : fallback,
+    isTemporary: false,
+  };
+}
+
+export async function createOfflineBudget(
+  input: BudgetInput,
+  userId: string
+): Promise<OfflineOperationResult<LocalBudget>> {
+  if (!validateAmount(input.amountCents)) {
+    return { success: false, error: "Invalid budget amount", isTemporary: false };
+  }
+  try {
+    const monthKey = budgetMonthKey(input.month);
+    const existing = await db.budgets
+      .where("[month+category_id]")
+      .equals([monthKey, input.categoryId])
+      .first();
+    if (existing) {
+      return updateOfflineBudget(existing.id, input.amountCents, userId);
+    }
+
+    const budget = newBudget(
+      input.categoryId,
+      monthKey,
+      input.amountCents,
+      new Date().toISOString()
+    );
+    const queueItem = await buildSyncQueueItem(
+      "budget",
+      budget.id,
+      "create",
+      createPayload(budget),
+      userId
+    );
+    await db.transaction("rw", db.budgets, db.syncQueue, async () => {
+      await db.budgets.add(budget);
+      await db.syncQueue.add(queueItem);
+    });
+    return { success: true, data: budget, isTemporary: true };
+  } catch (error) {
+    console.error("Failed to create offline budget:", error);
+    return failure(error, "Failed to create budget");
+  }
+}
+
+export async function updateOfflineBudget(
+  id: string,
+  amountCents: number,
+  userId: string
+): Promise<OfflineOperationResult<LocalBudget>> {
+  if (!validateAmount(amountCents)) {
+    return { success: false, error: "Invalid budget amount", isTemporary: false };
+  }
+  try {
+    const existing = await db.budgets.get(id);
+    if (!existing) {
+      return { success: false, error: "Budget not found", isTemporary: false };
+    }
+    const updated: LocalBudget = {
+      ...existing,
+      amount_cents: amountCents,
+      updated_at: new Date().toISOString(),
+    };
+    const queueItem = await buildSyncQueueItem(
+      "budget",
+      id,
+      "update",
+      { amount_cents: updated.amount_cents, updated_at: updated.updated_at },
+      userId
+    );
+    await db.transaction("rw", db.budgets, db.syncQueue, async () => {
+      await db.budgets.put(updated);
+      await db.syncQueue.add(queueItem);
+    });
+    return { success: true, data: updated, isTemporary: true };
+  } catch (error) {
+    console.error("Failed to update offline budget:", error);
+    return failure(error, "Failed to update budget");
+  }
+}
+
+export async function deleteOfflineBudget(
+  id: string,
+  userId: string
+): Promise<OfflineOperationResult<void>> {
+  try {
+    const existing = await db.budgets.get(id);
+    if (!existing) {
+      return { success: false, error: "Budget not found", isTemporary: false };
+    }
+    const queueItem = await buildSyncQueueItem("budget", id, "delete", { id }, userId);
+    await db.transaction("rw", db.budgets, db.syncQueue, async () => {
+      await db.budgets.delete(id);
+      await db.syncQueue.add(queueItem);
+    });
+    return { success: true, isTemporary: true };
+  } catch (error) {
+    console.error("Failed to delete offline budget:", error);
+    return failure(error, "Failed to delete budget");
+  }
+}
+
+export async function copyOfflineBudgets(
+  fromMonth: Date,
+  toMonth: Date,
+  userId: string
+): Promise<OfflineOperationResult<LocalBudget[]>> {
+  try {
+    const fromKey = budgetMonthKey(fromMonth);
+    const toKey = budgetMonthKey(toMonth);
+
+    let source: Array<{ category_id: string; amount_cents: number }>;
+    if (await hasMirroredBudgets(fromKey)) {
+      source = await db.budgets.where("month").equals(fromKey).toArray();
+    } else {
+      const { data, error } = await supabase
+        .from("budgets")
+        .select("category_id, amount_cents")
+        .eq("month", fromKey);
+      if (error) return failure(error, "Failed to load previous month's budgets");
+      source = data ?? [];
+    }
+    if (source.length === 0) {
+      return { success: false, error: "No budgets found for previous month", isTemporary: false };
+    }
+
+    const now = new Date().toISOString();
+    const rows: LocalBudget[] = [];
+    const queueItems: SyncQueueItem[] = [];
+    for (const { category_id, amount_cents } of source) {
+      const existing = await db.budgets
+        .where("[month+category_id]")
+        .equals([toKey, category_id])
+        .first();
+      if (existing) {
+        const updated = { ...existing, amount_cents, updated_at: now };
+        rows.push(updated);
+        queueItems.push(
+          await buildSyncQueueItem(
+            "budget",
+            existing.id,
+            "update",
+            { amount_cents, updated_at: now },
+            userId
+          )
+        );
+      } else {
+        const budget = newBudget(category_id, toKey, amount_cents, now);
+        rows.push(budget);
+        queueItems.push(
+          await buildSyncQueueItem("budget", budget.id, "create", createPayload(budget), userId)
+        );
+      }
+    }
+
+    await db.transaction("rw", db.budgets, db.syncQueue, async () => {
+      await db.budgets.bulkPut(rows);
+      await db.syncQueue.bulkAdd(queueItems);
+    });
+    return { success: true, data: rows, isTemporary: true };
+  } catch (error) {
+    console.error("Failed to copy offline budgets:", error);
+    return failure(error, "Failed to copy budgets");
+  }
 }
