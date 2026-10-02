@@ -25,15 +25,15 @@
 ## Progress
 
 - [x] Task 0: E2E baseline on `main` (chromium: 37 passed / 33 failed / 24 skipped)
-- [ ] Task 1: Branch and `tsconfig.strict.json` (190)
-- [ ] Task 2: Pre-push rework
-- [ ] Task 3: Stop hook gaps
-- [ ] Task 4: lib production sites (190 → 171)
-- [ ] Task 5: bdo-credit-card parser (171 → 153)
-- [ ] Task 6: UI components and hooks (153 → 143)
-- [ ] Task 7: TransactionList (143 → 84)
-- [ ] Task 8: Test files (84 → 0)
-- [ ] Task 9: Wire enforcement
+- [x] Task 1: Branch and `tsconfig.strict.json` (190)
+- [x] Task 2: Pre-push rework
+- [x] Task 3: Stop hook gaps
+- [x] Task 4: lib production sites (190 → 171)
+- [x] Task 5: bdo-credit-card parser (171 → 153)
+- [x] Task 6: UI components and hooks (153 → 143)
+- [x] Task 7: TransactionList (143 → 84)
+- [x] Task 8: Test files (84 → 0)
+- [x] Task 9: Wire enforcement
 - [ ] Task 10: Acceptance
 
 ---
@@ -1356,8 +1356,27 @@ git commit -m "docs(plans): Phase 1b acceptance results"
 
 Use superpowers:finishing-a-development-branch.
 
+## Acceptance results (2026-10-02, branch head `e50458e`)
+
+- Static gates (Node 26.10.0): `tsc` exit 0 for `tsconfig.json`, `tsconfig.tests.json`, `tsconfig.strict.json`; lint 0 errors / 0 warnings; vitest 76 files / 1026 tests; build ok; bundle 352.6 KB gz (budget 355, 352.5 before 1b); `npm audit --omit=dev` found 0 vulnerabilities.
+- Chromium smoke: 11 passed.
+- Full chromium E2E: 37 passed / 33 failed / 24 skipped, identical totals to the `main` baseline. Per-test diff: one "regression", `settings.spec.ts` "export accounts CSV triggers download", was skipped (not failed) because the serial settings spec skips after an earlier failure; re-run alone twice it was skipped once and passed once. One "newly passing", `settings.spec.ts` "export categories CSV", is the same flake in reverse. Neither file is touched by 1b. Verdict: no regression.
+- Enforcement (Task 9): a probe `src/lib/sync/zz-strict-probe.ts` failed all three gates (`tsc` strict exit 2 with TS2322, Stop hook exit 2, pre-push `FAIL  tsc strict` exit 1); clean tree passed all three; Stop hook cached pass 11.99s then 0.23s.
+- Screenshots (chromium, 1440x900 unless noted), each opened and read:
+  - Transactions table: 50 transactions, "In ₱80,000.00 Out ₱18,553.95", rows render with date, description, category, account, amount, status, actions; long seeded category/account names push the Amount column past the card edge (layout, pre-existing, not touched by 1b).
+  - Transactions cards (390x844): card list with title, date, amount and "Pending", "Select all", bottom nav; no blank or broken cards.
+  - Dashboard monthly tooltip: "Oct / Income: ₱30,000.00 / Expenses: ₱17,955.00", matching the Total Income and Total Expenses cards above it, so the tooltip reads the hovered datum correctly.
+  - Dashboard category tooltip: "[E2E] Shots A … ₱11,775.00 / 65.6% of total", matching the legend row.
+  - Analytics: overview cards, top categories, monthly trend and category pie render. "Avg. Monthly Spending" shows "₱2,650.56.428571428" (see Decisions & Deferrals; pre-existing).
+  - PDF import preview: not captured (no PDF fixture in the repo).
+- Final whole-branch review: "Ready after fixes", doc-only (README lines fixed in the acceptance commit; CLAUDE.md wording left for the user).
+- Live pre-push: pending (Step 5).
+
 ## Decisions & Deferrals
 
 - **Deferred: `reversals.ts` stamps `payment_date` with the UTC date (found while planning).** `new Date().toISOString().slice(0, 10)` is yesterday's date between 00:00 and 08:00 in Manila, which contradicts CLAUDE.md's "transaction date is the user's local date". 1b keeps the behavior (`split("T")[0]` → `slice(0, 10)` is equivalent). Same pattern in `debts/__tests__/test-utils.ts` and `csv-exporter.ts`'s `Date` branch. Revisit: next debts work; use the user's local date (`format(new Date(), "yyyy-MM-dd")`) with a timezone test like `dates.test.ts`.
 - **Only `convertBDODate` gains a test-driven throw (found while planning).** The spec expected throws in debts/sync and idempotency, but every other site is guarded by an existing check (`length === 0`, `SAFETY_BUFFER`, `parts.length < 4`, all-required regex groups), so the new guards are unreachable and keep each function's existing result. Revisit: never.
 - **Budgets with a missing category embed are omitted, not thrown (decided while planning).** It is a read path; a throw fails the whole Budgets page. `budgets.category_id` is `NOT NULL REFERENCES categories`, so the embed is only missing if RLS hides the category. Revisit: if a budget is reported missing from the page.
+- **Deferred: Analytics "Avg. Monthly Spending" renders fractional cents (found by the acceptance screenshots).** `useAnalytics.ts:364` divides `totalExpenses / monthCount` and passes the non-integer to `formatPHP`, which shows "₱2,650.56.428571428". Pre-existing (2025-10-29), not in the 1b diff. Revisit: next analytics work; round to integer cents (`Math.round`) before formatting, with a test.
+- **Deferred: `settings.spec.ts` is order-dependent (found by the E2E diff).** It runs serially, so one failure skips the rest and the export tests flip between skipped and passed across runs. Revisit: when the E2E suite's pre-existing failures are worked down.
+- **Deferred (final review triage): Stop hook misses a `.ts` renamed to a non-`.ts` name; pre-push `readFileSync(0)` throws on a TTY; `parsePushedRefs` multi-ref untested; budget with a missing category dropped without a warning; repeated `x[0]!` in test `expect`s.** Why: each is rare, caught by a later gate, or style only. Revisit: if any is hit in practice.

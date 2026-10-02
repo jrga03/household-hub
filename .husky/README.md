@@ -57,7 +57,7 @@ npx lint-staged
 - Typical run time: <2 seconds for 5-10 files
 - Negligible overhead for normal commits
 
-### pre-push (.husky/pre-push:1-2)
+### pre-push (.husky/pre-push)
 
 **Purpose:** Ensure code quality and test passage before pushing to remote
 
@@ -71,7 +71,7 @@ node scripts/pre-push.mjs
 
 1. **Lint** (`npm run lint`): verifies only, never rewrites files
 2. **Unit tests** (`vitest run --allowOnly=false`): fails on any failing test or committed `.only`
-3. **Type checks** (`tsc --noEmit` for `tsconfig.json` and `tsconfig.tests.json`)
+3. **Type checks** (`tsc --noEmit` for `tsconfig.json`, `tsconfig.tests.json`, and `tsconfig.strict.json`)
 
 Pushes whose changed files are all `*.md` or under `docs/` skip the checks.
 
