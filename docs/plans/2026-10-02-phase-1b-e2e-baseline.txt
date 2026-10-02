@@ -1,0 +1,94 @@
+✓ tests/e2e/accessibility.spec.ts › Accessibility › should not have accessibility violations on accounts page
+✓ tests/e2e/accessibility.spec.ts › Accessibility › should not have accessibility violations on budget page
+✓ tests/e2e/accessibility.spec.ts › Accessibility › should not have accessibility violations on home page
+✘ tests/e2e/accessibility.spec.ts › Accessibility › should not have accessibility violations on transaction form
+✓ tests/e2e/accessibility.spec.ts › Accessibility › should not have accessibility violations on transactions page
+✓ tests/e2e/accounts-master-detail.spec.ts › Accounts master-detail › selecting an account updates URL and detail pane
+✓ tests/e2e/accounts-master-detail.spec.ts › Accounts master-detail › selection survives reload
+✘ tests/e2e/analytics.spec.ts › Analytics › category breakdown displays
+✓ tests/e2e/analytics.spec.ts › Analytics › date range filter works
+✘ tests/e2e/analytics.spec.ts › Analytics › overview tab renders charts
+✘ tests/e2e/analytics.spec.ts › Analytics › transfer exclusion verified in totals
+✓ tests/e2e/auth.spec.ts › Authentication › should protect routes when not authenticated
+✓ tests/e2e/auth.spec.ts › Authentication › should sign in existing user
+✓ tests/e2e/auth.spec.ts › Authentication › should sign out
+✓ tests/e2e/auth.spec.ts › Authentication › should sign up new user
+✘ tests/e2e/budgets.spec.ts › Budgets › create budget: fill form and verify in list
+✓ tests/e2e/budgets.spec.ts › Budgets › renders budget list page
+✓ tests/e2e/budgets.spec.ts › Budgets › verify over-budget warning visual
+✘ tests/e2e/categories.spec.ts › Categories › renders category list
+✓ tests/e2e/categories.spec.ts › Categories › verify hierarchy display
+✘ tests/e2e/dashboard.spec.ts › Dashboard › displays account balances
+✘ tests/e2e/dashboard.spec.ts › Dashboard › displays recent transactions list
+✓ tests/e2e/dashboard.spec.ts › Dashboard › month selector changes displayed data
+✘ tests/e2e/dashboard.spec.ts › Dashboard › renders summary cards with income, expenses, and net
+✘ tests/e2e/debts/debt-payments.spec.ts › Debt Payment Workflows › should handle multiple sequential payments
+✘ tests/e2e/debts/debt-payments.spec.ts › Debt Payment Workflows › should show overpayment warning for amount exceeding balance
+✘ tests/e2e/debts/debt-reversals.spec.ts › Debt Payment Reversals › should handle removal of debt link from transaction
+✘ tests/e2e/debts/debt-reversals.spec.ts › Debt Payment Reversals › should reverse payment when linked transaction is deleted
+✘ tests/e2e/debts/debt-reversals.spec.ts › Debt Payment Reversals › should warn before reversing payment on transaction edit
+✓ tests/e2e/debts/external-debt-crud.spec.ts › External Debt CRUD › should display debts list page
+✘ tests/e2e/keyboard-nav.spec.ts › Keyboard Navigation › should create transaction using keyboard only
+✘ tests/e2e/keyboard-nav.spec.ts › Keyboard Navigation › should navigate main menu with keyboard only
+✘ tests/e2e/keyboard-nav.spec.ts › Keyboard Navigation › should navigate transaction list with arrow keys
+✓ tests/e2e/layout-baseline.spec.ts › Layout baselines — desktop (1920x1080) › accounts renders
+✘ tests/e2e/layout-baseline.spec.ts › Layout baselines — desktop (1920x1080) › analytics renders
+✘ tests/e2e/layout-baseline.spec.ts › Layout baselines — desktop (1920x1080) › dashboard renders
+✓ tests/e2e/layout-baseline.spec.ts › Layout baselines — desktop (1920x1080) › settings renders
+✓ tests/e2e/layout-baseline.spec.ts › Layout baselines — desktop (1920x1080) › transactions renders
+✓ tests/e2e/layout-baseline.spec.ts › Layout baselines — laptop (1366x768) › accounts renders
+✘ tests/e2e/layout-baseline.spec.ts › Layout baselines — laptop (1366x768) › analytics renders
+✘ tests/e2e/layout-baseline.spec.ts › Layout baselines — laptop (1366x768) › dashboard renders
+✓ tests/e2e/layout-baseline.spec.ts › Layout baselines — laptop (1366x768) › settings renders
+✓ tests/e2e/layout-baseline.spec.ts › Layout baselines — laptop (1366x768) › transactions renders
+✓ tests/e2e/layout-baseline.spec.ts › Layout baselines — ultrawide (2560x1440) › accounts renders
+✘ tests/e2e/layout-baseline.spec.ts › Layout baselines — ultrawide (2560x1440) › analytics renders
+✓ tests/e2e/layout-baseline.spec.ts › Layout baselines — ultrawide (2560x1440) › dashboard renders
+✓ tests/e2e/layout-baseline.spec.ts › Layout baselines — ultrawide (2560x1440) › settings renders
+✓ tests/e2e/layout-baseline.spec.ts › Layout baselines — ultrawide (2560x1440) › transactions renders
+✘ tests/e2e/offline.spec.ts › Offline Mode › should create transaction offline and sync when online
+✘ tests/e2e/offline.spec.ts › Offline Mode › should load cached data when offline
+✘ tests/e2e/performance.spec.ts › Performance › should handle 10k transactions
+✘ tests/e2e/performance.spec.ts › Performance › should have acceptable bundle size
+✘ tests/e2e/pwa.spec.ts › PWA Features › should load cached transactions offline
+✓ tests/e2e/pwa.spec.ts › PWA Features › should register service worker
+✘ tests/e2e/pwa.spec.ts › PWA Features › should show offline indicator when offline
+✘ tests/e2e/pwa.spec.ts › PWA Features › should work offline after caching
+✓ tests/e2e/settings.spec.ts › Settings › export accounts CSV triggers download
+✘ tests/e2e/settings.spec.ts › Settings › export transactions CSV triggers download
+✘ tests/e2e/settings.spec.ts › Settings › settings page renders sections
+✘ tests/e2e/sync.spec.ts › Multi-Device Sync › should handle concurrent edits with field-level merge
+✘ tests/e2e/sync.spec.ts › Multi-Device Sync › should sync new transaction from one device to another
+✓ tests/e2e/transactions-triple.spec.ts › Transactions triple layout › mid width shows filters on the right, hides middle detail pane
+✓ tests/e2e/transactions-triple.spec.ts › Transactions triple layout › narrow width hides both asides; filter sheet trigger appears
+✓ tests/e2e/transactions-triple.spec.ts › Transactions triple layout › ultrawide shows main + middle detail + right filters; middle shows summary by default
+✓ tests/e2e/transactions.spec.ts › Transactions › should create new transaction
+✓ tests/e2e/transactions.spec.ts › Transactions › should delete transaction
+✓ tests/e2e/transactions.spec.ts › Transactions › should display account balances in PHP format
+✓ tests/e2e/transactions.spec.ts › Transactions › should edit transaction
+✓ tests/e2e/transfers.spec.ts › Transfers › verify paired transactions created (expense + income)
+✓ tests/e2e/transfers.spec.ts › Transfers › verify transfers excluded from analytics totals
+- tests/e2e/categories.spec.ts › Categories › create child category under parent
+- tests/e2e/categories.spec.ts › Categories › create parent category
+- tests/e2e/debts/debt-payments.spec.ts › Debt Payment Workflows › should create payment via transaction with debt link
+- tests/e2e/debts/debt-payments.spec.ts › Debt Payment Workflows › should filter debts by payment activity
+- tests/e2e/debts/debt-payments.spec.ts › Debt Payment Workflows › should show payment history for debt
+- tests/e2e/debts/debt-payments.spec.ts › Debt Payment Workflows › should transition status to paid_off on full payment
+- tests/e2e/debts/debt-payments.spec.ts › Debt Payment Workflows › should update progress bar after payment
+- tests/e2e/debts/debt-reversals.spec.ts › Debt Payment Reversals › should handle cascading reversal (reversing a reversal)
+- tests/e2e/debts/debt-reversals.spec.ts › Debt Payment Reversals › should preserve audit trail of all reversals
+- tests/e2e/debts/debt-reversals.spec.ts › Debt Payment Reversals › should show correct balance after edit with different amount
+- tests/e2e/debts/debt-reversals.spec.ts › Debt Payment Reversals › should show reversal in payment history
+- tests/e2e/debts/debt-reversals.spec.ts › Debt Payment Reversals › should warn before reversing payment on transaction delete
+- tests/e2e/debts/external-debt-crud.spec.ts › External Debt CRUD › should create external debt via form
+- tests/e2e/debts/external-debt-crud.spec.ts › External Debt CRUD › should delete debt with confirmation
+- tests/e2e/debts/external-debt-crud.spec.ts › External Debt CRUD › should display progress bar for debt repayment
+- tests/e2e/debts/external-debt-crud.spec.ts › External Debt CRUD › should filter debts by status
+- tests/e2e/debts/external-debt-crud.spec.ts › External Debt CRUD › should show correct debt status badges
+- tests/e2e/debts/external-debt-crud.spec.ts › External Debt CRUD › should show validation error for empty name
+- tests/e2e/debts/external-debt-crud.spec.ts › External Debt CRUD › should show validation error for invalid amount
+- tests/e2e/debts/external-debt-crud.spec.ts › External Debt CRUD › should update debt name and description
+- tests/e2e/mobile-drawer-nav.spec.ts › Mobile drawer navigation › drawer link navigates to Settings and stays there (no history snap-back)
+- tests/e2e/mobile-drawer-nav.spec.ts › Mobile drawer navigation › hardware back closes the drawer without leaving the page
+- tests/e2e/settings.spec.ts › Settings › export categories CSV triggers download
+- tests/e2e/transfers.spec.ts › Transfers › create transfer between accounts

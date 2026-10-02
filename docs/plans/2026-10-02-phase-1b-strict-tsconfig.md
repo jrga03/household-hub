@@ -24,7 +24,7 @@
 
 ## Progress
 
-- [ ] Task 0: E2E baseline on `main`
+- [x] Task 0: E2E baseline on `main` (chromium: 37 passed / 33 failed / 24 skipped)
 - [ ] Task 1: Branch and `tsconfig.strict.json` (190)
 - [ ] Task 2: Pre-push rework
 - [ ] Task 3: Stop hook gaps
