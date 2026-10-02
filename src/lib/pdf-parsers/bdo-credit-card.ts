@@ -59,12 +59,13 @@ export function reconstructLines(items: PDFTextItem[], yTolerance = 3): Reconstr
   });
 
   // Group items whose y-coordinates are within tolerance
+  const [first, ...rest] = sorted;
+  if (!first) return [];
   const groups: PDFTextItem[][] = [];
-  let currentGroup: PDFTextItem[] = [sorted[0]];
-  let currentY = sorted[0].y;
+  let currentGroup: PDFTextItem[] = [first];
+  let currentY = first.y;
 
-  for (let i = 1; i < sorted.length; i++) {
-    const item = sorted[i];
+  for (const item of rest) {
     if (Math.abs(item.y - currentY) <= yTolerance) {
       currentGroup.push(item);
     } else {
@@ -81,22 +82,26 @@ export function reconstructLines(items: PDFTextItem[], yTolerance = 3): Reconstr
     const byX = [...group].sort((a, b) => a.x - b.x);
 
     // Concatenate with spacing based on gaps
-    let text = byX[0].text;
-    for (let i = 1; i < byX.length; i++) {
-      const prev = byX[i - 1];
-      const curr = byX[i];
-      const gap = curr.x - (prev.x + prev.width);
-
-      if (gap > 30) {
-        // Large column gap — insert multiple spaces to preserve column alignment
-        text += "    " + curr.text;
-      } else if (gap > 5) {
-        // Small gap — single space
-        text += " " + curr.text;
+    let text = "";
+    let prev: PDFTextItem | undefined;
+    for (const curr of byX) {
+      if (!prev) {
+        text = curr.text;
       } else {
-        // Items are adjacent or overlapping
-        text += curr.text;
+        const gap = curr.x - (prev.x + prev.width);
+
+        if (gap > 30) {
+          // Large column gap — insert multiple spaces to preserve column alignment
+          text += "    " + curr.text;
+        } else if (gap > 5) {
+          // Small gap — single space
+          text += " " + curr.text;
+        } else {
+          // Items are adjacent or overlapping
+          text += curr.text;
+        }
       }
+      prev = curr;
     }
 
     // Use the average y of the group for sorting
@@ -160,6 +165,9 @@ export function isSkippableLine(text: string): boolean {
  */
 export function convertBDODate(mmddyy: string): string {
   const [mm, dd, yy] = mmddyy.split("/");
+  if (mm === undefined || dd === undefined || yy === undefined) {
+    throw new Error(`Invalid BDO date: "${mmddyy}"`);
+  }
   const year = parseInt(yy, 10);
   const fullYear = year >= 80 ? 1900 + year : 2000 + year;
   return `${fullYear}-${mm}-${dd}`;
@@ -191,6 +199,9 @@ export function parseTransactionLine(text: string): ParsedTransactionRow | null 
   if (!match) return null;
 
   const [, saleDate, , descriptionRaw, amountRaw] = match;
+  if (saleDate === undefined || descriptionRaw === undefined || amountRaw === undefined) {
+    return null;
+  }
 
   // Convert date
   const date = convertBDODate(saleDate);

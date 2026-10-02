@@ -122,6 +122,10 @@ describe("reconstructLines", () => {
 // ============================================================================
 
 describe("convertBDODate", () => {
+  it("throws on input without three slash-separated parts", () => {
+    expect(() => convertBDODate("12/13")).toThrow('Invalid BDO date: "12/13"');
+  });
+
   it("converts MM/DD/YY to YYYY-MM-DD for years 00-79 (2000s)", () => {
     expect(convertBDODate("12/13/25")).toBe("2025-12-13");
     expect(convertBDODate("01/02/26")).toBe("2026-01-02");
