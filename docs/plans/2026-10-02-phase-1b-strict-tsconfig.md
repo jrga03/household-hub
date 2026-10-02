@@ -1370,7 +1370,7 @@ Use superpowers:finishing-a-development-branch.
   - Analytics: overview cards, top categories, monthly trend and category pie render. "Avg. Monthly Spending" shows "₱2,650.56.428571428" (see Decisions & Deferrals; pre-existing).
   - PDF import preview: not captured (no PDF fixture in the repo).
 - Final whole-branch review: "Ready after fixes", doc-only (README lines fixed in the acceptance commit; CLAUDE.md wording left for the user).
-- Live pre-push: pending (Step 5).
+- Live pre-push (user terminal, first push of the branch at `619e40e`): `pre-push: pass` for lint 19.5s, unit tests 19.6s, tsc src 7.7s, tsc tests 1.2s, tsc strict 13.7s, then the push succeeded. Docs-only skip: verified by the push of this commit (see the next line once recorded).
 
 ## Decisions & Deferrals
 
