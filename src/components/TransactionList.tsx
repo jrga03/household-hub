@@ -168,9 +168,8 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
   // re-renders on scroll, so lastVirtualIndex advances as the user scrolls.
   const rowCount = transactions?.length ?? 0;
   const virtualItems = rowVirtualizer.getVirtualItems();
-  const lastVirtualIndex =
-    virtualItems.length > 0 ? virtualItems[virtualItems.length - 1].index : -1;
-  const firstVirtualIndex = virtualItems.length > 0 ? virtualItems[0].index : -1;
+  const lastVirtualIndex = virtualItems.at(-1)?.index ?? -1;
+  const firstVirtualIndex = virtualItems[0]?.index ?? -1;
   useEffect(() => {
     if (lastVirtualIndex < 0 || !hasNextPage || isFetchingNextPage) return;
     if (lastVirtualIndex >= rowCount - NEXT_PAGE_FETCH_THRESHOLD) {
@@ -290,12 +289,12 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
 
   const firstRenderedId =
     firstVirtualIndex >= 0 ? transactions?.[firstVirtualIndex]?.id : undefined;
-  const firstRenderedStart = virtualItems.length > 0 ? virtualItems[0].start : 0;
+  const firstRenderedStart = virtualItems[0]?.start ?? 0;
 
   useLayoutEffect(() => {
     const scrollEl = parentRef.current;
     const prev = prevAnchorRef.current;
-    const topRowId = transactions && transactions.length > 0 ? transactions[0].id : undefined;
+    const topRowId = transactions?.[0]?.id;
 
     // Only compensate for a genuine fetchPreviousPage prepend; consume the
     // flag either way so it never leaks into a later commit.
@@ -609,6 +608,7 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
               >
                 {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                   const transaction = transactions[virtualRow.index];
+                  if (!transaction) return null;
 
                   return (
                     <TableRow
@@ -752,6 +752,7 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
             >
               {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                 const transaction = transactions[virtualRow.index];
+                if (!transaction) return null;
                 const rowOpen = openRowId === transaction.id;
                 // Clear/Pending label mirrors the current status (same
                 // semantics as the table's status toggle button).
