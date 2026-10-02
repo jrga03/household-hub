@@ -69,7 +69,7 @@
     "fake-indexeddb": "^6.2.4",
     "husky": "^9.1.7",
     "jsdom": "^27.0.1",
-    "lighthouse": "^12.8.2",
+    "lighthouse": "^13.5.0",
     "lint-staged": "^16.2.4",
     "prettier": "^3.6.2",
     "shadcn": "^3.4.0",
