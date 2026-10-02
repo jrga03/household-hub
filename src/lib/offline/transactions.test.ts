@@ -88,11 +88,11 @@ describe("Offline Transaction Operations", () => {
     // Verify the outbox item landed with the entity write
     const queueItems = await db.syncQueue.toArray();
     expect(queueItems).toHaveLength(1);
-    expect(queueItems[0].entity_type).toBe("transaction");
-    expect(queueItems[0].entity_id).toBe(result.data!.id);
-    expect(queueItems[0].operation.op).toBe("create");
-    expect(queueItems[0].status).toBe("queued");
-    expect(queueItems[0].user_id).toBe(testUserId);
+    expect(queueItems[0]!.entity_type).toBe("transaction");
+    expect(queueItems[0]!.entity_id).toBe(result.data!.id);
+    expect(queueItems[0]!.operation.op).toBe("create");
+    expect(queueItems[0]!.status).toBe("queued");
+    expect(queueItems[0]!.user_id).toBe(testUserId);
   });
 
   it("should update existing transaction and queue the update", async () => {
@@ -280,7 +280,7 @@ describe("updateOfflineTransaction debt link merge", () => {
     expect(stored?.account_id).toBeUndefined();
     expect(stored?.category_id).toBeUndefined();
     expect(stored?.notes).toBeUndefined();
-    const [queueItem] = await db.syncQueue.toArray();
+    const queueItem = (await db.syncQueue.toArray())[0]!;
     expect(queueItem.operation.payload).toHaveProperty("account_id", undefined);
     expect(queueItem.operation.payload).toHaveProperty("category_id", undefined);
     expect(queueItem.operation.payload).toHaveProperty("notes", undefined);
@@ -292,7 +292,7 @@ describe("updateOfflineTransaction debt link merge", () => {
 
     await updateOfflineTransaction(tx.id, { amount_cents: 20000 }, testUserId);
 
-    const [queueItem] = await db.syncQueue.toArray();
+    const queueItem = (await db.syncQueue.toArray())[0]!;
     expect(queueItem.operation.op).toBe("update");
     expect(queueItem.operation.payload.debt_id).toBe("debt-1");
     // Amount changed on a linked transaction → the debt adjustment runs
@@ -347,7 +347,7 @@ describe("updateOfflineTransactionsStatus", () => {
 
     await updateOfflineTransactionsStatus([a.data!.id], "cleared", testUserId);
 
-    const [queueItem] = await db.syncQueue.toArray();
+    const queueItem = (await db.syncQueue.toArray())[0]!;
     expect(Object.keys(queueItem.operation.payload).sort()).toEqual(["status", "updated_at"]);
     expect(queueItem.operation.payload.status).toBe("cleared");
     expect(await db.transactions.get(a.data!.id)).toMatchObject({

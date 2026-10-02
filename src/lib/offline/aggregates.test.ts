@@ -245,9 +245,9 @@ describe("getLocalDashboardData", () => {
 
     expect(recentTransactions).toHaveLength(7); // whole fixture, under the cap
     // date desc, created_at desc: the newer transfer leg first
-    expect(recentTransactions[0].id).toBe("t4b");
-    expect(recentTransactions[1].id).toBe("t4a");
-    expect(recentTransactions[0].account).toEqual({ id: "acc-2", name: "Savings" });
+    expect(recentTransactions[0]!.id).toBe("t4b");
+    expect(recentTransactions[1]!.id).toBe("t4a");
+    expect(recentTransactions[0]!.account).toEqual({ id: "acc-2", name: "Savings" });
     const t1 = recentTransactions.find((t) => t.id === "t1");
     expect(t1?.category).toEqual({ id: "cat-food", name: "Food", color: "#ff0000" });
     expect(t1?.account).toEqual({ id: "acc-1", name: "Checking" });

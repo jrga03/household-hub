@@ -151,7 +151,7 @@ export function createTestInternalDebt(overrides?: Partial<InternalDebt>): Inter
  */
 export function createTestPayment(overrides?: Partial<DebtPayment>): DebtPayment {
   const now = new Date().toISOString();
-  const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
   return {
     id: nanoid(),
@@ -275,7 +275,7 @@ export function generateIdempotencyKey(
 export function createDateString(daysOffset: number = 0): string {
   const date = new Date();
   date.setDate(date.getDate() + daysOffset);
-  return date.toISOString().split("T")[0];
+  return date.toISOString().slice(0, 10);
 }
 
 /**

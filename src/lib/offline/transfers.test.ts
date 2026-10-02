@@ -125,7 +125,7 @@ describe("groupTransferLegs", () => {
     ]);
 
     expect(grouped).toHaveLength(1);
-    expect(grouped[0].transfer_group_id).toBe("tg-complete");
+    expect(grouped[0]!.transfer_group_id).toBe("tg-complete");
   });
 
   it("sorts transfers by date descending", () => {
@@ -145,8 +145,8 @@ describe("groupTransferLegs", () => {
       makeLeg({ type: "income", account: { id: "acc-2", name: "Savings" } }),
     ]);
 
-    expect(grouped[0].from_account_name).toBe("Unknown");
-    expect(grouped[0].to_account_name).toBe("Savings");
+    expect(grouped[0]!.from_account_name).toBe("Unknown");
+    expect(grouped[0]!.to_account_name).toBe("Savings");
   });
 });
 

@@ -388,13 +388,13 @@ describe("Debt CRUD Operations", () => {
 
       const archivedDebts = await listDebts("household-1", "external", { status: "archived" });
       expect(archivedDebts).toHaveLength(1);
-      expect(archivedDebts[0].status).toBe("archived");
+      expect(archivedDebts[0]!.status).toBe("archived");
     });
 
     it("should sort by updated_at DESC", async () => {
       const debts = await listDebts("household-1", "external");
       // The archived debt (Debt 3) should be first as it was updated most recently
-      expect(debts[0].name).toBe("Debt 3");
+      expect(debts[0]!.name).toBe("Debt 3");
     });
 
     it("should apply pagination", async () => {
@@ -452,7 +452,7 @@ describe("Debt CRUD Operations", () => {
     it("should search full name", async () => {
       const results = await searchDebtsByName("household-1", "external", "Personal Credit");
       expect(results).toHaveLength(1);
-      expect(results[0].name).toBe("Personal Credit");
+      expect(results[0]!.name).toBe("Personal Credit");
     });
   });
 
@@ -761,7 +761,7 @@ describe("Debt CRUD Operations", () => {
       });
 
       expect(activeDebts).toHaveLength(1);
-      expect(activeDebts[0].id).toBe(debt1.id);
+      expect(activeDebts[0]!.id).toBe(debt1.id);
     });
   });
 });

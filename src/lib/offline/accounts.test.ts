@@ -33,7 +33,7 @@ describe("offline accounts", () => {
     const queue = await db.syncQueue.toArray();
     expect(queue).toHaveLength(1);
     expect(queue[0]).toMatchObject({ entity_type: "account", entity_id: result.data!.id });
-    expect(queue[0].operation.op).toBe("create");
+    expect(queue[0]!.operation.op).toBe("create");
   });
 
   it("keeps e-wallet on update and queues one update", async () => {
@@ -49,7 +49,7 @@ describe("offline accounts", () => {
     expect((await db.accounts.get(created.data!.id))?.type).toBe("e-wallet");
     const queue = await db.syncQueue.toArray();
     expect(queue).toHaveLength(1);
-    expect(queue[0].operation.op).toBe("update");
+    expect(queue[0]!.operation.op).toBe("update");
   });
 
   it("queues a cleared owner_user_id when a personal account becomes household", async () => {
@@ -66,7 +66,7 @@ describe("offline accounts", () => {
     );
 
     expect(result.success).toBe(true);
-    const [queued] = await db.syncQueue.toArray();
+    const queued = (await db.syncQueue.toArray())[0]!;
     expect(queued.operation.payload).toHaveProperty("owner_user_id", undefined);
     expect(queued.operation.payload.visibility).toBe("household");
   });

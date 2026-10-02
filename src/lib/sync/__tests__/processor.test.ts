@@ -441,11 +441,11 @@ describe("SyncProcessor (local outbox)", () => {
 
       const issues = await db.syncIssues.toArray();
       expect(issues).toHaveLength(1);
-      expect(issues[0].issueType).toBe("sync-failed");
-      expect(issues[0].entityType).toBe("transaction");
-      expect(issues[0].entityId).toBe(item.entity_id);
-      expect(issues[0].canRetry).toBe(false);
-      expect(issues[0].message).toContain("violates check constraint");
+      expect(issues[0]!.issueType).toBe("sync-failed");
+      expect(issues[0]!.entityType).toBe("transaction");
+      expect(issues[0]!.entityId).toBe(item.entity_id);
+      expect(issues[0]!.canRetry).toBe(false);
+      expect(issues[0]!.message).toContain("violates check constraint");
     });
 
     it("logs a retryable sync issue when retries are exhausted (R3)", async () => {
@@ -457,9 +457,9 @@ describe("SyncProcessor (local outbox)", () => {
 
       const issues = await db.syncIssues.toArray();
       expect(issues).toHaveLength(1);
-      expect(issues[0].issueType).toBe("sync-failed");
-      expect(issues[0].entityId).toBe(item.entity_id);
-      expect(issues[0].canRetry).toBe(true);
+      expect(issues[0]!.issueType).toBe("sync-failed");
+      expect(issues[0]!.entityId).toBe(item.entity_id);
+      expect(issues[0]!.canRetry).toBe(true);
     });
 
     it("does NOT log a sync issue for a retryable failure that gets rescheduled", async () => {

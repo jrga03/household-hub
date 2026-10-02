@@ -29,7 +29,7 @@ describe("offline categories", () => {
     const queue = await db.syncQueue.toArray();
     expect(queue).toHaveLength(1);
     expect(queue[0]).toMatchObject({ entity_type: "category", entity_id: result.data!.id });
-    expect(queue[0].operation.op).toBe("create");
+    expect(queue[0]!.operation.op).toBe("create");
   });
 
   it("updates and deactivates, each queueing one update", async () => {

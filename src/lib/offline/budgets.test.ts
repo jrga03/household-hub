@@ -192,7 +192,7 @@ describe("mirrorBudgetsForMonth + getLocalBudgetGroups", () => {
     ]);
 
     const groups = await getLocalBudgetGroups(JULY);
-    const food = groups[0].budgets[0];
+    const food = groups[0]!.budgets[0]!;
 
     expect(food.actualSpentCents).toBe(20000);
     expect(food.remainingCents).toBe(-10000);
@@ -213,7 +213,7 @@ describe("mirrorBudgetsForMonth + getLocalBudgetGroups", () => {
     const groups = await getLocalBudgetGroups(JULY);
 
     expect(groups).toHaveLength(1);
-    expect(groups[0].budgets[0]).toMatchObject({ id: "b-food", budgetAmountCents: 60000 });
+    expect(groups[0]!.budgets[0]!).toMatchObject({ id: "b-food", budgetAmountCents: 60000 });
   });
 
   it("only replaces the mirrored month, other months keep their rows", async () => {
@@ -344,7 +344,7 @@ describe("offline budget mutations", () => {
       month: OCTOBER_KEY,
       amount_cents: 500000,
     });
-    const [item] = await db.syncQueue.toArray();
+    const item = (await db.syncQueue.toArray())[0]!;
     expect(item).toMatchObject({ entity_type: "budget", entity_id: result.data!.id });
     expect(item.operation.op).toBe("create");
     expect(item.operation.payload).not.toHaveProperty("created_at");
@@ -364,7 +364,7 @@ describe("offline budget mutations", () => {
 
     expect(second.data!.id).toBe(first.data!.id);
     expect(await db.budgets.count()).toBe(1);
-    const [item] = await db.syncQueue.toArray();
+    const item = (await db.syncQueue.toArray())[0]!;
     expect(item.operation.op).toBe("update");
   });
 
@@ -377,7 +377,7 @@ describe("offline budget mutations", () => {
 
     await updateOfflineBudget(created.data!.id, 3000, userId);
 
-    const [item] = await db.syncQueue.toArray();
+    const item = (await db.syncQueue.toArray())[0]!;
     expect(Object.keys(item.operation.payload).sort()).toEqual(["amount_cents", "updated_at"]);
     expect((await db.budgets.get(created.data!.id))?.amount_cents).toBe(3000);
   });
@@ -393,7 +393,7 @@ describe("offline budget mutations", () => {
 
     expect(result.success).toBe(true);
     expect(await db.budgets.get(created.data!.id)).toBeUndefined();
-    expect((await db.syncQueue.toArray())[0].operation.op).toBe("delete");
+    expect((await db.syncQueue.toArray())[0]!.operation.op).toBe("delete");
   });
 
   it("rejects an invalid amount and a missing budget without writing", async () => {

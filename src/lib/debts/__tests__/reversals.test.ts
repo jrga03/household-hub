@@ -236,7 +236,7 @@ describe("Reversal System", () => {
 
       const reversals = await getPaymentReversals(payment.payment.id);
       expect(reversals.length).toBe(1);
-      expect(reversals[0].id).toBe(reversal1.reversal.id);
+      expect(reversals[0]!.id).toBe(reversal1.reversal.id);
     });
 
     it("should return empty array for payment with no reversals", async () => {

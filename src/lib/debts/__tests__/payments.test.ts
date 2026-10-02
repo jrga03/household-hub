@@ -253,9 +253,9 @@ describe("Payment Processing", () => {
 
       expect(payments).toHaveLength(3);
       // Should be sorted by payment_date DESC
-      expect(payments[0].payment_date).toBe("2025-11-10");
-      expect(payments[1].payment_date).toBe("2025-11-05");
-      expect(payments[2].payment_date).toBe("2025-11-01");
+      expect(payments[0]!.payment_date).toBe("2025-11-10");
+      expect(payments[1]!.payment_date).toBe("2025-11-05");
+      expect(payments[2]!.payment_date).toBe("2025-11-01");
     });
   });
 });

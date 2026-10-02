@@ -117,7 +117,7 @@ describe("overlayLocalTransactions", () => {
     const merged = overlayLocalTransactions(manyServer, local, 100);
 
     expect(merged).toHaveLength(100);
-    expect(merged[0].id).toBe("l1"); // newest local row displaces the oldest server row
+    expect(merged[0]!.id).toBe("l1"); // newest local row displaces the oldest server row
   });
 
   it("does not cap the merged list when no limit is given (paged list, R10)", () => {
@@ -188,7 +188,7 @@ describe("mergeTransactionPages", () => {
     ]);
 
     expect(merged).toHaveLength(1);
-    expect(merged[0].amount).toBe(2);
+    expect(merged[0]!.amount).toBe(2);
   });
 
   it("inserts overlay-only rows in sort position without capping the list", () => {
@@ -422,8 +422,8 @@ describe("getUnsyncedLocalTransactionsWithRelations", () => {
     const rows = await getUnsyncedLocalTransactionsWithRelations("user-1");
 
     expect(rows).toHaveLength(1);
-    expect(rows[0].account).toEqual({ id: "acc-1", name: "BPI Checking" });
-    expect(rows[0].category).toBeNull();
+    expect(rows[0]!.account).toEqual({ id: "acc-1", name: "BPI Checking" });
+    expect(rows[0]!.category).toBeNull();
   });
 });
 

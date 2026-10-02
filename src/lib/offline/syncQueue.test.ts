@@ -67,10 +67,10 @@ describe("Sync Queue Integration Tests", () => {
       // Verify queue item was created locally
       const queueItems = await db.syncQueue.toArray();
       expect(queueItems).toHaveLength(1);
-      expect(queueItems[0].entity_type).toBe("transaction");
-      expect(queueItems[0].entity_id).toBe(result.data!.id);
-      expect(queueItems[0].status).toBe("queued");
-      expect(queueItems[0].operation.op).toBe("create");
+      expect(queueItems[0]!.entity_type).toBe("transaction");
+      expect(queueItems[0]!.entity_id).toBe(result.data!.id);
+      expect(queueItems[0]!.status).toBe("queued");
+      expect(queueItems[0]!.operation.op).toBe("create");
     });
   });
 
@@ -90,7 +90,7 @@ describe("Sync Queue Integration Tests", () => {
 
       expect(result.success).toBe(true);
 
-      const [queueItem] = await db.syncQueue.toArray();
+      const queueItem = (await db.syncQueue.toArray())[0]!;
       const idempotencyKey = queueItem.operation.idempotencyKey;
       expect(idempotencyKey).toBeDefined();
 
@@ -212,7 +212,7 @@ describe("Sync Queue Integration Tests", () => {
       expect(account).toBeDefined();
       expect(account?.name).toBe("Test Account");
 
-      const [queueItem] = await db.syncQueue.toArray();
+      const queueItem = (await db.syncQueue.toArray())[0]!;
       expect(queueItem.entity_type).toBe("account");
       expect(queueItem.entity_id).toBe(result.data!.id);
       expect(queueItem.operation.op).toBe("create");
@@ -236,7 +236,7 @@ describe("Sync Queue Integration Tests", () => {
       const category = await db.categories.get(result.data!.id);
       expect(category).toBeDefined();
 
-      const [queueItem] = await db.syncQueue.toArray();
+      const queueItem = (await db.syncQueue.toArray())[0]!;
       expect(queueItem.entity_type).toBe("category");
       expect(queueItem.entity_id).toBe(result.data!.id);
       expect(queueItem.operation.op).toBe("create");
@@ -275,10 +275,10 @@ describe("Sync Queue Integration Tests", () => {
         .map((item) => item.operation);
 
       expect(operations).toHaveLength(2);
-      expect(operations[0].op).toBe("create");
-      expect(operations[0].lamportClock).toBe(1);
-      expect(operations[1].op).toBe("update");
-      expect(operations[1].lamportClock).toBe(1); // After reset
+      expect(operations[0]!.op).toBe("create");
+      expect(operations[0]!.lamportClock).toBe(1);
+      expect(operations[1]!.op).toBe("update");
+      expect(operations[1]!.lamportClock).toBe(1); // After reset
     });
   });
 
@@ -306,9 +306,9 @@ describe("Sync Queue Integration Tests", () => {
         .map((item) => item.operation);
 
       expect(operations).toHaveLength(2);
-      expect(operations[0].op).toBe("create");
-      expect(operations[1].op).toBe("delete");
-      expect((operations[1].payload as { id: string }).id).toBe(createResult.data!.id);
+      expect(operations[0]!.op).toBe("create");
+      expect(operations[1]!.op).toBe("delete");
+      expect((operations[1]!.payload as { id: string }).id).toBe(createResult.data!.id);
     });
   });
 
@@ -340,17 +340,17 @@ describe("Sync Queue Integration Tests", () => {
 
       const pending = await getPendingQueueItems(testUserId);
       expect(pending).toHaveLength(2);
-      expect(pending[0].status).toBe("queued");
-      expect(pending[0].created_at <= pending[1].created_at).toBe(true);
+      expect(pending[0]!.status).toBe("queued");
+      expect(pending[0]!.created_at <= pending[1]!.created_at).toBe(true);
 
       // Schedule the first for a future retry: no longer due
-      await db.syncQueue.update(pending[0].id, {
+      await db.syncQueue.update(pending[0]!.id, {
         next_retry_at: new Date(Date.now() + 60_000).toISOString(),
       });
       expect(await getPendingQueueItems(testUserId)).toHaveLength(1);
 
       // Fail the second permanently: not due either, but still outstanding
-      await db.syncQueue.update(pending[1].id, { status: "failed" });
+      await db.syncQueue.update(pending[1]!.id, { status: "failed" });
       expect(await getPendingQueueItems(testUserId)).toHaveLength(0);
       expect(await getOutstandingQueueItems(testUserId)).toHaveLength(2);
     });
@@ -372,7 +372,7 @@ describe("Sync Queue Integration Tests", () => {
         },
         testUserId
       );
-      const [item] = await db.syncQueue.toArray();
+      const item = (await db.syncQueue.toArray())[0]!;
       await db.syncQueue.update(item.id, { status: "syncing", updated_at: staleTime });
 
       await createOfflineTransaction(
@@ -410,7 +410,7 @@ describe("Sync Queue Integration Tests", () => {
         },
         testUserId
       );
-      const [item] = await db.syncQueue.toArray();
+      const item = (await db.syncQueue.toArray())[0]!;
       const oldDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       await db.syncQueue.update(item.id, { status: "completed", synced_at: oldDate });
 
