@@ -151,6 +151,11 @@ export default defineConfig({
     globals: true,
     testTimeout: 15000, // IndexedDB integration tests need more than the 5s default
     setupFiles: "./src/test/setup.ts",
+    // Node 25+ defines its own localStorage global (undefined without
+    // --localstorage-file), which shadows jsdom's in the test environment.
+    poolOptions: {
+      forks: { execArgv: ["--no-experimental-webstorage"] },
+    },
     exclude: [
       "**/node_modules/**",
       "**/dist/**",

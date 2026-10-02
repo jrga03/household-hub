@@ -140,13 +140,13 @@ Every branch and PR automatically gets a preview deployment:
 
 Configure in Cloudflare Pages dashboard:
 
-| Setting                | Value                                     |
-| ---------------------- | ----------------------------------------- |
-| Build command          | `npm run build`                           |
-| Build output directory | `dist`                                    |
-| Root directory         | `/` (project root)                        |
-| Node version           | `20` (add `.node-version` file with `20`) |
-| Install command        | `npm ci` (auto-detected)                  |
+| Setting                | Value                     |
+| ---------------------- | ------------------------- |
+| Build command          | `npm run build`           |
+| Build output directory | `dist`                    |
+| Root directory         | `/` (project root)        |
+| Node version           | `26` (read from `.nvmrc`) |
+| Install command        | `npm ci` (auto-detected)  |
 
 ### Build Process
 
