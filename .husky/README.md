@@ -9,7 +9,7 @@ Automated code quality checks via Husky git hooks. Ensures consistent formatting
 **2 active hooks:**
 
 - **`pre-commit`** - Runs Prettier formatting on staged files via lint-staged
-- **`pre-push`** - Runs ESLint fixes and unit tests before allowing push
+- **`pre-push`** - Runs `scripts/pre-push.mjs`: lint, unit tests (`--allowOnly=false`), and every tsc program in parallel; skips pushes that change only `*.md` or `docs/**`
 
 **Infrastructure files:**
 
@@ -61,27 +61,19 @@ npx lint-staged
 
 **Purpose:** Ensure code quality and test passage before pushing to remote
 
-**Commands:**
+**Command:**
 
 ```bash
-npm run lint:fix
-npm test
+node scripts/pre-push.mjs
 ```
 
-**Behavior:**
+**Behavior:** runs these checks in parallel and prints the output of any that fail:
 
-1. **ESLint auto-fix** (`lint:fix` → `eslint . --fix`):
-   - Scans entire codebase for linting issues
-   - Automatically fixes common issues (unused vars, formatting)
-   - Fails if unfixable errors remain
-   - Typical run time: 3-5 seconds
+1. **Lint** (`npm run lint`): verifies only, never rewrites files
+2. **Unit tests** (`vitest run --allowOnly=false`): fails on any failing test or committed `.only`
+3. **Type checks** (`tsc --noEmit` for `tsconfig.json` and `tsconfig.tests.json`)
 
-2. **Unit tests** (`test` → `vitest`):
-   - Runs all Vitest unit tests
-   - Fails if any test fails
-   - Typical run time: 5-10 seconds
-
-**Total pre-push time:** 8-15 seconds
+Pushes whose changed files are all `*.md` or under `docs/` skip the checks.
 
 **Bypass option** (not recommended):
 
@@ -103,8 +95,7 @@ git push --no-verify  # Skip pre-push hook
 5. Commit completes successfully
 6. Developer attempts push: git push
 7. pre-push hook triggers:
-   - ESLint runs and auto-fixes issues
-   - All unit tests run
+   - Lint, unit tests, and type checks run in parallel
    - If all pass, push proceeds
    - If any fail, push is blocked
 8. Push completes successfully
@@ -126,12 +117,12 @@ $ git commit -m "fix: update validation"
 3. Retry commit
 ```
 
-**Pre-push failure (ESLint):**
+**Pre-push failure (lint):**
 
 ```bash
 # Scenario: Unfixable linting errors
 $ git push
-> lint:fix
+> lint
 
 ✖ ESLint found 2 errors:
   src/components/Form.tsx:15 - 'useState' is not defined
@@ -426,7 +417,7 @@ function foo(bar: any) {}
 
 ```bash
 # Run exactly what hook runs
-npm run lint:fix && npm test
+node scripts/pre-push.mjs < /dev/null
 ```
 
 ## Key Features
@@ -584,8 +575,7 @@ git add .
 git commit -m "feat: new feature"
 
 # Before pushing (optional - hook will run anyway)
-npm run lint:fix
-npm test
+node scripts/pre-push.mjs < /dev/null
 git push
 ```
 
@@ -677,12 +667,6 @@ git push
 - Example: `feat: add new feature`, `fix: resolve bug`
 - Use `commitlint` with husky
 
-**Type checking in pre-push:**
-
-- Add `tsc --noEmit` to verify types
-- Catches type errors before push
-- Alternative: Include in `lint` script
-
 **Bundle size check:**
 
 - Warn if bundle exceeds budget
@@ -713,7 +697,7 @@ git push --no-verify
 
 ```bash
 npx lint-staged       # Run pre-commit manually
-npm run lint:fix && npm test  # Run pre-push manually
+node scripts/pre-push.mjs < /dev/null  # Run pre-push manually
 ```
 
 **Reinstall hooks:**
