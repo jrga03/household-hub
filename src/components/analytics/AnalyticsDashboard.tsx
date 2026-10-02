@@ -155,5 +155,5 @@ function generateColor(index: number): string {
     "#f97316",
     "#84cc16",
   ];
-  return colors[index % colors.length];
+  return colors[index % colors.length] ?? "#6b7280";
 }

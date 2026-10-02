@@ -55,8 +55,9 @@ export function PDFImportPage() {
 
       // Try auto-detect bank if not already selected
       let bankId = s.selectedBankId;
-      if (!bankId && workerPages.length > 0) {
-        const firstPageText = workerPages[0].items.map((item) => item.text).join(" ");
+      const firstPage = workerPages[0];
+      if (!bankId && firstPage) {
+        const firstPageText = firstPage.items.map((item) => item.text).join(" ");
         const detected = detectParser(firstPageText);
         if (detected) {
           s.setSelectedBankId(detected.id);

@@ -47,8 +47,7 @@ export function PreviewStep() {
   // phones, so the viewport is a faithful proxy for the available width here.
   const isTableWidth = useMediaQuery("(min-width: 640px)");
 
-  const getEffectiveRow = (index: number): ParsedTransactionRow => {
-    const base = parsedRows[index];
+  const getEffectiveRow = (base: ParsedTransactionRow, index: number): ParsedTransactionRow => {
     const edits = userEdits.get(index);
     if (!edits) return base;
     return { ...base, ...edits };
@@ -119,8 +118,8 @@ export function PreviewStep() {
           ) : !isTableWidth ? (
             /* Card-stacked presentation (below sm): label + input pairs per row */
             <div className="max-h-96 space-y-3 overflow-y-auto">
-              {parsedRows.map((_, index) => {
-                const row = getEffectiveRow(index);
+              {parsedRows.map((base, index) => {
+                const row = getEffectiveRow(base, index);
                 const fields = getEditableFields(index, row);
                 const isLowConfidence = row.confidence < 0.7;
 
@@ -174,8 +173,8 @@ export function PreviewStep() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {parsedRows.map((_, index) => {
-                    const row = getEffectiveRow(index);
+                  {parsedRows.map((base, index) => {
+                    const row = getEffectiveRow(base, index);
                     const fields = getEditableFields(index, row);
                     const isLowConfidence = row.confidence < 0.7;
 

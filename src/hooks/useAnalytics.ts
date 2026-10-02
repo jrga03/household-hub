@@ -124,16 +124,18 @@ export function useAnalytics(startDate: Date, endDate: Date, filters?: Analytics
       const budgetsByCategory: Record<string, { total: number; name: string }> = {};
       (rawBudgets || []).forEach((budget) => {
         const categoryData = budget.categories as { name: string } | { name: string }[] | null;
-        const categoryName = Array.isArray(categoryData)
-          ? categoryData[0]?.name
-          : categoryData?.name || "Uncategorized";
-        if (!budgetsByCategory[budget.category_id]) {
+        const categoryName =
+          (Array.isArray(categoryData) ? categoryData[0]?.name : categoryData?.name) ||
+          "Uncategorized";
+        const existing = budgetsByCategory[budget.category_id];
+        if (existing) {
+          existing.total += budget.amount_cents;
+        } else {
           budgetsByCategory[budget.category_id] = {
-            total: 0,
+            total: budget.amount_cents,
             name: categoryName,
           };
         }
-        budgetsByCategory[budget.category_id].total += budget.amount_cents;
       });
 
       // Convert back to array format for processBudgetVariance

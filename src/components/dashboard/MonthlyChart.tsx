@@ -28,17 +28,15 @@ interface TooltipPayload {
 interface CustomTooltipProps {
   active?: boolean;
   payload?: Array<{
-    value: number;
     payload: TooltipPayload;
   }>;
 }
 
 function CustomTooltip({ active, payload }: CustomTooltipProps) {
-  if (!active || !payload || !payload.length) {
+  const data = payload?.[0]?.payload;
+  if (!active || !data) {
     return null;
   }
-
-  const data = payload[0].payload;
 
   return (
     <div className="bg-card border rounded-lg p-3 shadow-lg">
@@ -46,11 +44,11 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
       <div className="space-y-1">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-income" />
-          <span className="text-sm">Income: {formatPHP(payload[0].value)}</span>
+          <span className="text-sm">Income: {formatPHP(data.incomeCents)}</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-expense" />
-          <span className="text-sm">Expenses: {formatPHP(payload[1].value)}</span>
+          <span className="text-sm">Expenses: {formatPHP(data.expenseCents)}</span>
         </div>
       </div>
     </div>
