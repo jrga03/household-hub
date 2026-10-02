@@ -20,6 +20,11 @@ afterAll(() => {
 });
 
 describe("parseLocalDate", () => {
+  it("returns an Invalid Date when a date part is missing", () => {
+    expect(Number.isNaN(parseLocalDate("2026-07").getTime())).toBe(true);
+    expect(Number.isNaN(parseLocalDate("").getTime())).toBe(true);
+  });
+
   it("parses yyyy-MM-dd as LOCAL midnight, not UTC midnight", () => {
     const date = parseLocalDate("2026-07-05");
 

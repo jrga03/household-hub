@@ -1489,9 +1489,9 @@ async function fetchBudgetGroupsFromServer(month: Date): Promise<BudgetGroup[]> 
 
   // 3. Fetch actual spending for these categories
   // CRITICAL: Exclude transfers from spending calculation
-  const categoryIds = budgets.map((b: { categories: { id: string }[] | { id: string } }) => {
+  const categoryIds = budgets.flatMap((b: { categories: { id: string }[] | { id: string } }) => {
     const cat = Array.isArray(b.categories) ? b.categories[0] : b.categories;
-    return cat.id;
+    return cat ? [cat.id] : [];
   });
 
   const { data: transactions, error: transactionsError } = await supabase
@@ -1513,7 +1513,7 @@ async function fetchBudgetGroupsFromServer(month: Date): Promise<BudgetGroup[]> 
   });
 
   // Build budget objects
-  const budgetObjects: Budget[] = budgets.map(
+  const budgetObjects: Budget[] = budgets.flatMap(
     (b: {
       id: string;
       amount_cents: number;
@@ -1522,23 +1522,26 @@ async function fetchBudgetGroupsFromServer(month: Date): Promise<BudgetGroup[]> 
         | { id: string; name: string; color: string; parent_id: string | null };
     }) => {
       const category = Array.isArray(b.categories) ? b.categories[0] : b.categories;
+      if (!category) return [];
       const parent = parents?.find((p) => p.id === category.parent_id);
       const actualSpent = spendingMap.get(category.id) || 0;
       const remaining = b.amount_cents - actualSpent;
       const percentUsed = b.amount_cents > 0 ? (actualSpent / b.amount_cents) * 100 : 0;
 
-      return {
-        id: b.id,
-        categoryId: category.id,
-        categoryName: category.name,
-        categoryColor: category.color,
-        parentCategoryName: parent?.name || "Uncategorized",
-        budgetAmountCents: b.amount_cents,
-        actualSpentCents: actualSpent,
-        remainingCents: remaining,
-        percentUsed,
-        isOverBudget: actualSpent > b.amount_cents,
-      };
+      return [
+        {
+          id: b.id,
+          categoryId: category.id,
+          categoryName: category.name,
+          categoryColor: category.color,
+          parentCategoryName: parent?.name || "Uncategorized",
+          budgetAmountCents: b.amount_cents,
+          actualSpentCents: actualSpent,
+          remainingCents: remaining,
+          percentUsed,
+          isOverBudget: actualSpent > b.amount_cents,
+        },
+      ];
     }
   );
 

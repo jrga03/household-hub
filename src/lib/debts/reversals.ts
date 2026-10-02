@@ -166,7 +166,7 @@ export async function reverseDebtPayment(data: CreateReversalData): Promise<Reve
     internal_debt_id: originalPayment.internal_debt_id,
     transaction_id: originalPayment.transaction_id, // Link to same transaction
     amount_cents: reversalAmount,
-    payment_date: new Date().toISOString().split("T")[0], // Today's date
+    payment_date: new Date().toISOString().slice(0, 10), // Today's date
     is_reversal: true,
     reverses_payment_id: data.payment_id,
     adjustment_reason: data.reason,

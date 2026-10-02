@@ -72,8 +72,7 @@ export async function detectDuplicates(
   // Find duplicates in import data
   const duplicates: DuplicateMatch[] = [];
 
-  for (let i = 0; i < importData.length; i++) {
-    const importRow = importData[i];
+  for (const [i, importRow] of importData.entries()) {
     const fingerprint = generateFingerprint(importRow);
 
     if (existingFingerprints.has(fingerprint)) {

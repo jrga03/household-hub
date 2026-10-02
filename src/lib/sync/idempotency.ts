@@ -168,8 +168,12 @@ export function parseIdempotencyKey(key: string): IdempotencyKeyParts | null {
       return null;
     }
 
-    // Parse from end (lamport clock is always last)
+    // Parse from end (lamport clock is always last); device ID is first
     const lamportClockStr = parts[parts.length - 1];
+    const deviceId = parts[0];
+    if (lamportClockStr === undefined || deviceId === undefined) {
+      return null;
+    }
     const lamportClock = parseInt(lamportClockStr, 10);
 
     // Validate lamport clock is numeric
@@ -177,9 +181,6 @@ export function parseIdempotencyKey(key: string): IdempotencyKeyParts | null {
       console.warn("Invalid lamport clock in idempotency key:", key);
       return null;
     }
-
-    // Device ID is first component (may be part of UUID)
-    const deviceId = parts[0];
 
     // Entity type is at fixed position 1 (always second component)
     const entityType = parts[1] as EntityType;

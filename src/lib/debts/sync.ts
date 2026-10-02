@@ -167,13 +167,13 @@ export async function getSyncStatusForDebt(
       .filter((item) => item.entity_type === entityType && item.status !== "completed")
       .toArray();
 
-    if (outstanding.length === 0) {
-      return "synced";
-    }
-
     // Most recent item wins
     outstanding.sort((a, b) => b.created_at.localeCompare(a.created_at));
-    const status = outstanding[0].status as SyncQueueStatus;
+    const latest = outstanding[0];
+    if (!latest) {
+      return "synced";
+    }
+    const status = latest.status as SyncQueueStatus;
 
     if (status === "syncing") return "syncing";
     if (status === "queued") return "queued";

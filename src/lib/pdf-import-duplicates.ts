@@ -57,11 +57,11 @@ export async function detectPDFDuplicates(
   }
 
   // Check each row against existing fingerprints
-  for (let i = 0; i < rowFingerprints.length; i++) {
-    if (existingFingerprints.has(rowFingerprints[i])) {
+  rowFingerprints.forEach((fingerprint, i) => {
+    if (existingFingerprints.has(fingerprint)) {
       duplicateIndices.add(i);
     }
-  }
+  });
 
   return duplicateIndices;
 }

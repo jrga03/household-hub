@@ -273,7 +273,7 @@ export class CSVExporter {
 
     // Convert to YYYY-MM-DD
     const dateObj = typeof date === "string" ? new Date(date) : date;
-    return dateObj.toISOString().split("T")[0];
+    return dateObj.toISOString().slice(0, 10);
   }
 
   /**

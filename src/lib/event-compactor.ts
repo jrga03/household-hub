@@ -221,9 +221,10 @@ export class EventCompactor {
   }> {
     // Fetch all events for this entity, sorted by lamport clock
     const events = await db.events.where("entity_id").equals(entityId).sortBy("lamport_clock");
+    const firstEvent = events[0];
 
     // Skip if not enough events to compact
-    if (events.length <= SAFETY_BUFFER) {
+    if (!firstEvent || events.length <= SAFETY_BUFFER) {
       console.log(
         `[EventCompactor] Skipping entity ${entityId}: only ${events.length} events (need > ${SAFETY_BUFFER})`
       );
@@ -241,16 +242,16 @@ export class EventCompactor {
     // Create snapshot event
     const snapshotEvent: TransactionEvent = {
       id: nanoid(),
-      household_id: events[0].household_id,
+      household_id: firstEvent.household_id,
       entity_id: entityId,
-      entity_type: events[0].entity_type,
+      entity_type: firstEvent.entity_type,
       op: "snapshot", // Special operation type for compaction snapshots
       payload: snapshot.state,
       lamport_clock: snapshot.lamportClock,
       vector_clock: compactedVectorClock,
       timestamp: new Date().toISOString(), // ISO timestamp string (not number)
       device_id: "system-compactor",
-      actor_user_id: events[0].actor_user_id,
+      actor_user_id: firstEvent.actor_user_id,
       idempotency_key: `snapshot-${entityId}-${Date.now()}`,
       event_version: 1,
     };
