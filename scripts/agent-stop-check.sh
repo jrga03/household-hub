@@ -9,9 +9,9 @@ input=$(cat)
 session=$(printf '%s' "$input" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).session_id||"nosession")}catch{process.stdout.write("nosession")}})')
 
 base=$(git merge-base origin/main HEAD 2>/dev/null || git merge-base main HEAD 2>/dev/null || echo HEAD)
-changed=$( { git diff --name-only --diff-filter=ACMR "$base"; git ls-files --others --exclude-standard; } \
+changed=$( { git diff --no-renames --name-only --diff-filter=ACMR "$base"; git ls-files --others --exclude-standard; } \
   | grep -E '\.(ts|tsx)$' | sort -u)
-deleted=$(git diff --name-only --diff-filter=D "$base" | grep -E '\.(ts|tsx)$')
+deleted=$(git diff --no-renames --name-only --diff-filter=D "$base" | grep -E '\.(ts|tsx)$')
 [ -z "$changed" ] && [ -z "$deleted" ] && exit 0
 
 marker="${TMPDIR:-/tmp}/household-hub-stop-${session}"
