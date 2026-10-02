@@ -9,7 +9,7 @@ const ZERO_SHA = /^0+$/;
 
 export const CHECKS = [
   { name: "lint", command: "npm", args: ["run", "lint"] },
-  { name: "unit tests", command: "npx", args: ["vitest", "run", "--allowOnly=false"] },
+  { name: "unit tests", command: "npx", args: ["vitest", "run", "--allowOnly=false", "--silent"] },
   { name: "tsc src", command: "npx", args: ["tsc", "--noEmit", "-p", "tsconfig.json"] },
   { name: "tsc tests", command: "npx", args: ["tsc", "--noEmit", "-p", "tsconfig.tests.json"] },
   { name: "tsc strict", command: "npx", args: ["tsc", "--noEmit", "-p", "tsconfig.strict.json"] },
