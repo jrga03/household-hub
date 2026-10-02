@@ -69,8 +69,8 @@ The docs-only classification is a pure exported function with a unit test. `.hus
 2. Branch; commit `tsconfig.strict.json` (unwired). Count: 190.
 3. Pre-push rework (section 3, without the strict program) with its unit test.
 4. Stop hook gaps (section 4, without the strict program).
-5. lib production sites, TDD where behavior changes (event-compactor empty input, debts/sync and idempotency throws).
-6. `bdo-credit-card.ts`, TDD for the parser skip and the `convertBDODate` throw.
+5. lib production sites. Planning found every guard here sits behind an existing check, so none adds reachable behavior; `parseLocalDate` gets a characterization test (see the plan's Decisions & Deferrals).
+6. `bdo-credit-card.ts`, TDD for the `convertBDODate` throw (the `parseTransactionLine` guard is unreachable: every regex group is required).
 7. Scattered UI and hooks (charts, analytics, PDF import, `useAnalytics`, `supabaseQueries`).
 8. `TransactionList.tsx`.
 9. Test files.
