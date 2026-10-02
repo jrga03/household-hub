@@ -1319,8 +1319,8 @@ Expected: `11 passed`.
 ```bash
 PW_TEST_HTML_REPORT_OPEN=never npm run test:e2e -- --project=chromium --reporter=list > "$SCRATCH/e2e-branch.txt" 2>&1; tail -6 "$SCRATCH/e2e-branch.txt"
 perl -ne 'print "$1 $2 › $3\n" if /^\s*(✓|✘|-)\s+\d+\s+\[chromium\]\s+›\s+(\S+?):\d+:\d+\s+›\s+(.*?)(?:\s+\(\d[\d.]*m?s\))?\s*$/' "$SCRATCH/e2e-branch.txt" | sort -u > "$SCRATCH/e2e-branch-norm.txt"
-grep '^✓' docs/plans/2026-10-02-phase-1b-e2e-baseline.txt | cut -c3- | sort > "$SCRATCH/pass-main.txt"
-grep '^✓' "$SCRATCH/e2e-branch-norm.txt" | cut -c3- | sort > "$SCRATCH/pass-branch.txt"
+grep '^✓' docs/plans/2026-10-02-phase-1b-e2e-baseline.txt | sed 's/^✓ //' | sort > "$SCRATCH/pass-main.txt"
+grep '^✓' "$SCRATCH/e2e-branch-norm.txt" | sed 's/^✓ //' | sort > "$SCRATCH/pass-branch.txt"
 echo "regressions:"; comm -23 "$SCRATCH/pass-main.txt" "$SCRATCH/pass-branch.txt"
 echo "newly passing:"; comm -13 "$SCRATCH/pass-main.txt" "$SCRATCH/pass-branch.txt"
 ```
