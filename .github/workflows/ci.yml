@@ -32,6 +32,12 @@ jobs:
       - name: Typecheck tests
         run: npx tsc --noEmit -p tsconfig.tests.json
 
+      # noUncheckedIndexedAccess over sync, offline, debts and their imports
+      # (roadmap 4.8). Delete with tsconfig.strict.json when Phase 3 enables
+      # the flag repo-wide.
+      - name: Typecheck strict
+        run: npx tsc --noEmit -p tsconfig.strict.json
+
       - name: Run unit tests
         run: npx vitest run # `run` = single pass (bare `vitest` is watch mode)
 

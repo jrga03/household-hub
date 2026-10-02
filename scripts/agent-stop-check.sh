@@ -22,7 +22,7 @@ current=$( {
   [ -z "$changed" ] || cat $changed
   git diff --name-status "$base"
   git rev-parse HEAD
-  cat eslint.config.js tsconfig.json tsconfig.tests.json package-lock.json .nvmrc 2>/dev/null
+  cat eslint.config.js tsconfig.json tsconfig.tests.json tsconfig.strict.json package-lock.json .nvmrc 2>/dev/null
   node -v
 } | git hash-object --stdin)
 if [ -f "$marker" ]; then
@@ -40,6 +40,7 @@ fi
 # Phase 3 exit criterion adds --max-warnings=0 here (roadmap section 5).
 output=$( { [ -z "$changed" ] || npx eslint $changed 2>&1; } \
   && npx tsc --noEmit -p tsconfig.json 2>&1 \
+  && npx tsc --noEmit -p tsconfig.strict.json 2>&1 \
   && { [ -z "$typecheck_tests" ] || npx tsc --noEmit -p tsconfig.tests.json 2>&1; })
 if [ $? -eq 0 ]; then
   printf 'pass:%s' "$current" > "$marker"
