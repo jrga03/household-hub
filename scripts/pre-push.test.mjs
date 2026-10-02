@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isDocsOnly, parsePushedRefs, shouldSkipChecks } from "./pre-push.mjs";
+import { isDocsOnly, parsePushedRefs, readPushInput, shouldSkipChecks } from "./pre-push.mjs";
 
 const SHA_A = "a".repeat(40);
 const SHA_B = "b".repeat(40);
@@ -65,5 +65,21 @@ describe("shouldSkipChecks", () => {
         throw new Error("unknown sha");
       })
     ).toBe(false);
+  });
+});
+
+describe("readPushInput", () => {
+  it("returns an empty string without reading when stdin is a terminal", () => {
+    const stdin = {
+      isTTY: true,
+      get fd() {
+        throw new Error("terminal stdin must not be read");
+      },
+    };
+    expect(readPushInput(stdin)).toBe("");
+  });
+
+  it("returns an empty string when reading stdin throws", () => {
+    expect(readPushInput({ isTTY: false, fd: -1 })).toBe("");
   });
 });

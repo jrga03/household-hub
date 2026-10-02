@@ -417,7 +417,7 @@ function foo(bar: any) {}
 
 ```bash
 # Run exactly what hook runs
-node scripts/pre-push.mjs < /dev/null
+node scripts/pre-push.mjs
 ```
 
 ## Key Features
@@ -575,7 +575,7 @@ git add .
 git commit -m "feat: new feature"
 
 # Before pushing (optional - hook will run anyway)
-node scripts/pre-push.mjs < /dev/null
+node scripts/pre-push.mjs
 git push
 ```
 
@@ -697,7 +697,7 @@ git push --no-verify
 
 ```bash
 npx lint-staged       # Run pre-commit manually
-node scripts/pre-push.mjs < /dev/null  # Run pre-push manually
+node scripts/pre-push.mjs  # Run pre-push manually
 ```
 
 **Reinstall hooks:**

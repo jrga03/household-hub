@@ -34,6 +34,15 @@ export function parsePushedRefs(stdin) {
     }));
 }
 
+export function readPushInput(stdin) {
+  if (stdin.isTTY) return "";
+  try {
+    return readFileSync(stdin.fd, "utf8");
+  } catch {
+    return "";
+  }
+}
+
 export function shouldSkipChecks(refs, listFiles) {
   if (refs.length === 0) return false;
   for (const ref of refs) {
@@ -73,7 +82,7 @@ function runCheck({ name, command, args }) {
 }
 
 async function main() {
-  const refs = parsePushedRefs(readFileSync(0, "utf8"));
+  const refs = parsePushedRefs(readPushInput(process.stdin));
   if (shouldSkipChecks(refs, changedFiles)) {
     console.log("pre-push: docs-only push, checks skipped");
     return 0;
