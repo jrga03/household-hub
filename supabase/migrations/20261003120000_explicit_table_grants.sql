@@ -4,6 +4,7 @@
 -- (17.6.1.143) do not, so a fresh database was unusable by the app. Naming the grants
 -- here makes every database behave the same. On production this is a no-op except
 -- that anon loses its table access; RLS stays the row-level gate for authenticated.
+-- 20261003120100_privilege_parity.sql finishes the job (authenticated DML only, default privileges).
 
 grant select, insert, update, delete on table
   public.accounts,
