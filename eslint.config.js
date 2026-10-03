@@ -39,6 +39,7 @@ export default [
       ".lighthouseci/**",
       "*.config.js",
       "src/routeTree.gen.ts",
+      "src/types/database.types.ts",
     ],
   },
   js.configs.recommended,

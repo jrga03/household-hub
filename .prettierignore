@@ -7,6 +7,7 @@ build/
 
 # Generated files
 src/routeTree.gen.ts
+src/types/database.types.ts
 
 # Lock files
 package-lock.json
