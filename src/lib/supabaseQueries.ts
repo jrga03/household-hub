@@ -984,9 +984,9 @@ export async function fetchCategoryTotalsFromServer(month: Date): Promise<Catego
     };
 
     if (t.type === "expense") {
-      existing.expense += t.amount_cents ?? 0;
+      existing.expense += t.amount_cents;
     } else if (t.type === "income") {
-      existing.income += t.amount_cents ?? 0;
+      existing.income += t.amount_cents;
     }
     existing.count++;
 
@@ -1291,19 +1291,19 @@ export async function fetchDashboardDataFromServer(currentMonth: Date): Promise<
   // Calculate summary
   const totalIncome = (currentTransactions || [])
     .filter((t) => t.type === "income")
-    .reduce((sum, t) => sum + (t.amount_cents ?? 0), 0);
+    .reduce((sum, t) => sum + t.amount_cents, 0);
 
   const totalExpense = (currentTransactions || [])
     .filter((t) => t.type === "expense")
-    .reduce((sum, t) => sum + (t.amount_cents ?? 0), 0);
+    .reduce((sum, t) => sum + t.amount_cents, 0);
 
   const previousIncome = (previousTransactions || [])
     .filter((t) => t.type === "income")
-    .reduce((sum, t) => sum + (t.amount_cents ?? 0), 0);
+    .reduce((sum, t) => sum + t.amount_cents, 0);
 
   const previousExpense = (previousTransactions || [])
     .filter((t) => t.type === "expense")
-    .reduce((sum, t) => sum + (t.amount_cents ?? 0), 0);
+    .reduce((sum, t) => sum + t.amount_cents, 0);
 
   // Enhanced metrics per DATABASE.md Monthly Summary Query spec
   const uniqueDates = new Set((currentTransactions || []).map((t) => t.date));
@@ -1329,16 +1329,16 @@ export async function fetchDashboardDataFromServer(currentMonth: Date): Promise<
     const month = subMonths(currentMonth, i);
     const monthKey = format(month, "yyyy-MM");
     const monthTransactions = (trendTransactions || []).filter(
-      (t) => t.date !== null && format(new Date(t.date), "yyyy-MM") === monthKey
+      (t) => t.date.slice(0, 7) === monthKey
     );
 
     const income = monthTransactions
       .filter((t) => t.type === "income")
-      .reduce((sum, t) => sum + (t.amount_cents ?? 0), 0);
+      .reduce((sum, t) => sum + t.amount_cents, 0);
 
     const expense = monthTransactions
       .filter((t) => t.type === "expense")
-      .reduce((sum, t) => sum + (t.amount_cents ?? 0), 0);
+      .reduce((sum, t) => sum + t.amount_cents, 0);
 
     monthlyTrend.push({
       month: format(month, "MMM"),
@@ -1353,7 +1353,7 @@ export async function fetchDashboardDataFromServer(currentMonth: Date): Promise<
     .filter((t) => t.type === "expense" && t.category_id)
     .forEach((t) => {
       const existing = categoryTotals.get(t.category_id!) || 0;
-      categoryTotals.set(t.category_id!, existing + (t.amount_cents ?? 0));
+      categoryTotals.set(t.category_id!, existing + t.amount_cents);
     });
 
   const categoryBreakdown = Array.from(categoryTotals.entries())
@@ -1560,7 +1560,7 @@ export async function fetchBudgetGroupsFromServer(month: Date): Promise<BudgetGr
   transactions?.forEach((t) => {
     if (!t.category_id) return; // excluded by the .in() filter; narrows the type
     const existing = spendingMap.get(t.category_id) || 0;
-    spendingMap.set(t.category_id, existing + (t.amount_cents ?? 0));
+    spendingMap.set(t.category_id, existing + t.amount_cents);
   });
 
   // Build budget objects

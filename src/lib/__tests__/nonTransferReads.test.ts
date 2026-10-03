@@ -12,6 +12,7 @@ vi.mock("@/lib/offline/budgets", async (importOriginal) => ({
   mirrorBudgetsForMonth: vi.fn(),
 }));
 
+// Relations are asserted in call order so swapping which query reads the view fails.
 // Every query resolves to an empty result; only the relation names matter here.
 function recordRelations(): string[] {
   const relations: string[] = [];
@@ -31,14 +32,6 @@ function recordRelations(): string[] {
   return relations;
 }
 
-function transactionRelationCounts(relations: string[]) {
-  const counts: Record<string, number> = {};
-  for (const relation of relations.filter((name) => name.startsWith("transactions"))) {
-    counts[relation] = (counts[relation] ?? 0) + 1;
-  }
-  return counts;
-}
-
 const month = new Date(2026, 9, 1);
 
 describe("totals read transactions only through transactions_non_transfer", () => {
@@ -47,19 +40,30 @@ describe("totals read transactions only through transactions_non_transfer", () =
     [
       "dashboard",
       () => fetchDashboardDataFromServer(month),
-      { transactions_non_transfer: 3, transactions: 1 },
+      [
+        "transactions_non_transfer",
+        "transactions_non_transfer",
+        "transactions_non_transfer",
+        "categories",
+        "accounts",
+        "transactions",
+      ],
     ],
     [
       "category totals",
       () => fetchCategoryTotalsFromServer(month),
-      { transactions_non_transfer: 1 },
+      ["categories", "transactions_non_transfer"],
     ],
-    ["budget groups", () => fetchBudgetGroupsFromServer(month), { transactions_non_transfer: 1 }],
+    [
+      "budget groups",
+      () => fetchBudgetGroupsFromServer(month),
+      ["budgets", "categories", "transactions_non_transfer"],
+    ],
   ])("%s", async (_name, fetchTotals, expected) => {
     const relations = recordRelations();
 
     await fetchTotals();
 
-    expect(transactionRelationCounts(relations)).toEqual(expected);
+    expect(relations).toEqual(expected);
   });
 });
