@@ -21,7 +21,7 @@ select lives_ok(
      values ('device-a1-2', tests.id('user_a1'), tests.household('h1'), 'A1 tablet', 'web', 'device-a1-2') $$,
   'user can register own device');
 select tests.authenticate_as_anon();
-select is_empty($$ select id from public.devices $$, 'anon sees no devices');
+select throws_ok($$ select id from public.devices $$, '42501', null, 'anon has no access to devices');
 
 select * from finish();
 rollback;

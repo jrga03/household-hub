@@ -51,7 +51,7 @@ select is_empty($$ delete from public.transactions where id = tests.id('tx_h1') 
   'other household cannot delete');
 
 select tests.authenticate_as_anon();
-select is_empty($$ select id from public.transactions $$, 'anon sees no transactions');
+select throws_ok($$ select id from public.transactions $$, '42501', null, 'anon has no access to transactions');
 
 select * from finish();
 rollback;

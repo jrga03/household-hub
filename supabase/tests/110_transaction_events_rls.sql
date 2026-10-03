@@ -32,7 +32,7 @@ select tests.authenticate_as('b1');
 select results_eq($$ select id from public.transaction_events $$, $$ values (tests.id('ev_h2')) $$,
   'other household sees only its own events');
 select tests.authenticate_as_anon();
-select is_empty($$ select id from public.transaction_events $$, 'anon sees no events');
+select throws_ok($$ select id from public.transaction_events $$, '42501', null, 'anon has no access to transaction_events');
 
 select * from finish();
 rollback;

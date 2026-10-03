@@ -15,7 +15,7 @@ select tests.authenticate_as('b1');
 select results_eq($$ select id from public.accounts $$, $$ values (tests.id('acc_h2')) $$,
   'other household sees only its own accounts');
 select tests.authenticate_as_anon();
-select is_empty($$ select id from public.accounts $$, 'anon sees no accounts');
+select throws_ok($$ select id from public.accounts $$, '42501', null, 'anon has no access to accounts');
 
 select tests.authenticate_as('a2');
 select lives_ok(

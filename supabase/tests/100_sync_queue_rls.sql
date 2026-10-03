@@ -26,7 +26,7 @@ select is_empty($$ delete from public.sync_queue where id = tests.id('sq_a2') re
 select tests.authenticate_as('b1');
 select is_empty($$ select id from public.sync_queue $$, 'other household sees no queue items');
 select tests.authenticate_as_anon();
-select is_empty($$ select id from public.sync_queue $$, 'anon sees no queue items');
+select throws_ok($$ select id from public.sync_queue $$, '42501', null, 'anon has no access to sync_queue');
 
 select * from finish();
 rollback;

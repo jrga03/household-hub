@@ -18,7 +18,7 @@ select is_empty(
 select is_empty($$ delete from public.push_subscriptions where id = tests.id('ps_a2') returning id $$,
   'user cannot delete another user''s subscription');
 select tests.authenticate_as_anon();
-select is_empty($$ select id from public.push_subscriptions $$, 'anon sees no subscriptions');
+select throws_ok($$ select id from public.push_subscriptions $$, '42501', null, 'anon has no access to push_subscriptions');
 
 select * from finish();
 rollback;

@@ -24,7 +24,7 @@ select is_empty(
 select is_empty($$ delete from public.categories where id = tests.id('cat_h1_child') returning id $$,
   'other household cannot delete');
 select tests.authenticate_as_anon();
-select is_empty($$ select id from public.categories $$, 'anon sees no categories');
+select throws_ok($$ select id from public.categories $$, '42501', null, 'anon has no access to categories');
 
 select * from finish();
 rollback;

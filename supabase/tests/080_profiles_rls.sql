@@ -26,7 +26,7 @@ select tests.authenticate_as('b1');
 select results_eq($$ select id from public.profiles $$, $$ values (tests.id('user_b1')) $$,
   'other household sees only its own profiles');
 select tests.authenticate_as_anon();
-select is_empty($$ select id from public.profiles $$, 'anon sees no profiles');
+select throws_ok($$ select id from public.profiles $$, '42501', null, 'anon has no access to profiles');
 
 select * from finish();
 rollback;

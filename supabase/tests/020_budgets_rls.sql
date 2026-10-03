@@ -21,7 +21,7 @@ select is_empty(
 select is_empty($$ delete from public.budgets where id = tests.id('bud_h1') returning id $$,
   'other household cannot delete');
 select tests.authenticate_as_anon();
-select is_empty($$ select id from public.budgets $$, 'anon sees no budgets');
+select throws_ok($$ select id from public.budgets $$, '42501', null, 'anon has no access to budgets');
 
 select * from finish();
 rollback;

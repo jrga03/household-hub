@@ -20,7 +20,7 @@ select is_empty(
 select is_empty($$ delete from public.debts where id = tests.id('debt_h1') returning id $$,
   'other household cannot delete');
 select tests.authenticate_as_anon();
-select is_empty($$ select id from public.debts $$, 'anon sees no debts');
+select throws_ok($$ select id from public.debts $$, '42501', null, 'anon has no access to debts');
 
 select * from finish();
 rollback;

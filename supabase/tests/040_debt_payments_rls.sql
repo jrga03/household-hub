@@ -22,7 +22,7 @@ select throws_ok(
      values (tests.household('h1'), tests.id('debt_h1'), tests.id('tx_h1'), 500, current_date, 'device-b1') $$,
   '42501', null, 'other household cannot insert');
 select tests.authenticate_as_anon();
-select is_empty($$ select id from public.debt_payments $$, 'anon sees no payments');
+select throws_ok($$ select id from public.debt_payments $$, '42501', null, 'anon has no access to debt_payments');
 
 select * from finish();
 rollback;
