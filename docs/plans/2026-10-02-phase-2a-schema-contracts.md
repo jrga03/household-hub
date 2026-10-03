@@ -35,6 +35,7 @@
 - [ ] Task 6: `transactions_non_transfer` view
 - [ ] Task 7: Reads switch to the view; analytics parent-category filter
 - [ ] Task 8: CI split
+- [ ] Task 8a: Explicit table grants; diagnose the CI Chromium install hang (added 2026-10-03 after the first CI run)
 - [ ] Task 9: Acceptance and docs
 
 ---
@@ -1654,6 +1655,24 @@ If `database` fails at `gen types` or `test db` because Postgres alone is not en
 
 ---
 
+### Task 8a: Explicit table grants; diagnose the CI Chromium install hang
+
+Added 2026-10-03. The first CI run (37132227085) failed `database`: every RLS file stopped at its first query with `permission denied for table <t>`. Production and the linked local stack run `supabase/postgres:17.6.1.063` (`supabase/.temp/postgres-version`), whose image set default privileges granting `anon`, `authenticated` and `service_role` full access in `public`. CI gets the CLI default `17.6.1.143`, which no longer does. No migration ever granted table access, so any fresh database is unusable by the app. `e2e-smoke` never reached its tests: `npx playwright install --with-deps chromium` went silent for 18 minutes after the download finished and hit the job timeout.
+
+**Files:**
+
+- Create: `supabase/migrations/20261003120000_explicit_table_grants.sql`
+- Modify: the anon assertions in `supabase/tests/0*_rls.sql` and `120_transactions_rls.sql` (12 files)
+- Modify: `.github/workflows/ci.yml` (`e2e-smoke` install steps)
+
+- [ ] **Step 1: Migration.** For the 12 public tables by name: `GRANT SELECT, INSERT, UPDATE, DELETE … TO authenticated`; `GRANT ALL … TO service_role`; `REVOKE ALL … FROM anon`. `GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated, service_role`. Leave `transactions_non_transfer` grants as they are (select for authenticated only). Header comment: why (image default privileges changed; production is a no-op except the anon revoke).
+- [ ] **Step 2: anon tests.** Each RLS file's `is_empty($$ select id from public.<t> $$, 'anon sees no …')` becomes `throws_ok($$ select id from public.<t> $$, '42501', null, 'anon has no access to <t>')`.
+- [ ] **Step 3: Verify on the CI image locally.** Copy `supabase/config.toml`, `supabase/migrations/` and `supabase/tests/` to `$SCRATCH/fresh/supabase/`, set a different `project_id` and free ports for `[db]` (and shadow), with no `.temp`, so the CLI uses its default image. `supabase db start --workdir $SCRATCH/fresh`, confirm the image tag is `17.6.1.143`, run `supabase db lint --fail-on error`, `supabase test db`, and `gen types` (diff against the committed file) with `--workdir`. All must pass. Then `supabase stop --no-backup --workdir $SCRATCH/fresh` (never without `--workdir`: that would stop the dev stack). Also run the suite on the dev stack after `supabase migration up`.
+- [ ] **Step 4: CI install steps.** Replace the single install step with `npx playwright install-deps chromium` and `npx playwright install chromium`, each with `timeout-minutes: 6` and `DEBUG: pw:install` in `env`.
+- [ ] **Step 5: Commit, push (user), watch.** `feat(db): explicit table grants; anon has no table access` and `ci: split Playwright install with debug logging and step timeouts`. Record the run URL and each job's conclusion; if the install hangs again, read the `pw:install` log and record the last line before the hang.
+
+---
+
 ### Task 9: Acceptance and docs
 
 **Files:**
@@ -1705,6 +1724,8 @@ Use superpowers:finishing-a-development-branch. Migrations reach production only
 - **pgTAP helpers live in a committed `tests` schema created by `000_helpers.sql` (decided while planning).** Why: `supabase test db` runs files in name order, one session each, so shared fixtures must persist; Supabase documents the same pattern. Cost: the local dev database keeps a `tests` schema (not in `public`, so invisible to `gen types` and `db lint`). Revisit: never.
 - **`000_helpers.sql` does not create the pgTAP extension (found in Task 4).** Why: `supabase test db` installs pgTAP for the run and drops it afterwards; committing `create extension` left it installed, and `supabase db lint` then lints pgTAP's own functions in `extensions` and exits 1. Revisit: never.
 - **The `e2e` job now `needs: [lint, typecheck, unit-tests, build]` (found in Task 8).** Why: it had `needs: ci`, and a `needs` naming a removed job makes GitHub reject the whole workflow. Revisit: never.
+- **Table privileges are explicit in a migration; `anon` gets none (decided 2026-10-03).** Why: the CI image (`17.6.1.143`) no longer ships default grants, so a fresh database built from migrations gave `authenticated` no table access; production (`17.6.1.063`) has blanket grants from its image. Naming the 12 tables keeps the transfer view read-only and future tables unexposed until granted. Cost: in production the anon revoke turns a pre-login anon table read from an empty result into `permission denied`. Revisit: if a pre-login screen shows a permission error.
+- **e2e-smoke stays in 2a; the Chromium install hang is diagnosed from a debug run (decided 2026-10-03).** Why: the first run hung after the download with no output. Revisit: if the debug run does not explain it, defer the job and log it under CLAUDE.md Known infrastructure issues.
 - **Fixture households are fresh ids, not the profile default (found while planning).** Why: the default household holds local dev data, which made `count(*)` assertions see 7 rows instead of 3. Revisit: never.
 - **KNOWN GAP, not fixed in 2a: `accounts_insert` does not pin `owner_user_id` (found while planning).** A household member can insert a personal account owned by another member (it then shows up in that member's list). The test documents current behaviour. Revisit: 2a acceptance; ask the user whether to tighten the policy (`owner_user_id IS NULL OR owner_user_id = auth.uid()`) in its own migration.
 - **Noted, not changed: only a transaction's creator can delete it, while any household member can edit a household transaction (found while planning).** The test asserts current behaviour. Revisit: if users report being unable to delete shared transactions.
