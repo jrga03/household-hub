@@ -16,7 +16,7 @@ function queryBuilder(result: { data: unknown; error: unknown }) {
   const builder: Record<string, unknown> = {
     then: (resolve: (value: unknown) => void) => resolve(result),
   };
-  for (const method of ["select", "gte", "lte", "is", "eq", "not", "order"]) {
+  for (const method of ["select", "gte", "lte", "is", "eq", "in", "not", "order"]) {
     builder[method] = (...args: unknown[]) => {
       calls.push([method, args]);
       return builder;
@@ -31,13 +31,27 @@ function mockFrom(result: { data: unknown; error: unknown }) {
   return calls;
 }
 
+// One recorded builder per table, so a test can assert which relation each query read.
+function mockTables(results: Record<string, { data: unknown; error: unknown }>) {
+  const callsByTable: Record<string, Call[]> = {};
+  vi.mocked(supabase.from).mockImplementation(((table: string) => {
+    const { builder, calls } = queryBuilder(results[table] ?? { data: [], error: null });
+    callsByTable[table] = calls;
+    return builder;
+  }) as never);
+  return callsByTable;
+}
+
 const range = { startDate: "2026-04-01", endDate: "2026-09-30" };
 
 describe("analytics transaction reads", () => {
   beforeEach(() => vi.mocked(supabase.from).mockReset());
 
-  it("excludes transfers and applies the date range and filters", async () => {
-    const calls = mockFrom({ data: [{ id: "t1" }], error: null });
+  it("reads the transfer-excluding view and applies the date range and filters", async () => {
+    const calls = mockTables({
+      categories: { data: [], error: null },
+      transactions_non_transfer: { data: [{ id: "t1" }], error: null },
+    });
 
     const rows = await fetchAnalyticsTransactions(range, {
       accountId: "acc-1",
@@ -45,31 +59,61 @@ describe("analytics transaction reads", () => {
       type: "expense",
     });
 
-    expect(supabase.from).toHaveBeenCalledWith("transactions");
-    expect(calls).toEqual([
+    expect(supabase.from).not.toHaveBeenCalledWith("transactions");
+    expect(calls.transactions_non_transfer).toEqual([
       ["select", ["*, categories(name)"]],
       ["gte", ["date", "2026-04-01"]],
       ["lte", ["date", "2026-09-30"]],
-      ["is", ["transfer_group_id", null]],
       ["eq", ["account_id", "acc-1"]],
-      ["eq", ["category_id", "cat-1"]],
+      ["in", ["category_id", ["cat-1"]]],
       ["eq", ["type", "expense"]],
     ]);
     expect(rows).toEqual([{ id: "t1" }]);
   });
 
-  it("selects only type and amount for totals, still excluding transfers", async () => {
-    const calls = mockFrom({ data: null, error: null });
+  it("expands a parent category to itself and its children", async () => {
+    const calls = mockTables({
+      categories: { data: [{ id: "child-1" }, { id: "child-2" }], error: null },
+    });
+
+    await fetchAnalyticsTransactions(range, { categoryId: "parent-1" });
+
+    expect(calls.categories).toEqual([
+      ["select", ["id"]],
+      ["eq", ["parent_id", "parent-1"]],
+    ]);
+    expect(calls.transactions_non_transfer).toContainEqual([
+      "in",
+      ["category_id", ["parent-1", "child-1", "child-2"]],
+    ]);
+  });
+
+  it("does not look up categories when no category filter is set", async () => {
+    const calls = mockTables({});
+
+    await fetchAnalyticsTransactions(range);
+
+    expect(calls.categories).toBeUndefined();
+  });
+
+  it("selects only type and amount for totals, from the view", async () => {
+    const calls = mockTables({ transactions_non_transfer: { data: null, error: null } });
 
     const rows = await fetchAnalyticsTransactionTotals(range);
 
-    expect(calls).toEqual([
+    expect(calls.transactions_non_transfer).toEqual([
       ["select", ["type, amount_cents"]],
       ["gte", ["date", "2026-04-01"]],
       ["lte", ["date", "2026-09-30"]],
-      ["is", ["transfer_group_id", null]],
     ]);
     expect(rows).toEqual([]);
+  });
+
+  it("throws the category lookup error", async () => {
+    const error = { message: "categories down" };
+    mockTables({ categories: { data: null, error } });
+
+    await expect(fetchAnalyticsTransactions(range, { categoryId: "cat-1" })).rejects.toBe(error);
   });
 
   it("throws the Supabase error", async () => {
