@@ -3,7 +3,10 @@ import { db, type LocalAccount } from "@/lib/dexie/db";
 import { supabase } from "@/lib/supabase";
 import { ensureLocalRow } from "./ensureLocal";
 
-vi.mock("@/lib/supabase", () => ({ supabase: { from: vi.fn() } }));
+vi.mock("@/lib/supabase", () => {
+  const supabase = { from: vi.fn() };
+  return { supabase, untypedSupabase: supabase };
+});
 
 function mockServerRow(row: unknown, error: unknown = null) {
   const maybeSingle = vi.fn().mockResolvedValue({ data: row, error });

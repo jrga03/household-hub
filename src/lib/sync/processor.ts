@@ -28,7 +28,7 @@
  * @module sync/processor
  */
 
-import { supabase } from "@/lib/supabase";
+import { untypedSupabase } from "@/lib/supabase";
 import { db } from "@/lib/dexie/db";
 import {
   getPendingQueueItems,
@@ -306,7 +306,7 @@ export class SyncProcessor {
   ): Promise<void> {
     const tableName = this.getTableName(entityType);
 
-    const table = supabase.from(tableName);
+    const table = untypedSupabase.from(tableName);
     const { error } =
       entityType === "budget"
         ? await table.upsert(payload, { onConflict: "household_id,category_id,month" })
@@ -338,7 +338,10 @@ export class SyncProcessor {
       Object.entries(payload).map(([key, value]) => [key, value === undefined ? null : value])
     );
 
-    const { error } = await supabase.from(tableName).update(serverPayload).eq("id", entityId);
+    const { error } = await untypedSupabase
+      .from(tableName)
+      .update(serverPayload)
+      .eq("id", entityId);
 
     if (error) {
       throw error;
@@ -355,7 +358,7 @@ export class SyncProcessor {
   private async syncDelete(entityType: EntityType, entityId: string): Promise<void> {
     const tableName = this.getTableName(entityType);
 
-    const { error } = await supabase.from(tableName).delete().eq("id", entityId);
+    const { error } = await untypedSupabase.from(tableName).delete().eq("id", entityId);
 
     if (error) {
       throw error;

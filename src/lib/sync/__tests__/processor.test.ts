@@ -5,9 +5,10 @@ import type { SyncQueueItem, EntityType } from "@/types/sync";
 // Only the network boundary is mocked; the local outbox (db.syncQueue) is the
 // real Dexie table backed by fake-indexeddb, so these tests exercise the real
 // enqueue → drain → status integration.
-vi.mock("@/lib/supabase", () => ({
-  supabase: { from: vi.fn() },
-}));
+vi.mock("@/lib/supabase", () => {
+  const supabase = { from: vi.fn() };
+  return { supabase, untypedSupabase: supabase };
+});
 
 vi.mock("@/lib/sync/retry", () => ({
   calculateRetryDelay: vi.fn(() => 60_000), // predictable next_retry_at in tests
