@@ -36,6 +36,7 @@
 - [ ] Task 7: Reads switch to the view; analytics parent-category filter
 - [ ] Task 8: CI split
 - [ ] Task 8a: Explicit table grants; diagnose the CI Chromium install hang (added 2026-10-03 after the first CI run)
+- [ ] Task 8b: Playwright 1.56 → 1.63 (Node 26 installer hang)
 - [ ] Task 9: Acceptance and docs
 
 ---
@@ -1673,6 +1674,18 @@ Added 2026-10-03. The first CI run (37132227085) failed `database`: every RLS fi
 
 ---
 
+### Task 8b: Playwright 1.56 → 1.63
+
+Added 2026-10-04. CI run 2 (37137028719): `database` pgTAP passed (Files=16, Tests=139) but its type-drift step could not pull `postgres-meta` (`toomanyrequests: Rate exceeded` from public.ecr.aws, transient). `e2e-smoke` timed out in `npx playwright install chromium`; the `pw:install` log ends at `extracting archive`. Reproduced locally: Playwright 1.56.0 on Node 26.10.0 hangs at extraction; the same install on Node 22.23.2, and Playwright 1.63.0 on Node 26, complete.
+
+- [ ] **Step 1:** Bump `@playwright/test` to `1.63.0` (`npm install -D @playwright/test@1.63.0`); confirm `npm ls playwright` shows one version; install browsers (`npx playwright install chromium`).
+- [ ] **Step 2:** Local chromium smoke: 11 passed.
+- [ ] **Step 3:** Full chromium E2E, compared per test with `docs/plans/2026-10-02-phase-1b-e2e-baseline.txt` (same command and line format as that file's Task 0). A test that passes in the baseline and fails now is a regression: investigate before continuing. Layout-baseline snapshot mismatches from the Chromium 141 → 153 rendering change are reported with their diff images, not regenerated without review.
+- [ ] **Step 4:** `ci.yml` e2e-smoke: keep the two install steps and their timeouts, drop `DEBUG: pw:install`.
+- [ ] **Step 5:** Commit `build(deps): Playwright 1.63 (1.56's installer hangs on Node 26)` and `ci: drop Playwright install debug logging`. User pushes; record CI run 3 per job.
+
+---
+
 ### Task 9: Acceptance and docs
 
 **Files:**
@@ -1726,6 +1739,7 @@ Use superpowers:finishing-a-development-branch. Migrations reach production only
 - **The `e2e` job now `needs: [lint, typecheck, unit-tests, build]` (found in Task 8).** Why: it had `needs: ci`, and a `needs` naming a removed job makes GitHub reject the whole workflow. Revisit: never.
 - **Table privileges are explicit in a migration; `anon` gets none (decided 2026-10-03).** Why: the CI image (`17.6.1.143`) no longer ships default grants, so a fresh database built from migrations gave `authenticated` no table access; production (`17.6.1.063`) has blanket grants from its image. Naming the 12 tables keeps the transfer view read-only and future tables unexposed until granted. Cost: in production the anon revoke turns a pre-login anon table read from an empty result into `permission denied`. Revisit: if a pre-login screen shows a permission error.
 - **e2e-smoke stays in 2a; the Chromium install hang is diagnosed from a debug run (decided 2026-10-03).** Why: the first run hung after the download with no output. Revisit: if the debug run does not explain it, defer the job and log it under CLAUDE.md Known infrastructure issues.
+- **Playwright upgraded 1.56 → 1.63 in 2a (decided 2026-10-04).** Why: 1.56's browser installer hangs at archive extraction on Node 26 (reproduced locally; Node 22 and 1.63 both work), so the CI smoke job and any fresh Node 26 machine could not install Chromium. Cost: Chromium 141 → 153 under E2E; compared against the 2026-10-02 baseline. Revisit: never.
 - **Fixture households are fresh ids, not the profile default (found while planning).** Why: the default household holds local dev data, which made `count(*)` assertions see 7 rows instead of 3. Revisit: never.
 - **KNOWN GAP, not fixed in 2a: `accounts_insert` does not pin `owner_user_id` (found while planning).** A household member can insert a personal account owned by another member (it then shows up in that member's list). The test documents current behaviour. Revisit: 2a acceptance; ask the user whether to tighten the policy (`owner_user_id IS NULL OR owner_user_id = auth.uid()`) in its own migration.
 - **Noted, not changed: only a transaction's creator can delete it, while any household member can edit a household transaction (found while planning).** The test asserts current behaviour. Revisit: if users report being unable to delete shared transactions.
