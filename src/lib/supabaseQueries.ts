@@ -33,12 +33,11 @@ import { duplicateAccountNameError, duplicateCategoryNameError } from "./offline
 import type { AccountInput, CategoryInput } from "./offline/types";
 import type { Account } from "@/types/accounts";
 import type { Category, CategoryWithChildren } from "@/types/categories";
-import type {
-  TransactionFilters,
-  TransactionStatus,
-  TransactionType,
-  TransactionVisibility,
-  TransactionWithRelations,
+import type { TransactionFilters, TransactionWithRelations } from "@/types/transactions";
+import {
+  isTransactionType,
+  isTransactionStatus,
+  isTransactionVisibility,
 } from "@/types/transactions";
 
 /**
@@ -1114,16 +1113,6 @@ export function useCategoryTotalsComparison(currentMonth: Date, previousMonth: D
  * but INCLUDES transfers in balance calculations
  */
 
-/**
- * Dashboard data interface with all metrics and visualizations
- */
-const isTransactionType = (value: string): value is TransactionType =>
-  value === "income" || value === "expense";
-const isTransactionStatus = (value: string): value is TransactionStatus =>
-  value === "pending" || value === "cleared";
-const isTransactionVisibility = (value: string): value is TransactionVisibility =>
-  value === "household" || value === "personal";
-
 type TransactionRowWithRelations = Omit<
   TransactionWithRelations,
   "type" | "status" | "visibility" | "tagged_user_ids"
@@ -1142,11 +1131,20 @@ function toTransactionWithRelations(row: TransactionRowWithRelations): Transacti
     !isTransactionStatus(status) ||
     !isTransactionVisibility(visibility)
   ) {
+    console.warn("[useDashboardData] Dropping transaction with unexpected enum value", {
+      id: row.id,
+      type,
+      status,
+      visibility,
+    });
     return [];
   }
   return [{ ...row, type, status, visibility, tagged_user_ids: tagged_user_ids ?? [] }];
 }
 
+/**
+ * Dashboard data interface with all metrics and visualizations
+ */
 export interface DashboardData {
   summary: {
     totalIncomeCents: number;
