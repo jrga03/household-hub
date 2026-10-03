@@ -13,6 +13,8 @@ npm run test:e2e:smoke     # chromium smoke; rebuilds dist/ first
 npm run size               # bundle budget (355 KB gz)
 npx tsc --noEmit -p tsconfig.tests.json    # tests/ + playwright config
 npx tsc --noEmit -p tsconfig.strict.json   # noUncheckedIndexedAccess over lib/{sync,offline,debts}
+npm run gen:types          # regenerate src/types/database.types.ts (commit with each migration)
+supabase test db           # pgTAP: RLS for every table, functions, the transfer view
 ```
 
 ## Rules that break data if ignored
@@ -20,7 +22,7 @@ npx tsc --noEmit -p tsconfig.strict.json   # noUncheckedIndexedAccess over lib/{
 - **Writes go through the outbox.** Every entity mutation writes the row and its sync-queue item in one Dexie transaction via `src/lib/offline/*` or `src/lib/debts/*`. Only `src/lib/sync/` writes to Supabase. Lint (`arch/no-direct-dexie-writes`, `arch/no-direct-supabase-writes`) enforces this.
 - **IDs are client-generated** (`crypto.randomUUID()`); local ID equals server ID. No temp IDs.
 - **Money is integer cents**, always positive, with `type: "income" | "expense"`. Parse input with `parsePHP` / `parsePHPSafe` / `parsePHPUnbounded`, display with `formatPHP` (`src/lib/currency.ts`). Never divide cents without rounding.
-- **Transfers are excluded from analytics and budgets** (`transfer_group_id IS NULL`). Read transactions through `src/lib/supabaseQueries.ts`, which owns that filter (`arch/no-raw-transactions-from`).
+- **Transfers are excluded from analytics and budgets.** Totals read the `transactions_non_transfer` view (`security_invoker`, so RLS applies); read transactions through `src/lib/supabaseQueries.ts` (`arch/no-raw-transactions-from`).
 - **Transaction `date` is the user's local calendar date** (`DATE`); audit timestamps are UTC `TIMESTAMPTZ`. Parse "yyyy-MM-dd" with `parseLocalDate` (`src/lib/utils/dates.ts`), never `new Date("yyyy-MM-dd")`.
 - **Budgets are reference targets**, never balances; actual spend is always derived from transactions.
 - **Debt balance** = original minus the signed sum of payment rows; reversals are negative and linked via `reverses_payment_id` (`src/lib/debts/balance.ts`).
