@@ -33,7 +33,13 @@ import { duplicateAccountNameError, duplicateCategoryNameError } from "./offline
 import type { AccountInput, CategoryInput } from "./offline/types";
 import type { Account } from "@/types/accounts";
 import type { Category, CategoryWithChildren } from "@/types/categories";
-import type { TransactionFilters, TransactionWithRelations } from "@/types/transactions";
+import type {
+  TransactionFilters,
+  TransactionStatus,
+  TransactionType,
+  TransactionVisibility,
+  TransactionWithRelations,
+} from "@/types/transactions";
 
 /**
  * TanStack Query hooks for accounts CRUD operations
@@ -646,15 +652,15 @@ export function useTransactionsFilterSummary(filters?: TransactionFilters) {
     queryFn: async (): Promise<TransactionsFilterSummary> => {
       try {
         const { data, error } = await supabase.rpc("transactions_filter_summary", {
-          p_date_from: filters?.dateFrom ?? null,
-          p_date_to: filters?.dateTo ?? null,
-          p_account_id: filters?.accountId ?? null,
-          p_category_id: filters?.categoryId ?? null,
-          p_status: filters?.status ?? null,
-          p_type: filters?.type ?? null,
-          p_amount_min: filters?.amountMin ?? null,
-          p_amount_max: filters?.amountMax ?? null,
-          p_search: filters?.search ?? null,
+          p_date_from: filters?.dateFrom ?? undefined,
+          p_date_to: filters?.dateTo ?? undefined,
+          p_account_id: filters?.accountId ?? undefined,
+          p_category_id: filters?.categoryId ?? undefined,
+          p_status: filters?.status ?? undefined,
+          p_type: filters?.type ?? undefined,
+          p_amount_min: filters?.amountMin ?? undefined,
+          p_amount_max: filters?.amountMax ?? undefined,
+          p_search: filters?.search ?? undefined,
           // CRITICAL: transfers excluded unless explicitly included, matching
           // the list query and the analytics rule
           p_exclude_transfers: filters?.excludeTransfers !== false,
@@ -1111,6 +1117,36 @@ export function useCategoryTotalsComparison(currentMonth: Date, previousMonth: D
 /**
  * Dashboard data interface with all metrics and visualizations
  */
+const isTransactionType = (value: string): value is TransactionType =>
+  value === "income" || value === "expense";
+const isTransactionStatus = (value: string): value is TransactionStatus =>
+  value === "pending" || value === "cleared";
+const isTransactionVisibility = (value: string): value is TransactionVisibility =>
+  value === "household" || value === "personal";
+
+type TransactionRowWithRelations = Omit<
+  TransactionWithRelations,
+  "type" | "status" | "visibility" | "tagged_user_ids"
+> & {
+  type: string;
+  status: string;
+  visibility: string;
+  tagged_user_ids: string[] | null;
+};
+
+// The generated row types these CHECK-constrained text columns as `string`.
+function toTransactionWithRelations(row: TransactionRowWithRelations): TransactionWithRelations[] {
+  const { type, status, visibility, tagged_user_ids } = row;
+  if (
+    !isTransactionType(type) ||
+    !isTransactionStatus(status) ||
+    !isTransactionVisibility(visibility)
+  ) {
+    return [];
+  }
+  return [{ ...row, type, status, visibility, tagged_user_ids: tagged_user_ids ?? [] }];
+}
+
 export interface DashboardData {
   summary: {
     totalIncomeCents: number;
@@ -1336,7 +1372,7 @@ async function fetchDashboardDataFromServer(currentMonth: Date): Promise<Dashboa
     },
     monthlyTrend,
     categoryBreakdown,
-    recentTransactions: recentTransactions || [],
+    recentTransactions: (recentTransactions || []).flatMap(toTransactionWithRelations),
   };
 }
 
@@ -1508,6 +1544,7 @@ async function fetchBudgetGroupsFromServer(month: Date): Promise<BudgetGroup[]> 
   // Calculate spending per category
   const spendingMap = new Map<string, number>();
   transactions?.forEach((t) => {
+    if (!t.category_id) return; // excluded by the .in() filter; narrows the type
     const existing = spendingMap.get(t.category_id) || 0;
     spendingMap.set(t.category_id, existing + t.amount_cents);
   });
