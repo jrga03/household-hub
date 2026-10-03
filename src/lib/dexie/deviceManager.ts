@@ -283,6 +283,9 @@ class DeviceManager {
    */
   private async updateUserDevice(): Promise<void> {
     try {
+      const deviceId = this.deviceId;
+      if (!deviceId) return; // getDeviceId() has not resolved yet; registration retries on the next call
+
       // Get current authenticated user
       const {
         data: { user },
@@ -299,7 +302,7 @@ class DeviceManager {
       const { data: existing, error: fetchError } = await supabase
         .from("devices")
         .select("id, last_seen")
-        .eq("id", this.deviceId)
+        .eq("id", deviceId)
         .maybeSingle();
 
       if (fetchError) {
@@ -310,12 +313,12 @@ class DeviceManager {
       if (!existing) {
         // Register new device
         const { error: insertError } = await supabase.from("devices").insert({
-          id: this.deviceId,
+          id: deviceId,
           user_id: user.id,
           household_id: DEFAULT_HOUSEHOLD_ID,
           name: this.detectDeviceName(),
           platform: this.detectPlatform(),
-          fingerprint: this.deviceId, // Store for continuity
+          fingerprint: deviceId, // Store for continuity
           is_active: true,
         });
 
@@ -345,7 +348,7 @@ class DeviceManager {
           const { error: updateError } = await supabase
             .from("devices")
             .update({ last_seen: now.toISOString() })
-            .eq("id", this.deviceId);
+            .eq("id", deviceId);
 
           if (updateError) {
             console.warn("Failed to update device last_seen:", updateError);
