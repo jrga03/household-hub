@@ -262,6 +262,13 @@ export type Database = {
             referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "debt_payments_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions_non_transfer"
+            referencedColumns: ["id"]
+          },
         ]
       }
       debts: {
@@ -697,7 +704,114 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      transactions_non_transfer: {
+        Row: {
+          account_id: string | null
+          amount_cents: number | null
+          category_id: string | null
+          created_at: string | null
+          created_by_user_id: string | null
+          currency_code: string | null
+          date: string | null
+          debt_id: string | null
+          description: string | null
+          device_id: string | null
+          household_id: string | null
+          id: string | null
+          import_key: string | null
+          internal_debt_id: string | null
+          notes: string | null
+          status: string | null
+          tagged_user_ids: string[] | null
+          transfer_group_id: string | null
+          type: string | null
+          updated_at: string | null
+          visibility: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          amount_cents?: number | null
+          category_id?: string | null
+          created_at?: string | null
+          created_by_user_id?: string | null
+          currency_code?: string | null
+          date?: string | null
+          debt_id?: string | null
+          description?: string | null
+          device_id?: string | null
+          household_id?: string | null
+          id?: string | null
+          import_key?: string | null
+          internal_debt_id?: string | null
+          notes?: string | null
+          status?: string | null
+          tagged_user_ids?: string[] | null
+          transfer_group_id?: string | null
+          type?: string | null
+          updated_at?: string | null
+          visibility?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          amount_cents?: number | null
+          category_id?: string | null
+          created_at?: string | null
+          created_by_user_id?: string | null
+          currency_code?: string | null
+          date?: string | null
+          debt_id?: string | null
+          description?: string | null
+          device_id?: string | null
+          household_id?: string | null
+          id?: string | null
+          import_key?: string | null
+          internal_debt_id?: string | null
+          notes?: string | null
+          status?: string | null
+          tagged_user_ids?: string[] | null
+          transfer_group_id?: string | null
+          type?: string | null
+          updated_at?: string | null
+          visibility?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_debt_id_fkey"
+            columns: ["debt_id"]
+            isOneToOne: false
+            referencedRelation: "debts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_internal_debt_id_fkey"
+            columns: ["internal_debt_id"]
+            isOneToOne: false
+            referencedRelation: "internal_debts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       check_budget_thresholds: {
