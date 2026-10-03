@@ -122,8 +122,16 @@ jobs:
             echo "SUPABASE_URL=$API_URL"
             echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
           } >> "$GITHUB_ENV"
+      - name: Install Chromium system dependencies
+        timeout-minutes: 6
+        run: npx playwright install-deps chromium
+        env:
+          DEBUG: pw:install
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 6
+        run: npx playwright install chromium
+        env:
+          DEBUG: pw:install
       - name: Smoke tests
         run: npm run test:e2e:smoke
         env:
