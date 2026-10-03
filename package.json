@@ -30,6 +30,7 @@
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
+    "gen:types": "supabase gen types --lang=typescript --local > src/types/database.types.ts",
     "prepare": "husky"
   },
   "lint-staged": {

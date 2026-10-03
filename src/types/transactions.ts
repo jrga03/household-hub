@@ -35,6 +35,24 @@ export type TransactionStatus = "pending" | "cleared";
 export type TransactionVisibility = "household" | "personal";
 
 /**
+ * Type guard for TransactionType enum values
+ */
+export const isTransactionType = (value: string): value is TransactionType =>
+  value === "income" || value === "expense";
+
+/**
+ * Type guard for TransactionStatus enum values
+ */
+export const isTransactionStatus = (value: string): value is TransactionStatus =>
+  value === "pending" || value === "cleared";
+
+/**
+ * Type guard for TransactionVisibility enum values
+ */
+export const isTransactionVisibility = (value: string): value is TransactionVisibility =>
+  value === "household" || value === "personal";
+
+/**
  * Main Transaction interface
  * Represents a single financial transaction (income or expense)
  */

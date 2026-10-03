@@ -34,6 +34,11 @@ import type { AccountInput, CategoryInput } from "./offline/types";
 import type { Account } from "@/types/accounts";
 import type { Category, CategoryWithChildren } from "@/types/categories";
 import type { TransactionFilters, TransactionWithRelations } from "@/types/transactions";
+import {
+  isTransactionType,
+  isTransactionStatus,
+  isTransactionVisibility,
+} from "@/types/transactions";
 
 /**
  * TanStack Query hooks for accounts CRUD operations
@@ -646,15 +651,15 @@ export function useTransactionsFilterSummary(filters?: TransactionFilters) {
     queryFn: async (): Promise<TransactionsFilterSummary> => {
       try {
         const { data, error } = await supabase.rpc("transactions_filter_summary", {
-          p_date_from: filters?.dateFrom ?? null,
-          p_date_to: filters?.dateTo ?? null,
-          p_account_id: filters?.accountId ?? null,
-          p_category_id: filters?.categoryId ?? null,
-          p_status: filters?.status ?? null,
-          p_type: filters?.type ?? null,
-          p_amount_min: filters?.amountMin ?? null,
-          p_amount_max: filters?.amountMax ?? null,
-          p_search: filters?.search ?? null,
+          p_date_from: filters?.dateFrom ?? undefined,
+          p_date_to: filters?.dateTo ?? undefined,
+          p_account_id: filters?.accountId ?? undefined,
+          p_category_id: filters?.categoryId ?? undefined,
+          p_status: filters?.status ?? undefined,
+          p_type: filters?.type ?? undefined,
+          p_amount_min: filters?.amountMin ?? undefined,
+          p_amount_max: filters?.amountMax ?? undefined,
+          p_search: filters?.search ?? undefined,
           // CRITICAL: transfers excluded unless explicitly included, matching
           // the list query and the analytics rule
           p_exclude_transfers: filters?.excludeTransfers !== false,
@@ -804,20 +809,31 @@ export interface IsoDateRange {
   endDate: string;
 }
 
+// Analytics offers top-level categories while transactions carry child ids, so a
+// category filter matches the category itself and its direct children.
+async function categoryFilterIds(categoryId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("parent_id", categoryId);
+  if (error) throw error;
+  return [categoryId, ...(data ?? []).map((child) => child.id)];
+}
+
 function nonTransferTransactionsQuery(
   columns: string,
   range: IsoDateRange,
-  filters: TransactionReadFilters
+  filters: TransactionReadFilters,
+  categoryIds: string[] | null
 ) {
   let query = supabase
-    .from("transactions")
+    .from("transactions_non_transfer")
     .select(columns)
     .gte("date", range.startDate)
-    .lte("date", range.endDate)
-    .is("transfer_group_id", null); // transfers are account movements, never income or spending
+    .lte("date", range.endDate);
 
   if (filters.accountId) query = query.eq("account_id", filters.accountId);
-  if (filters.categoryId) query = query.eq("category_id", filters.categoryId);
+  if (categoryIds) query = query.in("category_id", categoryIds);
   if (filters.type) query = query.eq("type", filters.type);
   return query;
 }
@@ -826,7 +842,13 @@ export async function fetchAnalyticsTransactions(
   range: IsoDateRange,
   filters: TransactionReadFilters = {}
 ): Promise<AnalyticsTransactionRow[]> {
-  const { data, error } = await nonTransferTransactionsQuery("*, categories(name)", range, filters);
+  const categoryIds = filters.categoryId ? await categoryFilterIds(filters.categoryId) : null;
+  const { data, error } = await nonTransferTransactionsQuery(
+    "*, categories(name)",
+    range,
+    filters,
+    categoryIds
+  );
   if (error) throw error;
   return (data ?? []) as unknown as AnalyticsTransactionRow[];
 }
@@ -835,7 +857,13 @@ export async function fetchAnalyticsTransactionTotals(
   range: IsoDateRange,
   filters: TransactionReadFilters = {}
 ): Promise<Array<Pick<AnalyticsTransactionRow, "type" | "amount_cents">>> {
-  const { data, error } = await nonTransferTransactionsQuery("type, amount_cents", range, filters);
+  const categoryIds = filters.categoryId ? await categoryFilterIds(filters.categoryId) : null;
+  const { data, error } = await nonTransferTransactionsQuery(
+    "type, amount_cents",
+    range,
+    filters,
+    categoryIds
+  );
   if (error) throw error;
   return (data ?? []) as unknown as Array<Pick<AnalyticsTransactionRow, "type" | "amount_cents">>;
 }
@@ -913,10 +941,132 @@ export interface CategoryTotalGroup {
   // Income analysis can be added in Phase B by utilizing the incomeCents field.
 }
 
+export async function fetchCategoryTotalsFromServer(month: Date): Promise<CategoryTotalGroup[]> {
+  const monthStart = startOfMonth(month);
+  const monthEnd = endOfMonth(month);
+
+  // Fetch all active categories with hierarchy
+  const { data: categories, error: categoriesError } = await supabase
+    .from("categories")
+    .select("id, name, parent_id, color")
+    .eq("is_active", true)
+    .order("sort_order");
+
+  if (categoriesError) throw categoriesError;
+  if (!categories) return [];
+
+  const { data: transactions, error: transactionsError } = await supabase
+    .from("transactions_non_transfer")
+    .select("category_id, amount_cents, type")
+    .gte("date", format(monthStart, "yyyy-MM-dd"))
+    .lte("date", format(monthEnd, "yyyy-MM-dd"));
+
+  if (transactionsError) throw transactionsError;
+
+  // Build category totals map (by category_id)
+  const totalsMap = new Map<
+    string,
+    {
+      expense: number;
+      income: number;
+      count: number;
+    }
+  >();
+
+  // Aggregate transactions by category
+  transactions?.forEach((t) => {
+    if (!t.category_id) return; // Skip uncategorized
+
+    const existing = totalsMap.get(t.category_id) || {
+      expense: 0,
+      income: 0,
+      count: 0,
+    };
+
+    if (t.type === "expense") {
+      existing.expense += t.amount_cents;
+    } else if (t.type === "income") {
+      existing.income += t.amount_cents;
+    }
+    existing.count++;
+
+    totalsMap.set(t.category_id, existing);
+  });
+
+  // Calculate total spending across all categories for percentages
+  const totalSpending = Array.from(totalsMap.values()).reduce((sum, t) => sum + t.expense, 0);
+
+  // Group categories by parent (two-level hierarchy)
+  const parentMap = new Map<string | null, CategoryTotalGroup>();
+
+  categories.forEach((category) => {
+    // Skip parent categories in transaction processing
+    // Parent categories are group headers only - transactions go to children
+    if (!category.parent_id) {
+      // Initialize parent group (even if no children have transactions yet)
+      if (!parentMap.has(category.id)) {
+        parentMap.set(category.id, {
+          parentId: category.id,
+          parentName: category.name,
+          parentColor: category.color,
+          totalExpenseCents: 0,
+          children: [],
+        });
+      }
+      return;
+    }
+
+    // This is a child category - aggregate its totals
+    const totals = totalsMap.get(category.id) || {
+      expense: 0,
+      income: 0,
+      count: 0,
+    };
+
+    const parent = categories.find((c) => c.id === category.parent_id);
+    const parentKey = category.parent_id;
+
+    // Ensure parent group exists (create if not initialized above)
+    if (!parentMap.has(parentKey)) {
+      parentMap.set(parentKey, {
+        parentId: parentKey,
+        parentName: parent?.name || "Uncategorized",
+        parentColor: parent?.color || "#6B7280",
+        totalExpenseCents: 0,
+        children: [],
+      });
+    }
+
+    const group = parentMap.get(parentKey)!;
+    group.totalExpenseCents += totals.expense;
+    group.children.push({
+      categoryId: category.id,
+      categoryName: category.name,
+      parentId: category.parent_id,
+      parentName: parent?.name || null,
+      color: category.color,
+      expenseCents: totals.expense,
+      incomeCents: totals.income,
+      transactionCount: totals.count,
+      percentOfTotal: totalSpending > 0 ? (totals.expense / totalSpending) * 100 : 0,
+    });
+  });
+
+  // Convert map to array, filter out empty groups, and sort by total expense (highest first)
+  return (
+    Array.from(parentMap.values())
+      .filter((group) => group.children.length > 0) // Only show parents with children
+      // NOTE: Parents without ANY child categories (not just zero transactions) are also excluded.
+      // This is intentional per schema constraint: transactions must be assigned to child categories only.
+      // A parent with defined children but zero transactions will show with ₱0.00 totals.
+      .sort((a, b) => b.totalExpenseCents - a.totalExpenseCents)
+  );
+}
+
 /**
  * Fetches category totals for a specific month with parent/child hierarchy.
  *
- * CRITICAL: Excludes transfers from calculations using `.is("transfer_group_id", null)`.
+ * CRITICAL: Excludes transfers from calculations by reading the `transactions_non_transfer` view.
  * Transfers are account movements, not actual income or expenses, and would cause
  * double-counting if included in analytics.
  *
@@ -946,131 +1096,7 @@ export function useCategoryTotals(month: Date, options?: { staleTime?: number })
 
   return useQuery({
     queryKey: ["category-totals", format(month, "yyyy-MM")],
-    queryFn: async (): Promise<CategoryTotalGroup[]> => {
-      const monthStart = startOfMonth(month);
-      const monthEnd = endOfMonth(month);
-
-      // Fetch all active categories with hierarchy
-      const { data: categories, error: categoriesError } = await supabase
-        .from("categories")
-        .select("id, name, parent_id, color")
-        .eq("is_active", true)
-        .order("sort_order");
-
-      if (categoriesError) throw categoriesError;
-      if (!categories) return [];
-
-      // Fetch transactions for this month
-      // CRITICAL: Exclude transfers from analytics to prevent double-counting
-      // Transfers are movements between accounts, not actual income/expenses
-      const { data: transactions, error: transactionsError } = await supabase
-        .from("transactions")
-        .select("category_id, amount_cents, type")
-        .is("transfer_group_id", null) // ← CRITICAL: Exclude transfers
-        .gte("date", format(monthStart, "yyyy-MM-dd"))
-        .lte("date", format(monthEnd, "yyyy-MM-dd"));
-
-      if (transactionsError) throw transactionsError;
-
-      // Build category totals map (by category_id)
-      const totalsMap = new Map<
-        string,
-        {
-          expense: number;
-          income: number;
-          count: number;
-        }
-      >();
-
-      // Aggregate transactions by category
-      transactions?.forEach((t) => {
-        if (!t.category_id) return; // Skip uncategorized
-
-        const existing = totalsMap.get(t.category_id) || {
-          expense: 0,
-          income: 0,
-          count: 0,
-        };
-
-        if (t.type === "expense") {
-          existing.expense += t.amount_cents;
-        } else if (t.type === "income") {
-          existing.income += t.amount_cents;
-        }
-        existing.count++;
-
-        totalsMap.set(t.category_id, existing);
-      });
-
-      // Calculate total spending across all categories for percentages
-      const totalSpending = Array.from(totalsMap.values()).reduce((sum, t) => sum + t.expense, 0);
-
-      // Group categories by parent (two-level hierarchy)
-      const parentMap = new Map<string | null, CategoryTotalGroup>();
-
-      categories.forEach((category) => {
-        // Skip parent categories in transaction processing
-        // Parent categories are group headers only - transactions go to children
-        if (!category.parent_id) {
-          // Initialize parent group (even if no children have transactions yet)
-          if (!parentMap.has(category.id)) {
-            parentMap.set(category.id, {
-              parentId: category.id,
-              parentName: category.name,
-              parentColor: category.color,
-              totalExpenseCents: 0,
-              children: [],
-            });
-          }
-          return;
-        }
-
-        // This is a child category - aggregate its totals
-        const totals = totalsMap.get(category.id) || {
-          expense: 0,
-          income: 0,
-          count: 0,
-        };
-
-        const parent = categories.find((c) => c.id === category.parent_id);
-        const parentKey = category.parent_id;
-
-        // Ensure parent group exists (create if not initialized above)
-        if (!parentMap.has(parentKey)) {
-          parentMap.set(parentKey, {
-            parentId: parentKey,
-            parentName: parent?.name || "Uncategorized",
-            parentColor: parent?.color || "#6B7280",
-            totalExpenseCents: 0,
-            children: [],
-          });
-        }
-
-        const group = parentMap.get(parentKey)!;
-        group.totalExpenseCents += totals.expense;
-        group.children.push({
-          categoryId: category.id,
-          categoryName: category.name,
-          parentId: category.parent_id,
-          parentName: parent?.name || null,
-          color: category.color,
-          expenseCents: totals.expense,
-          incomeCents: totals.income,
-          transactionCount: totals.count,
-          percentOfTotal: totalSpending > 0 ? (totals.expense / totalSpending) * 100 : 0,
-        });
-      });
-
-      // Convert map to array, filter out empty groups, and sort by total expense (highest first)
-      return (
-        Array.from(parentMap.values())
-          .filter((group) => group.children.length > 0) // Only show parents with children
-          // NOTE: Parents without ANY child categories (not just zero transactions) are also excluded.
-          // This is intentional per schema constraint: transactions must be assigned to child categories only.
-          // A parent with defined children but zero transactions will show with ₱0.00 totals.
-          .sort((a, b) => b.totalExpenseCents - a.totalExpenseCents)
-      );
-    },
+    queryFn: () => fetchCategoryTotalsFromServer(month),
     staleTime: options?.staleTime ?? defaultStaleTime,
   });
 }
@@ -1107,6 +1133,35 @@ export function useCategoryTotalsComparison(currentMonth: Date, previousMonth: D
  * CRITICAL: Excludes transfers from income/expense analytics
  * but INCLUDES transfers in balance calculations
  */
+
+type TransactionRowWithRelations = Omit<
+  TransactionWithRelations,
+  "type" | "status" | "visibility" | "tagged_user_ids"
+> & {
+  type: string;
+  status: string;
+  visibility: string;
+  tagged_user_ids: string[] | null;
+};
+
+// The generated row types these CHECK-constrained text columns as `string`.
+function toTransactionWithRelations(row: TransactionRowWithRelations): TransactionWithRelations[] {
+  const { type, status, visibility, tagged_user_ids } = row;
+  if (
+    !isTransactionType(type) ||
+    !isTransactionStatus(status) ||
+    !isTransactionVisibility(visibility)
+  ) {
+    console.warn("[useDashboardData] Dropping transaction with unexpected enum value", {
+      id: row.id,
+      type,
+      status,
+      visibility,
+    });
+    return [];
+  }
+  return [{ ...row, type, status, visibility, tagged_user_ids: tagged_user_ids ?? [] }];
+}
 
 /**
  * Dashboard data interface with all metrics and visualizations
@@ -1146,7 +1201,7 @@ export interface DashboardData {
  * Fetches all dashboard data in a single optimized query.
  *
  * CRITICAL Transfer Handling:
- * - Analytics (income/expense/category): EXCLUDE transfers (`.is("transfer_group_id", null)`)
+ * - Analytics (income/expense/category): EXCLUDE transfers (`transactions_non_transfer` view)
  * - Balances: INCLUDE transfers (they affect account balances)
  *
  * Caching: 30 seconds (balance between freshness and performance)
@@ -1157,7 +1212,7 @@ export interface DashboardData {
  * @example
  * const { data, isLoading } = useDashboardData(startOfMonth(new Date()));
  */
-async function fetchDashboardDataFromServer(currentMonth: Date): Promise<DashboardData> {
+export async function fetchDashboardDataFromServer(currentMonth: Date): Promise<DashboardData> {
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const previousMonthStart = startOfMonth(subMonths(currentMonth, 1));
@@ -1176,25 +1231,22 @@ async function fetchDashboardDataFromServer(currentMonth: Date): Promise<Dashboa
     balanceDeltasResult,
     recentResult,
   ] = await Promise.all([
-    // 1. Current month transactions (exclude transfers)
+    // 1. Current month transactions (view excludes transfers)
     supabase
-      .from("transactions")
+      .from("transactions_non_transfer")
       .select("id, amount_cents, type, category_id, status, date")
-      .is("transfer_group_id", null) // Exclude transfers
       .gte("date", format(monthStart, "yyyy-MM-dd"))
       .lte("date", format(monthEnd, "yyyy-MM-dd")),
     // 2. Previous month for comparison
     supabase
-      .from("transactions")
+      .from("transactions_non_transfer")
       .select("amount_cents, type")
-      .is("transfer_group_id", null)
       .gte("date", format(previousMonthStart, "yyyy-MM-dd"))
       .lte("date", format(previousMonthEnd, "yyyy-MM-dd")),
     // 3. Last 6 months for trend
     supabase
-      .from("transactions")
+      .from("transactions_non_transfer")
       .select("date, amount_cents, type")
-      .is("transfer_group_id", null)
       .gte("date", format(sixMonthsAgo, "yyyy-MM-dd"))
       .lte("date", format(monthEnd, "yyyy-MM-dd")),
     // 4. Categories for breakdown
@@ -1277,7 +1329,7 @@ async function fetchDashboardDataFromServer(currentMonth: Date): Promise<Dashboa
     const month = subMonths(currentMonth, i);
     const monthKey = format(month, "yyyy-MM");
     const monthTransactions = (trendTransactions || []).filter(
-      (t) => format(new Date(t.date), "yyyy-MM") === monthKey
+      (t) => t.date.slice(0, 7) === monthKey
     );
 
     const income = monthTransactions
@@ -1336,7 +1388,7 @@ async function fetchDashboardDataFromServer(currentMonth: Date): Promise<Dashboa
     },
     monthlyTrend,
     categoryBreakdown,
-    recentTransactions: recentTransactions || [],
+    recentTransactions: (recentTransactions || []).flatMap(toTransactionWithRelations),
   };
 }
 
@@ -1402,7 +1454,7 @@ export interface BudgetGroup {
 /**
  * Fetches budgets for a specific month with actual spending calculated.
  *
- * CRITICAL: Actual spending MUST exclude transfers using `.is("transfer_group_id", null)`.
+ * CRITICAL: Actual spending MUST exclude transfers by reading the `transactions_non_transfer` view.
  * Transfers are movements between accounts, not actual expenses, and would cause
  * incorrect budget calculations if included.
  *
@@ -1430,7 +1482,7 @@ interface ServerBudgetRow {
   updated_at: string;
 }
 
-async function fetchBudgetGroupsFromServer(month: Date): Promise<BudgetGroup[]> {
+export async function fetchBudgetGroupsFromServer(month: Date): Promise<BudgetGroup[]> {
   const monthStart = startOfMonth(month);
   const monthEnd = endOfMonth(month);
   const monthKey = format(monthStart, "yyyy-MM-dd");
@@ -1488,17 +1540,15 @@ async function fetchBudgetGroupsFromServer(month: Date): Promise<BudgetGroup[]> 
   if (parentsError) throw parentsError;
 
   // 3. Fetch actual spending for these categories
-  // CRITICAL: Exclude transfers from spending calculation
   const categoryIds = budgets.flatMap((b: { categories: { id: string }[] | { id: string } }) => {
     const cat = Array.isArray(b.categories) ? b.categories[0] : b.categories;
     return cat ? [cat.id] : [];
   });
 
   const { data: transactions, error: transactionsError } = await supabase
-    .from("transactions")
+    .from("transactions_non_transfer")
     .select("category_id, amount_cents, type")
     .in("category_id", categoryIds)
-    .is("transfer_group_id", null) // ← Exclude transfers
     .eq("type", "expense")
     .gte("date", format(monthStart, "yyyy-MM-dd"))
     .lte("date", format(monthEnd, "yyyy-MM-dd"));
@@ -1508,6 +1558,7 @@ async function fetchBudgetGroupsFromServer(month: Date): Promise<BudgetGroup[]> 
   // Calculate spending per category
   const spendingMap = new Map<string, number>();
   transactions?.forEach((t) => {
+    if (!t.category_id) return; // excluded by the .in() filter; narrows the type
     const existing = spendingMap.get(t.category_id) || 0;
     spendingMap.set(t.category_id, existing + t.amount_cents);
   });

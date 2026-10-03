@@ -451,14 +451,14 @@ describe("useTransactionsFilterSummary (R10)", () => {
       totalOutCents: 987600,
     });
     expect(supabase.rpc).toHaveBeenCalledWith("transactions_filter_summary", {
-      p_date_from: null,
-      p_date_to: null,
-      p_account_id: null,
-      p_category_id: null,
-      p_status: null,
+      p_date_from: undefined,
+      p_date_to: undefined,
+      p_account_id: undefined,
+      p_category_id: undefined,
+      p_status: undefined,
       p_type: "expense",
-      p_amount_min: null,
-      p_amount_max: null,
+      p_amount_min: undefined,
+      p_amount_max: undefined,
       p_search: "grocery",
       p_exclude_transfers: true, // CRITICAL default: transfers excluded
     });

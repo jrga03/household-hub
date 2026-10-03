@@ -37,12 +37,13 @@ vi.mock("@/lib/debts", () => ({
 // deviceManager's best-effort device registration (unrelated to what these
 // tests cover) calls supabase.auth.getUser() on every create; stub it as
 // unauthenticated so it returns early instead of throwing on a missing auth.
-vi.mock("@/lib/supabase", () => ({
-  supabase: {
+vi.mock("@/lib/supabase", () => {
+  const supabase = {
     from: vi.fn(),
     auth: { getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }) },
-  },
-}));
+  };
+  return { supabase, untypedSupabase: supabase };
+});
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

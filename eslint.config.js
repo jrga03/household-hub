@@ -39,6 +39,7 @@ export default [
       ".lighthouseci/**",
       "*.config.js",
       "src/routeTree.gen.ts",
+      "src/types/database.types.ts",
     ],
   },
   js.configs.recommended,
@@ -444,7 +445,7 @@ export default [
         {
           selector: "CallExpression[callee.property.name='from'] > Literal[value='transactions']",
           message:
-            "Read transactions through src/lib/supabaseQueries.ts, which owns transfer exclusion for analytics and budget reads (and, from Phase 2, the transactions_non_transfer view).",
+            "Read transactions through src/lib/supabaseQueries.ts. Totals (analytics, dashboard, budgets) read the transactions_non_transfer view so transfers can never leak into them.",
         },
       ],
     },
