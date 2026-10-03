@@ -324,7 +324,6 @@ git commit -m "feat(types): type the Supabase client with generated Database typ
 -- Shared helpers for the pgTAP suite. This file sorts first and COMMITS, so the
 -- `tests` schema exists for every later file. Test-only: never put it in a migration.
 begin;
-create extension if not exists pgtap with schema extensions;
 create schema if not exists tests;
 grant usage on schema tests to anon, authenticated;
 
@@ -1704,6 +1703,7 @@ Use superpowers:finishing-a-development-branch. Migrations reach production only
 - **`categories.color` becomes NOT NULL instead of `| null` in the app (decided while planning, 2026-10-02).** Why: the column already defaults to `'#6B7280'`, the app never writes null, every reader falls back to the same colour, and the local database has no null rows; tightening removes four errors without spreading null handling through the UI. Revisit: if the production backfill touches rows (the `UPDATE` reports a count when the user applies it).
 - **`untypedSupabase` for runtime-chosen tables (decided while planning).** Why: `supabase.from(unionOfTables)` cannot pick a typed overload; queue payloads are JSON whose shape is fixed where `src/lib/offline/*` builds them; widening the instance avoids casts. Phase 2b's Zod schemas add the runtime check. Revisit: 2b.
 - **pgTAP helpers live in a committed `tests` schema created by `000_helpers.sql` (decided while planning).** Why: `supabase test db` runs files in name order, one session each, so shared fixtures must persist; Supabase documents the same pattern. Cost: the local dev database keeps a `tests` schema (not in `public`, so invisible to `gen types` and `db lint`). Revisit: never.
+- **`000_helpers.sql` does not create the pgTAP extension (found in Task 4).** Why: `supabase test db` installs pgTAP for the run and drops it afterwards; committing `create extension` left it installed, and `supabase db lint` then lints pgTAP's own functions in `extensions` and exits 1. Revisit: never.
 - **Fixture households are fresh ids, not the profile default (found while planning).** Why: the default household holds local dev data, which made `count(*)` assertions see 7 rows instead of 3. Revisit: never.
 - **KNOWN GAP, not fixed in 2a: `accounts_insert` does not pin `owner_user_id` (found while planning).** A household member can insert a personal account owned by another member (it then shows up in that member's list). The test documents current behaviour. Revisit: 2a acceptance; ask the user whether to tighten the policy (`owner_user_id IS NULL OR owner_user_id = auth.uid()`) in its own migration.
 - **Noted, not changed: only a transaction's creator can delete it, while any household member can edit a household transaction (found while planning).** The test asserts current behaviour. Revisit: if users report being unable to delete shared transactions.

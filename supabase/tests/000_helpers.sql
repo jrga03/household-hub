@@ -1,7 +1,6 @@
 -- Shared helpers for the pgTAP suite. This file sorts first and COMMITS, so the
 -- `tests` schema exists for every later file. Test-only: never put it in a migration.
 begin;
-create extension if not exists pgtap with schema extensions;
 create schema if not exists tests;
 grant usage on schema tests to anon, authenticated;
 
