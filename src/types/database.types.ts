@@ -139,7 +139,7 @@ export type Database = {
       }
       categories: {
         Row: {
-          color: string | null
+          color: string
           created_at: string | null
           household_id: string
           icon: string | null
@@ -151,7 +151,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
-          color?: string | null
+          color?: string
           created_at?: string | null
           household_id?: string
           icon?: string | null
@@ -163,7 +163,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
-          color?: string | null
+          color?: string
           created_at?: string | null
           household_id?: string
           icon?: string | null
