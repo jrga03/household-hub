@@ -55,6 +55,7 @@ Check here before debugging a test or CLI failure you did not cause. A failure i
 - **E2E has pre-existing failures.** Chromium full suite on `main` (2026-10-02): 37 passed / 33 failed / 24 skipped; per-test baseline in `docs/plans/2026-10-02-phase-1b-e2e-baseline.txt`. Compare per test, not by totals. `settings.spec.ts` is serial, so one failure skips the rest and its export tests flip between skipped and passed. Only chromium and Mobile Chrome layout baselines are trustworthy; firefox/webkit abort with `NS_BINDING_ABORTED`.
 - **E2E needs** the local stack running (`supabase start`), `PW_TEST_HTML_REPORT_OPEN=never` for non-interactive runs, and a fresh `dist/` (`npm run test:e2e*` rebuild it; a bare `npx playwright test` does not).
 - **Scripts** must parse `supabase status -o env`, never the human-readable output.
+- **Pre-push unit-test flake under load:** `src/__tests__/transactions-route.test.tsx` "shows the filtered In/Out totals inline…" (the file's first test) can exceed its 5 s cold-mount wait when pre-push runs lint, vitest and tsc in parallel on a busy machine (seen 2026-10-04: lint 41 s vs ~15 s). Passes in isolation; re-run the push.
 - **PWA update handoff** can cause one unexpected reload when a code-split route is tapped during the update window. Known and self-healing; no fix needed.
 - Rules: do not root-cause a listed issue mid-task. Log a new pre-existing failure here in the same commit as any workaround; delete an entry when it is fixed.
 
