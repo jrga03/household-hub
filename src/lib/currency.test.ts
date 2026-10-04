@@ -239,6 +239,18 @@ describe("parsePHPSafe", () => {
     }
   });
 
+  it.each(["99999999999999999", 1e20])(
+    "reports EXCEEDS_MAX for %s even past the safe-integer range",
+    (input) => {
+      const result = parsePHPSafe(input);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe("EXCEEDS_MAX");
+        expect(result.error.message).toContain("Amount exceeds maximum");
+      }
+    }
+  );
+
   it("handles invalid format gracefully", () => {
     const result = parsePHPSafe("invalid");
     expect(result.success).toBe(false);
@@ -418,7 +430,12 @@ describe("formatPHPChartValue", () => {
 });
 
 describe("parsers return branded cents", () => {
-  it("parsePHPUnbounded returns null for amounts past the safe-integer range", () => {
-    expect(parsePHPUnbounded("1e300")).toBeNull();
+  it("parsePHPUnbounded returns an over-max value for amounts past the safe-integer range", () => {
+    expect(parsePHPUnbounded("1e300")).toBe(MAX_AMOUNT_CENTS + 1);
+    expect(parsePHPUnbounded("99999999999999999")).toBe(MAX_AMOUNT_CENTS + 1);
+  });
+
+  it.each(["", "abc", "-5", "Infinity"])("parsePHPUnbounded returns null for %j", (input) => {
+    expect(parsePHPUnbounded(input)).toBeNull();
   });
 });

@@ -141,9 +141,7 @@ export function parsePHP(input: string | number): Cents {
       );
     }
     if (cents > MAX_AMOUNT_CENTS) {
-      throw new Error(
-        `Amount exceeds maximum: ${formatPHP(asCents(cents))} (max: ${formatPHP(asCents(MAX_AMOUNT_CENTS))})`
-      );
+      throw new Error(`Amount exceeds maximum (max: ${formatPHP(asCents(MAX_AMOUNT_CENTS))})`);
     }
 
     return asCents(cents);
@@ -180,9 +178,7 @@ export function parsePHP(input: string | number): Cents {
     );
   }
   if (cents > MAX_AMOUNT_CENTS) {
-    throw new Error(
-      `Amount exceeds maximum: ${formatPHP(asCents(cents))} (max: ${formatPHP(asCents(MAX_AMOUNT_CENTS))})`
-    );
+    throw new Error(`Amount exceeds maximum (max: ${formatPHP(asCents(MAX_AMOUNT_CENTS))})`);
   }
 
   return asCents(cents);
@@ -192,17 +188,18 @@ export function parsePHP(input: string | number): Cents {
  * Parses peso input to cents WITHOUT the MAX_AMOUNT_CENTS check, so a
  * currency input can commit an over-max value for the schema's .max() rule
  * to reject instead of silently truncating it. Returns null for empty,
- * non-numeric, or negative input.
+ * non-numeric, negative, or non-finite input. Amounts too large for a safe
+ * integer of cents come back as MAX_AMOUNT_CENTS + 1 so they still fail the max rule.
  */
 export function parsePHPUnbounded(input: string): Cents | null {
   const cleaned = input.replace(/[₱,\s]/g, "");
   if (cleaned === "") return null;
 
   const pesos = parseFloat(cleaned);
-  if (isNaN(pesos) || pesos < 0) return null;
+  if (!Number.isFinite(pesos) || pesos < 0) return null;
 
   const cents = Math.round(pesos * 100);
-  return Number.isSafeInteger(cents) ? asCents(cents) : null;
+  return asCents(Number.isSafeInteger(cents) ? cents : MAX_AMOUNT_CENTS + 1);
 }
 
 /**
