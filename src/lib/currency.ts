@@ -79,7 +79,7 @@ export const ZERO_CENTS = asCents(0);
  * formatPHP(-50000)      // "-₱500.00"
  * formatPHP(999999999)   // "₱9,999,999.99"
  */
-export function formatPHP(cents: number): string {
+export function formatPHP(cents: Cents): string {
   // Handle zero as special case for clarity
   if (cents === 0) {
     return `${PESO_SIGN}0.00`;
@@ -142,7 +142,7 @@ export function parsePHP(input: string | number): Cents {
     }
     if (cents > MAX_AMOUNT_CENTS) {
       throw new Error(
-        `Amount exceeds maximum: ${formatPHP(cents)} (max: ${formatPHP(MAX_AMOUNT_CENTS)})`
+        `Amount exceeds maximum: ${formatPHP(asCents(cents))} (max: ${formatPHP(asCents(MAX_AMOUNT_CENTS))})`
       );
     }
 
@@ -181,7 +181,7 @@ export function parsePHP(input: string | number): Cents {
   }
   if (cents > MAX_AMOUNT_CENTS) {
     throw new Error(
-      `Amount exceeds maximum: ${formatPHP(cents)} (max: ${formatPHP(MAX_AMOUNT_CENTS)})`
+      `Amount exceeds maximum: ${formatPHP(asCents(cents))} (max: ${formatPHP(asCents(MAX_AMOUNT_CENTS))})`
     );
   }
 
@@ -291,7 +291,7 @@ export function parsePHPSafe(
  * formatPHPAxisTick(150000000)    // "₱1.5M"
  * formatPHPAxisTick(-50000)       // "-₱500"
  */
-export function formatPHPAxisTick(cents: number): string {
+export function formatPHPAxisTick(cents: Cents): string {
   const sign = cents < 0 ? "-" : "";
   const pesos = Math.abs(cents) / 100;
 

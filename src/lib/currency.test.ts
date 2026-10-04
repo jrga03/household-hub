@@ -31,43 +31,43 @@ import {
 
 describe("formatPHP", () => {
   it("formats zero correctly", () => {
-    expect(formatPHP(0)).toBe("₱0.00");
+    expect(formatPHP(asCents(0))).toBe("₱0.00");
   });
 
   it("formats small amounts with centavos", () => {
-    expect(formatPHP(1)).toBe("₱0.01");
-    expect(formatPHP(10)).toBe("₱0.10");
-    expect(formatPHP(99)).toBe("₱0.99");
-    expect(formatPHP(100)).toBe("₱1.00");
+    expect(formatPHP(asCents(1))).toBe("₱0.01");
+    expect(formatPHP(asCents(10))).toBe("₱0.10");
+    expect(formatPHP(asCents(99))).toBe("₱0.99");
+    expect(formatPHP(asCents(100))).toBe("₱1.00");
   });
 
   it("formats amounts with thousand separators", () => {
-    expect(formatPHP(150050)).toBe("₱1,500.50");
-    expect(formatPHP(100000)).toBe("₱1,000.00");
-    expect(formatPHP(1000000)).toBe("₱10,000.00");
-    expect(formatPHP(123456789)).toBe("₱1,234,567.89");
+    expect(formatPHP(asCents(150050))).toBe("₱1,500.50");
+    expect(formatPHP(asCents(100000))).toBe("₱1,000.00");
+    expect(formatPHP(asCents(1000000))).toBe("₱10,000.00");
+    expect(formatPHP(asCents(123456789))).toBe("₱1,234,567.89");
   });
 
   it("formats maximum amount correctly", () => {
-    expect(formatPHP(MAX_AMOUNT_CENTS)).toBe("₱9,999,999.99");
+    expect(formatPHP(asCents(MAX_AMOUNT_CENTS))).toBe("₱9,999,999.99");
   });
 
   it("formats negative amounts with minus sign before peso sign", () => {
-    expect(formatPHP(-50000)).toBe("-₱500.00");
-    expect(formatPHP(-150050)).toBe("-₱1,500.50");
-    expect(formatPHP(-1)).toBe("-₱0.01");
+    expect(formatPHP(asCents(-50000))).toBe("-₱500.00");
+    expect(formatPHP(asCents(-150050))).toBe("-₱1,500.50");
+    expect(formatPHP(asCents(-1))).toBe("-₱0.01");
   });
 
   it("always shows 2 decimal places", () => {
-    expect(formatPHP(500)).toBe("₱5.00");
-    expect(formatPHP(505)).toBe("₱5.05");
-    expect(formatPHP(550)).toBe("₱5.50");
+    expect(formatPHP(asCents(500))).toBe("₱5.00");
+    expect(formatPHP(asCents(505))).toBe("₱5.05");
+    expect(formatPHP(asCents(550))).toBe("₱5.50");
   });
 
   it("pads single-digit centavos with leading zero", () => {
-    expect(formatPHP(101)).toBe("₱1.01");
-    expect(formatPHP(102)).toBe("₱1.02");
-    expect(formatPHP(109)).toBe("₱1.09");
+    expect(formatPHP(asCents(101))).toBe("₱1.01");
+    expect(formatPHP(asCents(102))).toBe("₱1.02");
+    expect(formatPHP(asCents(109))).toBe("₱1.09");
   });
 });
 
@@ -251,39 +251,39 @@ describe("parsePHPSafe", () => {
 
 describe("formatPHPAxisTick", () => {
   it("formats zero as ₱0", () => {
-    expect(formatPHPAxisTick(0)).toBe("₱0");
+    expect(formatPHPAxisTick(asCents(0))).toBe("₱0");
   });
 
   it("formats sub-thousand peso values without a suffix", () => {
-    expect(formatPHPAxisTick(50000)).toBe("₱500");
-    expect(formatPHPAxisTick(100)).toBe("₱1");
+    expect(formatPHPAxisTick(asCents(50000))).toBe("₱500");
+    expect(formatPHPAxisTick(asCents(100))).toBe("₱1");
   });
 
   it("shows centavos only when the tick is not a whole peso", () => {
-    expect(formatPHPAxisTick(12345)).toBe("₱123.45");
+    expect(formatPHPAxisTick(asCents(12345))).toBe("₱123.45");
   });
 
   it("formats thousands compactly with a lowercase k", () => {
-    expect(formatPHPAxisTick(1200000)).toBe("₱12k");
-    expect(formatPHPAxisTick(1250000)).toBe("₱12.5k");
-    expect(formatPHPAxisTick(100000)).toBe("₱1k");
+    expect(formatPHPAxisTick(asCents(1200000))).toBe("₱12k");
+    expect(formatPHPAxisTick(asCents(1250000))).toBe("₱12.5k");
+    expect(formatPHPAxisTick(asCents(100000))).toBe("₱1k");
   });
 
   it("formats millions compactly with M", () => {
-    expect(formatPHPAxisTick(100000000)).toBe("₱1M");
-    expect(formatPHPAxisTick(150000000)).toBe("₱1.5M");
-    expect(formatPHPAxisTick(MAX_AMOUNT_CENTS)).toBe("₱10M");
+    expect(formatPHPAxisTick(asCents(100000000))).toBe("₱1M");
+    expect(formatPHPAxisTick(asCents(150000000))).toBe("₱1.5M");
+    expect(formatPHPAxisTick(asCents(MAX_AMOUNT_CENTS))).toBe("₱10M");
   });
 
   it("takes CENTS, not pesos (the 100x consolidation trap)", () => {
     // 12,000 pesos passed as pesos would render ₱120 — the wrong magnitude
-    expect(formatPHPAxisTick(1200000)).toBe("₱12k");
-    expect(formatPHPAxisTick(12000)).toBe("₱120");
+    expect(formatPHPAxisTick(asCents(1200000))).toBe("₱12k");
+    expect(formatPHPAxisTick(asCents(12000))).toBe("₱120");
   });
 
   it("places the sign before the peso symbol for negatives", () => {
-    expect(formatPHPAxisTick(-50000)).toBe("-₱500");
-    expect(formatPHPAxisTick(-1250000)).toBe("-₱12.5k");
+    expect(formatPHPAxisTick(asCents(-50000))).toBe("-₱500");
+    expect(formatPHPAxisTick(asCents(-1250000))).toBe("-₱12.5k");
   });
 });
 
@@ -310,14 +310,14 @@ describe("round-trip formatting and parsing", () => {
     const testCases = [0, 1, 100, 150050, 999999, MAX_AMOUNT_CENTS];
 
     testCases.forEach((cents) => {
-      const formatted = formatPHP(cents);
+      const formatted = formatPHP(asCents(cents));
       const parsed = parsePHP(formatted);
       expect(parsed).toBe(cents);
     });
   });
 
   it("preserves value through multiple conversions", () => {
-    const original = 150050;
+    const original = asCents(150050);
     const formatted1 = formatPHP(original);
     const parsed1 = parsePHP(formatted1);
     const formatted2 = formatPHP(parsed1);
@@ -345,7 +345,7 @@ describe("financial calculation accuracy", () => {
     const budgetTarget = parsePHP("10,000.00"); // ₱10,000 budget
     const actualSpending = parsePHP("12,500.50"); // ₱12,500.50 spent
 
-    const variance = actualSpending - budgetTarget;
+    const variance = diffCents(actualSpending, budgetTarget);
     expect(variance).toBe(250050); // ₱2,500.50 over budget
     expect(formatPHP(variance)).toBe("₱2,500.50");
 
