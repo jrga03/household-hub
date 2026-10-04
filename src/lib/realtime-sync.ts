@@ -67,12 +67,8 @@ import { syncProcessor } from "@/lib/sync/processor";
 import { useSyncStore } from "@/stores/syncStore";
 import { useAuthStore } from "@/stores/authStore";
 import { reportError } from "@/lib/sentry";
-
-/**
- * Table names that support realtime sync
- * Note: budgets table will be added in a future chunk when budgets offline support is implemented
- */
-type SyncTableName = "transactions" | "accounts" | "categories";
+import { parseSyncRow, type SyncTableName } from "@/lib/validations/syncRows";
+import type { ZodIssue } from "zod";
 
 /**
  * Realtime payload from Supabase (generic for any table)
@@ -348,15 +344,21 @@ export class RealtimeSync {
     // Type-safe table access using Dexie schema
     const table = getTable(tableName);
 
+    const parsed = parseSyncRow(tableName, record);
+    if (!parsed.ok) {
+      this.reportInvalidRow(tableName, record, parsed.issues);
+      return;
+    }
+
     // Check if record already exists (prevent duplicate inserts)
-    const existing = await table.get(record.id as string);
+    const existing = await table.get(parsed.row.id);
     if (existing) {
       console.log(`[RealtimeSync] Record ${record.id} already exists in ${tableName} (skipping)`);
       return;
     }
 
     // Add to IndexedDB
-    await table.add(record);
+    await table.add(parsed.row);
     console.log(`[RealtimeSync] ✓ Inserted ${record.id} into ${tableName}`);
   }
 
@@ -384,12 +386,17 @@ export class RealtimeSync {
   ): Promise<void> {
     const table = getTable(tableName);
 
-    const localRecord = await table.get(newRecord.id as string);
+    const parsed = parseSyncRow(tableName, newRecord);
+    if (!parsed.ok) {
+      this.reportInvalidRow(tableName, newRecord, parsed.issues);
+      return;
+    }
+
+    const localRecord = await table.get(parsed.row.id);
 
     if (localRecord) {
-      const localFields = localRecord as unknown as Record<string, unknown>;
-      const localTime = new Date((localFields.updated_at as string) || 0).getTime();
-      const remoteTime = new Date(newRecord.updated_at as string).getTime();
+      const localTime = new Date(localRecord.updated_at || 0).getTime();
+      const remoteTime = new Date(parsed.row.updated_at).getTime();
 
       if (localTime >= remoteTime) {
         console.log(
@@ -399,8 +406,21 @@ export class RealtimeSync {
       }
     }
 
-    await table.put(newRecord);
+    await table.put(parsed.row);
     console.log(`[RealtimeSync] ✓ Updated ${newRecord.id} in ${tableName}`);
+  }
+
+  private reportInvalidRow(
+    tableName: SyncTableName,
+    record: Record<string, unknown>,
+    issues: ZodIssue[]
+  ) {
+    console.warn(`[RealtimeSync] Skipped invalid ${tableName} row ${String(record.id)}`, issues);
+    reportError(new Error(`Invalid ${tableName} row from server`), {
+      subsystem: "realtime-sync",
+      operation: `invalid-row:${tableName}`,
+      extra: { id: record.id, issues },
+    });
   }
 
   /**
@@ -572,21 +592,26 @@ export class RealtimeSync {
   ): Promise<void> {
     const table = getTable(tableName);
 
-    const local = await table.get(record.id as string);
+    const parsed = parseSyncRow(tableName, record);
+    if (!parsed.ok) {
+      this.reportInvalidRow(tableName, record, parsed.issues);
+      return;
+    }
+
+    const local = await table.get(parsed.row.id);
 
     if (!local) {
       // New record - add it
-      await table.add(record);
+      await table.add(parsed.row);
       console.log(`[RealtimeSync] Added new record ${record.id} to ${tableName}`);
     } else {
       // Compare timestamps to determine which version is newer
-      const remoteTime = new Date(record.updated_at as string).getTime();
-      const localFields = local as unknown as Record<string, unknown>;
-      const localTime = new Date(localFields.updated_at as string).getTime();
+      const remoteTime = new Date(parsed.row.updated_at).getTime();
+      const localTime = new Date(local.updated_at).getTime();
 
       if (remoteTime > localTime) {
         // Remote is newer - update local
-        await table.put(record);
+        await table.put(parsed.row);
         console.log(`[RealtimeSync] Updated ${record.id} in ${tableName} (remote newer)`);
       } else {
         // Local is newer or same - keep local

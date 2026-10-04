@@ -48,11 +48,11 @@ export interface LocalTransaction {
   status: "pending" | "cleared";
   visibility: "household" | "personal";
   owner_user_id?: string; // Owner for personal visibility (null for household)
-  created_by_user_id: string;
+  created_by_user_id?: string;
   tagged_user_ids: string[]; // Array for @mentions
   notes?: string;
   import_key?: string; // SHA-256 hash for duplicate detection
-  device_id: string;
+  device_id?: string;
   created_at: string; // ISO timestamp
   updated_at: string; // ISO timestamp
 }
