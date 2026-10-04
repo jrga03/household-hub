@@ -34,7 +34,12 @@ import type { AccountInput, CategoryInput } from "./offline/types";
 import type { Account } from "@/types/accounts";
 import type { Category, CategoryWithChildren } from "@/types/categories";
 import type { TransactionFilters, TransactionWithRelations } from "@/types/transactions";
-import type { Cents } from "@/lib/currency";
+import { ZERO_CENTS, type Cents } from "@/lib/currency";
+import {
+  parseAccountBalanceDeltas,
+  parseTransactionsFilterSummary,
+  type AccountBalanceDelta,
+} from "@/lib/validations/rpcResults";
 import {
   isTransactionType,
   isTransactionStatus,
@@ -197,17 +202,9 @@ export interface AccountBalance {
  * client-computed balances wrong past 1,000 transactions (review DATA-02).
  * Transfers are intentionally INCLUDED - they move money between accounts.
  */
-interface AccountBalanceDeltaRow {
-  account_id: string;
-  cleared_delta_cents: number;
-  pending_delta_cents: number;
-  cleared_count: number;
-  pending_count: number;
-}
-
-const EMPTY_BALANCE_DELTA: Omit<AccountBalanceDeltaRow, "account_id"> = {
-  cleared_delta_cents: 0,
-  pending_delta_cents: 0,
+const EMPTY_BALANCE_DELTA: Omit<AccountBalanceDelta, "account_id"> = {
+  cleared_delta_cents: ZERO_CENTS,
+  pending_delta_cents: ZERO_CENTS,
   cleared_count: 0,
   pending_count: 0,
 };
@@ -231,7 +228,7 @@ export function useAccountBalance(accountId: string) {
       if (!account) throw new Error("Account not found");
 
       if (deltasResult.error) throw deltasResult.error;
-      const deltas = (deltasResult.data ?? []) as AccountBalanceDeltaRow[];
+      const deltas = parseAccountBalanceDeltas(deltasResult.data);
       const d = deltas[0] ?? { account_id: accountId, ...EMPTY_BALANCE_DELTA };
 
       const initialBalance = account.initial_balance_cents || 0;
@@ -285,7 +282,7 @@ export function useAccountBalances() {
       if (accountsError) throw accountsError;
       if (!accounts || accounts.length === 0) return [];
 
-      // Server-side aggregation for active accounts (see AccountBalanceDeltaRow)
+      // Server-side aggregation for active accounts (see parseAccountBalanceDeltas)
       const { data: deltaRows, error: deltasError } = await supabase.rpc("get_account_balances", {
         p_account_ids: accounts.map((a) => a.id),
       });
@@ -293,7 +290,7 @@ export function useAccountBalances() {
       if (deltasError) throw deltasError;
 
       const deltaByAccount = new Map(
-        ((deltaRows ?? []) as AccountBalanceDeltaRow[]).map((d) => [d.account_id, d])
+        parseAccountBalanceDeltas(deltaRows).map((d) => [d.account_id, d])
       );
 
       // Build AccountBalance array (accounts with no transactions get zeros)
@@ -619,16 +616,6 @@ export function useTransactions(filters?: TransactionFilters) {
   });
 }
 
-/**
- * Raw row shape returned by the transactions_filter_summary RPC (BIGINTs
- * arrive as JSON numbers; amounts are capped well below 2^53).
- */
-interface TransactionsFilterSummaryRow {
-  txn_count: number | string;
-  total_in_cents: number | string;
-  total_out_cents: number | string;
-}
-
 export type { TransactionsFilterSummary };
 
 /**
@@ -668,12 +655,11 @@ export function useTransactionsFilterSummary(filters?: TransactionFilters) {
 
         if (error) throw error;
 
-        const rows = (data ?? []) as TransactionsFilterSummaryRow[];
-        const row = Array.isArray(rows) ? rows[0] : (rows as TransactionsFilterSummaryRow);
+        const row = parseTransactionsFilterSummary(data);
         return {
-          count: Number(row?.txn_count ?? 0),
-          totalInCents: Number(row?.total_in_cents ?? 0),
-          totalOutCents: Number(row?.total_out_cents ?? 0),
+          count: row.txn_count,
+          totalInCents: row.total_in_cents,
+          totalOutCents: row.total_out_cents,
         };
       } catch (error) {
         if (isLikelyNetworkError(error)) {
@@ -1286,7 +1272,7 @@ export async function fetchDashboardDataFromServer(currentMonth: Date): Promise<
   const trendTransactions = trendResult.data;
   const categories = categoriesResult.data;
   const accounts = accountsResult.data;
-  const balanceDeltas = (balanceDeltasResult.data ?? []) as AccountBalanceDeltaRow[];
+  const balanceDeltas = parseAccountBalanceDeltas(balanceDeltasResult.data);
   const recentTransactions = recentResult.data;
 
   // Calculate summary
