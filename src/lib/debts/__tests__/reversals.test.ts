@@ -173,6 +173,29 @@ describe("Reversal System", () => {
 
       expect(result.reversal.adjustment_reason).toBe("transaction_edited");
     });
+
+    it("dates a reversal with the local calendar day, not the UTC day", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(2026, 9, 4, 7, 30)); // 07:30 local; in Asia/Manila this is 2026-10-03 in UTC
+      try {
+        const debt = await createExternalDebt({
+          name: "Date Debt",
+          original_amount_cents: cents(100000),
+          household_id: "h1",
+        });
+        const payment = await processDebtPayment({
+          transaction_id: "txn-date",
+          amount_cents: cents(50000),
+          payment_date: "2026-10-01",
+          debt_id: debt.id,
+          household_id: "h1",
+        });
+        const result = await reverseDebtPayment({ payment_id: payment.payment.id });
+        expect(result.reversal.payment_date).toBe("2026-10-04");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe("isPaymentReversed", () => {
