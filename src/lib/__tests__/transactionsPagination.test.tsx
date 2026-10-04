@@ -37,6 +37,7 @@ import {
   TRANSACTIONS_PAGE_SIZE,
   TRANSACTIONS_MAX_PAGES,
 } from "@/lib/supabaseQueries";
+import { cents } from "@/test/cents";
 
 // ─── Helpers ─────────────────────────────────────
 
@@ -46,7 +47,7 @@ function makeServerRow(id: string, date: string, createdAt: string): Transaction
     household_id: "hh-1",
     date,
     description: `server ${id}`,
-    amount_cents: 10000,
+    amount_cents: cents(10000),
     type: "expense",
     currency_code: "PHP",
     account_id: null,
@@ -74,7 +75,7 @@ function makeLocalTransaction(overrides: Partial<LocalTransaction> = {}): LocalT
     household_id: "hh-1",
     date: "2026-07-01",
     description: "local transaction",
-    amount_cents: 10000,
+    amount_cents: cents(10000),
     type: "expense",
     currency_code: "PHP",
     status: "pending",
@@ -484,13 +485,13 @@ describe("useTransactionsFilterSummary (R10)", () => {
     vi.mocked(supabase.rpc).mockRejectedValue(new Error("Failed to fetch"));
 
     await db.transactions.bulkAdd([
-      makeLocalTransaction({ id: "t1", type: "income", amount_cents: 500000 }),
-      makeLocalTransaction({ id: "t2", type: "expense", amount_cents: 150050 }),
+      makeLocalTransaction({ id: "t1", type: "income", amount_cents: cents(500000) }),
+      makeLocalTransaction({ id: "t2", type: "expense", amount_cents: cents(150050) }),
       // Transfer leg must stay excluded in the fallback too
       makeLocalTransaction({
         id: "t3",
         type: "expense",
-        amount_cents: 700000,
+        amount_cents: cents(700000),
         transfer_group_id: "tg-1",
       }),
     ]);
@@ -518,7 +519,7 @@ describe("useTransactionsFilterSummary (R10)", () => {
     } as never);
 
     await db.transactions.add(
-      makeLocalTransaction({ id: "t1", type: "expense", amount_cents: 4200 })
+      makeLocalTransaction({ id: "t1", type: "expense", amount_cents: cents(4200) })
     );
 
     const { result } = renderHook(() => useTransactionsFilterSummary(), {
@@ -533,7 +534,7 @@ describe("useTransactionsFilterSummary (R10)", () => {
     vi.mocked(supabase.rpc).mockRejectedValue(new TypeError("Failed to fetch"));
 
     await db.transactions.add(
-      makeLocalTransaction({ id: "t1", type: "expense", amount_cents: 4200 })
+      makeLocalTransaction({ id: "t1", type: "expense", amount_cents: cents(4200) })
     );
 
     const { result } = renderHook(() => useTransactionsFilterSummary(), {

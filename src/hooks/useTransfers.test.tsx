@@ -6,6 +6,7 @@ import { useCreateTransfer } from "./useTransfers";
 import { createOfflineTransfer } from "@/lib/offline/transfers";
 import { supabase } from "@/lib/supabase";
 import { syncProcessor } from "@/lib/sync/processor";
+import { cents } from "@/test/cents";
 
 vi.mock("@/lib/offline/transfers", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/offline/transfers")>()),
@@ -21,7 +22,7 @@ const transfer = {
   to_account_id: "acc-to",
   from_account_name: "Checking",
   to_account_name: "Savings",
-  amount_cents: 250000,
+  amount_cents: cents(250000),
   date: "2026-09-30",
   description: "Rent float",
 };

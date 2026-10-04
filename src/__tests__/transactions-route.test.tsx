@@ -30,6 +30,7 @@ import { confirm } from "@/lib/confirm";
 import { handleTransactionDelete } from "@/lib/debts";
 import { formatPHP } from "@/lib/currency";
 import type { TransactionWithRelations } from "@/types/transactions";
+import { cents } from "@/test/cents";
 
 // Radix components measure via ResizeObserver, which jsdom lacks
 class ResizeObserverStub {
@@ -146,7 +147,7 @@ function buildTransaction(overrides: Partial<TransactionWithRelations>): Transac
     household_id: "hh-1",
     date: "2026-07-01",
     description: "Groceries",
-    amount_cents: 150050,
+    amount_cents: cents(150050),
     type: "expense",
     currency_code: "PHP",
     account_id: null,
@@ -173,7 +174,7 @@ const groceries = buildTransaction({ id: "txn-1", description: "Groceries" });
 const salary = buildTransaction({
   id: "txn-2",
   description: "Salary",
-  amount_cents: 500000,
+  amount_cents: cents(500000),
   type: "income",
 });
 

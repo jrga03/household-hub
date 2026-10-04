@@ -6,6 +6,7 @@ import {
   isValidStatusTransition,
   recoverInvalidDebtStates,
 } from "../status";
+import { cents } from "@/test/cents";
 
 // Status transitions now emit events, which read the Supabase session for
 // attribution; unit tests run unauthenticated, so pin a deterministic user
@@ -31,7 +32,7 @@ describe("Status Transitions", () => {
         id: "debt-1",
         household_id: "household-1",
         name: "Test",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         status: "active",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -43,7 +44,7 @@ describe("Status Transitions", () => {
         household_id: "household-1",
         debt_id: "debt-1",
         transaction_id: "txn-1",
-        amount_cents: 100000, // Pays off fully
+        amount_cents: cents(100000), // Pays off fully
         payment_date: "2025-11-10",
         device_id: "device-1",
         is_reversal: false,
@@ -68,7 +69,7 @@ describe("Status Transitions", () => {
         id: "debt-1",
         household_id: "household-1",
         name: "Test",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         status: "paid_off",
         closed_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
@@ -81,7 +82,7 @@ describe("Status Transitions", () => {
         household_id: "household-1",
         debt_id: "debt-1",
         transaction_id: "txn-1",
-        amount_cents: 100000,
+        amount_cents: cents(100000),
         payment_date: "2025-11-01",
         device_id: "device-1",
         is_reversal: false,
@@ -96,7 +97,7 @@ describe("Status Transitions", () => {
         household_id: "household-1",
         debt_id: "debt-1",
         transaction_id: "txn-1",
-        amount_cents: -100000,
+        amount_cents: cents(-100000),
         payment_date: "2025-11-02",
         device_id: "device-1",
         is_reversal: true,
@@ -124,7 +125,7 @@ describe("Status Transitions", () => {
         id: "debt-1",
         household_id: "household-1",
         name: "Test",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         status: "archived",
         closed_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
@@ -145,7 +146,7 @@ describe("Status Transitions", () => {
         id: "debt-1",
         household_id: "household-1",
         name: "Test",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         status: "active",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -157,12 +158,12 @@ describe("Status Transitions", () => {
         household_id: "household-1",
         debt_id: "debt-1",
         transaction_id: "txn-1",
-        amount_cents: 150000, // Overpaid by ₱500
+        amount_cents: cents(150000), // Overpaid by ₱500
         payment_date: "2025-11-10",
         device_id: "device-1",
         is_reversal: false,
         is_overpayment: true,
-        overpayment_amount: 50000,
+        overpayment_amount: cents(50000),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         idempotency_key: "device-1-debt_payment-payment-1-1",
@@ -228,7 +229,7 @@ describe("Status Transitions", () => {
         id: "debt-1",
         household_id: "household-1",
         name: "Mismatched",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         status: "active", // Should be paid_off
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -240,7 +241,7 @@ describe("Status Transitions", () => {
         household_id: "household-1",
         debt_id: "debt-1",
         transaction_id: "txn-1",
-        amount_cents: 100000,
+        amount_cents: cents(100000),
         payment_date: "2025-11-10",
         device_id: "device-1",
         is_reversal: false,

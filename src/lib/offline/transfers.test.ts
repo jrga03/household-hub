@@ -13,6 +13,7 @@ import {
   groupTransferLegs,
   type TransferLeg,
 } from "./transfers";
+import { cents } from "@/test/cents";
 
 // Lets a test make queue-item construction fail, to prove there's no partial
 // write: queue items are built before the Dexie transaction opens, so a
@@ -36,7 +37,7 @@ function makeLeg(overrides: Partial<TransferLeg> = {}): TransferLeg {
   return {
     id: crypto.randomUUID(),
     date: "2026-07-05",
-    amount_cents: 10000,
+    amount_cents: cents(10000),
     description: "Transfer",
     transfer_group_id: "tg-1",
     type: "expense",
@@ -51,7 +52,7 @@ function makeTransaction(overrides: Partial<LocalTransaction> = {}): LocalTransa
     household_id: "hh-1",
     date: "2026-07-05",
     description: "Transfer",
-    amount_cents: 10000,
+    amount_cents: cents(10000),
     type: "expense",
     currency_code: "PHP",
     status: "cleared",
@@ -71,7 +72,7 @@ function makeAccount(overrides: Partial<LocalAccount> = {}): LocalAccount {
     household_id: "hh-1",
     name: "Test Account",
     type: "bank",
-    initial_balance_cents: 0,
+    initial_balance_cents: cents(0),
     currency_code: "PHP",
     visibility: "household",
     color: "#0000ff",
@@ -107,7 +108,7 @@ describe("groupTransferLegs", () => {
     expect(grouped[0]).toEqual({
       id: "leg-out",
       date: "2026-07-05",
-      amount_cents: 10000,
+      amount_cents: cents(10000),
       transfer_group_id: "tg-1",
       description: "Transfer to Savings",
       from_account: { id: "acc-1", name: "Checking" },
@@ -202,7 +203,7 @@ describe("getLocalTransfers", () => {
     expect(transfers[0]).toMatchObject({
       id: "leg-out",
       transfer_group_id: "tg-1",
-      amount_cents: 10000,
+      amount_cents: cents(10000),
       from_account_name: "Checking",
       to_account_name: "Savings",
     });
@@ -222,7 +223,7 @@ describe("createOfflineTransfer", () => {
     to_account_id: "acc-to",
     from_account_name: "Checking",
     to_account_name: "Savings",
-    amount_cents: 250000,
+    amount_cents: cents(250000),
     date: "2026-09-30",
   };
 
@@ -243,7 +244,7 @@ describe("createOfflineTransfer", () => {
 
     expect(expense).toMatchObject({
       account_id: "acc-from",
-      amount_cents: 250000,
+      amount_cents: cents(250000),
       date: "2026-09-30",
       description: "Transfer to Savings",
       status: "pending",
@@ -251,7 +252,7 @@ describe("createOfflineTransfer", () => {
     });
     expect(income).toMatchObject({
       account_id: "acc-to",
-      amount_cents: 250000,
+      amount_cents: cents(250000),
       description: "Transfer from Checking",
     });
     expect(expense?.transfer_group_id).toBeTruthy();
@@ -288,8 +289,10 @@ describe("createOfflineTransfer", () => {
       { ...input, to_account_id: "acc-from" },
       userId
     );
-    const zero = await createOfflineTransfer({ ...input, amount_cents: 0 }, userId);
-    const fractional = await createOfflineTransfer({ ...input, amount_cents: 10.5 }, userId);
+    const zero = await createOfflineTransfer({ ...input, amount_cents: cents(0) }, userId);
+    const fractionalInput = { ...input };
+    Reflect.set(fractionalInput, "amount_cents", 10.5);
+    const fractional = await createOfflineTransfer(fractionalInput, userId);
 
     expect([sameAccount.success, zero.success, fractional.success]).toEqual([false, false, false]);
     expect(await db.transactions.count()).toBe(0);

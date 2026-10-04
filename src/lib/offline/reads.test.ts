@@ -16,6 +16,7 @@ import {
   overlayLocalTransactions,
 } from "./reads";
 import type { SyncQueueItem, SyncQueueStatus, OperationType } from "@/types/sync";
+import { cents } from "@/test/cents";
 
 // ─── Helpers ─────────────────────────────────────
 
@@ -25,7 +26,7 @@ function makeTransaction(overrides: Partial<LocalTransaction> = {}): LocalTransa
     household_id: "hh-1",
     date: "2026-07-01",
     description: "Test transaction",
-    amount_cents: 10000,
+    amount_cents: cents(10000),
     type: "expense",
     currency_code: "PHP",
     status: "pending",
@@ -307,9 +308,9 @@ describe("applyTransactionFilters", () => {
 
   it("mirrors the server filter clauses", () => {
     const rows = [
-      makeTransaction({ id: "t1", date: "2026-07-01", type: "expense", amount_cents: 5000 }),
-      makeTransaction({ id: "t2", date: "2026-07-02", type: "income", amount_cents: 20000 }),
-      makeTransaction({ id: "t3", date: "2026-06-01", type: "expense", amount_cents: 9000 }),
+      makeTransaction({ id: "t1", date: "2026-07-01", type: "expense", amount_cents: cents(5000) }),
+      makeTransaction({ id: "t2", date: "2026-07-02", type: "income", amount_cents: cents(20000) }),
+      makeTransaction({ id: "t3", date: "2026-06-01", type: "expense", amount_cents: cents(9000) }),
     ];
 
     expect(
@@ -409,7 +410,7 @@ describe("getUnsyncedLocalTransactionsWithRelations", () => {
       color: "#0000ff",
       icon: "bank",
       currency_code: "PHP",
-      initial_balance_cents: 0,
+      initial_balance_cents: cents(0),
       is_active: true,
       sort_order: 0,
       visibility: "household",
@@ -504,14 +505,14 @@ describe("getLocalTransactionsFilterSummary", () => {
 
   it("computes count and In/Out totals over the FULL dataset with filter mirroring", async () => {
     await db.transactions.bulkAdd([
-      makeTransaction({ id: "t1", type: "income", amount_cents: 500000 }),
-      makeTransaction({ id: "t2", type: "expense", amount_cents: 150050 }),
-      makeTransaction({ id: "t3", type: "expense", amount_cents: 9950 }),
+      makeTransaction({ id: "t1", type: "income", amount_cents: cents(500000) }),
+      makeTransaction({ id: "t2", type: "expense", amount_cents: cents(150050) }),
+      makeTransaction({ id: "t3", type: "expense", amount_cents: cents(9950) }),
       // Transfer leg: excluded by default like the RPC and the list query
       makeTransaction({
         id: "t4",
         type: "expense",
-        amount_cents: 700000,
+        amount_cents: cents(700000),
         transfer_group_id: "tg-1",
       }),
     ]);
@@ -523,11 +524,11 @@ describe("getLocalTransactionsFilterSummary", () => {
 
   it("includes transfers when excludeTransfers is false", async () => {
     await db.transactions.bulkAdd([
-      makeTransaction({ id: "t1", type: "expense", amount_cents: 10000 }),
+      makeTransaction({ id: "t1", type: "expense", amount_cents: cents(10000) }),
       makeTransaction({
         id: "t2",
         type: "expense",
-        amount_cents: 5000,
+        amount_cents: cents(5000),
         transfer_group_id: "tg-1",
       }),
     ]);
@@ -539,9 +540,19 @@ describe("getLocalTransactionsFilterSummary", () => {
 
   it("applies the same filters as the server query", async () => {
     await db.transactions.bulkAdd([
-      makeTransaction({ id: "t1", type: "expense", amount_cents: 10000, date: "2026-07-01" }),
-      makeTransaction({ id: "t2", type: "expense", amount_cents: 20000, date: "2026-06-01" }),
-      makeTransaction({ id: "t3", type: "income", amount_cents: 30000, date: "2026-07-02" }),
+      makeTransaction({
+        id: "t1",
+        type: "expense",
+        amount_cents: cents(10000),
+        date: "2026-07-01",
+      }),
+      makeTransaction({
+        id: "t2",
+        type: "expense",
+        amount_cents: cents(20000),
+        date: "2026-06-01",
+      }),
+      makeTransaction({ id: "t3", type: "income", amount_cents: cents(30000), date: "2026-07-02" }),
     ]);
 
     const summary = await getLocalTransactionsFilterSummary({ dateFrom: "2026-07-01" });

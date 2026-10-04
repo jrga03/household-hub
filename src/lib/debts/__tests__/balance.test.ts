@@ -6,6 +6,7 @@ import {
   calculateMultipleBalances,
 } from "../balance";
 import { createTestDebt, createTestPayment } from "./test-utils";
+import { cents } from "@/test/cents";
 
 describe("Balance Calculation", () => {
   beforeEach(async () => {
@@ -18,7 +19,7 @@ describe("Balance Calculation", () => {
     it("should return full balance when no payments exist", async () => {
       const debt = createTestDebt({
         id: "debt-1",
-        original_amount_cents: 100000, // ₱1,000
+        original_amount_cents: cents(100000), // ₱1,000
       });
 
       await db.debts.add(debt);
@@ -30,14 +31,14 @@ describe("Balance Calculation", () => {
     it("should calculate balance with single payment", async () => {
       const debt = createTestDebt({
         id: "debt-1",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
       });
 
       const payment = createTestPayment({
         id: "payment-1",
         debt_id: "debt-1",
         transaction_id: "txn-1",
-        amount_cents: 25000, // ₱250 paid
+        amount_cents: cents(25000), // ₱250 paid
         payment_date: "2025-11-10",
       });
 
@@ -51,7 +52,7 @@ describe("Balance Calculation", () => {
     it("should calculate balance with multiple payments", async () => {
       const debt = createTestDebt({
         id: "debt-1",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
       });
 
       const payments = [
@@ -59,14 +60,14 @@ describe("Balance Calculation", () => {
           id: "payment-1",
           debt_id: "debt-1",
           transaction_id: "txn-1",
-          amount_cents: 25000,
+          amount_cents: cents(25000),
           payment_date: "2025-11-01",
         }),
         createTestPayment({
           id: "payment-2",
           debt_id: "debt-1",
           transaction_id: "txn-2",
-          amount_cents: 30000,
+          amount_cents: cents(30000),
           payment_date: "2025-11-05",
         }),
       ];
@@ -81,7 +82,7 @@ describe("Balance Calculation", () => {
     it("should exclude reversal records from calculation", async () => {
       const debt = createTestDebt({
         id: "debt-1",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
       });
 
       const payments = [
@@ -89,14 +90,14 @@ describe("Balance Calculation", () => {
           id: "payment-1",
           debt_id: "debt-1",
           transaction_id: "txn-1",
-          amount_cents: 25000, // Original payment
+          amount_cents: cents(25000), // Original payment
           payment_date: "2025-11-01",
         }),
         createTestPayment({
           id: "reversal-1",
           debt_id: "debt-1",
           transaction_id: "txn-1",
-          amount_cents: -25000, // Reversal (negative)
+          amount_cents: cents(-25000), // Reversal (negative)
           payment_date: "2025-11-02",
           is_reversal: true,
           reverses_payment_id: "payment-1",
@@ -113,17 +114,17 @@ describe("Balance Calculation", () => {
     it("should support negative balance (overpayment)", async () => {
       const debt = createTestDebt({
         id: "debt-1",
-        original_amount_cents: 100000, // ₱1,000
+        original_amount_cents: cents(100000), // ₱1,000
       });
 
       const payment = createTestPayment({
         id: "payment-1",
         debt_id: "debt-1",
         transaction_id: "txn-1",
-        amount_cents: 150000, // ₱1,500 paid (overpaid by ₱500)
+        amount_cents: cents(150000), // ₱1,500 paid (overpaid by ₱500)
         payment_date: "2025-11-10",
         is_overpayment: true,
-        overpayment_amount: 50000,
+        overpayment_amount: cents(50000),
       });
 
       await db.debts.add(debt);
@@ -143,7 +144,7 @@ describe("Balance Calculation", () => {
     it("should return detailed breakdown", async () => {
       const debt = createTestDebt({
         id: "debt-1",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
       });
 
       const payments = [
@@ -151,14 +152,14 @@ describe("Balance Calculation", () => {
           id: "payment-1",
           debt_id: "debt-1",
           transaction_id: "txn-1",
-          amount_cents: 30000,
+          amount_cents: cents(30000),
           payment_date: "2025-11-01",
         }),
         createTestPayment({
           id: "payment-2",
           debt_id: "debt-1",
           transaction_id: "txn-2",
-          amount_cents: 20000,
+          amount_cents: cents(20000),
           payment_date: "2025-11-05",
         }),
       ];
@@ -180,14 +181,14 @@ describe("Balance Calculation", () => {
     it("should detect overpayment in details", async () => {
       const debt = createTestDebt({
         id: "debt-1",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
       });
 
       const payment = createTestPayment({
         id: "payment-1",
         debt_id: "debt-1",
         transaction_id: "txn-1",
-        amount_cents: 125000, // Overpaid
+        amount_cents: cents(125000), // Overpaid
         payment_date: "2025-11-10",
       });
 
@@ -209,17 +210,17 @@ describe("Balance Calculation", () => {
         createTestDebt({
           id: "debt-1",
           name: "Debt 1",
-          original_amount_cents: 100000,
+          original_amount_cents: cents(100000),
         }),
         createTestDebt({
           id: "debt-2",
           name: "Debt 2",
-          original_amount_cents: 200000,
+          original_amount_cents: cents(200000),
         }),
         createTestDebt({
           id: "debt-3",
           name: "Debt 3",
-          original_amount_cents: 150000,
+          original_amount_cents: cents(150000),
         }),
       ];
 
@@ -229,14 +230,14 @@ describe("Balance Calculation", () => {
           id: "payment-1",
           debt_id: "debt-1",
           transaction_id: "txn-1",
-          amount_cents: 25000,
+          amount_cents: cents(25000),
           payment_date: "2025-11-01",
         }),
         createTestPayment({
           id: "payment-2",
           debt_id: "debt-2",
           transaction_id: "txn-2",
-          amount_cents: 100000,
+          amount_cents: cents(100000),
           payment_date: "2025-11-01",
         }),
       ];

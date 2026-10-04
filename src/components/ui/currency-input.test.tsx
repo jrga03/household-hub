@@ -10,20 +10,21 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { CurrencyInput } from "./currency-input";
+import { cents } from "@/test/cents";
 
 function getInput(): HTMLInputElement {
   return screen.getByLabelText("Amount in Philippine Pesos");
 }
 
 /** Controlled harness mirroring the RHF Controller wiring used by the forms. */
-function ControlledCurrencyInput({ onChangeSpy }: { onChangeSpy: (cents: number) => void }) {
-  const [value, setValue] = useState(0);
+function ControlledCurrencyInput({ onChangeSpy }: { onChangeSpy: (amount: number) => void }) {
+  const [value, setValue] = useState(cents(0));
   return (
     <CurrencyInput
       value={value}
-      onChange={(cents) => {
-        setValue(cents);
-        onChangeSpy(cents);
+      onChange={(amount) => {
+        setValue(amount);
+        onChangeSpy(amount);
       }}
     />
   );
@@ -32,7 +33,7 @@ function ControlledCurrencyInput({ onChangeSpy }: { onChangeSpy: (cents: number)
 describe("CurrencyInput", () => {
   it("commits parsed cents on change, before any blur", () => {
     const onChange = vi.fn();
-    render(<CurrencyInput value={0} onChange={onChange} />);
+    render(<CurrencyInput value={cents(0)} onChange={onChange} />);
 
     const input = getInput();
     fireEvent.focus(input);
@@ -65,7 +66,7 @@ describe("CurrencyInput", () => {
 
   it("commits 0 when the field is cleared", () => {
     const onChange = vi.fn();
-    render(<CurrencyInput value={150050} onChange={onChange} />);
+    render(<CurrencyInput value={cents(150050)} onChange={onChange} />);
 
     const input = getInput();
     fireEvent.focus(input);
@@ -76,7 +77,7 @@ describe("CurrencyInput", () => {
 
   it("silently ignores unparseable input on change and resets it on blur", () => {
     const onChange = vi.fn();
-    render(<CurrencyInput value={12345} onChange={onChange} />);
+    render(<CurrencyInput value={cents(12345)} onChange={onChange} />);
 
     const input = getInput();
     fireEvent.focus(input);
@@ -113,7 +114,7 @@ describe("CurrencyInput", () => {
   it("passes through host-injected aria wiring when no error prop is set", () => {
     render(
       <CurrencyInput
-        value={0}
+        value={cents(0)}
         onChange={() => {}}
         aria-invalid={true}
         aria-describedby="form-item-message"
@@ -130,7 +131,7 @@ describe("CurrencyInput", () => {
     render(
       <CurrencyInput
         id="amount"
-        value={0}
+        value={cents(0)}
         onChange={() => {}}
         aria-describedby="form-item-message"
         error="Amount too large"
@@ -162,7 +163,7 @@ describe("CurrencyInput labelling", () => {
     render(
       <>
         <label htmlFor="budget-amount">Budget Amount</label>
-        <CurrencyInput id="budget-amount" value={0} />
+        <CurrencyInput id="budget-amount" value={cents(0)} />
       </>
     );
     const input = screen.getByLabelText("Budget Amount");
@@ -170,12 +171,12 @@ describe("CurrencyInput labelling", () => {
   });
 
   it("keeps an explicit aria-label", () => {
-    render(<CurrencyInput aria-label="Original amount" value={0} />);
+    render(<CurrencyInput aria-label="Original amount" value={cents(0)} />);
     expect(screen.getByLabelText("Original amount")).toBeInTheDocument();
   });
 
   it("falls back to the generic label when nothing names it", () => {
-    render(<CurrencyInput value={0} />);
+    render(<CurrencyInput value={cents(0)} />);
     expect(screen.getByLabelText("Amount in Philippine Pesos")).toBeInTheDocument();
   });
 });

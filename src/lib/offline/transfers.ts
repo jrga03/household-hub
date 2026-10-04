@@ -13,7 +13,7 @@
  */
 
 import { db, type LocalTransaction } from "@/lib/dexie/db";
-import { validateAmount } from "@/lib/currency";
+import { validateAmount, type Cents } from "@/lib/currency";
 import { createOfflineTransactionsBatch } from "./transactions";
 import type { OfflineOperationResult } from "./types";
 
@@ -21,7 +21,7 @@ import type { OfflineOperationResult } from "./types";
 export interface TransferLeg {
   id: string;
   date: string;
-  amount_cents: number;
+  amount_cents: Cents;
   description: string;
   transfer_group_id: string | null;
   type: string;
@@ -32,7 +32,7 @@ export interface TransferLeg {
 export interface TransferGroup {
   id: string;
   date: string;
-  amount_cents: number;
+  amount_cents: Cents;
   transfer_group_id: string | null;
   description: string;
   from_account: { id: string; name: string } | null;
@@ -118,7 +118,7 @@ export interface TransferInput {
   to_account_id: string;
   from_account_name: string;
   to_account_name: string;
-  amount_cents: number;
+  amount_cents: Cents;
   date: string;
   description?: string;
 }

@@ -66,6 +66,7 @@
 
 import { nanoid } from "nanoid";
 import { db } from "@/lib/dexie/db";
+import { negateCents } from "@/lib/currency";
 import { getDeviceId } from "@/lib/dexie/deviceManager";
 import { getNextLamportClock } from "@/lib/sync/lamportClock";
 import { calculateDebtBalance } from "./balance";
@@ -149,7 +150,7 @@ export async function reverseDebtPayment(data: CreateReversalData): Promise<Reve
   // 5. Compensating amount: always the exact negation of the target row.
   // Negating a negative reversal yields a positive row, so cascades need
   // no special cases in the signed ledger.
-  const reversalAmount = -originalPayment.amount_cents;
+  const reversalAmount = negateCents(originalPayment.amount_cents);
 
   // 6. Generate idempotency key for reversal
   const reversalId = nanoid();

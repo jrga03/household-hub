@@ -2,6 +2,8 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import * as z from "zod";
+import { MAX_AMOUNT_CENTS, ZERO_CENTS } from "@/lib/currency";
+import { centsSchema } from "@/lib/validations/cents";
 import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import {
@@ -19,7 +21,9 @@ const schema = z
   .object({
     from_account_id: z.string().min(1, "From account required"),
     to_account_id: z.string().min(1, "To account required"),
-    amount_cents: z.number().min(1, "Amount must be positive").max(999999999, "Amount too large"),
+    amount_cents: centsSchema
+      .refine((cents) => cents >= 1, "Amount must be positive")
+      .refine((cents) => cents <= MAX_AMOUNT_CENTS, "Amount too large"),
     date: z.string(),
     description: z.string().optional(),
   })
@@ -47,7 +51,7 @@ export function TransferForm({
       // Local calendar day, NOT toISOString(): the UTC day is yesterday
       // before 8am for UTC+8 users (mobile UX review R21).
       date: format(new Date(), "yyyy-MM-dd"),
-      amount_cents: 0,
+      amount_cents: ZERO_CENTS,
     },
   });
 
@@ -72,7 +76,7 @@ export function TransferForm({
       toast.success("Transfer created successfully");
       form.reset({
         date: format(new Date(), "yyyy-MM-dd"),
-        amount_cents: 0,
+        amount_cents: ZERO_CENTS,
       });
       onSuccess?.();
     } catch (error) {

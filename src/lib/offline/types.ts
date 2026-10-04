@@ -14,6 +14,8 @@
  * @module offline/types
  */
 
+import type { Cents } from "@/lib/currency";
+
 /**
  * Input type for creating transactions offline
  *
@@ -28,7 +30,7 @@
 export interface TransactionInput {
   date: string; // ISO date string (DATE type)
   description: string;
-  amount_cents: number;
+  amount_cents: Cents;
   type: "income" | "expense";
   // null = explicit clear on update; undefined/omitted = leave unchanged
   account_id?: string | null;
@@ -55,7 +57,7 @@ export interface AccountInput {
   name: string;
   type: "bank" | "investment" | "credit_card" | "cash" | "e-wallet";
   visibility: "household" | "personal";
-  initial_balance_cents: number;
+  initial_balance_cents: Cents;
   color?: string;
   icon?: string;
   is_active?: boolean;

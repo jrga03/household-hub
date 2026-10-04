@@ -22,6 +22,7 @@ import {
   updateOfflineBudget,
 } from "./budgets";
 import { OfflineError } from "./errors";
+import { cents } from "@/test/cents";
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
@@ -42,7 +43,7 @@ function makeBudget(overrides: Partial<LocalBudget> = {}): LocalBudget {
     household_id: "hh-1",
     category_id: "cat-food",
     month: JULY_KEY,
-    amount_cents: 50000,
+    amount_cents: cents(50000),
     currency_code: "PHP",
     created_at: "2026-07-01T00:00:00.000Z",
     updated_at: "2026-07-01T00:00:00.000Z",
@@ -71,7 +72,7 @@ function makeTransaction(overrides: Partial<LocalTransaction> = {}): LocalTransa
     household_id: "hh-1",
     date: "2026-07-10",
     description: "Test transaction",
-    amount_cents: 10000,
+    amount_cents: cents(10000),
     type: "expense",
     currency_code: "PHP",
     status: "cleared",
@@ -122,26 +123,26 @@ describe("mirrorBudgetsForMonth + getLocalBudgetGroups", () => {
 
     await db.transactions.bulkAdd([
       // Counts toward Food actuals
-      makeTransaction({ id: "tx-food", category_id: "cat-food", amount_cents: 20000 }),
+      makeTransaction({ id: "tx-food", category_id: "cat-food", amount_cents: cents(20000) }),
       // Transfer leg: MUST be excluded from actual spending
       makeTransaction({
         id: "tx-transfer",
         category_id: "cat-food",
-        amount_cents: 5000,
+        amount_cents: cents(5000),
         transfer_group_id: "tg-1",
       }),
       // Income: MUST be excluded (expenses only)
       makeTransaction({
         id: "tx-income",
         category_id: "cat-food",
-        amount_cents: 3000,
+        amount_cents: cents(3000),
         type: "income",
       }),
       // Outside the month: MUST be excluded
       makeTransaction({
         id: "tx-june",
         category_id: "cat-food",
-        amount_cents: 9999,
+        amount_cents: cents(9999),
         date: "2026-06-20",
       }),
     ]);
@@ -149,8 +150,8 @@ describe("mirrorBudgetsForMonth + getLocalBudgetGroups", () => {
 
   it("round-trips the server rows and rebuilds the BudgetGroup shape", async () => {
     await mirrorBudgetsForMonth(JULY_KEY, [
-      makeBudget({ id: "b-food", category_id: "cat-food", amount_cents: 50000 }),
-      makeBudget({ id: "b-games", category_id: "cat-games", amount_cents: 20000 }),
+      makeBudget({ id: "b-food", category_id: "cat-food", amount_cents: cents(50000) }),
+      makeBudget({ id: "b-games", category_id: "cat-games", amount_cents: cents(20000) }),
     ]);
 
     expect(await hasMirroredBudgets(JULY_KEY)).toBe(true);
@@ -188,7 +189,7 @@ describe("mirrorBudgetsForMonth + getLocalBudgetGroups", () => {
 
   it("flags over-budget categories", async () => {
     await mirrorBudgetsForMonth(JULY_KEY, [
-      makeBudget({ id: "b-food", category_id: "cat-food", amount_cents: 10000 }),
+      makeBudget({ id: "b-food", category_id: "cat-food", amount_cents: cents(10000) }),
     ]);
 
     const groups = await getLocalBudgetGroups(JULY);
@@ -202,12 +203,12 @@ describe("mirrorBudgetsForMonth + getLocalBudgetGroups", () => {
 
   it("re-mirroring REPLACES the month's rows (server deletions propagate)", async () => {
     await mirrorBudgetsForMonth(JULY_KEY, [
-      makeBudget({ id: "b-food", category_id: "cat-food", amount_cents: 50000 }),
-      makeBudget({ id: "b-games", category_id: "cat-games", amount_cents: 20000 }),
+      makeBudget({ id: "b-food", category_id: "cat-food", amount_cents: cents(50000) }),
+      makeBudget({ id: "b-games", category_id: "cat-games", amount_cents: cents(20000) }),
     ]);
     // Server state changed: games budget deleted, food amount updated
     await mirrorBudgetsForMonth(JULY_KEY, [
-      makeBudget({ id: "b-food", category_id: "cat-food", amount_cents: 60000 }),
+      makeBudget({ id: "b-food", category_id: "cat-food", amount_cents: cents(60000) }),
     ]);
 
     const groups = await getLocalBudgetGroups(JULY);
@@ -274,7 +275,11 @@ describe("mirrorBudgetsForMonth with pending sync queue items", () => {
   }
 
   it("keeps a local budget with a pending create when the server does not have it yet", async () => {
-    const local = makeBudget({ id: "local-1", category_id: "cat-food", amount_cents: 70000 });
+    const local = makeBudget({
+      id: "local-1",
+      category_id: "cat-food",
+      amount_cents: cents(70000),
+    });
     await db.budgets.put(local);
     await queueBudgetOp("local-1", "create");
 
@@ -284,12 +289,16 @@ describe("mirrorBudgetsForMonth with pending sync queue items", () => {
   });
 
   it("prefers a pending local row over a server row for the same category", async () => {
-    const local = makeBudget({ id: "local-1", category_id: "cat-food", amount_cents: 70000 });
+    const local = makeBudget({
+      id: "local-1",
+      category_id: "cat-food",
+      amount_cents: cents(70000),
+    });
     await db.budgets.put(local);
     await queueBudgetOp("local-1", "update");
 
     await mirrorBudgetsForMonth(JULY_KEY, [
-      makeBudget({ id: "server-1", category_id: "cat-food", amount_cents: 10000 }),
+      makeBudget({ id: "server-1", category_id: "cat-food", amount_cents: cents(10000) }),
     ]);
 
     expect(await db.budgets.where("month").equals(JULY_KEY).toArray()).toEqual([local]);
@@ -334,7 +343,7 @@ describe("offline budget mutations", () => {
 
   it("creates a budget and queues a create without created_at", async () => {
     const result = await createOfflineBudget(
-      { categoryId: "cat-food", month: OCTOBER, amountCents: 500000 },
+      { categoryId: "cat-food", month: OCTOBER, amountCents: cents(500000) },
       userId
     );
 
@@ -352,13 +361,13 @@ describe("offline budget mutations", () => {
 
   it("turns a create for an existing category and month into an update", async () => {
     const first = await createOfflineBudget(
-      { categoryId: "cat-food", month: OCTOBER, amountCents: 1000 },
+      { categoryId: "cat-food", month: OCTOBER, amountCents: cents(1000) },
       userId
     );
     await db.syncQueue.clear();
 
     const second = await createOfflineBudget(
-      { categoryId: "cat-food", month: OCTOBER, amountCents: 2000 },
+      { categoryId: "cat-food", month: OCTOBER, amountCents: cents(2000) },
       userId
     );
 
@@ -370,12 +379,12 @@ describe("offline budget mutations", () => {
 
   it("queues only the changed fields on update", async () => {
     const created = await createOfflineBudget(
-      { categoryId: "cat-food", month: OCTOBER, amountCents: 1000 },
+      { categoryId: "cat-food", month: OCTOBER, amountCents: cents(1000) },
       userId
     );
     await db.syncQueue.clear();
 
-    await updateOfflineBudget(created.data!.id, 3000, userId);
+    await updateOfflineBudget(created.data!.id, cents(3000), userId);
 
     const item = (await db.syncQueue.toArray())[0]!;
     expect(Object.keys(item.operation.payload).sort()).toEqual(["amount_cents", "updated_at"]);
@@ -384,7 +393,7 @@ describe("offline budget mutations", () => {
 
   it("deletes a budget and queues a delete", async () => {
     const created = await createOfflineBudget(
-      { categoryId: "cat-food", month: OCTOBER, amountCents: 1000 },
+      { categoryId: "cat-food", month: OCTOBER, amountCents: cents(1000) },
       userId
     );
     await db.syncQueue.clear();
@@ -398,21 +407,35 @@ describe("offline budget mutations", () => {
 
   it("rejects an invalid amount and a missing budget without writing", async () => {
     expect(
-      (await createOfflineBudget({ categoryId: "c", month: OCTOBER, amountCents: -1 }, userId))
-        .success
+      (
+        await createOfflineBudget(
+          { categoryId: "c", month: OCTOBER, amountCents: cents(-1) },
+          userId
+        )
+      ).success
     ).toBe(false);
-    expect((await updateOfflineBudget("missing", 1000, userId)).success).toBe(false);
+    expect((await updateOfflineBudget("missing", cents(1000), userId)).success).toBe(false);
     expect((await deleteOfflineBudget("missing", userId)).success).toBe(false);
     expect(await db.syncQueue.count()).toBe(0);
   });
 
   it("copies from a mirrored month, updating existing targets and creating the rest", async () => {
     await mirrorBudgetsForMonth("2026-09-01", [
-      makeBudget({ id: "s1", month: "2026-09-01", category_id: "cat-food", amount_cents: 1000 }),
-      makeBudget({ id: "s2", month: "2026-09-01", category_id: "cat-rent", amount_cents: 2000 }),
+      makeBudget({
+        id: "s1",
+        month: "2026-09-01",
+        category_id: "cat-food",
+        amount_cents: cents(1000),
+      }),
+      makeBudget({
+        id: "s2",
+        month: "2026-09-01",
+        category_id: "cat-rent",
+        amount_cents: cents(2000),
+      }),
     ]);
     const existing = await createOfflineBudget(
-      { categoryId: "cat-food", month: OCTOBER, amountCents: 1 },
+      { categoryId: "cat-food", month: OCTOBER, amountCents: cents(1) },
       userId
     );
     await db.syncQueue.clear();

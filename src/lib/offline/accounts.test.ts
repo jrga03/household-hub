@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/lib/dexie/db";
 import { createOfflineAccount, deactivateOfflineAccount, updateOfflineAccount } from "./accounts";
+import { cents } from "@/test/cents";
 
 const userId = "12345678-1234-5678-1234-567812345678";
 
@@ -16,7 +17,7 @@ describe("offline accounts", () => {
         name: "GCash",
         type: "e-wallet",
         visibility: "household",
-        initial_balance_cents: 5000,
+        initial_balance_cents: cents(5000),
         sort_order: 3,
       },
       userId
@@ -38,7 +39,7 @@ describe("offline accounts", () => {
 
   it("keeps e-wallet on update and queues one update", async () => {
     const created = await createOfflineAccount(
-      { name: "Wallet", type: "cash", visibility: "household", initial_balance_cents: 0 },
+      { name: "Wallet", type: "cash", visibility: "household", initial_balance_cents: cents(0) },
       userId
     );
     await db.syncQueue.clear();
@@ -54,7 +55,7 @@ describe("offline accounts", () => {
 
   it("queues a cleared owner_user_id when a personal account becomes household", async () => {
     const created = await createOfflineAccount(
-      { name: "Mine", type: "bank", visibility: "personal", initial_balance_cents: 0 },
+      { name: "Mine", type: "bank", visibility: "personal", initial_balance_cents: cents(0) },
       userId
     );
     await db.syncQueue.clear();
@@ -73,7 +74,7 @@ describe("offline accounts", () => {
 
   it("deactivates by queueing an update with is_active false", async () => {
     const created = await createOfflineAccount(
-      { name: "Old", type: "bank", visibility: "household", initial_balance_cents: 0 },
+      { name: "Old", type: "bank", visibility: "household", initial_balance_cents: cents(0) },
       userId
     );
     await db.syncQueue.clear();
@@ -89,7 +90,7 @@ describe("offline accounts", () => {
     const base = {
       type: "bank" as const,
       visibility: "household" as const,
-      initial_balance_cents: 0,
+      initial_balance_cents: cents(0),
     };
 
     it("rejects a create whose name matches an active account, ignoring case", async () => {

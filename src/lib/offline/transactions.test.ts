@@ -24,6 +24,7 @@ import {
   deleteOfflineTransaction,
   updateOfflineTransactionsStatus,
 } from "./transactions";
+import { cents } from "@/test/cents";
 
 // Debt side-effects (payment creation/reversal) are exercised in the debts
 // test suites; mocked here so these tests stay focused on the transaction
@@ -67,7 +68,7 @@ describe("Offline Transaction Operations", () => {
     const input = {
       date: "2024-01-15",
       description: "Test transaction",
-      amount_cents: 150050,
+      amount_cents: cents(150050),
       type: "expense" as const,
       status: "pending" as const,
       visibility: "household" as const,
@@ -102,7 +103,7 @@ describe("Offline Transaction Operations", () => {
       {
         date: "2024-01-15",
         description: "Original",
-        amount_cents: 100000,
+        amount_cents: cents(100000),
         type: "expense" as const,
         status: "pending" as const,
         visibility: "household" as const,
@@ -117,7 +118,7 @@ describe("Offline Transaction Operations", () => {
       id,
       {
         description: "Updated",
-        amount_cents: 200000,
+        amount_cents: cents(200000),
       },
       testUserId
     );
@@ -141,7 +142,7 @@ describe("Offline Transaction Operations", () => {
       {
         date: "2024-01-15",
         description: "To delete",
-        amount_cents: 100000,
+        amount_cents: cents(100000),
         type: "expense" as const,
         status: "pending" as const,
         visibility: "household" as const,
@@ -171,7 +172,7 @@ describe("Offline Transaction Operations", () => {
       household_id: "00000000-0000-0000-0000-000000000001",
       date: "2025-01-10",
       description: "Old row",
-      amount_cents: 1000,
+      amount_cents: cents(1000),
       type: "expense",
       currency_code: "PHP",
       status: "pending",
@@ -208,7 +209,7 @@ describe("updateOfflineTransaction debt link merge", () => {
       household_id: "hh-1",
       date: "2026-07-01",
       description: "Debt payment",
-      amount_cents: 10000,
+      amount_cents: cents(10000),
       type: "expense",
       currency_code: "PHP",
       status: "pending",
@@ -291,7 +292,7 @@ describe("updateOfflineTransaction debt link merge", () => {
     const tx = makeTransaction({ debt_id: "debt-1" });
     await db.transactions.add(tx);
 
-    await updateOfflineTransaction(tx.id, { amount_cents: 20000 }, testUserId);
+    await updateOfflineTransaction(tx.id, { amount_cents: cents(20000) }, testUserId);
 
     const queueItem = (await db.syncQueue.toArray())[0]!;
     expect(queueItem.operation.op).toBe("update");
@@ -309,7 +310,7 @@ describe("updateOfflineTransactionsStatus", () => {
   const baseInput = {
     date: "2024-01-15",
     description: "x",
-    amount_cents: 1000,
+    amount_cents: cents(1000),
     type: "expense" as const,
     status: "pending" as const,
     visibility: "household" as const,

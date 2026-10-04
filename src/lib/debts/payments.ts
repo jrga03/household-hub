@@ -7,6 +7,7 @@
 
 import { nanoid } from "nanoid";
 import { db } from "@/lib/dexie/db";
+import { asCents } from "@/lib/currency";
 import { getNextLamportClock } from "@/lib/sync/lamportClock";
 import { getDeviceId } from "@/lib/dexie/deviceManager";
 import { calculateDebtBalance } from "./balance";
@@ -115,7 +116,7 @@ export async function processDebtPayment(data: ProcessPaymentData): Promise<Paym
 
     // Overpayment tracking (set by detection above)
     is_overpayment: isOverpayment,
-    overpayment_amount: isOverpayment ? overpaymentAmount : undefined,
+    overpayment_amount: isOverpayment ? asCents(overpaymentAmount) : undefined,
 
     // Event sourcing (idempotency key for deduplication)
     idempotency_key: idempotencyKey,

@@ -9,6 +9,7 @@ import { db } from "@/lib/dexie/db";
 import type { DebtFormData, InternalDebtFormData, EntityType } from "@/types/debt";
 import { z } from "zod";
 import { parsePHPSafe } from "@/lib/currency";
+import { centsSchema } from "@/lib/validations/cents";
 
 // =====================================================
 // Types
@@ -281,11 +282,9 @@ export const createExternalDebtSchema = z.object({
     .max(100, "Name must be 100 characters or less")
     .trim(),
 
-  original_amount_cents: z
-    .number()
-    .int("Amount must be a whole number")
-    .min(100, "Amount must be at least ₱1.00")
-    .max(CURRENCY_LIMITS.MAX_CENTS, "Amount must not exceed ₱9,999,999.99"),
+  original_amount_cents: centsSchema
+    .refine((cents) => cents >= CURRENCY_LIMITS.MIN_DEBT, "Amount must be at least ₱1.00")
+    .refine((cents) => cents <= CURRENCY_LIMITS.MAX_CENTS, "Amount must not exceed ₱9,999,999.99"),
 
   description: z.string().max(500, "Description must be 500 characters or less").optional(),
 
@@ -324,11 +323,12 @@ export const createInternalDebtSchema = z
 
     to_id: z.string().min(1, "To is required"),
 
-    original_amount_cents: z
-      .number()
-      .int("Amount must be a whole number")
-      .min(100, "Amount must be at least ₱1.00")
-      .max(CURRENCY_LIMITS.MAX_CENTS, "Amount must not exceed ₱9,999,999.99"),
+    original_amount_cents: centsSchema
+      .refine((cents) => cents >= CURRENCY_LIMITS.MIN_DEBT, "Amount must be at least ₱1.00")
+      .refine(
+        (cents) => cents <= CURRENCY_LIMITS.MAX_CENTS,
+        "Amount must not exceed ₱9,999,999.99"
+      ),
 
     description: z.string().max(500, "Description must be 500 characters or less").optional(),
 

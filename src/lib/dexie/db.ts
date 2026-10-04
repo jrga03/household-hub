@@ -17,6 +17,7 @@
  */
 
 import Dexie, { type Table } from "dexie";
+import type { Cents } from "@/lib/currency";
 import { reportError } from "@/lib/sentry";
 import type { Debt, InternalDebt, DebtPayment } from "@/types/debt";
 import type { ImportDraft, ImportSession } from "@/types/pdf-import";
@@ -36,7 +37,7 @@ export interface LocalTransaction {
   household_id: string;
   date: string; // ISO date string (DATE type in Supabase)
   description: string;
-  amount_cents: number; // BIGINT cents (always positive)
+  amount_cents: Cents; // BIGINT cents (always positive)
   type: "income" | "expense";
   currency_code: string; // 'PHP' only for MVP
   account_id?: string;
@@ -64,7 +65,7 @@ export interface LocalAccount {
   household_id: string;
   name: string;
   type: "bank" | "investment" | "credit_card" | "cash" | "e-wallet";
-  initial_balance_cents: number;
+  initial_balance_cents: Cents;
   currency_code: string; // 'PHP' only for MVP (Phase 2: multi-currency)
   visibility: "household" | "personal";
   owner_user_id?: string;
@@ -107,7 +108,7 @@ export interface LocalBudget {
   household_id: string;
   category_id: string;
   month: string; // First day of month as ISO date string, e.g. "2026-07-01"
-  amount_cents: number; // BIGINT cents target (always >= 0)
+  amount_cents: Cents; // BIGINT cents target (always >= 0)
   currency_code: string; // 'PHP' only for MVP
   created_at: string; // ISO timestamp
   updated_at: string; // ISO timestamp

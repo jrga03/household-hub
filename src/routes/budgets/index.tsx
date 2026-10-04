@@ -20,6 +20,7 @@ import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { OfflineHint, OfflineEmptyState } from "@/components/sync/OfflineStates";
 import { LoadingSpinner } from "@/components/LoadingScreen";
 import { toast } from "sonner";
+import type { Cents } from "@/lib/currency";
 
 export const Route = createFileRoute("/budgets/")({
   component: BudgetsPage,
@@ -37,7 +38,7 @@ function BudgetsPage() {
   const deleteBudget = useDeleteBudget();
   const copyBudgets = useCopyBudgets();
 
-  const handleCreate = async (data: { categoryId: string; amountCents: number }) => {
+  const handleCreate = async (data: { categoryId: string; amountCents: Cents }) => {
     try {
       await createBudget.mutateAsync({
         categoryId: data.categoryId,
@@ -51,7 +52,7 @@ function BudgetsPage() {
     }
   };
 
-  const handleUpdate = async (data: { categoryId: string; amountCents: number }) => {
+  const handleUpdate = async (data: { categoryId: string; amountCents: Cents }) => {
     if (!editingBudget) return;
 
     try {

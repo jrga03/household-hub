@@ -15,6 +15,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { CategorySelector } from "./category-selector";
 import { db, type LocalTransaction } from "@/lib/dexie/db";
 import type { Category, CategoryWithChildren } from "@/types/categories";
+import { cents } from "@/test/cents";
 
 // ---------------------------------------------------------------------------
 // Environment stubs: jsdom lacks these; Radix Popper + cmdk require them
@@ -85,7 +86,7 @@ function buildTransaction(
     household_id: "hh-1",
     date: "2026-07-01",
     description: "test txn",
-    amount_cents: 10000,
+    amount_cents: cents(10000),
     type: "expense",
     currency_code: "PHP",
     status: "cleared",

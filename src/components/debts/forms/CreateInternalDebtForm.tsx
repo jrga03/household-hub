@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { ZERO_CENTS } from "@/lib/currency";
 import { createInternalDebt } from "@/lib/debts/crud";
 import { createInternalDebtSchema, type CreateInternalDebtFormData } from "@/lib/debts/validation";
 import { toast } from "sonner";
@@ -57,7 +58,7 @@ export function CreateInternalDebtForm({
       from_id: "",
       to_type: "user",
       to_id: "",
-      original_amount_cents: 0,
+      original_amount_cents: ZERO_CENTS,
       description: "",
       household_id: householdId,
     },

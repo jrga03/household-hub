@@ -1,5 +1,7 @@
 import * as z from "zod";
 import { endOfDay } from "date-fns";
+import { MAX_AMOUNT_CENTS } from "@/lib/currency";
+import { centsSchema } from "@/lib/validations/cents";
 
 export const transactionSchema = z
   .object({
@@ -14,11 +16,9 @@ export const transactionSchema = z
       .string()
       .min(3, "Description must be at least 3 characters")
       .max(200, "Description too long"),
-    amount_cents: z
-      .number()
-      .int("Amount must be an integer")
-      .positive("Amount must be positive")
-      .max(999999999, "Amount too large"),
+    amount_cents: centsSchema
+      .refine((cents) => cents > 0, "Amount must be positive")
+      .refine((cents) => cents <= MAX_AMOUNT_CENTS, "Amount too large"),
     type: z.enum(["income", "expense"], {
       required_error: "Type is required",
     }),

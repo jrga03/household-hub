@@ -1,12 +1,18 @@
 import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { formatPHP, parsePHP, parsePHPUnbounded, MAX_AMOUNT_CENTS } from "@/lib/currency";
+import {
+  formatPHP,
+  parsePHP,
+  parsePHPUnbounded,
+  MAX_AMOUNT_CENTS,
+  type Cents,
+} from "@/lib/currency";
 
 export interface CurrencyInputProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value"> {
-  value?: number; // Amount in cents
-  onChange?: (value: number) => void; // Callback with cents
+  value?: Cents;
+  onChange?: (value: Cents) => void;
   onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
   error?: string;
 }

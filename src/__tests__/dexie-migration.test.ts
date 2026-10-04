@@ -10,6 +10,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "@/lib/dexie/db";
 import type { Debt, InternalDebt, DebtPayment } from "@/types/debt";
+import { cents } from "@/test/cents";
 
 describe("Dexie Debt Migration", () => {
   beforeEach(async () => {
@@ -54,7 +55,7 @@ describe("Dexie Debt Migration", () => {
       id: "test-debt-1",
       household_id: "household-1",
       name: "Test Car Loan",
-      original_amount_cents: 100000,
+      original_amount_cents: cents(100000),
       status: "active",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -71,7 +72,7 @@ describe("Dexie Debt Migration", () => {
       id: "test-internal-1",
       household_id: "household-1",
       name: "Category Borrowing",
-      original_amount_cents: 50000,
+      original_amount_cents: cents(50000),
       from_type: "category",
       from_id: "cat-groceries",
       from_display_name: "Groceries",
@@ -95,7 +96,7 @@ describe("Dexie Debt Migration", () => {
       household_id: "household-1",
       debt_id: "debt-1",
       transaction_id: "txn-1",
-      amount_cents: 10000,
+      amount_cents: cents(10000),
       payment_date: "2025-11-10",
       device_id: "device-123",
       is_reversal: false,
@@ -117,7 +118,7 @@ describe("Dexie Debt Migration", () => {
         id: "debt-1",
         household_id: "household-1",
         name: "Active Debt",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         status: "active",
         created_at: "2025-11-01T00:00:00Z",
         updated_at: "2025-11-01T00:00:00Z",
@@ -126,7 +127,7 @@ describe("Dexie Debt Migration", () => {
         id: "debt-2",
         household_id: "household-1",
         name: "Paid Off Debt",
-        original_amount_cents: 50000,
+        original_amount_cents: cents(50000),
         status: "paid_off",
         created_at: "2025-11-05T00:00:00Z",
         updated_at: "2025-11-05T00:00:00Z",
@@ -135,7 +136,7 @@ describe("Dexie Debt Migration", () => {
         id: "debt-3",
         household_id: "household-1",
         name: "Another Active",
-        original_amount_cents: 75000,
+        original_amount_cents: cents(75000),
         status: "active",
         created_at: "2025-11-10T00:00:00Z",
         updated_at: "2025-11-10T00:00:00Z",
@@ -162,7 +163,7 @@ describe("Dexie Debt Migration", () => {
         household_id: "household-1",
         debt_id: debtId,
         transaction_id: "txn-1",
-        amount_cents: 5000,
+        amount_cents: cents(5000),
         payment_date: "2025-11-10",
         device_id: "device-1",
         is_reversal: false,
@@ -175,7 +176,7 @@ describe("Dexie Debt Migration", () => {
         household_id: "household-1",
         debt_id: debtId,
         transaction_id: "txn-2",
-        amount_cents: 3000,
+        amount_cents: cents(3000),
         payment_date: "2025-11-10",
         device_id: "device-1",
         is_reversal: false,

@@ -33,6 +33,7 @@ import {
   useDeleteBudget,
   useCopyBudgets,
 } from "@/lib/supabaseQueries";
+import { cents } from "@/test/cents";
 
 vi.mock("@/lib/supabase", () => ({ supabase: { from: vi.fn() } }));
 vi.mock("@/lib/sync/processor", () => ({
@@ -85,7 +86,7 @@ describe("account and category write hooks", () => {
       name: "GCash",
       type: "e-wallet" as const,
       visibility: "household" as const,
-      initial_balance_cents: 0,
+      initial_balance_cents: cents(0),
     };
 
     await renderWithClient(() => useCreateAccount()).result.current.mutateAsync(input);
@@ -126,7 +127,7 @@ describe("account and category write hooks", () => {
         name: "A",
         type: "bank",
         visibility: "household",
-        initial_balance_cents: 0,
+        initial_balance_cents: cents(0),
       })
     ).rejects.toThrow("disk full");
   });
@@ -137,7 +138,7 @@ describe("duplicate-name check against the query cache", () => {
     name: "bdo",
     type: "bank" as const,
     visibility: "household" as const,
-    initial_balance_cents: 0,
+    initial_balance_cents: cents(0),
   };
 
   function clientWith(queryKey: string[], rows: unknown[]) {
@@ -332,11 +333,11 @@ describe("budget write hooks", () => {
     await renderWithClient(() => useCreateBudget()).result.current.mutateAsync({
       categoryId: "c1",
       month,
-      amountCents: 5000,
+      amountCents: cents(5000),
     });
     await renderWithClient(() => useUpdateBudget()).result.current.mutateAsync({
       id: "b1",
-      amountCents: 6000,
+      amountCents: cents(6000),
     });
     await renderWithClient(() => useDeleteBudget()).result.current.mutateAsync("b2");
     const count = await renderWithClient(() => useCopyBudgets()).result.current.mutateAsync({

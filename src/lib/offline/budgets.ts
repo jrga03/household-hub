@@ -27,7 +27,7 @@ import { startOfMonth, endOfMonth, format } from "date-fns";
 import { db, type LocalBudget } from "@/lib/dexie/db";
 import { OfflineError } from "./errors";
 import { buildSyncQueueItem } from "./syncQueue";
-import { validateAmount } from "@/lib/currency";
+import { validateAmount, type Cents } from "@/lib/currency";
 import type { OfflineOperationResult } from "./types";
 import { supabase } from "@/lib/supabase";
 import type { SyncQueueItem } from "@/types/sync";
@@ -194,7 +194,7 @@ export async function getLocalBudgetGroups(month: Date): Promise<BudgetGroup[]> 
 export interface BudgetInput {
   categoryId: string;
   month: Date;
-  amountCents: number;
+  amountCents: Cents;
 }
 
 // created_at is left to the server: a conflict upsert must not rewrite it
@@ -212,7 +212,7 @@ function createPayload(budget: LocalBudget): Record<string, unknown> {
 function newBudget(
   categoryId: string,
   monthKey: string,
-  amountCents: number,
+  amountCents: Cents,
   now: string
 ): LocalBudget {
   return {
@@ -278,7 +278,7 @@ export async function createOfflineBudget(
 
 export async function updateOfflineBudget(
   id: string,
-  amountCents: number,
+  amountCents: Cents,
   userId: string
 ): Promise<OfflineOperationResult<LocalBudget>> {
   if (!validateAmount(amountCents)) {
@@ -342,7 +342,7 @@ export async function copyOfflineBudgets(
     const fromKey = budgetMonthKey(fromMonth);
     const toKey = budgetMonthKey(toMonth);
 
-    let source: Array<{ category_id: string; amount_cents: number }>;
+    let source: Array<{ category_id: string; amount_cents: Cents }>;
     if (await hasMirroredBudgets(fromKey)) {
       source = await db.budgets.where("month").equals(fromKey).toArray();
     } else {

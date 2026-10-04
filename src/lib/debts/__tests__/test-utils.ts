@@ -28,6 +28,7 @@
 
 import { nanoid } from "nanoid";
 import type { Debt, InternalDebt, DebtPayment, EntityType } from "@/types/debt";
+import { cents } from "@/test/cents";
 
 // =====================================================
 // Constants
@@ -75,7 +76,7 @@ export function createTestDebt(overrides?: Partial<Debt>): Debt {
     id: nanoid(),
     household_id: TEST_HOUSEHOLD_ID,
     name: "Test Debt",
-    original_amount_cents: 100000, // ₱1,000.00
+    original_amount_cents: cents(100000), // ₱1,000.00
     status: "active",
     created_at: now,
     updated_at: now,
@@ -109,7 +110,7 @@ export function createTestInternalDebt(overrides?: Partial<InternalDebt>): Inter
     id: nanoid(),
     household_id: TEST_HOUSEHOLD_ID,
     name: "Test Internal Debt",
-    original_amount_cents: 50000, // ₱500.00
+    original_amount_cents: cents(50000), // ₱500.00
     from_type: "member" as EntityType,
     from_id: TEST_USER_1,
     from_display_name: "Test User 1",
@@ -159,7 +160,7 @@ export function createTestPayment(overrides?: Partial<DebtPayment>): DebtPayment
     debt_id: "test-debt-" + nanoid(),
     internal_debt_id: undefined,
     transaction_id: TEST_TRANSACTION_ID,
-    amount_cents: 10000, // ₱100.00
+    amount_cents: cents(10000), // ₱100.00
     payment_date: today,
     is_reversal: false,
     reverses_payment_id: undefined,
@@ -201,7 +202,7 @@ export function createTestPayments(
     createTestPayment({
       ...baseOverrides,
       id: `payment-${i + 1}`,
-      amount_cents: (baseOverrides?.amount_cents || 10000) + i * 100, // Increment by ₱1.00
+      amount_cents: cents((baseOverrides?.amount_cents || 10000) + i * 100), // Increment by ₱1.00
       idempotency_key: `${TEST_DEVICE_ID}-debt_payment-payment-${i + 1}-${i + 1}`,
     })
   );

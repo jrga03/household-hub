@@ -9,6 +9,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { db, type LocalTransaction, type LocalAccount, type LocalCategory } from "@/lib/dexie/db";
 import { getLocalDashboardData, hasLocalFinancialData } from "./aggregates";
+import { cents } from "@/test/cents";
 
 // ─── Fixture helpers ─────────────────────────────
 
@@ -18,7 +19,7 @@ function makeTransaction(overrides: Partial<LocalTransaction> = {}): LocalTransa
     household_id: "hh-1",
     date: "2026-07-05",
     description: "Test transaction",
-    amount_cents: 10000,
+    amount_cents: cents(10000),
     type: "expense",
     currency_code: "PHP",
     status: "cleared",
@@ -38,7 +39,7 @@ function makeAccount(overrides: Partial<LocalAccount> = {}): LocalAccount {
     household_id: "hh-1",
     name: "Test Account",
     type: "bank",
-    initial_balance_cents: 0,
+    initial_balance_cents: cents(0),
     currency_code: "PHP",
     visibility: "household",
     color: "#0000ff",
@@ -82,12 +83,12 @@ const JULY = new Date(2026, 6, 15);
  */
 async function seedFixture() {
   await db.accounts.bulkAdd([
-    makeAccount({ id: "acc-1", name: "Checking", initial_balance_cents: 100000 }),
-    makeAccount({ id: "acc-2", name: "Savings", initial_balance_cents: 50000 }),
+    makeAccount({ id: "acc-1", name: "Checking", initial_balance_cents: cents(100000) }),
+    makeAccount({ id: "acc-2", name: "Savings", initial_balance_cents: cents(50000) }),
     makeAccount({
       id: "acc-3",
       name: "Old Wallet",
-      initial_balance_cents: 999999,
+      initial_balance_cents: cents(999999),
       is_active: false,
     }),
   ]);
@@ -101,7 +102,7 @@ async function seedFixture() {
   await db.transactions.bulkAdd([
     makeTransaction({
       id: "t1",
-      amount_cents: 5000,
+      amount_cents: cents(5000),
       category_id: "cat-food",
       account_id: "acc-1",
       date: "2026-07-05",
@@ -109,7 +110,7 @@ async function seedFixture() {
     }),
     makeTransaction({
       id: "t2",
-      amount_cents: 3000,
+      amount_cents: cents(3000),
       category_id: "cat-transport",
       account_id: "acc-1",
       date: "2026-07-06",
@@ -118,7 +119,7 @@ async function seedFixture() {
     }),
     makeTransaction({
       id: "t3",
-      amount_cents: 20000,
+      amount_cents: cents(20000),
       type: "income",
       account_id: "acc-2",
       date: "2026-07-05",
@@ -126,7 +127,7 @@ async function seedFixture() {
     }),
     makeTransaction({
       id: "t4a",
-      amount_cents: 10000,
+      amount_cents: cents(10000),
       account_id: "acc-1",
       transfer_group_id: "tg-1",
       date: "2026-07-07",
@@ -134,7 +135,7 @@ async function seedFixture() {
     }),
     makeTransaction({
       id: "t4b",
-      amount_cents: 10000,
+      amount_cents: cents(10000),
       type: "income",
       account_id: "acc-2",
       transfer_group_id: "tg-1",
@@ -143,7 +144,7 @@ async function seedFixture() {
     }),
     makeTransaction({
       id: "t5",
-      amount_cents: 7000,
+      amount_cents: cents(7000),
       category_id: "cat-food",
       account_id: "acc-1",
       date: "2026-06-15",
@@ -151,7 +152,7 @@ async function seedFixture() {
     }),
     makeTransaction({
       id: "t6",
-      amount_cents: 4000,
+      amount_cents: cents(4000),
       account_id: "acc-1",
       date: "2026-01-10",
       created_at: "2026-01-10T08:00:00.000Z",

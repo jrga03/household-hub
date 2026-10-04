@@ -2,6 +2,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import * as z from "zod";
+import { MAX_AMOUNT_CENTS, ZERO_CENTS, type Cents } from "@/lib/currency";
+import { centsSchema } from "@/lib/validations/cents";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Form,
@@ -19,11 +21,10 @@ import type { Budget } from "@/lib/supabaseQueries";
 const budgetSchema = z.object({
   categoryId: z.string().min(1, "Category is required"),
   // Cents, validated numerically; CurrencyInput handles parsing/formatting
-  amount_cents: z
-    .number()
-    .int("Amount must be an integer")
-    .min(1, "Amount must be between ₱0.01 and ₱9,999,999.99")
-    .max(999999999, "Amount must be between ₱0.01 and ₱9,999,999.99"),
+  amount_cents: centsSchema.refine(
+    (cents) => cents >= 1 && cents <= MAX_AMOUNT_CENTS,
+    "Amount must be between ₱0.01 and ₱9,999,999.99"
+  ),
 });
 
 type BudgetFormData = z.infer<typeof budgetSchema>;
@@ -31,7 +32,7 @@ type BudgetFormData = z.infer<typeof budgetSchema>;
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: { categoryId: string; amountCents: number }) => void;
+  onSubmit: (data: { categoryId: string; amountCents: Cents }) => void;
   existingBudget?: Budget;
 }
 
@@ -40,7 +41,7 @@ export function BudgetForm({ open, onClose, onSubmit, existingBudget }: Props) {
     resolver: zodResolver(budgetSchema),
     defaultValues: {
       categoryId: existingBudget?.categoryId || "",
-      amount_cents: existingBudget?.budgetAmountCents ?? 0,
+      amount_cents: existingBudget?.budgetAmountCents ?? ZERO_CENTS,
     },
   });
 
@@ -51,12 +52,12 @@ export function BudgetForm({ open, onClose, onSubmit, existingBudget }: Props) {
     if (open) {
       form.reset({
         categoryId: existingBudget?.categoryId || "",
-        amount_cents: existingBudget?.budgetAmountCents ?? 0,
+        amount_cents: existingBudget?.budgetAmountCents ?? ZERO_CENTS,
       });
     } else {
       form.reset({
         categoryId: "",
-        amount_cents: 0,
+        amount_cents: ZERO_CENTS,
       });
     }
   }, [open, existingBudget, form]);

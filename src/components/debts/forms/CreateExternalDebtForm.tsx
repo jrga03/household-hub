@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { ZERO_CENTS } from "@/lib/currency";
 import { createExternalDebt } from "@/lib/debts/crud";
 import {
   createExternalDebtSchema,
@@ -53,7 +54,7 @@ export function CreateExternalDebtForm({
     resolver: zodResolver(createExternalDebtSchema),
     defaultValues: {
       name: "",
-      original_amount_cents: 0,
+      original_amount_cents: ZERO_CENTS,
       description: "",
       household_id: householdId,
     },

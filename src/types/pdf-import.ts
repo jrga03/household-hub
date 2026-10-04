@@ -10,6 +10,8 @@
  * @module types/pdf-import
  */
 
+import type { Cents } from "@/lib/currency";
+
 // ============================================================================
 // PDF Text Extraction Types
 // ============================================================================
@@ -115,7 +117,7 @@ export interface ImportDraft {
   // Transaction fields (will be promoted to real transaction on confirm)
   date: string;
   description: string;
-  amount_cents: number;
+  amount_cents: Cents;
   type: "income" | "expense";
   account_id?: string;
   category_id?: string;

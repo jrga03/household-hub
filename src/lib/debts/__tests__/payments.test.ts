@@ -4,6 +4,7 @@ import { db } from "@/lib/dexie/db";
 import { processDebtPayment, getDebtPayments } from "../payments";
 import { createExternalDebt } from "../crud";
 import type { Debt } from "@/types/debt";
+import { cents } from "@/test/cents";
 
 // getCurrentUserId reads the Supabase session; unit tests run unauthenticated,
 // so pin a deterministic test user while keeping the rest of the module real.
@@ -26,7 +27,7 @@ describe("Payment Processing", () => {
     // Create test debt
     testDebt = await createExternalDebt({
       name: "Test Debt",
-      original_amount_cents: 100000, // ₱1,000
+      original_amount_cents: cents(100000), // ₱1,000
       household_id: "household-1",
     });
   });
@@ -35,7 +36,7 @@ describe("Payment Processing", () => {
     it("should create payment record", async () => {
       const result = await processDebtPayment({
         transaction_id: "txn-1",
-        amount_cents: 50000, // ₱500
+        amount_cents: cents(50000), // ₱500
         payment_date: "2025-11-10",
         debt_id: testDebt.id,
         household_id: "household-1",
@@ -51,7 +52,7 @@ describe("Payment Processing", () => {
     it("should detect overpayment", async () => {
       const result = await processDebtPayment({
         transaction_id: "txn-1",
-        amount_cents: 150000, // ₱1,500 (exceeds ₱1,000 debt)
+        amount_cents: cents(150000), // ₱1,500 (exceeds ₱1,000 debt)
         payment_date: "2025-11-10",
         debt_id: testDebt.id,
         household_id: "household-1",
@@ -67,7 +68,7 @@ describe("Payment Processing", () => {
     it("should detect exact payoff (no overpayment)", async () => {
       const result = await processDebtPayment({
         transaction_id: "txn-1",
-        amount_cents: 100000, // Exact balance
+        amount_cents: cents(100000), // Exact balance
         payment_date: "2025-11-10",
         debt_id: testDebt.id,
         household_id: "household-1",
@@ -83,7 +84,7 @@ describe("Payment Processing", () => {
     it("should update debt status to paid_off when balance reaches 0", async () => {
       await processDebtPayment({
         transaction_id: "txn-1",
-        amount_cents: 100000,
+        amount_cents: cents(100000),
         payment_date: "2025-11-10",
         debt_id: testDebt.id,
         household_id: "household-1",
@@ -97,7 +98,7 @@ describe("Payment Processing", () => {
     it("should generate idempotency key", async () => {
       const result = await processDebtPayment({
         transaction_id: "txn-1",
-        amount_cents: 50000,
+        amount_cents: cents(50000),
         payment_date: "2025-11-10",
         debt_id: testDebt.id,
         household_id: "household-1",
@@ -119,7 +120,7 @@ describe("Payment Processing", () => {
     it("should track device ID", async () => {
       const result = await processDebtPayment({
         transaction_id: "txn-1",
-        amount_cents: 50000,
+        amount_cents: cents(50000),
         payment_date: "2025-11-10",
         debt_id: testDebt.id,
         household_id: "household-1",
@@ -140,7 +141,7 @@ describe("Payment Processing", () => {
       await expect(
         processDebtPayment({
           transaction_id: "txn-1",
-          amount_cents: 50000,
+          amount_cents: cents(50000),
           payment_date: "2025-11-10",
           debt_id: testDebt.id,
           household_id: "household-1",
@@ -152,7 +153,7 @@ describe("Payment Processing", () => {
       await expect(
         processDebtPayment({
           transaction_id: "txn-1",
-          amount_cents: -50000,
+          amount_cents: cents(-50000),
           payment_date: "2025-11-10",
           debt_id: testDebt.id,
           household_id: "household-1",
@@ -164,7 +165,7 @@ describe("Payment Processing", () => {
       // First payment: ₱400
       const result1 = await processDebtPayment({
         transaction_id: "txn-1",
-        amount_cents: 40000,
+        amount_cents: cents(40000),
         payment_date: "2025-11-01",
         debt_id: testDebt.id,
         household_id: "household-1",
@@ -175,7 +176,7 @@ describe("Payment Processing", () => {
       // Second payment: ₱300
       const result2 = await processDebtPayment({
         transaction_id: "txn-2",
-        amount_cents: 30000,
+        amount_cents: cents(30000),
         payment_date: "2025-11-05",
         debt_id: testDebt.id,
         household_id: "household-1",
@@ -186,7 +187,7 @@ describe("Payment Processing", () => {
       // Third payment: ₱400 (overpayment)
       const result3 = await processDebtPayment({
         transaction_id: "txn-3",
-        amount_cents: 40000,
+        amount_cents: cents(40000),
         payment_date: "2025-11-10",
         debt_id: testDebt.id,
         household_id: "household-1",
@@ -201,7 +202,7 @@ describe("Payment Processing", () => {
       // Pay off debt completely
       await processDebtPayment({
         transaction_id: "txn-1",
-        amount_cents: 100000,
+        amount_cents: cents(100000),
         payment_date: "2025-11-01",
         debt_id: testDebt.id,
         household_id: "household-1",
@@ -210,7 +211,7 @@ describe("Payment Processing", () => {
       // Try to make another payment (entire amount is overpayment)
       const result = await processDebtPayment({
         transaction_id: "txn-2",
-        amount_cents: 50000,
+        amount_cents: cents(50000),
         payment_date: "2025-11-05",
         debt_id: testDebt.id,
         household_id: "household-1",
@@ -227,7 +228,7 @@ describe("Payment Processing", () => {
       // Create 3 payments
       await processDebtPayment({
         transaction_id: "txn-1",
-        amount_cents: 20000,
+        amount_cents: cents(20000),
         payment_date: "2025-11-01",
         debt_id: testDebt.id,
         household_id: "household-1",
@@ -235,7 +236,7 @@ describe("Payment Processing", () => {
 
       await processDebtPayment({
         transaction_id: "txn-2",
-        amount_cents: 30000,
+        amount_cents: cents(30000),
         payment_date: "2025-11-05",
         debt_id: testDebt.id,
         household_id: "household-1",
@@ -243,7 +244,7 @@ describe("Payment Processing", () => {
 
       await processDebtPayment({
         transaction_id: "txn-3",
-        amount_cents: 25000,
+        amount_cents: cents(25000),
         payment_date: "2025-11-10",
         debt_id: testDebt.id,
         household_id: "household-1",

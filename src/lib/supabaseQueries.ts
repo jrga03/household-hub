@@ -34,6 +34,7 @@ import type { AccountInput, CategoryInput } from "./offline/types";
 import type { Account } from "@/types/accounts";
 import type { Category, CategoryWithChildren } from "@/types/categories";
 import type { TransactionFilters, TransactionWithRelations } from "@/types/transactions";
+import type { Cents } from "@/lib/currency";
 import {
   isTransactionType,
   isTransactionStatus,
@@ -1467,21 +1468,6 @@ export interface BudgetGroup {
  * const { data: budgetGroups, isLoading } = useBudgets(new Date(2024, 0, 1));
  * // Returns budgets grouped by parent category with actual spending
  */
-/**
- * Server budget row shape (the columns the Dexie mirror stores, matching the
- * budgets table minus the generated month_key). See offline/budgets.ts.
- */
-interface ServerBudgetRow {
-  id: string;
-  household_id: string;
-  category_id: string;
-  month: string;
-  amount_cents: number;
-  currency_code: string;
-  created_at: string;
-  updated_at: string;
-}
-
 export async function fetchBudgetGroupsFromServer(month: Date): Promise<BudgetGroup[]> {
   const monthStart = startOfMonth(month);
   const monthEnd = endOfMonth(month);
@@ -1516,7 +1502,7 @@ export async function fetchBudgetGroupsFromServer(month: Date): Promise<BudgetGr
   try {
     await mirrorBudgetsForMonth(
       monthKey,
-      ((budgets ?? []) as ServerBudgetRow[]).map((b) => ({
+      (budgets ?? []).map((b) => ({
         id: b.id,
         household_id: b.household_id,
         category_id: b.category_id,
@@ -1658,7 +1644,7 @@ export function useCreateBudget() {
   const userId = useAuthStore((state) => state.user?.id);
 
   return useMutation({
-    mutationFn: async (data: { categoryId: string; month: Date; amountCents: number }) => {
+    mutationFn: async (data: { categoryId: string; month: Date; amountCents: Cents }) => {
       const result = await createOfflineBudget(data, requireUserId(userId));
       if (!result.success) throw new Error(result.error ?? "Failed to create budget");
       return result.data;
@@ -1680,7 +1666,7 @@ export function useUpdateBudget() {
   const userId = useAuthStore((state) => state.user?.id);
 
   return useMutation({
-    mutationFn: async (data: { id: string; amountCents: number }) => {
+    mutationFn: async (data: { id: string; amountCents: Cents }) => {
       const result = await updateOfflineBudget(data.id, data.amountCents, requireUserId(userId));
       if (!result.success) throw new Error(result.error ?? "Failed to update budget");
       return result.data;

@@ -53,7 +53,7 @@ import {
   confirmDrafts,
   resolveCategoryName,
 } from "@/lib/import-drafts";
-import { formatPHP, parsePHPSafe } from "@/lib/currency";
+import { formatPHP, parsePHPSafe, ZERO_CENTS } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import { useContainerNarrow } from "@/hooks/useContainerWidth";
 import { useAuthStore } from "@/stores/authStore";
@@ -631,7 +631,7 @@ function DraftsPage() {
               <Label htmlFor="draft-edit-amount">Amount</Label>
               <CurrencyInput
                 id="draft-edit-amount"
-                value={editValues.amount_cents ?? 0}
+                value={editValues.amount_cents ?? ZERO_CENTS}
                 onChange={(cents) => setEditValues((v) => ({ ...v, amount_cents: cents }))}
                 autoComplete="off"
               />

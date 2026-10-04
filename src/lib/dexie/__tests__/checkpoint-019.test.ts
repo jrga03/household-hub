@@ -12,6 +12,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { db } from "../db";
 import { deviceManager } from "../deviceManager";
+import { cents } from "@/test/cents";
 
 describe("Checkpoint 019: Dexie Setup", () => {
   beforeEach(async () => {
@@ -72,7 +73,7 @@ describe("Checkpoint 019: Dexie Setup", () => {
       household_id: "00000000-0000-0000-0000-000000000001",
       date: "2024-01-15",
       description: "Test Transaction",
-      amount_cents: 10000,
+      amount_cents: cents(10000),
       type: "expense" as const,
       currency_code: "PHP",
       status: "pending" as const,
@@ -143,7 +144,7 @@ describe("Checkpoint 019: Dexie Setup", () => {
       household_id: "00000000-0000-0000-0000-000000000001",
       date: "2024-01-15",
       description: "Persistence Test",
-      amount_cents: 5000,
+      amount_cents: cents(5000),
       type: "income" as const,
       currency_code: "PHP",
       status: "cleared" as const,
@@ -175,7 +176,7 @@ describe("Checkpoint 019: Dexie Setup", () => {
         household_id: "00000000-0000-0000-0000-000000000001",
         date: "2024-01-01",
         description: "Expense 1",
-        amount_cents: 1000,
+        amount_cents: cents(1000),
         type: "expense",
         currency_code: "PHP",
         status: "pending",
@@ -191,7 +192,7 @@ describe("Checkpoint 019: Dexie Setup", () => {
         household_id: "00000000-0000-0000-0000-000000000001",
         date: "2024-01-02",
         description: "Income 1",
-        amount_cents: 5000,
+        amount_cents: cents(5000),
         type: "income",
         currency_code: "PHP",
         status: "cleared",
@@ -207,7 +208,7 @@ describe("Checkpoint 019: Dexie Setup", () => {
         household_id: "00000000-0000-0000-0000-000000000001",
         date: "2024-01-03",
         description: "Expense 2",
-        amount_cents: 2000,
+        amount_cents: cents(2000),
         type: "expense",
         currency_code: "PHP",
         status: "pending",

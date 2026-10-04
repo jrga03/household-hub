@@ -12,6 +12,7 @@
 
 import { describe, it, expect, beforeAll } from "vitest";
 import Dexie from "dexie";
+import { cents } from "@/test/cents";
 
 // Effective schema at version 9 (v8 stores with `conflicts` dropped),
 // copied from db.ts's version chain
@@ -117,7 +118,7 @@ describe("Dexie v9 → v10 upgrade", () => {
       household_id: "hh-1",
       category_id: "cat-1",
       month: "2026-07-01",
-      amount_cents: 50000,
+      amount_cents: cents(50000),
       currency_code: "PHP",
       created_at: "2026-07-01T00:00:00.000Z",
       updated_at: "2026-07-01T00:00:00.000Z",

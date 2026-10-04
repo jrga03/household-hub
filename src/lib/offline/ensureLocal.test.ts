@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { db, type LocalAccount } from "@/lib/dexie/db";
 import { supabase } from "@/lib/supabase";
 import { ensureLocalRow } from "./ensureLocal";
+import { cents } from "@/test/cents";
 
 vi.mock("@/lib/supabase", () => {
   const supabase = { from: vi.fn() };
@@ -21,7 +22,7 @@ const account: LocalAccount = {
   household_id: "00000000-0000-0000-0000-000000000001",
   name: "BDO",
   type: "bank",
-  initial_balance_cents: 0,
+  initial_balance_cents: cents(0),
   currency_code: "PHP",
   visibility: "household",
   color: "#3B82F6",

@@ -32,7 +32,7 @@ import { confirmDiscardChanges } from "@/lib/confirm-discard";
 import { createOfflineTransaction, updateOfflineTransaction } from "@/lib/offline/transactions";
 import { afterOutboxWrite } from "@/lib/offline/afterWrite";
 import { useIsMobile } from "@/hooks/useMediaQuery";
-import { formatPHP } from "@/lib/currency";
+import { formatPHP, ZERO_CENTS } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import type { Debt } from "@/types/debt";
 
@@ -76,7 +76,7 @@ export function TransactionFormDialog({
     defaultValues: {
       date: new Date(),
       description: "",
-      amount_cents: 0,
+      amount_cents: ZERO_CENTS,
       type: defaultType,
       account_id: null,
       category_id: null,
@@ -150,7 +150,7 @@ export function TransactionFormDialog({
     form.reset({
       date: new Date(),
       description: "",
-      amount_cents: 0,
+      amount_cents: ZERO_CENTS,
       type: defaultType,
       account_id: null,
       category_id: null,

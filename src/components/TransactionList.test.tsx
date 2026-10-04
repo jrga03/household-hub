@@ -18,6 +18,7 @@ import { TransactionList } from "./TransactionList";
 import { confirm } from "@/lib/confirm";
 import { formatPHP } from "@/lib/currency";
 import type { TransactionWithRelations } from "@/types/transactions";
+import { cents } from "@/test/cents";
 
 const mockIsNarrow = vi.fn((): boolean => false);
 vi.mock("@/hooks/useContainerWidth", () => ({
@@ -96,7 +97,7 @@ function buildTransaction(overrides: Partial<TransactionWithRelations>): Transac
     household_id: "hh-1",
     date: "2026-07-01",
     description: "Groceries",
-    amount_cents: 150050,
+    amount_cents: cents(150050),
     type: "expense",
     currency_code: "PHP",
     account_id: null,
@@ -120,11 +121,11 @@ function buildTransaction(overrides: Partial<TransactionWithRelations>): Transac
 }
 
 const fixtures = [
-  buildTransaction({ id: "txn-1", description: "Groceries", amount_cents: 150050 }),
+  buildTransaction({ id: "txn-1", description: "Groceries", amount_cents: cents(150050) }),
   buildTransaction({
     id: "txn-2",
     description: "Salary",
-    amount_cents: 500000,
+    amount_cents: cents(500000),
     type: "income",
     category: { id: "cat-1", name: "Income", color: "#00ff00" },
   }),

@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { MAX_AMOUNT_CENTS, ZERO_CENTS } from "@/lib/currency";
+import { centsSchema } from "@/lib/validations/cents";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,11 +25,10 @@ const accountSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
   type: z.enum(["bank", "investment", "credit_card", "cash", "e-wallet"]),
   // Cents, validated numerically; CurrencyInput handles parsing/formatting
-  initial_balance_cents: z
-    .number()
-    .int("Amount must be an integer")
-    .min(0, "Amount must be between ₱0.00 and ₱9,999,999.99")
-    .max(999999999, "Amount must be between ₱0.00 and ₱9,999,999.99"),
+  initial_balance_cents: centsSchema.refine(
+    (cents) => cents >= 0 && cents <= MAX_AMOUNT_CENTS,
+    "Amount must be between ₱0.00 and ₱9,999,999.99"
+  ),
   visibility: z.enum(["household", "personal"]),
   color: z.string().regex(/^#[0-9A-F]{6}$/i, "Invalid color"),
   icon: z.string().min(1),
@@ -59,7 +60,7 @@ export function AccountFormDialog({ open, onClose, editingId }: Props) {
     defaultValues: {
       name: "",
       type: "bank",
-      initial_balance_cents: 0,
+      initial_balance_cents: ZERO_CENTS,
       visibility: "household",
       color: "#3B82F6",
       icon: "building-2",
@@ -79,7 +80,7 @@ export function AccountFormDialog({ open, onClose, editingId }: Props) {
         form.reset({
           name: account.name,
           type: account.type as AccountType,
-          initial_balance_cents: account.initial_balance_cents ?? 0,
+          initial_balance_cents: account.initial_balance_cents ?? ZERO_CENTS,
           visibility: account.visibility as AccountVisibility,
           color: account.color ?? "#3B82F6",
           icon: account.icon ?? "building-2",

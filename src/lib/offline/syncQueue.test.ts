@@ -27,6 +27,7 @@ import {
 } from "./syncQueue";
 import { resetLamportClock, getCurrentLamportClock } from "@/lib/sync/lamportClock";
 import { deviceManager } from "@/lib/dexie/deviceManager";
+import { cents } from "@/test/cents";
 
 describe("Sync Queue Integration Tests", () => {
   // Use a valid UUID format for test user ID (Supabase expects UUID)
@@ -51,7 +52,7 @@ describe("Sync Queue Integration Tests", () => {
         {
           date: "2024-01-15",
           description: "Test transaction",
-          amount_cents: 100000,
+          amount_cents: cents(100000),
           type: "expense",
           status: "pending",
           visibility: "household",
@@ -80,7 +81,7 @@ describe("Sync Queue Integration Tests", () => {
         {
           date: "2024-01-15",
           description: "Test",
-          amount_cents: 100000,
+          amount_cents: cents(100000),
           type: "expense",
           status: "pending",
           visibility: "household",
@@ -110,7 +111,7 @@ describe("Sync Queue Integration Tests", () => {
         {
           date: "2024-01-15",
           description: "Transaction 1",
-          amount_cents: 100000,
+          amount_cents: cents(100000),
           type: "expense",
           status: "pending",
           visibility: "household",
@@ -129,7 +130,7 @@ describe("Sync Queue Integration Tests", () => {
         {
           date: "2024-01-16",
           description: "Transaction 2",
-          amount_cents: 200000,
+          amount_cents: cents(200000),
           type: "expense",
           status: "pending",
           visibility: "household",
@@ -155,7 +156,7 @@ describe("Sync Queue Integration Tests", () => {
         {
           date: "2024-01-15",
           description: "Should fail",
-          amount_cents: 100000,
+          amount_cents: cents(100000),
           type: "expense",
           status: "pending",
           visibility: "household",
@@ -179,7 +180,7 @@ describe("Sync Queue Integration Tests", () => {
           {
             date: `2024-01-1${5 + i}`,
             description,
-            amount_cents: 100000 * (i + 1),
+            amount_cents: cents(100000 * (i + 1)),
             type: "expense",
             status: "pending",
             visibility: "household",
@@ -199,7 +200,7 @@ describe("Sync Queue Integration Tests", () => {
         {
           name: "Test Account",
           type: "bank",
-          initial_balance_cents: 500000,
+          initial_balance_cents: cents(500000),
           visibility: "household",
           is_active: true,
         },
@@ -249,7 +250,7 @@ describe("Sync Queue Integration Tests", () => {
         {
           name: "Original Name",
           type: "bank",
-          initial_balance_cents: 500000,
+          initial_balance_cents: cents(500000),
           visibility: "household",
           is_active: true,
         },
@@ -288,7 +289,7 @@ describe("Sync Queue Integration Tests", () => {
         {
           date: "2024-01-15",
           description: "To delete",
-          amount_cents: 100000,
+          amount_cents: cents(100000),
           type: "expense",
           status: "pending",
           visibility: "household",
@@ -318,7 +319,7 @@ describe("Sync Queue Integration Tests", () => {
         {
           date: "2024-01-15",
           description: "Transaction 1",
-          amount_cents: 100000,
+          amount_cents: cents(100000),
           type: "expense",
           status: "pending",
           visibility: "household",
@@ -330,7 +331,7 @@ describe("Sync Queue Integration Tests", () => {
         {
           date: "2024-01-16",
           description: "Transaction 2",
-          amount_cents: 200000,
+          amount_cents: cents(200000),
           type: "expense",
           status: "pending",
           visibility: "household",
@@ -365,7 +366,7 @@ describe("Sync Queue Integration Tests", () => {
         {
           date: "2024-01-15",
           description: "Stale",
-          amount_cents: 100000,
+          amount_cents: cents(100000),
           type: "expense",
           status: "pending",
           visibility: "household",
@@ -379,7 +380,7 @@ describe("Sync Queue Integration Tests", () => {
         {
           date: "2024-01-16",
           description: "Fresh",
-          amount_cents: 100000,
+          amount_cents: cents(100000),
           type: "expense",
           status: "pending",
           visibility: "household",
@@ -403,7 +404,7 @@ describe("Sync Queue Integration Tests", () => {
         {
           date: "2024-01-15",
           description: "Old completed",
-          amount_cents: 100000,
+          amount_cents: cents(100000),
           type: "expense",
           status: "pending",
           visibility: "household",
@@ -426,7 +427,7 @@ describe("Sync Queue Integration Tests", () => {
         {
           date: "2024-01-15",
           description: "Transaction 1",
-          amount_cents: 100000,
+          amount_cents: cents(100000),
           type: "expense",
           status: "pending",
           visibility: "household",
@@ -438,7 +439,7 @@ describe("Sync Queue Integration Tests", () => {
         {
           name: "Account 1",
           type: "bank",
-          initial_balance_cents: 500000,
+          initial_balance_cents: cents(500000),
           visibility: "household",
           is_active: true,
         },
@@ -449,7 +450,7 @@ describe("Sync Queue Integration Tests", () => {
         {
           date: "2024-01-16",
           description: "Transaction 2",
-          amount_cents: 200000,
+          amount_cents: cents(200000),
           type: "expense",
           status: "pending",
           visibility: "household",

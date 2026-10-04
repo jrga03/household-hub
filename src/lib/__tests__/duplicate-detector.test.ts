@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { generateFingerprint, detectDuplicates } from "../duplicate-detector";
 import type { Transaction } from "@/types/transactions";
+import { cents } from "@/test/cents";
 
 function makeTxn(overrides: Partial<Transaction> = {}): Partial<Transaction> {
   return {
     description: "Grocery Shopping",
-    amount_cents: 150050,
+    amount_cents: cents(150050),
     date: "2025-01-15",
     account_id: "acc-cash",
     ...overrides,
@@ -77,8 +78,8 @@ describe("generateFingerprint", () => {
   });
 
   it("produces different fingerprints for different amounts", () => {
-    const a = makeTxn({ amount_cents: 100 });
-    const b = makeTxn({ amount_cents: 200 });
+    const a = makeTxn({ amount_cents: cents(100) });
+    const b = makeTxn({ amount_cents: cents(200) });
     expect(generateFingerprint(a)).not.toBe(generateFingerprint(b));
   });
 
@@ -125,13 +126,13 @@ describe("detectDuplicates", () => {
 
   it("handles multiple duplicates with correct importIndex", async () => {
     const existing = [
-      makeTxn({ description: "Groceries", amount_cents: 100 }),
-      makeTxn({ description: "Salary", amount_cents: 5000000 }),
+      makeTxn({ description: "Groceries", amount_cents: cents(100) }),
+      makeTxn({ description: "Salary", amount_cents: cents(5000000) }),
     ];
     const importData = [
-      makeTxn({ description: "Unrelated", amount_cents: 999 }),
-      makeTxn({ description: "Groceries", amount_cents: 100 }),
-      makeTxn({ description: "Salary", amount_cents: 5000000 }),
+      makeTxn({ description: "Unrelated", amount_cents: cents(999) }),
+      makeTxn({ description: "Groceries", amount_cents: cents(100) }),
+      makeTxn({ description: "Salary", amount_cents: cents(5000000) }),
     ];
 
     const dupes = await detectDuplicates(importData, existing);

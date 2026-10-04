@@ -15,6 +15,8 @@
  * @see DECISIONS.md #60 for transfer representation
  */
 
+import type { Cents } from "@/lib/currency";
+
 /**
  * Transaction type: income or expense
  * CRITICAL: Always use with positive amount_cents
@@ -63,7 +65,7 @@ export interface Transaction {
   // Core fields
   date: string; // DATE type: "YYYY-MM-DD" format (user's local date)
   description: string;
-  amount_cents: number; // Always positive, type field indicates direction
+  amount_cents: Cents; // Always positive, type field indicates direction
   type: TransactionType;
   currency_code: string; // "PHP" only for MVP
 
@@ -100,7 +102,7 @@ export interface TransactionInsert {
   household_id?: string;
   date: string; // "YYYY-MM-DD" format
   description: string;
-  amount_cents: number; // Must be positive
+  amount_cents: Cents; // Must be positive
   type: TransactionType;
   account_id?: string | null;
   category_id?: string | null;
@@ -122,7 +124,7 @@ export interface TransactionInsert {
 export interface TransactionUpdate {
   date?: string;
   description?: string;
-  amount_cents?: number;
+  amount_cents?: Cents;
   type?: TransactionType;
   account_id?: string | null;
   category_id?: string | null;

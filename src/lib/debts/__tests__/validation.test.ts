@@ -15,6 +15,7 @@ import {
 } from "../validation";
 import type { LocalCategory, LocalAccount } from "@/lib/dexie/db";
 import type { EntityType } from "@/types/debt";
+import { cents } from "@/test/cents";
 
 describe("Debt Validation", () => {
   beforeEach(async () => {
@@ -91,7 +92,7 @@ describe("Debt Validation", () => {
         id: "debt-1",
         household_id: "household-1",
         name: "Car Loan",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         status: "active",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -107,7 +108,7 @@ describe("Debt Validation", () => {
         id: "debt-1",
         household_id: "household-1",
         name: "Car Loan",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         status: "active",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -124,7 +125,7 @@ describe("Debt Validation", () => {
         id: "debt-1",
         household_id: "household-1",
         name: "Car Loan",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         status: "archived",
         closed_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
@@ -140,7 +141,7 @@ describe("Debt Validation", () => {
         id: "debt-1",
         household_id: "household-1",
         name: "Car Loan",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         status: "paid_off",
         closed_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
@@ -156,7 +157,7 @@ describe("Debt Validation", () => {
         id: "debt-1",
         household_id: "household-1",
         name: "Car Loan",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         status: "active",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -172,7 +173,7 @@ describe("Debt Validation", () => {
         id: "internal-1",
         household_id: "household-1",
         name: "Category Borrowing",
-        original_amount_cents: 50000,
+        original_amount_cents: cents(50000),
         from_type: "category",
         from_id: "cat-1",
         from_display_name: "Groceries",
@@ -212,7 +213,7 @@ describe("Debt Validation", () => {
         household_id: "household-1",
         name: "Checking",
         type: "bank",
-        initial_balance_cents: 100000,
+        initial_balance_cents: cents(100000),
         currency_code: "PHP",
         visibility: "household",
         color: "#0000FF",
@@ -278,7 +279,7 @@ describe("Debt Validation", () => {
         household_id: "household-1",
         name: "Checking Account",
         type: "bank",
-        initial_balance_cents: 100000,
+        initial_balance_cents: cents(100000),
         currency_code: "PHP",
         visibility: "household",
         color: "#0000FF",
@@ -321,7 +322,7 @@ describe("Debt Validation", () => {
     it("should accept valid external debt data", async () => {
       const result = await validateDebtCreation({
         name: "Car Loan",
-        original_amount_cents: 500000,
+        original_amount_cents: cents(500000),
         household_id: "household-1",
       });
       expect(result.valid).toBe(true);
@@ -330,7 +331,7 @@ describe("Debt Validation", () => {
     it("should reject invalid external debt data", async () => {
       const result = await validateDebtCreation({
         name: "", // Invalid name
-        original_amount_cents: 50, // Below minimum
+        original_amount_cents: cents(50), // Below minimum
         household_id: "household-1",
       });
       expect(result.valid).toBe(false);
@@ -370,7 +371,7 @@ describe("Debt Validation", () => {
     it("should accept valid internal debt data", async () => {
       const result = await validateInternalDebtCreation({
         name: "Category Borrowing",
-        original_amount_cents: 10000,
+        original_amount_cents: cents(10000),
         household_id: "household-1",
         from_type: "category",
         from_id: "cat-1",
@@ -383,7 +384,7 @@ describe("Debt Validation", () => {
     it("should reject self-borrowing", async () => {
       const result = await validateInternalDebtCreation({
         name: "Self Borrowing",
-        original_amount_cents: 10000,
+        original_amount_cents: cents(10000),
         household_id: "household-1",
         from_type: "category",
         from_id: "cat-1",
@@ -397,7 +398,7 @@ describe("Debt Validation", () => {
     it("should reject invalid entity types", async () => {
       const result = await validateInternalDebtCreation({
         name: "Invalid Type",
-        original_amount_cents: 10000,
+        original_amount_cents: cents(10000),
         household_id: "household-1",
         from_type: "invalid" as unknown as EntityType,
         from_id: "cat-1",
@@ -411,7 +412,7 @@ describe("Debt Validation", () => {
     it("should reject non-existent entities", async () => {
       const result = await validateInternalDebtCreation({
         name: "Non-existent Entity",
-        original_amount_cents: 10000,
+        original_amount_cents: cents(10000),
         household_id: "household-1",
         from_type: "category",
         from_id: "non-existent",
@@ -429,7 +430,7 @@ describe("Debt Validation", () => {
         id: "debt-1",
         household_id: "household-1",
         name: "Test",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         status: "active",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -444,7 +445,7 @@ describe("Debt Validation", () => {
         id: "debt-1",
         household_id: "household-1",
         name: "Test",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         status: "active",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -456,7 +457,7 @@ describe("Debt Validation", () => {
         household_id: "household-1",
         debt_id: "debt-1",
         transaction_id: "txn-1",
-        amount_cents: 50000,
+        amount_cents: cents(50000),
         payment_date: "2025-11-10",
         device_id: "device-1",
         is_reversal: false,
@@ -476,7 +477,7 @@ describe("Debt Validation", () => {
         id: "debt-1",
         household_id: "household-1",
         name: "Test",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         status: "active",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -516,7 +517,7 @@ describe("Debt Validation", () => {
         id: "internal-1",
         household_id: "household-1",
         name: "Test",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         from_type: "category",
         from_id: "cat-1",
         from_display_name: "Cat 1",
@@ -534,7 +535,7 @@ describe("Debt Validation", () => {
         household_id: "household-1",
         internal_debt_id: "internal-1",
         transaction_id: "txn-1",
-        amount_cents: 50000,
+        amount_cents: cents(50000),
         payment_date: "2025-11-10",
         device_id: "device-1",
         is_reversal: false,

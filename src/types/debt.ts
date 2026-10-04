@@ -9,6 +9,8 @@
  * @module types/debt
  */
 
+import type { Cents } from "@/lib/currency";
+
 // =====================================================
 // Base Types
 // =====================================================
@@ -48,7 +50,7 @@ export interface Debt {
   name: string;
 
   /** Original borrowed amount in cents (always positive) */
-  original_amount_cents: number;
+  original_amount_cents: Cents;
 
   // NOTE: No current_balance_cents - calculated from payments at read time
   // Balance = original_amount_cents - SUM(payments.amount_cents WHERE !is_reversal)
@@ -93,7 +95,7 @@ export interface InternalDebt {
   name: string;
 
   /** Original borrowed amount in cents (always positive) */
-  original_amount_cents: number;
+  original_amount_cents: Cents;
 
   // NOTE: No current_balance_cents - calculated from payments
 
@@ -165,7 +167,7 @@ export interface DebtPayment {
    * - Positive for regular payments (reduces balance)
    * - Negative for reversals (increases balance)
    */
-  amount_cents: number;
+  amount_cents: Cents;
 
   /** Payment date (DATE: YYYY-MM-DD in user's timezone) */
   payment_date: string;
@@ -186,7 +188,7 @@ export interface DebtPayment {
   is_overpayment?: boolean;
 
   /** Amount that exceeded balance (null if no overpayment) */
-  overpayment_amount?: number;
+  overpayment_amount?: Cents;
 
   /** When payment record was created (ISO 8601 UTC) */
   created_at: string;
@@ -233,7 +235,7 @@ export interface InternalDebtWithBalance extends InternalDebt {
  */
 export interface DebtFormData {
   name: string;
-  original_amount_cents: number;
+  original_amount_cents: Cents;
   household_id: string;
 }
 
@@ -257,7 +259,7 @@ export interface DebtPaymentFormData {
   debt_id?: string;
   internal_debt_id?: string;
   transaction_id: string;
-  amount_cents: number;
+  amount_cents: Cents;
   payment_date: string;
 }
 
@@ -267,7 +269,7 @@ export interface DebtPaymentFormData {
 
 export interface ProcessPaymentData {
   transaction_id: string;
-  amount_cents: number;
+  amount_cents: Cents;
   payment_date: string; // DATE format YYYY-MM-DD
   debt_id?: string;
   internal_debt_id?: string;
@@ -357,7 +359,7 @@ export interface ReversalResult {
  */
 export interface TransactionEditData {
   transaction_id: string;
-  new_amount_cents?: number;
+  new_amount_cents?: Cents;
   new_debt_id?: string;
   new_internal_debt_id?: string;
   payment_date: string; // ISO date for new payment

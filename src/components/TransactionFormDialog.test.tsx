@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { TransactionFormDialog } from "./TransactionFormDialog";
 import { createOfflineTransaction, updateOfflineTransaction } from "@/lib/offline/transactions";
 import type { TransactionWithRelations } from "@/types/transactions";
+import { cents } from "@/test/cents";
 
 // Radix Select measures its trigger via ResizeObserver, which jsdom lacks
 class ResizeObserverStub {
@@ -131,7 +132,7 @@ function buildTransaction(overrides: Partial<TransactionWithRelations>): Transac
     household_id: "hh-1",
     date: "2026-07-01",
     description: "Groceries",
-    amount_cents: 150050,
+    amount_cents: cents(150050),
     type: "expense",
     currency_code: "PHP",
     account_id: null,

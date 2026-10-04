@@ -18,6 +18,7 @@ import {
   getDebtsWithBalances,
 } from "../crud";
 import type { LocalCategory, LocalAccount } from "@/lib/dexie/db";
+import { cents } from "@/test/cents";
 
 // Mock console.log to reduce test noise
 vi.spyOn(console, "log").mockImplementation(() => {});
@@ -48,7 +49,7 @@ describe("Debt CRUD Operations", () => {
     it("should create external debt with valid data", async () => {
       const debt = await createExternalDebt({
         name: "Car Loan",
-        original_amount_cents: 500000,
+        original_amount_cents: cents(500000),
         household_id: "household-1",
       });
 
@@ -68,7 +69,7 @@ describe("Debt CRUD Operations", () => {
     it("should trim whitespace from name", async () => {
       const debt = await createExternalDebt({
         name: "  Car Loan  ",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
@@ -79,7 +80,7 @@ describe("Debt CRUD Operations", () => {
       await expect(
         createExternalDebt({
           name: "Test",
-          original_amount_cents: 50, // Below minimum
+          original_amount_cents: cents(50), // Below minimum
           household_id: "household-1",
         })
       ).rejects.toThrow("at least ₱1.00");
@@ -88,14 +89,14 @@ describe("Debt CRUD Operations", () => {
     it("should reject duplicate active name", async () => {
       await createExternalDebt({
         name: "Car Loan",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
       await expect(
         createExternalDebt({
           name: "Car Loan",
-          original_amount_cents: 200000,
+          original_amount_cents: cents(200000),
           household_id: "household-1",
         })
       ).rejects.toThrow("already exists");
@@ -105,7 +106,7 @@ describe("Debt CRUD Operations", () => {
       await expect(
         createExternalDebt({
           name: "",
-          original_amount_cents: 100000,
+          original_amount_cents: cents(100000),
           household_id: "household-1",
         })
       ).rejects.toThrow("Name is required");
@@ -144,7 +145,7 @@ describe("Debt CRUD Operations", () => {
         household_id: "household-1",
         name: "Checking",
         type: "bank",
-        initial_balance_cents: 100000,
+        initial_balance_cents: cents(100000),
         currency_code: "PHP",
         visibility: "household",
         color: "#0000FF",
@@ -160,7 +161,7 @@ describe("Debt CRUD Operations", () => {
     it("should create internal debt between categories", async () => {
       const debt = await createInternalDebt({
         name: "Category Borrowing",
-        original_amount_cents: 50000,
+        original_amount_cents: cents(50000),
         household_id: "household-1",
         from_type: "category",
         from_id: "cat-1",
@@ -186,7 +187,7 @@ describe("Debt CRUD Operations", () => {
     it("should create internal debt between account and category", async () => {
       const debt = await createInternalDebt({
         name: "Account to Category",
-        original_amount_cents: 25000,
+        original_amount_cents: cents(25000),
         household_id: "household-1",
         from_type: "account",
         from_id: "acc-1",
@@ -201,7 +202,7 @@ describe("Debt CRUD Operations", () => {
     it("should use provided display names if given", async () => {
       const debt = await createInternalDebt({
         name: "Custom Names",
-        original_amount_cents: 10000,
+        original_amount_cents: cents(10000),
         household_id: "household-1",
         from_type: "category",
         from_id: "cat-1",
@@ -219,7 +220,7 @@ describe("Debt CRUD Operations", () => {
       await expect(
         createInternalDebt({
           name: "Self Borrowing",
-          original_amount_cents: 10000,
+          original_amount_cents: cents(10000),
           household_id: "household-1",
           from_type: "category",
           from_id: "cat-1",
@@ -233,7 +234,7 @@ describe("Debt CRUD Operations", () => {
       await expect(
         createInternalDebt({
           name: "Invalid Entity",
-          original_amount_cents: 10000,
+          original_amount_cents: cents(10000),
           household_id: "household-1",
           from_type: "category",
           from_id: "non-existent",
@@ -248,7 +249,7 @@ describe("Debt CRUD Operations", () => {
     it("should retrieve external debt by ID", async () => {
       const created = await createExternalDebt({
         name: "Test Debt",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
@@ -284,7 +285,7 @@ describe("Debt CRUD Operations", () => {
 
       const created = await createInternalDebt({
         name: "Test Internal",
-        original_amount_cents: 50000,
+        original_amount_cents: cents(50000),
         household_id: "household-1",
         from_type: "category",
         from_id: "cat-1",
@@ -306,7 +307,7 @@ describe("Debt CRUD Operations", () => {
     it("should include calculated balance field", async () => {
       const debt = await createExternalDebt({
         name: "Test",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
@@ -318,7 +319,7 @@ describe("Debt CRUD Operations", () => {
     it("should calculate balance with payments", async () => {
       const debt = await createExternalDebt({
         name: "Test",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
@@ -328,7 +329,7 @@ describe("Debt CRUD Operations", () => {
         household_id: "household-1",
         debt_id: debt.id,
         transaction_id: "txn-1",
-        amount_cents: 30000,
+        amount_cents: cents(30000),
         payment_date: "2025-11-10",
         device_id: "device-1",
         is_reversal: false,
@@ -352,7 +353,7 @@ describe("Debt CRUD Operations", () => {
       // Create multiple debts
       await createExternalDebt({
         name: "Debt 1",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
@@ -360,7 +361,7 @@ describe("Debt CRUD Operations", () => {
 
       await createExternalDebt({
         name: "Debt 2",
-        original_amount_cents: 200000,
+        original_amount_cents: cents(200000),
         household_id: "household-1",
       });
 
@@ -368,7 +369,7 @@ describe("Debt CRUD Operations", () => {
 
       const debt3 = await createExternalDebt({
         name: "Debt 3",
-        original_amount_cents: 300000,
+        original_amount_cents: cents(300000),
         household_id: "household-1",
       });
 
@@ -415,19 +416,19 @@ describe("Debt CRUD Operations", () => {
     beforeEach(async () => {
       await createExternalDebt({
         name: "Car Loan",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
       await createExternalDebt({
         name: "Home Loan",
-        original_amount_cents: 200000,
+        original_amount_cents: cents(200000),
         household_id: "household-1",
       });
 
       await createExternalDebt({
         name: "Personal Credit",
-        original_amount_cents: 50000,
+        original_amount_cents: cents(50000),
         household_id: "household-1",
       });
     });
@@ -460,7 +461,7 @@ describe("Debt CRUD Operations", () => {
     it("should update debt name", async () => {
       const debt = await createExternalDebt({
         name: "Old Name",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
@@ -479,7 +480,7 @@ describe("Debt CRUD Operations", () => {
     it("should trim new name", async () => {
       const debt = await createExternalDebt({
         name: "Old Name",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
@@ -492,13 +493,13 @@ describe("Debt CRUD Operations", () => {
     it("should reject duplicate name", async () => {
       await createExternalDebt({
         name: "Existing",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
       const debt2 = await createExternalDebt({
         name: "To Rename",
-        original_amount_cents: 200000,
+        original_amount_cents: cents(200000),
         household_id: "household-1",
       });
 
@@ -510,7 +511,7 @@ describe("Debt CRUD Operations", () => {
     it("should allow keeping same name", async () => {
       const debt = await createExternalDebt({
         name: "Same Name",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
@@ -528,7 +529,7 @@ describe("Debt CRUD Operations", () => {
     it("should archive active debt", async () => {
       const debt = await createExternalDebt({
         name: "Test",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
@@ -542,7 +543,7 @@ describe("Debt CRUD Operations", () => {
     it("should be idempotent for already archived debt", async () => {
       const debt = await createExternalDebt({
         name: "Test",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
@@ -564,7 +565,7 @@ describe("Debt CRUD Operations", () => {
     it("should unarchive debt and set status based on balance", async () => {
       const debt = await createExternalDebt({
         name: "Test",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
@@ -578,7 +579,7 @@ describe("Debt CRUD Operations", () => {
     it("should set status to paid_off if balance is zero", async () => {
       const debt = await createExternalDebt({
         name: "Test",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
@@ -588,7 +589,7 @@ describe("Debt CRUD Operations", () => {
         household_id: "household-1",
         debt_id: debt.id,
         transaction_id: "txn-1",
-        amount_cents: 100000,
+        amount_cents: cents(100000),
         payment_date: "2025-11-10",
         device_id: "device-1",
         is_reversal: false,
@@ -608,7 +609,7 @@ describe("Debt CRUD Operations", () => {
     it("should do nothing if debt is not archived", async () => {
       const debt = await createExternalDebt({
         name: "Test",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
@@ -627,7 +628,7 @@ describe("Debt CRUD Operations", () => {
     it("should delete debt with no payments", async () => {
       const debt = await createExternalDebt({
         name: "Test",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
@@ -640,7 +641,7 @@ describe("Debt CRUD Operations", () => {
     it("should reject deletion with payment history", async () => {
       const debt = await createExternalDebt({
         name: "Test",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
@@ -650,7 +651,7 @@ describe("Debt CRUD Operations", () => {
         household_id: "household-1",
         debt_id: debt.id,
         transaction_id: "txn-1",
-        amount_cents: 50000,
+        amount_cents: cents(50000),
         payment_date: "2025-11-10",
         device_id: "device-1",
         is_reversal: false,
@@ -665,7 +666,7 @@ describe("Debt CRUD Operations", () => {
     it("should reject deletion with pending sync", async () => {
       const debt = await createExternalDebt({
         name: "Test",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
@@ -705,13 +706,13 @@ describe("Debt CRUD Operations", () => {
     it("should return all debts with calculated balances", async () => {
       const debt1 = await createExternalDebt({
         name: "Debt 1",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
       const debt2 = await createExternalDebt({
         name: "Debt 2",
-        original_amount_cents: 200000,
+        original_amount_cents: cents(200000),
         household_id: "household-1",
       });
 
@@ -721,7 +722,7 @@ describe("Debt CRUD Operations", () => {
         household_id: "household-1",
         debt_id: debt1.id,
         transaction_id: "txn-1",
-        amount_cents: 30000,
+        amount_cents: cents(30000),
         payment_date: "2025-11-10",
         device_id: "device-1",
         is_reversal: false,
@@ -744,13 +745,13 @@ describe("Debt CRUD Operations", () => {
     it("should filter by status", async () => {
       const debt1 = await createExternalDebt({
         name: "Active Debt",
-        original_amount_cents: 100000,
+        original_amount_cents: cents(100000),
         household_id: "household-1",
       });
 
       const debt2 = await createExternalDebt({
         name: "Archived Debt",
-        original_amount_cents: 200000,
+        original_amount_cents: cents(200000),
         household_id: "household-1",
       });
 
