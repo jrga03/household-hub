@@ -8,12 +8,18 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { formatPHP, formatPHPAxisTick } from "@/lib/currency";
+import {
+  absCents,
+  formatPHP,
+  formatPHPAxisTick,
+  formatPHPChartValue,
+  type Cents,
+} from "@/lib/currency";
 
 interface YearOverYear {
-  currentYear: { income: number; expenses: number };
-  previousYear: { income: number; expenses: number };
-  change: { income: number; expenses: number };
+  currentYear: { income: Cents; expenses: Cents };
+  previousYear: { income: Cents; expenses: Cents };
+  change: { income: Cents; expenses: Cents };
   percentChange: { income: number; expenses: number };
 }
 
@@ -45,7 +51,7 @@ export function YearOverYearChart({ data }: Props) {
           <XAxis dataKey="period" tick={{ fontSize: 12 }} />
           <YAxis tickFormatter={formatPHPAxisTick} tick={{ fontSize: 12 }} width={55} />
           <Tooltip
-            formatter={(value: number) => formatPHP(value)}
+            formatter={(value) => formatPHPChartValue(value)}
             contentStyle={{ borderRadius: "8px" }}
           />
           <Legend />
@@ -69,7 +75,7 @@ export function YearOverYearChart({ data }: Props) {
             {data.percentChange.income.toFixed(1)}%
           </p>
           <p className="text-xs text-muted-foreground">
-            {formatPHP(Math.abs(data.change.income))}{" "}
+            {formatPHP(absCents(data.change.income))}{" "}
             {data.change.income >= 0 ? "increase" : "decrease"}
           </p>
         </div>
@@ -82,7 +88,7 @@ export function YearOverYearChart({ data }: Props) {
             {data.percentChange.expenses.toFixed(1)}%
           </p>
           <p className="text-xs text-muted-foreground">
-            {formatPHP(Math.abs(data.change.expenses))}{" "}
+            {formatPHP(absCents(data.change.expenses))}{" "}
             {data.change.expenses >= 0 ? "increase" : "decrease"}
           </p>
         </div>

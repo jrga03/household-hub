@@ -778,7 +778,7 @@ export interface AnalyticsTransactionRow {
   id: string;
   date: string;
   type: "income" | "expense";
-  amount_cents: number;
+  amount_cents: Cents;
   category_id: string | null;
   account_id: string;
   description: string;

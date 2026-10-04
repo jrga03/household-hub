@@ -1,13 +1,13 @@
-import { formatPHP } from "@/lib/currency";
+import { absCents, formatPHP, type Cents } from "@/lib/currency";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { TrendingDown, TrendingUp, AlertCircle } from "lucide-react";
 
 interface BudgetVariance {
   category: string;
-  budgetAmount: number; // cents
-  actualAmount: number; // cents
-  variance: number; // cents
+  budgetAmount: Cents;
+  actualAmount: Cents;
+  variance: Cents;
   percentUsed: number; // 0-100
 }
 
@@ -81,7 +81,7 @@ export function BudgetProgressChart({ data }: Props) {
                     <>
                       <TrendingUp className="h-3 w-3 text-expense" />
                       <span className="text-expense">
-                        {formatPHP(Math.abs(budget.variance))} over budget
+                        {formatPHP(absCents(budget.variance))} over budget
                       </span>
                     </>
                   )}

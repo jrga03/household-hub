@@ -1,18 +1,18 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatPHP } from "@/lib/currency";
+import { formatPHP, type Cents } from "@/lib/currency";
 import { TrendingUp, Calendar, DollarSign } from "lucide-react";
 import { format } from "date-fns";
 
 interface Insights {
-  avgMonthlySpending: number;
+  avgMonthlySpending: Cents;
   largestTransactions: Array<{
     description: string;
-    amount: number;
+    amount: Cents;
     date: string;
   }>;
   topCategories: Array<{
     name: string;
-    amount: number;
+    amount: Cents;
   }>;
 }
 

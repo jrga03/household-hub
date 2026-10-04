@@ -6,6 +6,7 @@ import {
   type AnalyticsTransactionRow,
 } from "@/lib/supabaseQueries";
 import { startOfMonth, subYears, format, differenceInDays } from "date-fns";
+import { ZERO_CENTS, diffCents, divideCents, sumCents, type Cents } from "@/lib/currency";
 
 type Transaction = AnalyticsTransactionRow;
 type TransactionAmount = Pick<Transaction, "type" | "amount_cents">;
@@ -13,36 +14,36 @@ type TransactionAmount = Pick<Transaction, "type" | "amount_cents">;
 // Types for analytics data
 interface MonthlyTrendData {
   month: string;
-  income: number; // in cents
-  expenses: number; // in cents
+  income: Cents;
+  expenses: Cents;
 }
 
 interface CategoryBreakdown {
   categoryId: string | null; // Real category id for click-through navigation (null = uncategorized)
   name: string;
-  valueCents: number; // in cents
+  valueCents: Cents;
 }
 
 interface BudgetVariance {
   category: string;
-  budgetAmount: number; // in cents
-  actualAmount: number; // in cents
-  variance: number; // in cents (positive = under budget)
+  budgetAmount: Cents;
+  actualAmount: Cents;
+  variance: Cents; // positive = under budget
   percentUsed: number; // 0-100
 }
 
 interface YearOverYear {
   currentYear: {
-    income: number; // in cents
-    expenses: number; // in cents
+    income: Cents;
+    expenses: Cents;
   };
   previousYear: {
-    income: number; // in cents
-    expenses: number; // in cents
+    income: Cents;
+    expenses: Cents;
   };
   change: {
-    income: number; // in cents
-    expenses: number; // in cents
+    income: Cents;
+    expenses: Cents;
   };
   percentChange: {
     income: number; // percentage
@@ -51,23 +52,23 @@ interface YearOverYear {
 }
 
 interface Insights {
-  avgMonthlySpending: number; // in cents
+  avgMonthlySpending: Cents;
   largestTransactions: Array<{
     description: string;
-    amount: number; // in cents
+    amount: Cents;
     date: string;
   }>;
   topCategories: Array<{
     name: string;
-    amount: number; // in cents
+    amount: Cents;
   }>;
 }
 
 interface AnalyticsData {
   monthlyTrend: MonthlyTrendData[];
   categoryBreakdown: CategoryBreakdown[];
-  totalIncome: number; // in cents
-  totalExpenses: number; // in cents
+  totalIncome: Cents;
+  totalExpenses: Cents;
   budgetVariance: BudgetVariance[];
   yearOverYear: YearOverYear;
   insights: Insights;
@@ -121,7 +122,7 @@ export function useAnalytics(startDate: Date, endDate: Date, filters?: Analytics
       }
 
       // Aggregate budgets by category (sum across all months in period)
-      const budgetsByCategory: Record<string, { total: number; name: string }> = {};
+      const budgetsByCategory: Record<string, { total: Cents; name: string }> = {};
       (rawBudgets || []).forEach((budget) => {
         const categoryData = budget.categories as { name: string } | { name: string }[] | null;
         const categoryName =
@@ -129,7 +130,7 @@ export function useAnalytics(startDate: Date, endDate: Date, filters?: Analytics
           "Uncategorized";
         const existing = budgetsByCategory[budget.category_id];
         if (existing) {
-          existing.total += budget.amount_cents;
+          existing.total = sumCents([existing.total, budget.amount_cents]);
         } else {
           budgetsByCategory[budget.category_id] = {
             total: budget.amount_cents,
@@ -193,19 +194,18 @@ export function useAnalytics(startDate: Date, endDate: Date, filters?: Analytics
  * @returns Array of monthly income/expense totals in cents
  */
 function processMonthlyTrend(data: Transaction[]): MonthlyTrendData[] {
-  const grouped: Record<string, { income: number; expenses: number }> = {};
+  const grouped: Record<string, { income: Cents; expenses: Cents }> = {};
 
   data.forEach((t) => {
     const date = new Date(t.date);
     const yearMonth = format(date, "yyyy-MM"); // e.g., "2025-01" for sorting
 
-    if (!grouped[yearMonth]) {
-      grouped[yearMonth] = { income: 0, expenses: 0 };
-    }
+    const month = grouped[yearMonth] ?? { income: ZERO_CENTS, expenses: ZERO_CENTS };
+    grouped[yearMonth] = month;
     if (t.type === "income") {
-      grouped[yearMonth].income += t.amount_cents;
+      month.income = sumCents([month.income, t.amount_cents]);
     } else {
-      grouped[yearMonth].expenses += t.amount_cents;
+      month.expenses = sumCents([month.expenses, t.amount_cents]);
     }
   });
 
@@ -239,7 +239,7 @@ function processCategoryBreakdown(data: Transaction[]): CategoryBreakdown[] {
       const categoryId = t.category_id ?? null;
       const existing = grouped.get(categoryId);
       if (existing) {
-        existing.valueCents += t.amount_cents;
+        existing.valueCents = sumCents([existing.valueCents, t.amount_cents]);
       } else {
         grouped.set(categoryId, {
           categoryId,
@@ -261,8 +261,8 @@ function processCategoryBreakdown(data: Transaction[]): CategoryBreakdown[] {
  * @param type - Transaction type to sum
  * @returns Total amount in cents
  */
-function calculateTotal(data: TransactionAmount[], type: "income" | "expense"): number {
-  return data.filter((t) => t.type === type).reduce((sum, t) => sum + t.amount_cents, 0);
+function calculateTotal(data: TransactionAmount[], type: "income" | "expense"): Cents {
+  return sumCents(data.filter((t) => t.type === type).map((t) => t.amount_cents));
 }
 
 /**
@@ -277,11 +277,11 @@ function calculateTotal(data: TransactionAmount[], type: "income" | "expense"): 
  * Negative variance = over budget (alert)
  */
 function processBudgetVariance(
-  budgets: Array<{ category_id: string; amount_cents: number; categories: { name: string } }>,
+  budgets: Array<{ category_id: string; amount_cents: Cents; categories: { name: string } }>,
   transactions: Transaction[]
 ): BudgetVariance[] {
   // Group transactions by category (only expenses)
-  const spendingByCategory: Record<string, number> = {};
+  const spendingByCategory: Record<string, Cents> = {};
 
   transactions
     .filter((t) => t.type === "expense")
@@ -289,13 +289,16 @@ function processBudgetVariance(
       // Uncategorized spending can never match a budget (budgets always
       // reference a category), so skip null category ids
       if (t.category_id === null) return;
-      spendingByCategory[t.category_id] = (spendingByCategory[t.category_id] || 0) + t.amount_cents;
+      spendingByCategory[t.category_id] = sumCents([
+        spendingByCategory[t.category_id] ?? ZERO_CENTS,
+        t.amount_cents,
+      ]);
     });
 
   // Calculate variance for each budget
   return budgets.map((budget) => {
-    const actualSpend = spendingByCategory[budget.category_id] || 0;
-    const variance = budget.amount_cents - actualSpend; // Positive = under budget
+    const actualSpend = spendingByCategory[budget.category_id] ?? ZERO_CENTS;
+    const variance = diffCents(budget.amount_cents, actualSpend); // Positive = under budget
     const percentUsed = budget.amount_cents > 0 ? (actualSpend / budget.amount_cents) * 100 : 0;
 
     return {
@@ -324,8 +327,8 @@ function processYearOverYear(
   const previousIncome = calculateTotal(previousData, "income");
   const previousExpenses = calculateTotal(previousData, "expense");
 
-  const incomeChange = currentIncome - previousIncome;
-  const expenseChange = currentExpenses - previousExpenses;
+  const incomeChange = diffCents(currentIncome, previousIncome);
+  const expenseChange = diffCents(currentExpenses, previousExpenses);
 
   return {
     currentYear: {
@@ -355,13 +358,12 @@ function processYearOverYear(
  * @param endDate - Period end date
  * @returns Calculated insights (avg spending, top transactions, top categories)
  */
-function processInsights(data: Transaction[], startDate: Date, endDate: Date): Insights {
+export function processInsights(data: Transaction[], startDate: Date, endDate: Date): Insights {
   const expenses = data.filter((t) => t.type === "expense");
 
   // Calculate average monthly spending
   const monthCount = Math.max(1, Math.ceil(differenceInDays(endDate, startDate) / 30));
-  const totalExpenses = expenses.reduce((sum, t) => sum + t.amount_cents, 0);
-  const avgMonthlySpending = totalExpenses / monthCount;
+  const avgMonthlySpending = divideCents(sumCents(expenses.map((t) => t.amount_cents)), monthCount);
 
   // Get largest transactions
   const largestTransactions = expenses
@@ -374,10 +376,10 @@ function processInsights(data: Transaction[], startDate: Date, endDate: Date): I
     }));
 
   // Get top categories
-  const categoryTotals: Record<string, number> = {};
+  const categoryTotals: Record<string, Cents> = {};
   expenses.forEach((t) => {
     const name = t.categories?.name || "Uncategorized";
-    categoryTotals[name] = (categoryTotals[name] || 0) + t.amount_cents;
+    categoryTotals[name] = sumCents([categoryTotals[name] ?? ZERO_CENTS, t.amount_cents]);
   });
 
   const topCategories = Object.entries(categoryTotals)

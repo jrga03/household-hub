@@ -5,7 +5,7 @@ import { CategoryChart } from "@/components/dashboard/CategoryChart";
 import { BudgetProgressChart } from "@/components/charts/BudgetProgressChart";
 import { YearOverYearChart } from "@/components/charts/YearOverYearChart";
 import { InsightsSection } from "./InsightsSection";
-import { formatPHP } from "@/lib/currency";
+import { absCents, diffCents, formatPHP, sumCents } from "@/lib/currency";
 import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 
 export interface AnalyticsFilters {
@@ -47,7 +47,7 @@ export function AnalyticsDashboard({ filters }: AnalyticsDashboardProps) {
     return null;
   }
 
-  const netIncome = data.totalIncome - data.totalExpenses;
+  const netIncome = diffCents(data.totalIncome, data.totalExpenses);
 
   // Convert monthlyTrend data format for MonthlyChart component
   const monthlyChartData = data.monthlyTrend.map((d) => ({
@@ -59,7 +59,7 @@ export function AnalyticsDashboard({ filters }: AnalyticsDashboardProps) {
   // Convert categoryBreakdown data format for CategoryChart component.
   // categoryId is the REAL category id from processCategoryBreakdown, so
   // click-through lands on /transactions?categoryId=<real id> (review R18)
-  const categoryTotalCents = data.categoryBreakdown.reduce((sum, cat) => sum + cat.valueCents, 0);
+  const categoryTotalCents = sumCents(data.categoryBreakdown.map((cat) => cat.valueCents));
   const categoryChartData = data.categoryBreakdown.map((d, index) => ({
     categoryId: d.categoryId,
     categoryName: d.name,
@@ -101,7 +101,7 @@ export function AnalyticsDashboard({ filters }: AnalyticsDashboardProps) {
             <div
               className={`text-2xl font-bold ${netIncome >= 0 ? "text-income" : "text-expense"}`}
             >
-              {formatPHP(Math.abs(netIncome))}
+              {formatPHP(absCents(netIncome))}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {netIncome >= 0 ? "Surplus" : "Deficit"}
