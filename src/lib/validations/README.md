@@ -2,13 +2,15 @@
 
 ## Purpose
 
-Zod validation schemas for client-side form validation and type inference. These schemas define validation rules for financial data entry, enforcing data integrity before data reaches the database.
+Zod schemas for form validation, route search params, and server data that arrives untyped (realtime payloads and RPC results). Money fields come out as branded `Cents` (`src/lib/currency.ts`).
 
 ## Directory Contents
 
-**1 validation file** (2.1 KB):
-
-- **`transaction.ts`** (85 lines, 2.1K) - Transaction creation and edit validation schema
+- **`transaction.ts`** - Transaction creation and edit form schema
+- **`cents.ts`** - `centsSchema`, the shared form field for an amount already in cents (`CurrencyInput` emits `Cents`). Chain `.refine()` for sign and range. Used by the transaction, transfer, budget, account and debt forms.
+- **`syncRows.ts`** - `parseSyncRow(table, record)` validates a realtime or catch-up row for `transactions`, `accounts` or `categories` before it is written to Dexie. A failing row is skipped and reported, not written. Used by `src/lib/realtime-sync.ts`.
+- **`rpcResults.ts`** - `parseAccountBalanceDeltas` and `parseTransactionsFilterSummary` validate the `get_account_balances` and `transactions_filter_summary` RPC results. Used by `src/lib/supabaseQueries.ts`.
+- **`transactionsSearch.ts`** - Transactions route search params (URL amounts are already cents)
 
 ## Component Overview
 
@@ -22,7 +24,7 @@ Zod validation schemas for client-side form validation and type inference. These
 transactionSchema = z.object({
   date: z.date() with future date check
   description: z.string() (3-200 chars)
-  amount_cents: z.number() (1-999,999,999)
+  amount_cents: centsSchema, refined > 0 and <= MAX_AMOUNT_CENTS (999,999,999)
   type: z.enum(["income", "expense"])
   account_id: z.string().nullable().optional()
   category_id: z.string().nullable().optional()
@@ -43,8 +45,8 @@ transactionSchema = z.object({
    - Minimum: 3 characters (prevents accidental empty entries)
    - Maximum: 200 characters (database field limit)
 
-3. **Amount constraints** (src/lib/validations/transaction.ts:18):
-   - Must be positive integer (cents)
+3. **Amount constraints** (`amount_cents` in src/lib/validations/transaction.ts):
+   - `centsSchema` checks a safe integer and types the value as `Cents`; the refines check positive and the maximum
    - Maximum: 999,999,999 cents (₱9,999,999.99)
    - Enforces currency handling pattern (see DATABASE.md lines 1005-1160)
 
@@ -114,8 +116,9 @@ date: z.date().refine((date) => date <= endOfDay(new Date()), {
 
 **Positive integers only:**
 
-- `z.number().int().positive()`
-- Enforces cents storage pattern (no decimals)
+- `centsSchema.refine((cents) => cents > 0, "Amount must be positive")`
+- `centsSchema` rejects anything that is not a safe integer ("Amount must be a whole number of cents")
+- `z.custom<Cents>` keeps input and output types equal, which react-hook-form's resolver needs
 - Frontend displays as formatted PHP via `formatPHP()`
 
 **Maximum value:**
@@ -197,7 +200,7 @@ type TransactionFormData = z.infer<typeof transactionSchema>
 {
   date: Date;
   description: string;
-  amount_cents: number;
+  amount_cents: Cents;
   type: "income" | "expense";
   account_id?: string | null;
   category_id?: string | null;
@@ -256,8 +259,8 @@ type TransactionFormData = z.infer<typeof transactionSchema>
 **Flow:**
 
 1. User types: "1,500.50"
-2. CurrencyInput converts: 150050
-3. Schema validates: `z.number().int().positive().max(999999999)`
+2. CurrencyInput converts: 150050 (typed `Cents`)
+3. Schema validates: `centsSchema` plus the positive and `MAX_AMOUNT_CENTS` refines
 4. Database stores: 150050
 
 ### 3. Optional Fields Philosophy
@@ -342,8 +345,9 @@ const form = useForm<TransactionFormData>({
 
 **Amount errors:**
 
-- "Number must be positive"
-- "Number must be less than or equal to 999999999"
+- "Amount must be a whole number of cents"
+- "Amount must be positive"
+- "Amount too large"
 
 **Type errors:**
 

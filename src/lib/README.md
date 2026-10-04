@@ -47,7 +47,7 @@ The `lib/` directory contains **47 files** organized into several functional are
   - `sumCents(values)`, `diffCents(a, b)` - Arithmetic without max limits
   - `absCents(c)`, `negateCents(c)`, `divideCents(c, divisor)` - More arithmetic
   - `validateAmount(cents)` - Validate amount range
-- **`currency.test.ts`** - Comprehensive currency tests (70 tests)
+- **`currency.test.ts`** - Currency tests
 - **`currency.md`** ✅ - Complete currency documentation
 
 ### Entity Operations (CRUD)
@@ -422,8 +422,7 @@ Sync and offline scenarios tested in `/tests/e2e/`:
 
 1. **Add function** to `currency.ts`
 2. **Add tests** to `currency.test.ts`
-3. **Add example** to `currency.examples.ts`
-4. **Document** in `currency.md`
+3. **Document** in `currency.md`
 
 ### Debugging Sync Issues
 

@@ -196,7 +196,8 @@ export interface AccountBalance {
  * // }
  */
 /**
- * Row shape returned by the get_account_balances Postgres function.
+ * Zero delta for an account with no rows in the get_account_balances result.
+ * The row shape and its validation live in src/lib/validations/rpcResults.ts.
  * Aggregation happens server-side because fetching raw transaction rows is
  * silently capped at PostgREST's max-rows (1,000 by default), which made
  * client-computed balances wrong past 1,000 transactions (review DATA-02).
@@ -1439,20 +1440,15 @@ export interface BudgetGroup {
 }
 
 /**
- * Fetches budgets for a specific month with actual spending calculated.
+ * Fetches budgets for a specific month from Supabase, with actual spending
+ * calculated, and mirrors them into Dexie.
  *
  * CRITICAL: Actual spending MUST exclude transfers by reading the `transactions_non_transfer` view.
  * Transfers are movements between accounts, not actual expenses, and would cause
  * incorrect budget calculations if included.
  *
- * Returns budgets grouped by parent category with rollup totals.
- *
  * @param month - The month to fetch budgets for
- * @returns Query result with BudgetGroup[] array
- *
- * @example
- * const { data: budgetGroups, isLoading } = useBudgets(new Date(2024, 0, 1));
- * // Returns budgets grouped by parent category with actual spending
+ * @returns Budgets grouped by parent category with rollup totals
  */
 export async function fetchBudgetGroupsFromServer(month: Date): Promise<BudgetGroup[]> {
   const monthStart = startOfMonth(month);
@@ -1590,6 +1586,13 @@ export async function fetchBudgetGroupsFromServer(month: Date): Promise<BudgetGr
   return Array.from(groupMap.values());
 }
 
+/**
+ * Budgets for a month, grouped by parent category. Reads from the server and
+ * falls back to Dexie when the network is unavailable.
+ *
+ * @example
+ * const { data: budgetGroups, isLoading } = useBudgets(new Date(2024, 0, 1));
+ */
 export function useBudgets(month: Date) {
   return useQuery({
     queryKey: ["budgets", format(month, "yyyy-MM")],
