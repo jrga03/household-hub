@@ -13,12 +13,12 @@
  */
 
 import { Progress } from "@/components/ui/progress";
-import { formatPHP } from "@/lib/currency";
+import { absCents, diffCents, formatPHP, type Cents } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 
 interface BudgetProgressBarProps {
-  target: number; // Budget amount in cents
-  actual: number; // Actual spending in cents
+  target: Cents;
+  actual: Cents;
   categoryName: string;
 }
 
@@ -41,7 +41,7 @@ interface BudgetProgressBarProps {
  */
 export function BudgetProgressBar({ target, actual, categoryName }: BudgetProgressBarProps) {
   const percentage = target > 0 ? (actual / target) * 100 : 0;
-  const remaining = target - actual;
+  const remaining = diffCents(target, actual);
 
   // Determine status based on percentage
   const status = percentage < 80 ? "under" : percentage <= 100 ? "near" : "over";
@@ -92,7 +92,7 @@ export function BudgetProgressBar({ target, actual, categoryName }: BudgetProgre
         <span className={cn("font-medium", remainingColors[status])}>
           {remaining >= 0
             ? `${formatPHP(remaining)} remaining`
-            : `${formatPHP(Math.abs(remaining))} over`}
+            : `${formatPHP(absCents(remaining))} over`}
         </span>
       </div>
     </div>

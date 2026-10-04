@@ -3,7 +3,7 @@ import { startOfMonth, subMonths } from "date-fns";
 import { MonthSelector } from "@/components/MonthSelector";
 import { CategoryTotalsGroup } from "@/components/CategoryTotalsGroup";
 import { useCategoryTotalsComparison } from "@/lib/supabaseQueries";
-import { formatPHP } from "@/lib/currency";
+import { formatPHP, sumCents } from "@/lib/currency";
 import { LoadingSpinner } from "@/components/LoadingScreen";
 
 /**
@@ -35,10 +35,11 @@ export function CategoryAnalyticsContent() {
   }
 
   // Calculate total spending for the month
-  const totalSpending = current.data?.reduce((sum, group) => sum + group.totalExpenseCents, 0) || 0;
+  const totalSpending = sumCents((current.data ?? []).map((group) => group.totalExpenseCents));
 
-  const previousTotalSpending =
-    previous.data?.reduce((sum, group) => sum + group.totalExpenseCents, 0) || 0;
+  const previousTotalSpending = sumCents(
+    (previous.data ?? []).map((group) => group.totalExpenseCents)
+  );
 
   const spendingChange =
     previousTotalSpending > 0

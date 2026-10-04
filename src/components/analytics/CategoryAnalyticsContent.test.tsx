@@ -9,6 +9,7 @@ import { render, screen } from "@testing-library/react";
 import { CategoryAnalyticsContent } from "./CategoryAnalyticsContent";
 import { useCategoryTotalsComparison } from "@/lib/supabaseQueries";
 import type { CategoryTotalGroup } from "@/lib/supabaseQueries";
+import { cents } from "@/test/cents";
 
 vi.mock("@/lib/supabaseQueries", () => ({
   useCategoryTotalsComparison: vi.fn(),
@@ -55,7 +56,7 @@ describe("CategoryAnalyticsContent", () => {
       parentId: "cat-1",
       parentName: "Food",
       parentColor: "#ff0000",
-      totalExpenseCents: 150050,
+      totalExpenseCents: cents(150050),
       children: [],
     };
     mockedComparison.mockReturnValue(

@@ -909,8 +909,8 @@ export interface CategoryTotal {
   parentId: string | null;
   parentName: string | null;
   color: string;
-  expenseCents: number;
-  incomeCents: number;
+  expenseCents: Cents;
+  incomeCents: Cents;
   transactionCount: number;
   percentOfTotal: number;
 }
@@ -922,7 +922,7 @@ export interface CategoryTotalGroup {
   parentId: string | null;
   parentName: string;
   parentColor: string;
-  totalExpenseCents: number;
+  totalExpenseCents: Cents;
   children: CategoryTotal[];
   // Note: Child categories track incomeCents, but MVP displays expense-focused analytics only.
   // Income analysis can be added in Phase B by utilizing the incomeCents field.
@@ -954,8 +954,8 @@ export async function fetchCategoryTotalsFromServer(month: Date): Promise<Catego
   const totalsMap = new Map<
     string,
     {
-      expense: number;
-      income: number;
+      expense: Cents;
+      income: Cents;
       count: number;
     }
   >();
@@ -965,15 +965,15 @@ export async function fetchCategoryTotalsFromServer(month: Date): Promise<Catego
     if (!t.category_id) return; // Skip uncategorized
 
     const existing = totalsMap.get(t.category_id) || {
-      expense: 0,
-      income: 0,
+      expense: ZERO_CENTS,
+      income: ZERO_CENTS,
       count: 0,
     };
 
     if (t.type === "expense") {
-      existing.expense += t.amount_cents;
+      existing.expense = sumCents([existing.expense, t.amount_cents]);
     } else if (t.type === "income") {
-      existing.income += t.amount_cents;
+      existing.income = sumCents([existing.income, t.amount_cents]);
     }
     existing.count++;
 
@@ -981,7 +981,7 @@ export async function fetchCategoryTotalsFromServer(month: Date): Promise<Catego
   });
 
   // Calculate total spending across all categories for percentages
-  const totalSpending = Array.from(totalsMap.values()).reduce((sum, t) => sum + t.expense, 0);
+  const totalSpending = sumCents(Array.from(totalsMap.values(), (t) => t.expense));
 
   // Group categories by parent (two-level hierarchy)
   const parentMap = new Map<string | null, CategoryTotalGroup>();
@@ -996,7 +996,7 @@ export async function fetchCategoryTotalsFromServer(month: Date): Promise<Catego
           parentId: category.id,
           parentName: category.name,
           parentColor: category.color,
-          totalExpenseCents: 0,
+          totalExpenseCents: ZERO_CENTS,
           children: [],
         });
       }
@@ -1005,8 +1005,8 @@ export async function fetchCategoryTotalsFromServer(month: Date): Promise<Catego
 
     // This is a child category - aggregate its totals
     const totals = totalsMap.get(category.id) || {
-      expense: 0,
-      income: 0,
+      expense: ZERO_CENTS,
+      income: ZERO_CENTS,
       count: 0,
     };
 
@@ -1014,18 +1014,15 @@ export async function fetchCategoryTotalsFromServer(month: Date): Promise<Catego
     const parentKey = category.parent_id;
 
     // Ensure parent group exists (create if not initialized above)
-    if (!parentMap.has(parentKey)) {
-      parentMap.set(parentKey, {
-        parentId: parentKey,
-        parentName: parent?.name || "Uncategorized",
-        parentColor: parent?.color || "#6B7280",
-        totalExpenseCents: 0,
-        children: [],
-      });
-    }
-
-    const group = parentMap.get(parentKey)!;
-    group.totalExpenseCents += totals.expense;
+    const group = parentMap.get(parentKey) ?? {
+      parentId: parentKey,
+      parentName: parent?.name || "Uncategorized",
+      parentColor: parent?.color || "#6B7280",
+      totalExpenseCents: ZERO_CENTS,
+      children: [],
+    };
+    parentMap.set(parentKey, group);
+    group.totalExpenseCents = sumCents([group.totalExpenseCents, totals.expense]);
     group.children.push({
       categoryId: category.id,
       categoryName: category.name,
@@ -1423,9 +1420,9 @@ export interface Budget {
   categoryName: string;
   categoryColor: string;
   parentCategoryName: string;
-  budgetAmountCents: number;
-  actualSpentCents: number;
-  remainingCents: number;
+  budgetAmountCents: Cents;
+  actualSpentCents: Cents;
+  remainingCents: Cents;
   percentUsed: number;
   isOverBudget: boolean;
 }
@@ -1436,8 +1433,8 @@ export interface Budget {
 export interface BudgetGroup {
   parentName: string;
   parentColor: string;
-  totalBudgetCents: number;
-  totalSpentCents: number;
+  totalBudgetCents: Cents;
+  totalSpentCents: Cents;
   budgets: Budget[];
 }
 
@@ -1531,18 +1528,18 @@ export async function fetchBudgetGroupsFromServer(month: Date): Promise<BudgetGr
   if (transactionsError) throw transactionsError;
 
   // Calculate spending per category
-  const spendingMap = new Map<string, number>();
+  const spendingMap = new Map<string, Cents>();
   transactions?.forEach((t) => {
     if (!t.category_id) return; // excluded by the .in() filter; narrows the type
-    const existing = spendingMap.get(t.category_id) || 0;
-    spendingMap.set(t.category_id, existing + t.amount_cents);
+    const existing = spendingMap.get(t.category_id) ?? ZERO_CENTS;
+    spendingMap.set(t.category_id, sumCents([existing, t.amount_cents]));
   });
 
   // Build budget objects
   const budgetObjects: Budget[] = budgets.flatMap(
     (b: {
       id: string;
-      amount_cents: number;
+      amount_cents: Cents;
       categories:
         | { id: string; name: string; color: string; parent_id: string | null }[]
         | { id: string; name: string; color: string; parent_id: string | null };
@@ -1550,8 +1547,8 @@ export async function fetchBudgetGroupsFromServer(month: Date): Promise<BudgetGr
       const category = Array.isArray(b.categories) ? b.categories[0] : b.categories;
       if (!category) return [];
       const parent = parents?.find((p) => p.id === category.parent_id);
-      const actualSpent = spendingMap.get(category.id) || 0;
-      const remaining = b.amount_cents - actualSpent;
+      const actualSpent = spendingMap.get(category.id) ?? ZERO_CENTS;
+      const remaining = diffCents(b.amount_cents, actualSpent);
       const percentUsed = b.amount_cents > 0 ? (actualSpent / b.amount_cents) * 100 : 0;
 
       return [
@@ -1577,20 +1574,16 @@ export async function fetchBudgetGroupsFromServer(month: Date): Promise<BudgetGr
   budgetObjects.forEach((budget) => {
     const parentName = budget.parentCategoryName;
 
-    if (!groupMap.has(parentName)) {
-      const parent = parents.find((p) => p.name === parentName);
-      groupMap.set(parentName, {
-        parentName,
-        parentColor: parent?.color || "#6B7280",
-        totalBudgetCents: 0,
-        totalSpentCents: 0,
-        budgets: [],
-      });
-    }
-
-    const group = groupMap.get(parentName)!;
-    group.totalBudgetCents += budget.budgetAmountCents;
-    group.totalSpentCents += budget.actualSpentCents;
+    const group = groupMap.get(parentName) ?? {
+      parentName,
+      parentColor: parents.find((p) => p.name === parentName)?.color || "#6B7280",
+      totalBudgetCents: ZERO_CENTS,
+      totalSpentCents: ZERO_CENTS,
+      budgets: [],
+    };
+    groupMap.set(parentName, group);
+    group.totalBudgetCents = sumCents([group.totalBudgetCents, budget.budgetAmountCents]);
+    group.totalSpentCents = sumCents([group.totalSpentCents, budget.actualSpentCents]);
     group.budgets.push(budget);
   });
 

@@ -1,4 +1,4 @@
-import { formatPHP } from "@/lib/currency";
+import { formatPHP, type Cents } from "@/lib/currency";
 import { sanitizeHexColor } from "@/lib/validateColor";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -7,12 +7,12 @@ interface Props {
   category: {
     categoryName: string;
     color: string;
-    expenseCents: number;
-    incomeCents: number;
+    expenseCents: Cents;
+    incomeCents: Cents;
     transactionCount: number;
     percentOfTotal: number;
   };
-  previousExpenseCents?: number;
+  previousExpenseCents?: Cents;
 }
 
 export function CategoryTotalCard({ category, previousExpenseCents }: Props) {

@@ -1,10 +1,10 @@
-import { formatPHP } from "@/lib/currency";
+import { diffCents, formatPHP, type Cents } from "@/lib/currency";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  budgetAmountCents: number;
-  actualSpentCents: number;
+  budgetAmountCents: Cents;
+  actualSpentCents: Cents;
   percentUsed: number;
   isOverBudget: boolean;
 }
@@ -45,12 +45,12 @@ export function BudgetProgress({
       {/* Percentage or Over Budget Warning */}
       {isOverBudget ? (
         <div className="text-xs text-expense font-medium">
-          ⚠️ Over budget by {formatPHP(actualSpentCents - budgetAmountCents)}
+          ⚠️ Over budget by {formatPHP(diffCents(actualSpentCents, budgetAmountCents))}
         </div>
       ) : (
         <div className={cn("text-xs", getTextColor())}>
-          {percentUsed.toFixed(1)}% used • {formatPHP(budgetAmountCents - actualSpentCents)}{" "}
-          remaining
+          {percentUsed.toFixed(1)}% used •{" "}
+          {formatPHP(diffCents(budgetAmountCents, actualSpentCents))} remaining
         </div>
       )}
     </div>

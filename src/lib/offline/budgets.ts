@@ -27,7 +27,7 @@ import { startOfMonth, endOfMonth, format } from "date-fns";
 import { db, type LocalBudget } from "@/lib/dexie/db";
 import { OfflineError } from "./errors";
 import { buildSyncQueueItem } from "./syncQueue";
-import { validateAmount, type Cents } from "@/lib/currency";
+import { ZERO_CENTS, diffCents, sumCents, validateAmount, type Cents } from "@/lib/currency";
 import type { OfflineOperationResult } from "./types";
 import { supabase } from "@/lib/supabase";
 import type { SyncQueueItem } from "@/types/sync";
@@ -125,7 +125,7 @@ export async function getLocalBudgetGroups(month: Date): Promise<BudgetGroup[]> 
   const monthStartStr = format(monthStart, "yyyy-MM-dd");
   const monthEndStr = format(monthEnd, "yyyy-MM-dd");
 
-  const spendingMap = new Map<string, number>();
+  const spendingMap = new Map<string, Cents>();
   await db.transactions
     .filter(
       (t) =>
@@ -137,16 +137,17 @@ export async function getLocalBudgetGroups(month: Date): Promise<BudgetGroup[]> 
         t.date <= monthEndStr
     )
     .each((t) => {
-      const existing = spendingMap.get(t.category_id!) || 0;
-      spendingMap.set(t.category_id!, existing + t.amount_cents);
+      if (!t.category_id) return;
+      const existing = spendingMap.get(t.category_id) ?? ZERO_CENTS;
+      spendingMap.set(t.category_id, sumCents([existing, t.amount_cents]));
     });
 
   // Build Budget objects (same derivations as the server path)
   const budgetObjects: Budget[] = budgets.map((b) => {
     const category = categoryById.get(b.category_id);
     const parent = category?.parent_id ? categoryById.get(category.parent_id) : undefined;
-    const actualSpent = spendingMap.get(b.category_id) || 0;
-    const remaining = b.amount_cents - actualSpent;
+    const actualSpent = spendingMap.get(b.category_id) ?? ZERO_CENTS;
+    const remaining = diffCents(b.amount_cents, actualSpent);
     const percentUsed = b.amount_cents > 0 ? (actualSpent / b.amount_cents) * 100 : 0;
 
     return {
@@ -169,20 +170,16 @@ export async function getLocalBudgetGroups(month: Date): Promise<BudgetGroup[]> 
   budgetObjects.forEach((budget) => {
     const parentName = budget.parentCategoryName;
 
-    if (!groupMap.has(parentName)) {
-      const parent = parents.find((p) => p.name === parentName);
-      groupMap.set(parentName, {
-        parentName,
-        parentColor: parent?.color || "#6B7280",
-        totalBudgetCents: 0,
-        totalSpentCents: 0,
-        budgets: [],
-      });
-    }
-
-    const group = groupMap.get(parentName)!;
-    group.totalBudgetCents += budget.budgetAmountCents;
-    group.totalSpentCents += budget.actualSpentCents;
+    const group = groupMap.get(parentName) ?? {
+      parentName,
+      parentColor: parents.find((p) => p.name === parentName)?.color || "#6B7280",
+      totalBudgetCents: ZERO_CENTS,
+      totalSpentCents: ZERO_CENTS,
+      budgets: [],
+    };
+    groupMap.set(parentName, group);
+    group.totalBudgetCents = sumCents([group.totalBudgetCents, budget.budgetAmountCents]);
+    group.totalSpentCents = sumCents([group.totalSpentCents, budget.actualSpentCents]);
     group.budgets.push(budget);
   });
 
