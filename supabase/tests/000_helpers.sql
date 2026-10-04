@@ -120,6 +120,10 @@ begin
 end
 $$;
 
+-- Fixture users call these helpers; new functions are not executable by PUBLIC
+-- (20261004120200_function_default_privileges.sql).
+grant execute on all functions in schema tests to anon, authenticated;
+
 select plan(1);
 select has_function('tests', 'seed', 'pgTAP helpers are installed');
 select * from finish();

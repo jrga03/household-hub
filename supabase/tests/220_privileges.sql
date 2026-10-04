@@ -1,5 +1,5 @@
 begin;
-select plan(27);
+select plan(31);
 
 select table_privs_are('public', 'accounts', 'authenticated', ARRAY['SELECT','INSERT','UPDATE','DELETE'], 'authenticated has DML only on accounts');
 select table_privs_are('public', 'accounts', 'anon', ARRAY[]::text[], 'anon has no privileges on accounts');
@@ -35,6 +35,25 @@ select is_empty(
        and d.defaclobjtype = 'r'
        and a.grantee in ('anon'::regrole, 'authenticated'::regrole) $$,
   'no default table privileges for anon or authenticated: new tables start unexposed');
+select is_empty(
+  $$ select a.privilege_type from pg_default_acl d
+     cross join lateral aclexplode(d.defaclacl) a
+     where d.defaclnamespace = 'public'::regnamespace
+       and d.defaclrole = 'postgres'::regrole
+       and d.defaclobjtype = 'S'
+       and a.grantee in ('anon'::regrole::oid, 'authenticated'::regrole::oid, 0::oid) $$,
+  'no default sequence privileges for anon, authenticated or PUBLIC');
+
+create function public.tests_probe() returns int language sql as 'select 1';
+select ok(
+  not has_function_privilege('anon', 'public.tests_probe()', 'execute'),
+  'a new public function is not executable by anon or PUBLIC');
+select ok(
+  has_function_privilege('authenticated', 'public.tests_probe()', 'execute'),
+  'a new public function is executable by authenticated');
+select ok(
+  has_function_privilege('service_role', 'public.tests_probe()', 'execute'),
+  'a new public function is executable by service_role');
 
 select * from finish();
 rollback;

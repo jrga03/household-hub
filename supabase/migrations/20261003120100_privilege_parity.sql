@@ -2,8 +2,10 @@
 -- Older supabase/postgres images (production, 17.6.1.063) granted every privilege on
 -- public tables to anon, authenticated and service_role, and installed default
 -- privileges doing the same for future tables, sequences and functions. Newer images
--- do not. TRUNCATE bypasses RLS, so authenticated must hold DML only, and objects
--- added by later migrations must stay unexposed until a migration grants them.
+-- do not. TRUNCATE bypasses RLS, so authenticated must hold DML only, and tables
+-- and sequences added by later migrations must stay unexposed until a migration
+-- grants them. Revoking function EXECUTE from anon here is not enough on its own:
+-- functions also get EXECUTE through PUBLIC, which 20261004120200 removes.
 -- Default privileges owned by supabase_admin cannot be altered by the postgres
 -- migration role and are left as they are.
 
