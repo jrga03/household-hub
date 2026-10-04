@@ -158,7 +158,7 @@ comment on policy "accounts_update" on public.accounts is
 - [ ] **Step 4: Apply and run to verify GREEN**
 
 Run: `supabase migration up && supabase test db 2>&1 | tail -5 && supabase db lint --fail-on error`
-Expected: `Files=16, Tests=144, Result: PASS` (2a ended at 139; this task adds 4 + 1), and `No schema errors found`.
+Expected: `Files=16, Tests=149, Result: PASS` (the pre-task total was 144; this task adds 4 + 1). Actual: 149, dev and fresh image, and `No schema errors found`.
 
 - [ ] **Step 5: Regenerate types**
 
@@ -1493,4 +1493,4 @@ Use superpowers:finishing-a-development-branch. No migrations ship in 2b, so the
 - **`ZERO_CENTS` and `diffCents`/`absCents` added to the helper family (decided 2026-10-04).** Why: the CSV importer's `0` fallback and the over/under-budget and net-income displays need them outside the `asCents` allow-list. Revisit: never.
 - **`LocalTransaction.created_by_user_id` and `device_id` become optional (decided 2026-10-04).** Why: both columns are nullable and NULL in real rows (3 each in the local dev DB); a strict sync schema would otherwise skip them. The app type follows the database (2a rule). Revisit: if a migration makes them NOT NULL.
 - **The four `supabaseQueries.ts` `!` and the two in `TransactionFormDialog.tsx` are fixed inside Task 7's domain commits**, since those lines are rewritten for `Cents` anyway. Revisit: never.
-- **A personal account with a NULL owner is still possible** (`accounts_update` allows `visibility = 'personal', owner_user_id = null`; such a row is invisible to everyone). Not a privilege escalation, so not fixed in 2b-0. Revisit: if it shows up in data, add a CHECK `(visibility = 'personal') = (owner_user_id is not null)` after a production pre-flight count.
+- **The `accounts_update` owner pin is defense in depth, not a live fix (found in Task 1, 2026-10-04).** The `valid_ownership` CHECK (household ⇔ owner NULL, personal ⇔ owner NOT NULL) already existed, and Postgres applies `accounts_select` to the new row on UPDATE, so the two `throws_ok` assertions passed before the migration (only `hasnt_function` was RED). The planning-time deferral about NULL-owner personal accounts was wrong (`valid_ownership` forbids them) and is removed. The pin still ships: it states the rule in the policy instead of relying on two other mechanisms. Revisit: never.
