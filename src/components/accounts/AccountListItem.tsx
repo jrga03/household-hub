@@ -1,10 +1,10 @@
 import { cn } from "@/lib/utils";
-import { formatPHP } from "@/lib/currency";
+import { formatPHP, type Cents } from "@/lib/currency";
 
 interface AccountListItemProps {
   name: string;
   type: string;
-  balanceCents: number;
+  balanceCents: Cents;
   selected: boolean;
   onSelect: () => void;
 }

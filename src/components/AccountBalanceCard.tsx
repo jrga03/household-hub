@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Building2, CreditCard, Wallet, TrendingUp, Smartphone } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { AccountBalance } from "@/components/AccountBalance";
+import type { Cents } from "@/lib/currency";
 
 interface Props {
   account: {
@@ -12,9 +13,9 @@ interface Props {
     icon?: string;
   };
   balance: {
-    currentBalance: number;
-    clearedBalance: number;
-    pendingBalance: number;
+    currentBalance: Cents;
+    clearedBalance: Cents;
+    pendingBalance: Cents;
   };
 }
 

@@ -1,11 +1,11 @@
-import { formatPHP } from "@/lib/currency";
+import { formatPHP, type Cents } from "@/lib/currency";
 import { CheckCircle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  currentBalance: number;
-  clearedBalance: number;
-  pendingBalance: number;
+  currentBalance: Cents;
+  clearedBalance: Cents;
+  pendingBalance: Cents;
   size?: "small" | "large";
   showSplit?: boolean;
 }

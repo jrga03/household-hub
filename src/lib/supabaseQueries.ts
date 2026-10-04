@@ -34,7 +34,7 @@ import type { AccountInput, CategoryInput } from "./offline/types";
 import type { Account } from "@/types/accounts";
 import type { Category, CategoryWithChildren } from "@/types/categories";
 import type { TransactionFilters, TransactionWithRelations } from "@/types/transactions";
-import { ZERO_CENTS, type Cents } from "@/lib/currency";
+import { ZERO_CENTS, sumCents, type Cents } from "@/lib/currency";
 import {
   parseAccountBalanceDeltas,
   parseTransactionsFilterSummary,
@@ -154,10 +154,10 @@ export function useUpdateAccount() {
 export interface AccountBalance {
   accountId: string;
   accountName: string;
-  initialBalance: number; // Initial balance in cents
-  currentBalance: number; // Initial + all transactions (cleared + pending)
-  clearedBalance: number; // Initial + cleared transactions only
-  pendingBalance: number; // Sum of pending transactions only (can be +/-)
+  initialBalance: Cents;
+  currentBalance: Cents; // Initial + all transactions (cleared + pending)
+  clearedBalance: Cents; // Initial + cleared transactions only
+  pendingBalance: Cents; // Sum of pending transactions only (can be +/-)
   transactionCount: number; // Total number of transactions
   clearedCount: number; // Number of cleared transactions
   pendingCount: number; // Number of pending transactions
@@ -231,14 +231,14 @@ export function useAccountBalance(accountId: string) {
       const deltas = parseAccountBalanceDeltas(deltasResult.data);
       const d = deltas[0] ?? { account_id: accountId, ...EMPTY_BALANCE_DELTA };
 
-      const initialBalance = account.initial_balance_cents || 0;
+      const initialBalance = account.initial_balance_cents ?? ZERO_CENTS;
 
       return {
         accountId: account.id,
         accountName: account.name,
         initialBalance,
-        currentBalance: initialBalance + d.cleared_delta_cents + d.pending_delta_cents,
-        clearedBalance: initialBalance + d.cleared_delta_cents,
+        currentBalance: sumCents([initialBalance, d.cleared_delta_cents, d.pending_delta_cents]),
+        clearedBalance: sumCents([initialBalance, d.cleared_delta_cents]),
         pendingBalance: d.pending_delta_cents, // Can be positive or negative
         transactionCount: d.cleared_count + d.pending_count,
         clearedCount: d.cleared_count,
@@ -299,14 +299,14 @@ export function useAccountBalances() {
           account_id: account.id,
           ...EMPTY_BALANCE_DELTA,
         };
-        const initialBalance = account.initial_balance_cents || 0;
+        const initialBalance = account.initial_balance_cents ?? ZERO_CENTS;
 
         return {
           accountId: account.id,
           accountName: account.name,
           initialBalance,
-          currentBalance: initialBalance + d.cleared_delta_cents + d.pending_delta_cents,
-          clearedBalance: initialBalance + d.cleared_delta_cents,
+          currentBalance: sumCents([initialBalance, d.cleared_delta_cents, d.pending_delta_cents]),
+          clearedBalance: sumCents([initialBalance, d.cleared_delta_cents]),
           pendingBalance: d.pending_delta_cents,
           transactionCount: d.cleared_count + d.pending_count,
           clearedCount: d.cleared_count,

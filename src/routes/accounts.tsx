@@ -11,6 +11,7 @@ import { useContainerNarrow } from "@/hooks/useContainerWidth";
 import { AccountListItem } from "@/components/accounts/AccountListItem";
 import { AccountDetailPane } from "@/components/accounts/AccountDetailPane";
 import { AccountBalanceCard } from "@/components/AccountBalanceCard";
+import { ZERO_CENTS } from "@/lib/currency";
 
 export const Route = createFileRoute("/accounts")({
   component: Accounts,
@@ -148,9 +149,11 @@ function Accounts() {
                       icon: account.icon ?? undefined,
                     }}
                     balance={{
-                      currentBalance: bal?.currentBalance ?? account.initial_balance_cents ?? 0,
-                      clearedBalance: bal?.clearedBalance ?? account.initial_balance_cents ?? 0,
-                      pendingBalance: bal?.pendingBalance ?? 0,
+                      currentBalance:
+                        bal?.currentBalance ?? account.initial_balance_cents ?? ZERO_CENTS,
+                      clearedBalance:
+                        bal?.clearedBalance ?? account.initial_balance_cents ?? ZERO_CENTS,
+                      pendingBalance: bal?.pendingBalance ?? ZERO_CENTS,
                     }}
                   />
                 );
@@ -165,7 +168,9 @@ function Accounts() {
                     key={account.id}
                     name={account.name}
                     type={account.type}
-                    balanceCents={bal?.currentBalance ?? account.initial_balance_cents ?? 0}
+                    balanceCents={
+                      bal?.currentBalance ?? account.initial_balance_cents ?? ZERO_CENTS
+                    }
                     selected={selectedId === account.id}
                     onSelect={() => handleAccountClick(account.id)}
                   />

@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatPHP } from "@/lib/currency";
+import { formatPHP, sumCents, type Cents } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
@@ -11,9 +11,9 @@ interface AccountSummary {
 
 interface AccountBalanceSummary {
   accountId: string;
-  currentBalance: number;
-  clearedBalance: number;
-  pendingBalance: number;
+  currentBalance: Cents;
+  clearedBalance: Cents;
+  pendingBalance: Cents;
 }
 
 interface AccountDetailPaneProps {
@@ -30,7 +30,7 @@ export function AccountDetailPane({
   onAddAccount,
 }: AccountDetailPaneProps) {
   if (!accountId) {
-    const total = balances.reduce((sum, b) => sum + b.currentBalance, 0);
+    const total = sumCents(balances.map((b) => b.currentBalance));
     return (
       <Card>
         <CardHeader>

@@ -1,4 +1,4 @@
-import type { Database } from "./database.types";
+import type { AppDatabase } from "./app-database";
 
 /**
  * Account type helpers
@@ -6,9 +6,9 @@ import type { Database } from "./database.types";
  */
 
 // Row types (full database record)
-export type Account = Database["public"]["Tables"]["accounts"]["Row"];
-export type AccountInsert = Database["public"]["Tables"]["accounts"]["Insert"];
-export type AccountUpdate = Database["public"]["Tables"]["accounts"]["Update"];
+export type Account = AppDatabase["public"]["Tables"]["accounts"]["Row"];
+export type AccountInsert = AppDatabase["public"]["Tables"]["accounts"]["Insert"];
+export type AccountUpdate = AppDatabase["public"]["Tables"]["accounts"]["Update"];
 
 // Account type enumeration
 export type AccountType = "bank" | "investment" | "credit_card" | "cash" | "e-wallet";
