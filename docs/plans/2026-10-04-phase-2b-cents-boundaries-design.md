@@ -42,7 +42,6 @@ declare const centsBrand: unique symbol;
 export type Cents = number & { readonly [centsBrand]: true };
 
 export function asCents(n: number): Cents; // throws CurrencyError unless Number.isSafeInteger(n)
-export const ZERO_CENTS: Cents; // literal zero defaults without asCents
 export function parsePHP(input: string | number): Cents;
 export function parsePHPSafe(
   input: string | number
@@ -50,16 +49,14 @@ export function parsePHPSafe(
 export function parsePHPUnbounded(input: string): Cents | null;
 
 export function formatPHP(cents: Cents): string;
-export function formatNumeric(cents: Cents): string;
 export function formatPHPAxisTick(cents: Cents): string;
 export function formatPHPChartValue(value: unknown): string; // Recharts callbacks; non-integer renders "₱—"
 
-export function addAmounts(a: Cents, b: Cents): Cents;
-export function subtractAmounts(a: Cents, b: Cents): Cents;
+export const ZERO_CENTS: Cents;
+export function diffCents(a: Cents, b: Cents): Cents;
+export function absCents(cents: Cents): Cents;
 export function sumCents(values: Iterable<Cents>): Cents;
 export function negateCents(cents: Cents): Cents;
-export function multiplyAmount(cents: Cents, factor: number): Cents; // rounds
-export function percentageOf(cents: Cents, percentage: number): Cents; // rounds
 export function divideCents(cents: Cents, divisor: number): Cents; // rounds; throws on divisor <= 0
 ```
 
@@ -73,7 +70,7 @@ export function divideCents(cents: Cents, divisor: number): Cents; // rounds; th
 - **Sync rows** (`syncRows.ts`): `transactionRowSchema`, `accountRowSchema`, `categoryRowSchema`. Amount fields `.transform(asCents)` after an integer check; nullable columns transform `null` to `undefined` to match the local types. One `parseSyncRow(table, record)` is called by `handleInsert`, `handleUpdate` and `mergeRecord`.
 - **Bad sync row:** skip the write, `reportError` with subsystem `realtime-sync`, table, id and the Zod issues, continue with other rows. The catch-up high-water mark still advances, so one bad row cannot wedge sync; the next online read from Supabase still shows the row.
 - **RPC results** (`rpcResults.ts`): `accountBalanceDeltaSchema` (signed delta cents, integer counts) and `transactionsFilterSummarySchema`. They replace the four `as` casts and the `Number(...)` coercion. A parse failure throws as a query error; the filter summary keeps its existing network-only Dexie fallback.
-- **Supabase row mappers** in `supabaseQueries.ts` brand amounts with `asCents` (an allowed importer) where rows become app types.
+- **Typed Supabase reads** are branded at the type level: `AppDatabase` maps every `*_cents` column and `overpayment_amount` to `Cents` on Row, Insert, Update and RPC returns (changed while planning; see the plan's Decisions & Deferrals).
 
 ## 4. Lint
 
@@ -93,7 +90,7 @@ Each step leaves all three tsc programs, lint and vitest green.
 2. Brand entity amount fields; fix the 20 production construction sites; add `cents()` and migrate fixtures.
 3. Sync-row schemas and `parseSyncRow` in `realtime-sync.ts` (tests: valid row writes, null normalization, bad row skipped and reported, high-water mark advances).
 4. RPC schemas; remove the casts and coercion.
-5. `formatPHP`/`formatNumeric`/`formatPHPAxisTick` take `Cents`; fix display sites with the helpers; chart callbacks use `formatPHPChartValue`.
+5. `formatPHP`/`formatPHPAxisTick` take `Cents`; fix display sites with the helpers; chart callbacks use `formatPHPChartValue`.
 6. `asCents` import restriction.
 7. Deferred fixes (section 5).
 
