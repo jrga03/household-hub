@@ -21,7 +21,7 @@ supabase test db           # pgTAP: RLS for every table, functions, the transfer
 
 - **Writes go through the outbox.** Every entity mutation writes the row and its sync-queue item in one Dexie transaction via `src/lib/offline/*` or `src/lib/debts/*`. Only `src/lib/sync/` writes to Supabase. Lint (`arch/no-direct-dexie-writes`, `arch/no-direct-supabase-writes`) enforces this.
 - **IDs are client-generated** (`crypto.randomUUID()`); local ID equals server ID. No temp IDs.
-- **Money is integer cents**, always positive, with `type: "income" | "expense"`. Parse input with `parsePHP` / `parsePHPSafe` / `parsePHPUnbounded`, display with `formatPHP` (`src/lib/currency.ts`). Never divide cents without rounding.
+- **Money is integer cents**, typed `Cents` (`src/lib/currency.ts`), always positive, with `type: "income" | "expense"`. Parse input with `parsePHP` / `parsePHPSafe` / `parsePHPUnbounded`, display with `formatPHP`. Derive totals with `sumCents` / `diffCents` / `divideCents` (never divide cents without rounding); `asCents` only in the data layer.
 - **Transfers are excluded from analytics and budgets.** Totals read the `transactions_non_transfer` view (`security_invoker`, so RLS applies); read transactions through `src/lib/supabaseQueries.ts` (`arch/no-raw-transactions-from`).
 - **Transaction `date` is the user's local calendar date** (`DATE`); audit timestamps are UTC `TIMESTAMPTZ`. Parse "yyyy-MM-dd" with `parseLocalDate` (`src/lib/utils/dates.ts`), never `new Date("yyyy-MM-dd")`.
 - **Budgets are reference targets**, never balances; actual spend is always derived from transactions.

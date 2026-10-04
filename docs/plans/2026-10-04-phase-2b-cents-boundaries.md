@@ -28,17 +28,17 @@
 
 ## Progress
 
-- [ ] Task 0: Preconditions, 2b-0 branch, ledger
-- [ ] Task 1: 2b-0 migrations and pgTAP
-- [ ] Task 2: 2b-0 merge, production deploy (user), push
-- [ ] Task 3: 2b branch; `Cents` core in `currency.ts`
-- [ ] Task 4: Branded rows, entities, inputs and forms
-- [ ] Task 5: Sync-row schemas in front of realtime writes
-- [ ] Task 6: RPC result schemas
-- [ ] Task 7: Branded producers; `formatPHP` takes `Cents`
-- [ ] Task 8: `asCents` import restriction
-- [ ] Task 9: Reversal `payment_date` uses the local date
-- [ ] Task 10: Acceptance and docs
+- [x] Task 0: Preconditions, 2b-0 branch, ledger
+- [x] Task 1: 2b-0 migrations and pgTAP
+- [ ] Task 2: 2b-0 merge, production deploy (user), push (merged to `main` at `02bf830`; production deploy and push pending the user)
+- [x] Task 3: 2b branch; `Cents` core in `currency.ts`
+- [x] Task 4: Branded rows, entities, inputs and forms
+- [x] Task 5: Sync-row schemas in front of realtime writes
+- [x] Task 6: RPC result schemas
+- [x] Task 7: Branded producers; `formatPHP` takes `Cents`
+- [x] Task 8: `asCents` import restriction
+- [x] Task 9: Reversal `payment_date` uses the local date
+- [ ] Task 10: Acceptance and docs (Steps 1-4 done; Step 5, finishing the branch, pending the final review)
 
 ---
 
@@ -1441,7 +1441,7 @@ git commit -m "fix(debts): reversal payment_date is the local calendar date"
 
 ### Task 10: Acceptance and docs
 
-- [ ] **Step 1: Gates and measurements**
+- [x] **Step 1: Gates and measurements**
 
 Run and record each result in this plan's "Acceptance results":
 
@@ -1456,11 +1456,11 @@ grep -rn "as Cents" src | grep -v "src/lib/currency.ts"          # expect nothin
 grep -rnE "\b(addAmounts|subtractAmounts|multiplyAmount|percentageOf|formatNumeric|isValidAmount)\b" src   # expect nothing
 ```
 
-- [ ] **Step 2: Full chromium E2E against the baseline**
+- [x] **Step 2: Full chromium E2E against the baseline**
 
 Run the full chromium suite (`PW_TEST_HTML_REPORT_OPEN=never npx playwright test --project=chromium` after `npm run build`, or the repo's `test:e2e` script) and compare per test with `docs/plans/2026-10-02-phase-1b-e2e-baseline.txt`. A spec passing in the baseline and failing here is a regression to fix. `settings.spec.ts` export tests may flip between skipped and passed (CLAUDE.md).
 
-- [ ] **Step 3: Screenshot pass**
+- [x] **Step 3: Screenshot pass**
 
 With `npm run dev` and the acceptance user (`test@example.com`), capture and Read each screenshot, and state what it shows:
 
@@ -1470,7 +1470,7 @@ With `npm run dev` and the acceptance user (`test@example.com`), capture and Rea
 4. Debts: a debt with a payment and a reversal (reversal row and balance).
 5. Transactions: header In/Out totals with an amount filter applied (the filter chip shows pesos).
 
-- [ ] **Step 4: Docs**
+- [x] **Step 4: Docs**
 
 - CLAUDE.md "Money is integer cents" rule: add "typed `Cents` (`src/lib/currency.ts`); derive totals with `sumCents`/`diffCents`/`divideCents`; `asCents` only in the data layer".
 - Roadmap: check off the Phase 2 items for 4.2 and 4.4 with the merge SHA; Resume state bullet for 2b done and "Next: 2c brainstorm".
@@ -1484,7 +1484,18 @@ Use superpowers:finishing-a-development-branch. No migrations ship in 2b, so the
 
 ## Acceptance results
 
-(filled in by Task 10)
+Measured 2026-10-04 at `df42f9d` (docs-only commits after it). Full log: `.superpowers/sdd/task-10-report.md`.
+
+- tsc: `tsconfig.json`, `tsconfig.tests.json`, `tsconfig.strict.json` all exit 0.
+- `npm run lint`: exit 0, no errors or warnings (only the pre-existing `eslint-env` notice for `scripts/generate-icons.js`).
+- `npx vitest run`: exit 0, 84 files / 1072 tests passed.
+- `npm run build`: exit 0. `npm run size`: 353.8 KB gz of the 355 KB budget (352.6 before 2b).
+- `npm audit --omit=dev --audit-level=high`: exit 0, 0 vulnerabilities.
+- Chromium smoke (`npm run test:e2e:smoke`): exit 0, 11/11 passed.
+- `grep "as Cents"` outside `currency.ts`: one hit, the prose heading "Amount Stored as Cents" in `src/components/budgets/README.md:593`; no code. Dead-helper grep: no hits.
+- Full chromium E2E: 37 passed / 32 failed / 25 skipped vs the baseline's 37/33/24. Per test, the only differences are in the serial `settings.spec.ts`: "export transactions CSV" failed in the baseline and passes now, and "export accounts CSV" passed in the baseline and is skipped now (the documented flip). No spec that passes in the baseline fails here.
+- Screenshots (dev server, `test@example.com`, data created through the UI except the debt): Avg. Monthly Spending reads ₱1,976.22 (₱13,833.52 over May 1 to Oct 31, divided by 7); dashboard cards ₱100,000.00 / ₱13,234.57 / ₱86,765.43 / ₱148,024.49 with the Oct tooltip showing "Income: ₱100,000.00, Expenses: ₱13,234.57"; BPI Savings ₱97,999.99 with "Cleared ₱53,333.34 · Pending ₱44,666.65"; a ₱50,000.00 debt with a ₱2,500.00 payment and a reversed ₱1,200.00 payment shows Balance ₱47,500.00 in the transaction form, and its Dexie reversal row is -120000 cents dated 2026-10-04 (local) linked by `reverses_payment_id`; the transactions amount filter round-trips as `amountMin=100000&amountMax=500000` and reloads as ₱1,000.00 / ₱5,000.00 with header Out ₱13,234.57.
+- Pre-existing issues seen during acceptance (not caused by 2b; see Decisions & Deferrals): debts have no route or creation UI; debt ids are `nanoid()`, so debt rows and debt-linked transactions never sync (server `debt_id` is `uuid`, and debt events send `actor_user_id`, which the `debts`/`debt_payments` tables lack: PGRST204); the transaction form lists debts by `household_id === user.id`; dev-mode realtime init logs "cannot add `postgres_changes` callbacks ... after `subscribe()`" (same on `main`).
 
 ## Decisions & Deferrals
 
@@ -1494,3 +1505,7 @@ Use superpowers:finishing-a-development-branch. No migrations ship in 2b, so the
 - **`LocalTransaction.created_by_user_id` and `device_id` become optional (decided 2026-10-04).** Why: both columns are nullable and NULL in real rows (3 each in the local dev DB); a strict sync schema would otherwise skip them. The app type follows the database (2a rule). Revisit: if a migration makes them NOT NULL.
 - **The four `supabaseQueries.ts` `!` and the two in `TransactionFormDialog.tsx` are fixed inside Task 7's domain commits**, since those lines are rewritten for `Cents` anyway. Revisit: never.
 - **The `accounts_update` owner pin is defense in depth, not a live fix (found in Task 1, 2026-10-04).** The `valid_ownership` CHECK (household ⇔ owner NULL, personal ⇔ owner NOT NULL) already existed, and Postgres applies `accounts_select` to the new row on UPDATE, so the two `throws_ok` assertions passed before the migration (only `hasnt_function` was RED). The planning-time deferral about NULL-owner personal accounts was wrong (`valid_ownership` forbids them) and is removed. The pin still ships: it states the rule in the policy instead of relying on two other mechanisms. Revisit: never.
+- **Avg. Monthly Spending month count stays as is in 2b (found in Task 7, 2026-10-04; open for the user).** `useAnalytics` counts months as `ceil(differenceInDays / 30)`, which gives 4 for a Jul 1 to Sep 30 quarter (and 7 for May 1 to Oct 31), so the average reads about 25% low. Pre-existing; 2b only made the division round to whole cents. The `processInsights` test uses Sep 29 as its end date because of it. Recommended: count calendar months with `differenceInCalendarMonths(end, start) + 1` in a separate fix. Revisit: when the user decides.
+- **Bundle headroom is 1.2 KB (measured 2026-10-04).** `npm run size` reads 353.8 KB gz against the 355 KB budget, up from 352.6 before 2b. Revisit: before 2c adds eager code, or if the budget check fails.
+- **`formatPHPAxisTick(cents: Cents)` receives Recharts `any` ticks, so the brand is unchecked there (accepted 2026-10-04).** Harmless: it formats only, with no `asCents` inside. Revisit: if Recharts types its tick formatter, or a tick ever comes from a non-cents axis.
+- **Debt sync defects found in acceptance are out of 2b scope (found 2026-10-04).** Debts have no route or creation UI; ids are `nanoid()` rather than `crypto.randomUUID()`, so debt rows and debt-linked transactions never reach the server (`debt_id` is `uuid`); debt event payloads send `actor_user_id`, which `debts`/`debt_payments` lack (PGRST204); `TransactionFormDialog` lists debts by `household_id === user.id`. All are unchanged from `main`. Revisit: before any debts UI work (candidate for Phase 3 or its own spec).
