@@ -1,12 +1,3 @@
-/**
- * Unit tests for transaction type guards
- *
- * Tests cover:
- * - Valid enum values are accepted
- * - Invalid/unknown strings are rejected
- * - Type narrowing works correctly
- */
-
 import { describe, it, expect } from "vitest";
 import { isTransactionType, isTransactionStatus, isTransactionVisibility } from "../transactions";
 
