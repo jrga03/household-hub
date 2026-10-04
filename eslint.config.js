@@ -27,6 +27,23 @@ const srcTestFiles = [
   "src/test/**",
 ];
 
+// The raw number → Cents constructor stays in the data layer (roadmap 4.4).
+const restrictAsCents = {
+  group: ["@/lib/currency", "**/lib/currency", "**/lib/currency.ts", "./currency", "../currency"],
+  importNames: ["asCents"],
+  message:
+    "Derive money with the @/lib/currency helpers (sumCents, diffCents, absCents, divideCents, ZERO_CENTS) or a schema in src/lib/validations. asCents is for the data layer only.",
+};
+
+const asCentsAllowed = [
+  "src/lib/currency.ts",
+  "src/lib/validations/**",
+  "src/lib/supabaseQueries.ts",
+  "src/lib/offline/**",
+  "src/lib/debts/**",
+  "src/lib/realtime-sync.ts",
+];
+
 export default [
   {
     ignores: [
@@ -463,9 +480,17 @@ export default [
               message:
                 "Routes and components fetch through a hook or @/lib/supabaseQueries so reads get the Dexie offline fallback and shared query keys.",
             },
+            restrictAsCents,
           ],
         },
       ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [...srcTestFiles, ...asCentsAllowed, "src/routes/**", "src/components/**"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [restrictAsCents] }],
     },
   },
   prettier,

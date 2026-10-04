@@ -44,6 +44,12 @@ const cases = [
     flagged: "src/routes/probe.tsx",
     allowed: "src/hooks/probe.ts",
   },
+  {
+    rule: "no-restricted-imports",
+    code: 'import { asCents } from "@/lib/currency";\nexport const total = asCents(1);\n',
+    flagged: "src/hooks/probe.ts",
+    allowed: "src/lib/offline/probe.ts",
+  },
 ];
 
 describe.each(cases)("$rule", ({ rule, code, flagged, allowed }) => {
@@ -70,4 +76,22 @@ it("arch/no-direct-supabase-writes fires in src/lib/debts/sync.ts", async () => 
 it("no-restricted-imports fires for the .ts-suffixed supabase import", async () => {
   const code = 'import { supabase } from "@/lib/supabase.ts";\nexport { supabase };\n';
   expect(await ruleIds(code, "src/routes/probe.tsx")).toContain("no-restricted-imports");
+});
+
+it("components keep both import bans (supabase and asCents)", async () => {
+  const [result] = await eslint.lintText(
+    'import { supabase } from "@/lib/supabase";\nimport { asCents } from "@/lib/currency";\nexport { supabase, asCents };\n',
+    { filePath: "src/components/probe.tsx" }
+  );
+  const messages = (result?.messages ?? []).filter((m) => m.ruleId === "no-restricted-imports");
+  expect(messages).toHaveLength(2);
+});
+
+it("formatPHP and the helpers stay importable everywhere", async () => {
+  expect(
+    await ruleIds(
+      'import { formatPHP, sumCents } from "@/lib/currency";\nexport { formatPHP, sumCents };\n',
+      "src/components/probe.tsx"
+    )
+  ).not.toContain("no-restricted-imports");
 });
