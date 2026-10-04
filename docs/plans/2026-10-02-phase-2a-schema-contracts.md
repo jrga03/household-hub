@@ -1750,6 +1750,7 @@ Use superpowers:finishing-a-development-branch. Migrations reach production only
 - `EXPLAIN` of a month aggregate through `transactions_non_transfer` as `authenticated`: the view is inlined into a scan of `transactions` with the `transfer_group_id IS NULL` and RLS quals applied.
 - CI on draft PR #9: run 37132227085 (database: missing grants; e2e-smoke: install hang), run 37137028719 (pgTAP green; drift step hit an ECR rate limit; install hang), run 37166622552 (database green; smoke 9/11, no fixture users), run 37178380960 all green: lint, typecheck, unit-tests, build, database, e2e-smoke (11 passed); e2e skipped (push only, no service-role secret).
 - Final whole-branch review: ready with fixes; all Important items fixed in `0e7088e`..`7be96a7` (see Decisions & Deferrals). Not re-run in CI after those commits at the time of writing.
+- Production deploy (2026-10-04, run by the user): `supabase migration list --linked` showed exactly the eight 2a migrations pending; `supabase db push` applied all eight without errors. Post-deploy SQL check: `transactions_non_transfer` exists, `accounts` ACL is `{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,authenticated=arwd/postgres}` (no anon, no TRUNCATE for authenticated), and `accounts_insert` pins `owner_user_id`. App smoke on production pending at the time of writing.
 - Not verified: production state (null `categories.color` rows, open sign-up, whether `budget-alerts` is deployed), non-chromium browsers, the credential-gated remote `e2e` job.
 
 ## Decisions & Deferrals
