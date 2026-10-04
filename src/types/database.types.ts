@@ -843,7 +843,6 @@ export type Database = {
           pending_delta_cents: number
         }[]
       }
-      get_max_lamport_clock: { Args: { p_device_id: string }; Returns: number }
       get_user_household_id: { Args: never; Returns: string }
       transactions_filter_summary: {
         Args: {

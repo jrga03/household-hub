@@ -1,5 +1,5 @@
 begin;
-select plan(14);
+select plan(18);
 select tests.seed();
 
 select tests.authenticate_as('a1');
@@ -54,6 +54,27 @@ select is_empty(
 select is_empty(
   $$ delete from public.accounts where id = tests.id('acc_h1') returning id $$,
   'other household cannot delete');
+
+-- accounts_update WITH CHECK pins the owner to the caller (2b-0)
+select tests.authenticate_as('a2');
+select throws_ok(
+  $$ update public.accounts set visibility = 'personal', owner_user_id = tests.id('user_a1')
+     where id = tests.id('acc_h1') $$,
+  '42501', null, 'member cannot make a household account personal to someone else');
+select throws_ok(
+  $$ update public.accounts set visibility = 'personal', owner_user_id = tests.id('user_b1')
+     where id = tests.id('acc_h1') $$,
+  '42501', null, 'member cannot assign a household account to another user');
+select lives_ok(
+  $$ update public.accounts set visibility = 'personal', owner_user_id = tests.id('user_a2')
+     where id = tests.id('acc_h1') $$,
+  'member can make a household account their own personal account');
+
+select tests.authenticate_as('a1');
+select lives_ok(
+  $$ update public.accounts set visibility = 'household', owner_user_id = null
+     where id = tests.id('acc_h1_personal_a1') $$,
+  'owner can switch their personal account to household');
 
 select * from finish();
 rollback;

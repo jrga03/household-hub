@@ -1,5 +1,5 @@
 begin;
-select plan(31);
+select plan(32);
 
 select table_privs_are('public', 'accounts', 'authenticated', ARRAY['SELECT','INSERT','UPDATE','DELETE'], 'authenticated has DML only on accounts');
 select table_privs_are('public', 'accounts', 'anon', ARRAY[]::text[], 'anon has no privileges on accounts');
@@ -54,6 +54,9 @@ select ok(
 select ok(
   has_function_privilege('service_role', 'public.tests_probe()', 'execute'),
   'a new public function is executable by service_role');
+
+select hasnt_function('public', 'get_max_lamport_clock', array['text'],
+  'get_max_lamport_clock is dropped (2b-0)');
 
 select * from finish();
 rollback;
