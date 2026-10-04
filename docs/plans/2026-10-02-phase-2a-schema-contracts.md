@@ -26,19 +26,19 @@
 
 ## Progress
 
-- [ ] Task 0: Preconditions, branch, ledger
-- [ ] Task 1: `gen:types` and regenerated types
-- [ ] Task 2: `categories.color` NOT NULL
-- [ ] Task 3: Typed Supabase client (26 → 0)
-- [ ] Task 4: pgTAP helpers and `check_budget_thresholds` fix
-- [ ] Task 5: RLS suite (12 tables)
-- [ ] Task 6: `transactions_non_transfer` view
-- [ ] Task 7: Reads switch to the view; analytics parent-category filter
-- [ ] Task 8: CI split
-- [ ] Task 8a: Explicit table grants; diagnose the CI Chromium install hang (added 2026-10-03 after the first CI run)
-- [ ] Task 8b: Playwright 1.56 → 1.63 (Node 26 installer hang)
-- [ ] Task 8c: E2E global setup creates the fixture users
-- [ ] Task 9: Acceptance and docs
+- [x] Task 0: Preconditions, branch, ledger (branch cut from `637f9da`)
+- [x] Task 1: `gen:types` and regenerated types (`49fff78`)
+- [x] Task 2: `categories.color` NOT NULL (`3b0f72e`)
+- [x] Task 3: Typed Supabase client (26 → 0) (`f301f17`..`306952e`; counts ran +1, dashboard enum guards added)
+- [x] Task 4: pgTAP helpers and `check_budget_thresholds` fix (`f477ae3`, `ad66557`)
+- [x] Task 5: RLS suite (12 tables) (`67975b7`)
+- [x] Task 6: `transactions_non_transfer` view (`315cdd5`)
+- [x] Task 7: Reads switch to the view; analytics parent-category filter (`f50ab90`, `77f6fa4` AppDatabase override)
+- [x] Task 8: CI split (`8be9d7c`, `d76556b`)
+- [x] Task 8a: Explicit table grants; diagnose the CI Chromium install hang (added 2026-10-03 after the first CI run) (`e729e8e`, `941ca3a`, `5d63aab`)
+- [x] Task 8b: Playwright 1.56 → 1.63 (Node 26 installer hang) (`34fc0fb`, `02b07d9`)
+- [x] Task 8c: E2E global setup creates the fixture users (`9d2908a`)
+- [x] Task 9: Acceptance and docs (final-review fixes `0e7088e`..`7be96a7`; results below)
 
 ---
 
@@ -1708,7 +1708,7 @@ Added 2026-10-04. CI run 3 (37166622552): `database` green (pgTAP, lint, type dr
 - [ ] **Step 1: Gates**
 
 Run (Node 26): `npx tsc --noEmit -p tsconfig.json; npx tsc --noEmit -p tsconfig.tests.json; npx tsc --noEmit -p tsconfig.strict.json; npm run lint; npx vitest run --silent; npm run build && npm run size; supabase db lint --fail-on error; supabase test db; npm run gen:types && git diff --exit-code src/types/database.types.ts`
-Expected: every command exit 0; quote the vitest file/test counts, bundle size, and pgTAP `Files=15` line in the results.
+Expected: every command exit 0; quote the vitest file/test counts, bundle size, and pgTAP `Files=` line in the results.
 
 - [ ] **Step 2: Smoke**
 
@@ -1737,9 +1737,20 @@ Roadmap: tick Phase 2's `gen:types`, `database` CI job, `transactions_non_transf
 
 - [ ] **Step 5: Finish**
 
-Use superpowers:finishing-a-development-branch. Migrations reach production only by the user's own deployment step; list the three new migrations for them and do not run any remote command.
+Use superpowers:finishing-a-development-branch. Migrations reach production only by the user's own deployment step; list the eight new migrations for them and do not run any remote command.
 
 ---
+
+## Acceptance results (2026-10-04, branch head `7be96a7`)
+
+- Local gates (Node 26): tsc for all three programs exit 0; lint 0/0; vitest 79 files / 1048 tests; build ok; bundle 352.7 KB gz (budget 355); production audit 0 vulnerabilities.
+- pgTAP: `Files=16, Tests=144, Result: PASS` on the dev stack (`supabase/postgres:17.6.1.063`, production's image) and on a throwaway stack with CI's image (`17.6.1.143`); `supabase db lint --fail-on error` clean and `gen:types` drift-free on both.
+- E2E: chromium smoke 11 passed. Full chromium suite on Playwright 1.63: 37 passed / 33 failed / 24 skipped, identical per test to `docs/plans/2026-10-02-phase-1b-e2e-baseline.txt` except the known `settings.spec.ts` serial flip.
+- Screenshots (read): Analytics filtered to a parent category shows the child's ₱1,234.56 expense (top category, 100% pie); the dashboard on `main` and on the branch shows identical income, expense, net, balance and category totals for the same data. The analytics "Avg. Monthly Spending" fractional-cents bug is still visible (deferred to 2b).
+- `EXPLAIN` of a month aggregate through `transactions_non_transfer` as `authenticated`: the view is inlined into a scan of `transactions` with the `transfer_group_id IS NULL` and RLS quals applied.
+- CI on draft PR #9: run 37132227085 (database: missing grants; e2e-smoke: install hang), run 37137028719 (pgTAP green; drift step hit an ECR rate limit; install hang), run 37166622552 (database green; smoke 9/11, no fixture users), run 37178380960 all green: lint, typecheck, unit-tests, build, database, e2e-smoke (11 passed); e2e skipped (push only, no service-role secret).
+- Final whole-branch review: ready with fixes; all Important items fixed in `0e7088e`..`7be96a7` (see Decisions & Deferrals). Not re-run in CI after those commits at the time of writing.
+- Not verified: production state (null `categories.color` rows, open sign-up, whether `budget-alerts` is deployed), non-chromium browsers, the credential-gated remote `e2e` job.
 
 ## Decisions & Deferrals
 
@@ -1752,8 +1763,18 @@ Use superpowers:finishing-a-development-branch. Migrations reach production only
 - **e2e-smoke stays in 2a; the Chromium install hang is diagnosed from a debug run (decided 2026-10-03).** Why: the first run hung after the download with no output. Revisit: if the debug run does not explain it, defer the job and log it under CLAUDE.md Known infrastructure issues.
 - **Playwright upgraded 1.56 → 1.63 in 2a (decided 2026-10-04).** Why: 1.56's browser installer hangs at archive extraction on Node 26 (reproduced locally; Node 22 and 1.63 both work), so the CI smoke job and any fresh Node 26 machine could not install Chromium. Cost: Chromium 141 → 153 under E2E; compared against the 2026-10-02 baseline. Revisit: never.
 - **Fixture households are fresh ids, not the profile default (found while planning).** Why: the default household holds local dev data, which made `count(*)` assertions see 7 rows instead of 3. Revisit: never.
-- **KNOWN GAP, not fixed in 2a: `accounts_insert` does not pin `owner_user_id` (found while planning).** A household member can insert a personal account owned by another member (it then shows up in that member's list). The test documents current behaviour. Revisit: 2a acceptance; ask the user whether to tighten the policy (`owner_user_id IS NULL OR owner_user_id = auth.uid()`) in its own migration.
+- **SUPERSEDED (fixed 2026-10-04, see below) KNOWN GAP: `accounts_insert` does not pin `owner_user_id` (found while planning).** A household member can insert a personal account owned by another member (it then shows up in that member's list). The test documents current behaviour. Revisit: 2a acceptance; ask the user whether to tighten the policy (`owner_user_id IS NULL OR owner_user_id = auth.uid()`) in its own migration.
 - **Noted, not changed: only a transaction's creator can delete it, while any household member can edit a household transaction (found while planning).** The test asserts current behaviour. Revisit: if users report being unable to delete shared transactions.
 - **Moving self into another household is blocked only because the updated row must also pass the SELECT policy (found while planning).** `profiles_update` checks only `id = auth.uid()`; Postgres applies `profiles_select` to the new row, so changing `household_id` raises `42501`. `080_profiles_rls.sql` pins this so a future policy edit cannot open it silently. Revisit: never (the test is the guard).
 - **Analytics has no Dexie fallback, so the parent-category fix is server-only (found while planning).** The spec's `offline/reads.ts:50` reference is the transactions-list filter, which takes real (child) ids from click-through and stays as is. Revisit: never.
 - **Dashboard "recent transactions" stays on `transactions` (decided while planning).** Why: it is a list, and transfers belong in it; the relation test pins three view reads plus this one table read. Revisit: never.
+- **Privilege parity: `authenticated` gets SELECT/INSERT/UPDATE/DELETE only, `anon` nothing, and the `postgres` role's default privileges in `public` grant neither (decided 2026-10-03, final review).** Why: on production's image `authenticated` also held TRUNCATE (which bypasses RLS), REFERENCES, TRIGGER and MAINTAIN, and defaults re-exposed new objects. `220_privileges.sql` pins the exact sets. Revisit: never.
+- **New functions are not executable by PUBLIC or `anon` (decided 2026-10-04).** A global `alter default privileges for role postgres revoke execute on functions from public` (per-schema defaults cannot subtract from Postgres's PUBLIC default), plus a `public` schema default granting EXECUTE to `authenticated` and `service_role` (CI's image lacks it). Existing functions are unchanged. Revisit: never.
+- **Budget alerts count household-visible spending only (decided 2026-10-04).** Why: `check_budget_thresholds` is SECURITY DEFINER and counted a member's personal transactions in the total sent to every member, disagreeing with the Budgets page and leaking personal spending. Revisit: never.
+- **`accounts_insert` pins `owner_user_id` to the caller (decided 2026-10-04).** Replaces the KNOWN GAP entry above; the app already sets the owner to the signed-in user for personal accounts and null for household ones. Revisit: never.
+- **Deferred: `accounts_update` WITH CHECK does not pin `owner_user_id` (found 2026-10-04).** A member could update a household account into a personal one owned by someone else. Revisit: 2b, with the insert fix's test pattern.
+- **Deferred: `get_max_lamport_clock(text)` hardening (found in Task 8a review).** It is SECURITY DEFINER with no `search_path`, no household scoping, and EXECUTE for PUBLIC/anon. Revisit: early in 2b (revoke from public/anon, `set search_path = ''`, scope or remove; pgTAP test).
+- **E2E fixture users are created only on a local Supabase (decided 2026-10-04, final review).** Why: the repo is public, so the fixture passwords are public, and the credential-gated `e2e` job points at production; with a service-role secret it would have created confirmed users in the real default household. Revisit: never.
+- **CI's database job runs the CLI-default image (17.6.1.143), production runs 17.6.1.063 (deferred).** The grant migrations behave differently on the two; both were verified locally. Revisit: if a migration passes CI but fails in production, pin CI's image to production's (write `supabase/.temp/postgres-version`) or run both.
+- **Production pre-flight before applying (2026-10-04).** Run `select count(*) from categories where color is null` read-only first; a non-zero count means devices with a cached null colour could fail category syncs after the NOT NULL migration. Apply all eight migrations together: `explicit_table_grants` without `privilege_parity` leaves `authenticated` with TRUNCATE. Revisit: at deploy.
+- **Noted for the roadmap: new sign-ups land in the default household** (`profiles.household_id` default). If production allows open sign-up, anyone joins the real household. Not verified. Revisit: before enabling or confirming open sign-up.
