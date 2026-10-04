@@ -38,11 +38,16 @@ The `lib/` directory contains **47 files** organized into several functional are
 ### Currency & Financial Operations
 
 - **`currency.ts`** (10.5KB) - PHP currency utilities
+  - `Cents` - Branded type for validated integer cents
+  - `asCents(n)` - Create validated Cents; throws if not safe integer
+  - `ZERO_CENTS` - Constant zero value
   - `formatPHP(cents)` - Format integer cents as ₱1,500.50
-  - `parsePHP(input)` - Parse user input to integer cents
+  - `parsePHP(input)` - Parse user input to branded Cents
+  - `formatPHPChartValue(value)` - Format untyped values for charts
+  - `sumCents(values)`, `diffCents(a, b)` - Arithmetic without max limits
+  - `absCents(c)`, `negateCents(c)`, `divideCents(c, divisor)` - More arithmetic
   - `validateAmount(cents)` - Validate amount range
-- **`currency.test.ts`** - Comprehensive currency tests
-- **`currency.examples.ts`** - Usage examples
+- **`currency.test.ts`** - Comprehensive currency tests (70 tests)
 - **`currency.md`** ✅ - Complete currency documentation
 
 ### Entity Operations (CRUD)
@@ -314,29 +319,47 @@ this.version(2)
 
 ### 5. Currency Utilities (`currency.ts`)
 
-**Purpose:** PHP currency formatting and parsing (CRITICAL for correctness).
+**Purpose:** PHP currency formatting, parsing, and branded Cents type (CRITICAL for correctness).
 
 **Core Functions:**
 
 ```typescript
-// Format cents to display string
-formatPHP(150050); // "₱1,500.50"
+// Create branded Cents type (validates safe integer)
+asCents(150050); // Cents (branded number)
+ZERO_CENTS; // Cents = 0
 
-// Parse input to cents
-parsePHP("1,500.50"); // 150050
-parsePHP("1500.50"); // 150050 (commas optional)
-parsePHP(1500.5); // 150050 (accepts numbers)
+// Arithmetic on Cents (no max limits, handles negatives)
+sumCents([asCents(100), asCents(50)]); // Cents (150)
+diffCents(asCents(100), asCents(50)); // Cents (50)
+absCents(asCents(-2500)); // Cents (2500)
+negateCents(asCents(2500)); // Cents (-2500)
+divideCents(asCents(100000), 3); // Cents (33333, rounded)
+
+// Format to display string
+formatPHP(asCents(150050)); // "₱1,500.50"
+formatPHPChartValue(150050); // "₱1,500.50"
+formatPHPChartValue("150050"); // "₱—" (not an integer)
+
+// Parse input to Cents
+parsePHP("1,500.50"); // Cents
+parsePHP(1500.5); // Cents (accepts numbers)
+parsePHPUnbounded("99999999"); // Cents | null (no max check)
 
 // Validate amount
 validateAmount(150050); // true
 validateAmount(-100); // false (negative not allowed)
-validateAmount(100000000000); // false (exceeds max)
 ```
+
+**Cents Type Rules:**
+
+- Branded type ensures only safe integers: `Number.isSafeInteger(n)`
+- Supports any sign: positive for income, negative for debt reversals
+- Arithmetic helpers skip max checks (safe for totals/deltas)
 
 **Amount Storage Rules:**
 
 - Always store as integer cents (BIGINT in database)
-- Always positive (use `type` field: 'income' | 'expense')
+- Always positive with explicit `type` field for user amounts: 'income' | 'expense'
 - Range: 0 to 999,999,999 cents (₱0.00 to ₱9,999,999.99)
 
 **See:** `currency.md` for complete specification.

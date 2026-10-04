@@ -32,6 +32,35 @@ export const CURRENCY_CODE = "PHP";
 export const PESO_SIGN = "₱";
 
 /**
+ * Error class for currency-related validation failures.
+ * Use this for domain-specific error handling in forms and APIs.
+ */
+export class CurrencyError extends Error {
+  constructor(
+    message: string,
+    public readonly code: "INVALID_FORMAT" | "NEGATIVE_AMOUNT" | "EXCEEDS_MAX" | "NOT_INTEGER"
+  ) {
+    super(message);
+    this.name = "CurrencyError";
+  }
+}
+
+declare const centsBrand: unique symbol;
+
+/** Validated integer cents. Any sign: debt reversals and balance deltas are negative. */
+export type Cents = number & { readonly [centsBrand]: true };
+
+/** The only number → Cents constructor. Import-restricted to the data layer (eslint.config.js). */
+export function asCents(n: number): Cents {
+  if (!Number.isSafeInteger(n)) {
+    throw new CurrencyError(`Not a whole number of cents: ${n}`, "NOT_INTEGER");
+  }
+  return n as Cents;
+}
+
+export const ZERO_CENTS = asCents(0);
+
+/**
  * Formats integer cents as PHP currency string with thousand separators.
  *
  * Converts integer cent values to human-readable PHP currency format:
@@ -100,7 +129,7 @@ export function formatPHP(cents: number): string {
  * parsePHP("-100")         // throws Error
  * parsePHP("10000000")     // throws Error (exceeds max)
  */
-export function parsePHP(input: string | number): number {
+export function parsePHP(input: string | number): Cents {
   // Handle numeric input directly
   if (typeof input === "number") {
     const cents = Math.round(input * 100);
@@ -117,12 +146,12 @@ export function parsePHP(input: string | number): number {
       );
     }
 
-    return cents;
+    return asCents(cents);
   }
 
   // Handle empty or null-like input gracefully
   if (!input || typeof input !== "string") {
-    return 0;
+    return ZERO_CENTS;
   }
 
   // Clean input: remove currency symbols, thousand separators, and whitespace
@@ -130,7 +159,7 @@ export function parsePHP(input: string | number): number {
 
   // Return 0 for empty/whitespace-only input
   if (cleaned === "") {
-    return 0;
+    return ZERO_CENTS;
   }
 
   // Parse as float (handles decimal point)
@@ -156,7 +185,7 @@ export function parsePHP(input: string | number): number {
     );
   }
 
-  return cents;
+  return asCents(cents);
 }
 
 /**
@@ -165,14 +194,15 @@ export function parsePHP(input: string | number): number {
  * to reject instead of silently truncating it. Returns null for empty,
  * non-numeric, or negative input.
  */
-export function parsePHPUnbounded(input: string): number | null {
+export function parsePHPUnbounded(input: string): Cents | null {
   const cleaned = input.replace(/[₱,\s]/g, "");
   if (cleaned === "") return null;
 
   const pesos = parseFloat(cleaned);
   if (isNaN(pesos) || pesos < 0) return null;
 
-  return Math.round(pesos * 100);
+  const cents = Math.round(pesos * 100);
+  return Number.isSafeInteger(cents) ? asCents(cents) : null;
 }
 
 /**
@@ -199,38 +229,6 @@ export function validateAmount(cents: number): boolean {
 }
 
 /**
- * Type guard for valid currency amounts.
- * Useful in TypeScript for narrowing types based on validation.
- *
- * @param cents - Amount to check
- * @returns Type predicate indicating if amount is valid
- *
- * @example
- * const userInput = parsePHP(inputString);
- * if (isValidAmount(userInput)) {
- *   // TypeScript knows userInput is a valid amount here
- *   await createTransaction({ amount_cents: userInput });
- * }
- */
-export function isValidAmount(cents: number): cents is number {
-  return validateAmount(cents);
-}
-
-/**
- * Error class for currency-related validation failures.
- * Use this for domain-specific error handling in forms and APIs.
- */
-export class CurrencyError extends Error {
-  constructor(
-    message: string,
-    public readonly code: "INVALID_FORMAT" | "NEGATIVE_AMOUNT" | "EXCEEDS_MAX" | "NOT_INTEGER"
-  ) {
-    super(message);
-    this.name = "CurrencyError";
-  }
-}
-
-/**
  * Safe version of parsePHP that returns a Result type instead of throwing.
  * Useful for form validation where you want to display specific error messages.
  *
@@ -247,7 +245,7 @@ export class CurrencyError extends Error {
  */
 export function parsePHPSafe(
   input: string | number
-): { success: true; value: number } | { success: false; error: CurrencyError } {
+): { success: true; value: Cents } | { success: false; error: CurrencyError } {
   try {
     const value = parsePHP(input);
     return { success: true, value };
@@ -273,26 +271,6 @@ export function parsePHPSafe(
       error: new CurrencyError("Unknown parsing error", "INVALID_FORMAT"),
     };
   }
-}
-
-/**
- * Formats a cents amount as just the numeric value without currency symbol.
- * Useful for CSV exports or API responses where currency is implicit.
- *
- * @param cents - Integer amount in cents
- * @returns Formatted numeric string with 2 decimal places
- *
- * @example
- * formatNumeric(150050)   // "1500.50"
- * formatNumeric(100)      // "1.00"
- * formatNumeric(0)        // "0.00"
- */
-export function formatNumeric(cents: number): string {
-  const isNegative = cents < 0;
-  const absoluteCents = Math.abs(cents);
-  const pesos = Math.floor(absoluteCents / 100);
-  const remainder = absoluteCents % 100;
-  return `${isNegative ? "-" : ""}${pesos}.${remainder.toString().padStart(2, "0")}`;
 }
 
 /**
@@ -329,78 +307,35 @@ export function formatPHPAxisTick(cents: number): string {
   return `${sign}${PESO_SIGN}${Number.isInteger(pesos) ? pesos.toLocaleString("en-PH") : pesos.toFixed(2)}`;
 }
 
-/**
- * Adds two amounts safely, ensuring no overflow.
- *
- * @param a - First amount in cents
- * @param b - Second amount in cents
- * @returns Sum in cents
- * @throws {Error} If result exceeds MAX_AMOUNT_CENTS
- *
- * @example
- * addAmounts(150050, 200000)  // 350050
- */
-export function addAmounts(a: number, b: number): number {
-  const sum = a + b;
-  if (sum > MAX_AMOUNT_CENTS) {
-    throw new Error(`Sum exceeds maximum: ${formatPHP(sum)} (max: ${formatPHP(MAX_AMOUNT_CENTS)})`);
-  }
-  return sum;
+export function sumCents(values: Iterable<Cents>): Cents {
+  let total = 0;
+  for (const value of values) total += value;
+  return asCents(total);
 }
 
-/**
- * Subtracts two amounts safely, ensuring result is non-negative.
- *
- * @param a - Amount to subtract from (in cents)
- * @param b - Amount to subtract (in cents)
- * @returns Difference in cents
- * @throws {Error} If result would be negative
- *
- * @example
- * subtractAmounts(200000, 150050)  // 49950
- */
-export function subtractAmounts(a: number, b: number): number {
-  const difference = a - b;
-  if (difference < 0) {
-    throw new Error(
-      `Result would be negative: ${formatPHP(a)} - ${formatPHP(b)} = ${formatPHP(difference)}`
-    );
-  }
-  return difference;
+export function diffCents(a: Cents, b: Cents): Cents {
+  return asCents(a - b);
 }
 
-/**
- * Multiplies an amount by a factor, rounding to nearest cent.
- *
- * @param cents - Amount in cents
- * @param factor - Multiplication factor (e.g., 1.05 for 5% increase)
- * @returns Result in cents, rounded to nearest cent
- * @throws {Error} If result exceeds MAX_AMOUNT_CENTS
- *
- * @example
- * multiplyAmount(100000, 1.05)  // 105000 (5% increase)
- * multiplyAmount(100000, 0.5)   // 50000 (50% of amount)
- */
-export function multiplyAmount(cents: number, factor: number): number {
-  const result = Math.round(cents * factor);
-  if (result > MAX_AMOUNT_CENTS) {
-    throw new Error(
-      `Result exceeds maximum: ${formatPHP(result)} (max: ${formatPHP(MAX_AMOUNT_CENTS)})`
-    );
-  }
-  return result;
+export function absCents(cents: Cents): Cents {
+  return asCents(Math.abs(cents));
 }
 
-/**
- * Calculates percentage of an amount, rounding to nearest cent.
- *
- * @param cents - Base amount in cents
- * @param percentage - Percentage (e.g., 15 for 15%)
- * @returns Calculated amount in cents
- *
- * @example
- * percentageOf(100000, 15)  // 15000 (15% of 100000 cents = ₱1,000)
- */
-export function percentageOf(cents: number, percentage: number): number {
-  return Math.round((cents * percentage) / 100);
+export function negateCents(cents: Cents): Cents {
+  return asCents(-cents);
+}
+
+/** Rounds to the nearest cent (half up), so averages never carry fractions into formatPHP. */
+export function divideCents(cents: Cents, divisor: number): Cents {
+  if (!Number.isFinite(divisor) || divisor <= 0) {
+    throw new RangeError(`divideCents needs a positive divisor, got ${divisor}`);
+  }
+  return asCents(Math.round(cents / divisor));
+}
+
+/** For Recharts tooltip/label callbacks, whose values arrive untyped. */
+export function formatPHPChartValue(value: unknown): string {
+  return typeof value === "number" && Number.isSafeInteger(value)
+    ? formatPHP(asCents(value))
+    : `${PESO_SIGN}—`;
 }

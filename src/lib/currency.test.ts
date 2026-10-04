@@ -15,16 +15,18 @@ import {
   parsePHP,
   parsePHPUnbounded,
   validateAmount,
-  isValidAmount,
   parsePHPSafe,
-  formatNumeric,
   formatPHPAxisTick,
-  addAmounts,
-  subtractAmounts,
-  multiplyAmount,
-  percentageOf,
   MAX_AMOUNT_CENTS,
   CurrencyError,
+  asCents,
+  ZERO_CENTS,
+  sumCents,
+  diffCents,
+  absCents,
+  negateCents,
+  divideCents,
+  formatPHPChartValue,
 } from "./currency";
 
 describe("formatPHP", () => {
@@ -208,22 +210,6 @@ describe("validateAmount", () => {
   });
 });
 
-describe("isValidAmount", () => {
-  it("acts as type guard", () => {
-    const amount: number = 150050;
-    if (isValidAmount(amount)) {
-      // TypeScript should narrow type here
-      expect(amount).toBe(150050);
-    }
-  });
-
-  it("has same behavior as validateAmount", () => {
-    expect(isValidAmount(150050)).toBe(validateAmount(150050));
-    expect(isValidAmount(-100)).toBe(validateAmount(-100));
-    expect(isValidAmount(1500.5)).toBe(validateAmount(1500.5));
-  });
-});
-
 describe("parsePHPSafe", () => {
   it("returns success result for valid input", () => {
     const result = parsePHPSafe("1,500.50");
@@ -263,25 +249,6 @@ describe("parsePHPSafe", () => {
   });
 });
 
-describe("formatNumeric", () => {
-  it("formats amounts as numeric strings without currency symbol", () => {
-    expect(formatNumeric(150050)).toBe("1500.50");
-    expect(formatNumeric(0)).toBe("0.00");
-    expect(formatNumeric(100)).toBe("1.00");
-  });
-
-  it("always shows 2 decimal places", () => {
-    expect(formatNumeric(500)).toBe("5.00");
-    expect(formatNumeric(505)).toBe("5.05");
-    expect(formatNumeric(550)).toBe("5.50");
-  });
-
-  it("handles large amounts", () => {
-    expect(formatNumeric(MAX_AMOUNT_CENTS)).toBe("9999999.99");
-    expect(formatNumeric(123456789)).toBe("1234567.89");
-  });
-});
-
 describe("formatPHPAxisTick", () => {
   it("formats zero as ₱0", () => {
     expect(formatPHPAxisTick(0)).toBe("₱0");
@@ -317,88 +284,6 @@ describe("formatPHPAxisTick", () => {
   it("places the sign before the peso symbol for negatives", () => {
     expect(formatPHPAxisTick(-50000)).toBe("-₱500");
     expect(formatPHPAxisTick(-1250000)).toBe("-₱12.5k");
-  });
-});
-
-describe("addAmounts", () => {
-  it("adds two amounts correctly", () => {
-    expect(addAmounts(150050, 200000)).toBe(350050);
-    expect(addAmounts(100, 200)).toBe(300);
-    expect(addAmounts(0, 1500)).toBe(1500);
-  });
-
-  it("throws error when sum exceeds maximum", () => {
-    expect(() => addAmounts(MAX_AMOUNT_CENTS, 1)).toThrow("Sum exceeds maximum");
-    expect(() => addAmounts(500000000, 600000000)).toThrow("Sum exceeds maximum");
-  });
-
-  it("allows adding to maximum if sum stays within limit", () => {
-    expect(addAmounts(MAX_AMOUNT_CENTS - 100, 100)).toBe(MAX_AMOUNT_CENTS);
-  });
-});
-
-describe("subtractAmounts", () => {
-  it("subtracts two amounts correctly", () => {
-    expect(subtractAmounts(200000, 150050)).toBe(49950);
-    expect(subtractAmounts(1500, 500)).toBe(1000);
-    expect(subtractAmounts(1000, 1000)).toBe(0);
-  });
-
-  it("throws error when result would be negative", () => {
-    expect(() => subtractAmounts(100, 200)).toThrow("Result would be negative");
-    expect(() => subtractAmounts(0, 1)).toThrow("Result would be negative");
-  });
-
-  it("allows subtraction resulting in zero", () => {
-    expect(subtractAmounts(1500, 1500)).toBe(0);
-  });
-});
-
-describe("multiplyAmount", () => {
-  it("multiplies amount by factor", () => {
-    expect(multiplyAmount(100000, 1.05)).toBe(105000); // 5% increase
-    expect(multiplyAmount(100000, 0.5)).toBe(50000); // 50% of amount
-    expect(multiplyAmount(100000, 2)).toBe(200000); // Double
-  });
-
-  it("rounds to nearest cent", () => {
-    expect(multiplyAmount(100, 1.555)).toBe(156); // Rounds up
-    expect(multiplyAmount(100, 1.554)).toBe(155); // Rounds down
-  });
-
-  it("throws error when result exceeds maximum", () => {
-    expect(() => multiplyAmount(MAX_AMOUNT_CENTS, 2)).toThrow("Result exceeds maximum");
-    expect(() => multiplyAmount(500000000, 3)).toThrow("Result exceeds maximum");
-  });
-
-  it("handles multiplication by zero", () => {
-    expect(multiplyAmount(100000, 0)).toBe(0);
-  });
-
-  it("handles multiplication by 1 (identity)", () => {
-    expect(multiplyAmount(150050, 1)).toBe(150050);
-  });
-});
-
-describe("percentageOf", () => {
-  it("calculates percentage of amount", () => {
-    expect(percentageOf(100000, 15)).toBe(15000); // 15% of ₱1,000
-    expect(percentageOf(100000, 50)).toBe(50000); // 50% of ₱1,000
-    expect(percentageOf(100000, 100)).toBe(100000); // 100% of ₱1,000
-  });
-
-  it("rounds to nearest cent", () => {
-    expect(percentageOf(100, 33.33)).toBe(33); // 33.33% of 100 cents
-    expect(percentageOf(1000, 33.33)).toBe(333); // 33.33% of 1000 cents
-  });
-
-  it("handles zero percentage", () => {
-    expect(percentageOf(100000, 0)).toBe(0);
-  });
-
-  it("handles fractional percentages", () => {
-    expect(percentageOf(100000, 0.5)).toBe(500); // 0.5% of ₱1,000
-    expect(percentageOf(100000, 10.5)).toBe(10500); // 10.5% of ₱1,000
   });
 });
 
@@ -451,19 +336,9 @@ describe("financial calculation accuracy", () => {
     const expense1 = parsePHP("1,500.50"); // ₱1,500.50
     const expense2 = parsePHP("2,300.25"); // ₱2,300.25
 
-    const total = subtractAmounts(subtractAmounts(income, expense1), expense2);
+    const total = diffCents(diffCents(asCents(income), asCents(expense1)), asCents(expense2));
     expect(total).toBe(119925); // ₱1,199.25
     expect(formatPHP(total)).toBe("₱1,199.25");
-  });
-
-  it("handles tax calculations accurately", () => {
-    const amount = parsePHP("1,000.00"); // ₱1,000
-    const tax = percentageOf(amount, 12); // 12% VAT
-    const total = addAmounts(amount, tax);
-
-    expect(tax).toBe(12000); // ₱120
-    expect(total).toBe(112000); // ₱1,120
-    expect(formatPHP(total)).toBe("₱1,120.00");
   });
 
   it("handles budget variance calculations", () => {
@@ -476,5 +351,74 @@ describe("financial calculation accuracy", () => {
 
     const percentageSpent = Math.round((actualSpending / budgetTarget) * 100);
     expect(percentageSpent).toBe(125); // 125% of budget
+  });
+});
+
+describe("asCents", () => {
+  it("brands safe integers of any sign", () => {
+    expect(asCents(150050)).toBe(150050);
+    expect(asCents(-2500)).toBe(-2500);
+    expect(asCents(0)).toBe(0);
+  });
+
+  it.each([1.5, Number.NaN, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER + 1])(
+    "throws NOT_INTEGER for %s",
+    (value) => {
+      expect(() => asCents(value)).toThrow(CurrencyError);
+      try {
+        asCents(value);
+      } catch (error) {
+        expect(error instanceof CurrencyError && error.code).toBe("NOT_INTEGER");
+      }
+    }
+  );
+
+  it("ZERO_CENTS is zero", () => {
+    expect(ZERO_CENTS).toBe(0);
+  });
+});
+
+describe("cents arithmetic", () => {
+  it("sumCents adds any number of signed amounts without a max", () => {
+    expect(sumCents([asCents(999999999), asCents(999999999), asCents(-2)])).toBe(1999999996);
+    expect(sumCents([])).toBe(0);
+  });
+
+  it("diffCents may go negative", () => {
+    expect(diffCents(asCents(100), asCents(250))).toBe(-150);
+  });
+
+  it("absCents and negateCents", () => {
+    expect(absCents(asCents(-2500))).toBe(2500);
+    expect(negateCents(asCents(2500))).toBe(-2500);
+  });
+
+  it("divideCents rounds to a whole cent", () => {
+    expect(divideCents(asCents(100000), 3)).toBe(33333);
+    expect(divideCents(asCents(200), 3)).toBe(67);
+    expect(Number.isInteger(divideCents(asCents(123457), 7))).toBe(true);
+  });
+
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])(
+    "divideCents rejects divisor %s",
+    (divisor) => {
+      expect(() => divideCents(asCents(100), divisor)).toThrow(RangeError);
+    }
+  );
+});
+
+describe("formatPHPChartValue", () => {
+  it("formats integer cents like formatPHP", () => {
+    expect(formatPHPChartValue(150050)).toBe("₱1,500.50");
+  });
+
+  it.each(["150050", 1.5, null, undefined, Number.NaN])("renders a dash for %s", (value) => {
+    expect(formatPHPChartValue(value)).toBe("₱—");
+  });
+});
+
+describe("parsers return branded cents", () => {
+  it("parsePHPUnbounded returns null for amounts past the safe-integer range", () => {
+    expect(parsePHPUnbounded("1e300")).toBeNull();
   });
 });

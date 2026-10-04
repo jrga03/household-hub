@@ -8,6 +8,23 @@ All amounts stored as **integer cents** (BIGINT in database):
 - Maximum: 999,999,999 cents (₱9,999,999.99)
 - Always positive with explicit `type` field ('income' | 'expense')
 
+## Cents Type
+
+Use `Cents` type for validated, integer cent amounts. Create with `asCents(n)`:
+
+```typescript
+asCents(150050)   → Cents (brands safe integers)
+ZERO_CENTS        → Cents (= 0)
+```
+
+Arithmetic functions on `Cents`:
+
+- `sumCents(values: Iterable<Cents>): Cents` - sum any count (no max)
+- `diffCents(a: Cents, b: Cents): Cents` - difference (may be negative)
+- `absCents(cents: Cents): Cents` - absolute value
+- `negateCents(cents: Cents): Cents` - negate
+- `divideCents(cents: Cents, divisor: number): Cents` - divide with rounding
+
 ## Display
 
 Use `formatPHP(cents)` for all user-facing amounts:
@@ -16,6 +33,13 @@ Use `formatPHP(cents)` for all user-facing amounts:
 formatPHP(150050) → "₱1,500.50"
 formatPHP(0)      → "₱0.00"
 formatPHP(100)    → "₱1.00"
+```
+
+Use `formatPHPChartValue(value)` for Recharts tooltips (untyped values):
+
+```typescript
+formatPHPChartValue(150050) → "₱1,500.50"
+formatPHPChartValue("150050") → "₱—"     (not an integer)
 ```
 
 ## Input
