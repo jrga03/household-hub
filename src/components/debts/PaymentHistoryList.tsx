@@ -1,4 +1,4 @@
-import { formatPHP } from "@/lib/currency";
+import { absCents, formatPHP } from "@/lib/currency";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import type { DebtPayment } from "@/types/debt";
@@ -82,7 +82,7 @@ export function PaymentHistoryList({
                     payment.is_overpayment && !isReversal && "text-expense"
                   )}
                 >
-                  {formatPHP(Math.abs(payment.amount_cents))}
+                  {formatPHP(absCents(payment.amount_cents))}
                   {isReversal && " (Reversal)"}
                   {isReversed && " (Reversed)"}
                 </p>

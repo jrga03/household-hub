@@ -7,7 +7,7 @@
 
 import { nanoid } from "nanoid";
 import { db } from "@/lib/dexie/db";
-import { asCents } from "@/lib/currency";
+import { ZERO_CENTS, diffCents } from "@/lib/currency";
 import { getNextLamportClock } from "@/lib/sync/lamportClock";
 import { getDeviceId } from "@/lib/dexie/deviceManager";
 import { calculateDebtBalance } from "./balance";
@@ -72,11 +72,11 @@ export async function processDebtPayment(data: ProcessPaymentData): Promise<Paym
   // Detect overpayment: balance <= 0 OR payment > balance
   const isOverpayment = currentBalance <= 0 || data.amount_cents > currentBalance;
 
-  let overpaymentAmount = 0;
+  let overpaymentAmount = ZERO_CENTS;
   if (isOverpayment) {
     overpaymentAmount =
       currentBalance > 0
-        ? data.amount_cents - currentBalance // Partial overpayment
+        ? diffCents(data.amount_cents, currentBalance) // Partial overpayment
         : data.amount_cents; // Full amount is overpayment (balance already 0 or negative)
 
     console.warn(
@@ -116,7 +116,7 @@ export async function processDebtPayment(data: ProcessPaymentData): Promise<Paym
 
     // Overpayment tracking (set by detection above)
     is_overpayment: isOverpayment,
-    overpayment_amount: isOverpayment ? asCents(overpaymentAmount) : undefined,
+    overpayment_amount: isOverpayment ? overpaymentAmount : undefined,
 
     // Event sourcing (idempotency key for deduplication)
     idempotency_key: idempotencyKey,

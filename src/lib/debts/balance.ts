@@ -17,6 +17,7 @@
  */
 
 import { db } from "@/lib/dexie/db";
+import { ZERO_CENTS, absCents, diffCents, sumCents, type Cents } from "@/lib/currency";
 import type { DebtPayment } from "@/types/debt";
 
 // =====================================================
@@ -24,13 +25,13 @@ import type { DebtPayment } from "@/types/debt";
 // =====================================================
 
 export interface DebtBalanceDetails {
-  original_amount_cents: number;
-  total_paid_cents: number;
-  current_balance_cents: number; // Can be negative (overpaid)
+  original_amount_cents: Cents;
+  total_paid_cents: Cents;
+  current_balance_cents: Cents; // Can be negative (overpaid)
   payment_count: number;
   reversal_count: number;
   is_overpaid: boolean;
-  overpayment_amount_cents: number; // Positive value if overpaid
+  overpayment_amount_cents: Cents; // Positive value if overpaid
 }
 
 // =====================================================
@@ -52,14 +53,14 @@ export interface DebtBalanceDetails {
 export async function calculateDebtBalance(
   debtId: string,
   type: "external" | "internal"
-): Promise<number> {
+): Promise<Cents> {
   // 1. Get debt record
   const debt =
     type === "external" ? await db.debts.get(debtId) : await db.internalDebts.get(debtId);
 
   if (!debt) {
     console.warn(`[Balance] Debt not found: ${debtId} (${type})`);
-    return 0; // Defensive: deleted debt has no balance
+    return ZERO_CENTS; // Defensive: deleted debt has no balance
   }
 
   // 2. Get all payments for this debt
@@ -69,7 +70,7 @@ export async function calculateDebtBalance(
     .toArray();
 
   // 3. Signed sum over ALL rows (reversals are negative)
-  return debt.original_amount_cents - sumPayments(payments);
+  return diffCents(debt.original_amount_cents, sumPayments(payments));
 }
 
 /**
@@ -94,13 +95,13 @@ export async function calculateDebtBalanceWithDetails(
   if (!debt) {
     // Return zero state for deleted debt
     return {
-      original_amount_cents: 0,
-      total_paid_cents: 0,
-      current_balance_cents: 0,
+      original_amount_cents: ZERO_CENTS,
+      total_paid_cents: ZERO_CENTS,
+      current_balance_cents: ZERO_CENTS,
       payment_count: 0,
       reversal_count: 0,
       is_overpaid: false,
-      overpayment_amount_cents: 0,
+      overpayment_amount_cents: ZERO_CENTS,
     };
   }
 
@@ -112,7 +113,7 @@ export async function calculateDebtBalanceWithDetails(
 
   // Signed totals
   const totalPaid = sumPayments(payments);
-  const balance = debt.original_amount_cents - totalPaid;
+  const balance = diffCents(debt.original_amount_cents, totalPaid);
 
   // Live payments = regular rows whose effect still stands (not compensated)
   const reversedIds = getReversedPaymentIds(payments);
@@ -121,7 +122,7 @@ export async function calculateDebtBalanceWithDetails(
 
   // Overpayment detection
   const isOverpaid = balance < 0;
-  const overpaymentAmount = isOverpaid ? Math.abs(balance) : 0;
+  const overpaymentAmount = isOverpaid ? absCents(balance) : ZERO_CENTS;
 
   return {
     original_amount_cents: debt.original_amount_cents,
@@ -145,8 +146,8 @@ export async function calculateDebtBalanceWithDetails(
  * arithmetically, so the ledger stays uniform and reversal chains of any
  * depth work without special cases.
  */
-function sumPayments(payments: DebtPayment[]): number {
-  return payments.reduce((sum, p) => sum + p.amount_cents, 0);
+function sumPayments(payments: DebtPayment[]): Cents {
+  return sumCents(payments.map((p) => p.amount_cents));
 }
 
 /**
@@ -181,8 +182,8 @@ function getReversedPaymentIds(payments: DebtPayment[]): Set<string> {
 export async function calculateMultipleBalances(
   debtIds: string[],
   type: "external" | "internal"
-): Promise<Map<string, number>> {
-  const balances = new Map<string, number>();
+): Promise<Map<string, Cents>> {
+  const balances = new Map<string, Cents>();
 
   // Batch fetch all debts
   const debts =
@@ -197,17 +198,17 @@ export async function calculateMultipleBalances(
   // Group payments by debt
   const paymentsByDebt = new Map<string, DebtPayment[]>();
   for (const payment of allPayments) {
-    const debtId = payment.debt_id || payment.internal_debt_id!;
-    if (!paymentsByDebt.has(debtId)) {
-      paymentsByDebt.set(debtId, []);
-    }
-    paymentsByDebt.get(debtId)!.push(payment);
+    const debtId = payment.debt_id || payment.internal_debt_id;
+    if (!debtId) continue;
+    const debtPayments = paymentsByDebt.get(debtId) ?? [];
+    paymentsByDebt.set(debtId, debtPayments);
+    debtPayments.push(payment);
   }
 
   // Calculate balance for each debt
   for (const debt of debts) {
     const payments = paymentsByDebt.get(debt.id) || [];
-    balances.set(debt.id, debt.original_amount_cents - sumPayments(payments));
+    balances.set(debt.id, diffCents(debt.original_amount_cents, sumPayments(payments)));
   }
 
   return balances;

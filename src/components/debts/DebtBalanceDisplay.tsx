@@ -1,11 +1,11 @@
-import { formatPHP } from "@/lib/currency";
+import { absCents, formatPHP, type Cents } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 
 interface DebtBalanceDisplayProps {
   /** Current balance in cents */
-  balance: number;
+  balance: Cents;
   /** Original debt amount in cents */
-  originalAmount: number;
+  originalAmount: Cents;
   /** Show percentage paid */
   showPercentage?: boolean;
   /** Additional CSS classes */
@@ -65,7 +65,7 @@ export function DebtBalanceDisplay({
       {/* Overpayment warning */}
       {isOverpaid && (
         <p className="text-sm font-medium text-warning">
-          ⚠ Overpaid by {formatPHP(Math.abs(balance))}
+          ⚠ Overpaid by {formatPHP(absCents(balance))}
         </p>
       )}
     </div>

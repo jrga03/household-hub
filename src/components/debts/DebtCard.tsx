@@ -7,12 +7,13 @@ import { DebtProgressBar } from "./DebtProgressBar";
 import { getSyncStatusForDebt } from "@/lib/debts/sync";
 import { Loader2, AlertCircle, Check, Clock } from "lucide-react";
 import type { Debt, InternalDebt } from "@/types/debt";
+import { diffCents, type Cents } from "@/lib/currency";
 
 interface DebtCardProps {
   /** Debt data */
   debt: Debt | InternalDebt;
   /** Current balance in cents */
-  balance: number;
+  balance: Cents;
   /** Click handler for view details */
   onViewDetails?: (debtId: string) => void;
   /** Click handler for make payment */
@@ -47,7 +48,7 @@ export function DebtCard({
 }: DebtCardProps) {
   const isPaidOff = debt.status === "paid_off";
   const isArchived = debt.status === "archived";
-  const amountPaid = debt.original_amount_cents - balance;
+  const amountPaid = diffCents(debt.original_amount_cents, balance);
 
   // Check if this is an internal debt
   const isInternal = "from_type" in debt;

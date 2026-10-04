@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DebtCard } from "./DebtCard";
 import type { Debt, InternalDebt, DebtStatus } from "@/types/debt";
+import type { Cents } from "@/lib/currency";
 
 interface DebtWithBalance {
   debt: Debt | InternalDebt;
-  balance: number;
+  balance: Cents;
 }
 
 interface DebtListProps {

@@ -32,7 +32,7 @@ import { confirmDiscardChanges } from "@/lib/confirm-discard";
 import { createOfflineTransaction, updateOfflineTransaction } from "@/lib/offline/transactions";
 import { afterOutboxWrite } from "@/lib/offline/afterWrite";
 import { useIsMobile } from "@/hooks/useMediaQuery";
-import { formatPHP, ZERO_CENTS } from "@/lib/currency";
+import { absCents, diffCents, formatPHP, ZERO_CENTS, type Cents } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import type { Debt } from "@/types/debt";
 
@@ -132,9 +132,9 @@ export function TransactionFormDialog({
   });
 
   // Find selected debt and calculate balance preview
-  const selectedDebt = debts?.find((d: Debt & { balance: number }) => d.id === selectedDebtId);
+  const selectedDebt = debts?.find((d: Debt & { balance: Cents }) => d.id === selectedDebtId);
   const balanceAfterPayment =
-    selectedDebt && transactionAmount ? selectedDebt.balance - transactionAmount : null;
+    selectedDebt && transactionAmount ? diffCents(selectedDebt.balance, transactionAmount) : null;
   const isOverpayment = balanceAfterPayment !== null && balanceAfterPayment < 0;
 
   // Clear debt link when transfer selected
@@ -444,7 +444,7 @@ export function TransactionFormDialog({
                   <SelectContent>
                     {/* Radix Select throws on empty-string item values; "none" is the sentinel */}
                     <SelectItem value="none">None</SelectItem>
-                    {debts?.map((debt: Debt & { balance: number }) => (
+                    {debts?.map((debt: Debt & { balance: Cents }) => (
                       <SelectItem key={debt.id} value={debt.id}>
                         {debt.name} - Balance: {formatPHP(debt.balance)}
                       </SelectItem>
@@ -476,7 +476,7 @@ export function TransactionFormDialog({
                   <span className="font-medium">{formatPHP(selectedDebt.balance)}</span>
                 </div>
 
-                {transactionAmount > 0 && (
+                {transactionAmount > 0 && balanceAfterPayment !== null && (
                   <>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Payment amount:</span>
@@ -492,13 +492,13 @@ export function TransactionFormDialog({
                           balanceAfterPayment === 0 && "text-income"
                         )}
                       >
-                        {formatPHP(balanceAfterPayment!)}
+                        {formatPHP(balanceAfterPayment)}
                       </span>
                     </div>
 
                     {isOverpayment && (
                       <p className="text-xs text-warning pt-2">
-                        ⚠ This will overpay by {formatPHP(Math.abs(balanceAfterPayment!))}
+                        ⚠ This will overpay by {formatPHP(absCents(balanceAfterPayment))}
                       </p>
                     )}
 
