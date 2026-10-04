@@ -37,6 +37,7 @@
 - [ ] Task 8: CI split
 - [ ] Task 8a: Explicit table grants; diagnose the CI Chromium install hang (added 2026-10-03 after the first CI run)
 - [ ] Task 8b: Playwright 1.56 → 1.63 (Node 26 installer hang)
+- [ ] Task 8c: E2E global setup creates the fixture users
 - [ ] Task 9: Acceptance and docs
 
 ---
@@ -1683,6 +1684,16 @@ Added 2026-10-04. CI run 2 (37137028719): `database` pgTAP passed (Files=16, Tes
 - [ ] **Step 3:** Full chromium E2E, compared per test with `docs/plans/2026-10-02-phase-1b-e2e-baseline.txt` (same command and line format as that file's Task 0). A test that passes in the baseline and fails now is a regression: investigate before continuing. Layout-baseline snapshot mismatches from the Chromium 141 → 153 rendering change are reported with their diff images, not regenerated without review.
 - [ ] **Step 4:** `ci.yml` e2e-smoke: keep the two install steps and their timeouts, drop `DEBUG: pw:install`.
 - [ ] **Step 5:** Commit `build(deps): Playwright 1.63 (1.56's installer hangs on Node 26)` and `ci: drop Playwright install debug logging`. User pushes; record CI run 3 per job.
+
+---
+
+### Task 8c: E2E global setup creates the fixture users
+
+Added 2026-10-04. CI run 3 (37166622552): `database` green (pgTAP, lint, type drift); Chromium installed in 10 s on Playwright 1.63; `e2e-smoke` 9 failed / 2 passed. Every failure logs in as `test@example.com`, which no code creates: it exists only in long-lived databases (the local dev stack, the remote E2E project). Only sign-up and the route guard passed.
+
+- [ ] **Step 1:** In `tests/e2e/global-setup.ts`, after the Supabase URL and service-role key are known (both the CI and the local branch), create every user in `tests/e2e/fixtures/test-users.ts` with the admin API (`auth.admin.createUser({ email, password, email_confirm: true })`); an "already registered" response counts as success, any other error fails setup with the user's email in the message. Keep it in a small exported function in `tests/e2e/fixtures/` so it can be exercised directly.
+- [ ] **Step 2:** Verify against the dev stack: the existing users report as already present; a throwaway email is created and then deleted with the admin API. Run the local smoke (11 passed) and `npx tsc --noEmit -p tsconfig.tests.json`.
+- [ ] **Step 3:** Commit `test(e2e): global setup creates the fixture users`; user pushes; record CI run 4 per job.
 
 ---
 
