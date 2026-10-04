@@ -1,5 +1,5 @@
 begin;
-select plan(13);
+select plan(14);
 select tests.seed();
 
 select tests.authenticate_as('a1');
@@ -21,10 +21,14 @@ select tests.authenticate_as('a2');
 select lives_ok(
   $$ insert into public.accounts (household_id, name, type) values (tests.household('h1'), 'A2 new', 'bank') $$,
   'member can insert into own household');
-select lives_ok(
+select throws_ok(
   $$ insert into public.accounts (household_id, name, type, visibility, owner_user_id)
      values (tests.household('h1'), 'Planted', 'cash', 'personal', tests.id('user_a1')) $$,
-  'KNOWN GAP: insert does not pin owner_user_id to the caller (see 2a plan Decisions)');
+  '42501', null, 'member cannot create a personal account owned by someone else');
+select lives_ok(
+  $$ insert into public.accounts (household_id, name, type, visibility, owner_user_id)
+     values (tests.household('h1'), 'A2 wallet', 'cash', 'personal', tests.id('user_a2')) $$,
+  'member can create their own personal account');
 select is_empty(
   $$ update public.accounts set name = 'x' where id = tests.id('acc_h1_personal_a1') returning id $$,
   'member cannot update another member''s personal account');
