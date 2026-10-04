@@ -2,8 +2,29 @@ import { createClient } from "@supabase/supabase-js";
 import { testUsers } from "./test-users";
 
 const EMAIL_EXISTS_CODE = "email_exists";
+const LOCAL_HOSTNAMES = new Set(["127.0.0.1", "localhost"]);
+
+function hostnameOf(url: string): string | null {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
+export function isLocalSupabaseUrl(url: string): boolean {
+  const hostname = hostnameOf(url);
+  return hostname !== null && LOCAL_HOSTNAMES.has(hostname);
+}
 
 export async function ensureTestUsers(supabaseUrl: string, serviceRoleKey: string) {
+  if (!isLocalSupabaseUrl(supabaseUrl)) {
+    throw new Error(
+      `Refusing to create E2E fixture users on ${hostnameOf(supabaseUrl) ?? supabaseUrl}: ` +
+        "fixture users are only created on a local Supabase"
+    );
+  }
+
   const adminClient = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false },
   });

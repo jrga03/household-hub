@@ -1,7 +1,7 @@
 import { existsSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { ensureTestUsers } from "./fixtures/ensure-test-users";
+import { ensureTestUsers, isLocalSupabaseUrl } from "./fixtures/ensure-test-users";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 
@@ -29,7 +29,11 @@ async function globalSetup() {
         "utf-8"
       );
       console.log("[global-setup] .env.test created from CI env vars");
-      await ensureTestUsers(supabaseUrl, serviceRoleKey);
+      if (isLocalSupabaseUrl(supabaseUrl)) {
+        await ensureTestUsers(supabaseUrl, serviceRoleKey);
+      } else {
+        console.log("[global-setup] remote Supabase — fixture users must already exist");
+      }
     } else {
       console.log("[global-setup] SUPABASE_URL/SERVICE_ROLE_KEY not in env — skipping .env.test");
     }
