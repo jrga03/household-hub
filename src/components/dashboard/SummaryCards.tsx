@@ -1,16 +1,16 @@
-import { formatPHP } from "@/lib/currency";
+import { formatPHP, type Cents } from "@/lib/currency";
 import { TrendingUp, TrendingDown, Wallet, ArrowUpDown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
 interface Props {
   summary: {
-    totalIncomeCents: number;
-    totalExpenseCents: number;
-    netAmountCents: number;
+    totalIncomeCents: Cents;
+    totalExpenseCents: Cents;
+    netAmountCents: Cents;
     accountCount: number;
-    totalBalanceCents: number;
-    previousMonthIncomeCents: number;
-    previousMonthExpenseCents: number;
+    totalBalanceCents: Cents;
+    previousMonthIncomeCents: Cents;
+    previousMonthExpenseCents: Cents;
     transactionCount: number;
   };
 }

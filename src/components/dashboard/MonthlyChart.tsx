@@ -1,4 +1,4 @@
-import { formatPHP, formatPHPAxisTick } from "@/lib/currency";
+import { formatPHP, formatPHPAxisTick, type Cents } from "@/lib/currency";
 import {
   LineChart,
   Line,
@@ -14,15 +14,15 @@ import { Card } from "@/components/ui/card";
 interface Props {
   data: Array<{
     month: string;
-    incomeCents: number;
-    expenseCents: number;
+    incomeCents: Cents;
+    expenseCents: Cents;
   }>;
 }
 
 interface TooltipPayload {
   month: string;
-  incomeCents: number;
-  expenseCents: number;
+  incomeCents: Cents;
+  expenseCents: Cents;
 }
 
 interface CustomTooltipProps {

@@ -1,3 +1,4 @@
+import type { Cents } from "@/lib/currency";
 import { CategoryChart } from "./CategoryChart";
 
 interface DashboardRailProps {
@@ -5,7 +6,7 @@ interface DashboardRailProps {
     categoryId: string;
     categoryName: string;
     color: string;
-    amountCents: number;
+    amountCents: Cents;
     percentOfTotal: number;
   }>;
 }

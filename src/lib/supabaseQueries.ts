@@ -34,7 +34,7 @@ import type { AccountInput, CategoryInput } from "./offline/types";
 import type { Account } from "@/types/accounts";
 import type { Category, CategoryWithChildren } from "@/types/categories";
 import type { TransactionFilters, TransactionWithRelations } from "@/types/transactions";
-import { ZERO_CENTS, sumCents, type Cents } from "@/lib/currency";
+import { ZERO_CENTS, diffCents, sumCents, type Cents } from "@/lib/currency";
 import {
   parseAccountBalanceDeltas,
   parseTransactionsFilterSummary,
@@ -1155,14 +1155,14 @@ function toTransactionWithRelations(row: TransactionRowWithRelations): Transacti
  */
 export interface DashboardData {
   summary: {
-    totalIncomeCents: number;
-    totalExpenseCents: number;
-    netAmountCents: number;
+    totalIncomeCents: Cents;
+    totalExpenseCents: Cents;
+    netAmountCents: Cents;
     transactionCount: number;
     accountCount: number;
-    totalBalanceCents: number;
-    previousMonthIncomeCents: number;
-    previousMonthExpenseCents: number;
+    totalBalanceCents: Cents;
+    previousMonthIncomeCents: Cents;
+    previousMonthExpenseCents: Cents;
     // Enhanced metrics (per DATABASE.md Monthly Summary Query spec)
     activeDays: number; // COUNT(DISTINCT date)
     uniqueCategories: number; // COUNT(DISTINCT category_id)
@@ -1171,14 +1171,14 @@ export interface DashboardData {
   };
   monthlyTrend: Array<{
     month: string;
-    incomeCents: number;
-    expenseCents: number;
+    incomeCents: Cents;
+    expenseCents: Cents;
   }>;
   categoryBreakdown: Array<{
     categoryId: string; // For click navigation to filtered transactions
     categoryName: string;
     color: string;
-    amountCents: number;
+    amountCents: Cents;
     percentOfTotal: number;
   }>;
   recentTransactions: TransactionWithRelations[];
@@ -1276,21 +1276,21 @@ export async function fetchDashboardDataFromServer(currentMonth: Date): Promise<
   const recentTransactions = recentResult.data;
 
   // Calculate summary
-  const totalIncome = (currentTransactions || [])
-    .filter((t) => t.type === "income")
-    .reduce((sum, t) => sum + t.amount_cents, 0);
+  const totalIncome = sumCents(
+    (currentTransactions || []).filter((t) => t.type === "income").map((t) => t.amount_cents)
+  );
 
-  const totalExpense = (currentTransactions || [])
-    .filter((t) => t.type === "expense")
-    .reduce((sum, t) => sum + t.amount_cents, 0);
+  const totalExpense = sumCents(
+    (currentTransactions || []).filter((t) => t.type === "expense").map((t) => t.amount_cents)
+  );
 
-  const previousIncome = (previousTransactions || [])
-    .filter((t) => t.type === "income")
-    .reduce((sum, t) => sum + t.amount_cents, 0);
+  const previousIncome = sumCents(
+    (previousTransactions || []).filter((t) => t.type === "income").map((t) => t.amount_cents)
+  );
 
-  const previousExpense = (previousTransactions || [])
-    .filter((t) => t.type === "expense")
-    .reduce((sum, t) => sum + t.amount_cents, 0);
+  const previousExpense = sumCents(
+    (previousTransactions || []).filter((t) => t.type === "expense").map((t) => t.amount_cents)
+  );
 
   // Enhanced metrics per DATABASE.md Monthly Summary Query spec
   const uniqueDates = new Set((currentTransactions || []).map((t) => t.date));
@@ -1302,16 +1302,20 @@ export async function fetchDashboardDataFromServer(currentMonth: Date): Promise<
 
   // Calculate total balance across active accounts (INCLUDE transfers)
   const deltaByAccount = new Map(
-    balanceDeltas.map((d) => [d.account_id, d.cleared_delta_cents + d.pending_delta_cents])
+    balanceDeltas.map((d) => [
+      d.account_id,
+      sumCents([d.cleared_delta_cents, d.pending_delta_cents]),
+    ])
   );
-  const totalBalance = (accounts || []).reduce(
-    (sum, account) =>
-      sum + (account.initial_balance_cents || 0) + (deltaByAccount.get(account.id) ?? 0),
-    0
+  const totalBalance = sumCents(
+    (accounts || []).flatMap((account) => [
+      account.initial_balance_cents ?? ZERO_CENTS,
+      deltaByAccount.get(account.id) ?? ZERO_CENTS,
+    ])
   );
 
   // Calculate monthly trend
-  const monthlyTrend: Array<{ month: string; incomeCents: number; expenseCents: number }> = [];
+  const monthlyTrend: DashboardData["monthlyTrend"] = [];
   for (let i = 5; i >= 0; i--) {
     const month = subMonths(currentMonth, i);
     const monthKey = format(month, "yyyy-MM");
@@ -1319,13 +1323,13 @@ export async function fetchDashboardDataFromServer(currentMonth: Date): Promise<
       (t) => t.date.slice(0, 7) === monthKey
     );
 
-    const income = monthTransactions
-      .filter((t) => t.type === "income")
-      .reduce((sum, t) => sum + t.amount_cents, 0);
+    const income = sumCents(
+      monthTransactions.filter((t) => t.type === "income").map((t) => t.amount_cents)
+    );
 
-    const expense = monthTransactions
-      .filter((t) => t.type === "expense")
-      .reduce((sum, t) => sum + t.amount_cents, 0);
+    const expense = sumCents(
+      monthTransactions.filter((t) => t.type === "expense").map((t) => t.amount_cents)
+    );
 
     monthlyTrend.push({
       month: format(month, "MMM"),
@@ -1335,13 +1339,12 @@ export async function fetchDashboardDataFromServer(currentMonth: Date): Promise<
   }
 
   // Calculate category breakdown
-  const categoryTotals = new Map<string, number>();
-  (currentTransactions || [])
-    .filter((t) => t.type === "expense" && t.category_id)
-    .forEach((t) => {
-      const existing = categoryTotals.get(t.category_id!) || 0;
-      categoryTotals.set(t.category_id!, existing + t.amount_cents);
-    });
+  const categoryTotals = new Map<string, Cents>();
+  (currentTransactions || []).forEach((t) => {
+    if (t.type !== "expense" || !t.category_id) return;
+    const existing = categoryTotals.get(t.category_id) ?? ZERO_CENTS;
+    categoryTotals.set(t.category_id, sumCents([existing, t.amount_cents]));
+  });
 
   const categoryBreakdown = Array.from(categoryTotals.entries())
     .map(([categoryId, amount]) => {
@@ -1361,7 +1364,7 @@ export async function fetchDashboardDataFromServer(currentMonth: Date): Promise<
     summary: {
       totalIncomeCents: totalIncome,
       totalExpenseCents: totalExpense,
-      netAmountCents: totalIncome - totalExpense,
+      netAmountCents: diffCents(totalIncome, totalExpense),
       transactionCount: (currentTransactions || []).length,
       accountCount: (accounts || []).length,
       totalBalanceCents: totalBalance,

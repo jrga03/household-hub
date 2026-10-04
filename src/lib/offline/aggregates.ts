@@ -24,18 +24,19 @@
 
 import { startOfMonth, endOfMonth, format, subMonths } from "date-fns";
 import { db, type LocalTransaction } from "@/lib/dexie/db";
+import { ZERO_CENTS, diffCents, negateCents, sumCents, type Cents } from "@/lib/currency";
 
 /** Result shape mirroring DashboardData in lib/supabaseQueries.ts. */
 export interface LocalDashboardData {
   summary: {
-    totalIncomeCents: number;
-    totalExpenseCents: number;
-    netAmountCents: number;
+    totalIncomeCents: Cents;
+    totalExpenseCents: Cents;
+    netAmountCents: Cents;
     transactionCount: number;
     accountCount: number;
-    totalBalanceCents: number;
-    previousMonthIncomeCents: number;
-    previousMonthExpenseCents: number;
+    totalBalanceCents: Cents;
+    previousMonthIncomeCents: Cents;
+    previousMonthExpenseCents: Cents;
     activeDays: number;
     uniqueCategories: number;
     clearedCount: number;
@@ -43,14 +44,14 @@ export interface LocalDashboardData {
   };
   monthlyTrend: Array<{
     month: string;
-    incomeCents: number;
-    expenseCents: number;
+    incomeCents: Cents;
+    expenseCents: Cents;
   }>;
   categoryBreakdown: Array<{
     categoryId: string;
     categoryName: string;
     color: string;
-    amountCents: number;
+    amountCents: Cents;
     percentOfTotal: number;
   }>;
   recentTransactions: Array<
@@ -115,18 +116,18 @@ export async function getLocalDashboardData(currentMonth: Date): Promise<LocalDa
   );
 
   // Summary (same reduce semantics as the server)
-  const totalIncome = currentTransactions
-    .filter((t) => t.type === "income")
-    .reduce((sum, t) => sum + t.amount_cents, 0);
-  const totalExpense = currentTransactions
-    .filter((t) => t.type === "expense")
-    .reduce((sum, t) => sum + t.amount_cents, 0);
-  const previousIncome = previousTransactions
-    .filter((t) => t.type === "income")
-    .reduce((sum, t) => sum + t.amount_cents, 0);
-  const previousExpense = previousTransactions
-    .filter((t) => t.type === "expense")
-    .reduce((sum, t) => sum + t.amount_cents, 0);
+  const totalIncome = sumCents(
+    currentTransactions.filter((t) => t.type === "income").map((t) => t.amount_cents)
+  );
+  const totalExpense = sumCents(
+    currentTransactions.filter((t) => t.type === "expense").map((t) => t.amount_cents)
+  );
+  const previousIncome = sumCents(
+    previousTransactions.filter((t) => t.type === "income").map((t) => t.amount_cents)
+  );
+  const previousExpense = sumCents(
+    previousTransactions.filter((t) => t.type === "expense").map((t) => t.amount_cents)
+  );
 
   const uniqueDates = new Set(currentTransactions.map((t) => t.date));
   const uniqueCategoryIds = new Set(
@@ -137,20 +138,24 @@ export async function getLocalDashboardData(currentMonth: Date): Promise<LocalDa
 
   // Balances: INCLUDE transfers and both statuses (get_account_balances RPC
   // semantics) - income adds, expense subtracts, per account, all history
-  const deltaByAccount = new Map<string, number>();
+  const deltaByAccount = new Map<string, Cents>();
   for (const t of allTransactions) {
     if (!t.account_id) continue;
-    const signed = t.type === "income" ? t.amount_cents : -t.amount_cents;
-    deltaByAccount.set(t.account_id, (deltaByAccount.get(t.account_id) ?? 0) + signed);
+    const signed = t.type === "income" ? t.amount_cents : negateCents(t.amount_cents);
+    deltaByAccount.set(
+      t.account_id,
+      sumCents([deltaByAccount.get(t.account_id) ?? ZERO_CENTS, signed])
+    );
   }
-  const totalBalance = activeAccounts.reduce(
-    (sum, account) =>
-      sum + (account.initial_balance_cents || 0) + (deltaByAccount.get(account.id) ?? 0),
-    0
+  const totalBalance = sumCents(
+    activeAccounts.flatMap((account) => [
+      account.initial_balance_cents ?? ZERO_CENTS,
+      deltaByAccount.get(account.id) ?? ZERO_CENTS,
+    ])
   );
 
   // Monthly trend (same 6-month loop and month-key derivation as the server)
-  const monthlyTrend: Array<{ month: string; incomeCents: number; expenseCents: number }> = [];
+  const monthlyTrend: LocalDashboardData["monthlyTrend"] = [];
   for (let i = 5; i >= 0; i--) {
     const month = subMonths(currentMonth, i);
     const monthKey = format(month, "yyyy-MM");
@@ -158,24 +163,23 @@ export async function getLocalDashboardData(currentMonth: Date): Promise<LocalDa
       (t) => format(new Date(t.date), "yyyy-MM") === monthKey
     );
 
-    const income = monthTransactions
-      .filter((t) => t.type === "income")
-      .reduce((sum, t) => sum + t.amount_cents, 0);
-    const expense = monthTransactions
-      .filter((t) => t.type === "expense")
-      .reduce((sum, t) => sum + t.amount_cents, 0);
+    const income = sumCents(
+      monthTransactions.filter((t) => t.type === "income").map((t) => t.amount_cents)
+    );
+    const expense = sumCents(
+      monthTransactions.filter((t) => t.type === "expense").map((t) => t.amount_cents)
+    );
 
     monthlyTrend.push({ month: format(month, "MMM"), incomeCents: income, expenseCents: expense });
   }
 
   // Category breakdown: current-month expenses only, top 10 (server parity)
-  const categoryTotals = new Map<string, number>();
-  currentTransactions
-    .filter((t) => t.type === "expense" && t.category_id)
-    .forEach((t) => {
-      const existing = categoryTotals.get(t.category_id!) || 0;
-      categoryTotals.set(t.category_id!, existing + t.amount_cents);
-    });
+  const categoryTotals = new Map<string, Cents>();
+  currentTransactions.forEach((t) => {
+    if (t.type !== "expense" || !t.category_id) return;
+    const existing = categoryTotals.get(t.category_id) ?? ZERO_CENTS;
+    categoryTotals.set(t.category_id, sumCents([existing, t.amount_cents]));
+  });
 
   const categoryBreakdown = Array.from(categoryTotals.entries())
     .map(([categoryId, amount]) => {
@@ -211,7 +215,7 @@ export async function getLocalDashboardData(currentMonth: Date): Promise<LocalDa
     summary: {
       totalIncomeCents: totalIncome,
       totalExpenseCents: totalExpense,
-      netAmountCents: totalIncome - totalExpense,
+      netAmountCents: diffCents(totalIncome, totalExpense),
       transactionCount: currentTransactions.length,
       accountCount: activeAccounts.length,
       totalBalanceCents: totalBalance,

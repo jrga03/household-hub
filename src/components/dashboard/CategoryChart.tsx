@@ -1,4 +1,4 @@
-import { formatPHP } from "@/lib/currency";
+import { formatPHP, type Cents } from "@/lib/currency";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "@tanstack/react-router";
@@ -11,7 +11,7 @@ type CategorySlice = {
   categoryId: string | null;
   categoryName: string;
   color: string;
-  amountCents: number;
+  amountCents: Cents;
   percentOfTotal: number;
 };
 
@@ -21,7 +21,7 @@ interface Props {
 
 interface TooltipPayload {
   categoryName: string;
-  amountCents: number;
+  amountCents: Cents;
   percentOfTotal: number;
 }
 
