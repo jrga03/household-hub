@@ -7,6 +7,7 @@ type ChangeHandler = (payload: {
 }) => Promise<void>;
 
 const handlers = new Map<string, ChangeHandler>();
+const catchUpRows = new Map<string, Record<string, unknown>[]>();
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
@@ -21,6 +22,14 @@ vi.mock("@/lib/supabase", () => ({
       return channel;
     },
     removeChannel: vi.fn(),
+    from: (table: string) => {
+      const query = {
+        select: () => query,
+        gte: () => query,
+        order: () => Promise.resolve({ data: catchUpRows.get(table) ?? [], error: null }),
+      };
+      return query;
+    },
   },
 }));
 vi.mock("@/lib/dexie/deviceManager", () => ({
@@ -68,8 +77,10 @@ describe("RealtimeSync row validation", () => {
 
   beforeEach(async () => {
     handlers.clear();
+    catchUpRows.clear();
     vi.mocked(reportError).mockClear();
     await db.transactions.clear();
+    await db.meta.clear();
     await new RealtimeSync().initialize();
   });
 
@@ -101,5 +112,31 @@ describe("RealtimeSync row validation", () => {
       old: {},
     });
     expect((await db.transactions.get("t-remote"))?.amount_cents).toBe(5000);
+    expect(reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ subsystem: "realtime-sync", operation: "invalid-row:transactions" })
+    );
+  });
+
+  it("catch-up skips an invalid row, reports it, and still advances the high-water mark", async () => {
+    catchUpRows.set("transactions", [
+      { ...serverTransaction, id: "t-valid", updated_at: "2026-10-04T01:00:00Z" },
+      {
+        ...serverTransaction,
+        id: "t-invalid",
+        amount_cents: 12.5,
+        updated_at: "2026-10-04T02:00:00Z",
+      },
+    ]);
+
+    await new RealtimeSync().handleReconnection();
+
+    expect(await db.transactions.get("t-valid")).toBeDefined();
+    expect(await db.transactions.get("t-invalid")).toBeUndefined();
+    expect(reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ subsystem: "realtime-sync", operation: "invalid-row:transactions" })
+    );
+    expect((await db.meta.get("syncHighWaterMark"))?.value).toBe("2026-10-04T02:00:00Z");
   });
 });
