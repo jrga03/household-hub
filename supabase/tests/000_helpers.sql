@@ -73,7 +73,7 @@ begin
     (tests.id('tx_h1_personal_a1'), h1, this_month, 'A1 personal', 2000, 'expense',
      tests.id('acc_h1_personal_a1'), tests.id('cat_h1_child'), 'personal', tests.id('user_a1'), null),
     (tests.id('tx_h1_transfer_out'), h1, this_month, 'H1 transfer out', 5000, 'expense',
-     tests.id('acc_h1'), null, 'household', tests.id('user_a1'), tests.id('tg_h1')),
+     tests.id('acc_h1'), tests.id('cat_h1_child'), 'household', tests.id('user_a1'), tests.id('tg_h1')),
     (tests.id('tx_h1_transfer_in'), h1, this_month, 'H1 transfer in', 5000, 'income',
      tests.id('acc_h1_personal_a1'), null, 'household', tests.id('user_a1'), tests.id('tg_h1')),
     (tests.id('tx_h2'), h2, this_month, 'H2 groceries', 3000, 'expense',
