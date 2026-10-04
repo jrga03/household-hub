@@ -168,7 +168,7 @@ export async function reverseDebtPayment(data: CreateReversalData): Promise<Reve
     internal_debt_id: originalPayment.internal_debt_id,
     transaction_id: originalPayment.transaction_id, // Link to same transaction
     amount_cents: reversalAmount,
-    payment_date: format(new Date(), "yyyy-MM-dd"), // local calendar date (DATE column)
+    payment_date: format(new Date(), "yyyy-MM-dd"),
     is_reversal: true,
     reverses_payment_id: data.payment_id,
     adjustment_reason: data.reason,

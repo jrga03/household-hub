@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import process from "node:process";
 import { db } from "@/lib/dexie/db";
 import { createExternalDebt } from "../crud";
 import { processDebtPayment } from "../payments";
@@ -175,6 +176,8 @@ describe("Reversal System", () => {
     });
 
     it("dates a reversal with the local calendar day, not the UTC day", async () => {
+      const originalTimezone = process.env.TZ;
+      process.env.TZ = "Asia/Manila";
       vi.useFakeTimers({ toFake: ["Date"] });
       vi.setSystemTime(new Date(2026, 9, 4, 7, 30)); // 07:30 local; in Asia/Manila this is 2026-10-03 in UTC
       try {
@@ -194,6 +197,8 @@ describe("Reversal System", () => {
         expect(result.reversal.payment_date).toBe("2026-10-04");
       } finally {
         vi.useRealTimers();
+        if (originalTimezone === undefined) delete process.env.TZ;
+        else process.env.TZ = originalTimezone;
       }
     });
   });
