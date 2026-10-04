@@ -175,8 +175,8 @@ describe("TransactionList presentation modes (R6)", () => {
     expect(document.querySelector("table")).not.toBeInTheDocument();
     expect(screen.getAllByTestId("transaction-row")).toHaveLength(2);
     // Signed amount stays visible on the card (the whole point of R6)
-    expect(screen.getByText(`-${formatPHP(150050)}`)).toBeInTheDocument();
-    expect(screen.getByText(`+${formatPHP(500000)}`)).toBeInTheDocument();
+    expect(screen.getByText(`-${formatPHP(cents(150050))}`)).toBeInTheDocument();
+    expect(screen.getByText(`+${formatPHP(cents(500000))}`)).toBeInTheDocument();
     // Category meta from the RecentTransactions pattern
     expect(screen.getByText("Income")).toBeInTheDocument();
     // Bulk selection entry points survive the mode switch

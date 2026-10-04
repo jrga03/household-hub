@@ -222,8 +222,8 @@ describe("transactions route on narrow layouts (R14/R38)", () => {
   it("shows the filtered In/Out totals inline (loaded-page fallback while the summary loads)", async () => {
     await renderTransactionsRoute();
 
-    expect(screen.getByText(`In ${formatPHP(500000)}`)).toBeInTheDocument();
-    expect(screen.getByText(`Out ${formatPHP(150050)}`)).toBeInTheDocument();
+    expect(screen.getByText(`In ${formatPHP(cents(500000))}`)).toBeInTheDocument();
+    expect(screen.getByText(`Out ${formatPHP(cents(150050))}`)).toBeInTheDocument();
   });
 
   it("uses the server summary for the count and In/Out totals once it resolves (R10)", async () => {
@@ -235,8 +235,8 @@ describe("transactions route on narrow layouts (R14/R38)", () => {
     await renderTransactionsRoute();
 
     expect(screen.getByText("500 transactions")).toBeInTheDocument();
-    expect(screen.getByText(`In ${formatPHP(777700)}`)).toBeInTheDocument();
-    expect(screen.getByText(`Out ${formatPHP(555500)}`)).toBeInTheDocument();
+    expect(screen.getByText(`In ${formatPHP(cents(777700))}`)).toBeInTheDocument();
+    expect(screen.getByText(`Out ${formatPHP(cents(555500))}`)).toBeInTheDocument();
   });
 
   it("opens the read-only detail sheet on card tap instead of the edit form", async () => {
@@ -246,7 +246,7 @@ describe("transactions route on narrow layouts (R14/R38)", () => {
 
     const sheet = await screen.findByRole("dialog");
     expect(within(sheet).getByText("Groceries")).toBeInTheDocument();
-    expect(within(sheet).getByText(formatPHP(150050))).toBeInTheDocument();
+    expect(within(sheet).getByText(formatPHP(cents(150050)))).toBeInTheDocument();
     expect(within(sheet).getByRole("button", { name: "Edit" })).toBeInTheDocument();
     // No direct jump into the edit form
     expect(screen.queryByTestId("transaction-form")).not.toBeInTheDocument();

@@ -21,7 +21,7 @@ import { PageShell } from "@/components/layout/PageShell";
 import { TransactionDetailPane } from "@/components/transactions/TransactionDetailPane";
 import { TransactionDetailSheet } from "@/components/transactions/TransactionDetailSheet";
 import { TransactionFilterSheet } from "@/components/transactions/TransactionFilterSheet";
-import { formatPHP } from "@/lib/currency";
+import { formatPHP, sumCents } from "@/lib/currency";
 import { transactionsSearchSchema } from "@/lib/validations/transactionsSearch";
 import type { TransactionFilters } from "@/types/transactions";
 
@@ -88,14 +88,12 @@ function Transactions() {
       }
     : {
         count: transactions?.length ?? 0,
-        totalIn:
-          transactions
-            ?.filter((t) => t.type === "income")
-            .reduce((s, t) => s + t.amount_cents, 0) ?? 0,
-        totalOut:
-          transactions
-            ?.filter((t) => t.type === "expense")
-            .reduce((s, t) => s + t.amount_cents, 0) ?? 0,
+        totalIn: sumCents(
+          (transactions ?? []).filter((t) => t.type === "income").map((t) => t.amount_cents)
+        ),
+        totalOut: sumCents(
+          (transactions ?? []).filter((t) => t.type === "expense").map((t) => t.amount_cents)
+        ),
       };
 
   const updateFilters = (newFilters: TransactionFilters) => {

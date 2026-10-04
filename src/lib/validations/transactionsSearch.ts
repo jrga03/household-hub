@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MAX_AMOUNT_CENTS } from "@/lib/currency";
+import { MAX_AMOUNT_CENTS, asCents } from "@/lib/currency";
 
 // TanStack Router JSON-parses search values, so ?search=123 arrives as a number
 const optionalText = z
@@ -13,6 +13,7 @@ const optionalCents = z.coerce
   .int()
   .min(0)
   .max(MAX_AMOUNT_CENTS)
+  .transform(asCents)
   .optional()
   .catch(undefined);
 

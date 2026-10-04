@@ -1,12 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { formatPHP } from "@/lib/currency";
+import { formatPHP, type Cents } from "@/lib/currency";
 import { useTransaction } from "@/lib/supabaseQueries";
 
 interface FilterSummary {
   count: number;
-  totalIn: number;
-  totalOut: number;
+  totalIn: Cents;
+  totalOut: Cents;
 }
 
 interface TransactionDetailPaneProps {

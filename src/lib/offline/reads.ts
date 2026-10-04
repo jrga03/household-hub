@@ -15,6 +15,7 @@
 
 import { db, type LocalTransaction } from "@/lib/dexie/db";
 import type { TransactionFilters } from "@/types/transactions";
+import { sumCents, type Cents } from "@/lib/currency";
 
 /**
  * True when an error should trigger the local fallback: the browser knows
@@ -316,8 +317,8 @@ export function mergeTransactionPages<T extends MergeableTransactionRow>(
  */
 export interface TransactionsFilterSummary {
   count: number;
-  totalInCents: number;
-  totalOutCents: number;
+  totalInCents: Cents;
+  totalOutCents: Cents;
 }
 
 /**
@@ -336,15 +337,10 @@ export async function getLocalTransactionsFilterSummary(
   const all = await db.transactions.toArray();
   const rows = applyTransactionFilters(all, filters);
 
-  let totalInCents = 0;
-  let totalOutCents = 0;
-  for (const t of rows) {
-    if (t.type === "income") {
-      totalInCents += t.amount_cents;
-    } else if (t.type === "expense") {
-      totalOutCents += t.amount_cents;
-    }
-  }
+  const totalInCents = sumCents(rows.filter((t) => t.type === "income").map((t) => t.amount_cents));
+  const totalOutCents = sumCents(
+    rows.filter((t) => t.type === "expense").map((t) => t.amount_cents)
+  );
 
   return { count: rows.length, totalInCents, totalOutCents };
 }

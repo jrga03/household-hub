@@ -316,7 +316,7 @@ describe("applyTransactionFilters", () => {
     expect(
       applyTransactionFilters(rows, { dateFrom: "2026-07-01", type: "expense" }).map((t) => t.id)
     ).toEqual(["t1"]);
-    expect(applyTransactionFilters(rows, { amountMin: 9000 }).map((t) => t.id)).toEqual([
+    expect(applyTransactionFilters(rows, { amountMin: cents(9000) }).map((t) => t.id)).toEqual([
       "t2",
       "t3",
     ]);
