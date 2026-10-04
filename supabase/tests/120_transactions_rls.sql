@@ -8,9 +8,6 @@ select results_eq(
   $$ select unnest(array[tests.id('tx_h1'), tests.id('tx_h1_personal_a1'),
        tests.id('tx_h1_transfer_out'), tests.id('tx_h1_transfer_in')]) order by 1 $$,
   'creator sees household rows and own personal rows');
-select isnt_empty(
-  $$ delete from public.transactions where id = tests.id('tx_h1_personal_a1') returning id $$,
-  'creator can delete own transaction');
 
 select tests.authenticate_as('a2');
 select results_eq(
@@ -36,6 +33,11 @@ select throws_ok(
   $$ insert into public.transactions (household_id, date, description, amount_cents, type, created_by_user_id)
      values (tests.household('h1'), current_date, 'Spoof', 150, 'expense', tests.id('user_a1')) $$,
   '42501', null, 'member cannot create a transaction as another user');
+
+select tests.authenticate_as('a1');
+select isnt_empty(
+  $$ delete from public.transactions where id = tests.id('tx_h1_personal_a1') returning id $$,
+  'creator can delete own transaction');
 
 select tests.authenticate_as('b1');
 select results_eq($$ select id from public.transactions $$, $$ values (tests.id('tx_h2')) $$,
