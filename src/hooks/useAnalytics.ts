@@ -5,7 +5,7 @@ import {
   fetchAnalyticsTransactionTotals,
   type AnalyticsTransactionRow,
 } from "@/lib/supabaseQueries";
-import { startOfMonth, subYears, format, differenceInDays } from "date-fns";
+import { startOfMonth, subYears, format, differenceInCalendarMonths } from "date-fns";
 import { ZERO_CENTS, diffCents, divideCents, sumCents, type Cents } from "@/lib/currency";
 
 type Transaction = AnalyticsTransactionRow;
@@ -362,7 +362,7 @@ export function processInsights(data: Transaction[], startDate: Date, endDate: D
   const expenses = data.filter((t) => t.type === "expense");
 
   // Calculate average monthly spending
-  const monthCount = Math.max(1, Math.ceil(differenceInDays(endDate, startDate) / 30));
+  const monthCount = Math.max(1, differenceInCalendarMonths(endDate, startDate) + 1);
   const avgMonthlySpending = divideCents(sumCents(expenses.map((t) => t.amount_cents)), monthCount);
 
   // Get largest transactions
