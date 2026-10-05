@@ -30,7 +30,7 @@
 
 - [x] Task 0: Preconditions, 2b-0 branch, ledger
 - [x] Task 1: 2b-0 migrations and pgTAP
-- [ ] Task 2: 2b-0 merge, production deploy (user), push (merged to `main` at `02bf830`; production deploy and push pending the user)
+- [ ] Task 2: 2b-0 merge, production deploy (user), push (merged to `main` at `02bf830`; deployed and SQL-verified on production 2026-10-05; push pending the user)
 - [x] Task 3: 2b branch; `Cents` core in `currency.ts`
 - [x] Task 4: Branded rows, entities, inputs and forms
 - [x] Task 5: Sync-row schemas in front of realtime writes
