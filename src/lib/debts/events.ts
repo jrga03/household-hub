@@ -252,7 +252,9 @@ export async function createDebtPaymentEvent(
   const actorUserId = await getCurrentUserId();
 
   // CRITICAL: Reuse payment's idempotency key (not generate new)
-  const idempotencyKey = payment.idempotency_key;
+  // Fallback for rows from server that lack this field
+  const idempotencyKey =
+    payment.idempotency_key || `${deviceId}-debt_payment-${payment.id}-${lamportClock}`;
 
   // Check if event already exists (idempotency)
   const existing = await db.events.where("idempotency_key").equals(idempotencyKey).first();

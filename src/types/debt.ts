@@ -196,8 +196,8 @@ export interface DebtPayment {
   /** When payment record was last updated (ISO 8601 UTC) */
   updated_at: string;
 
-  /** Idempotency key for event sourcing (format: deviceId-entityType-entityId-lamportClock) */
-  idempotency_key: string;
+  /** Set on rows written before 2026-10; the outbox event now carries the key. */
+  idempotency_key?: string;
 }
 
 // =====================================================
