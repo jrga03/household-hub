@@ -34,8 +34,7 @@ import type { SyncQueueItem } from "@/types/sync";
 // Type-only import: erased at compile time, so no runtime cycle with
 // supabaseQueries (which imports this module for the fallback).
 import type { Budget, BudgetGroup } from "@/lib/supabaseQueries";
-
-const DEFAULT_HOUSEHOLD_ID = "00000000-0000-0000-0000-000000000001";
+import { DEFAULT_HOUSEHOLD_ID } from "@/lib/household";
 
 /** Month key used by both the server query and the Dexie mirror ("yyyy-MM-01"). */
 export function budgetMonthKey(month: Date): string {

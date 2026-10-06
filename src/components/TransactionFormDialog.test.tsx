@@ -24,6 +24,8 @@ import { TransactionFormDialog } from "./TransactionFormDialog";
 import { createOfflineTransaction, updateOfflineTransaction } from "@/lib/offline/transactions";
 import type { TransactionWithRelations } from "@/types/transactions";
 import { cents } from "@/test/cents";
+import { listDebts } from "@/lib/debts/crud";
+import { DEFAULT_HOUSEHOLD_ID } from "@/lib/household";
 
 // Radix Select measures its trigger via ResizeObserver, which jsdom lacks
 class ResizeObserverStub {
@@ -184,6 +186,15 @@ function fillRequiredFields() {
 }
 
 describe("TransactionFormDialog", () => {
+  it("loads the debt picker by household, not by user", async () => {
+    await renderDialog();
+    await waitFor(() => {
+      expect(vi.mocked(listDebts)).toHaveBeenCalledWith(DEFAULT_HOUSEHOLD_ID, "external", {
+        status: "active",
+      });
+    });
+  });
+
   it("renders a centered Dialog on desktop", async () => {
     await renderDialog();
 

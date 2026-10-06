@@ -27,12 +27,7 @@ import { deviceManager } from "@/lib/dexie/deviceManager";
 import { generateIdempotencyKey } from "@/lib/sync/idempotency";
 import { getNextLamportClock } from "@/lib/sync/lamportClock";
 import type { EntityType, OperationType, SyncQueueItem, SyncQueueOperation } from "@/types/sync";
-
-/**
- * Default household ID for MVP (single household mode).
- * See DECISIONS.md #61 for multi-household architecture deferral.
- */
-const DEFAULT_HOUSEHOLD_ID = "00000000-0000-0000-0000-000000000001";
+import { DEFAULT_HOUSEHOLD_ID } from "@/lib/household";
 
 /** Default number of retries before an item fails permanently. */
 const DEFAULT_MAX_RETRIES = 3;

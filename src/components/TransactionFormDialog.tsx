@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { calculateDebtBalance } from "@/lib/debts";
 import { listDebts } from "@/lib/debts/crud";
+import { DEFAULT_HOUSEHOLD_ID } from "@/lib/household";
 import { confirmDiscardChanges } from "@/lib/confirm-discard";
 import { createOfflineTransaction, updateOfflineTransaction } from "@/lib/offline/transactions";
 import { afterOutboxWrite } from "@/lib/offline/afterWrite";
@@ -112,11 +113,9 @@ export function TransactionFormDialog({
 
   // Fetch active debts for selector
   const { data: debts } = useQuery({
-    queryKey: ["debts", user?.id, "external", "active"],
+    queryKey: ["debts", DEFAULT_HOUSEHOLD_ID, "external", "active"],
     queryFn: async () => {
-      if (!user?.id) return [];
-
-      const allDebts = await listDebts(user.id, "external", { status: "active" });
+      const allDebts = await listDebts(DEFAULT_HOUSEHOLD_ID, "external", { status: "active" });
 
       // Calculate balances for each debt
       const debtsWithBalances = await Promise.all(
@@ -128,7 +127,7 @@ export function TransactionFormDialog({
 
       return debtsWithBalances;
     },
-    enabled: !!user?.id && open,
+    enabled: open,
   });
 
   // Find selected debt and calculate balance preview

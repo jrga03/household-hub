@@ -26,12 +26,7 @@ import { ensureLocalRow } from "./ensureLocal";
 import { processDebtPayment, handleTransactionEdit, handleTransactionDelete } from "@/lib/debts";
 import type { TransactionInput, OfflineOperationResult } from "./types";
 import type { SyncQueueItem } from "@/types/sync";
-
-/**
- * Default household ID for MVP (single household mode).
- * See DECISIONS.md #61 for multi-household architecture deferral.
- */
-const DEFAULT_HOUSEHOLD_ID = "00000000-0000-0000-0000-000000000001";
+import { DEFAULT_HOUSEHOLD_ID } from "@/lib/household";
 
 /**
  * Default currency code for MVP (PHP only).

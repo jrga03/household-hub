@@ -23,12 +23,7 @@
 import FingerprintJS from "@fingerprintjs/fingerprintjs";
 import { db } from "./db";
 import { supabase } from "@/lib/supabase";
-
-/**
- * Default household ID for MVP (single household mode).
- * See DECISIONS.md #59 for multi-household architecture (Phase 2+).
- */
-const DEFAULT_HOUSEHOLD_ID = "00000000-0000-0000-0000-000000000001";
+import { DEFAULT_HOUSEHOLD_ID } from "@/lib/household";
 
 /**
  * localStorage key for device ID backup storage.
