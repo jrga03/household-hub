@@ -3119,6 +3119,7 @@ Execution decisions and deferrals (2026-10-06):
 - **Deleting a debt with a pending sync item is blocked until sync (pre-existing guard in `validateDebtDeletion`).** Revisit: debts UI spec.
 - **A transient parent failure becomes a permanent child failure (deferred, pre-existing).** The processor continues after a failed item, so a payment whose transaction is awaiting retry fails non-retryably on the FK. Revisit: processor work (skip children of a pending parent, or retry 23503 once).
 - **Debt status is never re-derived after a pull; same-named debts from two devices collide on the unique name index (deferred).** Revisit: debts UI spec.
+- **Production realtime publishes no tables (checked 2026-10-06 after the push).** `pg_publication_tables` for `supabase_realtime` returned no rows, so realtime delivers nothing in production for any table; catch-up (reconnect, focus, visibility) is the only cross-device path, as on the local stack. The spec's realtime-publication deferral stays: revisit when cross-device latency matters (adding tables to the publication is a migration).
 - **Not traced:** whether cached account or category rows carry non-server keys into update payloads. Revisit: if a non-transaction PGRST204 appears in Sync Issues.
 
 From the spec (section 9), unchanged: scope is end-to-end sync without UI; debts move to the standard outbox; legacy rows are re-keyed; realtime publication unchanged; catch-up first run still looks back 24 hours.
