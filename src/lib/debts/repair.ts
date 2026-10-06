@@ -4,6 +4,9 @@
  * succeed. Runs after sign-in, before auto-sync starts, because building
  * queue items needs the user id and async sync metadata. Guarded by a
  * db.meta flag; the whole rewrite commits in one transaction or not at all.
+ * Lamport counters advance before the transaction (harmless, clocks only move
+ * forward), and event payloads keep the old ids (local audit log; only
+ * entity_id is rewritten).
  */
 import { db } from "@/lib/dexie/db";
 import { buildSyncQueueItem } from "@/lib/offline/syncQueue";
@@ -77,11 +80,30 @@ function rekeyTransactionPayload(
   return changed ? next : null;
 }
 
-export async function repairLegacyDebtIds(userId: string): Promise<DebtIdRepairResult> {
+const NOT_RUN: DebtIdRepairResult = {
+  ran: false,
+  rekeyed: 0,
+  queued: 0,
+  rewrittenTransactionItems: 0,
+};
+
+let inFlight: Promise<DebtIdRepairResult> | null = null;
+
+export function repairLegacyDebtIds(userId: string): Promise<DebtIdRepairResult> {
+  inFlight ??= runRepair(userId).finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
+
+function sameIds(rows: { id: string }[], snapshot: { id: string }[]): boolean {
+  const current = new Set(rows.map((row) => row.id));
+  return current.size === snapshot.length && snapshot.every((row) => current.has(row.id));
+}
+
+async function runRepair(userId: string): Promise<DebtIdRepairResult> {
   const flag = await db.meta.get(DEBT_ID_REPAIR_KEY);
-  if (flag?.value === "done") {
-    return { ran: false, rekeyed: 0, queued: 0, rewrittenTransactionItems: 0 };
-  }
+  if (flag?.value === "done") return NOT_RUN;
 
   const [debts, internalDebts, payments] = await Promise.all([
     db.debts.toArray(),
@@ -123,7 +145,7 @@ export async function repairLegacyDebtIds(userId: string): Promise<DebtIdRepairR
   }
 
   let rewrittenTransactionItems = 0;
-  await db.transaction(
+  const committed = await db.transaction(
     "rw",
     [
       db.debts,
@@ -135,6 +157,21 @@ export async function repairLegacyDebtIds(userId: string): Promise<DebtIdRepairR
       db.meta,
     ],
     async () => {
+      // Another tab may have finished or written rows since the snapshot
+      if ((await db.meta.get(DEBT_ID_REPAIR_KEY))?.value === "done") return false;
+      const [currentDebts, currentInternalDebts, currentPayments] = await Promise.all([
+        db.debts.toArray(),
+        db.internalDebts.toArray(),
+        db.debtPayments.toArray(),
+      ]);
+      if (
+        !sameIds(currentDebts, debts) ||
+        !sameIds(currentInternalDebts, internalDebts) ||
+        !sameIds(currentPayments, payments)
+      ) {
+        throw new Error("Debt rows changed during the id repair; it will retry on next start");
+      }
+
       await db.debts.bulkDelete(debts.map((debt) => debt.id));
       await db.debts.bulkPut(repairedDebts);
       await db.internalDebts.bulkDelete(internalDebts.map((debt) => debt.id));
@@ -166,7 +203,8 @@ export async function repairLegacyDebtIds(userId: string): Promise<DebtIdRepairR
       const now = new Date().toISOString();
       for (const item of queue) {
         if (item.entity_type !== "transaction") continue;
-        if (item.status !== "queued" && item.status !== "failed") continue;
+        // A stranded or in-flight "syncing" item would otherwise keep the old id
+        if (item.status === "completed") continue;
         const payload = rekeyTransactionPayload(item.operation.payload, idMap);
         if (!payload) continue;
         await db.syncQueue.put({
@@ -183,9 +221,11 @@ export async function repairLegacyDebtIds(userId: string): Promise<DebtIdRepairR
 
       await db.syncQueue.bulkAdd([...debtItems, ...paymentItems]);
       await db.meta.put({ key: DEBT_ID_REPAIR_KEY, value: "done" });
+      return true;
     }
   );
 
+  if (!committed) return NOT_RUN;
   return {
     ran: true,
     rekeyed: idMap.size,

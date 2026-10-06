@@ -3,12 +3,13 @@ import { db, type LocalTransaction } from "@/lib/dexie/db";
 import { DEFAULT_HOUSEHOLD_ID } from "@/lib/household";
 import type { SyncQueueItem } from "@/types/sync";
 import { DEBT_ID_REPAIR_KEY, repairLegacyDebtIds } from "../repair";
-import { createTestDebt, createTestPayment } from "./test-utils";
+import { createTestDebt, createTestInternalDebt, createTestPayment } from "./test-utils";
 import { cents } from "@/test/cents";
 
 const USER_ID = "12345678-1234-5678-1234-567812345678";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TX_ID = "8b5f8e0e-1111-4e5a-9a4e-0000000000aa";
+const INTERNAL_TX_ID = "8b5f8e0e-2222-4e5a-9a4e-0000000000bb";
 const OLD = "2026-09-01T00:00:00.000Z";
 
 function queueItem(overrides: Partial<SyncQueueItem>): SyncQueueItem {
@@ -70,7 +71,26 @@ async function seedLegacy() {
       created_at: "2026-09-02T00:00:00.000Z",
     }),
   ]);
-  await db.transactions.add(linkedTransaction());
+  await db.internalDebts.add(
+    createTestInternalDebt({ id: "legacy-idebt", household_id: DEFAULT_HOUSEHOLD_ID })
+  );
+  await db.debtPayments.add(
+    createTestPayment({
+      id: "legacy-ipay",
+      debt_id: undefined,
+      internal_debt_id: "legacy-idebt",
+      created_at: "2026-09-03T00:00:00.000Z",
+    })
+  );
+  await db.transactions.bulkAdd([
+    linkedTransaction(),
+    {
+      ...linkedTransaction(),
+      id: INTERNAL_TX_ID,
+      debt_id: undefined,
+      internal_debt_id: "legacy-idebt",
+    },
+  ]);
   await db.events.add({
     id: crypto.randomUUID(),
     household_id: DEFAULT_HOUSEHOLD_ID,
@@ -98,6 +118,18 @@ async function seedLegacy() {
         lamportClock: 1,
       },
       created_at: "2026-09-01T00:00:01.000Z",
+    }),
+    queueItem({
+      entity_type: "transaction",
+      entity_id: INTERNAL_TX_ID,
+      status: "syncing",
+      operation: {
+        op: "create",
+        payload: { id: INTERNAL_TX_ID, internal_debt_id: "legacy-idebt" },
+        idempotencyKey: "itx-key",
+        lamportClock: 1,
+      },
+      created_at: "2026-09-01T00:00:02.000Z",
     }),
   ]);
 }
@@ -129,34 +161,66 @@ describe("repairLegacyDebtIds", () => {
     const result = await repairLegacyDebtIds(USER_ID);
     expect(result).toMatchObject({
       ran: true,
-      rekeyed: 3,
-      queued: 3,
-      rewrittenTransactionItems: 1,
+      rekeyed: 5,
+      queued: 5,
+      rewrittenTransactionItems: 2,
     });
 
     const [debt] = await db.debts.toArray();
     expect(debt?.id).toMatch(UUID);
     const payments = await db.debtPayments.toArray();
-    const original = payments.find((p) => !p.is_reversal);
+    const original = payments.find((p) => !p.is_reversal && p.debt_id);
     const reversal = payments.find((p) => p.is_reversal);
     expect(original?.debt_id).toBe(debt?.id);
     expect(reversal?.reverses_payment_id).toBe(original?.id);
     expect((await db.transactions.get(TX_ID))?.debt_id).toBe(debt?.id);
     expect((await db.events.toArray())[0]?.entity_id).toBe(debt?.id);
 
+    const [internalDebt] = await db.internalDebts.toArray();
+    expect(internalDebt?.id).toMatch(UUID);
+    const internalPayment = payments.find((p) => p.internal_debt_id);
+    expect(internalPayment?.internal_debt_id).toBe(internalDebt?.id);
+    expect((await db.transactions.get(INTERNAL_TX_ID))?.internal_debt_id).toBe(internalDebt?.id);
+
     const items = await db.syncQueue.toArray();
     items.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const firstTransactionIndex = items.findIndex((i) => i.entity_type === "transaction");
+    const internalDebtIndex = items.findIndex((i) => i.entity_type === "internal_debt");
+    expect(items[internalDebtIndex]?.entity_id).toBe(internalDebt?.id);
+    expect(internalDebtIndex).toBeLessThan(firstTransactionIndex);
     expect(items.map((i) => i.entity_type)).toEqual([
       "debt",
+      "internal_debt",
+      "transaction",
       "transaction",
       "debt_payment",
       "debt_payment",
+      "debt_payment",
     ]);
-    const txItem = items[1];
+    const txItem = items[2];
     expect(txItem).toMatchObject({ status: "queued", retry_count: 0, next_retry_at: null });
     expect(txItem?.operation.payload.debt_id).toBe(debt?.id);
-    expect(items[3]?.operation.payload.reverses_payment_id).toBe(original?.id);
-    expect(items[2]?.operation.payload).not.toHaveProperty("idempotency_key");
+    const syncingItem = items[3];
+    expect(syncingItem).toMatchObject({
+      status: "queued",
+      retry_count: 0,
+      next_retry_at: null,
+      error_message: null,
+    });
+    expect(syncingItem?.operation.payload.internal_debt_id).toBe(internalDebt?.id);
+    expect(items[5]?.operation.payload.reverses_payment_id).toBe(original?.id);
+    expect(items[4]?.operation.payload).not.toHaveProperty("idempotency_key");
+  });
+
+  it("concurrent runs share one repair", async () => {
+    await seedLegacy();
+    await Promise.all([repairLegacyDebtIds(USER_ID), repairLegacyDebtIds(USER_ID)]);
+    const debts = await db.debts.toArray();
+    expect(debts).toHaveLength(1);
+    expect(await db.debtPayments.count()).toBe(3);
+    expect((await db.transactions.get(TX_ID))?.debt_id).toBe(debts[0]?.id);
+    const debtCreates = await db.syncQueue.where("entity_type").equals("debt").toArray();
+    expect(debtCreates).toHaveLength(1);
   });
 
   it("is a no-op on the second run", async () => {
@@ -173,6 +237,6 @@ describe("repairLegacyDebtIds", () => {
     await expect(repairLegacyDebtIds(USER_ID)).rejects.toThrow("boom");
     expect(await db.debts.get("legacy-debt")).toBeDefined();
     expect(await db.meta.get(DEBT_ID_REPAIR_KEY)).toBeUndefined();
-    expect(await db.syncQueue.count()).toBe(2);
+    expect(await db.syncQueue.count()).toBe(3);
   });
 });
