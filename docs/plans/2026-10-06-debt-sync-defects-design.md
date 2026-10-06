@@ -51,7 +51,7 @@ A one-shot job, run when the sync engine starts after sign-in, guarded by `db.me
    - in `transaction` queue items with status `queued` or `failed`, rewrite re-keyed debt ids in the payload, and reset `failed` items whose payload referenced a re-keyed id to `queued`, `retry_count` 0, no `next_retry_at`;
    - set the flag.
 
-If the transaction throws, nothing is written and the flag stays unset; the job runs again at the next start. A second run after success is a no-op (flag set). With zero debt rows the job only deletes stale debt queue items and sets the flag.
+If the transaction throws, nothing is written and the flag stays unset; the job runs again at the next start. A second run after success is a no-op (flag set). With zero debt rows the job only deletes stale debt queue items and sets the flag. Re-enqueuing a create for a row that somehow already exists on the server is harmless: `syncCreate` treats a `23505` primary-key duplicate as synced (`processor.ts:315-319`).
 
 ## 4. Pull path
 
