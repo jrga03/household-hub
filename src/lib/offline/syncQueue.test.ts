@@ -19,6 +19,7 @@ import { createOfflineTransaction, deleteOfflineTransaction } from "./transactio
 import { createOfflineAccount, updateOfflineAccount } from "./accounts";
 import { createOfflineCategory } from "./categories";
 import {
+  buildSyncQueueItem,
   getQueueCount,
   getPendingQueueItems,
   getOutstandingQueueItems,
@@ -469,6 +470,32 @@ describe("Sync Queue Integration Tests", () => {
       expect(await getCurrentLamportClock(tx1.data!.id)).toBe(1);
       expect(await getCurrentLamportClock(acc1.data!.id)).toBe(1);
       expect(await getCurrentLamportClock(tx2.data!.id)).toBe(1);
+    });
+  });
+
+  describe("buildSyncQueueItem ordering", () => {
+    it("stamps strictly increasing created_at within one millisecond", async () => {
+      const nowSpy = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-06T00:00:00.000Z"));
+      try {
+        const first = await buildSyncQueueItem(
+          "transaction",
+          crypto.randomUUID(),
+          "create",
+          {},
+          "user-1"
+        );
+        const second = await buildSyncQueueItem(
+          "debt_payment",
+          crypto.randomUUID(),
+          "create",
+          {},
+          "user-1"
+        );
+        expect(second.created_at > first.created_at).toBe(true);
+        expect(second.updated_at).toBe(second.created_at);
+      } finally {
+        nowSpy.mockRestore();
+      }
     });
   });
 });

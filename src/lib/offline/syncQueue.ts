@@ -32,6 +32,14 @@ import { DEFAULT_HOUSEHOLD_ID } from "@/lib/household";
 /** Default number of retries before an item fails permanently. */
 const DEFAULT_MAX_RETRIES = 3;
 
+let lastQueueTimestampMs = 0;
+
+/** FIFO sorts on created_at; a same-millisecond tie would fall back to random primary-key order. */
+function nextQueueTimestamp(): string {
+  lastQueueTimestampMs = Math.max(Date.now(), lastQueueTimestampMs + 1);
+  return new Date(lastQueueTimestampMs).toISOString();
+}
+
 /**
  * Result type for sync queue operations.
  */
@@ -85,7 +93,7 @@ export async function buildSyncQueueItem(
     lamportClock,
   };
 
-  const now = new Date().toISOString();
+  const now = nextQueueTimestamp();
 
   return {
     id: crypto.randomUUID(),
