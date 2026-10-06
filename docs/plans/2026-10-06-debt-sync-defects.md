@@ -46,7 +46,7 @@
 
 ## Progress
 
-- [ ] Task 0: Branch and baseline
+- [x] Task 0: Branch and baseline (branch cut at `59848c3`; baseline vitest 84 files / 1079 tests, tsc app 0, tsc strict 0)
 - [ ] Task 1: One household constant; picker reads by household
 - [ ] Task 2: Strictly ordered queue timestamps
 - [ ] Task 3: Server-shape payload projections
@@ -3098,8 +3098,8 @@ Planning decisions (2026-10-06, not in the spec):
 
 From the spec (section 9), unchanged: scope is end-to-end sync without UI; debts move to the standard outbox; legacy rows are re-keyed; realtime publication unchanged; catch-up first run still looks back 24 hours.
 
-## Decisions Needed (for plan review)
+Resolved at plan approval (2026-10-06; the user chose subagent-driven execution without answering, so the recommended defaults apply and can be overridden):
 
-1. **Server rejects deleting a transaction that has debt payments.** `debt_payments.transaction_id` references `transactions(id)` with no `ON DELETE` action (`20251110194431_add_debt_tracking.sql:100`), and the ledger is append-only, so a synced debt-linked transaction can never be deleted: the delete item fails with `violates foreign key constraint` (non-retryable). Unreachable today (no UI creates debts). **Recommended: defer to the debts UI spec** (options there: soft-delete transactions, or block deleting debt-linked transactions in the UI); record it here as a known limit. Alternative: add a migration now, which the spec ruled out.
-2. **A debt adjustment that cannot be prepared now fails the whole transaction edit.** Before, the edit committed and the debt adjustment was skipped with a console error (non-atomic). **Recommended: fail the edit** (atomic, and the form shows the error); the only trigger is a missing or archived debt.
-3. **Unlinking a debt from a transaction did not reverse its payment.** The old guard checked only the updated row's link, so choosing "None" left the payment standing. Task 7 checks the old link too. **Recommended: fix it in this branch** (same code path, one test).
+- **Deleting a debt-linked transaction cannot sync (deferred).** `debt_payments.transaction_id` references `transactions(id)` with no `ON DELETE` action (`20251110194431_add_debt_tracking.sql:100`) and the ledger is append-only, so the server rejects the delete (`violates foreign key constraint`, non-retryable). Unreachable today: no UI creates debts. Revisit: debts UI spec (soft-delete transactions, or block deleting debt-linked transactions).
+- **A debt adjustment that cannot be prepared fails the whole transaction edit (decided).** Why: atomic writes; before, the edit committed and the adjustment was silently skipped. Only a missing or archived debt triggers it. Revisit: n/a.
+- **Unlinking a debt now reverses its payment (decided, Task 7).** Why: the old guard checked only the updated row's link, so choosing "None" left the payment standing. Revisit: n/a.
