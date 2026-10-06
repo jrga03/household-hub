@@ -227,5 +227,18 @@ describe("RealtimeSync row validation", () => {
         expect.objectContaining({ operation: "invalid-row:debt_payments" })
       );
     });
+
+    it("catch-up never overwrites an existing payment", async () => {
+      // Put a local payment first via realtime INSERT handler
+      await handlers.get("debt_payments")?.({ eventType: "INSERT", new: serverPayment, old: {} });
+      expect((await db.debtPayments.get("p-remote"))?.amount_cents).toBe(2500);
+
+      // Try to overwrite it with a different amount via catch-up
+      catchUpRows.set("debt_payments", [{ ...serverPayment, amount_cents: 9999 }]);
+      await new RealtimeSync().handleReconnection();
+
+      // Assert the local payment was not overwritten
+      expect((await db.debtPayments.get("p-remote"))?.amount_cents).toBe(2500);
+    });
   });
 });
