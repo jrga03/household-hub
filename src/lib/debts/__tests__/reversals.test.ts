@@ -33,11 +33,14 @@ describe("Reversal System", () => {
 
   describe("reverseDebtPayment", () => {
     it("should create reversal for normal payment", async () => {
-      const debt = await createExternalDebt({
-        name: "Test Debt",
-        original_amount_cents: cents(100000),
-        household_id: "h1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test Debt",
+          original_amount_cents: cents(100000),
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       const payment = await processDebtPayment({
         transaction_id: "txn-1",
@@ -56,11 +59,14 @@ describe("Reversal System", () => {
     });
 
     it("should handle cascading reversal (reversing a reversal)", async () => {
-      const debt = await createExternalDebt({
-        name: "Test Debt",
-        original_amount_cents: cents(100000),
-        household_id: "h1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test Debt",
+          original_amount_cents: cents(100000),
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       const payment = await processDebtPayment({
         transaction_id: "txn-1",
@@ -96,11 +102,14 @@ describe("Reversal System", () => {
     });
 
     it("should be idempotent (reversing twice returns same reversal)", async () => {
-      const debt = await createExternalDebt({
-        name: "Test Debt",
-        original_amount_cents: cents(100000),
-        household_id: "h1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test Debt",
+          original_amount_cents: cents(100000),
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       const payment = await processDebtPayment({
         transaction_id: "txn-1",
@@ -124,11 +133,14 @@ describe("Reversal System", () => {
     });
 
     it("should update debt status after reversal", async () => {
-      const debt = await createExternalDebt({
-        name: "Test Debt",
-        original_amount_cents: cents(100000),
-        household_id: "h1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test Debt",
+          original_amount_cents: cents(100000),
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       // Pay off debt completely
       const payment = await processDebtPayment({
@@ -153,11 +165,14 @@ describe("Reversal System", () => {
     });
 
     it("should handle reversal with reason", async () => {
-      const debt = await createExternalDebt({
-        name: "Test Debt",
-        original_amount_cents: cents(100000),
-        household_id: "h1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test Debt",
+          original_amount_cents: cents(100000),
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       const payment = await processDebtPayment({
         transaction_id: "txn-1",
@@ -181,11 +196,14 @@ describe("Reversal System", () => {
       vi.useFakeTimers({ toFake: ["Date"] });
       vi.setSystemTime(new Date(2026, 9, 4, 7, 30)); // 07:30 local; in Asia/Manila this is 2026-10-03 in UTC
       try {
-        const debt = await createExternalDebt({
-          name: "Date Debt",
-          original_amount_cents: cents(100000),
-          household_id: "h1",
-        });
+        const debt = await createExternalDebt(
+          {
+            name: "Date Debt",
+            original_amount_cents: cents(100000),
+            household_id: "h1",
+          },
+          "test-user-id"
+        );
         const payment = await processDebtPayment({
           transaction_id: "txn-date",
           amount_cents: cents(50000),
@@ -205,11 +223,14 @@ describe("Reversal System", () => {
 
   describe("isPaymentReversed", () => {
     it("should return true for reversed payment", async () => {
-      const debt = await createExternalDebt({
-        name: "Test Debt",
-        original_amount_cents: cents(100000),
-        household_id: "h1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test Debt",
+          original_amount_cents: cents(100000),
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       const payment = await processDebtPayment({
         transaction_id: "txn-1",
@@ -226,11 +247,14 @@ describe("Reversal System", () => {
     });
 
     it("should return false for non-reversed payment", async () => {
-      const debt = await createExternalDebt({
-        name: "Test Debt",
-        original_amount_cents: cents(100000),
-        household_id: "h1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test Debt",
+          original_amount_cents: cents(100000),
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       const payment = await processDebtPayment({
         transaction_id: "txn-1",
@@ -247,11 +271,14 @@ describe("Reversal System", () => {
 
   describe("getPaymentReversals", () => {
     it("should return all reversals for payment", async () => {
-      const debt = await createExternalDebt({
-        name: "Test Debt",
-        original_amount_cents: cents(100000),
-        household_id: "h1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test Debt",
+          original_amount_cents: cents(100000),
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       const payment = await processDebtPayment({
         transaction_id: "txn-1",
@@ -269,11 +296,14 @@ describe("Reversal System", () => {
     });
 
     it("should return empty array for payment with no reversals", async () => {
-      const debt = await createExternalDebt({
-        name: "Test Debt",
-        original_amount_cents: cents(100000),
-        household_id: "h1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test Debt",
+          original_amount_cents: cents(100000),
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       const payment = await processDebtPayment({
         transaction_id: "txn-1",
@@ -290,11 +320,14 @@ describe("Reversal System", () => {
 
   describe("handleTransactionEdit", () => {
     it("should reverse old payment and create new payment", async () => {
-      const debt = await createExternalDebt({
-        name: "Test Debt",
-        original_amount_cents: cents(100000),
-        household_id: "h1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test Debt",
+          original_amount_cents: cents(100000),
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       await processDebtPayment({
         transaction_id: "txn-1",
@@ -320,11 +353,14 @@ describe("Reversal System", () => {
     });
 
     it("should handle debt link removal (only reversal)", async () => {
-      const debt = await createExternalDebt({
-        name: "Test Debt",
-        original_amount_cents: cents(100000),
-        household_id: "h1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test Debt",
+          original_amount_cents: cents(100000),
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       await processDebtPayment({
         transaction_id: "txn-1",
@@ -348,17 +384,23 @@ describe("Reversal System", () => {
     });
 
     it("should handle debt link change (reverse on old, create on new)", async () => {
-      const debt1 = await createExternalDebt({
-        name: "Debt 1",
-        original_amount_cents: cents(100000),
-        household_id: "h1",
-      });
+      const debt1 = await createExternalDebt(
+        {
+          name: "Debt 1",
+          original_amount_cents: cents(100000),
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
-      const debt2 = await createExternalDebt({
-        name: "Debt 2",
-        original_amount_cents: cents(200000),
-        household_id: "h1",
-      });
+      const debt2 = await createExternalDebt(
+        {
+          name: "Debt 2",
+          original_amount_cents: cents(200000),
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       await processDebtPayment({
         transaction_id: "txn-1",
@@ -385,11 +427,14 @@ describe("Reversal System", () => {
     });
 
     it("should handle new debt link (no existing payment)", async () => {
-      const debt = await createExternalDebt({
-        name: "Test Debt",
-        original_amount_cents: cents(100000),
-        household_id: "h1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test Debt",
+          original_amount_cents: cents(100000),
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       const result = await handleTransactionEdit({
         transaction_id: "txn-new",
@@ -409,11 +454,14 @@ describe("Reversal System", () => {
 
   describe("handleTransactionDelete", () => {
     it("should reverse payment when transaction deleted", async () => {
-      const debt = await createExternalDebt({
-        name: "Test Debt",
-        original_amount_cents: cents(100000),
-        household_id: "h1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test Debt",
+          original_amount_cents: cents(100000),
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       await processDebtPayment({
         transaction_id: "txn-1",
@@ -441,11 +489,14 @@ describe("Reversal System", () => {
     });
 
     it("should update status after reversal", async () => {
-      const debt = await createExternalDebt({
-        name: "Test Debt",
-        original_amount_cents: cents(100000),
-        household_id: "h1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test Debt",
+          original_amount_cents: cents(100000),
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       await processDebtPayment({
         transaction_id: "txn-1",
@@ -469,11 +520,14 @@ describe("Reversal System", () => {
 
   describe("Edge Cases", () => {
     it("should handle reversal of overpayment", async () => {
-      const debt = await createExternalDebt({
-        name: "Test Debt",
-        original_amount_cents: cents(100000),
-        household_id: "h1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test Debt",
+          original_amount_cents: cents(100000),
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       // Overpayment
       const payment = await processDebtPayment({
@@ -495,11 +549,14 @@ describe("Reversal System", () => {
     });
 
     it("should handle multiple edits to same transaction", async () => {
-      const debt = await createExternalDebt({
-        name: "Test Debt",
-        original_amount_cents: cents(100000),
-        household_id: "h1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test Debt",
+          original_amount_cents: cents(100000),
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       // Original payment
       await processDebtPayment({
@@ -532,11 +589,14 @@ describe("Reversal System", () => {
     });
 
     it("should handle reversal on archived debt with warning", async () => {
-      const debt = await createExternalDebt({
-        name: "Test Debt",
-        original_amount_cents: cents(100000),
-        household_id: "h1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test Debt",
+          original_amount_cents: cents(100000),
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       const payment = await processDebtPayment({
         transaction_id: "txn-1",
@@ -558,11 +618,14 @@ describe("Reversal System", () => {
     });
 
     it("should preserve complete audit trail", async () => {
-      const debt = await createExternalDebt({
-        name: "Test Debt",
-        original_amount_cents: cents(100000),
-        household_id: "h1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test Debt",
+          original_amount_cents: cents(100000),
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       // Original payment
       await processDebtPayment({

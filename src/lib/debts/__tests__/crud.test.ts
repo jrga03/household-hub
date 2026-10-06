@@ -47,11 +47,14 @@ describe("Debt CRUD Operations", () => {
 
   describe("createExternalDebt", () => {
     it("should create external debt with valid data", async () => {
-      const debt = await createExternalDebt({
-        name: "Car Loan",
-        original_amount_cents: cents(500000),
-        household_id: "household-1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Car Loan",
+          original_amount_cents: cents(500000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       expect(debt.id).toBeDefined();
       expect(debt.name).toBe("Car Loan");
@@ -67,48 +70,63 @@ describe("Debt CRUD Operations", () => {
     });
 
     it("should trim whitespace from name", async () => {
-      const debt = await createExternalDebt({
-        name: "  Car Loan  ",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "  Car Loan  ",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       expect(debt.name).toBe("Car Loan");
     });
 
     it("should reject invalid amount", async () => {
       await expect(
-        createExternalDebt({
-          name: "Test",
-          original_amount_cents: cents(50), // Below minimum
-          household_id: "household-1",
-        })
+        createExternalDebt(
+          {
+            name: "Test",
+            original_amount_cents: cents(50), // Below minimum
+            household_id: "household-1",
+          },
+          "test-user-id"
+        )
       ).rejects.toThrow("at least ₱1.00");
     });
 
     it("should reject duplicate active name", async () => {
-      await createExternalDebt({
-        name: "Car Loan",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
+      await createExternalDebt(
+        {
+          name: "Car Loan",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       await expect(
-        createExternalDebt({
-          name: "Car Loan",
-          original_amount_cents: cents(200000),
-          household_id: "household-1",
-        })
+        createExternalDebt(
+          {
+            name: "Car Loan",
+            original_amount_cents: cents(200000),
+            household_id: "household-1",
+          },
+          "test-user-id"
+        )
       ).rejects.toThrow("already exists");
     });
 
     it("should reject empty name", async () => {
       await expect(
-        createExternalDebt({
-          name: "",
-          original_amount_cents: cents(100000),
-          household_id: "household-1",
-        })
+        createExternalDebt(
+          {
+            name: "",
+            original_amount_cents: cents(100000),
+            household_id: "household-1",
+          },
+          "test-user-id"
+        )
       ).rejects.toThrow("Name is required");
     });
   });
@@ -159,15 +177,18 @@ describe("Debt CRUD Operations", () => {
     });
 
     it("should create internal debt between categories", async () => {
-      const debt = await createInternalDebt({
-        name: "Category Borrowing",
-        original_amount_cents: cents(50000),
-        household_id: "household-1",
-        from_type: "category",
-        from_id: "cat-1",
-        to_type: "category",
-        to_id: "cat-2",
-      });
+      const debt = await createInternalDebt(
+        {
+          name: "Category Borrowing",
+          original_amount_cents: cents(50000),
+          household_id: "household-1",
+          from_type: "category",
+          from_id: "cat-1",
+          to_type: "category",
+          to_id: "cat-2",
+        },
+        "test-user-id"
+      );
 
       expect(debt.id).toBeDefined();
       expect(debt.name).toBe("Category Borrowing");
@@ -185,32 +206,38 @@ describe("Debt CRUD Operations", () => {
     });
 
     it("should create internal debt between account and category", async () => {
-      const debt = await createInternalDebt({
-        name: "Account to Category",
-        original_amount_cents: cents(25000),
-        household_id: "household-1",
-        from_type: "account",
-        from_id: "acc-1",
-        to_type: "category",
-        to_id: "cat-2",
-      });
+      const debt = await createInternalDebt(
+        {
+          name: "Account to Category",
+          original_amount_cents: cents(25000),
+          household_id: "household-1",
+          from_type: "account",
+          from_id: "acc-1",
+          to_type: "category",
+          to_id: "cat-2",
+        },
+        "test-user-id"
+      );
 
       expect(debt.from_display_name).toBe("Checking");
       expect(debt.to_display_name).toBe("Entertainment");
     });
 
     it("should use provided display names if given", async () => {
-      const debt = await createInternalDebt({
-        name: "Custom Names",
-        original_amount_cents: cents(10000),
-        household_id: "household-1",
-        from_type: "category",
-        from_id: "cat-1",
-        from_display_name: "Custom From Name",
-        to_type: "category",
-        to_id: "cat-2",
-        to_display_name: "Custom To Name",
-      });
+      const debt = await createInternalDebt(
+        {
+          name: "Custom Names",
+          original_amount_cents: cents(10000),
+          household_id: "household-1",
+          from_type: "category",
+          from_id: "cat-1",
+          from_display_name: "Custom From Name",
+          to_type: "category",
+          to_id: "cat-2",
+          to_display_name: "Custom To Name",
+        },
+        "test-user-id"
+      );
 
       expect(debt.from_display_name).toBe("Custom From Name");
       expect(debt.to_display_name).toBe("Custom To Name");
@@ -218,40 +245,49 @@ describe("Debt CRUD Operations", () => {
 
     it("should reject self-borrowing", async () => {
       await expect(
-        createInternalDebt({
-          name: "Self Borrowing",
-          original_amount_cents: cents(10000),
-          household_id: "household-1",
-          from_type: "category",
-          from_id: "cat-1",
-          to_type: "category",
-          to_id: "cat-1",
-        })
+        createInternalDebt(
+          {
+            name: "Self Borrowing",
+            original_amount_cents: cents(10000),
+            household_id: "household-1",
+            from_type: "category",
+            from_id: "cat-1",
+            to_type: "category",
+            to_id: "cat-1",
+          },
+          "test-user-id"
+        )
       ).rejects.toThrow("Cannot borrow from the same entity");
     });
 
     it("should reject non-existent entities", async () => {
       await expect(
-        createInternalDebt({
-          name: "Invalid Entity",
-          original_amount_cents: cents(10000),
-          household_id: "household-1",
-          from_type: "category",
-          from_id: "non-existent",
-          to_type: "category",
-          to_id: "cat-2",
-        })
+        createInternalDebt(
+          {
+            name: "Invalid Entity",
+            original_amount_cents: cents(10000),
+            household_id: "household-1",
+            from_type: "category",
+            from_id: "non-existent",
+            to_type: "category",
+            to_id: "cat-2",
+          },
+          "test-user-id"
+        )
       ).rejects.toThrow("Invalid category selected");
     });
   });
 
   describe("getDebt", () => {
     it("should retrieve external debt by ID", async () => {
-      const created = await createExternalDebt({
-        name: "Test Debt",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
+      const created = await createExternalDebt(
+        {
+          name: "Test Debt",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       const retrieved = await getDebt(created.id, "external");
       expect(retrieved).toEqual(created);
@@ -283,15 +319,18 @@ describe("Debt CRUD Operations", () => {
       };
       await db.categories.bulkAdd([cat1, cat2]);
 
-      const created = await createInternalDebt({
-        name: "Test Internal",
-        original_amount_cents: cents(50000),
-        household_id: "household-1",
-        from_type: "category",
-        from_id: "cat-1",
-        to_type: "category",
-        to_id: "cat-2",
-      });
+      const created = await createInternalDebt(
+        {
+          name: "Test Internal",
+          original_amount_cents: cents(50000),
+          household_id: "household-1",
+          from_type: "category",
+          from_id: "cat-1",
+          to_type: "category",
+          to_id: "cat-2",
+        },
+        "test-user-id"
+      );
 
       const retrieved = await getDebt(created.id, "internal");
       expect(retrieved).toEqual(created);
@@ -305,11 +344,14 @@ describe("Debt CRUD Operations", () => {
 
   describe("getDebtWithBalance", () => {
     it("should include calculated balance field", async () => {
-      const debt = await createExternalDebt({
-        name: "Test",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       const withBalance = await getDebtWithBalance(debt.id, "external");
       expect(withBalance).toBeDefined();
@@ -317,11 +359,14 @@ describe("Debt CRUD Operations", () => {
     });
 
     it("should calculate balance with payments", async () => {
-      const debt = await createExternalDebt({
-        name: "Test",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       // Add payment
       await db.debtPayments.add({
@@ -351,30 +396,39 @@ describe("Debt CRUD Operations", () => {
   describe("listDebts", () => {
     beforeEach(async () => {
       // Create multiple debts
-      await createExternalDebt({
-        name: "Debt 1",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
+      await createExternalDebt(
+        {
+          name: "Debt 1",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       await new Promise((resolve) => setTimeout(resolve, 10)); // Small delay for different timestamps
 
-      await createExternalDebt({
-        name: "Debt 2",
-        original_amount_cents: cents(200000),
-        household_id: "household-1",
-      });
+      await createExternalDebt(
+        {
+          name: "Debt 2",
+          original_amount_cents: cents(200000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      const debt3 = await createExternalDebt({
-        name: "Debt 3",
-        original_amount_cents: cents(300000),
-        household_id: "household-1",
-      });
+      const debt3 = await createExternalDebt(
+        {
+          name: "Debt 3",
+          original_amount_cents: cents(300000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       // Archive one debt
-      await archiveDebt(debt3.id, "external");
+      await archiveDebt(debt3.id, "external", "test-user-id");
     });
 
     it("should list all debts for household", async () => {
@@ -414,23 +468,32 @@ describe("Debt CRUD Operations", () => {
 
   describe("searchDebtsByName", () => {
     beforeEach(async () => {
-      await createExternalDebt({
-        name: "Car Loan",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
+      await createExternalDebt(
+        {
+          name: "Car Loan",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
-      await createExternalDebt({
-        name: "Home Loan",
-        original_amount_cents: cents(200000),
-        household_id: "household-1",
-      });
+      await createExternalDebt(
+        {
+          name: "Home Loan",
+          original_amount_cents: cents(200000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
-      await createExternalDebt({
-        name: "Personal Credit",
-        original_amount_cents: cents(50000),
-        household_id: "household-1",
-      });
+      await createExternalDebt(
+        {
+          name: "Personal Credit",
+          original_amount_cents: cents(50000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
     });
 
     it("should find debts by partial name", async () => {
@@ -459,16 +522,19 @@ describe("Debt CRUD Operations", () => {
 
   describe("updateDebtName", () => {
     it("should update debt name", async () => {
-      const debt = await createExternalDebt({
-        name: "Old Name",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Old Name",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       // Small delay to ensure different timestamps
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      await updateDebtName(debt.id, "external", "New Name");
+      await updateDebtName(debt.id, "external", "New Name", "test-user-id");
 
       const updated = await getDebt(debt.id, "external");
       expect(updated?.name).toBe("New Name");
@@ -478,62 +544,79 @@ describe("Debt CRUD Operations", () => {
     });
 
     it("should trim new name", async () => {
-      const debt = await createExternalDebt({
-        name: "Old Name",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Old Name",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
-      await updateDebtName(debt.id, "external", "  New Name  ");
+      await updateDebtName(debt.id, "external", "  New Name  ", "test-user-id");
 
       const updated = await getDebt(debt.id, "external");
       expect(updated?.name).toBe("New Name");
     });
 
     it("should reject duplicate name", async () => {
-      await createExternalDebt({
-        name: "Existing",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
-
-      const debt2 = await createExternalDebt({
-        name: "To Rename",
-        original_amount_cents: cents(200000),
-        household_id: "household-1",
-      });
-
-      await expect(updateDebtName(debt2.id, "external", "Existing")).rejects.toThrow(
-        "already exists"
+      await createExternalDebt(
+        {
+          name: "Existing",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
       );
+
+      const debt2 = await createExternalDebt(
+        {
+          name: "To Rename",
+          original_amount_cents: cents(200000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
+
+      await expect(
+        updateDebtName(debt2.id, "external", "Existing", "test-user-id")
+      ).rejects.toThrow("already exists");
     });
 
     it("should allow keeping same name", async () => {
-      const debt = await createExternalDebt({
-        name: "Same Name",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Same Name",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
-      await expect(updateDebtName(debt.id, "external", "Same Name")).resolves.toBeUndefined();
+      await expect(
+        updateDebtName(debt.id, "external", "Same Name", "test-user-id")
+      ).resolves.toBeUndefined();
     });
 
     it("should throw error for non-existent debt", async () => {
-      await expect(updateDebtName("non-existent", "external", "New Name")).rejects.toThrow(
-        "Debt not found"
-      );
+      await expect(
+        updateDebtName("non-existent", "external", "New Name", "test-user-id")
+      ).rejects.toThrow("Debt not found");
     });
   });
 
   describe("archiveDebt", () => {
     it("should archive active debt", async () => {
-      const debt = await createExternalDebt({
-        name: "Test",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
-      await archiveDebt(debt.id, "external");
+      await archiveDebt(debt.id, "external", "test-user-id");
 
       const updated = await getDebt(debt.id, "external");
       expect(updated?.status).toBe("archived");
@@ -541,47 +624,58 @@ describe("Debt CRUD Operations", () => {
     });
 
     it("should be idempotent for already archived debt", async () => {
-      const debt = await createExternalDebt({
-        name: "Test",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
-      await archiveDebt(debt.id, "external");
+      await archiveDebt(debt.id, "external", "test-user-id");
       const firstArchive = await getDebt(debt.id, "external");
 
-      await archiveDebt(debt.id, "external");
+      await archiveDebt(debt.id, "external", "test-user-id");
       const secondArchive = await getDebt(debt.id, "external");
 
       expect(secondArchive?.closed_at).toBe(firstArchive?.closed_at);
     });
 
     it("should throw error for non-existent debt", async () => {
-      await expect(archiveDebt("non-existent", "external")).rejects.toThrow("Debt not found");
+      await expect(archiveDebt("non-existent", "external", "test-user-id")).rejects.toThrow(
+        "Debt not found"
+      );
     });
   });
 
   describe("unarchiveDebt", () => {
     it("should unarchive debt and set status based on balance", async () => {
-      const debt = await createExternalDebt({
-        name: "Test",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
-      await archiveDebt(debt.id, "external");
-      await unarchiveDebt(debt.id, "external");
+      await archiveDebt(debt.id, "external", "test-user-id");
+      await unarchiveDebt(debt.id, "external", "test-user-id");
 
       const updated = await getDebt(debt.id, "external");
       expect(updated?.status).toBe("active"); // Balance > 0
     });
 
     it("should set status to paid_off if balance is zero", async () => {
-      const debt = await createExternalDebt({
-        name: "Test",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       // Add payment to fully pay off
       await db.debtPayments.add({
@@ -598,8 +692,8 @@ describe("Debt CRUD Operations", () => {
         idempotency_key: "device-1-debt_payment-payment-1-1",
       });
 
-      await archiveDebt(debt.id, "external");
-      await unarchiveDebt(debt.id, "external");
+      await archiveDebt(debt.id, "external", "test-user-id");
+      await unarchiveDebt(debt.id, "external", "test-user-id");
 
       const updated = await getDebt(debt.id, "external");
       expect(updated?.status).toBe("paid_off");
@@ -607,43 +701,55 @@ describe("Debt CRUD Operations", () => {
     });
 
     it("should do nothing if debt is not archived", async () => {
-      const debt = await createExternalDebt({
-        name: "Test",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
-      await unarchiveDebt(debt.id, "external");
+      await unarchiveDebt(debt.id, "external", "test-user-id");
 
       const updated = await getDebt(debt.id, "external");
       expect(updated?.status).toBe("active");
     });
 
     it("should throw error for non-existent debt", async () => {
-      await expect(unarchiveDebt("non-existent", "external")).rejects.toThrow("Debt not found");
+      await expect(unarchiveDebt("non-existent", "external", "test-user-id")).rejects.toThrow(
+        "Debt not found"
+      );
     });
   });
 
   describe("deleteDebt", () => {
     it("should delete debt with no payments", async () => {
-      const debt = await createExternalDebt({
-        name: "Test",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
+      await db.syncQueue.clear();
 
-      await deleteDebt(debt.id, "external");
+      await deleteDebt(debt.id, "external", "test-user-id");
 
       const retrieved = await getDebt(debt.id, "external");
       expect(retrieved).toBeUndefined();
     });
 
     it("should reject deletion with payment history", async () => {
-      const debt = await createExternalDebt({
-        name: "Test",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       // Add payment
       await db.debtPayments.add({
@@ -660,15 +766,20 @@ describe("Debt CRUD Operations", () => {
         idempotency_key: "device-1-debt_payment-payment-1-1",
       });
 
-      await expect(deleteDebt(debt.id, "external")).rejects.toThrow("payment history");
+      await expect(deleteDebt(debt.id, "external", "test-user-id")).rejects.toThrow(
+        "payment history"
+      );
     });
 
     it("should reject deletion with pending sync", async () => {
-      const debt = await createExternalDebt({
-        name: "Test",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
+      const debt = await createExternalDebt(
+        {
+          name: "Test",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       // Add pending sync
       await db.syncQueue.add({
@@ -694,27 +805,35 @@ describe("Debt CRUD Operations", () => {
         synced_at: null,
       });
 
-      await expect(deleteDebt(debt.id, "external")).rejects.toThrow("pending sync");
+      await expect(deleteDebt(debt.id, "external", "test-user-id")).rejects.toThrow("pending sync");
     });
 
     it("should throw error for non-existent debt", async () => {
-      await expect(deleteDebt("non-existent", "external")).rejects.toThrow("Debt not found");
+      await expect(deleteDebt("non-existent", "external", "test-user-id")).rejects.toThrow(
+        "Debt not found"
+      );
     });
   });
 
   describe("getDebtsWithBalances", () => {
     it("should return all debts with calculated balances", async () => {
-      const debt1 = await createExternalDebt({
-        name: "Debt 1",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
+      const debt1 = await createExternalDebt(
+        {
+          name: "Debt 1",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
-      const debt2 = await createExternalDebt({
-        name: "Debt 2",
-        original_amount_cents: cents(200000),
-        household_id: "household-1",
-      });
+      const debt2 = await createExternalDebt(
+        {
+          name: "Debt 2",
+          original_amount_cents: cents(200000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       // Add payment to debt1
       await db.debtPayments.add({
@@ -743,19 +862,25 @@ describe("Debt CRUD Operations", () => {
     });
 
     it("should filter by status", async () => {
-      const debt1 = await createExternalDebt({
-        name: "Active Debt",
-        original_amount_cents: cents(100000),
-        household_id: "household-1",
-      });
+      const debt1 = await createExternalDebt(
+        {
+          name: "Active Debt",
+          original_amount_cents: cents(100000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
-      const debt2 = await createExternalDebt({
-        name: "Archived Debt",
-        original_amount_cents: cents(200000),
-        household_id: "household-1",
-      });
+      const debt2 = await createExternalDebt(
+        {
+          name: "Archived Debt",
+          original_amount_cents: cents(200000),
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
-      await archiveDebt(debt2.id, "external");
+      await archiveDebt(debt2.id, "external", "test-user-id");
 
       const activeDebts = await getDebtsWithBalances("household-1", "external", {
         status: "active",

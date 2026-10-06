@@ -22,6 +22,7 @@ import {
   type CreateExternalDebtFormData,
 } from "@/lib/debts/validation";
 import { toast } from "sonner";
+import { useAuthStore } from "@/stores/authStore";
 
 interface CreateExternalDebtFormProps {
   householdId: string;
@@ -50,6 +51,7 @@ export function CreateExternalDebtForm({
   onSuccess,
   onCancel,
 }: CreateExternalDebtFormProps) {
+  const userId = useAuthStore((state) => state.user?.id);
   const form = useForm<CreateExternalDebtFormData>({
     resolver: zodResolver(createExternalDebtSchema),
     defaultValues: {
@@ -61,6 +63,11 @@ export function CreateExternalDebtForm({
   });
 
   const onSubmit = async (data: CreateExternalDebtFormData) => {
+    if (!userId) {
+      toast.error("Sign in to save debts");
+      return;
+    }
+
     try {
       // Check name uniqueness
       const isUnique = await isDebtNameUnique(data.name, householdId);
@@ -74,7 +81,7 @@ export function CreateExternalDebtForm({
       }
 
       // Create debt
-      const debt = await createExternalDebt(data);
+      const debt = await createExternalDebt(data, userId);
 
       // Success
       toast.success("Debt created successfully");

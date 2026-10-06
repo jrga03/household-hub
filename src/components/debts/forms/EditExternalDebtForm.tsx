@@ -20,6 +20,7 @@ import {
 import type { Debt } from "@/types/debt";
 import { formatPHP } from "@/lib/currency";
 import { toast } from "sonner";
+import { useAuthStore } from "@/stores/authStore";
 
 interface EditExternalDebtFormProps {
   debt: Debt;
@@ -40,6 +41,7 @@ export function EditExternalDebtForm({
   onCancel,
   onArchive,
 }: EditExternalDebtFormProps) {
+  const userId = useAuthStore((state) => state.user?.id);
   const form = useForm<EditExternalDebtFormData>({
     resolver: zodResolver(editExternalDebtSchema),
     defaultValues: {
@@ -48,6 +50,11 @@ export function EditExternalDebtForm({
   });
 
   const onSubmit = async (data: EditExternalDebtFormData) => {
+    if (!userId) {
+      toast.error("Sign in to save debts");
+      return;
+    }
+
     try {
       // Check if name changed
       if (data.name.trim() === debt.name) {
@@ -67,7 +74,7 @@ export function EditExternalDebtForm({
       }
 
       // Update debt name
-      await updateDebtName(debt.id, "external", data.name.trim());
+      await updateDebtName(debt.id, "external", data.name.trim(), userId);
 
       toast.success("Debt updated successfully");
       onSuccess?.();
@@ -78,8 +85,13 @@ export function EditExternalDebtForm({
   };
 
   const handleArchive = async () => {
+    if (!userId) {
+      toast.error("Sign in to save debts");
+      return;
+    }
+
     try {
-      await archiveDebt(debt.id, "external");
+      await archiveDebt(debt.id, "external", userId);
       toast.success("Debt archived successfully");
       onArchive?.();
     } catch (error) {

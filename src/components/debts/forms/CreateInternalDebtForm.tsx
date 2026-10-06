@@ -24,6 +24,7 @@ import { ZERO_CENTS } from "@/lib/currency";
 import { createInternalDebt } from "@/lib/debts/crud";
 import { createInternalDebtSchema, type CreateInternalDebtFormData } from "@/lib/debts/validation";
 import { toast } from "sonner";
+import { useAuthStore } from "@/stores/authStore";
 
 interface CreateInternalDebtFormProps {
   householdId: string;
@@ -51,6 +52,7 @@ export function CreateInternalDebtForm({
   onSuccess,
   onCancel,
 }: CreateInternalDebtFormProps) {
+  const userId = useAuthStore((state) => state.user?.id);
   const form = useForm<CreateInternalDebtFormData>({
     resolver: zodResolver(createInternalDebtSchema),
     defaultValues: {
@@ -68,6 +70,11 @@ export function CreateInternalDebtForm({
   const toType = useWatch({ control: form.control, name: "to_type" });
 
   const onSubmit = async (data: CreateInternalDebtFormData) => {
+    if (!userId) {
+      toast.error("Sign in to save debts");
+      return;
+    }
+
     try {
       // Generate name for internal debt
       const fromEntity =
@@ -91,7 +98,7 @@ export function CreateInternalDebtForm({
         to_display_name: toEntity?.name,
       };
 
-      const debt = await createInternalDebt(debtData);
+      const debt = await createInternalDebt(debtData, userId);
 
       toast.success("Internal debt created successfully");
       onSuccess?.(debt.id);

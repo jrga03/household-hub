@@ -5,7 +5,6 @@
  * Supports both external and internal debt types
  */
 
-import { nanoid } from "nanoid";
 import { db } from "@/lib/dexie/db";
 import {
   validateDebtCreation,
@@ -15,7 +14,12 @@ import {
   getEntityDisplayName,
 } from "./validation";
 import { calculateDebtBalance, calculateMultipleBalances } from "./balance";
-import { createDebtEvent, createInternalDebtEvent, calculateDelta } from "./events";
+import {
+  commitDebtWriteSet,
+  prepareDebtCreate,
+  prepareDebtDelete,
+  prepareDebtUpdate,
+} from "./outbox";
 import type {
   Debt,
   InternalDebt,
@@ -33,7 +37,7 @@ import type {
 /**
  * Create external debt (loan from outside)
  */
-export async function createExternalDebt(data: DebtFormData): Promise<Debt> {
+export async function createExternalDebt(data: DebtFormData, userId: string): Promise<Debt> {
   // 1. Validate
   const validation = await validateDebtCreation(data);
   if (!validation.valid) {
@@ -41,20 +45,18 @@ export async function createExternalDebt(data: DebtFormData): Promise<Debt> {
   }
 
   // 2. Create debt
+  const now = new Date().toISOString();
   const debt: Debt = {
-    id: nanoid(),
+    id: crypto.randomUUID(),
     household_id: data.household_id,
     name: data.name.trim(),
     original_amount_cents: data.original_amount_cents,
     status: "active",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    created_at: now,
+    updated_at: now,
   };
 
-  await db.debts.add(debt);
-
-  // 3. Create event (for event sourcing & sync)
-  await createDebtEvent(debt, "create");
+  await commitDebtWriteSet(await prepareDebtCreate(debt, userId));
 
   console.log("[Debt Created]", debt.name, `(₱${(debt.original_amount_cents / 100).toFixed(2)})`);
 
@@ -66,7 +68,10 @@ export async function createExternalDebt(data: DebtFormData): Promise<Debt> {
  * Note: The form data type in types/debt.ts includes display_name fields,
  * but we'll calculate them here if not provided
  */
-export async function createInternalDebt(data: InternalDebtFormData): Promise<InternalDebt> {
+export async function createInternalDebt(
+  data: InternalDebtFormData,
+  userId: string
+): Promise<InternalDebt> {
   // 1. Validate
   const validation = await validateInternalDebtCreation(data);
   if (!validation.valid) {
@@ -80,8 +85,9 @@ export async function createInternalDebt(data: InternalDebtFormData): Promise<In
     data.to_display_name || (await getEntityDisplayName(data.to_type, data.to_id));
 
   // 3. Create internal debt
+  const now = new Date().toISOString();
   const debt: InternalDebt = {
-    id: nanoid(),
+    id: crypto.randomUUID(),
     household_id: data.household_id,
     name: data.name.trim(),
     original_amount_cents: data.original_amount_cents,
@@ -92,14 +98,11 @@ export async function createInternalDebt(data: InternalDebtFormData): Promise<In
     to_id: data.to_id,
     to_display_name: toDisplayName,
     status: "active",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    created_at: now,
+    updated_at: now,
   };
 
-  await db.internalDebts.add(debt);
-
-  // 4. Create event (for event sourcing & sync)
-  await createInternalDebtEvent(debt, "create");
+  await commitDebtWriteSet(await prepareDebtCreate(debt, userId));
 
   console.log(
     "[Internal Debt Created]",
@@ -210,7 +213,8 @@ export async function searchDebtsByName(
 export async function updateDebtName(
   debtId: string,
   type: "external" | "internal",
-  newName: string
+  newName: string,
+  userId: string
 ): Promise<void> {
   const table = type === "external" ? db.debts : db.internalDebts;
   const debt = await table.get(debtId);
@@ -238,19 +242,7 @@ export async function updateDebtName(
     updated_at: new Date().toISOString(),
   };
 
-  await table.update(debtId, {
-    name: newName.trim(),
-    updated_at: updatedDebt.updated_at,
-  });
-
-  // Calculate delta and create update event
-  const delta = calculateDelta(debt, updatedDebt);
-
-  if (type === "external") {
-    await createDebtEvent(updatedDebt as Debt, "update", delta);
-  } else {
-    await createInternalDebtEvent(updatedDebt as InternalDebt, "update", delta);
-  }
+  await commitDebtWriteSet(await prepareDebtUpdate(debt, updatedDebt, userId));
 
   console.log("[Debt Updated]", `"${debt.name}" → "${newName.trim()}"`);
 }
@@ -258,7 +250,11 @@ export async function updateDebtName(
 /**
  * Archive debt (sets status to archived)
  */
-export async function archiveDebt(debtId: string, type: "external" | "internal"): Promise<void> {
+export async function archiveDebt(
+  debtId: string,
+  type: "external" | "internal",
+  userId: string
+): Promise<void> {
   const table = type === "external" ? db.debts : db.internalDebts;
   const debt = await table.get(debtId);
 
@@ -280,20 +276,7 @@ export async function archiveDebt(debtId: string, type: "external" | "internal")
     updated_at: closedAt,
   };
 
-  await table.update(debtId, {
-    status: "archived",
-    closed_at: closedAt,
-    updated_at: closedAt,
-  });
-
-  // Calculate delta and create update event (NOT delete event)
-  const delta = calculateDelta(debt, updatedDebt);
-
-  if (type === "external") {
-    await createDebtEvent(updatedDebt as Debt, "update", delta);
-  } else {
-    await createInternalDebtEvent(updatedDebt as InternalDebt, "update", delta);
-  }
+  await commitDebtWriteSet(await prepareDebtUpdate(debt, updatedDebt, userId));
 
   console.log("[Debt Archived]", debt.name);
 }
@@ -302,7 +285,11 @@ export async function archiveDebt(debtId: string, type: "external" | "internal")
  * Unarchive debt (reactivate)
  * NOTE: This is a manual operation, not automatic
  */
-export async function unarchiveDebt(debtId: string, type: "external" | "internal"): Promise<void> {
+export async function unarchiveDebt(
+  debtId: string,
+  type: "external" | "internal",
+  userId: string
+): Promise<void> {
   const table = type === "external" ? db.debts : db.internalDebts;
   const debt = await table.get(debtId);
 
@@ -328,20 +315,7 @@ export async function unarchiveDebt(debtId: string, type: "external" | "internal
     updated_at: updatedAt,
   };
 
-  await table.update(debtId, {
-    status: newStatus,
-    closed_at: newStatus === "paid_off" ? debt.closed_at : undefined,
-    updated_at: updatedAt,
-  });
-
-  // Calculate delta and create update event
-  const delta = calculateDelta(debt, updatedDebt);
-
-  if (type === "external") {
-    await createDebtEvent(updatedDebt as Debt, "update", delta);
-  } else {
-    await createInternalDebtEvent(updatedDebt as InternalDebt, "update", delta);
-  }
+  await commitDebtWriteSet(await prepareDebtUpdate(debt, updatedDebt, userId));
 
   console.log("[Debt Unarchived]", debt.name, `(status: ${newStatus})`);
 }
@@ -354,7 +328,11 @@ export async function unarchiveDebt(debtId: string, type: "external" | "internal
  * Delete debt (hard delete)
  * Only allowed if no payment history exists
  */
-export async function deleteDebt(debtId: string, type: "external" | "internal"): Promise<void> {
+export async function deleteDebt(
+  debtId: string,
+  type: "external" | "internal",
+  userId: string
+): Promise<void> {
   // 1. Validate deletion
   const validation = await validateDebtDeletion(debtId, type);
   if (!validation.valid) {
@@ -367,18 +345,7 @@ export async function deleteDebt(debtId: string, type: "external" | "internal"):
     throw new Error("Debt not found");
   }
 
-  // 3. Emit the delete event BEFORE removing the row: hard deletes used to
-  // bypass event sourcing, so a debt deleted on one device lived forever on
-  // every other device (review DEBT-04)
-  if (type === "external") {
-    await createDebtEvent(debt as Debt, "delete");
-  } else {
-    await createInternalDebtEvent(debt as InternalDebt, "delete");
-  }
-
-  // 4. Delete
-  const table = type === "external" ? db.debts : db.internalDebts;
-  await table.delete(debtId);
+  await commitDebtWriteSet(await prepareDebtDelete(debt, userId));
 
   console.log("[Debt Deleted]", debt.name);
 }

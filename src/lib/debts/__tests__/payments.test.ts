@@ -25,11 +25,14 @@ describe("Payment Processing", () => {
     await db.meta.put({ key: "lamport_clock", value: 0 });
 
     // Create test debt
-    testDebt = await createExternalDebt({
-      name: "Test Debt",
-      original_amount_cents: cents(100000), // ₱1,000
-      household_id: "household-1",
-    });
+    testDebt = await createExternalDebt(
+      {
+        name: "Test Debt",
+        original_amount_cents: cents(100000), // ₱1,000
+        household_id: "household-1",
+      },
+      "test-user-id"
+    );
   });
 
   describe("processDebtPayment", () => {
