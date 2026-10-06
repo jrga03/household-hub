@@ -2,8 +2,8 @@
  * Shared single-transaction delete flow.
  *
  * Confirms with the user (transfer-aware message, app-level AlertDialog via
- * `@/lib/confirm` — review R39), reverses any linked debt payment FIRST, then
- * deletes the transaction, then invalidates debt queries and toasts. Used by
+ * `@/lib/confirm` — review R39), deletes the transaction (the offline delete
+ * reverses any linked debt payment), then invalidates debt queries and toasts. Used by
  * TransactionList's per-row Delete button and the narrow-layout detail sheet
  * (mobile UX review R38) so the two entry points cannot drift.
  */
@@ -11,7 +11,7 @@
 import { toast } from "sonner";
 import type { QueryClient } from "@tanstack/react-query";
 import { confirm } from "@/lib/confirm";
-import { handleTransactionDelete } from "@/lib/debts";
+import { isTransactionLinkedToDebt } from "@/lib/debts";
 
 interface ConfirmAndDeleteTransactionArgs {
   id: string;
@@ -47,14 +47,10 @@ export async function confirmAndDeleteTransaction({
   if (!confirmed) return false;
 
   try {
-    // Reverse debt payment FIRST (if linked)
-    const reversalResult = await handleTransactionDelete({ transaction_id: id });
-
-    // Then delete transaction
+    const wasDebtLinked = await isTransactionLinkedToDebt(id);
     await deleteTransaction(id);
 
-    // Invalidate debt queries if payment was reversed
-    if (reversalResult) {
+    if (wasDebtLinked) {
       queryClient.invalidateQueries({ queryKey: ["debts"] });
       queryClient.invalidateQueries({ queryKey: ["debt-balance"] });
       toast.success("Transaction deleted and debt balance restored");

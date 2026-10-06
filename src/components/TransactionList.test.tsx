@@ -57,7 +57,7 @@ vi.mock("dexie-react-hooks", () => ({
 }));
 
 vi.mock("@/lib/debts", () => ({
-  handleTransactionDelete: vi.fn(),
+  isTransactionLinkedToDebt: vi.fn().mockResolvedValue(false),
 }));
 
 // Destructive confirms go through the app-level AlertDialog mechanism

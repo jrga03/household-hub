@@ -45,6 +45,7 @@ export {
 
 // Status management
 export {
+  nextDebtStatus,
   updateDebtStatusFromBalance,
   getExpectedStatus,
   isValidStatusTransition,
@@ -54,6 +55,7 @@ export {
 
 // Payment processing
 export {
+  prepareDebtPayment,
   processDebtPayment,
   getDebtPayments,
   getPayment,
@@ -66,6 +68,9 @@ export type { PaymentResult } from "@/types/debt";
 
 // Reversal system
 export {
+  prepareReversal,
+  prepareTransactionEdit,
+  prepareTransactionDelete,
   reverseDebtPayment,
   isPaymentReversed,
   getPaymentReversals,

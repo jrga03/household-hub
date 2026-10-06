@@ -5,159 +5,116 @@
  * Includes overpayment detection, idempotency keys, and status updates
  */
 
-import { nanoid } from "nanoid";
 import { db } from "@/lib/dexie/db";
-import { ZERO_CENTS, diffCents } from "@/lib/currency";
-import { getNextLamportClock } from "@/lib/sync/lamportClock";
+import { ZERO_CENTS, asCents, diffCents } from "@/lib/currency";
 import { getDeviceId } from "@/lib/dexie/deviceManager";
-import { calculateDebtBalance } from "./balance";
-import { updateDebtStatusFromBalance } from "./status";
-import { createDebtPaymentEvent } from "./events";
+import { DebtLedgerView } from "./ledgerView";
+import {
+  commitDebtWriteSet,
+  emptyWriteSet,
+  mergeWriteSets,
+  prepareDebtUpdate,
+  preparePaymentAdd,
+  type DebtKind,
+  type DebtWriteSet,
+} from "./outbox";
+import { nextDebtStatus } from "./status";
 import type { DebtPayment, ProcessPaymentData, PaymentResult } from "@/types/debt";
 
 // =====================================================
 // Payment Processing
 // =====================================================
 
-/**
- * Process debt payment (create payment record)
- *
- * This is DEFENSE-IN-DEPTH LAYER 2 for overpayment detection
- * - Layer 1: UI warning (dismissible)
- * - Layer 2: Application logic (authoritative) ← THIS FUNCTION
- * - Layer 3: Database trigger (security)
- *
- * TIMING: Overpayment detection happens synchronously BEFORE payment insert
- *
- * @param data - Payment data
- * @returns Payment result with overpayment info and status change
- */
-export async function processDebtPayment(data: ProcessPaymentData): Promise<PaymentResult> {
-  // Validate input
-  if (!data.debt_id && !data.internal_debt_id) {
-    throw new Error("Must specify either debt_id or internal_debt_id");
-  }
+export interface PreparedPayment {
+  writeSet: DebtWriteSet;
+  result: PaymentResult;
+}
 
+/** DEFENSE-IN-DEPTH LAYER 2 for overpayment (UI warns first, the DB trigger recomputes). */
+export async function prepareDebtPayment(
+  data: ProcessPaymentData,
+  userId: string,
+  view = new DebtLedgerView()
+): Promise<PreparedPayment> {
   if (data.debt_id && data.internal_debt_id) {
     throw new Error("Cannot specify both debt_id and internal_debt_id");
   }
-
+  const debtId = data.debt_id ?? data.internal_debt_id;
+  if (!debtId) {
+    throw new Error("Must specify either debt_id or internal_debt_id");
+  }
   if (data.amount_cents <= 0) {
     throw new Error("Payment amount must be positive");
   }
+  const debtType: DebtKind = data.debt_id ? "external" : "internal";
 
-  // Determine debt type
-  const debtType: "external" | "internal" = data.debt_id ? "external" : "internal";
-  const debtId = data.debt_id || data.internal_debt_id!;
-
-  // Verify debt exists
-  const table = debtType === "external" ? db.debts : db.internalDebts;
-  const debt = await table.get(debtId);
-
+  const debt = await view.debt(debtType, debtId);
   if (!debt) {
     throw new Error("Debt not found");
   }
-
-  // Check debt status (archived debts cannot accept payments in UI context)
   if (debt.status === "archived") {
     throw new Error("Cannot make payment to archived debt");
   }
 
-  // =====================================================
-  // DEFENSE-IN-DEPTH LAYER 2: Overpayment Detection
-  // =====================================================
-  // Calculate current balance BEFORE payment insert
-  const currentBalance = await calculateDebtBalance(debtId, debtType);
-
-  // Detect overpayment: balance <= 0 OR payment > balance
+  const currentBalance = await view.balance(debtType, debtId);
   const isOverpayment = currentBalance <= 0 || data.amount_cents > currentBalance;
+  const overpaymentAmount = !isOverpayment
+    ? ZERO_CENTS
+    : currentBalance > 0
+      ? diffCents(data.amount_cents, asCents(currentBalance))
+      : data.amount_cents;
 
-  let overpaymentAmount = ZERO_CENTS;
-  if (isOverpayment) {
-    overpaymentAmount =
-      currentBalance > 0
-        ? diffCents(data.amount_cents, currentBalance) // Partial overpayment
-        : data.amount_cents; // Full amount is overpayment (balance already 0 or negative)
-
-    console.warn(
-      `[Overpayment Detected] Payment of ₱${(data.amount_cents / 100).toFixed(2)} ` +
-        `exceeds balance of ₱${(currentBalance / 100).toFixed(2)} ` +
-        `(overpayment: ₱${(overpaymentAmount / 100).toFixed(2)})`
-    );
-  }
-
-  // =====================================================
-  // Create Payment Record
-  // =====================================================
-
-  // Generate IDs
-  const paymentId = nanoid();
-  const deviceId = await getDeviceId();
-  const lamportClock = await getNextLamportClock(paymentId);
-
-  // Generate idempotency key
-  // Format: ${deviceId}-debt_payment-${paymentId}-${lamportClock}
-  // Used for event sourcing and server-side deduplication
-  const idempotencyKey = `${deviceId}-debt_payment-${paymentId}-${lamportClock}`;
-
-  // Create payment
+  const now = new Date().toISOString();
   const payment: DebtPayment = {
-    id: paymentId,
+    id: crypto.randomUUID(),
     household_id: data.household_id,
     debt_id: data.debt_id,
     internal_debt_id: data.internal_debt_id,
     transaction_id: data.transaction_id,
     amount_cents: data.amount_cents,
     payment_date: data.payment_date,
-    device_id: deviceId,
-
-    // Reversal tracking (not a reversal)
+    device_id: await getDeviceId(),
     is_reversal: false,
-
-    // Overpayment tracking (set by detection above)
     is_overpayment: isOverpayment,
     overpayment_amount: isOverpayment ? overpaymentAmount : undefined,
-
-    // Event sourcing (idempotency key for deduplication)
-    idempotency_key: idempotencyKey,
-
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    created_at: now,
+    updated_at: now,
   };
+  const paymentWrite = await preparePaymentAdd(payment, userId);
 
-  // Insert payment
-  await db.debtPayments.add(payment);
-
-  // Create event (for event sourcing & sync)
-  await createDebtPaymentEvent(payment, "create");
-
-  console.log(
-    `[Payment Created] ₱${(data.amount_cents / 100).toFixed(2)} for debt ${debt.name}`,
-    isOverpayment ? "(OVERPAYMENT)" : ""
-  );
-
-  // =====================================================
-  // Auto-Update Status
-  // =====================================================
-
-  // The post-payment balance follows arithmetically from the pre-payment
-  // balance computed above; no need to re-read every payment row (twice)
-  // as the old flow did (review DEBT-07)
+  view.recordPayment(debtId, data.amount_cents);
   const newBalance = currentBalance - data.amount_cents;
+  const statusChange = nextDebtStatus(debt, newBalance, now);
+  let statusWrite = emptyWriteSet();
+  if (statusChange) {
+    statusWrite = await prepareDebtUpdate(debt, statusChange, userId);
+    view.setDebt(statusChange);
+  }
 
-  const statusChanged = await updateDebtStatusFromBalance(debtId, debtType, newBalance);
-  const updatedDebt = await table.get(debtId);
-  const newStatus = updatedDebt!.status;
-
-  // Return result
   return {
-    payment,
-    wasOverpayment: isOverpayment,
-    overpaymentAmount,
-    newBalance,
-    statusChanged,
-    newStatus,
+    writeSet: mergeWriteSets(paymentWrite, statusWrite),
+    result: {
+      payment,
+      wasOverpayment: isOverpayment,
+      overpaymentAmount,
+      newBalance,
+      statusChanged: statusChange !== null,
+      newStatus: (statusChange ?? debt).status,
+    },
   };
+}
+
+export async function processDebtPayment(
+  data: ProcessPaymentData,
+  userId: string
+): Promise<PaymentResult> {
+  const { writeSet, result } = await prepareDebtPayment(data, userId);
+  await commitDebtWriteSet(writeSet);
+  console.log(
+    `[Payment Created] ₱${(data.amount_cents / 100).toFixed(2)} for debt ${data.debt_id ?? data.internal_debt_id}`,
+    result.wasOverpayment ? "(OVERPAYMENT)" : ""
+  );
+  return result;
 }
 
 // =====================================================

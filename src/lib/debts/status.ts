@@ -9,109 +9,57 @@
 
 import { db } from "@/lib/dexie/db";
 import { calculateDebtBalance } from "./balance";
-import { createDebtEvent, createInternalDebtEvent, calculateDelta } from "./events";
+import { commitDebtWriteSet, prepareDebtUpdate } from "./outbox";
 import type { Debt, InternalDebt, DebtStatus } from "@/types/debt";
 
 // =====================================================
 // Status Transition Functions
 // =====================================================
 
+/** The auto transition for this balance, or null when the status stays (archived never moves). */
+export function nextDebtStatus<T extends Debt | InternalDebt>(
+  debt: T,
+  balance: number,
+  now: string
+): T | null {
+  if (debt.status === "archived") return null;
+  if (balance <= 0 && debt.status === "active") {
+    return { ...debt, status: "paid_off", closed_at: now, updated_at: now };
+  }
+  if (balance > 0 && debt.status === "paid_off") {
+    return { ...debt, status: "active", closed_at: undefined, updated_at: now };
+  }
+  return null;
+}
+
 /**
- * Update debt status based on current balance
+ * Update debt status based on current balance, queueing the change through
+ * the outbox.
  *
- * Rules:
- * 1. balance ≤ 0 + status = active → paid_off (set closed_at)
- * 2. balance > 0 + status = paid_off → active (clear closed_at)
- * 3. status = archived → no change (terminal)
- *
- * Emits an update event when the status changes: these transitions used to
- * bypass event sourcing entirely, so other devices never learned that a
- * debt was paid off (review DEBT-04).
- *
- * @param debtId - Debt UUID
- * @param type - 'external' or 'internal'
  * @param precomputedBalance - Balance the caller already calculated for this
- *        exact payment state; avoids re-reading every payment row (the
- *        payment flow used to compute the same balance three times, review
- *        DEBT-07)
+ *        exact payment state; avoids re-reading every payment row (review DEBT-07)
  * @returns True if status changed
- *
- * @example
- * await updateDebtStatusFromBalance('debt-123', 'external');
- * // If balance = 0, status becomes 'paid_off'
  */
 export async function updateDebtStatusFromBalance(
   debtId: string,
   type: "external" | "internal",
+  userId: string,
   precomputedBalance?: number
 ): Promise<boolean> {
-  // 1. Current balance (reuse the caller's if provided)
   const balance = precomputedBalance ?? (await calculateDebtBalance(debtId, type));
-
-  // 2. Get current debt record
-  const table = type === "external" ? db.debts : db.internalDebts;
-  const debt = await table.get(debtId);
-
+  const debt =
+    type === "external" ? await db.debts.get(debtId) : await db.internalDebts.get(debtId);
   if (!debt) {
     console.warn(`[Status] Debt not found: ${debtId}`);
     return false;
   }
 
-  // 3. Determine target status
-  const currentStatus = debt.status;
-  let targetStatus: DebtStatus = currentStatus;
+  const updated = nextDebtStatus(debt, balance, new Date().toISOString());
+  if (!updated) return false;
 
-  if (currentStatus === "archived") {
-    // Terminal state - no automatic transitions
-    return false;
-  }
-
-  if (balance <= 0 && currentStatus === "active") {
-    // Transition: active → paid_off
-    targetStatus = "paid_off";
-  } else if (balance > 0 && currentStatus === "paid_off") {
-    // Transition: paid_off → active (reversal occurred)
-    targetStatus = "active";
-  }
-
-  // 4. Update status if changed
-  if (targetStatus !== currentStatus) {
-    const updates: Record<string, string | undefined> = {
-      status: targetStatus,
-      updated_at: new Date().toISOString(),
-    };
-
-    // Set closed_at when transitioning to paid_off; clear it (property
-    // removed, matching the optional closed_at?: string type) on reactivate
-    if (targetStatus === "paid_off") {
-      updates.closed_at = new Date().toISOString();
-    } else {
-      updates.closed_at = undefined;
-    }
-
-    await table.update(debtId, updates);
-
-    console.log(`[Status] ${debt.name}: ${currentStatus} → ${targetStatus} (balance: ${balance})`);
-
-    // Emit the status-change event for sync/audit
-    const updatedDebt = await table.get(debtId);
-    if (updatedDebt) {
-      const delta = calculateDelta(debt, updatedDebt);
-      if (type === "external") {
-        await createDebtEvent(updatedDebt as Debt, "update", delta as Partial<Debt>);
-      } else {
-        await createInternalDebtEvent(
-          updatedDebt as InternalDebt,
-          "update",
-          delta as Partial<InternalDebt>
-        );
-      }
-    }
-
-    return true; // Status changed
-  }
-
-  return false; // No change needed
+  await commitDebtWriteSet(await prepareDebtUpdate(debt, updated, userId));
+  console.log(`[Status] ${debt.name}: ${debt.status} → ${updated.status} (balance: ${balance})`);
+  return true;
 }
 
 /**
@@ -170,12 +118,13 @@ export function isValidStatusTransition(from: DebtStatus, to: DebtStatus): boole
  */
 export async function updateMultipleDebtStatuses(
   debtIds: string[],
-  type: "external" | "internal"
+  type: "external" | "internal",
+  userId: string
 ): Promise<number> {
   let updateCount = 0;
 
   for (const debtId of debtIds) {
-    const updated = await updateDebtStatusFromBalance(debtId, type);
+    const updated = await updateDebtStatusFromBalance(debtId, type, userId);
     if (updated) updateCount++;
   }
 
@@ -196,7 +145,10 @@ export async function updateMultipleDebtStatuses(
  * @param type - 'external' or 'internal'
  * @returns Number of debts fixed
  */
-export async function recoverInvalidDebtStates(type: "external" | "internal"): Promise<number> {
+export async function recoverInvalidDebtStates(
+  type: "external" | "internal",
+  userId: string
+): Promise<number> {
   console.log(`[Recovery] Scanning ${type} debts for invalid states`);
 
   const table = type === "external" ? db.debts : db.internalDebts;
@@ -212,7 +164,7 @@ export async function recoverInvalidDebtStates(type: "external" | "internal"): P
 
     // Route through the single evented transition path so recovery fixes
     // are synced/audited like any other status change (review DEBT-04)
-    const fixed = await updateDebtStatusFromBalance(debt.id, type, balance);
+    const fixed = await updateDebtStatusFromBalance(debt.id, type, userId, balance);
     if (fixed) {
       console.warn(`[Recovery] Fixed ${debt.name}: status corrected for balance=${balance}`);
       fixedCount++;

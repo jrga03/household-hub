@@ -42,15 +42,18 @@ describe("Reversal System", () => {
         "test-user-id"
       );
 
-      const payment = await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(50000),
-        payment_date: "2025-11-10",
-        debt_id: debt.id,
-        household_id: "h1",
-      });
+      const payment = await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(50000),
+          payment_date: "2025-11-10",
+          debt_id: debt.id,
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
-      const result = await reverseDebtPayment({ payment_id: payment.payment.id });
+      const result = await reverseDebtPayment({ payment_id: payment.payment.id }, "test-user-id");
 
       expect(result.reversal.amount_cents).toBe(-50000);
       expect(result.reversal.is_reversal).toBe(true);
@@ -68,22 +71,31 @@ describe("Reversal System", () => {
         "test-user-id"
       );
 
-      const payment = await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(50000),
-        payment_date: "2025-11-10",
-        debt_id: debt.id,
-        household_id: "h1",
-      });
+      const payment = await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(50000),
+          payment_date: "2025-11-10",
+          debt_id: debt.id,
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       // First reversal
-      const reversal1 = await reverseDebtPayment({ payment_id: payment.payment.id });
+      const reversal1 = await reverseDebtPayment(
+        { payment_id: payment.payment.id },
+        "test-user-id"
+      );
       expect(reversal1.reversal.amount_cents).toBe(-50000);
 
       // Reverse the reversal (double negative)
-      const reversal2 = await reverseDebtPayment({
-        payment_id: reversal1.reversal.id,
-      });
+      const reversal2 = await reverseDebtPayment(
+        {
+          payment_id: reversal1.reversal.id,
+        },
+        "test-user-id"
+      );
 
       // Signed ledger: a compensating row is ALWAYS marked and ALWAYS linked
       // to its target, even when its amount comes out positive
@@ -94,9 +106,12 @@ describe("Reversal System", () => {
 
       // Re-reversing the same reversal is idempotent (the old exclusion
       // model stripped the link and double-credited the debt on retry)
-      const reversal2Again = await reverseDebtPayment({
-        payment_id: reversal1.reversal.id,
-      });
+      const reversal2Again = await reverseDebtPayment(
+        {
+          payment_id: reversal1.reversal.id,
+        },
+        "test-user-id"
+      );
       expect(reversal2Again.reversal.id).toBe(reversal2.reversal.id);
       expect(reversal2Again.newBalance).toBe(50000);
     });
@@ -111,25 +126,28 @@ describe("Reversal System", () => {
         "test-user-id"
       );
 
-      const payment = await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(50000),
-        payment_date: "2025-11-10",
-        debt_id: debt.id,
-        household_id: "h1",
-      });
+      const payment = await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(50000),
+          payment_date: "2025-11-10",
+          debt_id: debt.id,
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
-      const result1 = await reverseDebtPayment({ payment_id: payment.payment.id });
-      const result2 = await reverseDebtPayment({ payment_id: payment.payment.id });
+      const result1 = await reverseDebtPayment({ payment_id: payment.payment.id }, "test-user-id");
+      const result2 = await reverseDebtPayment({ payment_id: payment.payment.id }, "test-user-id");
 
       expect(result1.reversal.id).toBe(result2.reversal.id);
       expect(result2.statusChanged).toBe(false);
     });
 
     it("should throw error if payment not found", async () => {
-      await expect(reverseDebtPayment({ payment_id: "nonexistent" })).rejects.toThrow(
-        "Payment nonexistent not found"
-      );
+      await expect(
+        reverseDebtPayment({ payment_id: "nonexistent" }, "test-user-id")
+      ).rejects.toThrow("Payment nonexistent not found");
     });
 
     it("should update debt status after reversal", async () => {
@@ -143,19 +161,22 @@ describe("Reversal System", () => {
       );
 
       // Pay off debt completely
-      const payment = await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(100000),
-        payment_date: "2025-11-10",
-        debt_id: debt.id,
-        household_id: "h1",
-      });
+      const payment = await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(100000),
+          payment_date: "2025-11-10",
+          debt_id: debt.id,
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       const debtAfterPayment = await db.debts.get(debt.id);
       expect(debtAfterPayment?.status).toBe("paid_off");
 
       // Reverse payment
-      const result = await reverseDebtPayment({ payment_id: payment.payment.id });
+      const result = await reverseDebtPayment({ payment_id: payment.payment.id }, "test-user-id");
 
       expect(result.statusChanged).toBe(true);
       expect(result.newStatus).toBe("active");
@@ -174,18 +195,24 @@ describe("Reversal System", () => {
         "test-user-id"
       );
 
-      const payment = await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(50000),
-        payment_date: "2025-11-10",
-        debt_id: debt.id,
-        household_id: "h1",
-      });
+      const payment = await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(50000),
+          payment_date: "2025-11-10",
+          debt_id: debt.id,
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
-      const result = await reverseDebtPayment({
-        payment_id: payment.payment.id,
-        reason: "transaction_edited",
-      });
+      const result = await reverseDebtPayment(
+        {
+          payment_id: payment.payment.id,
+          reason: "transaction_edited",
+        },
+        "test-user-id"
+      );
 
       expect(result.reversal.adjustment_reason).toBe("transaction_edited");
     });
@@ -204,14 +231,17 @@ describe("Reversal System", () => {
           },
           "test-user-id"
         );
-        const payment = await processDebtPayment({
-          transaction_id: "txn-date",
-          amount_cents: cents(50000),
-          payment_date: "2026-10-01",
-          debt_id: debt.id,
-          household_id: "h1",
-        });
-        const result = await reverseDebtPayment({ payment_id: payment.payment.id });
+        const payment = await processDebtPayment(
+          {
+            transaction_id: "txn-date",
+            amount_cents: cents(50000),
+            payment_date: "2026-10-01",
+            debt_id: debt.id,
+            household_id: "h1",
+          },
+          "test-user-id"
+        );
+        const result = await reverseDebtPayment({ payment_id: payment.payment.id }, "test-user-id");
         expect(result.reversal.payment_date).toBe("2026-10-04");
       } finally {
         vi.useRealTimers();
@@ -232,15 +262,18 @@ describe("Reversal System", () => {
         "test-user-id"
       );
 
-      const payment = await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(50000),
-        payment_date: "2025-11-10",
-        debt_id: debt.id,
-        household_id: "h1",
-      });
+      const payment = await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(50000),
+          payment_date: "2025-11-10",
+          debt_id: debt.id,
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
-      await reverseDebtPayment({ payment_id: payment.payment.id });
+      await reverseDebtPayment({ payment_id: payment.payment.id }, "test-user-id");
 
       const isReversed = await isPaymentReversed(payment.payment.id);
       expect(isReversed).toBe(true);
@@ -256,13 +289,16 @@ describe("Reversal System", () => {
         "test-user-id"
       );
 
-      const payment = await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(50000),
-        payment_date: "2025-11-10",
-        debt_id: debt.id,
-        household_id: "h1",
-      });
+      const payment = await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(50000),
+          payment_date: "2025-11-10",
+          debt_id: debt.id,
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       const isReversed = await isPaymentReversed(payment.payment.id);
       expect(isReversed).toBe(false);
@@ -280,15 +316,21 @@ describe("Reversal System", () => {
         "test-user-id"
       );
 
-      const payment = await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(50000),
-        payment_date: "2025-11-10",
-        debt_id: debt.id,
-        household_id: "h1",
-      });
+      const payment = await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(50000),
+          payment_date: "2025-11-10",
+          debt_id: debt.id,
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
-      const reversal1 = await reverseDebtPayment({ payment_id: payment.payment.id });
+      const reversal1 = await reverseDebtPayment(
+        { payment_id: payment.payment.id },
+        "test-user-id"
+      );
 
       const reversals = await getPaymentReversals(payment.payment.id);
       expect(reversals.length).toBe(1);
@@ -305,13 +347,16 @@ describe("Reversal System", () => {
         "test-user-id"
       );
 
-      const payment = await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(50000),
-        payment_date: "2025-11-10",
-        debt_id: debt.id,
-        household_id: "h1",
-      });
+      const payment = await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(50000),
+          payment_date: "2025-11-10",
+          debt_id: debt.id,
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       const reversals = await getPaymentReversals(payment.payment.id);
       expect(reversals.length).toBe(0);
@@ -329,20 +374,26 @@ describe("Reversal System", () => {
         "test-user-id"
       );
 
-      await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(50000),
-        payment_date: "2025-11-10",
-        debt_id: debt.id,
-        household_id: "h1",
-      });
+      await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(50000),
+          payment_date: "2025-11-10",
+          debt_id: debt.id,
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
-      const result = await handleTransactionEdit({
-        transaction_id: "txn-1",
-        new_amount_cents: cents(30000),
-        new_debt_id: debt.id,
-        payment_date: "2025-11-10",
-      });
+      const result = await handleTransactionEdit(
+        {
+          transaction_id: "txn-1",
+          new_amount_cents: cents(30000),
+          new_debt_id: debt.id,
+          payment_date: "2025-11-10",
+        },
+        "test-user-id"
+      );
 
       expect(result.reversalCreated).toBe(true);
       expect(result.paymentCreated).toBe(true);
@@ -362,19 +413,25 @@ describe("Reversal System", () => {
         "test-user-id"
       );
 
-      await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(50000),
-        payment_date: "2025-11-10",
-        debt_id: debt.id,
-        household_id: "h1",
-      });
+      await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(50000),
+          payment_date: "2025-11-10",
+          debt_id: debt.id,
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
-      const result = await handleTransactionEdit({
-        transaction_id: "txn-1",
-        new_amount_cents: cents(0), // Remove debt link
-        payment_date: "2025-11-10",
-      });
+      const result = await handleTransactionEdit(
+        {
+          transaction_id: "txn-1",
+          new_amount_cents: cents(0), // Remove debt link
+          payment_date: "2025-11-10",
+        },
+        "test-user-id"
+      );
 
       expect(result.reversalCreated).toBe(true);
       expect(result.paymentCreated).toBe(false);
@@ -402,20 +459,26 @@ describe("Reversal System", () => {
         "test-user-id"
       );
 
-      await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(50000),
-        payment_date: "2025-11-10",
-        debt_id: debt1.id,
-        household_id: "h1",
-      });
+      await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(50000),
+          payment_date: "2025-11-10",
+          debt_id: debt1.id,
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
-      const result = await handleTransactionEdit({
-        transaction_id: "txn-1",
-        new_amount_cents: cents(50000),
-        new_debt_id: debt2.id, // Change to debt2
-        payment_date: "2025-11-10",
-      });
+      const result = await handleTransactionEdit(
+        {
+          transaction_id: "txn-1",
+          new_amount_cents: cents(50000),
+          new_debt_id: debt2.id, // Change to debt2
+          payment_date: "2025-11-10",
+        },
+        "test-user-id"
+      );
 
       expect(result.operations.length).toBe(2);
 
@@ -436,12 +499,15 @@ describe("Reversal System", () => {
         "test-user-id"
       );
 
-      const result = await handleTransactionEdit({
-        transaction_id: "txn-new",
-        new_amount_cents: cents(30000),
-        new_debt_id: debt.id,
-        payment_date: "2025-11-10",
-      });
+      const result = await handleTransactionEdit(
+        {
+          transaction_id: "txn-new",
+          new_amount_cents: cents(30000),
+          new_debt_id: debt.id,
+          payment_date: "2025-11-10",
+        },
+        "test-user-id"
+      );
 
       expect(result.reversalCreated).toBe(false);
       expect(result.paymentCreated).toBe(true);
@@ -463,17 +529,23 @@ describe("Reversal System", () => {
         "test-user-id"
       );
 
-      await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(50000),
-        payment_date: "2025-11-10",
-        debt_id: debt.id,
-        household_id: "h1",
-      });
+      await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(50000),
+          payment_date: "2025-11-10",
+          debt_id: debt.id,
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
-      const result = await handleTransactionDelete({
-        transaction_id: "txn-1",
-      });
+      const result = await handleTransactionDelete(
+        {
+          transaction_id: "txn-1",
+        },
+        "test-user-id"
+      );
 
       expect(result).toBeDefined();
       expect(result?.reversal.amount_cents).toBe(-50000);
@@ -481,9 +553,12 @@ describe("Reversal System", () => {
     });
 
     it("should return undefined if no payment found", async () => {
-      const result = await handleTransactionDelete({
-        transaction_id: "nonexistent",
-      });
+      const result = await handleTransactionDelete(
+        {
+          transaction_id: "nonexistent",
+        },
+        "test-user-id"
+      );
 
       expect(result).toBeUndefined();
     });
@@ -498,20 +573,26 @@ describe("Reversal System", () => {
         "test-user-id"
       );
 
-      await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(100000),
-        payment_date: "2025-11-10",
-        debt_id: debt.id,
-        household_id: "h1",
-      });
+      await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(100000),
+          payment_date: "2025-11-10",
+          debt_id: debt.id,
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       const debtBefore = await db.debts.get(debt.id);
       expect(debtBefore?.status).toBe("paid_off");
 
-      const result = await handleTransactionDelete({
-        transaction_id: "txn-1",
-      });
+      const result = await handleTransactionDelete(
+        {
+          transaction_id: "txn-1",
+        },
+        "test-user-id"
+      );
 
       expect(result?.statusChanged).toBe(true);
       expect(result?.newStatus).toBe("active");
@@ -530,19 +611,22 @@ describe("Reversal System", () => {
       );
 
       // Overpayment
-      const payment = await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(150000),
-        payment_date: "2025-11-10",
-        debt_id: debt.id,
-        household_id: "h1",
-      });
+      const payment = await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(150000),
+          payment_date: "2025-11-10",
+          debt_id: debt.id,
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       expect(payment.wasOverpayment).toBe(true);
       expect(await calculateDebtBalance(debt.id, "external")).toBe(-50000);
 
       // Reverse overpayment
-      const result = await reverseDebtPayment({ payment_id: payment.payment.id });
+      const result = await reverseDebtPayment({ payment_id: payment.payment.id }, "test-user-id");
 
       expect(result.reversal.amount_cents).toBe(-150000);
       expect(result.newBalance).toBe(100000); // Restored
@@ -559,29 +643,38 @@ describe("Reversal System", () => {
       );
 
       // Original payment
-      await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(50000),
-        payment_date: "2025-11-10",
-        debt_id: debt.id,
-        household_id: "h1",
-      });
+      await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(50000),
+          payment_date: "2025-11-10",
+          debt_id: debt.id,
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       // First edit
-      await handleTransactionEdit({
-        transaction_id: "txn-1",
-        new_amount_cents: cents(30000),
-        new_debt_id: debt.id,
-        payment_date: "2025-11-10",
-      });
+      await handleTransactionEdit(
+        {
+          transaction_id: "txn-1",
+          new_amount_cents: cents(30000),
+          new_debt_id: debt.id,
+          payment_date: "2025-11-10",
+        },
+        "test-user-id"
+      );
 
       // Second edit
-      await handleTransactionEdit({
-        transaction_id: "txn-1",
-        new_amount_cents: cents(40000),
-        new_debt_id: debt.id,
-        payment_date: "2025-11-10",
-      });
+      await handleTransactionEdit(
+        {
+          transaction_id: "txn-1",
+          new_amount_cents: cents(40000),
+          new_debt_id: debt.id,
+          payment_date: "2025-11-10",
+        },
+        "test-user-id"
+      );
 
       // Balance should reflect final amount
       const balance = await calculateDebtBalance(debt.id, "external");
@@ -598,19 +691,22 @@ describe("Reversal System", () => {
         "test-user-id"
       );
 
-      const payment = await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(50000),
-        payment_date: "2025-11-10",
-        debt_id: debt.id,
-        household_id: "h1",
-      });
+      const payment = await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(50000),
+          payment_date: "2025-11-10",
+          debt_id: debt.id,
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       // Archive debt
       await db.debts.update(debt.id, { status: "archived" });
 
       // Reversal should still work (soft restriction)
-      const result = await reverseDebtPayment({ payment_id: payment.payment.id });
+      const result = await reverseDebtPayment({ payment_id: payment.payment.id }, "test-user-id");
 
       expect(result.reversal).toBeDefined();
       expect(result.statusChanged).toBe(true);
@@ -628,21 +724,27 @@ describe("Reversal System", () => {
       );
 
       // Original payment
-      await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(50000),
-        payment_date: "2025-11-10",
-        debt_id: debt.id,
-        household_id: "h1",
-      });
+      await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(50000),
+          payment_date: "2025-11-10",
+          debt_id: debt.id,
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
 
       // Edit (creates reversal + new payment)
-      await handleTransactionEdit({
-        transaction_id: "txn-1",
-        new_amount_cents: cents(30000),
-        new_debt_id: debt.id,
-        payment_date: "2025-11-10",
-      });
+      await handleTransactionEdit(
+        {
+          transaction_id: "txn-1",
+          new_amount_cents: cents(30000),
+          new_debt_id: debt.id,
+          payment_date: "2025-11-10",
+        },
+        "test-user-id"
+      );
 
       // Get all payment records
       const allPayments = await db.debtPayments.where("debt_id").equals(debt.id).toArray();

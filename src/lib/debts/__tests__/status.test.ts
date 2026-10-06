@@ -54,7 +54,7 @@ describe("Status Transitions", () => {
       });
 
       // Update status based on balance
-      const changed = await updateDebtStatusFromBalance("debt-1", "external");
+      const changed = await updateDebtStatusFromBalance("debt-1", "external", "test-user-id");
 
       expect(changed).toBe(true);
 
@@ -108,7 +108,7 @@ describe("Status Transitions", () => {
       });
 
       // Update status
-      const changed = await updateDebtStatusFromBalance("debt-1", "external");
+      const changed = await updateDebtStatusFromBalance("debt-1", "external", "test-user-id");
 
       expect(changed).toBe(true);
 
@@ -133,7 +133,7 @@ describe("Status Transitions", () => {
       });
 
       // Update status (should not change)
-      const changed = await updateDebtStatusFromBalance("debt-1", "external");
+      const changed = await updateDebtStatusFromBalance("debt-1", "external", "test-user-id");
 
       expect(changed).toBe(false);
 
@@ -169,7 +169,7 @@ describe("Status Transitions", () => {
         idempotency_key: "device-1-debt_payment-payment-1-1",
       });
 
-      const changed = await updateDebtStatusFromBalance("debt-1", "external");
+      const changed = await updateDebtStatusFromBalance("debt-1", "external", "test-user-id");
 
       expect(changed).toBe(true);
 
@@ -251,7 +251,7 @@ describe("Status Transitions", () => {
       });
 
       // Run recovery
-      const fixedCount = await recoverInvalidDebtStates("external");
+      const fixedCount = await recoverInvalidDebtStates("external", "test-user-id");
 
       expect(fixedCount).toBe(1);
 

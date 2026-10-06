@@ -64,21 +64,22 @@
  * @module reversals
  */
 
-import { nanoid } from "nanoid";
 import { format } from "date-fns";
 import { db } from "@/lib/dexie/db";
 import { negateCents } from "@/lib/currency";
 import { getDeviceId } from "@/lib/dexie/deviceManager";
-import { getNextLamportClock } from "@/lib/sync/lamportClock";
-import { calculateDebtBalance } from "./balance";
-import { updateDebtStatusFromBalance } from "./status";
-import { processDebtPayment } from "./payments";
+import { DebtLedgerView } from "./ledgerView";
 import {
-  createDebtPaymentEvent,
-  createDebtEvent,
-  createInternalDebtEvent,
-  calculateDelta,
-} from "./events";
+  commitDebtWriteSet,
+  emptyWriteSet,
+  mergeWriteSets,
+  prepareDebtUpdate,
+  preparePaymentAdd,
+  type DebtKind,
+  type DebtWriteSet,
+} from "./outbox";
+import { prepareDebtPayment } from "./payments";
+import { nextDebtStatus } from "./status";
 import type {
   Debt,
   InternalDebt,
@@ -89,150 +90,107 @@ import type {
   TransactionDeleteData,
 } from "@/types/debt";
 
-/**
- * Create a reversal for a debt payment (compensating event)
- *
- * This creates a negative payment record that offsets the original payment,
- * restoring the debt balance as if the payment never happened.
- *
- * IMPORTANT: This does NOT delete the original payment. Both records persist
- * in the audit trail. Balance calculation excludes both the original and reversal.
- *
- * @param data - Reversal creation data
- * @returns Reversal result with new balance and status
- *
- * @example
- * const result = await reverseDebtPayment({ payment_id: 'pay-123' });
- * console.log(`Reversed ₱${result.reversal.amount_cents / 100}`);
- * console.log(`New balance: ₱${result.newBalance / 100}`);
- */
-export async function reverseDebtPayment(data: CreateReversalData): Promise<ReversalResult> {
-  // 1. Find original payment
-  const originalPayment = await db.debtPayments.get(data.payment_id);
+export interface PreparedReversal {
+  writeSet: DebtWriteSet;
+  result: ReversalResult;
+}
 
+export async function prepareReversal(
+  data: CreateReversalData,
+  userId: string,
+  view = new DebtLedgerView()
+): Promise<PreparedReversal> {
+  const originalPayment = await db.debtPayments.get(data.payment_id);
   if (!originalPayment) {
     throw new Error(`Payment ${data.payment_id} not found`);
   }
+  const debtType: DebtKind = originalPayment.debt_id ? "external" : "internal";
+  const debtId = originalPayment.debt_id ?? originalPayment.internal_debt_id;
+  if (!debtId) {
+    throw new Error(`Payment ${data.payment_id} is not linked to a debt`);
+  }
 
-  // 2. Check if already reversed (idempotent)
   const existingReversal = await db.debtPayments
     .where("reverses_payment_id")
     .equals(data.payment_id)
     .first();
-
   if (existingReversal) {
-    // Already reversed - return existing reversal (idempotent)
-    const debtType: "external" | "internal" = originalPayment.debt_id ? "external" : "internal";
-    const debtId = originalPayment.debt_id || originalPayment.internal_debt_id!;
-    const newBalance = await calculateDebtBalance(debtId, debtType);
-
     return {
-      reversal: existingReversal,
-      originalPayment,
-      newBalance,
-      statusChanged: false,
-      newStatus: undefined,
+      writeSet: emptyWriteSet(),
+      result: {
+        reversal: existingReversal,
+        originalPayment,
+        newBalance: await view.balance(debtType, debtId),
+        statusChanged: false,
+        newStatus: undefined,
+      },
     };
   }
 
-  // 3. Determine debt type and ID
-  const debtType: "external" | "internal" = originalPayment.debt_id ? "external" : "internal";
-  const debtId = originalPayment.debt_id || originalPayment.internal_debt_id!;
-
-  // 4. Check if original was archived (soft restriction)
-  const debt =
-    debtType === "external" ? await db.debts.get(debtId) : await db.internalDebts.get(debtId);
-
+  const debt = await view.debt(debtType, debtId);
   if (debt?.status === "archived") {
-    // Soft warning - still allow reversal
     console.warn(`Reversing payment on archived debt ${debtId}. Status will change to active.`);
   }
 
-  // 5. Compensating amount: always the exact negation of the target row.
-  // Negating a negative reversal yields a positive row, so cascades need
-  // no special cases in the signed ledger.
-  const reversalAmount = negateCents(originalPayment.amount_cents);
-
-  // 6. Generate idempotency key for reversal
-  const reversalId = nanoid();
-  const lamportClock = await getNextLamportClock(reversalId);
-  const deviceId = await getDeviceId();
-  const idempotencyKey = `${deviceId}-debt_payment-${reversalId}-${lamportClock}`;
-
-  // 7. Create reversal record: ALWAYS marked as a reversal and ALWAYS
-  // linked to its target, at any cascade depth (uniform idempotency)
+  const now = new Date().toISOString();
+  // Always the exact negation of its target, linked at any cascade depth
   const reversal: DebtPayment = {
-    id: reversalId,
+    id: crypto.randomUUID(),
     household_id: originalPayment.household_id,
     debt_id: originalPayment.debt_id,
     internal_debt_id: originalPayment.internal_debt_id,
-    transaction_id: originalPayment.transaction_id, // Link to same transaction
-    amount_cents: reversalAmount,
+    transaction_id: originalPayment.transaction_id,
+    amount_cents: negateCents(originalPayment.amount_cents),
     payment_date: format(new Date(), "yyyy-MM-dd"),
     is_reversal: true,
     reverses_payment_id: data.payment_id,
     adjustment_reason: data.reason,
-    is_overpayment: false, // Reversals never overpayments
+    is_overpayment: false,
     overpayment_amount: undefined,
-    device_id: deviceId,
-    idempotency_key: idempotencyKey,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    device_id: await getDeviceId(),
+    created_at: now,
+    updated_at: now,
   };
+  const reversalWrite = await preparePaymentAdd(reversal, userId);
 
-  // 8. Insert reversal
-  await db.debtPayments.add(reversal);
+  const balanceBefore = await view.balance(debtType, debtId);
+  view.recordPayment(debtId, reversal.amount_cents);
+  const newBalance = balanceBefore - reversal.amount_cents;
 
-  // 9. Create event (for event sourcing & sync)
-  await createDebtPaymentEvent(reversal, "create");
-
-  // 10. Recalculate balance and update status
-  const newBalance = await calculateDebtBalance(debtId, debtType);
-
-  // Special handling for archived debts - unarchive them when reversal occurs
-  let statusChanged = false;
-  if (debt?.status === "archived" && newBalance > 0) {
-    // Unarchive the debt back to active
-    const table = debtType === "external" ? db.debts : db.internalDebts;
-    await table.update(debtId, {
-      status: "active",
-      closed_at: undefined,
-      updated_at: new Date().toISOString(),
-    });
-    statusChanged = true;
-    console.log(`[Status] ${debt.name}: archived → active (reversal on archived debt)`);
-
-    // Emit the status-change event: this write previously bypassed event
-    // sourcing entirely (review DEBT-04)
-    const unarchived = await table.get(debtId);
-    if (unarchived) {
-      const delta = calculateDelta(debt, unarchived);
-      if (debtType === "external") {
-        await createDebtEvent(unarchived as Debt, "update", delta as Partial<Debt>);
-      } else {
-        await createInternalDebtEvent(
-          unarchived as InternalDebt,
-          "update",
-          delta as Partial<InternalDebt>
-        );
-      }
-    }
-  } else {
-    // Normal status update based on balance (emits its own event on change)
-    statusChanged = await updateDebtStatusFromBalance(debtId, debtType, newBalance);
+  let statusChange: Debt | InternalDebt | null = null;
+  if (debt) {
+    statusChange =
+      debt.status === "archived"
+        ? newBalance > 0
+          ? { ...debt, status: "active", closed_at: undefined, updated_at: now }
+          : null
+        : nextDebtStatus(debt, newBalance, now);
+  }
+  let statusWrite = emptyWriteSet();
+  if (debt && statusChange) {
+    statusWrite = await prepareDebtUpdate(debt, statusChange, userId);
+    view.setDebt(statusChange);
   }
 
-  // Get the updated debt to find the new status
-  const updatedDebt =
-    debtType === "external" ? await db.debts.get(debtId) : await db.internalDebts.get(debtId);
-
   return {
-    reversal,
-    originalPayment,
-    newBalance,
-    statusChanged,
-    newStatus: updatedDebt?.status,
+    writeSet: mergeWriteSets(reversalWrite, statusWrite),
+    result: {
+      reversal,
+      originalPayment,
+      newBalance,
+      statusChanged: statusChange !== null,
+      newStatus: (statusChange ?? debt)?.status,
+    },
   };
+}
+
+export async function reverseDebtPayment(
+  data: CreateReversalData,
+  userId: string
+): Promise<ReversalResult> {
+  const { writeSet, result } = await prepareReversal(data, userId);
+  await commitDebtWriteSet(writeSet);
+  return result;
 }
 
 /**
@@ -257,186 +215,129 @@ export async function getPaymentReversals(paymentId: string): Promise<DebtPaymen
   return db.debtPayments.where("reverses_payment_id").equals(paymentId).toArray();
 }
 
-/**
- * Handle transaction edit with debt link
- *
- * This implements the "edit as reverse-and-create" pattern:
- * 1. Find existing payment for this transaction
- * 2. Reverse the old payment (if exists)
- * 3. Create new payment with updated amount/debt
- *
- * This preserves complete audit trail:
- * - Original payment: +₱500
- * - Reversal: -₱500 (transaction edited)
- * - New payment: +₱300 (new amount)
- * - Net effect: ₱300 paid
- *
- * @param data - Transaction edit data
- * @returns Array of operations performed
- *
- * @example
- * // User edits transaction amount from ₱500 to ₱300
- * await handleTransactionEdit({
- *   transaction_id: 'txn-123',
- *   new_amount_cents: 30000,
- *   payment_date: '2025-11-10',
- * });
- */
-export async function handleTransactionEdit(data: TransactionEditData) {
-  const operations: Array<{
-    type: "reversal" | "payment";
-    record: DebtPayment;
-    debtId: string;
-    debtType: "external" | "internal";
-  }> = [];
+type TransactionDebtOperation = {
+  type: "reversal" | "payment";
+  record: DebtPayment;
+  debtId: string;
+  debtType: DebtKind;
+};
 
-  // 1. Find existing payment for this transaction
-  // CRITICAL: Must find the LATEST non-reversal payment that hasn't been reversed yet
-  // This handles the case where a transaction is edited multiple times:
-  // - Original payment: ₱50,000
-  // - First edit: Reverses ₱50,000, creates new ₱30,000
-  // - Second edit: Should reverse ₱30,000 (not ₱50,000 again!)
-  const allPayments = await db.debtPayments
-    .where("transaction_id")
-    .equals(data.transaction_id)
-    .filter((p) => !p.is_reversal) // Get non-reversal payments
-    .toArray();
+export interface PreparedTransactionEdit {
+  writeSet: DebtWriteSet;
+  operations: TransactionDebtOperation[];
+  reversalCreated: boolean;
+  paymentCreated: boolean;
+}
 
-  // Find the payment that hasn't been reversed yet
-  let existingPayment: (typeof allPayments)[0] | undefined;
+/** Edit as reverse-and-create: reverse the live payment, then pay the new amount/debt. */
+export async function prepareTransactionEdit(
+  data: TransactionEditData,
+  userId: string
+): Promise<PreparedTransactionEdit> {
+  const view = new DebtLedgerView();
+  const operations: TransactionDebtOperation[] = [];
+  const writeSets: DebtWriteSet[] = [];
 
-  if (allPayments.length > 0) {
-    // Check which payments have already been reversed
-    const reversals = await db.debtPayments
-      .where("transaction_id")
-      .equals(data.transaction_id)
-      .filter((p) => p.is_reversal)
-      .toArray();
+  const rows = await db.debtPayments.where("transaction_id").equals(data.transaction_id).toArray();
+  const reversedIds = new Set(
+    rows.flatMap((p) => (p.reverses_payment_id ? [p.reverses_payment_id] : []))
+  );
+  const regular = rows.filter((p) => !p.is_reversal);
+  regular.sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const existingPayment = regular.find((p) => !reversedIds.has(p.id)) ?? regular[0];
 
-    const reversedPaymentIds = new Set(reversals.map((r) => r.reverses_payment_id));
-
-    // Find the payment that hasn't been reversed
-    existingPayment = allPayments.find((p) => !reversedPaymentIds.has(p.id));
-
-    // If all payments have been reversed (shouldn't happen), take the most recent
-    if (!existingPayment && allPayments.length > 0) {
-      allPayments.sort((a, b) => b.created_at.localeCompare(a.created_at));
-      existingPayment = allPayments[0];
+  if (existingPayment) {
+    const { writeSet, result } = await prepareReversal(
+      { payment_id: existingPayment.id, reason: "transaction_edited" },
+      userId,
+      view
+    );
+    writeSets.push(writeSet);
+    const oldDebtId = existingPayment.debt_id ?? existingPayment.internal_debt_id;
+    if (oldDebtId) {
+      operations.push({
+        type: "reversal",
+        record: result.reversal,
+        debtId: oldDebtId,
+        debtType: existingPayment.debt_id ? "external" : "internal",
+      });
     }
   }
 
-  // 2. Reverse existing payment if found
-  if (existingPayment) {
-    const reversalResult = await reverseDebtPayment({
-      payment_id: existingPayment.id,
-      reason: "transaction_edited",
-    });
-
-    const oldDebtType: "external" | "internal" = existingPayment.debt_id ? "external" : "internal";
-    const oldDebtId = existingPayment.debt_id || existingPayment.internal_debt_id!;
-
-    operations.push({
-      type: "reversal",
-      record: reversalResult.reversal,
-      debtId: oldDebtId,
-      debtType: oldDebtType,
-    });
-  }
-
-  // 3. Create new payment if debt link still exists
-  const newDebtId = data.new_debt_id || data.new_internal_debt_id;
+  const newDebtId = data.new_debt_id ?? data.new_internal_debt_id;
   const newAmount = data.new_amount_cents;
-
   if (newDebtId && newAmount && newAmount > 0) {
-    const newDebtType: "external" | "internal" = data.new_debt_id ? "external" : "internal";
-
-    // Get household_id from debt
-    const debt =
-      newDebtType === "external"
-        ? await db.debts.get(newDebtId)
-        : await db.internalDebts.get(newDebtId);
-
+    const newDebtType: DebtKind = data.new_debt_id ? "external" : "internal";
+    const debt = await view.debt(newDebtType, newDebtId);
     if (!debt) {
       throw new Error(`Debt ${newDebtId} not found`);
     }
-
-    const paymentResult = await processDebtPayment({
-      transaction_id: data.transaction_id,
-      amount_cents: newAmount,
-      payment_date: data.payment_date,
-      debt_id: newDebtType === "external" ? newDebtId : undefined,
-      internal_debt_id: newDebtType === "internal" ? newDebtId : undefined,
-      household_id: debt.household_id,
-    });
-
+    const { writeSet, result } = await prepareDebtPayment(
+      {
+        transaction_id: data.transaction_id,
+        amount_cents: newAmount,
+        payment_date: data.payment_date,
+        debt_id: newDebtType === "external" ? newDebtId : undefined,
+        internal_debt_id: newDebtType === "internal" ? newDebtId : undefined,
+        household_id: debt.household_id,
+      },
+      userId,
+      view
+    );
+    writeSets.push(writeSet);
     operations.push({
       type: "payment",
-      record: paymentResult.payment,
+      record: result.payment,
       debtId: newDebtId,
       debtType: newDebtType,
     });
   }
 
   return {
+    writeSet: mergeWriteSets(...writeSets),
     operations,
     reversalCreated: operations.some((op) => op.type === "reversal"),
     paymentCreated: operations.some((op) => op.type === "payment"),
   };
 }
 
-/**
- * Handle transaction deletion with debt link
- *
- * This creates a reversal to restore the debt balance as if the
- * transaction never happened.
- *
- * The reversal preserves audit trail:
- * - Original payment: +₱500
- * - Reversal: -₱500 (transaction deleted)
- * - Net effect: ₱0 paid
- *
- * @param data - Transaction delete data
- * @returns Reversal result or undefined if no payment found
- *
- * @example
- * // User deletes transaction with debt link
- * const result = await handleTransactionDelete({
- *   transaction_id: 'txn-123',
- * });
- *
- * if (result) {
- *   console.log(`Reversed payment of ₱${result.originalPayment.amount_cents / 100}`);
- * }
- */
-export async function handleTransactionDelete(
-  data: TransactionDeleteData
-): Promise<ReversalResult | undefined> {
-  // 1. Find every LIVE payment for this transaction: regular rows that have
-  // no compensating row pointing at them. After edits, a transaction can
-  // carry several regular rows; picking an arbitrary .first() used to
-  // reverse the wrong (already-reversed) one and leave the live payment
-  // standing (review DEBT-03).
-  const rows = await db.debtPayments.where("transaction_id").equals(data.transaction_id).toArray();
+export async function handleTransactionEdit(data: TransactionEditData, userId: string) {
+  const { writeSet, ...outcome } = await prepareTransactionEdit(data, userId);
+  await commitDebtWriteSet(writeSet);
+  return outcome;
+}
 
+/** Reverses every live payment of a deleted transaction (normally exactly one). */
+export async function prepareTransactionDelete(
+  data: TransactionDeleteData,
+  userId: string
+): Promise<{ writeSet: DebtWriteSet; result: ReversalResult | undefined }> {
+  const rows = await db.debtPayments.where("transaction_id").equals(data.transaction_id).toArray();
   const reversedIds = new Set(
-    rows.filter((p) => p.reverses_payment_id).map((p) => p.reverses_payment_id!)
+    rows.flatMap((p) => (p.reverses_payment_id ? [p.reverses_payment_id] : []))
   );
   const livePayments = rows.filter((p) => !p.is_reversal && !reversedIds.has(p.id));
 
-  if (livePayments.length === 0) {
-    // No payment to reverse
-    return undefined;
-  }
-
-  // 2. Reverse every live payment (there should be exactly one, but loop
-  // defensively). reverseDebtPayment is idempotent per target row.
-  let lastResult: ReversalResult | undefined;
+  const view = new DebtLedgerView();
+  const writeSets: DebtWriteSet[] = [];
+  let result: ReversalResult | undefined;
   for (const payment of livePayments) {
-    lastResult = await reverseDebtPayment({
-      payment_id: payment.id,
-      reason: "transaction_deleted",
-    });
+    const prepared = await prepareReversal(
+      { payment_id: payment.id, reason: "transaction_deleted" },
+      userId,
+      view
+    );
+    writeSets.push(prepared.writeSet);
+    result = prepared.result;
   }
+  return { writeSet: mergeWriteSets(...writeSets), result };
+}
 
-  return lastResult;
+export async function handleTransactionDelete(
+  data: TransactionDeleteData,
+  userId: string
+): Promise<ReversalResult | undefined> {
+  const { writeSet, result } = await prepareTransactionDelete(data, userId);
+  await commitDebtWriteSet(writeSet);
+  return result;
 }

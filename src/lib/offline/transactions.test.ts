@@ -300,7 +300,8 @@ describe("updateOfflineTransaction debt link merge", () => {
     // Amount changed on a linked transaction → the debt adjustment runs
     // against the PRESERVED link instead of being skipped for a missing one
     expect(vi.mocked(handleTransactionEdit)).toHaveBeenCalledWith(
-      expect.objectContaining({ transaction_id: tx.id, new_debt_id: "debt-1" })
+      expect.objectContaining({ transaction_id: tx.id, new_debt_id: "debt-1" }),
+      testUserId
     );
   });
 });

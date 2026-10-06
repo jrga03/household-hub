@@ -27,7 +27,7 @@ import {
 } from "@tanstack/react-router";
 import { Route as TransactionsRouteImport } from "@/routes/transactions";
 import { confirm } from "@/lib/confirm";
-import { handleTransactionDelete } from "@/lib/debts";
+import { isTransactionLinkedToDebt } from "@/lib/debts";
 import { formatPHP } from "@/lib/currency";
 import type { TransactionWithRelations } from "@/types/transactions";
 import { cents } from "@/test/cents";
@@ -114,7 +114,7 @@ vi.mock("dexie-react-hooks", () => ({
 }));
 
 vi.mock("@/lib/debts", () => ({
-  handleTransactionDelete: vi.fn(),
+  isTransactionLinkedToDebt: vi.fn().mockResolvedValue(false),
 }));
 
 // Destructive confirms go through the app-level AlertDialog mechanism
@@ -289,13 +289,13 @@ describe("transactions route on narrow layouts (R14/R38)", () => {
     const sheet = await screen.findByRole("dialog");
     fireEvent.click(within(sheet).getByRole("button", { name: "Delete" }));
 
-    // Same flow as the table's per-row Delete: confirm → debt reversal FIRST
-    // → delete mutation (shared via confirmAndDeleteTransaction)
+    // Same flow as the table's per-row Delete: confirm → delete mutation (debt
+    // reversal happens inside the offline delete)
     expect(vi.mocked(confirm)).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Delete transaction "Groceries"?' })
     );
     await waitFor(() => {
-      expect(vi.mocked(handleTransactionDelete)).toHaveBeenCalledWith({ transaction_id: "txn-1" });
+      expect(vi.mocked(isTransactionLinkedToDebt)).toHaveBeenCalledWith("txn-1");
       expect(deleteMutateAsync).toHaveBeenCalledWith("txn-1");
     });
     await waitFor(() => {

@@ -31,7 +31,6 @@ import { hasActiveTransactionFilters } from "@/lib/utils/filters";
 import type { TransactionFilters } from "@/types/transactions";
 import { toast } from "sonner";
 import { confirm } from "@/lib/confirm";
-import { handleTransactionDelete } from "@/lib/debts";
 import { confirmAndDeleteTransaction } from "@/lib/delete-transaction";
 import { useQueryClient } from "@tanstack/react-query";
 import { SyncBadge } from "@/components/sync/SyncBadge";
@@ -379,9 +378,6 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
     if (confirmed) {
       try {
         const promises = Array.from(selectedIds).map(async (id) => {
-          // Reverse debt payment FIRST (if linked)
-          await handleTransactionDelete({ transaction_id: id });
-          // Then delete transaction
           await deleteTransaction.mutateAsync(id);
         });
 

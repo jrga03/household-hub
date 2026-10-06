@@ -37,13 +37,16 @@ describe("Payment Processing", () => {
 
   describe("processDebtPayment", () => {
     it("should create payment record", async () => {
-      const result = await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(50000), // ₱500
-        payment_date: "2025-11-10",
-        debt_id: testDebt.id,
-        household_id: "household-1",
-      });
+      const result = await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(50000), // ₱500
+          payment_date: "2025-11-10",
+          debt_id: testDebt.id,
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       expect(result.payment.id).toBeDefined();
       expect(result.payment.amount_cents).toBe(50000);
@@ -53,13 +56,16 @@ describe("Payment Processing", () => {
     });
 
     it("should detect overpayment", async () => {
-      const result = await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(150000), // ₱1,500 (exceeds ₱1,000 debt)
-        payment_date: "2025-11-10",
-        debt_id: testDebt.id,
-        household_id: "household-1",
-      });
+      const result = await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(150000), // ₱1,500 (exceeds ₱1,000 debt)
+          payment_date: "2025-11-10",
+          debt_id: testDebt.id,
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       expect(result.wasOverpayment).toBe(true);
       expect(result.overpaymentAmount).toBe(50000); // ₱500 over
@@ -69,13 +75,16 @@ describe("Payment Processing", () => {
     });
 
     it("should detect exact payoff (no overpayment)", async () => {
-      const result = await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(100000), // Exact balance
-        payment_date: "2025-11-10",
-        debt_id: testDebt.id,
-        household_id: "household-1",
-      });
+      const result = await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(100000), // Exact balance
+          payment_date: "2025-11-10",
+          debt_id: testDebt.id,
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       expect(result.wasOverpayment).toBe(false);
       expect(result.overpaymentAmount).toBe(0);
@@ -85,13 +94,16 @@ describe("Payment Processing", () => {
     });
 
     it("should update debt status to paid_off when balance reaches 0", async () => {
-      await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(100000),
-        payment_date: "2025-11-10",
-        debt_id: testDebt.id,
-        household_id: "household-1",
-      });
+      await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(100000),
+          payment_date: "2025-11-10",
+          debt_id: testDebt.id,
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       const debt = await db.debts.get(testDebt.id);
       expect(debt?.status).toBe("paid_off");
@@ -99,21 +111,25 @@ describe("Payment Processing", () => {
     });
 
     it("should generate idempotency key", async () => {
-      const result = await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(50000),
-        payment_date: "2025-11-10",
-        debt_id: testDebt.id,
-        household_id: "household-1",
-      });
+      const result = await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(50000),
+          payment_date: "2025-11-10",
+          debt_id: testDebt.id,
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       // Payment should have been created
       expect(result.payment.id).toBeDefined();
       expect(result.payment.device_id).toBeDefined();
 
-      // Idempotency key format: ${deviceId}-debt_payment-${paymentId}-${lamportClock}
-      expect(result.payment.idempotency_key).toContain(`debt_payment-${result.payment.id}`);
-      expect(result.payment.idempotency_key).toMatch(/-\d+$/);
+      // The key lives on the queue item: ${deviceId}-debt_payment-${paymentId}-${lamportClock}
+      const queued = await db.syncQueue.where("entity_id").equals(result.payment.id).first();
+      expect(queued?.operation.idempotencyKey).toContain(`debt_payment-${result.payment.id}`);
+      expect(queued?.operation.idempotencyKey).toMatch(/-\d+$/);
 
       // Per-entity Lamport clock was minted for this payment
       const meta = await db.meta.get(`lamport-${result.payment.id}`);
@@ -121,13 +137,16 @@ describe("Payment Processing", () => {
     });
 
     it("should track device ID", async () => {
-      const result = await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(50000),
-        payment_date: "2025-11-10",
-        debt_id: testDebt.id,
-        household_id: "household-1",
-      });
+      const result = await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(50000),
+          payment_date: "2025-11-10",
+          debt_id: testDebt.id,
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       expect(result.payment.device_id).toBeDefined();
       expect(typeof result.payment.device_id).toBe("string");
@@ -142,59 +161,74 @@ describe("Payment Processing", () => {
       });
 
       await expect(
-        processDebtPayment({
-          transaction_id: "txn-1",
-          amount_cents: cents(50000),
-          payment_date: "2025-11-10",
-          debt_id: testDebt.id,
-          household_id: "household-1",
-        })
+        processDebtPayment(
+          {
+            transaction_id: "txn-1",
+            amount_cents: cents(50000),
+            payment_date: "2025-11-10",
+            debt_id: testDebt.id,
+            household_id: "household-1",
+          },
+          "test-user-id"
+        )
       ).rejects.toThrow("archived");
     });
 
     it("should reject negative payment amount", async () => {
       await expect(
-        processDebtPayment({
-          transaction_id: "txn-1",
-          amount_cents: cents(-50000),
-          payment_date: "2025-11-10",
-          debt_id: testDebt.id,
-          household_id: "household-1",
-        })
+        processDebtPayment(
+          {
+            transaction_id: "txn-1",
+            amount_cents: cents(-50000),
+            payment_date: "2025-11-10",
+            debt_id: testDebt.id,
+            household_id: "household-1",
+          },
+          "test-user-id"
+        )
       ).rejects.toThrow("positive");
     });
 
     it("should handle multiple payments correctly", async () => {
       // First payment: ₱400
-      const result1 = await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(40000),
-        payment_date: "2025-11-01",
-        debt_id: testDebt.id,
-        household_id: "household-1",
-      });
+      const result1 = await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(40000),
+          payment_date: "2025-11-01",
+          debt_id: testDebt.id,
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       expect(result1.newBalance).toBe(60000); // ₱600 remaining
 
       // Second payment: ₱300
-      const result2 = await processDebtPayment({
-        transaction_id: "txn-2",
-        amount_cents: cents(30000),
-        payment_date: "2025-11-05",
-        debt_id: testDebt.id,
-        household_id: "household-1",
-      });
+      const result2 = await processDebtPayment(
+        {
+          transaction_id: "txn-2",
+          amount_cents: cents(30000),
+          payment_date: "2025-11-05",
+          debt_id: testDebt.id,
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       expect(result2.newBalance).toBe(30000); // ₱300 remaining
 
       // Third payment: ₱400 (overpayment)
-      const result3 = await processDebtPayment({
-        transaction_id: "txn-3",
-        amount_cents: cents(40000),
-        payment_date: "2025-11-10",
-        debt_id: testDebt.id,
-        household_id: "household-1",
-      });
+      const result3 = await processDebtPayment(
+        {
+          transaction_id: "txn-3",
+          amount_cents: cents(40000),
+          payment_date: "2025-11-10",
+          debt_id: testDebt.id,
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       expect(result3.wasOverpayment).toBe(true);
       expect(result3.overpaymentAmount).toBe(10000); // ₱100 over
@@ -203,22 +237,28 @@ describe("Payment Processing", () => {
 
     it("should detect overpayment when balance is already 0", async () => {
       // Pay off debt completely
-      await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(100000),
-        payment_date: "2025-11-01",
-        debt_id: testDebt.id,
-        household_id: "household-1",
-      });
+      await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(100000),
+          payment_date: "2025-11-01",
+          debt_id: testDebt.id,
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       // Try to make another payment (entire amount is overpayment)
-      const result = await processDebtPayment({
-        transaction_id: "txn-2",
-        amount_cents: cents(50000),
-        payment_date: "2025-11-05",
-        debt_id: testDebt.id,
-        household_id: "household-1",
-      });
+      const result = await processDebtPayment(
+        {
+          transaction_id: "txn-2",
+          amount_cents: cents(50000),
+          payment_date: "2025-11-05",
+          debt_id: testDebt.id,
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       expect(result.wasOverpayment).toBe(true);
       expect(result.overpaymentAmount).toBe(50000); // Entire amount
@@ -229,29 +269,38 @@ describe("Payment Processing", () => {
   describe("getDebtPayments", () => {
     it("should return payments for debt sorted by date", async () => {
       // Create 3 payments
-      await processDebtPayment({
-        transaction_id: "txn-1",
-        amount_cents: cents(20000),
-        payment_date: "2025-11-01",
-        debt_id: testDebt.id,
-        household_id: "household-1",
-      });
+      await processDebtPayment(
+        {
+          transaction_id: "txn-1",
+          amount_cents: cents(20000),
+          payment_date: "2025-11-01",
+          debt_id: testDebt.id,
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
-      await processDebtPayment({
-        transaction_id: "txn-2",
-        amount_cents: cents(30000),
-        payment_date: "2025-11-05",
-        debt_id: testDebt.id,
-        household_id: "household-1",
-      });
+      await processDebtPayment(
+        {
+          transaction_id: "txn-2",
+          amount_cents: cents(30000),
+          payment_date: "2025-11-05",
+          debt_id: testDebt.id,
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
-      await processDebtPayment({
-        transaction_id: "txn-3",
-        amount_cents: cents(25000),
-        payment_date: "2025-11-10",
-        debt_id: testDebt.id,
-        household_id: "household-1",
-      });
+      await processDebtPayment(
+        {
+          transaction_id: "txn-3",
+          amount_cents: cents(25000),
+          payment_date: "2025-11-10",
+          debt_id: testDebt.id,
+          household_id: "household-1",
+        },
+        "test-user-id"
+      );
 
       const payments = await getDebtPayments(testDebt.id, "external");
 

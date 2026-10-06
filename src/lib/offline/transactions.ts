@@ -104,14 +104,17 @@ export async function createOfflineTransaction(
     // failure we compensate by removing the transaction and its queue item.
     if (input.debt_id || input.internal_debt_id) {
       try {
-        await processDebtPayment({
-          transaction_id: id,
-          amount_cents: input.amount_cents,
-          payment_date: input.date,
-          debt_id: input.debt_id ?? undefined,
-          internal_debt_id: input.internal_debt_id ?? undefined,
-          household_id: DEFAULT_HOUSEHOLD_ID,
-        });
+        await processDebtPayment(
+          {
+            transaction_id: id,
+            amount_cents: input.amount_cents,
+            payment_date: input.date,
+            debt_id: input.debt_id ?? undefined,
+            internal_debt_id: input.internal_debt_id ?? undefined,
+            household_id: DEFAULT_HOUSEHOLD_ID,
+          },
+          userId
+        );
       } catch (error) {
         await db.transaction("rw", db.transactions, db.syncQueue, async () => {
           await db.transactions.delete(transaction.id);
@@ -223,13 +226,16 @@ export async function updateOfflineTransaction(
 
     if (debtFieldsChanged && (updated.debt_id || updated.internal_debt_id)) {
       try {
-        await handleTransactionEdit({
-          transaction_id: id,
-          new_amount_cents: updated.amount_cents,
-          new_debt_id: updated.debt_id,
-          new_internal_debt_id: updated.internal_debt_id,
-          payment_date: updated.date,
-        });
+        await handleTransactionEdit(
+          {
+            transaction_id: id,
+            new_amount_cents: updated.amount_cents,
+            new_debt_id: updated.debt_id,
+            new_internal_debt_id: updated.internal_debt_id,
+            payment_date: updated.date,
+          },
+          userId
+        );
       } catch (error) {
         console.error("Failed to adjust debt payment:", error);
         // Don't rollback the transaction update — the debt adjustment is secondary.
@@ -344,7 +350,7 @@ export async function deleteOfflineTransaction(
 
     // Reverse debt payment BEFORE deletion to preserve audit trail
     try {
-      await handleTransactionDelete({ transaction_id: id });
+      await handleTransactionDelete({ transaction_id: id }, userId);
     } catch (error) {
       console.error("Failed to reverse debt payment:", error);
       return {
