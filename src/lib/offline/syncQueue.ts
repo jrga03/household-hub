@@ -267,6 +267,37 @@ export async function resetStaleSyncingItems(maxAgeMs = 5 * 60 * 1000): Promise<
   }
 }
 
+const OWNER_COLUMN_REQUEUE_KEY = "ownerColumnRequeue";
+
+/**
+ * One-shot: transaction edits that failed with the PGRST204 owner_user_id
+ * error (fixed in ee984ed) are returned to the queue. created_at is kept so
+ * they replay in their original order.
+ */
+export async function requeueOwnerColumnFailures(): Promise<number> {
+  return db.transaction("rw", db.syncQueue, db.meta, async () => {
+    if ((await db.meta.get(OWNER_COLUMN_REQUEUE_KEY))?.value === "done") return 0;
+
+    const requeuedCount = await db.syncQueue
+      .filter(
+        (item) =>
+          item.entity_type === "transaction" &&
+          item.status === "failed" &&
+          (item.error_message ?? "").includes("owner_user_id")
+      )
+      .modify({
+        status: "queued",
+        retry_count: 0,
+        next_retry_at: null,
+        error_message: null,
+        updated_at: new Date().toISOString(),
+      });
+
+    await db.meta.put({ key: OWNER_COLUMN_REQUEUE_KEY, value: "done" });
+    return requeuedCount;
+  });
+}
+
 /**
  * Deletes completed queue items older than the retention period.
  * Keeps recent completions around briefly for debugging/inspection.

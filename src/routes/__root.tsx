@@ -3,6 +3,7 @@ import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 import { useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { autoSyncManager } from "@/lib/sync/autoSync";
+import { requeueOwnerColumnFailures } from "@/lib/offline/syncQueue";
 import { reportError } from "@/lib/sentry";
 import { syncIssuesManager } from "@/lib/sync/SyncIssuesManager";
 import { SyncIssuesPanel } from "@/components/SyncIssuesPanel";
@@ -90,6 +91,10 @@ function RootComponent() {
       .then(({ repairLegacyDebtIds }) => repairLegacyDebtIds(userId))
       .catch((error: unknown) =>
         reportError(error, { subsystem: "debt-repair", operation: "repairLegacyDebtIds" })
+      )
+      .then(() => requeueOwnerColumnFailures())
+      .catch((error: unknown) =>
+        reportError(error, { subsystem: "sync-queue", operation: "requeueOwnerColumnFailures" })
       )
       .finally(() => {
         if (stopped) return;

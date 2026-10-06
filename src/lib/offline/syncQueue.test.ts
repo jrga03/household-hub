@@ -24,6 +24,7 @@ import {
   getPendingQueueItems,
   getOutstandingQueueItems,
   resetStaleSyncingItems,
+  requeueOwnerColumnFailures,
   cleanupCompletedItems,
 } from "./syncQueue";
 import { resetLamportClock, getCurrentLamportClock } from "@/lib/sync/lamportClock";
@@ -396,6 +397,65 @@ describe("Sync Queue Integration Tests", () => {
 
       expect((await db.syncQueue.get(item.id))?.status).toBe("queued");
       expect((await db.syncQueue.get(fresh.id))?.status).toBe("syncing");
+    });
+  });
+
+  describe("Owner column requeue", () => {
+    const ownerColumnError =
+      "Could not find the 'owner_user_id' column of 'transactions' in the schema cache";
+
+    async function seedItem(
+      entityType: "transaction" | "account",
+      status: "failed" | "completed",
+      errorMessage: string | null
+    ) {
+      const item = await buildSyncQueueItem(
+        entityType,
+        crypto.randomUUID(),
+        "update",
+        { description: "edit" },
+        testUserId
+      );
+      const stored = {
+        ...item,
+        status,
+        retry_count: 3,
+        next_retry_at: "2024-01-01T00:00:00.000Z",
+        error_message: errorMessage,
+      };
+      await db.syncQueue.add(stored);
+      return stored;
+    }
+
+    it("requeues only transaction items that failed with the owner_user_id error", async () => {
+      const target = await seedItem("transaction", "failed", ownerColumnError);
+      const otherError = await seedItem("transaction", "failed", "RLS policy violation");
+      const account = await seedItem("account", "failed", ownerColumnError);
+      const completed = await seedItem("transaction", "completed", ownerColumnError);
+
+      expect(await requeueOwnerColumnFailures()).toBe(1);
+
+      const requeued = await db.syncQueue.get(target.id);
+      expect(requeued).toMatchObject({
+        status: "queued",
+        retry_count: 0,
+        next_retry_at: null,
+        error_message: null,
+        created_at: target.created_at,
+      });
+      expect(requeued?.updated_at).not.toBe(target.updated_at);
+      expect(await db.syncQueue.get(otherError.id)).toEqual(otherError);
+      expect(await db.syncQueue.get(account.id)).toEqual(account);
+      expect(await db.syncQueue.get(completed.id)).toEqual(completed);
+    });
+
+    it("sets the flag and does nothing on a second run", async () => {
+      await requeueOwnerColumnFailures();
+      expect((await db.meta.get("ownerColumnRequeue"))?.value).toBe("done");
+
+      const late = await seedItem("transaction", "failed", ownerColumnError);
+      expect(await requeueOwnerColumnFailures()).toBe(0);
+      expect(await db.syncQueue.get(late.id)).toEqual(late);
     });
   });
 
