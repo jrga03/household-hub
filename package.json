@@ -87,7 +87,8 @@
   },
   "overrides": {
     "tmp": "^0.2.4",
-    "serialize-javascript": "^7.0.5"
+    "serialize-javascript": "^7.0.5",
+    "seroval": "^1.6.8"
   },
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^4.6.2",
