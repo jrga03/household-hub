@@ -3,7 +3,6 @@ import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 import { useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { autoSyncManager } from "@/lib/sync/autoSync";
-import { repairLegacyDebtIds } from "@/lib/debts/repair";
 import { reportError } from "@/lib/sentry";
 import { syncIssuesManager } from "@/lib/sync/SyncIssuesManager";
 import { SyncIssuesPanel } from "@/components/SyncIssuesPanel";
@@ -87,7 +86,8 @@ function RootComponent() {
     const userId = user.id;
     let stopped = false;
 
-    void repairLegacyDebtIds(userId)
+    void import("@/lib/debts/repair")
+      .then(({ repairLegacyDebtIds }) => repairLegacyDebtIds(userId))
       .catch((error: unknown) =>
         reportError(error, { subsystem: "debt-repair", operation: "repairLegacyDebtIds" })
       )
