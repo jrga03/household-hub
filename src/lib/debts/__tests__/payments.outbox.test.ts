@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/dexie/db";
-import { createExternalDebt } from "../crud";
+import { archiveDebt, createExternalDebt } from "../crud";
 import { processDebtPayment } from "../payments";
 import { handleTransactionEdit, reverseDebtPayment } from "../reversals";
 import { cents } from "@/test/cents";
@@ -115,5 +115,55 @@ describe("payment and reversal outbox writes", () => {
       "debt_payment:create",
     ]);
     expect((await db.debts.get(debt.id))?.status).toBe("active");
+  });
+
+  it("re-pays a reactivated debt back to paid_off in one edit", async () => {
+    const debt = await newDebt(10000);
+    const transactionId = crypto.randomUUID();
+    await pay(debt.id, 10000, transactionId);
+    await db.syncQueue.clear();
+
+    await handleTransactionEdit(
+      {
+        transaction_id: transactionId,
+        new_amount_cents: cents(10000),
+        new_debt_id: debt.id,
+        payment_date: "2026-10-06",
+      },
+      USER_ID
+    );
+
+    expect(await queuedTypes()).toEqual([
+      "debt_payment:create",
+      "debt:update",
+      "debt_payment:create",
+      "debt:update",
+    ]);
+    expect((await db.debts.get(debt.id))?.status).toBe("paid_off");
+  });
+
+  it("leaves no reversal when the re-payment cannot be prepared", async () => {
+    const debt = await newDebt(2500);
+    const transactionId = crypto.randomUUID();
+    await pay(debt.id, 2500, transactionId);
+    const archived = await newDebt(5000);
+    await archiveDebt(archived.id, "external", USER_ID);
+    await db.syncQueue.clear();
+
+    await expect(
+      handleTransactionEdit(
+        {
+          transaction_id: transactionId,
+          new_amount_cents: cents(2500),
+          new_debt_id: archived.id,
+          payment_date: "2026-10-06",
+        },
+        USER_ID
+      )
+    ).rejects.toThrow(/archived/);
+
+    const reversals = (await db.debtPayments.toArray()).filter((p) => p.is_reversal);
+    expect(reversals).toHaveLength(0);
+    expect(await db.syncQueue.count()).toBe(0);
   });
 });

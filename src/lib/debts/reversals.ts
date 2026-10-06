@@ -29,19 +29,22 @@
  *
  *   // 2. Handle debt payment reversals/recreation
  *   if (updates.amount_cents || updates.debt_id) {
- *     await handleTransactionEdit({
- *       transaction_id: id,
- *       new_amount_cents: updates.amount_cents,
- *       new_debt_id: updates.debt_id,
- *       payment_date: updates.date,
- *     });
+ *     await handleTransactionEdit(
+ *       {
+ *         transaction_id: id,
+ *         new_amount_cents: updates.amount_cents,
+ *         new_debt_id: updates.debt_id,
+ *         payment_date: updates.date,
+ *       },
+ *       userId
+ *     );
  *   }
  * }
  *
  * // When user deletes transaction
  * async function deleteTransaction(id) {
  *   // 1. Handle debt payment reversal FIRST
- *   await handleTransactionDelete({ transaction_id: id });
+ *   await handleTransactionDelete({ transaction_id: id }, userId);
  *
  *   // 2. Delete transaction
  *   await db.transactions.delete(id);

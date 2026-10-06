@@ -377,11 +377,10 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
     });
     if (confirmed) {
       try {
-        const promises = Array.from(selectedIds).map(async (id) => {
+        // Sequential: each delete prepares debt reversals against the committed balance
+        for (const id of selectedIds) {
           await deleteTransaction.mutateAsync(id);
-        });
-
-        await Promise.all(promises);
+        }
 
         queryClient.invalidateQueries({ queryKey: ["debts"] });
         queryClient.invalidateQueries({ queryKey: ["debt-balance"] });
