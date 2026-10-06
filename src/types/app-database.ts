@@ -34,7 +34,7 @@ export type AppDatabase = Omit<Database, "public"> & {
   };
 };
 
-type SameKeys<A, B> = [keyof A] extends [keyof B]
+export type SameKeys<A, B> = [keyof A] extends [keyof B]
   ? [keyof B] extends [keyof A]
     ? true
     : false

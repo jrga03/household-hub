@@ -68,6 +68,7 @@ function setupSupabaseMock(
     deleteError?: unknown;
     upsertError?: unknown;
     onTable?: (table: string) => void;
+    onInsert?: (payload: Record<string, unknown>) => void;
     onUpdate?: (payload: Record<string, unknown>) => void;
     onUpsert?: (payload: unknown, options: unknown) => void;
   } = {}
@@ -78,6 +79,7 @@ function setupSupabaseMock(
     deleteError = null,
     upsertError = null,
     onTable,
+    onInsert,
     onUpdate,
     onUpsert,
   } = options;
@@ -85,7 +87,10 @@ function setupSupabaseMock(
   vi.mocked(supabase.from).mockImplementation(((table: string) => {
     onTable?.(table);
     return {
-      insert: vi.fn(() => Promise.resolve({ error: insertError })),
+      insert: vi.fn((payload: Record<string, unknown>) => {
+        onInsert?.(payload);
+        return Promise.resolve({ error: insertError });
+      }),
       upsert: vi.fn((payload: unknown, upsertOptions: unknown) => {
         onUpsert?.(payload, upsertOptions);
         return Promise.resolve({ error: upsertError });
@@ -337,6 +342,45 @@ describe("SyncProcessor (local outbox)", () => {
       expect(sent).toHaveLength(1);
       expect(sent[0]).toEqual({ visibility: "household", owner_user_id: null });
       expect(JSON.parse(JSON.stringify(sent[0]))).toHaveProperty("owner_user_id", null);
+    });
+
+    it("sends only server columns for a transaction update", async () => {
+      const sent: Record<string, unknown>[] = [];
+      setupSupabaseMock({ onUpdate: (payload) => sent.push(payload) });
+      const item = makeQueueItem({
+        operation: {
+          op: "update",
+          payload: { description: "Edited", owner_user_id: undefined, notes: undefined },
+          idempotencyKey: "key-txn-upd",
+          lamportClock: 2,
+          vectorClock: {},
+        },
+      });
+
+      const result = await processor.processItem(item);
+
+      expect(result.success).toBe(true);
+      expect(sent).toEqual([{ description: "Edited", notes: null }]);
+      expect(item.operation.payload).toHaveProperty("owner_user_id");
+    });
+
+    it("sends only server columns for a transaction create", async () => {
+      const sent: Record<string, unknown>[] = [];
+      setupSupabaseMock({ onInsert: (payload) => sent.push(payload) });
+      const item = makeQueueItem({
+        operation: {
+          op: "create",
+          payload: { id: "entity-1", description: "Test", amount_cents: 100, owner_user_id: "u" },
+          idempotencyKey: "key-txn-create",
+          lamportClock: 1,
+          vectorClock: {},
+        },
+      });
+
+      const result = await processor.processItem(item);
+
+      expect(result.success).toBe(true);
+      expect(sent).toEqual([{ id: "entity-1", description: "Test", amount_cents: 100 }]);
     });
 
     it("handles delete: calls Supabase delete", async () => {

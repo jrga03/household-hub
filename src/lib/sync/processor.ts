@@ -37,6 +37,7 @@ import {
   cleanupCompletedItems,
 } from "@/lib/offline/syncQueue";
 import { calculateRetryDelay } from "./retry";
+import { pickServerColumns } from "./serverColumns";
 import { syncIssuesManager } from "./SyncIssuesManager";
 import { useSyncStore } from "@/stores/syncStore";
 import { queryClient } from "@/lib/queryClient";
@@ -267,7 +268,7 @@ export class SyncProcessor {
     try {
       await this.updateQueueStatus(item.id, "syncing");
 
-      const payload = item.operation.payload;
+      const payload = pickServerColumns(item.entity_type, item.operation.payload);
 
       switch (item.operation.op) {
         case "create":
