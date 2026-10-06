@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "@/lib/dexie/db";
 import {
   updateDebtStatusFromBalance,
@@ -7,17 +7,6 @@ import {
   recoverInvalidDebtStates,
 } from "../status";
 import { cents } from "@/test/cents";
-
-// Status transitions now emit events, which read the Supabase session for
-// attribution; unit tests run unauthenticated, so pin a deterministic user
-// while keeping the rest of the module real.
-vi.mock("../sync", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../sync")>();
-  return {
-    ...actual,
-    getCurrentUserId: vi.fn().mockResolvedValue("test-user-id"),
-  };
-});
 
 describe("Status Transitions", () => {
   beforeEach(async () => {

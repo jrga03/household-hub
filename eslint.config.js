@@ -493,5 +493,26 @@ export default [
       "no-restricted-imports": ["error", { patterns: [restrictAsCents] }],
     },
   },
+  {
+    // Server ids are uuid columns; a nanoid id can never sync (debt sync defects, 2026-10-06).
+    // These directories sit in asCentsAllowed today. If 2c narrows that list, this block must
+    // also carry restrictAsCents: a later block's no-restricted-imports replaces earlier ones.
+    files: ["src/lib/debts/**/*.ts", "src/lib/offline/**/*.ts"],
+    ignores: srcTestFiles,
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "nanoid",
+              message:
+                "Use crypto.randomUUID(): local ids are server ids and the columns are uuid.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   prettier,
 ];

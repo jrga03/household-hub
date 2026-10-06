@@ -13,16 +13,6 @@ import {
 } from "../reversals";
 import { cents } from "@/test/cents";
 
-// getCurrentUserId reads the Supabase session; unit tests run unauthenticated,
-// so pin a deterministic test user while keeping the rest of the module real.
-vi.mock("../sync", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../sync")>();
-  return {
-    ...actual,
-    getCurrentUserId: vi.fn().mockResolvedValue("test-user-id"),
-  };
-});
-
 describe("Reversal System", () => {
   beforeEach(async () => {
     // Clear tables before each test

@@ -80,9 +80,6 @@ export {
 
 // Event sourcing
 export {
-  createDebtEvent,
-  createInternalDebtEvent,
-  createDebtPaymentEvent,
   calculateDelta,
   eventExists,
   getDebtEvents,
@@ -91,12 +88,7 @@ export {
 } from "./events";
 
 // Sync queue integration
-export {
-  addDebtEventToSyncQueue,
-  getSyncStatusForDebt,
-  getPendingDebtSyncCount,
-  type DebtSyncStatus,
-} from "./sync";
+export { getSyncStatusForDebt, getPendingDebtSyncCount, type DebtSyncStatus } from "./sync";
 
 // Re-export types
 export type {

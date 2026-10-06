@@ -1,48 +1,27 @@
 /**
- * Debt Event Generation for Event Sourcing
+ * Debt Event Log
  *
- * This module creates events for all debt operations to enable:
- * - Complete audit trail (who changed what and when)
- * - Multi-device sync with conflict resolution
- * - Event replay for debugging and state reconstruction
- * - Compliance with financial record-keeping requirements
+ * Events are a local audit log written by `outbox.ts` with the queue item's
+ * clock and idempotency key, never synced. This module reads that log and
+ * computes update deltas.
  *
  * ## Event Structure
  *
- * All events follow a consistent structure with:
- * - **Idempotency keys**: Prevent duplicate events (format: deviceId-entityType-entityId-lamportClock)
- * - **Lamport clocks**: Global monotonic counter for event ordering
- * - **Vector clocks**: Per-device counters for conflict detection
+ * - **Idempotency keys**: shared with the queue item that carries the same change
+ * - **Lamport clocks**: taken from the queue item, so log order matches sync order
  * - **Delta events**: Update events store only changed fields, not full entity
  *
  * ## Key Patterns
  *
- * 1. **Idempotency Key Reuse**: Payment events reuse the payment's idempotency_key field
+ * 1. **Written by outbox.ts**: the event and its queue item commit in one transaction
  * 2. **Delta Events**: Updates store only changed fields via calculateDelta()
- * 3. **Side Effect Pattern**: Events created after entity operations (eventual consistency)
- * 4. **Global Lamport Clock**: Single counter across all entity types
+ * 3. **Local only**: events are never pushed to Supabase
  *
  * @module debts/events
  */
 
-import { nanoid } from "nanoid";
 import { db } from "@/lib/dexie/db";
-import { getDeviceId } from "@/lib/dexie/deviceManager";
-import { getNextLamportClock } from "@/lib/sync/lamportClock";
-import { addDebtEventToSyncQueue, getCurrentUserId } from "./sync";
-import type {
-  Debt,
-  InternalDebt,
-  DebtPayment,
-  DebtEvent,
-  InternalDebtEvent,
-  DebtPaymentEvent,
-  AnyDebtEvent,
-} from "@/types/debt";
-
-// =====================================================
-// User Context (Placeholder)
-// =====================================================
+import type { DebtEvent, InternalDebtEvent, DebtPaymentEvent, AnyDebtEvent } from "@/types/debt";
 
 // =====================================================
 // Delta Calculation
@@ -85,212 +64,6 @@ export function calculateDelta<T extends object>(before: T, after: T): Partial<T
   }
 
   return delta;
-}
-
-// =====================================================
-// Event Creation Functions
-// =====================================================
-
-/**
- * Create event for external debt operation
- *
- * Generates a complete event record with idempotency key, lamport clock,
- * vector clock, and stores it in the local events table.
- *
- * ## Idempotency Key Format
- *
- * ${deviceId}-debt-${debtId}-${lamportClock}
- *
- * This ensures:
- * - Unique keys per operation
- * - Monotonically increasing within device
- * - Server can deduplicate by key
- *
- * @param debt - Debt entity (full object for create, partial for update)
- * @param op - Operation type (create | update | delete)
- * @param changedFields - Changed fields for update operations (optional)
- * @returns Promise resolving to created event
- *
- * @example
- * // Create event
- * await createDebtEvent(newDebt, "create");
- *
- * // Update event with delta
- * const delta = calculateDelta(oldDebt, newDebt);
- * await createDebtEvent(newDebt, "update", delta);
- */
-export async function createDebtEvent(
-  debt: Debt,
-  op: "create" | "update" | "delete",
-  changedFields?: Partial<Debt>
-): Promise<DebtEvent> {
-  const deviceId = await getDeviceId();
-  const lamportClock = await getNextLamportClock(debt.id);
-  const actorUserId = await getCurrentUserId();
-
-  const idempotencyKey = `${deviceId}-debt-${debt.id}-${lamportClock}`;
-
-  // Check if event already exists (idempotency)
-  const existing = await db.events.where("idempotency_key").equals(idempotencyKey).first();
-
-  if (existing) {
-    console.log(`[Event] Event with key ${idempotencyKey} already exists, skipping`);
-    return existing as unknown as DebtEvent;
-  }
-
-  const event: DebtEvent = {
-    id: nanoid(),
-    entity_type: "debt",
-    entity_id: debt.id,
-    op,
-    payload: (op === "create" ? debt : changedFields || {}) as Partial<Debt> &
-      Record<string, unknown>,
-    idempotency_key: idempotencyKey,
-    lamport_clock: lamportClock,
-    vector_clock: { [deviceId]: lamportClock },
-    actor_user_id: actorUserId,
-    device_id: deviceId,
-    timestamp: new Date().toISOString(),
-    created_at: new Date().toISOString(),
-    household_id: debt.household_id,
-    event_version: 1,
-  };
-
-  await db.events.add(event as unknown as import("@/lib/dexie/db").TransactionEvent);
-
-  // Add to sync queue for server synchronization
-  await addDebtEventToSyncQueue(event);
-
-  console.log(`[Event] Debt ${op} event created: ${debt.name} (lamport: ${lamportClock})`);
-
-  return event;
-}
-
-/**
- * Create event for internal debt operation
- *
- * Same structure as createDebtEvent but for internal debt entity type.
- *
- * @param debt - Internal debt entity
- * @param op - Operation type (create | update | delete)
- * @param changedFields - Changed fields for update operations (optional)
- * @returns Promise resolving to created event
- *
- * @example
- * await createInternalDebtEvent(newDebt, "create");
- */
-export async function createInternalDebtEvent(
-  debt: InternalDebt,
-  op: "create" | "update" | "delete",
-  changedFields?: Partial<InternalDebt>
-): Promise<InternalDebtEvent> {
-  const deviceId = await getDeviceId();
-  const lamportClock = await getNextLamportClock(debt.id);
-  const actorUserId = await getCurrentUserId();
-
-  const idempotencyKey = `${deviceId}-internal_debt-${debt.id}-${lamportClock}`;
-
-  // Check if event already exists (idempotency)
-  const existing = await db.events.where("idempotency_key").equals(idempotencyKey).first();
-
-  if (existing) {
-    console.log(`[Event] Event with key ${idempotencyKey} already exists, skipping`);
-    return existing as unknown as InternalDebtEvent;
-  }
-
-  const event: InternalDebtEvent = {
-    id: nanoid(),
-    entity_type: "internal_debt",
-    entity_id: debt.id,
-    op,
-    payload: (op === "create" ? debt : changedFields || {}) as Partial<InternalDebt> &
-      Record<string, unknown>,
-    idempotency_key: idempotencyKey,
-    lamport_clock: lamportClock,
-    vector_clock: { [deviceId]: lamportClock },
-    actor_user_id: actorUserId,
-    device_id: deviceId,
-    timestamp: new Date().toISOString(),
-    created_at: new Date().toISOString(),
-    household_id: debt.household_id,
-    event_version: 1,
-  };
-
-  await db.events.add(event as unknown as import("@/lib/dexie/db").TransactionEvent);
-
-  // Add to sync queue for server synchronization
-  await addDebtEventToSyncQueue(event);
-
-  console.log(`[Event] Internal debt ${op} event created: ${debt.name} (lamport: ${lamportClock})`);
-
-  return event;
-}
-
-/**
- * Create event for debt payment operation
- *
- * IMPORTANT: This function REUSES the payment's idempotency_key field
- * instead of generating a new one. This ensures:
- * - Single idempotency key per operation (not two)
- * - Payment processing and event sourcing stay in sync
- * - Server can deduplicate by single key
- *
- * @param payment - Debt payment entity (full object, always create operation)
- * @param op - Operation type (always "create" for payments)
- * @returns Promise resolving to created event
- *
- * @example
- * const payment = await processDebtPayment(...);
- * await createDebtPaymentEvent(payment, "create");
- */
-export async function createDebtPaymentEvent(
-  payment: DebtPayment,
-  op: "create"
-): Promise<DebtPaymentEvent> {
-  const deviceId = await getDeviceId();
-  const lamportClock = await getNextLamportClock(payment.id);
-  const actorUserId = await getCurrentUserId();
-
-  // CRITICAL: Reuse payment's idempotency key (not generate new)
-  // Fallback for rows from server that lack this field
-  const idempotencyKey =
-    payment.idempotency_key || `${deviceId}-debt_payment-${payment.id}-${lamportClock}`;
-
-  // Check if event already exists (idempotency)
-  const existing = await db.events.where("idempotency_key").equals(idempotencyKey).first();
-
-  if (existing) {
-    console.log(`[Event] Event with key ${idempotencyKey} already exists, skipping`);
-    return existing as unknown as DebtPaymentEvent;
-  }
-
-  const event: DebtPaymentEvent = {
-    id: nanoid(),
-    entity_type: "debt_payment",
-    entity_id: payment.id,
-    op,
-    payload: payment as DebtPayment & Record<string, unknown>,
-    idempotency_key: idempotencyKey, // Reuses payment's key
-    lamport_clock: lamportClock,
-    vector_clock: { [deviceId]: lamportClock },
-    actor_user_id: actorUserId,
-    device_id: deviceId,
-    timestamp: new Date().toISOString(),
-    created_at: new Date().toISOString(),
-    household_id: payment.household_id,
-    event_version: 1,
-  };
-
-  await db.events.add(event as unknown as import("@/lib/dexie/db").TransactionEvent);
-
-  // Add to sync queue for server synchronization
-  await addDebtEventToSyncQueue(event);
-
-  console.log(
-    `[Event] Payment ${op} event created: ₱${(payment.amount_cents / 100).toFixed(2)} (lamport: ${lamportClock})`
-  );
-
-  return event;
 }
 
 // =====================================================

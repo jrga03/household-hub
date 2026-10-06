@@ -24,16 +24,6 @@ import { cents } from "@/test/cents";
 vi.spyOn(console, "log").mockImplementation(() => {});
 vi.spyOn(console, "warn").mockImplementation(() => {});
 
-// getCurrentUserId reads the Supabase session; unit tests run unauthenticated,
-// so pin a deterministic test user while keeping the rest of the module real.
-vi.mock("../sync", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../sync")>();
-  return {
-    ...actual,
-    getCurrentUserId: vi.fn().mockResolvedValue("test-user-id"),
-  };
-});
-
 describe("Debt CRUD Operations", () => {
   beforeEach(async () => {
     // Clear all relevant tables

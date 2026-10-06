@@ -5,12 +5,11 @@
  * Wraps the existing Supabase-based sync queue with debt-specific logic.
  *
  * Core Functions:
- * - addDebtEventToSyncQueue: Add debt event to sync queue for server synchronization
  * - getSyncStatusForDebt: Query current sync status for a debt entity
  * - getPendingDebtSyncCount: Count pending debt sync items
  *
  * Integration Pattern:
- * Event creation → addDebtEventToSyncQueue → Supabase sync_queue table → Sync processor
+ * `outbox.ts` writes queue items; this module reads queue status.
  *
  * See src/lib/offline/syncQueue.ts for underlying sync queue operations.
  * See src/lib/sync/processor.ts for sync processing logic.
@@ -18,11 +17,8 @@
  * @module debts/sync
  */
 
-import { supabase } from "@/lib/supabase";
 import { db } from "@/lib/dexie/db";
-import { addToSyncQueue } from "@/lib/offline/syncQueue";
-import type { AnyDebtEvent } from "@/types/debt";
-import type { EntityType, SyncQueueStatus } from "@/types/sync";
+import type { SyncQueueStatus } from "@/types/sync";
 
 /**
  * Sync status for UI display
@@ -30,112 +26,6 @@ import type { EntityType, SyncQueueStatus } from "@/types/sync";
  * Simplified status that maps queue states to user-friendly states.
  */
 export type DebtSyncStatus = "syncing" | "queued" | "failed" | "synced";
-
-/**
- * Get current user ID from the locally persisted Supabase session.
- *
- * Uses getSession() (local read) rather than getUser() (network validation)
- * so debt mutations still work offline. Throws when unauthenticated: an
- * event attributed to nobody is worse than a failed mutation.
- *
- * @returns Promise resolving to the authenticated user's ID
- */
-export async function getCurrentUserId(): Promise<string> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const userId = session?.user?.id;
-
-  if (!userId) {
-    throw new Error("Not authenticated: cannot record debt activity");
-  }
-
-  return userId;
-}
-
-/**
- * Add debt event to sync queue
- *
- * Wraps the existing addToSyncQueue function with debt-specific logic.
- * Converts debt event into sync queue format and inserts into Supabase sync_queue table.
- *
- * Flow:
- * 1. Extract entity type and ID from event
- * 2. Build payload from event (contains full event structure)
- * 3. Get current user ID for RLS
- * 4. Call addToSyncQueue with debt entity details
- *
- * Error Handling:
- * - Returns success: false with error message on failure
- * - All errors logged to console
- * - Graceful degradation (doesn't throw)
- *
- * @param event - Debt event (DebtEvent | InternalDebtEvent | DebtPaymentEvent)
- * @returns Promise resolving to sync queue item ID or null on error
- *
- * @example
- * // After creating debt event
- * const event = await createDebtEvent(debt, "create");
- * const queueId = await addDebtEventToSyncQueue(event);
- *
- * if (queueId) {
- *   console.log("Queued for sync:", queueId);
- * } else {
- *   console.error("Failed to queue for sync");
- * }
- *
- * @example
- * // After payment event
- * const event = await createDebtPaymentEvent(payment, "create");
- * await addDebtEventToSyncQueue(event);
- */
-export async function addDebtEventToSyncQueue(event: AnyDebtEvent): Promise<string | null> {
-  try {
-    const userId = await getCurrentUserId();
-
-    // Build payload from event
-    // The sync queue stores the event structure itself as the payload
-    const payload = {
-      id: event.id,
-      entity_type: event.entity_type,
-      entity_id: event.entity_id,
-      op: event.op,
-      payload: event.payload,
-      idempotency_key: event.idempotency_key,
-      lamport_clock: event.lamport_clock,
-      vector_clock: event.vector_clock,
-      actor_user_id: event.actor_user_id,
-      device_id: event.device_id,
-      timestamp: event.timestamp,
-      created_at: event.created_at,
-      household_id: event.household_id,
-      event_version: event.event_version,
-    };
-
-    // Add to sync queue
-    const result = await addToSyncQueue(
-      event.entity_type as EntityType,
-      event.entity_id,
-      event.op,
-      payload,
-      userId
-    );
-
-    if (!result.success) {
-      console.error("[Debt Sync] Failed to add to sync queue:", result.error);
-      return null;
-    }
-
-    console.log(
-      `[Debt Sync] Added to queue: ${event.entity_type} ${event.entity_id} (${event.op}) - Queue ID: ${result.queueItemId}`
-    );
-
-    return result.queueItemId || null;
-  } catch (error) {
-    console.error("[Debt Sync] Unexpected error adding to sync queue:", error);
-    return null;
-  }
-}
 
 /**
  * Get sync status for a debt entity

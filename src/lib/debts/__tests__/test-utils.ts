@@ -26,7 +26,6 @@
  * @module debts/test-utils
  */
 
-import { nanoid } from "nanoid";
 import type { Debt, InternalDebt, DebtPayment, EntityType } from "@/types/debt";
 import { cents } from "@/test/cents";
 
@@ -73,7 +72,7 @@ export function createTestDebt(overrides?: Partial<Debt>): Debt {
   const now = new Date().toISOString();
 
   return {
-    id: nanoid(),
+    id: crypto.randomUUID(),
     household_id: TEST_HOUSEHOLD_ID,
     name: "Test Debt",
     original_amount_cents: cents(100000), // ₱1,000.00
@@ -107,7 +106,7 @@ export function createTestInternalDebt(overrides?: Partial<InternalDebt>): Inter
   const now = new Date().toISOString();
 
   return {
-    id: nanoid(),
+    id: crypto.randomUUID(),
     household_id: TEST_HOUSEHOLD_ID,
     name: "Test Internal Debt",
     original_amount_cents: cents(50000), // ₱500.00
@@ -155,16 +154,16 @@ export function createTestPayment(overrides?: Partial<DebtPayment>): DebtPayment
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
   return {
-    id: nanoid(),
+    id: crypto.randomUUID(),
     household_id: TEST_HOUSEHOLD_ID,
-    debt_id: "test-debt-" + nanoid(),
+    debt_id: "test-debt-" + crypto.randomUUID(),
     internal_debt_id: undefined,
     transaction_id: TEST_TRANSACTION_ID,
     amount_cents: cents(10000), // ₱100.00
     payment_date: today,
     is_reversal: false,
     reverses_payment_id: undefined,
-    idempotency_key: `${TEST_DEVICE_ID}-debt_payment-${nanoid()}-${Date.now()}`,
+    idempotency_key: `${TEST_DEVICE_ID}-debt_payment-${crypto.randomUUID()}-${Date.now()}`,
     device_id: TEST_DEVICE_ID,
     created_at: now,
     updated_at: now,
