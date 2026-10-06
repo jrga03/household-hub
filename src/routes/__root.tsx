@@ -3,6 +3,8 @@ import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 import { useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { autoSyncManager } from "@/lib/sync/autoSync";
+import { repairLegacyDebtIds } from "@/lib/debts/repair";
+import { reportError } from "@/lib/sentry";
 import { syncIssuesManager } from "@/lib/sync/SyncIssuesManager";
 import { SyncIssuesPanel } from "@/components/SyncIssuesPanel";
 import { ensureDeviceRegistered, triggerDeviceLastSeenUpdate } from "@/lib/device-registration";
@@ -78,19 +80,28 @@ function RootComponent() {
     return () => window.removeEventListener("focus", handleFocus);
   }, [user?.id]);
 
-  // Manage auto-sync lifecycle based on auth state
+  // Repair legacy debt ids before the first drain, so the processor never
+  // sends a nanoid id; then hand over to auto-sync
   useEffect(() => {
-    if (user?.id) {
-      // User is authenticated - start auto-sync
-      console.log("Starting auto-sync for user:", user.id);
-      autoSyncManager.start(user.id);
+    if (!user?.id) return;
+    const userId = user.id;
+    let stopped = false;
 
-      return () => {
-        // Cleanup on logout or unmount
-        console.log("Stopping auto-sync");
-        autoSyncManager.stop();
-      };
-    }
+    void repairLegacyDebtIds(userId)
+      .catch((error: unknown) =>
+        reportError(error, { subsystem: "debt-repair", operation: "repairLegacyDebtIds" })
+      )
+      .finally(() => {
+        if (stopped) return;
+        console.log("Starting auto-sync for user:", userId);
+        autoSyncManager.start(userId);
+      });
+
+    return () => {
+      stopped = true;
+      console.log("Stopping auto-sync");
+      autoSyncManager.stop();
+    };
   }, [user?.id]); // Only re-run if user ID changes (login/logout), not on user object updates
 
   return (
