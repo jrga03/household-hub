@@ -452,6 +452,8 @@ Confirmed in review on 2026-09-30:
 
 - **Phase 2b split into 2b-0 and 2b; brand covers storage and display (decided 2026-10-04; spec `docs/plans/2026-10-04-phase-2b-cents-boundaries-design.md`).** 2b-0 drops the uncalled `get_max_lamport_clock` and pins `owner_user_id` in `accounts_update` WITH CHECK, deployed by the user before its merge is pushed. 2b brands entity amounts and `formatPHP` with `Cents`, makes `asCents` import-restricted with a runtime integer check, and skips-and-reports sync rows that fail Zod. Re-measured at `59c086f`: 366 errors / 58 files with the full brand (production 94 / 35). Why and revisit conditions: the spec's Decisions & Deferrals.
 
+- **Dependabot alerts stay off for now (deferred by the user 2026-10-06).** The repo has Dependabot alerts disabled (API 403) and no code scanning (404), so `npm audit` in Security Checks is the only vulnerability gate; the `seroval` critical surfaced only as a red Security Checks run. Revisit: the user enables alerts in Settings → Code security.
+
 ## Resume state (2026-10-01)
 
 - Phases 0, 0.5a, and 0.5b are merged and pushed (`main` = `913efac`). Per-phase specs and plans: `docs/plans/2026-09-30-phase-0-live-bugs*`, `docs/plans/2026-09-30-phase-0.5a-outbox-writes*`, `docs/plans/2026-10-01-phase-0.5b-budget-outbox*`.
