@@ -100,7 +100,11 @@ const SYNC_TABLES: SyncTableName[] = [
 /** Ledger rows are immutable; a reversal is a new row. */
 const INSERT_ONLY_TABLES: ReadonlySet<SyncTableName> = new Set(["debt_payments"]);
 
-/** debt_payments has no updated_at. Inserts keep the client's timestamp, so a row synced late from an offline device can sort below another device's high-water mark (pre-existing for every table; realtime still delivers it). */
+/**
+ * debt_payments has no updated_at. Inserts keep the client's timestamp, so a
+ * row synced late from an offline device can sort below another device's
+ * high-water mark (pre-existing for every table; realtime still delivers it).
+ */
 function cursorColumn(tableName: SyncTableName): "updated_at" | "created_at" {
   return INSERT_ONLY_TABLES.has(tableName) ? "created_at" : "updated_at";
 }
@@ -549,7 +553,10 @@ export class RealtimeSync {
    * - Remote updated_at > local updated_at: Update with remote
    * - Local updated_at >= remote updated_at: Keep local (local is newer)
    *
-   * The cursor advances to the max timestamp actually seen (client-side for debt_payments inserts, server for others) and only after a fully successful pass, so a failed table fetch is retried from the same cursor next time.
+   * The cursor advances to the max cursor value actually seen (see
+   * cursorColumn: inserts carry the client's timestamp) and only after a
+   * fully successful pass, so a failed table fetch is retried from the same
+   * cursor next time. First run falls back to the last 24 hours.
    *
    * @private
    */
