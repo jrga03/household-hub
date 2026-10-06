@@ -16,7 +16,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { db, type LocalTransaction } from "@/lib/dexie/db";
-import { handleTransactionEdit } from "@/lib/debts";
+import { prepareTransactionEdit } from "@/lib/debts";
 import { supabase } from "@/lib/supabase";
 import {
   createOfflineTransaction,
@@ -29,11 +29,14 @@ import { cents } from "@/test/cents";
 // Debt side-effects (payment creation/reversal) are exercised in the debts
 // test suites; mocked here so these tests stay focused on the transaction
 // writes and merge semantics.
-vi.mock("@/lib/debts", () => ({
-  processDebtPayment: vi.fn().mockResolvedValue(undefined),
-  handleTransactionEdit: vi.fn().mockResolvedValue([]),
-  handleTransactionDelete: vi.fn().mockResolvedValue(undefined),
-}));
+vi.mock("@/lib/debts", async () => {
+  const { emptyWriteSet } = await import("@/lib/debts/outbox");
+  return {
+    prepareDebtPayment: vi.fn().mockResolvedValue({ writeSet: emptyWriteSet() }),
+    prepareTransactionEdit: vi.fn().mockResolvedValue({ writeSet: emptyWriteSet() }),
+    prepareTransactionDelete: vi.fn().mockResolvedValue({ writeSet: emptyWriteSet() }),
+  };
+});
 
 // deviceManager's best-effort device registration (unrelated to what these
 // tests cover) calls supabase.auth.getUser() on every create; stub it as
@@ -299,7 +302,7 @@ describe("updateOfflineTransaction debt link merge", () => {
     expect(queueItem.operation.payload.debt_id).toBe("debt-1");
     // Amount changed on a linked transaction → the debt adjustment runs
     // against the PRESERVED link instead of being skipped for a missing one
-    expect(vi.mocked(handleTransactionEdit)).toHaveBeenCalledWith(
+    expect(vi.mocked(prepareTransactionEdit)).toHaveBeenCalledWith(
       expect.objectContaining({ transaction_id: tx.id, new_debt_id: "debt-1" }),
       testUserId
     );

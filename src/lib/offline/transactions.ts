@@ -23,7 +23,8 @@ import { db, type LocalTransaction } from "@/lib/dexie/db";
 import { deviceManager } from "@/lib/dexie/deviceManager";
 import { buildSyncQueueItem } from "./syncQueue";
 import { ensureLocalRow } from "./ensureLocal";
-import { processDebtPayment, handleTransactionEdit, handleTransactionDelete } from "@/lib/debts";
+import { prepareDebtPayment, prepareTransactionDelete, prepareTransactionEdit } from "@/lib/debts";
+import { applyDebtWriteSet, debtWriteTables, emptyWriteSet } from "@/lib/debts/outbox";
 import type { TransactionInput, OfflineOperationResult } from "./types";
 import type { SyncQueueItem } from "@/types/sync";
 import { DEFAULT_HOUSEHOLD_ID } from "@/lib/household";
@@ -37,8 +38,9 @@ const DEFAULT_CURRENCY_CODE = "PHP";
 /**
  * Creates a new transaction offline.
  *
- * The transaction and its sync queue item are written to IndexedDB in a
- * single Dexie transaction; the sync processor pushes it to Supabase when
+ * The transaction, its sync queue item and any linked debt payment (with
+ * its events and queue items) are written to IndexedDB in a single Dexie
+ * transaction; the sync processor pushes it to Supabase when
  * online. The ID is a client-generated UUID that the server keeps, so no
  * ID remapping is ever needed.
  *
@@ -93,18 +95,12 @@ export async function createOfflineTransaction(
       userId
     );
 
-    // Entity + outbox item commit together or not at all
-    await db.transaction("rw", db.transactions, db.syncQueue, async () => {
-      await db.transactions.add(transaction);
-      await db.syncQueue.add(queueItem);
-    });
-
-    // Process debt payment if linked to a debt. This runs its own writes
-    // (debt tables + events) and cannot join the transaction above, so on
-    // failure we compensate by removing the transaction and its queue item.
+    // Prepared after the transaction item so its queue items sort after it:
+    // debt_payments.transaction_id references transactions
+    let debtWrite = emptyWriteSet();
     if (input.debt_id || input.internal_debt_id) {
       try {
-        await processDebtPayment(
+        const prepared = await prepareDebtPayment(
           {
             transaction_id: id,
             amount_cents: input.amount_cents,
@@ -115,11 +111,8 @@ export async function createOfflineTransaction(
           },
           userId
         );
+        debtWrite = prepared.writeSet;
       } catch (error) {
-        await db.transaction("rw", db.transactions, db.syncQueue, async () => {
-          await db.transactions.delete(transaction.id);
-          await db.syncQueue.delete(queueItem.id);
-        });
         console.error("Failed to create debt payment:", error);
         return {
           success: false,
@@ -128,6 +121,13 @@ export async function createOfflineTransaction(
         };
       }
     }
+
+    // Transaction, payment, status change and their outbox items commit together
+    await db.transaction("rw", [db.transactions, ...debtWriteTables()], async () => {
+      await db.transactions.add(transaction);
+      await db.syncQueue.add(queueItem);
+      await applyDebtWriteSet(debtWrite);
+    });
 
     return {
       success: true,
@@ -148,7 +148,9 @@ export async function createOfflineTransaction(
  * Updates an existing transaction offline.
  *
  * Merges the provided updates with the existing transaction data and writes
- * the updated entity plus its sync queue item atomically.
+ * the updated entity, its sync queue item and any debt payment adjustment
+ * (including the reversal when the debt link is removed) atomically. A debt
+ * adjustment that cannot be prepared fails the whole edit.
  *
  * Update Restrictions:
  * - Cannot change transfer_group_id after creation (enforced at sync level)
@@ -212,21 +214,20 @@ export async function updateOfflineTransaction(
       userId
     );
 
-    await db.transaction("rw", db.transactions, db.syncQueue, async () => {
-      await db.transactions.put(updated);
-      await db.syncQueue.add(queueItem);
-    });
-
-    // Handle debt payment changes if debt-related fields changed
     const debtFieldsChanged =
       updates.amount_cents !== undefined ||
       updates.debt_id !== undefined ||
       updates.internal_debt_id !== undefined ||
       updates.date !== undefined;
+    // The old link counts too: unlinking must reverse the live payment
+    const touchesDebt = Boolean(
+      updated.debt_id || updated.internal_debt_id || existing.debt_id || existing.internal_debt_id
+    );
 
-    if (debtFieldsChanged && (updated.debt_id || updated.internal_debt_id)) {
+    let debtWrite = emptyWriteSet();
+    if (debtFieldsChanged && touchesDebt) {
       try {
-        await handleTransactionEdit(
+        const prepared = await prepareTransactionEdit(
           {
             transaction_id: id,
             new_amount_cents: updated.amount_cents,
@@ -236,14 +237,22 @@ export async function updateOfflineTransaction(
           },
           userId
         );
+        debtWrite = prepared.writeSet;
       } catch (error) {
         console.error("Failed to adjust debt payment:", error);
-        // Don't rollback the transaction update — the debt adjustment is secondary.
-        // This is intentionally asymmetric with deleteOfflineTransaction (which blocks
-        // on debt reversal failure) because a failed delete reversal would leave the
-        // debt balance incorrect, while a failed update adjustment is recoverable.
+        return {
+          success: false,
+          error: `Failed to adjust debt payment: ${error instanceof Error ? error.message : "Unknown error"}`,
+          isTemporary: false,
+        };
       }
     }
+
+    await db.transaction("rw", [db.transactions, ...debtWriteTables()], async () => {
+      await db.transactions.put(updated);
+      await db.syncQueue.add(queueItem);
+      await applyDebtWriteSet(debtWrite);
+    });
 
     return {
       success: true,
@@ -321,8 +330,9 @@ export async function updateOfflineTransactionsStatus(
 /**
  * Deletes a transaction offline.
  *
- * Reverses any linked debt payment first (preserving the audit trail), then
- * removes the transaction and enqueues the delete atomically.
+ * Any linked debt payment is reversed (preserving the audit trail) in the
+ * same Dexie transaction that removes the transaction and enqueues the
+ * delete, with the reversal queued first.
  *
  * Transfer Considerations:
  * - Deleting a transfer transaction requires deleting BOTH paired transactions
@@ -348,9 +358,9 @@ export async function deleteOfflineTransaction(
       };
     }
 
-    // Reverse debt payment BEFORE deletion to preserve audit trail
+    let debtWrite = emptyWriteSet();
     try {
-      await handleTransactionDelete({ transaction_id: id }, userId);
+      debtWrite = (await prepareTransactionDelete({ transaction_id: id }, userId)).writeSet;
     } catch (error) {
       console.error("Failed to reverse debt payment:", error);
       return {
@@ -360,9 +370,11 @@ export async function deleteOfflineTransaction(
       };
     }
 
+    // Built after the reversal items: reversal rows reference this transaction
     const queueItem = await buildSyncQueueItem("transaction", id, "delete", { id }, userId);
 
-    await db.transaction("rw", db.transactions, db.syncQueue, async () => {
+    await db.transaction("rw", [db.transactions, ...debtWriteTables()], async () => {
+      await applyDebtWriteSet(debtWrite);
       await db.transactions.delete(id);
       await db.syncQueue.add(queueItem);
     });
