@@ -1,8 +1,8 @@
 /**
  * Debt Sync Queue Helpers
  *
- * Provides utilities for integrating debt events into the sync queue system.
- * Wraps the existing Supabase-based sync queue with debt-specific logic.
+ * Reads the local sync queue (db.syncQueue) to report sync status for debts.
+ * Writes go through `outbox.ts`; this module never enqueues or syncs.
  *
  * Core Functions:
  * - getSyncStatusForDebt: Query current sync status for a debt entity
