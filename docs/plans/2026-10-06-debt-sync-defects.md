@@ -47,19 +47,20 @@
 ## Progress
 
 - [x] Task 0: Branch and baseline (branch cut at `59848c3`; baseline vitest 84 files / 1079 tests, tsc app 0, tsc strict 0)
-- [ ] Task 1: One household constant; picker reads by household
-- [ ] Task 2: Strictly ordered queue timestamps
-- [ ] Task 3: Server-shape payload projections
-- [ ] Task 4: Debt write sets (outbox core)
-- [ ] Task 5: CRUD on write sets
-- [ ] Task 6: Payments, reversals and status on write sets
-- [ ] Task 7: Atomic transaction + debt writes
-- [ ] Task 8: Remove the envelope path; ban nanoid
-- [ ] Task 9: Pull schemas for debt tables
-- [ ] Task 10: Realtime and catch-up for debt tables
-- [ ] Task 11: Legacy id repair
-- [ ] Task 12: Local-stack integration test
-- [ ] Task 13: Acceptance, docs, merge
+- [x] Task 1: One household constant; picker reads by household
+- [x] Task 2: Strictly ordered queue timestamps
+- [x] Task 3: Server-shape payload projections
+- [x] Task 4: Debt write sets (outbox core)
+- [x] Task 5: CRUD on write sets
+- [x] Task 6: Payments, reversals and status on write sets
+- [x] Task 7: Atomic transaction + debt writes
+- [x] Task 8: Remove the envelope path; ban nanoid
+- [x] Task 9: Pull schemas for debt tables
+- [x] Task 10: Realtime and catch-up for debt tables
+- [x] Task 11: Legacy id repair
+- [x] Task 12: Local-stack integration test
+- [x] Task 12a: Processor sends only server columns for transactions (added 2026-10-06, user decision)
+- [x] Task 13: Acceptance, docs, merge
 
 ---
 
@@ -3080,7 +3081,15 @@ Expected: `0, 0, 0`. Record the publication list in Decisions & Deferrals (it de
 
 ## Acceptance results
 
-(filled in Task 13)
+Measured at `1679bcf` on branch `debt-sync-defects` (2026-10-06):
+
+- `npx tsc --noEmit` app / tests / strict: exit 0 / 0 / 0. `npm run lint`: exit 0 (only the pre-existing `eslint-env` warning in `scripts/generate-icons.js`).
+- `npx vitest run`: 92 files passed, 1 skipped; 1131 tests passed, 1 skipped (the env-gated integration test). Baseline at `59848c3`: 84 files / 1079 tests.
+- `npm run build`: exit 0. `npm run size`: 354.6 KB gz of 355 (`main` 353.8; 355.4 before the repair became a dynamic import).
+- `npm run test:e2e:smoke` (chromium): 11 passed.
+- Integration (local stack, `DEBT_SYNC_INTEGRATION=1`): 1 passed, processor "Sync complete: 6 synced, 0 failed"; server balance 6000 equals `calculateDebtBalance`; SQL cross-check (Task 12) showed balance 6000 with 3 payment rows (2500, -2500, 4000).
+- Reviews: every task reviewed (spec + quality); fix rounds on Tasks 6, 10, 11; whole-branch review "ready after fixes", fixes applied in `8128cec`, `d2e8321`, `1679bcf` and reviewed clean.
+- Not run: full (non-smoke) E2E suite, non-chromium browsers, the production SQL check (after push, Step 5).
 
 ## Decisions & Deferrals
 
@@ -3095,6 +3104,22 @@ Planning decisions (2026-10-06, not in the spec):
 - **The UI stops calling `handleTransactionDelete` before the delete mutation.** Why: `deleteOfflineTransaction` already reverses linked payments, and the extra call committed the reversal separately from the delete. The toast now uses `isTransactionLinkedToDebt`.
 - **Integration test lives in `src/` and is env-gated.** Why: the `tests/` tsc program sets `types: ["node"]`, which drops the Vite env types that `src/` modules need; vitest's config pins a fake Supabase URL, so the test mocks `@/lib/supabase` with a real local client.
 - **The nanoid ban is a separate ESLint block.** Why: `no-restricted-imports` in a later block replaces earlier ones. The two directories are in `asCentsAllowed` today, so no conflict; 2c's allow-list narrowing must merge `restrictAsCents` into this block.
+
+Execution decisions and deferrals (2026-10-06):
+
+- **Processor sends only server columns for transactions (Task 12a, user decision).** Why: the integration test found `PGRST204 ... 'owner_user_id' column of 'transactions'`; every edit of a device-created transaction (and every personal create) has failed to sync since `fe32b81` (2026-09-30, production). `src/lib/sync/serverColumns.ts` projects at send time with a compile-time key check. Relaxes the "processor unchanged" constraint for this one change. Revisit: n/a.
+- **Stranded edits are requeued once at startup (user decision).** `requeueOwnerColumnFailures` (flag `ownerColumnRequeue`) requeues failed transaction items whose error mentions `owner_user_id`, keeping `created_at` order. Caveat accepted: an old edit can overwrite a newer edit another household member made on the server. Their Sync Issues entries are not cleared (cosmetic; nothing clears issues on success, and the panel's Retry is a placeholder). Revisit: a follow-up that dismisses issues for requeued entity ids.
+- **Bulk delete runs one transaction at a time (Task 6 fix).** Why: prepare-then-commit reads balances before committing, so concurrent deletes on one debt lost status flips.
+- **Repair is safe to run twice (Task 11 fix).** Flag and row-id snapshot re-checked inside the transaction, one in-flight promise per tab, `syncing` transaction items rewritten too. Deferred: the snapshot compares ids, not `updated_at`; the in-flight promise is not keyed by user; no deterministic test for the in-transaction guards. Revisit: if the repair ever runs on real legacy rows.
+- **The repair loads on demand.** Why: the bundle was 355.4 KB gz against the 355 budget.
+- **Debt server `updated_at` is client-set on update (deferred).** `debts` and `internal_debts` have no BEFORE UPDATE trigger, so late or skewed updates can sort below another device's catch-up mark, and a queued status update can move `updated_at` backwards after the payment trigger's `NOW()`. Revisit: debts UI spec (migration adding `update_updated_at_column()` to both tables).
+- **Inserts keep client timestamps (deferred, pre-existing for every table).** A row synced late from an offline device can fall below another device's high-water mark; realtime still delivers it if published. Revisit: when catch-up gaps are reported, or with 2c's `readDb` work.
+- **Two devices editing one debt-linked transaction both reverse it (deferred).** Nothing makes `reverses_payment_id` unique, so the ledger can keep two reversals and two new payments. Same-device version: overlapping prepares in two tabs. Revisit: debts UI spec (partial unique index on `reverses_payment_id` plus a compensation rule).
+- **Deleting a debt-linked transaction cannot sync (deferred).** See the plan-approval decision above.
+- **Deleting a debt with a pending sync item is blocked until sync (pre-existing guard in `validateDebtDeletion`).** Revisit: debts UI spec.
+- **A transient parent failure becomes a permanent child failure (deferred, pre-existing).** The processor continues after a failed item, so a payment whose transaction is awaiting retry fails non-retryably on the FK. Revisit: processor work (skip children of a pending parent, or retry 23503 once).
+- **Debt status is never re-derived after a pull; same-named debts from two devices collide on the unique name index (deferred).** Revisit: debts UI spec.
+- **Not traced:** whether cached account or category rows carry non-server keys into update payloads. Revisit: if a non-transaction PGRST204 appears in Sync Issues.
 
 From the spec (section 9), unchanged: scope is end-to-end sync without UI; debts move to the standard outbox; legacy rows are re-keyed; realtime publication unchanged; catch-up first run still looks back 24 hours.
 
