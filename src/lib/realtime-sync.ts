@@ -69,6 +69,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { reportError } from "@/lib/sentry";
 import { parseSyncRow, type SyncTableName } from "@/lib/validations/syncRows";
 import type { ZodIssue } from "zod";
+import type { Debt, DebtPayment, InternalDebt } from "@/types/debt";
 
 /**
  * Realtime payload from Supabase (generic for any table)
@@ -78,7 +79,13 @@ type RealtimePayload = RealtimePostgresChangesPayload<Record<string, unknown>>;
 /**
  * Union type for all synced table records
  */
-type SyncRecord = LocalTransaction | LocalAccount | LocalCategory;
+type SyncRecord =
+  | LocalTransaction
+  | LocalAccount
+  | LocalCategory
+  | Debt
+  | InternalDebt
+  | DebtPayment;
 
 /**
  * Generic table interface for type-erased Dexie operations.
@@ -106,6 +113,12 @@ function getTable(tableName: SyncTableName): AnyTable {
       return db.accounts as unknown as AnyTable;
     case "categories":
       return db.categories as unknown as AnyTable;
+    case "debts":
+      return db.debts as unknown as AnyTable;
+    case "internal_debts":
+      return db.internalDebts as unknown as AnyTable;
+    case "debt_payments":
+      return db.debtPayments as unknown as AnyTable;
   }
 }
 
@@ -530,7 +543,7 @@ export class RealtimeSync {
 
     console.log(`[RealtimeSync] Fetching changes since ${since.toISOString()}`);
 
-    const tables: SyncTableName[] = ["transactions", "accounts", "categories"];
+    const tables = ["transactions", "accounts", "categories"] as const;
     let maxSeen = "";
     let allSucceeded = true;
 

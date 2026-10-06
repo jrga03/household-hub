@@ -1,8 +1,15 @@
 import { z } from "zod";
 import { asCents } from "@/lib/currency";
 import type { LocalAccount, LocalCategory, LocalTransaction } from "@/lib/dexie/db";
+import type { Debt, DebtPayment, InternalDebt } from "@/types/debt";
 
-export type SyncTableName = "transactions" | "accounts" | "categories";
+export type SyncTableName =
+  | "transactions"
+  | "accounts"
+  | "categories"
+  | "debts"
+  | "internal_debts"
+  | "debt_payments";
 
 const EPOCH = "1970-01-01T00:00:00.000Z";
 
@@ -105,14 +112,71 @@ export const categoryRowSchema = z.object({
   updated_at: timestamp,
 }) satisfies z.ZodType<LocalCategory, z.ZodTypeDef, unknown>;
 
+const debtStatus = z.enum(["active", "paid_off", "archived"]);
+const debtEntityType = z.enum(["category", "account", "member"]);
+const flag = z
+  .boolean()
+  .nullish()
+  .transform((value) => value ?? false);
+
+export const debtRowSchema = z.object({
+  id: z.string(),
+  household_id: z.string(),
+  name: z.string(),
+  original_amount_cents: centsValue,
+  status: debtStatus,
+  closed_at: optionalText,
+  created_at: timestamp,
+  updated_at: timestamp,
+}) satisfies z.ZodType<Debt, z.ZodTypeDef, unknown>;
+
+export const internalDebtRowSchema = debtRowSchema.extend({
+  from_type: debtEntityType,
+  from_id: z.string(),
+  from_display_name: z.string(),
+  to_type: debtEntityType,
+  to_id: z.string(),
+  to_display_name: z.string(),
+}) satisfies z.ZodType<InternalDebt, z.ZodTypeDef, unknown>;
+
+/** The server ledger is append-only (no updated_at); locally a row's updated_at is its created_at. */
+export const debtPaymentRowSchema = z
+  .object({
+    id: z.string(),
+    household_id: z.string(),
+    debt_id: optionalText,
+    internal_debt_id: optionalText,
+    transaction_id: z.string(),
+    amount_cents: centsValue,
+    payment_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    device_id: z.string(),
+    is_reversal: flag,
+    reverses_payment_id: optionalText,
+    adjustment_reason: optionalText,
+    is_overpayment: flag,
+    overpayment_amount: centsValue.nullish().transform((value) => value ?? undefined),
+    created_at: timestamp,
+  })
+  .transform((row) => ({ ...row, updated_at: row.created_at })) satisfies z.ZodType<
+  DebtPayment,
+  z.ZodTypeDef,
+  unknown
+>;
+
 export type SyncRowResult =
-  | { ok: true; row: LocalTransaction | LocalAccount | LocalCategory }
+  | {
+      ok: true;
+      row: LocalTransaction | LocalAccount | LocalCategory | Debt | InternalDebt | DebtPayment;
+    }
   | { ok: false; issues: z.ZodIssue[] };
 
 const schemas = {
   transactions: transactionRowSchema,
   accounts: accountRowSchema,
   categories: categoryRowSchema,
+  debts: debtRowSchema,
+  internal_debts: internalDebtRowSchema,
+  debt_payments: debtPaymentRowSchema,
 } as const;
 
 export function parseSyncRow(table: SyncTableName, record: unknown): SyncRowResult {
