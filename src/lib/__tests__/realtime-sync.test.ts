@@ -9,8 +9,10 @@ type ChangeHandler = (payload: {
 const handlers = new Map<string, ChangeHandler>();
 const catchUpRows = new Map<string, Record<string, unknown>[]>();
 
-vi.mock("@/lib/supabase", () => ({
-  supabase: {
+const gteColumns = new Map<string, string>();
+
+vi.mock("@/lib/supabase", () => {
+  const client = {
     channel: (name: string) => {
       const channel = {
         on: (_event: string, _filter: unknown, handler: ChangeHandler) => {
@@ -25,13 +27,17 @@ vi.mock("@/lib/supabase", () => ({
     from: (table: string) => {
       const query = {
         select: () => query,
-        gte: () => query,
+        gte: (column: string) => {
+          gteColumns.set(table, column);
+          return query;
+        },
         order: () => Promise.resolve({ data: catchUpRows.get(table) ?? [], error: null }),
       };
       return query;
     },
-  },
-}));
+  };
+  return { supabase: client, untypedSupabase: client };
+});
 vi.mock("@/lib/dexie/deviceManager", () => ({
   getDeviceId: vi.fn().mockResolvedValue("this-device"),
 }));
@@ -40,6 +46,33 @@ vi.mock("@/lib/sentry", () => ({ reportError: vi.fn() }));
 import { db } from "@/lib/dexie/db";
 import { RealtimeSync } from "@/lib/realtime-sync";
 import { reportError } from "@/lib/sentry";
+
+const serverDebt = {
+  id: "d-remote",
+  household_id: "h1",
+  name: "Loan",
+  original_amount_cents: 10000,
+  status: "active",
+  closed_at: null,
+  created_at: "2026-10-04T01:00:00Z",
+  updated_at: "2026-10-04T01:00:00Z",
+};
+const serverPayment = {
+  id: "p-remote",
+  household_id: "h1",
+  debt_id: "d-remote",
+  internal_debt_id: null,
+  transaction_id: "t-remote",
+  amount_cents: 2500,
+  payment_date: "2026-10-04",
+  device_id: "other-device",
+  is_reversal: false,
+  reverses_payment_id: null,
+  adjustment_reason: null,
+  is_overpayment: false,
+  overpayment_amount: null,
+  created_at: "2026-10-04T03:00:00Z",
+};
 
 const serverTransaction = {
   id: "t-remote",
@@ -78,8 +111,12 @@ describe("RealtimeSync row validation", () => {
   beforeEach(async () => {
     handlers.clear();
     catchUpRows.clear();
+    gteColumns.clear();
     vi.mocked(reportError).mockClear();
     await db.transactions.clear();
+    await db.debts.clear();
+    await db.internalDebts.clear();
+    await db.debtPayments.clear();
     await db.meta.clear();
     await new RealtimeSync().initialize();
   });
@@ -138,5 +175,57 @@ describe("RealtimeSync row validation", () => {
       expect.objectContaining({ subsystem: "realtime-sync", operation: "invalid-row:transactions" })
     );
     expect((await db.meta.get("syncHighWaterMark"))?.value).toBe("2026-10-04T02:00:00Z");
+  });
+
+  describe("debt tables", () => {
+    it("subscribes to all six tables", async () => {
+      expect([...handlers.keys()].sort()).toEqual([
+        "accounts",
+        "categories",
+        "debt_payments",
+        "debts",
+        "internal_debts",
+        "transactions",
+      ]);
+    });
+
+    it("inserts a debt from realtime", async () => {
+      await handlers.get("debts")?.({ eventType: "INSERT", new: serverDebt, old: {} });
+      expect(await db.debts.get("d-remote")).toMatchObject({ original_amount_cents: 10000 });
+    });
+
+    it("treats payments as append-only", async () => {
+      await handlers.get("debt_payments")?.({ eventType: "INSERT", new: serverPayment, old: {} });
+      await handlers.get("debt_payments")?.({
+        eventType: "UPDATE",
+        new: { ...serverPayment, amount_cents: 9999 },
+        old: {},
+      });
+      await handlers.get("debt_payments")?.({ eventType: "DELETE", new: {}, old: serverPayment });
+      expect(await db.debtPayments.get("p-remote")).toMatchObject({ amount_cents: 2500 });
+    });
+
+    it("catches up debts on updated_at and payments on created_at", async () => {
+      catchUpRows.set("debts", [serverDebt]);
+      catchUpRows.set("debt_payments", [serverPayment]);
+
+      await new RealtimeSync().handleReconnection();
+
+      expect(gteColumns.get("debts")).toBe("updated_at");
+      expect(gteColumns.get("debt_payments")).toBe("created_at");
+      expect(await db.debts.get("d-remote")).toBeDefined();
+      expect(await db.debtPayments.get("p-remote")).toBeDefined();
+      expect((await db.meta.get("syncHighWaterMark"))?.value).toBe("2026-10-04T03:00:00Z");
+    });
+
+    it("skips and reports an invalid payment row", async () => {
+      catchUpRows.set("debt_payments", [{ ...serverPayment, amount_cents: 1.5 }]);
+      await new RealtimeSync().handleReconnection();
+      expect(await db.debtPayments.get("p-remote")).toBeUndefined();
+      expect(reportError).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({ operation: "invalid-row:debt_payments" })
+      );
+    });
   });
 });

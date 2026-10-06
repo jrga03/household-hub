@@ -1,8 +1,8 @@
 /**
  * Realtime Sync Manager for Household Hub
  *
- * Manages Supabase realtime subscriptions for all entity types (transactions,
- * accounts, categories, budgets). Handles INSERT, UPDATE, DELETE events from
+ * Manages Supabase realtime subscriptions for all entity types (accounts,
+ * categories, debts, internal debts, transactions, debt payments). Handles INSERT, UPDATE, DELETE events from
  * PostgreSQL CDC and syncs them to IndexedDB with conflict resolution.
  *
  * Key Features:
@@ -60,7 +60,7 @@
  */
 
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import { supabase, untypedSupabase } from "@/lib/supabase";
 import { db, type LocalTransaction, type LocalAccount, type LocalCategory } from "@/lib/dexie/db";
 import { getDeviceId } from "@/lib/dexie/deviceManager";
 import { syncProcessor } from "@/lib/sync/processor";
@@ -86,6 +86,24 @@ type SyncRecord =
   | Debt
   | InternalDebt
   | DebtPayment;
+
+/** Catch-up order: parents before the rows that reference them. */
+const SYNC_TABLES: SyncTableName[] = [
+  "accounts",
+  "categories",
+  "debts",
+  "internal_debts",
+  "transactions",
+  "debt_payments",
+];
+
+/** Ledger rows are immutable; a reversal is a new row. */
+const INSERT_ONLY_TABLES: ReadonlySet<SyncTableName> = new Set(["debt_payments"]);
+
+/** debt_payments has no updated_at; both columns are server timestamps, so one high-water mark serves all tables. */
+function cursorColumn(tableName: SyncTableName): "updated_at" | "created_at" {
+  return INSERT_ONLY_TABLES.has(tableName) ? "created_at" : "updated_at";
+}
 
 /**
  * Generic table interface for type-erased Dexie operations.
@@ -202,11 +220,8 @@ export class RealtimeSync {
 
     console.log(`[RealtimeSync] Initializing with device ID: ${this.deviceId}`);
 
-    // Subscribe to all entity tables (budgets will be added in future chunk)
-    const tables: SyncTableName[] = ["transactions", "accounts", "categories"];
-
     try {
-      await Promise.all(tables.map((table) => this.subscribeToTable(table)));
+      await Promise.all(SYNC_TABLES.map((table) => this.subscribeToTable(table)));
       this.isInitialized = true;
       console.log("[RealtimeSync] Initialization complete - all subscriptions active");
     } catch (error) {
@@ -318,10 +333,18 @@ export class RealtimeSync {
           await this.handleInsert(tableName, newRecord);
           break;
         case "UPDATE":
-          await this.handleUpdate(tableName, newRecord, oldRecord);
+          if (INSERT_ONLY_TABLES.has(tableName)) {
+            await this.handleInsert(tableName, newRecord);
+          } else {
+            await this.handleUpdate(tableName, newRecord, oldRecord);
+          }
           break;
         case "DELETE":
-          await this.handleDelete(tableName, oldRecord);
+          if (INSERT_ONLY_TABLES.has(tableName)) {
+            console.warn(`[RealtimeSync] Ignored DELETE on append-only ${tableName}`);
+          } else {
+            await this.handleDelete(tableName, oldRecord);
+          }
           break;
         default:
           console.warn(`[RealtimeSync] Unknown event type: ${eventType}`);
@@ -515,8 +538,8 @@ export class RealtimeSync {
   /**
    * Fetch latest changes from server since the persisted high-water mark
    *
-   * Queries Supabase for all records updated since the last observed
-   * server-side updated_at (persisted in db.meta, so it survives reloads -
+   * Queries Supabase for all records changed since the last observed
+   * server-side timestamp, on each table's cursor column (persisted in db.meta, so it survives reloads -
    * previously this cursor lived in the in-memory store and every page
    * load silently fell back to "last 24 hours", losing anything older;
    * review SYNC-11).
@@ -543,17 +566,17 @@ export class RealtimeSync {
 
     console.log(`[RealtimeSync] Fetching changes since ${since.toISOString()}`);
 
-    const tables = ["transactions", "accounts", "categories"] as const;
     let maxSeen = "";
     let allSucceeded = true;
 
-    for (const tableName of tables) {
+    for (const tableName of SYNC_TABLES) {
       try {
-        const { data, error } = await supabase
+        const column = cursorColumn(tableName);
+        const { data, error } = await untypedSupabase
           .from(tableName)
           .select("*")
-          .gte("updated_at", since.toISOString())
-          .order("updated_at", { ascending: true });
+          .gte(column, since.toISOString())
+          .order(column, { ascending: true });
 
         if (error) {
           console.error(`[RealtimeSync] Failed to fetch ${tableName}:`, error);
@@ -567,9 +590,9 @@ export class RealtimeSync {
           // Merge changes into IndexedDB
           for (const record of data) {
             await this.mergeRecord(tableName, record);
-            const updatedAt = record.updated_at as string;
-            if (updatedAt > maxSeen) {
-              maxSeen = updatedAt;
+            const seenAt = record[column] as string;
+            if (seenAt > maxSeen) {
+              maxSeen = seenAt;
             }
           }
         }
@@ -617,6 +640,8 @@ export class RealtimeSync {
       // New record - add it
       await table.add(parsed.row);
       console.log(`[RealtimeSync] Added new record ${record.id} to ${tableName}`);
+    } else if (INSERT_ONLY_TABLES.has(tableName)) {
+      return;
     } else {
       // Compare timestamps to determine which version is newer
       const remoteTime = new Date(parsed.row.updated_at).getTime();
@@ -653,7 +678,7 @@ export class RealtimeSync {
    */
   isHealthy(): boolean {
     const status = useSyncStore.getState().status;
-    const expectedTables = 3; // transactions, accounts, categories (budgets in future chunk)
+    const expectedTables = SYNC_TABLES.length;
 
     return status !== "error" && this.subscriptions.size === expectedTables && this.isInitialized;
   }
