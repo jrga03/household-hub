@@ -1029,4 +1029,8 @@ Planning decisions (2026-10-07):
 - **`SAMPLES` lists reads per key, not per root.** Why: the accounts list does not read transactions but balances do, so a per-root table would force transaction writes to refresh the account list.
 - **`useTransfers` keeps the accounts list in its Task 5 key list.** Why: Tasks 2-6 preserve behavior; Task 7 replaces it with `"transaction"`, which refreshes balances, not the list.
 
+Execution decisions (2026-10-07):
+
+- **Task 9 runs before Task 6.** After Task 5 the main bundle is 363,473 bytes gz against a 363,520-byte budget (47 bytes left); Task 6 adds three builders, while Task 9 only deletes dead invalidations and depends on nothing in Tasks 6-8. Warning counts shift accordingly (Task 9 first: 12 → 5; Task 6: 5 → 2; Task 7: 2 → 0). Revisit: if the branch still crosses the budget after Task 9, stop and ask the user (raise the budget or trim elsewhere).
+
 From the spec (section 9), unchanged: scope is refactor plus invalidation fixes; merge only near-duplicate roots; callers name the entity; coverage test plus E2E and a browser check; plugin and ban on production files only; selector extended with `TSAsExpression`.
