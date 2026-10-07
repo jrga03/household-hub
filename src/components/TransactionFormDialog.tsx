@@ -266,8 +266,8 @@ export function TransactionFormDialog({
         queryClient,
         user?.id,
         data.debt_id || data.internal_debt_id
-          ? [queryKeys.transactions.all, ["transaction"], queryKeys.debts.all, ["debt-balance"]]
-          : [queryKeys.transactions.all, ["transaction"]]
+          ? [queryKeys.transactions.all, queryKeys.debts.all, ["debt-balance"]]
+          : [queryKeys.transactions.all]
       );
 
       handleClose();

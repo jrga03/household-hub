@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider, type QueryKey } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  partialMatchKey,
+  type QueryKey,
+} from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
@@ -263,6 +268,11 @@ describe("transaction write hooks", () => {
     expect(supabase.from).not.toHaveBeenCalled();
   });
 
+  const refreshesDetail = (keys: (QueryKey | undefined)[], id: string) =>
+    keys.some(
+      (key) => key !== undefined && partialMatchKey(queryKeys.transactions.detail(id), key)
+    );
+
   describe("refreshes the detail query after the drain", () => {
     async function invalidatedKeysAfterDrain(run: (queryClient: QueryClient) => Promise<unknown>) {
       let finishDrain: () => void = () => {};
@@ -289,7 +299,7 @@ describe("transaction write hooks", () => {
           queryClient
         ).result.current.mutateAsync("t5")
       );
-      expect(keys).toContainEqual(["transaction"]);
+      expect(refreshesDetail(keys, "t5")).toBe(true);
     });
 
     it("bulk status", async () => {
@@ -299,14 +309,14 @@ describe("transaction write hooks", () => {
           status: "cleared",
         })
       );
-      expect(keys).toContainEqual(["transaction"]);
+      expect(refreshesDetail(keys, "t1")).toBe(true);
     });
 
     it("delete", async () => {
       const keys = await invalidatedKeysAfterDrain((queryClient) =>
         renderWithClient(() => useDeleteTransaction(), queryClient).result.current.mutateAsync("t2")
       );
-      expect(keys).toContainEqual(["transaction"]);
+      expect(refreshesDetail(keys, "t2")).toBe(true);
     });
   });
 });

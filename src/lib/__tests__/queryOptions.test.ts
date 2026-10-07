@@ -12,6 +12,9 @@ import {
   categoriesQueryOptions,
   categoryTotalsQueryOptions,
   dashboardQueryOptions,
+  transactionQueryOptions,
+  transactionsFilterSummaryQueryOptions,
+  transactionsInfiniteQueryOptions,
 } from "@/lib/supabaseQueries";
 
 vi.mock("@/lib/supabase", () => ({ supabase: { from: vi.fn(), rpc: vi.fn() } }));
@@ -47,5 +50,16 @@ describe("query options builders", () => {
     expect(activeExternalDebtsQueryOptions().queryKey).toEqual(
       queryKeys.debts.activeExternal("00000000-0000-0000-0000-000000000001")
     );
+  });
+
+  it("transactions", () => {
+    const filters = { search: "rice" };
+    expect(transactionsInfiniteQueryOptions(filters).queryKey).toEqual(
+      queryKeys.transactions.list(filters)
+    );
+    expect(transactionsFilterSummaryQueryOptions(filters).queryKey).toEqual(
+      queryKeys.transactions.filterSummary(filters)
+    );
+    expect(transactionQueryOptions("t1").queryKey).toEqual(queryKeys.transactions.detail("t1"));
   });
 });

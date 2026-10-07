@@ -10,7 +10,8 @@
 
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, partialMatchKey } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import {
   createBrowserHistory,
   createRootRoute,
@@ -421,7 +422,12 @@ describe("TransactionFormDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: /update/i }));
 
     await waitFor(() => {
-      expect(invalidate).toHaveBeenCalledWith({ queryKey: ["transaction"] });
+      const keys = invalidate.mock.calls.map(([filters]) => filters?.queryKey);
+      expect(
+        keys.some(
+          (key) => key !== undefined && partialMatchKey(queryKeys.transactions.detail("txn-1"), key)
+        )
+      ).toBe(true);
     });
     invalidate.mockRestore();
   });

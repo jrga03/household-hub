@@ -1,4 +1,5 @@
 import {
+  infiniteQueryOptions,
   queryOptions,
   useInfiniteQuery,
   useQuery,
@@ -595,8 +596,12 @@ function buildTransactionsListQuery(filters?: TransactionFilters) {
  * scroll on prepend so the viewport does not jump.
  */
 export function useTransactions(filters?: TransactionFilters) {
-  return useInfiniteQuery({
-    queryKey: ["transactions", filters],
+  return useInfiniteQuery(transactionsInfiniteQueryOptions(filters));
+}
+
+export function transactionsInfiniteQueryOptions(filters?: TransactionFilters) {
+  return infiniteQueryOptions({
+    queryKey: queryKeys.transactions.list(filters),
     initialPageParam: 0,
     queryFn: async ({ pageParam }): Promise<TransactionsListPage<TransactionWithRelations>> => {
       // pageParam is the ABSOLUTE page index, so this offset stays correct
@@ -669,13 +674,17 @@ export type { TransactionsFilterSummary };
  *   from the FULL local Dexie dataset with the same filter semantics. All
  *   three numbers always come from one source — never a server count next
  *   to client totals.
- * - Keyed under the ["transactions"] prefix so every existing
- *   invalidateQueries({ queryKey: ["transactions"] }) call (mutations,
+ * - Keyed under queryKeys.transactions.all so every transaction
+ *   invalidation (mutations,
  *   post-sync drain) refreshes the summary alongside the list.
  */
 export function useTransactionsFilterSummary(filters?: TransactionFilters) {
-  return useQuery({
-    queryKey: ["transactions", "filter-summary", filters],
+  return useQuery(transactionsFilterSummaryQueryOptions(filters));
+}
+
+export function transactionsFilterSummaryQueryOptions(filters?: TransactionFilters) {
+  return queryOptions({
+    queryKey: queryKeys.transactions.filterSummary(filters),
     queryFn: async (): Promise<TransactionsFilterSummary> => {
       try {
         const { data, error } = await supabase.rpc("transactions_filter_summary", {
@@ -724,8 +733,12 @@ export function useTransactionsFilterSummary(filters?: TransactionFilters) {
 
 // Fetch single transaction
 export function useTransaction(id: string) {
-  return useQuery({
-    queryKey: ["transaction", id],
+  return useQuery(transactionQueryOptions(id));
+}
+
+export function transactionQueryOptions(id: string) {
+  return queryOptions({
+    queryKey: queryKeys.transactions.detail(id),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("transactions")
@@ -757,11 +770,7 @@ export function useDeleteTransaction() {
       if (!result.success) throw new Error(result.error ?? "Failed to delete transaction");
     },
     onSuccess: () =>
-      afterOutboxWrite(queryClient, userId, [
-        ["transactions"],
-        ["transaction"],
-        queryKeys.accounts.all,
-      ]),
+      afterOutboxWrite(queryClient, userId, [queryKeys.transactions.all, queryKeys.accounts.all]),
   });
 }
 
@@ -786,8 +795,7 @@ export function useSetTransactionStatus() {
     // Status moves amounts between the cleared/pending balance splits
     onSuccess: () =>
       afterOutboxWrite(queryClient, userId, [
-        ["transactions"],
-        ["transaction"],
+        queryKeys.transactions.all,
         queryKeys.accounts.balances(),
       ]),
   });
@@ -806,8 +814,8 @@ export function useToggleTransactionStatus() {
       if (!result.success) throw new Error(result.error ?? "Failed to update status");
       return newStatus;
     },
-    // ["transaction"] refreshes an open detail sheet once the drain lands
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [["transactions"], ["transaction"]]),
+    // transactions.all includes the detail, so an open sheet refreshes once the drain lands
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [queryKeys.transactions.all]),
   });
 }
 
