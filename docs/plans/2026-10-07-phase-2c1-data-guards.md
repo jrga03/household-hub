@@ -38,15 +38,15 @@
 
 ## Progress
 
-- [ ] Task 0: Branch and baseline
-- [ ] Task 1: Narrow `asCents`; disjoint import-restriction blocks
-- [ ] Task 2: Move realtime sync into `src/lib/sync`
-- [ ] Task 3: Move import drafts into `src/lib/offline`; `resetLocalDatabase`
-- [ ] Task 4: `readDb` facade
-- [ ] Task 5: Readers use `readDb`; restrict the writable `db`
-- [ ] Task 6: Dexie schema history
-- [ ] Task 7: Outbox invariant test
-- [ ] Task 8: Acceptance, docs, merge
+- [x] Task 0: Branch and baseline
+- [x] Task 1: Narrow `asCents`; disjoint import-restriction blocks
+- [x] Task 2: Move realtime sync into `src/lib/sync`
+- [x] Task 3: Move import drafts into `src/lib/offline`; `resetLocalDatabase`
+- [x] Task 4: `readDb` facade
+- [x] Task 5: Readers use `readDb`; restrict the writable `db`
+- [x] Task 6: Dexie schema history
+- [x] Task 7: Outbox invariant test
+- [x] Task 8: Acceptance, docs, merge
 
 ---
 
@@ -1282,7 +1282,15 @@ Expected: 0/0/0, lint 0 errors, vitest all pass (count above the Task 0 baseline
 
 ## Acceptance results
 
-(filled in Task 8)
+Measured at `23226e6` on branch `phase-2c1-data-guards` (2026-10-07):
+
+- `npx tsc --noEmit` app / tests / strict: exit 0 / 0 / 0. `npm run lint`: exit 0.
+- `npx vitest run`: 95 files passed, 1 skipped; 1218 tests passed, 1 skipped (baseline at `5bf5267`: 92 + 1 files, 1131 + 1 tests). The outbox invariant test alone: 70 tests.
+- `npm run build`: exit 0. `npm run size`: 354.7 KB gz of 355 (baseline 354.6).
+- `npm run test:e2e:smoke` (chromium): 11 passed.
+- Guards proven to bite (temporary edits, reverted): an edited shipped Dexie version fails the schema history test; an entity write outside its queue transaction, a dropped queue item, and an unclassified export each fail the outbox invariant test; a batch that queues only its first row fails check (a).
+- Reviews: every task reviewed; fix rounds on Task 7 (user-approved strengthening); whole-branch review "ready after fixes", fixes in `b38f442` (`.ts`-extension and `HouseholdHubDB` lint gaps) and `23226e6` (docs, CLAUDE.md `readDb` sentence).
+- Not run: full (non-smoke) E2E, non-chromium browsers.
 
 ## Decisions & Deferrals
 
@@ -1293,5 +1301,17 @@ Planning decisions (2026-10-07):
 - **ESLint `no-restricted-imports` blocks are disjoint by file set.** Why: a later block's options replace an earlier block's for the same file; disjoint sets make every file's restrictions readable in one place.
 - **`readDb` is assigned, not cast.** Why: `export const readDb: ReadDb = db` makes the compiler prove the facade is a subset of Dexie's real API.
 - **Invariant test failure injection rejects `add`, `bulkAdd`, `put` and `bulkPut` on `syncQueue`.** Why: the data layer enqueues with `add` (offline modules) and `bulkAdd` (write sets, batches); `put` covers any future path. Queue items are built before the transaction, so stubbing `buildSyncQueueItem` would not prove atomicity.
+
+Execution decisions and deferrals (2026-10-07):
+
+- **`event-compactor.ts` moved to `src/lib/sync/eventCompactor.ts` (Task 5).** It writes Dexie (`events`, `meta`) and imported `db` relatively, which the plan's grep missed; relocated per the spec's "writers are relocated" decision.
+- **Dexie declares 10 versions, not 11.** The planning count included a comment.
+- **Invariant check (a) requires every written synced row to be queued (user-approved).** The plan's check only required "some queue item of an allowed type"; a mutation writing two rows but queueing one would have passed. Four debt-linked transaction variants were added, check (b) asserts the rejected outbox write was actually hit, and production logging is silenced in that file.
+- **Writable-db restriction covers `.ts`-suffixed imports and `HouseholdHubDB` (final review).** `allowImportingTsExtensions` let `@/lib/dexie/db.ts` bypass it, and `new HouseholdHubDB()` gave a writable instance anywhere.
+- **Deferred bypasses, none used in code today:** dynamic `import("@/lib/dexie/db")`, a raw `import Dexie from "dexie"` outside the data layer, and the exported `debtWriteTables()` / `applyDebtWriteSet()` building blocks. Revisit: if any appears outside the data layer, add a `no-restricted-syntax` / import restriction.
+- **`import type { db }` is flagged** (core `no-restricted-imports` has no `allowTypeImports`). No use case; `typeof readDb` covers type needs.
+- **The schema history freezes `stores()` strings only;** an edit to a shipped `.upgrade()` callback is not caught. Revisit: if an upgrade callback is ever edited after release.
+- **`confirmDrafts` marks drafts confirmed in a separate transaction after the transactions batch (pre-existing).** A failure between them leaves drafts pending with their transactions created, and the batch does not dedupe on `import_key`. Revisit: its own follow-up (roadmap).
+- **Kept as Minor:** a duplicate nanoid lint case; `ReadDb`'s hand-maintained table list (a missing table fails loudly on first use); the invariant snapshot keys rows by id only; `db.upgrade.test.ts` still hand-copies the v9 stores.
 
 From the spec (section 9), unchanged: 2c split into 2c-1/2c-2; writers relocated, not allow-listed; `readDb` read-only through collections; schema history uses Dexie internals behind a shape guard.
