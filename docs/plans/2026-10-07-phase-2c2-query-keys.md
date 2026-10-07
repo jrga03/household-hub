@@ -41,18 +41,18 @@
 
 ## Progress
 
-- [ ] Task 0: Branch and baseline
-- [ ] Task 1: Key factory and plugin at `warn`
-- [ ] Task 2: Accounts and balances
-- [ ] Task 3: Categories
-- [ ] Task 4: Budgets, dashboard, category totals
-- [ ] Task 5: Analytics, transfers, debts selector
-- [ ] Task 6: Transactions (list, summary, detail)
-- [ ] Task 7: Write events and the invalidation map
-- [ ] Task 8: Processor invalidates drained entity types
-- [ ] Task 9: Delete dead invalidations
-- [ ] Task 10: Enforcement at `error`
-- [ ] Task 11: Acceptance, docs, merge
+- [x] Task 0: Branch and baseline
+- [x] Task 1: Key factory and plugin at `warn`
+- [x] Task 2: Accounts and balances
+- [x] Task 3: Categories
+- [x] Task 4: Budgets, dashboard, category totals
+- [x] Task 5: Analytics, transfers, debts selector
+- [x] Task 6: Transactions (list, summary, detail)
+- [x] Task 7: Write events and the invalidation map
+- [x] Task 8: Processor invalidates drained entity types
+- [x] Task 9: Delete dead invalidations
+- [x] Task 10: Enforcement at `error`
+- [x] Task 11: Acceptance, docs, merge
 
 ---
 
@@ -1017,7 +1017,15 @@ Expected: 0/0/0, lint 0 problems, vitest all pass above the Task 0 count, build 
 
 ## Acceptance results
 
-Not run yet.
+Measured on branch `phase-2c2-query-keys` (2026-10-07):
+
+- Gates at `2dfde31`: `npx tsc --noEmit` app / tests / strict exit 0 / 0 / 0; `npm run lint` 0 problems (`prefer-query-options` 25 → 0 across the tasks); `npx vitest run` 97 files passed + 1 skipped, 1278 tests passed + 1 skipped (baseline at `14fa8e6`: 95 + 1 files, 1218 + 1 tests); `npm run build` exit 0; `npm run size` 355.0 KB gz within budget; `npm run test:e2e:smoke` 11 passed.
+- Bundle: 363,473 B gz after Task 5, 363,529 B after Task 7 (9 B over, user-approved), 363,496 B after Task 8, 363,502 B after the final fixes (budget 363,520 B).
+- Full chromium E2E at `951fa1e`: 36 passed / 24 skipped, per-test identical to `docs/plans/2026-10-02-phase-1b-e2e-baseline.txt` except "ultrawide (2560x1440) › dashboard renders" (baseline pass). Run alone it failed 4 of 6 times on the branch and 2 of 5 on `main` (page height 1631 vs 1440 px, data-dependent); logged in CLAUDE.md Known infrastructure issues.
+- Browser check (preview build, local stack, screenshots read): add a ₱123.45 expense on Cash Wallet through the dialog, return by sidebar links within 30 s. Branch: dashboard expenses ₱13,234.57 → ₱13,358.02, total balance ₱148,024.49 → ₱147,901.04, Accounts Cash Wallet ₱500.00 → ₱376.55 and total ₱147,901.04. Control on `main`: dashboard updated (post-drain `["dashboard"]`), Accounts stayed at the pre-write ₱147,901.04 while the dashboard showed ₱147,777.59. Test rows deleted afterwards.
+- Guards proven to bite: an inline `as const` key in `useTransfers.ts` reports `arch/no-inline-query-keys` (Task 10, reverted); the coverage test fails to compile for an undeclared root (`satisfies`).
+- Reviews: every task reviewed clean (Task 7 on the strongest model); whole-branch review "Ready after fixes"; fixes `916f645` (hooks README examples) and `b7b9ef4` (debts selector `staleTime: 0`), re-reviewed.
+- Not run: non-chromium browsers; offline UI after a write for queries without a Dexie fallback; the two-device conflict path (unchanged by this branch).
 
 ## Decisions & Deferrals
 
@@ -1034,5 +1042,9 @@ Execution decisions (2026-10-07):
 - **Task 9 runs before Task 6.** After Task 5 the main bundle is 363,473 bytes gz against a 363,520-byte budget (47 bytes left); Task 6 adds three builders, while Task 9 only deletes dead invalidations and depends on nothing in Tasks 6-8. Warning counts shift accordingly (Task 9 first: 12 → 5; Task 6: 5 → 2; Task 7: 2 → 0). Revisit: if the branch still crosses the budget after Task 9, stop and ask the user (raise the budget or trim elsewhere).
 
 - **Task 7 commits 9 bytes over budget; Task 8 is the gate (user-approved 2026-10-07).** Task 7 measured 363,529 B gz (budget 363,520); a throwaway Task 8 edit measured 363,489 B because the processor's six literal keys collapse into `invalidateAfterWrite`. CI only measures `main`. Revisit: if Task 8's commit is still over, stop and ask.
+
+- **Final review deferrals (2026-10-07).** (1) The inline-key ban misses `"queryKey":` string keys, `satisfies` wrappers and keys held in variables; `prefer-query-options` covers hooks and `getQueryData` but not inside `queryOptions()`. Revisit: next guardrails task; add `Property[key.value='queryKey']` and `TSSatisfiesExpression` selectors. (2) Up to three invalidation passes per online write (immediate, processor post-drain, `afterOutboxWrite` `.then`). Revisit: when refetch cost shows up; needs a failed-drain test. (3) No mixed success/failure processor drain test. (4) `query-keys.ts` imports `AnalyticsFilters` from a hook file (type-only); move to `src/types/`. (5) Hook-above-builder order in the transactions section of `supabaseQueries.ts`. (6) No negative lint test for a factory-call key. (7) Debt forms write without a write event; covered for the selector by `staleTime: 0` (`b7b9ef4`).
+- **Pre-existing `src/hooks/README.md` drift (fix-round re-review).** Lists `useInstallPrompt.ts` and `use-mobile.ts` (absent), gives `lib/hooks/useDebounce.ts` (real: `src/hooks/`), uses v4 `isLoading` on a mutation. Revisit: Phase 4 docs (`check-doc-paths.mjs`).
+- **Bundle headroom is 18 B.** Revisit: at the start of the next phase that adds runtime code, decide deliberately to raise the budget or trim (roadmap Decisions & Deferrals).
 
 From the spec (section 9), unchanged: scope is refactor plus invalidation fixes; merge only near-duplicate roots; callers name the entity; coverage test plus E2E and a browser check; plugin and ban on production files only; selector extended with `TSAsExpression`.

@@ -57,7 +57,7 @@ Check here before debugging a test or CLI failure you did not cause. A failure i
 - **E2E needs** the local stack running (`supabase start`), `PW_TEST_HTML_REPORT_OPEN=never` for non-interactive runs, and a fresh `dist/` (`npm run test:e2e*` rebuild it; a bare `npx playwright test` does not).
 - **Scripts** must parse `supabase status -o env`, never the human-readable output.
 - **Pre-push unit-test flake under load:** `src/__tests__/transactions-route.test.tsx` "shows the filtered In/Out totals inline…" (the file's first test) can exceed its 5 s cold-mount wait when pre-push runs lint, vitest and tsc in parallel on a busy machine (seen 2026-10-04: lint 41 s vs ~15 s). Passes in isolation; re-run the push.
-- **Flaky layout baseline:** `layout-baseline.spec.ts` "ultrawide (2560x1440) › dashboard renders" fails about half the time on `main` too (2 of 4 isolated runs, 2026-10-07): the full-page screenshot comes out 1631 px tall instead of 1440 because the dashboard content height varies with local data. Its laptop/desktop siblings fail in the baseline.
+- **Flaky layout baseline:** `layout-baseline.spec.ts` "ultrawide (2560x1440) › dashboard renders" fails often on `main` too (2 of 5 isolated runs, 2026-10-07): the full-page screenshot comes out 1631 px tall instead of 1440 because the dashboard content height varies with local data. Its laptop/desktop siblings fail in the baseline.
 - **PWA update handoff** can cause one unexpected reload when a code-split route is tapped during the update window. Known and self-healing; no fix needed.
 - Rules: do not root-cause a listed issue mid-task. Log a new pre-existing failure here in the same commit as any workaround; delete an entry when it is fixed.
 
