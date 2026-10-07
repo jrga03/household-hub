@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, type QueryKey } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
@@ -141,7 +142,7 @@ describe("duplicate-name check against the query cache", () => {
     initial_balance_cents: cents(0),
   };
 
-  function clientWith(queryKey: string[], rows: unknown[]) {
+  function clientWith(queryKey: QueryKey, rows: unknown[]) {
     const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
     queryClient.setQueryData(queryKey, rows);
     return queryClient;
@@ -157,7 +158,9 @@ describe("duplicate-name check against the query cache", () => {
   });
 
   it("rejects creating an account whose name is already in the cached list", async () => {
-    const queryClient = clientWith(["accounts"], [{ id: "acc-1", name: "BDO", is_active: true }]);
+    const queryClient = clientWith(queryKeys.accounts.list(), [
+      { id: "acc-1", name: "BDO", is_active: true },
+    ]);
     const { result } = renderWithClient(() => useCreateAccount(), queryClient);
 
     await expect(result.current.mutateAsync(accountInput)).rejects.toThrow(
@@ -167,13 +170,10 @@ describe("duplicate-name check against the query cache", () => {
   });
 
   it("rejects renaming an account onto another cached account's name", async () => {
-    const queryClient = clientWith(
-      ["accounts"],
-      [
-        { id: "acc-1", name: "BDO", is_active: true },
-        { id: "acc-2", name: "BPI", is_active: true },
-      ]
-    );
+    const queryClient = clientWith(queryKeys.accounts.list(), [
+      { id: "acc-1", name: "BDO", is_active: true },
+      { id: "acc-2", name: "BPI", is_active: true },
+    ]);
     const { result } = renderWithClient(() => useUpdateAccount(), queryClient);
 
     await expect(
@@ -183,7 +183,9 @@ describe("duplicate-name check against the query cache", () => {
   });
 
   it("lets an account keep its own cached name", async () => {
-    const queryClient = clientWith(["accounts"], [{ id: "acc-1", name: "BDO", is_active: true }]);
+    const queryClient = clientWith(queryKeys.accounts.list(), [
+      { id: "acc-1", name: "BDO", is_active: true },
+    ]);
     const { result } = renderWithClient(() => useUpdateAccount(), queryClient);
 
     await result.current.mutateAsync({ id: "acc-1", updates: { name: "BDO" } });

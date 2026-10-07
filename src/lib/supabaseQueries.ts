@@ -1,4 +1,10 @@
-import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  queryOptions,
+  useInfiniteQuery,
+  useQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { supabase } from "./supabase";
 import { useAuthStore } from "@/stores/authStore";
 import {
@@ -29,6 +35,7 @@ import { deleteOfflineTransaction, updateOfflineTransactionsStatus } from "./off
 import type { TransferLeg } from "./offline/transfers";
 import { ensureLocalRow } from "./offline/ensureLocal";
 import { afterOutboxWrite } from "./offline/afterWrite";
+import { queryKeys } from "./query-keys";
 import { duplicateAccountNameError, duplicateCategoryNameError } from "./offline/duplicateNames";
 import type { AccountInput, CategoryInput } from "./offline/types";
 import type { Account } from "@/types/accounts";
@@ -60,8 +67,8 @@ import {
  * so archived accounts appeared in every dropdown for 10 minutes (DATA-06).
  */
 export function accountsQueryOptions() {
-  return {
-    queryKey: ["accounts"] as const,
+  return queryOptions({
+    queryKey: queryKeys.accounts.list(),
     queryFn: async () => {
       try {
         const { data, error } = await supabase
@@ -83,7 +90,7 @@ export function accountsQueryOptions() {
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     networkMode: "always" as const, // run the queryFn offline so the Dexie fallback can serve
-  };
+  });
 }
 
 // Fetch all active accounts
@@ -104,7 +111,7 @@ export function useCreateAccount() {
   return useMutation({
     mutationFn: async (account: AccountInput) => {
       const duplicateError = duplicateAccountNameError(
-        queryClient.getQueryData<Account[]>(["accounts"]) ?? [],
+        queryClient.getQueryData(accountsQueryOptions().queryKey) ?? [],
         account.name
       );
       if (duplicateError) throw new Error(duplicateError);
@@ -112,7 +119,7 @@ export function useCreateAccount() {
       if (!result.success) throw new Error(result.error ?? "Failed to create account");
       return result.data;
     },
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [["accounts"]]),
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [queryKeys.accounts.all]),
   });
 }
 
@@ -125,7 +132,7 @@ export function useUpdateAccount() {
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<AccountInput> }) => {
       if (updates.name !== undefined) {
         const duplicateError = duplicateAccountNameError(
-          queryClient.getQueryData<Account[]>(["accounts"]) ?? [],
+          queryClient.getQueryData(accountsQueryOptions().queryKey) ?? [],
           updates.name,
           id
         );
@@ -135,7 +142,7 @@ export function useUpdateAccount() {
       if (!result.success) throw new Error(result.error ?? "Failed to update account");
       return result.data;
     },
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [["accounts"]]),
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [queryKeys.accounts.all]),
   });
 }
 
@@ -210,9 +217,9 @@ const EMPTY_BALANCE_DELTA: Omit<AccountBalanceDelta, "account_id"> = {
   pending_count: 0,
 };
 
-export function useAccountBalance(accountId: string) {
-  return useQuery({
-    queryKey: ["account-balance", accountId],
+export function accountBalanceQueryOptions(accountId: string) {
+  return queryOptions({
+    queryKey: queryKeys.accounts.balance(accountId),
     queryFn: async (): Promise<AccountBalance> => {
       // Account details and server-side balance deltas, in parallel
       const [accountResult, deltasResult] = await Promise.all([
@@ -250,28 +257,13 @@ export function useAccountBalance(accountId: string) {
   });
 }
 
-/**
- * Fetches balance breakdowns for ALL active accounts.
- *
- * CRITICAL: Includes ALL transactions (including transfers) in balance calculations.
- * Efficiently fetches all accounts and transactions in two queries, then performs
- * client-side aggregation grouped by account_id.
- *
- * Use Cases:
- * - Dashboard account summary cards
- * - Net worth calculation (sum of all balances)
- * - Account comparison views
- * - Budget vs available funds checks
- *
- * @returns Query result with AccountBalance[] array
- *
- * @example
- * const { data: balances, isLoading } = useAccountBalances();
- * // Returns array of balances for all active accounts, ordered by name
- */
-export function useAccountBalances() {
-  return useQuery({
-    queryKey: ["account-balances"],
+export function useAccountBalance(accountId: string) {
+  return useQuery(accountBalanceQueryOptions(accountId));
+}
+
+export function accountBalancesQueryOptions() {
+  return queryOptions({
+    queryKey: queryKeys.accounts.balances(),
     queryFn: async (): Promise<AccountBalance[]> => {
       // Fetch all active accounts
       const { data: accounts, error: accountsError } = await supabase
@@ -317,6 +309,29 @@ export function useAccountBalances() {
     },
     staleTime: 30 * 1000, // 30 seconds
   });
+}
+
+/**
+ * Fetches balance breakdowns for ALL active accounts.
+ *
+ * CRITICAL: Includes ALL transactions (including transfers) in balance calculations.
+ * Efficiently fetches all accounts and transactions in two queries, then performs
+ * client-side aggregation grouped by account_id.
+ *
+ * Use Cases:
+ * - Dashboard account summary cards
+ * - Net worth calculation (sum of all balances)
+ * - Account comparison views
+ * - Budget vs available funds checks
+ *
+ * @returns Query result with AccountBalance[] array
+ *
+ * @example
+ * const { data: balances, isLoading } = useAccountBalances();
+ * // Returns array of balances for all active accounts, ordered by name
+ */
+export function useAccountBalances() {
+  return useQuery(accountBalancesQueryOptions());
 }
 
 /**
@@ -718,7 +733,11 @@ export function useDeleteTransaction() {
       if (!result.success) throw new Error(result.error ?? "Failed to delete transaction");
     },
     onSuccess: () =>
-      afterOutboxWrite(queryClient, userId, [["transactions"], ["transaction"], ["accounts"]]),
+      afterOutboxWrite(queryClient, userId, [
+        ["transactions"],
+        ["transaction"],
+        queryKeys.accounts.all,
+      ]),
   });
 }
 
@@ -745,8 +764,7 @@ export function useSetTransactionStatus() {
       afterOutboxWrite(queryClient, userId, [
         ["transactions"],
         ["transaction"],
-        ["account-balance"],
-        ["account-balances"],
+        queryKeys.accounts.balances(),
       ]),
   });
 }
