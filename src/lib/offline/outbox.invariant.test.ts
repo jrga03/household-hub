@@ -524,16 +524,84 @@ const MUTATIONS: Record<string, Scenario> = {
   },
 };
 
-const ENTITY_TABLES = [
-  "transactions",
-  "accounts",
-  "categories",
-  "budgets",
-  "debts",
-  "internalDebts",
-  "debtPayments",
-  "events",
-] as const;
+const DEBT_LINKED = ["transaction", "debt_payment", "debt"] as const;
+
+async function debtLinkedTransaction() {
+  const { id: debtId } = await debt();
+  return transaction({ debt_id: debtId });
+}
+
+/** Extra scenarios keyed "<exportName> (<variant>)"; the export must be in MUTATIONS */
+const VARIANTS: Record<string, Scenario> = {
+  "createOfflineTransaction (debt-linked)": {
+    entityTypes: DEBT_LINKED,
+    prepare: async () => {
+      const { id: debtId } = await debt();
+      return () =>
+        transactions.createOfflineTransaction(transactionInput({ debt_id: debtId }), USER);
+    },
+  },
+  "updateOfflineTransaction (debt-linked amount change)": {
+    entityTypes: DEBT_LINKED,
+    prepare: async () => {
+      const { id } = await debtLinkedTransaction();
+      return () => transactions.updateOfflineTransaction(id, { amount_cents: cents(4000) }, USER);
+    },
+  },
+  "updateOfflineTransaction (debt unlinked)": {
+    entityTypes: DEBT_LINKED,
+    prepare: async () => {
+      const { id } = await debtLinkedTransaction();
+      return () => transactions.updateOfflineTransaction(id, { debt_id: null }, USER);
+    },
+  },
+  "deleteOfflineTransaction (debt-linked)": {
+    entityTypes: DEBT_LINKED,
+    prepare: async () => {
+      const { id } = await debtLinkedTransaction();
+      return () => transactions.deleteOfflineTransaction(id, USER);
+    },
+  },
+};
+
+function variantExportName(key: string): string {
+  return key.replace(/ \(.*\)$/, "");
+}
+
+const SYNCED_TABLES: Record<string, EntityType> = {
+  transactions: "transaction",
+  accounts: "account",
+  categories: "category",
+  budgets: "budget",
+  debts: "debt",
+  internalDebts: "internal_debt",
+  debtPayments: "debt_payment",
+};
+
+const ENTITY_TABLES = [...Object.keys(SYNCED_TABLES), "events"];
+
+async function snapshotSyncedTables() {
+  const snapshot = new Map<string, { entityType: EntityType; json: string }>();
+  for (const [name, entityType] of Object.entries(SYNCED_TABLES)) {
+    const rows = (await db.table(name).toArray()) as { id: string }[];
+    for (const row of rows) snapshot.set(row.id, { entityType, json: JSON.stringify(row) });
+  }
+  return snapshot;
+}
+
+function changedRows(
+  before: Awaited<ReturnType<typeof snapshotSyncedTables>>,
+  after: Awaited<ReturnType<typeof snapshotSyncedTables>>
+) {
+  const changed: { id: string; entityType: EntityType }[] = [];
+  for (const id of new Set([...before.keys(), ...after.keys()])) {
+    const previous = before.get(id);
+    const next = after.get(id);
+    const row = next ?? previous;
+    if (row && previous?.json !== next?.json) changed.push({ id, entityType: row.entityType });
+  }
+  return changed;
+}
 
 async function dumpEntityTables() {
   const dump: Record<string, unknown[]> = {};
@@ -545,8 +613,14 @@ async function dumpEntityTables() {
 }
 
 function rejectOutboxWrites() {
-  for (const method of ["add", "bulkAdd", "put", "bulkPut"] as const) {
-    vi.spyOn(db.syncQueue, method).mockRejectedValue(new Error("outbox write rejected"));
+  return (["add", "bulkAdd", "put", "bulkPut"] as const).map((method) =>
+    vi.spyOn(db.syncQueue, method).mockRejectedValue(new Error("outbox write rejected"))
+  );
+}
+
+function silenceConsole() {
+  for (const method of ["log", "info", "warn", "error", "debug"] as const) {
+    vi.spyOn(console, method).mockImplementation(() => {});
   }
 }
 
@@ -566,6 +640,7 @@ async function callFails(call: () => Promise<unknown>): Promise<boolean> {
 
 describe("outbox invariant", () => {
   beforeEach(async () => {
+    silenceConsole();
     await Promise.all(db.tables.map((table) => table.clear()));
   });
   afterEach(() => vi.restoreAllMocks());
@@ -588,13 +663,26 @@ describe("outbox invariant", () => {
     expect(duplicates, "classify each name once").toEqual([]);
   });
 
-  describe.each(Object.entries(MUTATIONS))("%s", (_name, scenario) => {
-    it("enqueues sync items for what it writes", async () => {
+  it("names an exported mutation in every variant", () => {
+    const unknown = Object.keys(VARIANTS).filter((key) => !(variantExportName(key) in MUTATIONS));
+    expect(unknown, 'variant keys must be "<MUTATIONS key> (<variant>)"').toEqual([]);
+  });
+
+  describe.each(Object.entries({ ...MUTATIONS, ...VARIANTS }))("%s", (_name, scenario) => {
+    it("enqueues a sync item for every row it writes", async () => {
       const call = await scenario.prepare();
       await db.syncQueue.clear();
+      const before = await snapshotSyncedTables();
       await call();
+      const changed = changedRows(before, await snapshotSyncedTables());
       const items = await db.syncQueue.toArray();
-      expect(items.length).toBeGreaterThan(0);
+
+      expect(changed.length, "the call wrote no synced row").toBeGreaterThan(0);
+      const queued = new Set(items.map((item) => `${item.entity_type}:${item.entity_id}`));
+      const unqueued = changed
+        .map(({ id, entityType }) => `${entityType}:${id}`)
+        .filter((key) => !queued.has(key));
+      expect(unqueued, "written rows without a matching sync item").toEqual([]);
       for (const item of items) {
         expect(scenario.entityTypes).toContain(item.entity_type);
       }
@@ -604,9 +692,11 @@ describe("outbox invariant", () => {
       const call = await scenario.prepare();
       await db.syncQueue.clear();
       const before = await dumpEntityTables();
-      rejectOutboxWrites();
+      const outboxSpies = rejectOutboxWrites();
       expect(await callFails(call)).toBe(true);
-      vi.restoreAllMocks();
+      const outboxAttempts = outboxSpies.reduce((total, spy) => total + spy.mock.calls.length, 0);
+      for (const spy of outboxSpies) spy.mockRestore();
+      expect(outboxAttempts, "the call never reached the outbox write").toBeGreaterThan(0);
       expect(await dumpEntityTables()).toEqual(before);
     });
   });
