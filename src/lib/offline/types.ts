@@ -20,7 +20,7 @@ import type { Cents } from "@/lib/currency";
  * Input type for creating transactions offline
  *
  * Omits generated fields that will be added by mutation functions:
- * - id (generated as temp-${nanoid()})
+ * - id (client UUID from crypto.randomUUID(), kept by the server)
  * - created_at/updated_at (auto-generated timestamps)
  * - device_id (from deviceManager)
  * - household_id (hardcoded for MVP)
