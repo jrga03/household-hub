@@ -6,7 +6,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
 import { ThemeColorSync } from "@/components/ThemeColorSync";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { realtimeSync } from "@/lib/realtime-sync";
+import { realtimeSync } from "@/lib/sync/realtime";
 import { eventCompactor } from "@/lib/event-compactor";
 // Router singleton + scroll restoration + Register augmentation live in
 // src/router.ts so non-component layers (authStore session expiry) can

@@ -77,7 +77,7 @@
 import { toast } from "sonner";
 import { syncProcessor } from "./processor";
 import { getFailedCount } from "@/lib/offline/syncQueue";
-import { realtimeSync } from "@/lib/realtime-sync";
+import { realtimeSync } from "@/lib/sync/realtime";
 
 /**
  * AutoSyncManager - Coordinates automatic sync triggers across browser events

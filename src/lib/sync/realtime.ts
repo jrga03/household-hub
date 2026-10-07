@@ -56,7 +56,7 @@
  *
  * @see docs/implementation/chunks/034-sync-realtime/instructions.md
  * @see docs/initial plan/SYNC-ENGINE.md (lines 1543-1699 for realtime sync)
- * @module lib/realtime-sync
+ * @module lib/sync/realtime
  */
 
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
@@ -736,7 +736,7 @@ export class RealtimeSync {
  * Initialize once in App.tsx and cleanup on unmount.
  *
  * @example
- * import { realtimeSync } from '@/lib/realtime-sync';
+ * import { realtimeSync } from '@/lib/sync/realtime';
  *
  * // In App.tsx
  * useEffect(() => {

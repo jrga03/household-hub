@@ -18,7 +18,7 @@ vi.mock("sonner", () => ({
   toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() },
 }));
 
-vi.mock("@/lib/realtime-sync", () => ({
+vi.mock("@/lib/sync/realtime", () => ({
   realtimeSync: { handleReconnection: vi.fn().mockResolvedValue(undefined) },
 }));
 

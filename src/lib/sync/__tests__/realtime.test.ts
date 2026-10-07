@@ -44,7 +44,7 @@ vi.mock("@/lib/dexie/deviceManager", () => ({
 vi.mock("@/lib/sentry", () => ({ reportError: vi.fn() }));
 
 import { db } from "@/lib/dexie/db";
-import { RealtimeSync } from "@/lib/realtime-sync";
+import { RealtimeSync } from "@/lib/sync/realtime";
 import { reportError } from "@/lib/sentry";
 
 const serverDebt = {
