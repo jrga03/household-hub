@@ -1,5 +1,7 @@
-import type { QueryClient, QueryKey } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
+import { invalidateAfterWrite } from "@/lib/query-keys";
 import { syncProcessor } from "@/lib/sync/processor";
+import type { EntityType } from "@/types/sync";
 
 /**
  * Outbox writes land locally first; drain right away when online so the change
@@ -9,20 +11,14 @@ import { syncProcessor } from "@/lib/sync/processor";
 export function afterOutboxWrite(
   queryClient: QueryClient,
   userId: string | undefined,
-  queryKeys: QueryKey[]
+  entities: EntityType | readonly EntityType[]
 ): void {
-  const invalidateAll = () => {
-    for (const queryKey of queryKeys) {
-      void queryClient.invalidateQueries({ queryKey });
-    }
-  };
-
-  invalidateAll();
+  invalidateAfterWrite(queryClient, entities);
 
   if (userId && navigator.onLine) {
     syncProcessor
       .processQueue(userId)
-      .then(invalidateAll)
+      .then(() => invalidateAfterWrite(queryClient, entities))
       .catch(() => {});
   }
 }

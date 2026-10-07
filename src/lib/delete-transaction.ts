@@ -3,13 +3,12 @@
  *
  * Confirms with the user (transfer-aware message, app-level AlertDialog via
  * `@/lib/confirm` — review R39), deletes the transaction (the offline delete
- * reverses any linked debt payment), then invalidates debt queries and toasts. Used by
+ * reverses any linked debt payment), then toasts (useDeleteTransaction's write event refreshes debts). Used by
  * TransactionList's per-row Delete button and the narrow-layout detail sheet
  * (mobile UX review R38) so the two entry points cannot drift.
  */
 
 import { toast } from "sonner";
-import type { QueryClient } from "@tanstack/react-query";
 import { confirm } from "@/lib/confirm";
 import { isTransactionLinkedToDebt } from "@/lib/debts";
 
@@ -23,7 +22,6 @@ interface ConfirmAndDeleteTransactionArgs {
    * share the app's single mutation path (list/account invalidation included).
    */
   deleteTransaction: (id: string) => Promise<void>;
-  queryClient: QueryClient;
 }
 
 /** @returns true when the transaction was deleted, false when cancelled or failed */
@@ -32,7 +30,6 @@ export async function confirmAndDeleteTransaction({
   description,
   isTransferLeg,
   deleteTransaction,
-  queryClient,
 }: ConfirmAndDeleteTransactionArgs): Promise<boolean> {
   const confirmed = await confirm({
     title: isTransferLeg
@@ -51,8 +48,6 @@ export async function confirmAndDeleteTransaction({
     await deleteTransaction(id);
 
     if (wasDebtLinked) {
-      queryClient.invalidateQueries({ queryKey: ["debts"] });
-      queryClient.invalidateQueries({ queryKey: ["debt-balance"] });
       toast.success("Transaction deleted and debt balance restored");
     } else {
       toast.success("Transaction deleted");

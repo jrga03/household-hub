@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { partialMatchKey, type QueryKey } from "@tanstack/react-query";
 import type { EntityType } from "@/types/sync";
-import { queryKeys } from "@/lib/query-keys";
+import { invalidatesAfterWrite, keysAfterWrite, queryKeys } from "@/lib/query-keys";
 
 type Sample = { key: QueryKey; reads: readonly EntityType[] };
 
@@ -83,5 +83,32 @@ describe("queryKeys", () => {
     ]);
     expect(queryKeys.transfers.list("hh-1")).toEqual(["transfers", "hh-1"]);
     expect(queryKeys.debts.activeExternal("hh-1")).toEqual(["debts", "hh-1", "external", "active"]);
+  });
+});
+
+describe("invalidatesAfterWrite", () => {
+  const cases = Object.entries(SAMPLES).flatMap(([root, samples]) =>
+    samples.flatMap(({ key, reads }) => reads.map((entity) => ({ root, key, entity })))
+  );
+
+  it.each(cases)("a $entity write refreshes $key", ({ key, entity }) => {
+    expect(invalidatesAfterWrite[entity].some((target) => partialMatchKey(key, target))).toBe(true);
+  });
+
+  it("keeps the account list out of a transaction write", () => {
+    const list = queryKeys.accounts.list();
+    expect(invalidatesAfterWrite.transaction.some((target) => partialMatchKey(list, target))).toBe(
+      false
+    );
+  });
+
+  it("dedupes the union across entities", () => {
+    const keys = keysAfterWrite(["transaction", "account"]);
+    expect(keys).toContainEqual(queryKeys.transactions.all);
+    expect(keys.filter((key) => key[0] === "transactions")).toHaveLength(1);
+  });
+
+  it("accepts a single entity", () => {
+    expect(keysAfterWrite("budget")).toEqual([queryKeys.budgets.all, queryKeys.analytics.all]);
   });
 });

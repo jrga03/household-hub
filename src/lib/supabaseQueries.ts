@@ -124,7 +124,7 @@ export function useCreateAccount() {
       if (!result.success) throw new Error(result.error ?? "Failed to create account");
       return result.data;
     },
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [queryKeys.accounts.all]),
+    onSuccess: () => afterOutboxWrite(queryClient, userId, "account"),
   });
 }
 
@@ -147,7 +147,7 @@ export function useUpdateAccount() {
       if (!result.success) throw new Error(result.error ?? "Failed to update account");
       return result.data;
     },
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [queryKeys.accounts.all]),
+    onSuccess: () => afterOutboxWrite(queryClient, userId, "account"),
   });
 }
 
@@ -455,7 +455,7 @@ export function useCreateCategory() {
       if (!result.success) throw new Error(result.error ?? "Failed to create category");
       return result.data;
     },
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [queryKeys.categories.all]),
+    onSuccess: () => afterOutboxWrite(queryClient, userId, "category"),
   });
 }
 
@@ -478,7 +478,7 @@ export function useUpdateCategory() {
       if (!result.success) throw new Error(result.error ?? "Failed to update category");
       return result.data;
     },
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [queryKeys.categories.all]),
+    onSuccess: () => afterOutboxWrite(queryClient, userId, "category"),
   });
 }
 
@@ -769,8 +769,7 @@ export function useDeleteTransaction() {
       const result = await deleteOfflineTransaction(id, requireUserId(userId));
       if (!result.success) throw new Error(result.error ?? "Failed to delete transaction");
     },
-    onSuccess: () =>
-      afterOutboxWrite(queryClient, userId, [queryKeys.transactions.all, queryKeys.accounts.all]),
+    onSuccess: () => afterOutboxWrite(queryClient, userId, "transaction"),
   });
 }
 
@@ -792,12 +791,8 @@ export function useSetTransactionStatus() {
       if (!result.success) throw new Error(result.error ?? "Failed to update status");
       return status;
     },
-    // Status moves amounts between the cleared/pending balance splits
-    onSuccess: () =>
-      afterOutboxWrite(queryClient, userId, [
-        queryKeys.transactions.all,
-        queryKeys.accounts.balances(),
-      ]),
+    // A transaction write refreshes lists, the open detail, balances and every total
+    onSuccess: () => afterOutboxWrite(queryClient, userId, "transaction"),
   });
 }
 
@@ -814,8 +809,8 @@ export function useToggleTransactionStatus() {
       if (!result.success) throw new Error(result.error ?? "Failed to update status");
       return newStatus;
     },
-    // transactions.all includes the detail, so an open sheet refreshes once the drain lands
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [queryKeys.transactions.all]),
+    // A transaction write refreshes lists, the open detail, balances and every total
+    onSuccess: () => afterOutboxWrite(queryClient, userId, "transaction"),
   });
 }
 
@@ -1696,7 +1691,7 @@ export function useCreateBudget() {
       if (!result.success) throw new Error(result.error ?? "Failed to create budget");
       return result.data;
     },
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [queryKeys.budgets.all]),
+    onSuccess: () => afterOutboxWrite(queryClient, userId, "budget"),
   });
 }
 
@@ -1718,7 +1713,7 @@ export function useUpdateBudget() {
       if (!result.success) throw new Error(result.error ?? "Failed to update budget");
       return result.data;
     },
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [queryKeys.budgets.all]),
+    onSuccess: () => afterOutboxWrite(queryClient, userId, "budget"),
   });
 }
 
@@ -1738,7 +1733,7 @@ export function useDeleteBudget() {
       const result = await deleteOfflineBudget(budgetId, requireUserId(userId));
       if (!result.success) throw new Error(result.error ?? "Failed to delete budget");
     },
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [queryKeys.budgets.all]),
+    onSuccess: () => afterOutboxWrite(queryClient, userId, "budget"),
   });
 }
 
@@ -1760,6 +1755,6 @@ export function useCopyBudgets() {
       if (!result.success) throw new Error(result.error ?? "Failed to copy budgets");
       return result.data?.length ?? 0;
     },
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [queryKeys.budgets.all]),
+    onSuccess: () => afterOutboxWrite(queryClient, userId, "budget"),
   });
 }

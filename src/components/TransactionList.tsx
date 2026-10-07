@@ -32,7 +32,6 @@ import type { TransactionFilters } from "@/types/transactions";
 import { toast } from "sonner";
 import { confirm } from "@/lib/confirm";
 import { confirmAndDeleteTransaction } from "@/lib/delete-transaction";
-import { useQueryClient } from "@tanstack/react-query";
 import { SyncBadge } from "@/components/sync/SyncBadge";
 import { buildEntitySyncStatusMap } from "@/components/sync/queueBadgeStatus";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -97,7 +96,6 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
   const toggleStatus = useToggleTransactionStatus();
   const setStatus = useSetTransactionStatus();
   const deleteTransaction = useDeleteTransaction();
-  const queryClient = useQueryClient();
   const setQuickAddOpen = useNavStore((state) => state.setQuickAddOpen);
 
   // Bulk selection state
@@ -385,8 +383,6 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
           await deleteTransaction.mutateAsync(id);
         }
 
-        queryClient.invalidateQueries({ queryKey: ["debts"] });
-        queryClient.invalidateQueries({ queryKey: ["debt-balance"] });
         toast.success(`Deleted ${count} transaction${count > 1 ? "s" : ""}`);
         clearSelection();
       } catch (error) {
@@ -416,7 +412,6 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
       description,
       isTransferLeg,
       deleteTransaction: deleteTransaction.mutateAsync,
-      queryClient,
     });
 
   // Loading state: skeleton rows shaped like the active presentation (cards

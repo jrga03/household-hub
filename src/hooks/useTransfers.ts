@@ -22,11 +22,7 @@ export function useCreateTransfer() {
       return result.data ?? [];
     },
     onSuccess: (_data, variables) => {
-      afterOutboxWrite(queryClient, variables.user_id, [
-        queryKeys.transactions.all,
-        queryKeys.transfers.all,
-        queryKeys.accounts.all,
-      ]);
+      afterOutboxWrite(queryClient, variables.user_id, "transaction");
     },
   });
 }

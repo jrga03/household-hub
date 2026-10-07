@@ -30,7 +30,6 @@ import { transactionSchema, type TransactionFormData } from "@/lib/validations/t
 import { useAuthStore } from "@/stores/authStore";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "@/lib/query-keys";
 import { confirmDiscardChanges } from "@/lib/confirm-discard";
 import { createOfflineTransaction, updateOfflineTransaction } from "@/lib/offline/transactions";
 import { afterOutboxWrite } from "@/lib/offline/afterWrite";
@@ -262,13 +261,7 @@ export function TransactionFormDialog({
         }
       }
 
-      afterOutboxWrite(
-        queryClient,
-        user?.id,
-        data.debt_id || data.internal_debt_id
-          ? [queryKeys.transactions.all, queryKeys.debts.all, ["debt-balance"]]
-          : [queryKeys.transactions.all]
-      );
+      afterOutboxWrite(queryClient, user?.id, "transaction");
 
       handleClose();
     } catch (error) {

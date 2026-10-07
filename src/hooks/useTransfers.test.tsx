@@ -7,6 +7,7 @@ import { createOfflineTransfer } from "@/lib/offline/transfers";
 import { supabase } from "@/lib/supabase";
 import { syncProcessor } from "@/lib/sync/processor";
 import { cents } from "@/test/cents";
+import { keysAfterWrite } from "@/lib/query-keys";
 
 vi.mock("@/lib/offline/transfers", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/offline/transfers")>()),
@@ -86,7 +87,7 @@ describe("useCreateTransfer", () => {
     );
   });
 
-  it("invalidates transactions, transfers, and accounts on success", async () => {
+  it("invalidates what a transaction write affects on success", async () => {
     vi.mocked(createOfflineTransfer).mockResolvedValue({
       success: true,
       data: [],
@@ -97,9 +98,9 @@ describe("useCreateTransfer", () => {
 
     await result.current.mutateAsync({ ...transfer, user_id: "user-1" });
 
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["transactions"] });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["transfers"] });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["accounts"] });
+    for (const queryKey of keysAfterWrite("transaction")) {
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey });
+    }
   });
 
   it("drains the outbox and re-invalidates transfers when online", async () => {

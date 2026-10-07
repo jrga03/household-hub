@@ -6,7 +6,6 @@ import { TransactionList } from "@/components/TransactionList";
 import { TransactionFormDialog } from "@/components/TransactionFormDialog";
 import { TransactionFiltersPanel } from "@/components/TransactionFilters";
 import { useDebounce } from "@/hooks/useDebounce";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   useTransactions,
   useTransactionsFilterSummary,
@@ -53,7 +52,6 @@ function Transactions() {
   // buttons (review R38: card mode has no row-level Delete/status controls)
   const toggleStatus = useToggleTransactionStatus();
   const deleteTransaction = useDeleteTransaction();
-  const queryClient = useQueryClient();
   // Below the @[1500px] triple-column breakpoint the detail pane is hidden, so
   // row clicks open the edit modal instead. Measured on the page region (not
   // the viewport) so it agrees with PageShell's @container pane toggle even
@@ -64,7 +62,7 @@ function Transactions() {
 
   // `selected` is UI state (which row's detail pane is open), not a filter.
   // Keeping it out of the query input means clicking a row no longer changes
-  // the ["transactions", filters] key and refetches the whole list (DATA-06).
+  // the transactions list key and refetches the whole list (DATA-06).
   const { selected: _selected, ...filters } = search;
   const debouncedFilters = {
     ...filters,
@@ -219,7 +217,6 @@ function Transactions() {
             description: transaction?.description ?? "",
             isTransferLeg: !!transaction?.transfer_group_id,
             deleteTransaction: deleteTransaction.mutateAsync,
-            queryClient,
           }).then((deleted) => {
             if (deleted) setInspectingId(null);
           });
