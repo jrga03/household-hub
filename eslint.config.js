@@ -10,7 +10,7 @@ import { builtinRules } from "eslint/use-at-your-own-risk";
 
 // The core no-restricted-syntax rule, registered once per invariant. Flat config
 // replaces a rule's options wholesale per rule ID, so one shared array could not
-// carry four different allowlists (Phase 1a design, section 1).
+// carry five different allowlists (Phase 1a design, section 1).
 const restrictedSyntax = builtinRules.get("no-restricted-syntax");
 const architecturePlugin = {
   rules: {
@@ -18,6 +18,7 @@ const architecturePlugin = {
     "no-direct-supabase-writes": restrictedSyntax,
     "no-ad-hoc-money-parse": restrictedSyntax,
     "no-raw-transactions-from": restrictedSyntax,
+    "no-inline-query-keys": restrictedSyntax,
   },
 };
 
@@ -28,13 +29,11 @@ const srcTestFiles = [
   "src/test/**",
 ];
 
-// TanStack Query strict rules for production code (roadmap 4.3). Landed at
-// warn while the migration runs; Task 10 of the 2c-2 plan removes this map.
+// TanStack Query strict rules for production code (roadmap 4.3).
 const queryPluginConfigs = pluginQuery.configs["flat/recommended-strict"].map((config) => ({
   ...config,
   files: ["src/**/*.{ts,tsx}"],
   ignores: srcTestFiles,
-  rules: Object.fromEntries(Object.keys(config.rules ?? {}).map((ruleId) => [ruleId, "warn"])),
 }));
 
 // The raw number → Cents constructor stays in the data layer (roadmap 4.4).
@@ -488,6 +487,21 @@ export default [
           selector: "CallExpression[callee.property.name='from'] > Literal[value='transactions']",
           message:
             "Read transactions through src/lib/supabaseQueries.ts. Totals (analytics, dashboard, budgets) read the transactions_non_transfer view so transfers can never leak into them.",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [...srcTestFiles, "src/lib/query-keys.ts"],
+    rules: {
+      "arch/no-inline-query-keys": [
+        "error",
+        {
+          selector:
+            "Property[key.name='queryKey'] > ArrayExpression, Property[key.name='queryKey'] > TSAsExpression > ArrayExpression",
+          message:
+            "Use queryKeys from @/lib/query-keys. Inline keys drift (see DATA-06) and break invalidation.",
         },
       ],
     },

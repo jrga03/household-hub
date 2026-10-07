@@ -68,6 +68,12 @@ const cases = [
     flagged: "src/hooks/probe.ts",
     allowed: "src/lib/offline/probe.ts",
   },
+  {
+    rule: "arch/no-inline-query-keys",
+    code: 'import { useQuery } from "@tanstack/react-query";\nexport const useProbe = () => useQuery({ queryKey: ["probe"] as const, queryFn: async () => 1 });\n',
+    flagged: "src/hooks/probe.ts",
+    allowed: "src/lib/query-keys.ts",
+  },
 ];
 
 describe.each(cases)("$rule", ({ rule, code, flagged, allowed }) => {
@@ -82,6 +88,28 @@ describe.each(cases)("$rule", ({ rule, code, flagged, allowed }) => {
   it("is silent in test files", async () => {
     expect(await ruleIds(code, flagged.replace(/\.tsx?$/, ".test.ts"))).not.toContain(rule);
   });
+});
+
+it("arch/no-inline-query-keys flags a plain array key", async () => {
+  const code =
+    'import { queryOptions } from "@tanstack/react-query";\nexport const probe = () => queryOptions({ queryKey: ["probe"], queryFn: async () => 1 });\n';
+  expect(await ruleIds(code, "src/lib/probe.ts")).toContain("arch/no-inline-query-keys");
+});
+
+it("@tanstack/query/prefer-query-options is an error in production code", async () => {
+  const code =
+    'import { useQueryClient } from "@tanstack/react-query";\nexport const useProbe = () => { const queryClient = useQueryClient(); return () => queryClient.invalidateQueries({ queryKey: ["probe"] }); };\n';
+  const [result] = await eslint.lintText(code, { filePath: "src/hooks/probe.ts" });
+  const message = result.messages.find((m) => m.ruleId === "@tanstack/query/prefer-query-options");
+  expect(message?.severity).toBe(2);
+});
+
+it("@tanstack/query rules stay off in test files", async () => {
+  const code =
+    'import { useQueryClient } from "@tanstack/react-query";\nexport const useProbe = () => { const queryClient = useQueryClient(); return () => queryClient.invalidateQueries({ queryKey: ["probe"] }); };\n';
+  expect(await ruleIds(code, "src/hooks/probe.test.ts")).not.toContain(
+    "@tanstack/query/prefer-query-options"
+  );
 });
 
 // Deliberately not allowlisted (design Decisions & Deferrals): debt sync must stay visible to the rule.
