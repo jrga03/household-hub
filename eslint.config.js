@@ -455,13 +455,7 @@ export default [
   },
   {
     files: ["src/**/*.{ts,tsx}"],
-    ignores: [
-      ...srcTestFiles,
-      "src/lib/supabaseQueries.ts",
-      "src/lib/sync/**",
-      "src/lib/debts/**",
-      "src/lib/realtime-sync.ts",
-    ],
+    ignores: [...srcTestFiles, "src/lib/supabaseQueries.ts", "src/lib/sync/**", "src/lib/debts/**"],
     rules: {
       "arch/no-raw-transactions-from": [
         "error",

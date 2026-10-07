@@ -8,7 +8,7 @@ Zod schemas for form validation, route search params, and server data that arriv
 
 - **`transaction.ts`** - Transaction creation and edit form schema
 - **`cents.ts`** - `centsSchema`, the shared form field for an amount already in cents (`CurrencyInput` emits `Cents`). Chain `.refine()` for sign and range. Used by the transaction, transfer, budget, account and debt forms.
-- **`syncRows.ts`** - `parseSyncRow(table, record)` validates a realtime or catch-up row for `transactions`, `accounts` or `categories` before it is written to Dexie. A failing row is skipped and reported, not written. Used by `src/lib/realtime-sync.ts`.
+- **`syncRows.ts`** - `parseSyncRow(table, record)` validates a realtime or catch-up row for every synced table (transactions, accounts, categories and the three debt tables) before it is written to Dexie. A failing row is skipped and reported, not written. Used by `src/lib/sync/realtime.ts`.
 - **`rpcResults.ts`** - `parseAccountBalanceDeltas` and `parseTransactionsFilterSummary` validate the `get_account_balances` and `transactions_filter_summary` RPC results. Used by `src/lib/supabaseQueries.ts`.
 - **`transactionsSearch.ts`** - Transactions route search params (URL amounts are already cents)
 

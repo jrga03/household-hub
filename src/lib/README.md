@@ -138,7 +138,7 @@ See [dexie/README.md](./dexie/) for database schema and device identification.
 
 ### Realtime & Background Sync
 
-- **`realtime-sync.ts`** (28.1KB) - Supabase Realtime subscriptions
+- **`sync/realtime.ts`** (28.1KB) - Supabase Realtime subscriptions and catch-up
   - Listens to remote changes from other devices
   - Applies remote changes to local IndexedDB
   - Handles reconnection and error recovery
@@ -445,7 +445,7 @@ offline/ modules → dexie/db.ts, sync/idempotency.ts
   ↓
 sync/processor.ts → sync/retry.ts, sync/idMapping.ts, event-generator.ts
   ↓
-realtime-sync.ts → supabaseQueries.ts, offline/ modules
+sync/realtime.ts → supabaseQueries.ts, offline/ modules
   ↓
 [Used by hooks/ and components/]
 ```
