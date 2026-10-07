@@ -1033,4 +1033,6 @@ Execution decisions (2026-10-07):
 
 - **Task 9 runs before Task 6.** After Task 5 the main bundle is 363,473 bytes gz against a 363,520-byte budget (47 bytes left); Task 6 adds three builders, while Task 9 only deletes dead invalidations and depends on nothing in Tasks 6-8. Warning counts shift accordingly (Task 9 first: 12 → 5; Task 6: 5 → 2; Task 7: 2 → 0). Revisit: if the branch still crosses the budget after Task 9, stop and ask the user (raise the budget or trim elsewhere).
 
+- **Task 7 commits 9 bytes over budget; Task 8 is the gate (user-approved 2026-10-07).** Task 7 measured 363,529 B gz (budget 363,520); a throwaway Task 8 edit measured 363,489 B because the processor's six literal keys collapse into `invalidateAfterWrite`. CI only measures `main`. Revisit: if Task 8's commit is still over, stop and ask.
+
 From the spec (section 9), unchanged: scope is refactor plus invalidation fixes; merge only near-duplicate roots; callers name the entity; coverage test plus E2E and a browser check; plugin and ban on production files only; selector extended with `TSAsExpression`.
