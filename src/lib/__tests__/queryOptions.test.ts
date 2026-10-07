@@ -4,6 +4,8 @@ import {
   accountBalanceQueryOptions,
   accountBalancesQueryOptions,
   accountsQueryOptions,
+  categoriesGroupedQueryOptions,
+  categoriesQueryOptions,
 } from "@/lib/supabaseQueries";
 
 vi.mock("@/lib/supabase", () => ({ supabase: { from: vi.fn(), rpc: vi.fn() } }));
@@ -14,5 +16,10 @@ describe("query options builders", () => {
     expect(accountsQueryOptions().queryKey).toEqual(queryKeys.accounts.list());
     expect(accountBalanceQueryOptions("a1").queryKey).toEqual(queryKeys.accounts.balance("a1"));
     expect(accountBalancesQueryOptions().queryKey).toEqual(queryKeys.accounts.balances());
+  });
+
+  it("categories", () => {
+    expect(categoriesQueryOptions().queryKey).toEqual(queryKeys.categories.list());
+    expect(categoriesGroupedQueryOptions().queryKey).toEqual(queryKeys.categories.grouped());
   });
 });

@@ -343,8 +343,8 @@ export function useAccountBalances() {
  * accountsQueryOptions for why: prefetch and hook must not diverge, DATA-06).
  */
 export function categoriesQueryOptions() {
-  return {
-    queryKey: ["categories"] as const,
+  return queryOptions({
+    queryKey: queryKeys.categories.list(),
     queryFn: async () => {
       try {
         const { data, error } = await supabase
@@ -366,8 +366,8 @@ export function categoriesQueryOptions() {
       }
     },
     staleTime: 10 * 60 * 1000, // 10 minutes (categories change rarely)
-    networkMode: "always" as const, // run the queryFn offline so the Dexie fallback can serve
-  };
+    networkMode: "always", // run the queryFn offline so the Dexie fallback can serve
+  });
 }
 
 // Fetch all categories
@@ -375,10 +375,9 @@ export function useCategories() {
   return useQuery(categoriesQueryOptions());
 }
 
-// Fetch categories grouped by parent
-export function useCategoriesGrouped() {
-  return useQuery({
-    queryKey: ["categories", "grouped"],
+export function categoriesGroupedQueryOptions() {
+  return queryOptions({
+    queryKey: queryKeys.categories.grouped(),
     queryFn: async () => {
       let categories: Category[];
       try {
@@ -413,6 +412,11 @@ export function useCategoriesGrouped() {
   });
 }
 
+// Fetch categories grouped by parent
+export function useCategoriesGrouped() {
+  return useQuery(categoriesGroupedQueryOptions());
+}
+
 // Create category
 export function useCreateCategory() {
   const queryClient = useQueryClient();
@@ -421,7 +425,7 @@ export function useCreateCategory() {
   return useMutation({
     mutationFn: async (category: CategoryInput) => {
       const duplicateError = duplicateCategoryNameError(
-        queryClient.getQueryData<Category[]>(["categories"]) ?? [],
+        queryClient.getQueryData(categoriesQueryOptions().queryKey) ?? [],
         category.name,
         category.parent_id
       );
@@ -430,7 +434,7 @@ export function useCreateCategory() {
       if (!result.success) throw new Error(result.error ?? "Failed to create category");
       return result.data;
     },
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [["categories"]]),
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [queryKeys.categories.all]),
   });
 }
 
@@ -441,7 +445,7 @@ export function useUpdateCategory() {
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<CategoryInput> }) => {
-      const cached = queryClient.getQueryData<Category[]>(["categories"]) ?? [];
+      const cached = queryClient.getQueryData(categoriesQueryOptions().queryKey) ?? [];
       const current = cached.find((category) => category.id === id);
       const name = updates.name ?? current?.name;
       if (name !== undefined) {
@@ -453,7 +457,7 @@ export function useUpdateCategory() {
       if (!result.success) throw new Error(result.error ?? "Failed to update category");
       return result.data;
     },
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [["categories"]]),
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [queryKeys.categories.all]),
   });
 }
 

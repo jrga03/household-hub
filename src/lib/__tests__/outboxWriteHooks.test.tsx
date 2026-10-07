@@ -194,10 +194,9 @@ describe("duplicate-name check against the query cache", () => {
   });
 
   it("rejects creating a category that duplicates a cached sibling", async () => {
-    const queryClient = clientWith(
-      ["categories"],
-      [{ id: "cat-1", name: "Food", parent_id: null, is_active: true }]
-    );
+    const queryClient = clientWith(queryKeys.categories.list(), [
+      { id: "cat-1", name: "Food", parent_id: null, is_active: true },
+    ]);
     const { result } = renderWithClient(() => useCreateCategory(), queryClient);
 
     await expect(result.current.mutateAsync({ name: "food", parent_id: null })).rejects.toThrow(
@@ -207,13 +206,10 @@ describe("duplicate-name check against the query cache", () => {
   });
 
   it("rejects renaming a category onto a cached sibling's name", async () => {
-    const queryClient = clientWith(
-      ["categories"],
-      [
-        { id: "cat-1", name: "Food", parent_id: null, is_active: true },
-        { id: "cat-2", name: "Transport", parent_id: null, is_active: true },
-      ]
-    );
+    const queryClient = clientWith(queryKeys.categories.list(), [
+      { id: "cat-1", name: "Food", parent_id: null, is_active: true },
+      { id: "cat-2", name: "Transport", parent_id: null, is_active: true },
+    ]);
     const { result } = renderWithClient(() => useUpdateCategory(), queryClient);
 
     await expect(
@@ -223,10 +219,9 @@ describe("duplicate-name check against the query cache", () => {
   });
 
   it("allows a cached name under a different parent", async () => {
-    const queryClient = clientWith(
-      ["categories"],
-      [{ id: "cat-1", name: "Other", parent_id: "p-1", is_active: true }]
-    );
+    const queryClient = clientWith(queryKeys.categories.list(), [
+      { id: "cat-1", name: "Other", parent_id: "p-1", is_active: true },
+    ]);
     const { result } = renderWithClient(() => useCreateCategory(), queryClient);
 
     await result.current.mutateAsync({ name: "Other", parent_id: "p-2" });
