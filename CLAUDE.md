@@ -27,7 +27,7 @@ supabase test db           # pgTAP: RLS for every table, functions, the transfer
 - **Budgets are reference targets**, never balances; actual spend is always derived from transactions.
 - **Debt balance** = original minus the signed sum of payment rows; reversals are negative and linked via `reverses_payment_id` (`src/lib/debts/balance.ts`).
 - **Conflicts (Phase A):** record-level last-write-wins on `updated_at`. Lamport clocks only feed idempotency keys. Vector clocks are Phase B and not built.
-- **Reads fall back to Dexie** when offline (`src/lib/offline/reads.ts`). Components fetch through hooks or `supabaseQueries`, never Supabase directly.
+- **Reads fall back to Dexie** when offline (`src/lib/offline/reads.ts`). Components fetch through hooks or `supabaseQueries`, never Supabase directly. Outside `src/lib/{offline,debts,sync,dexie}`, read Dexie through `readDb` (`src/lib/dexie/readDb.ts`); the writable `db` is lint-restricted to those directories.
 
 Always ask: what happens offline, and what happens when two devices edit the same row?
 

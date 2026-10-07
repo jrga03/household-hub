@@ -34,7 +34,7 @@ This document serves as the master QA test plan for the Household Hub applicatio
 | **Device ID**         | device.test.ts                                               | —                                        | —                    |
 | **Sync Queue**        | syncQueue.test.ts (existing)                                 | —                                        | —                    |
 | **Idempotency**       | idempotency.test.ts (existing)                               | —                                        | —                    |
-| **Event Compactor**   | event-compactor.test.ts (existing)                           | —                                        | —                    |
+| **Event Compactor**   | src/lib/sync/**tests**/eventCompactor.test.ts (existing)     | —                                        | —                    |
 | **Currency**          | currency.test.ts (existing)                                  | —                                        | —                    |
 | **Account Balance**   | accountBalance.test.ts (existing)                            | —                                        | —                    |
 | **PWA**               | —                                                            | pwa.spec.ts (existing)                   | —                    |

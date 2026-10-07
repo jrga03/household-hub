@@ -185,13 +185,13 @@ export function useOfflineTransactions() {
 ```typescript
 // useOfflineTags.ts
 import { useQuery } from "@tanstack/react-query";
-import { db } from "@/lib/dexie/db";
+import { readDb } from "@/lib/dexie/readDb";
 
 export function useOfflineTags() {
   return useQuery({
     queryKey: ["tags"],
     queryFn: async () => {
-      return await db.tags.toArray();
+      return await readDb.tags.toArray();
     },
   });
 }

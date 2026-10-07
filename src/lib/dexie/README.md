@@ -20,6 +20,12 @@ The Dexie module provides the **IndexedDB database layer** for offline-first sto
   - Platform/browser detection
   - **Lines 1-21 have excellent inline documentation** ⭐
 
+- **`readDb.ts`** - Read-only facade over `db` for code outside `src/lib/{offline,debts,sync,dexie}`
+  - The writable `db` is lint-restricted to those directories
+
+- **`schemaHistory.fixture.ts`** + **`schemaHistory.test.ts`** - Every shipped version's `stores()`
+  - Never edit an entry; append a new version
+
 - **`__tests__/`** - Unit tests for database operations
 
 ## Architecture Role
