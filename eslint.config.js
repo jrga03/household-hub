@@ -46,10 +46,17 @@ const restrictSupabase = {
 };
 
 const restrictWritableDb = {
-  group: ["@/lib/dexie/db", "**/lib/dexie/db", "**/dexie/db"],
-  importNames: ["db"],
+  group: [
+    "@/lib/dexie/db",
+    "@/lib/dexie/db.ts",
+    "**/lib/dexie/db",
+    "**/lib/dexie/db.ts",
+    "**/dexie/db",
+    "**/dexie/db.ts",
+  ],
+  importNames: ["db", "HouseholdHubDB"],
   message:
-    "Read through readDb from @/lib/dexie/readDb. The writable db belongs to src/lib/{offline,debts,sync,dexie}, where an entity write enqueues its sync item in the same transaction.",
+    "Read through readDb from @/lib/dexie/readDb. The writable db and HouseholdHubDB belong to src/lib/{offline,debts,sync,dexie}, where an entity write enqueues its sync item in the same transaction.",
 };
 
 const restrictNanoid = {

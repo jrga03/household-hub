@@ -146,3 +146,17 @@ it("no-restricted-imports flags the writable db in validations and routes", asyn
   expect(await ruleIds(code, "src/lib/validations/probe.ts")).toContain("no-restricted-imports");
   expect(await ruleIds(code, "src/routes/probe.tsx")).toContain("no-restricted-imports");
 });
+
+it("no-restricted-imports flags the writable db imported with a .ts extension", async () => {
+  const code =
+    'import { db } from "@/lib/dexie/db.ts";\nexport const count = () => db.transactions.count();\n';
+  expect(await ruleIds(code, "src/hooks/probe.ts")).toContain("no-restricted-imports");
+  expect(await ruleIds(code, "src/lib/offline/probe.ts")).not.toContain("no-restricted-imports");
+});
+
+it("no-restricted-imports flags constructing a HouseholdHubDB outside the data layer", async () => {
+  const code =
+    'import { HouseholdHubDB } from "@/lib/dexie/db";\nexport const writable = new HouseholdHubDB();\n';
+  expect(await ruleIds(code, "src/components/probe.tsx")).toContain("no-restricted-imports");
+  expect(await ruleIds(code, "src/lib/offline/probe.ts")).not.toContain("no-restricted-imports");
+});
