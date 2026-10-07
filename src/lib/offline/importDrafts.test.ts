@@ -6,7 +6,7 @@
  * restoreDraft/restoreDrafts reverse it while keeping the per-session
  * discarded_count counter consistent (review R2).
  *
- * @module import-drafts.test
+ * @module offline/importDrafts.test
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
@@ -17,7 +17,7 @@ import {
   restoreDraft,
   restoreDrafts,
   resolveCategoryName,
-} from "@/lib/import-drafts";
+} from "@/lib/offline/importDrafts";
 import type { ParsedTransactionRow } from "@/types/pdf-import";
 
 const ACCOUNT_ID = "acct-1";
@@ -47,16 +47,16 @@ describe("Import draft discard/restore cycle", () => {
       ACCOUNT_ID
     );
 
-    await discardDraft(drafts[0].id);
+    await discardDraft(drafts[0]!.id);
 
     let session = await db.importSessions.get(sessionId);
     expect(session?.discarded_count).toBe(1);
-    expect((await db.importDrafts.get(drafts[0].id))?.draft_status).toBe("discarded");
+    expect((await db.importDrafts.get(drafts[0]!.id))?.draft_status).toBe("discarded");
 
-    const restored = await restoreDraft(drafts[0].id);
+    const restored = await restoreDraft(drafts[0]!.id);
     expect(restored).toBe(true);
 
-    const draft = await db.importDrafts.get(drafts[0].id);
+    const draft = await db.importDrafts.get(drafts[0]!.id);
     expect(draft?.draft_status).toBe("pending");
 
     session = await db.importSessions.get(sessionId);
@@ -71,10 +71,10 @@ describe("Import draft discard/restore cycle", () => {
       ACCOUNT_ID
     );
 
-    const restored = await restoreDraft(drafts[0].id);
+    const restored = await restoreDraft(drafts[0]!.id);
     expect(restored).toBe(false);
 
-    const draft = await db.importDrafts.get(drafts[0].id);
+    const draft = await db.importDrafts.get(drafts[0]!.id);
     expect(draft?.draft_status).toBe("pending");
 
     const session = await db.importSessions.get(sessionId);
@@ -118,7 +118,7 @@ describe("Import draft discard/restore cycle", () => {
     );
 
     // Only discard the first draft; the other two stay pending
-    await discardDraft(drafts[0].id);
+    await discardDraft(drafts[0]!.id);
     expect((await db.importSessions.get(sessionId))?.discarded_count).toBe(1);
 
     const restoredCount = await restoreDrafts(drafts.map((d) => d.id));
@@ -135,11 +135,11 @@ describe("Import draft discard/restore cycle", () => {
     const a = await createImportSession("a.pdf", "bdo-credit-card", makeRows(2, "A"), ACCOUNT_ID);
     const b = await createImportSession("b.pdf", "bdo-credit-card", makeRows(1, "B"), ACCOUNT_ID);
 
-    await discardDraft(a.drafts[0].id);
-    await discardDraft(a.drafts[1].id);
-    await discardDraft(b.drafts[0].id);
+    await discardDraft(a.drafts[0]!.id);
+    await discardDraft(a.drafts[1]!.id);
+    await discardDraft(b.drafts[0]!.id);
 
-    const restoredCount = await restoreDrafts([a.drafts[0].id, a.drafts[1].id, b.drafts[0].id]);
+    const restoredCount = await restoreDrafts([a.drafts[0]!.id, a.drafts[1]!.id, b.drafts[0]!.id]);
     expect(restoredCount).toBe(3);
 
     expect((await db.importSessions.get(a.sessionId))?.discarded_count).toBe(0);
@@ -156,10 +156,10 @@ describe("Import draft discard/restore cycle", () => {
 
     // Force an inconsistent state: draft marked discarded but counter at 0
     // (e.g. counter was clobbered elsewhere). Restore must clamp, not go -1.
-    await db.importDrafts.update(drafts[0].id, { draft_status: "discarded" });
+    await db.importDrafts.update(drafts[0]!.id, { draft_status: "discarded" });
     expect((await db.importSessions.get(sessionId))?.discarded_count).toBe(0);
 
-    const restoredCount = await restoreDrafts([drafts[0].id]);
+    const restoredCount = await restoreDrafts([drafts[0]!.id]);
     expect(restoredCount).toBe(1);
     expect((await db.importSessions.get(sessionId))?.discarded_count).toBe(0);
   });
@@ -172,12 +172,12 @@ describe("Import draft discard/restore cycle", () => {
       ACCOUNT_ID
     );
 
-    await discardDraft(drafts[0].id);
-    expect(await restoreDraft(drafts[0].id)).toBe(true);
-    expect(await restoreDraft(drafts[0].id)).toBe(false);
+    await discardDraft(drafts[0]!.id);
+    expect(await restoreDraft(drafts[0]!.id)).toBe(true);
+    expect(await restoreDraft(drafts[0]!.id)).toBe(false);
 
     expect((await db.importSessions.get(sessionId))?.discarded_count).toBe(0);
-    expect((await db.importDrafts.get(drafts[0].id))?.draft_status).toBe("pending");
+    expect((await db.importDrafts.get(drafts[0]!.id))?.draft_status).toBe("pending");
   });
 });
 

@@ -5,13 +5,12 @@
  * Drafts are parsed PDF transactions awaiting user review before promotion
  * to real transactions via createOfflineTransactionsBatch().
  *
- * @module import-drafts
+ * @module offline/importDrafts
  */
 
-import { nanoid } from "nanoid";
 import { db } from "@/lib/dexie/db";
 import { generateFingerprint } from "@/lib/duplicate-detector";
-import { createOfflineTransactionsBatch } from "@/lib/offline/transactions";
+import { createOfflineTransactionsBatch } from "./transactions";
 import { parsePHP } from "@/lib/currency";
 import type { TransactionInput } from "@/lib/offline/types";
 import type {
@@ -33,7 +32,7 @@ export async function createImportSession(
   rows: ParsedTransactionRow[],
   accountId: string
 ): Promise<{ sessionId: string; drafts: ImportDraft[] }> {
-  const sessionId = nanoid();
+  const sessionId = crypto.randomUUID();
   const now = new Date().toISOString();
 
   const session: ImportSession = {
@@ -56,7 +55,7 @@ export async function createImportSession(
     });
 
     return {
-      id: nanoid(),
+      id: crypto.randomUUID(),
       importSessionId: sessionId,
       date: row.date,
       description: row.description,

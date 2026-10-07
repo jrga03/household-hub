@@ -60,7 +60,7 @@ const cases = [
     rule: "no-restricted-imports",
     code: 'import { nanoid } from "nanoid";\nexport const id = nanoid();\n',
     flagged: "src/lib/debts/probe.ts",
-    allowed: "src/lib/import-drafts.ts",
+    allowed: "src/lib/sync/probe.ts",
   },
 ];
 

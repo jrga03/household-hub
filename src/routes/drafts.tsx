@@ -52,7 +52,7 @@ import {
   restoreDrafts,
   confirmDrafts,
   resolveCategoryName,
-} from "@/lib/import-drafts";
+} from "@/lib/offline/importDrafts";
 import { formatPHP, parsePHPSafe, ZERO_CENTS } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import { useContainerNarrow } from "@/hooks/useContainerWidth";

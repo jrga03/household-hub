@@ -25,9 +25,11 @@ vi.mock("@/lib/dexie/db", () => ({
         })),
       })),
     },
-    delete: vi.fn().mockResolvedValue(undefined),
-    open: vi.fn().mockResolvedValue(undefined),
   },
+}));
+
+vi.mock("@/lib/dexie/reset", () => ({
+  resetLocalDatabase: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/csv-exporter", () => ({
@@ -63,6 +65,7 @@ vi.mock("@/router", () => ({
 import { useAuthStore, checkUnsyncedData } from "../authStore";
 import { supabase } from "@/lib/supabase";
 import { db } from "@/lib/dexie/db";
+import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { csvExporter } from "@/lib/csv-exporter";
 import { toast } from "sonner";
 import { queryClient } from "@/lib/queryClient";
@@ -228,8 +231,7 @@ describe("authStore", () => {
 
       await useAuthStore.getState().signOut();
 
-      expect(db.delete).toHaveBeenCalled();
-      expect(db.open).toHaveBeenCalled();
+      expect(resetLocalDatabase).toHaveBeenCalled();
       expect(supabase.auth.signOut).toHaveBeenCalled();
       expect(useAuthStore.getState().user).toBeNull();
       expect(useAuthStore.getState().session).toBeNull();
@@ -277,7 +279,7 @@ describe("authStore", () => {
 
       // Should NOT sign out — logout aborted, caller surfaces the error
       expect(supabase.auth.signOut).not.toHaveBeenCalled();
-      expect(db.delete).not.toHaveBeenCalled();
+      expect(resetLocalDatabase).not.toHaveBeenCalled();
       expect(useAuthStore.getState().loading).toBe(false);
     });
   });
@@ -319,7 +321,7 @@ describe("authStore", () => {
       });
       // Local Dexie data must SURVIVE an unexpected expiry so unsynced
       // changes can sync after re-login (only deliberate sign-out clears it)
-      expect(db.delete).not.toHaveBeenCalled();
+      expect(resetLocalDatabase).not.toHaveBeenCalled();
     });
 
     it("does nothing on a boot-time null session (no prior user)", async () => {

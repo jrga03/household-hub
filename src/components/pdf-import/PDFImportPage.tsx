@@ -15,7 +15,7 @@ import { usePDFImportStore } from "@/stores/pdfImportStore";
 import { usePDFWorker } from "@/lib/pdf-worker/usePDFWorker";
 import { getParser, detectParser } from "@/lib/pdf-parsers";
 import { detectPDFDuplicates } from "@/lib/pdf-import-duplicates";
-import { createImportSession } from "@/lib/import-drafts";
+import { createImportSession } from "@/lib/offline/importDrafts";
 import { PDFUploadStep } from "./steps/PDFUploadStep";
 import { BankSelectStep } from "./steps/BankSelectStep";
 import { ExtractionProgress } from "./steps/ExtractionProgress";

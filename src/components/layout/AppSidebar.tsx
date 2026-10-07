@@ -44,7 +44,7 @@ import { GlobalSyncStatus } from "@/components/sync/GlobalSyncStatus";
 import { cn } from "@/lib/utils";
 import { getShortcutKey } from "@/hooks/useKeyboardShortcuts";
 import { useLiveQuery } from "dexie-react-hooks";
-import { getPendingDraftCount } from "@/lib/import-drafts";
+import { getPendingDraftCount } from "@/lib/offline/importDrafts";
 
 /**
  * Main sidebar navigation component for desktop and tablet views

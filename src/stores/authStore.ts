@@ -3,6 +3,7 @@ import type { User, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { db } from "@/lib/dexie/db";
+import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { csvExporter } from "@/lib/csv-exporter";
 import { queryClient } from "@/lib/queryClient";
 
@@ -62,8 +63,7 @@ export async function checkUnsyncedData(): Promise<boolean> {
  */
 async function clearIndexedDB(): Promise<void> {
   try {
-    await db.delete();
-    await db.open(); // Recreate empty database
+    await resetLocalDatabase();
   } catch (error) {
     console.error("Failed to clear IndexedDB:", error);
     // Continue with logout even if clear fails

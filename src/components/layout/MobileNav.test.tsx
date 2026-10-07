@@ -54,7 +54,7 @@ vi.mock("@/components/sync/GlobalSyncStatus", () => ({
 vi.mock("dexie-react-hooks", () => ({
   useLiveQuery: () => 0,
 }));
-vi.mock("@/lib/import-drafts", () => ({
+vi.mock("@/lib/offline/importDrafts", () => ({
   getPendingDraftCount: vi.fn().mockResolvedValue(0),
 }));
 

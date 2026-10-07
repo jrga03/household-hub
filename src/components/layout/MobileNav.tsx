@@ -21,7 +21,7 @@ import { signOutWithConfirm } from "@/lib/sign-out";
 import { GlobalSyncStatus } from "@/components/sync/GlobalSyncStatus";
 import { cn } from "@/lib/utils";
 import { useLiveQuery } from "dexie-react-hooks";
-import { getPendingDraftCount } from "@/lib/import-drafts";
+import { getPendingDraftCount } from "@/lib/offline/importDrafts";
 
 /**
  * Mobile navigation drawer component
