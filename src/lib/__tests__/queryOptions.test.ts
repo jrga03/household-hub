@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { queryKeys } from "@/lib/query-keys";
+import { analyticsQueryOptions } from "@/hooks/useAnalytics";
+import { transfersQueryOptions } from "@/hooks/useTransfers";
 import {
   accountBalanceQueryOptions,
   accountBalancesQueryOptions,
   accountsQueryOptions,
+  activeExternalDebtsQueryOptions,
   budgetsQueryOptions,
   categoriesGroupedQueryOptions,
   categoriesQueryOptions,
@@ -33,5 +36,16 @@ describe("query options builders", () => {
     );
     expect(dashboardQueryOptions(october).queryKey).toEqual(queryKeys.dashboard.month("2026-10"));
     expect(budgetsQueryOptions(october).queryKey).toEqual(queryKeys.budgets.month("2026-10"));
+  });
+
+  it("analytics, transfers, debts selector", () => {
+    const filters = { accountId: "a1" };
+    expect(
+      analyticsQueryOptions(new Date(2026, 0, 1), new Date(2026, 9, 31), filters).queryKey
+    ).toEqual(queryKeys.analytics.range("2026-01-01", "2026-10-31", filters));
+    expect(transfersQueryOptions("hh-1").queryKey).toEqual(queryKeys.transfers.list("hh-1"));
+    expect(activeExternalDebtsQueryOptions().queryKey).toEqual(
+      queryKeys.debts.activeExternal("00000000-0000-0000-0000-000000000001")
+    );
   });
 });

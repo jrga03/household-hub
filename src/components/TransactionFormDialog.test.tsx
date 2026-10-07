@@ -43,7 +43,9 @@ vi.mock("@/hooks/useMediaQuery", async (importOriginal) => {
   return { ...actual, useIsMobile: () => mockIsMobile() };
 });
 
-vi.mock("@/lib/supabaseQueries", () => ({
+vi.mock("@/lib/supabaseQueries", async (importOriginal) => ({
+  activeExternalDebtsQueryOptions: (await importOriginal<typeof import("@/lib/supabaseQueries")>())
+    .activeExternalDebtsQueryOptions,
   useAccounts: () => ({ data: [] }),
   useCategoriesGrouped: () => ({ data: [], isLoading: false }),
   useTransaction: (id: string) => mockUseTransaction(id),

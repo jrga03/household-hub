@@ -36,6 +36,10 @@ import type { TransferLeg } from "./offline/transfers";
 import { ensureLocalRow } from "./offline/ensureLocal";
 import { afterOutboxWrite } from "./offline/afterWrite";
 import { queryKeys } from "./query-keys";
+import { calculateDebtBalance } from "@/lib/debts";
+import { listDebts } from "@/lib/debts/crud";
+import { DEFAULT_HOUSEHOLD_ID } from "@/lib/household";
+import type { Debt } from "@/types/debt";
 import { duplicateAccountNameError, duplicateCategoryNameError } from "./offline/duplicateNames";
 import type { AccountInput, CategoryInput } from "./offline/types";
 import type { Account } from "@/types/accounts";
@@ -332,6 +336,22 @@ export function accountBalancesQueryOptions() {
  */
 export function useAccountBalances() {
   return useQuery(accountBalancesQueryOptions());
+}
+
+/** Active external debts with balances, for the transaction form's debt selector. */
+export function activeExternalDebtsQueryOptions() {
+  return queryOptions({
+    queryKey: queryKeys.debts.activeExternal(DEFAULT_HOUSEHOLD_ID),
+    queryFn: async () => {
+      const allDebts = await listDebts(DEFAULT_HOUSEHOLD_ID, "external", { status: "active" });
+      return Promise.all(
+        allDebts.map(async (debt: Debt) => ({
+          ...debt,
+          balance: await calculateDebtBalance(debt.id, "external"),
+        }))
+      );
+    },
+  });
 }
 
 /**

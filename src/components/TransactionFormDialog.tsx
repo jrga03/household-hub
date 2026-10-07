@@ -21,14 +21,16 @@ import {
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { DatePicker } from "@/components/ui/date-picker";
 import { CategorySelector } from "@/components/ui/category-selector";
-import { useAccounts, useTransaction } from "@/lib/supabaseQueries";
+import {
+  activeExternalDebtsQueryOptions,
+  useAccounts,
+  useTransaction,
+} from "@/lib/supabaseQueries";
 import { transactionSchema, type TransactionFormData } from "@/lib/validations/transaction";
 import { useAuthStore } from "@/stores/authStore";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { calculateDebtBalance } from "@/lib/debts";
-import { listDebts } from "@/lib/debts/crud";
-import { DEFAULT_HOUSEHOLD_ID } from "@/lib/household";
+import { queryKeys } from "@/lib/query-keys";
 import { confirmDiscardChanges } from "@/lib/confirm-discard";
 import { createOfflineTransaction, updateOfflineTransaction } from "@/lib/offline/transactions";
 import { afterOutboxWrite } from "@/lib/offline/afterWrite";
@@ -112,23 +114,7 @@ export function TransactionFormDialog({
   const transactionAmount = form.watch("amount_cents");
 
   // Fetch active debts for selector
-  const { data: debts } = useQuery({
-    queryKey: ["debts", DEFAULT_HOUSEHOLD_ID, "external", "active"],
-    queryFn: async () => {
-      const allDebts = await listDebts(DEFAULT_HOUSEHOLD_ID, "external", { status: "active" });
-
-      // Calculate balances for each debt
-      const debtsWithBalances = await Promise.all(
-        allDebts.map(async (debt: Debt) => ({
-          ...debt,
-          balance: await calculateDebtBalance(debt.id, "external"),
-        }))
-      );
-
-      return debtsWithBalances;
-    },
-    enabled: open,
-  });
+  const { data: debts } = useQuery({ ...activeExternalDebtsQueryOptions(), enabled: open });
 
   // Find selected debt and calculate balance preview
   const selectedDebt = debts?.find((d: Debt & { balance: Cents }) => d.id === selectedDebtId);
@@ -280,8 +266,8 @@ export function TransactionFormDialog({
         queryClient,
         user?.id,
         data.debt_id || data.internal_debt_id
-          ? [["transactions"], ["transaction"], ["debts"], ["debt-balance"]]
-          : [["transactions"], ["transaction"]]
+          ? [queryKeys.transactions.all, ["transaction"], queryKeys.debts.all, ["debt-balance"]]
+          : [queryKeys.transactions.all, ["transaction"]]
       );
 
       handleClose();

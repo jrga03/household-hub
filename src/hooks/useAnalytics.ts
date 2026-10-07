@@ -1,4 +1,5 @@
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { queryOptions, useQuery, keepPreviousData } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { supabase } from "@/lib/supabase";
 import {
   fetchAnalyticsTransactions,
@@ -91,14 +92,13 @@ export interface AnalyticsFilters {
  * CRITICAL: All queries exclude transfers using .is('transfer_group_id', null)
  * to prevent double-counting account movements as income/expenses.
  */
-export function useAnalytics(startDate: Date, endDate: Date, filters?: AnalyticsFilters) {
-  return useQuery({
-    queryKey: [
-      "analytics",
+export function analyticsQueryOptions(startDate: Date, endDate: Date, filters?: AnalyticsFilters) {
+  return queryOptions({
+    queryKey: queryKeys.analytics.range(
       format(startDate, "yyyy-MM-dd"),
       format(endDate, "yyyy-MM-dd"),
-      filters,
-    ],
+      filters
+    ),
     queryFn: async (): Promise<AnalyticsData> => {
       const range = {
         startDate: format(startDate, "yyyy-MM-dd"),
@@ -185,6 +185,10 @@ export function useAnalytics(startDate: Date, endDate: Date, filters?: Analytics
     // dashboard instead of collapsing to a full-height spinner (review R8).
     placeholderData: keepPreviousData,
   });
+}
+
+export function useAnalytics(startDate: Date, endDate: Date, filters?: AnalyticsFilters) {
+  return useQuery(analyticsQueryOptions(startDate, endDate, filters));
 }
 
 /**

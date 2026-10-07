@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { fetchTransferLegs } from "@/lib/supabaseQueries";
 import { isLikelyNetworkError } from "@/lib/offline/reads";
 import { afterOutboxWrite } from "@/lib/offline/afterWrite";
@@ -22,17 +23,17 @@ export function useCreateTransfer() {
     },
     onSuccess: (_data, variables) => {
       afterOutboxWrite(queryClient, variables.user_id, [
-        ["transactions"],
-        ["transfers"],
-        ["accounts"],
+        queryKeys.transactions.all,
+        queryKeys.transfers.all,
+        queryKeys.accounts.all,
       ]);
     },
   });
 }
 
-export function useTransfers(householdId: string) {
-  return useQuery({
-    queryKey: ["transfers", householdId],
+export function transfersQueryOptions(householdId: string) {
+  return queryOptions({
+    queryKey: queryKeys.transfers.list(householdId),
     queryFn: async () => {
       try {
         // Pairing lives in offline/transfers.ts (groupTransferLegs) so the
@@ -52,4 +53,8 @@ export function useTransfers(householdId: string) {
     staleTime: 30 * 1000, // Cache for 30 seconds - transfers don't change frequently
     networkMode: "always", // run the queryFn offline so the Dexie fallback can serve
   });
+}
+
+export function useTransfers(householdId: string) {
+  return useQuery(transfersQueryOptions(householdId));
 }
