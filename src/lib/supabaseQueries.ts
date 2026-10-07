@@ -1094,18 +1094,22 @@ export async function fetchCategoryTotalsFromServer(month: Date): Promise<Catego
  * // Override cache duration
  * const { data: totals } = useCategoryTotals(new Date(2024, 0, 1), { staleTime: 5000 });
  */
-export function useCategoryTotals(month: Date, options?: { staleTime?: number }) {
+export function categoryTotalsQueryOptions(month: Date, staleTime?: number) {
   // Adaptive caching: Historical months can be cached longer since they rarely change
   const isCurrentMonth = format(month, "yyyy-MM") === format(new Date(), "yyyy-MM");
   const defaultStaleTime = isCurrentMonth
     ? 60 * 1000 // 1 minute for current month (frequent updates expected)
     : 10 * 60 * 1000; // 10 minutes for historical months (rarely change)
 
-  return useQuery({
-    queryKey: ["category-totals", format(month, "yyyy-MM")],
+  return queryOptions({
+    queryKey: queryKeys.categoryTotals.month(format(month, "yyyy-MM")),
     queryFn: () => fetchCategoryTotalsFromServer(month),
-    staleTime: options?.staleTime ?? defaultStaleTime,
+    staleTime: staleTime ?? defaultStaleTime,
   });
+}
+
+export function useCategoryTotals(month: Date, options?: { staleTime?: number }) {
+  return useQuery(categoryTotalsQueryOptions(month, options?.staleTime));
 }
 
 /**
@@ -1402,9 +1406,9 @@ export async function fetchDashboardDataFromServer(currentMonth: Date): Promise<
   };
 }
 
-export function useDashboardData(currentMonth: Date) {
-  return useQuery({
-    queryKey: ["dashboard", format(currentMonth, "yyyy-MM")],
+export function dashboardQueryOptions(currentMonth: Date) {
+  return queryOptions({
+    queryKey: queryKeys.dashboard.month(format(currentMonth, "yyyy-MM")),
     queryFn: async (): Promise<DashboardData> => {
       try {
         return await fetchDashboardDataFromServer(currentMonth);
@@ -1427,6 +1431,10 @@ export function useDashboardData(currentMonth: Date) {
     staleTime: 30 * 1000, // 30 seconds
     networkMode: "always", // run the queryFn offline so the Dexie fallback can serve
   });
+}
+
+export function useDashboardData(currentMonth: Date) {
+  return useQuery(dashboardQueryOptions(currentMonth));
 }
 
 /**
@@ -1608,16 +1616,9 @@ export async function fetchBudgetGroupsFromServer(month: Date): Promise<BudgetGr
   return Array.from(groupMap.values());
 }
 
-/**
- * Budgets for a month, grouped by parent category. Reads from the server and
- * falls back to Dexie when the network is unavailable.
- *
- * @example
- * const { data: budgetGroups, isLoading } = useBudgets(new Date(2024, 0, 1));
- */
-export function useBudgets(month: Date) {
-  return useQuery({
-    queryKey: ["budgets", format(month, "yyyy-MM")],
+export function budgetsQueryOptions(month: Date) {
+  return queryOptions({
+    queryKey: queryKeys.budgets.month(format(month, "yyyy-MM")),
     queryFn: async (): Promise<BudgetGroup[]> => {
       try {
         return await fetchBudgetGroupsFromServer(month);
@@ -1639,6 +1640,17 @@ export function useBudgets(month: Date) {
 }
 
 /**
+ * Budgets for a month, grouped by parent category. Reads from the server and
+ * falls back to Dexie when the network is unavailable.
+ *
+ * @example
+ * const { data: budgetGroups, isLoading } = useBudgets(new Date(2024, 0, 1));
+ */
+export function useBudgets(month: Date) {
+  return useQuery(budgetsQueryOptions(month));
+}
+
+/**
  * Creates a new budget for a category and month, through the offline outbox.
  *
  * Note: Database enforces unique constraint on (household_id, category_id, month).
@@ -1656,7 +1668,7 @@ export function useCreateBudget() {
       if (!result.success) throw new Error(result.error ?? "Failed to create budget");
       return result.data;
     },
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [["budgets"]]),
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [queryKeys.budgets.all]),
   });
 }
 
@@ -1678,7 +1690,7 @@ export function useUpdateBudget() {
       if (!result.success) throw new Error(result.error ?? "Failed to update budget");
       return result.data;
     },
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [["budgets"]]),
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [queryKeys.budgets.all]),
   });
 }
 
@@ -1698,7 +1710,7 @@ export function useDeleteBudget() {
       const result = await deleteOfflineBudget(budgetId, requireUserId(userId));
       if (!result.success) throw new Error(result.error ?? "Failed to delete budget");
     },
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [["budgets"]]),
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [queryKeys.budgets.all]),
   });
 }
 
@@ -1720,6 +1732,6 @@ export function useCopyBudgets() {
       if (!result.success) throw new Error(result.error ?? "Failed to copy budgets");
       return result.data?.length ?? 0;
     },
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [["budgets"]]),
+    onSuccess: () => afterOutboxWrite(queryClient, userId, [queryKeys.budgets.all]),
   });
 }
