@@ -6,29 +6,28 @@ The hooks directory contains **custom React hooks** for data fetching, state man
 
 ## Hook Categories
 
-### Offline Data Hooks (IndexedDB)
+### Reads: Dexie live queries vs TanStack Query
 
-**Naming Pattern:** `useOffline*` - Reads from local IndexedDB (Dexie)
-
-- **`useOfflineTransactions.ts`** - Fetch transactions from IndexedDB
-- **`useOfflineTransaction.ts`** - Fetch single transaction from IndexedDB
-- **`useOfflineAccounts.ts`** - Fetch accounts from IndexedDB
-- **`useOfflineAccount.ts`** - Fetch single account from IndexedDB
-- **`useOfflineCategories.ts`** - Fetch categories from IndexedDB
-- **`useOfflineCategory.ts`** - Fetch single category from IndexedDB
-
-**When to Use:** Always prefer offline hooks for reading data (offline-first pattern)
+There are no `useOffline*` hook files. Where a component needs local IndexedDB
+data it calls `useLiveQuery` with `readDb` (`src/lib/dexie/readDb.ts`), e.g.
+the sync-status map in `src/components/TransactionList.tsx`. Server-backed
+lists (accounts, categories, transactions, debts) are TanStack Query builders
+in `src/lib/supabaseQueries.ts`; their fetchers fall back to Dexie when
+offline (`src/lib/offline/reads.ts`).
 
 **Pattern:**
 
 ```typescript
-const { data: transactions, isLoading, error } = useOfflineTransactions();
-// Reads from IndexedDB, returns instantly (even offline)
+const syncQueue = useLiveQuery(
+  () => readDb.syncQueue.where("status").equals("queued").toArray(),
+  []
+);
+// Re-runs by itself when IndexedDB changes; no query key, no invalidation
 ```
 
 ### Budgets & Analytics Hooks (TanStack Query)
 
-- **`useBudgets.ts`** - Fetch budgets from Supabase
+- **`useBudgets.ts`** - Budgets query (`budgetsQueryOptions` lives in `src/lib/supabaseQueries.ts`)
 - **`useBudgetActuals.ts`** - Calculate budget vs actual spending
 - **`useAnalytics.ts`** (12.9KB) - Complex analytics calculations
   - Spending by category
@@ -36,11 +35,11 @@ const { data: transactions, isLoading, error } = useOfflineTransactions();
   - Year-over-year comparisons
   - Top spending categories
 
-**When to Use:** For computed data and analytics that don't live in IndexedDB
+**When to Use:** For computed data and analytics derived from server queries
 
 ### Transfers Hooks
 
-- **`useTransfers.ts`** - Fetch and manage transfer transactions
+- **`useTransfers.ts`** - `transfersQueryOptions`, `useTransfers`, `useCreateTransfer`
 
 **Pattern:** Filters transactions where `transfer_group_id IS NOT NULL`
 
@@ -84,9 +83,14 @@ const { used, quota, percentUsed } = useStorageQuota();
 
 ### TanStack Query Integration
 
-Most hooks use TanStack Query for caching and state management:
+Every query is an `xQueryOptions()` builder next to its fetcher, and its key
+comes from `queryKeys` (`src/lib/query-keys.ts`). The hook is a thin wrapper, so
+prefetch, `getQueryData` and invalidation all share one key and one data shape.
+Never write an inline `useQuery({ queryKey, queryFn })` (the
+`@tanstack/query/prefer-query-options` and inline-key lint rules reject it), and
+never reuse a key for a different data shape (the DATA-06 bug).
 
-**Pattern:**
+**Pattern** (from `categoriesQueryOptions` in `src/lib/supabaseQueries.ts`):
 
 ```typescript
 import { queryOptions, useQuery } from "@tanstack/react-query";
@@ -96,7 +100,6 @@ export function categoriesQueryOptions() {
   return queryOptions({
     queryKey: queryKeys.categories.list(),
     queryFn: fetchCategories,
-    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
@@ -104,6 +107,9 @@ export function useCategories() {
   return useQuery(categoriesQueryOptions());
 }
 ```
+
+Components that need the cached value elsewhere read it with
+`queryClient.getQueryData(categoriesQueryOptions().queryKey)`.
 
 **Benefits:**
 
@@ -137,35 +143,34 @@ export function useCreateCategory() {
 
 **Prefix Rules:**
 
-- `useOffline*` - Reads from IndexedDB
-- `use*` (no prefix) - Reads from Supabase or computed data
+- `use*` - Query hook wrapping an `xQueryOptions()` builder, or a Dexie live query
 - `useCreate*/useUpdate*/useDelete*` - Mutation hooks
 
-**Singularvs Plural:**
+**Singular vs Plural:**
 
-- `useOfflineTransactions` - Returns array
-- `useOfflineTransaction` - Returns single item (requires ID param)
+- `useCategories` - Returns array
+- `useTransaction` - Returns single item (requires ID param)
 
 ### Live Queries (Dexie)
 
-Offline hooks can use Dexie's live queries for reactive data:
+Hooks that only need local data use Dexie's live queries through `readDb`
+(the writable `db` is lint-restricted to `src/lib/{offline,debts,sync,dexie}`):
 
 **Pattern:**
 
 ```typescript
 import { useLiveQuery } from "dexie-react-hooks";
+import { readDb } from "@/lib/dexie/readDb";
 
-export function useOfflineTransactions() {
-  const transactions = useLiveQuery(() => db.transactions.toArray(), []);
-
-  return { data: transactions, isLoading: !transactions };
+export function useQueuedSyncItems() {
+  return useLiveQuery(() => readDb.syncQueue.where("status").equals("queued").toArray(), []);
 }
 ```
 
 **Benefits:**
 
 - Automatically updates when IndexedDB changes
-- No manual cache invalidation needed
+- No manual cache invalidation needed, and no TanStack key to collide with
 
 ## Common Development Tasks
 
@@ -173,8 +178,8 @@ export function useOfflineTransactions() {
 
 **1. Determine data source:**
 
-- IndexedDB → `useOffline*` hook
-- Supabase → `use*` hook (TanStack Query)
+- IndexedDB only → `useLiveQuery` + `readDb`
+- Supabase (with offline fallback) → `xQueryOptions()` builder + `use*` hook
 - Computed → `use*` hook (derived from other data)
 
 **2. Create hook file:**
@@ -182,26 +187,26 @@ export function useOfflineTransactions() {
 **For IndexedDB:**
 
 ```typescript
-// useOfflineTags.ts
+// useTags.ts
 import { useLiveQuery } from "dexie-react-hooks";
 import { readDb } from "@/lib/dexie/readDb";
 
-export function useOfflineTags() {
+export function useTags() {
   return useLiveQuery(() => readDb.tags.toArray(), []);
 }
 ```
 
-**For Supabase:**
+**For Supabase:** add the root to `queryKeys` in `src/lib/query-keys.ts` first,
+then a builder and a hook:
 
 ```typescript
-// useTags.ts
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { supabase } from "@/lib/supabase";
 
-export function useTags() {
-  return useQuery({
-    queryKey: queryKeys.tags.list(), // add a `tags` root to queryKeys in src/lib/query-keys.ts first
+export function tagsQueryOptions() {
+  return queryOptions({
+    queryKey: queryKeys.tags.list(),
     queryFn: async () => {
       const { data, error } = await supabase.from("tags").select("*");
 
@@ -210,16 +215,20 @@ export function useTags() {
     },
   });
 }
+
+export function useTags() {
+  return useQuery(tagsQueryOptions());
+}
 ```
 
 **3. Export hook:**
 
 ```typescript
 // In component
-import { useOfflineTags } from "@/hooks/useOfflineTags";
+import { useTags } from "@/hooks/useTags";
 
 function MyComponent() {
-  const { data: tags, isLoading } = useOfflineTags();
+  const { data: tags, isLoading } = useTags();
   // ...
 }
 ```
@@ -229,16 +238,19 @@ function MyComponent() {
 **Pattern:**
 
 ```typescript
-// useCreateTag.ts
+// useCreateTag.ts (hypothetical; see useCreateCategory in src/lib/supabaseQueries.ts for a real one)
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "@/stores/authStore";
+import { afterOutboxWrite } from "@/lib/offline/afterWrite";
 import { createOfflineTag } from "@/lib/offline/tags";
 
 export function useCreateTag() {
   const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id);
 
   return useMutation({
     mutationFn: createOfflineTag,
-    onSuccess: () => afterOutboxWrite(queryClient, userId, "tag"),
+    onSuccess: () => afterOutboxWrite(queryClient, userId, "category"),
     onError: (error) => {
       console.error("Failed to create tag:", error);
     },
@@ -262,31 +274,18 @@ const handleSubmit = (data) => {
 
 ### Adding Query Filters
 
-**Pattern:**
+Filters belong in the key factory, so each filter set gets its own cache entry.
+Pass them to the builder and the factory (see `transactionsInfiniteQueryOptions(filters)`
+in `src/lib/supabaseQueries.ts`, keyed by `queryKeys.transactions.list(filters)`).
+Give each data shape its own key function; do not reuse `transactions.list` for
+anything but that infinite query. For a plain Dexie filter, use a live query:
 
 ```typescript
-export function useOfflineTransactions(filters?: {
-  accountId?: string;
-  categoryId?: string;
-  startDate?: string;
-  endDate?: string;
-}) {
-  return useQuery({
-    queryKey: queryKeys.transactions.list(filters),
-    queryFn: async () => {
-      let query = db.transactions;
-
-      if (filters?.accountId) {
-        query = query.where("account_id").equals(filters.accountId);
-      }
-
-      if (filters?.startDate && filters?.endDate) {
-        query = query.where("date").between(filters.startDate, filters.endDate);
-      }
-
-      return await query.toArray();
-    },
-  });
+export function useAccountTransactions(accountId: string) {
+  return useLiveQuery(
+    () => readDb.transactions.where("account_id").equals(accountId).toArray(),
+    [accountId]
+  );
 }
 ```
 
@@ -327,9 +326,9 @@ export function useToggleTransactionStatus() {
 ```typescript
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useOfflineTransactions } from "./useOfflineTransactions";
+import { useTransfers } from "./useTransfers";
 
-test("fetches transactions", async () => {
+test("fetches transfers", async () => {
   const queryClient = new QueryClient();
   const wrapper = ({ children }) => (
     <QueryClientProvider client={queryClient}>
@@ -337,7 +336,7 @@ test("fetches transactions", async () => {
     </QueryClientProvider>
   );
 
-  const { result } = renderHook(() => useOfflineTransactions(), { wrapper });
+  const { result } = renderHook(() => useTransfers("hh-1"), { wrapper });
 
   await waitFor(() => expect(result.current.isSuccess).toBe(true));
   expect(result.current.data).toHaveLength(3);
@@ -348,22 +347,22 @@ test("fetches transactions", async () => {
 
 **Test Scenarios:**
 
-- Hook fetches data from IndexedDB
-- Hook updates cache on mutation
+- Query hook returns data and uses the factory key (`queryKeys.*`)
+- Mutation hook calls `afterOutboxWrite` with the right entity
 - Hook handles errors gracefully
-- Optimistic updates work correctly
+- Offline: reads fall back to Dexie
 
 ## Performance Considerations
 
 **Query Key Design:**
 
-- Include all dependencies in query key
+- Build keys only through `queryKeys` (`src/lib/query-keys.ts`); include all dependencies as factory args
 - Invalidate selectively (not entire cache)
 
 **Stale Time:**
 
-- Offline hooks: Long stale time (5-10 mins) - data rarely changes
-- Remote hooks: Short stale time (30s-1min) - data may change remotely
+- Default is 5 minutes
+- Builders that read local Dexie and can be written outside the write events (e.g. `activeExternalDebtsQueryOptions`) use `staleTime: 0`
 
 **Refetch Strategies:**
 
