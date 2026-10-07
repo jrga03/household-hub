@@ -5,14 +5,14 @@
  * event log in IndexedDB. Verifies dual triggers (100 events OR 30 days),
  * event replay, snapshot creation, and safety buffer preservation.
  *
- * @see src/lib/event-compactor.ts
+ * @see src/lib/sync/eventCompactor.ts
  * @see docs/implementation/chunks/035-event-compaction/instructions.md
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { eventCompactor } from "./event-compactor";
-import { db } from "./dexie/db";
-import type { TransactionEvent } from "./dexie/db";
+import { eventCompactor } from "../eventCompactor";
+import { db } from "@/lib/dexie/db";
+import type { TransactionEvent } from "@/lib/dexie/db";
 import { nanoid } from "nanoid";
 
 // ============================================================================
@@ -417,9 +417,9 @@ describe("EventCompactor - Snapshot Creation", () => {
       .first();
 
     // Verify metadata preserved
-    expect(snapshot?.household_id).toBe(firstEvent.household_id);
-    expect(snapshot?.entity_type).toBe(firstEvent.entity_type);
-    expect(snapshot?.actor_user_id).toBe(firstEvent.actor_user_id);
+    expect(snapshot?.household_id).toBe(firstEvent!.household_id);
+    expect(snapshot?.entity_type).toBe(firstEvent!.entity_type);
+    expect(snapshot?.actor_user_id).toBe(firstEvent!.actor_user_id);
   });
 
   it("should create snapshot with ISO timestamp", async () => {
@@ -486,8 +486,8 @@ describe("EventCompactor - Safety Buffer", () => {
     expect(remainingEvents.length).toBe(10);
 
     // Verify they are the last 10 events (lamport clock 141-150)
-    expect(remainingEvents[0].lamport_clock).toBe(141);
-    expect(remainingEvents[9].lamport_clock).toBe(150);
+    expect(remainingEvents[0]!.lamport_clock).toBe(141);
+    expect(remainingEvents[9]!.lamport_clock).toBe(150);
   });
 
   it("should delete old events while preserving recent ones", async () => {
@@ -501,13 +501,13 @@ describe("EventCompactor - Safety Buffer", () => {
 
     // Verify first 100 events were deleted
     for (let i = 0; i < 100; i++) {
-      const event = await db.events.get(allEvents[i].id);
+      const event = await db.events.get(allEvents[i]!.id);
       expect(event).toBeUndefined();
     }
 
     // Verify last 10 events still exist
     for (let i = 100; i < 110; i++) {
-      const event = await db.events.get(allEvents[i].id);
+      const event = await db.events.get(allEvents[i]!.id);
       expect(event).toBeDefined();
     }
   });

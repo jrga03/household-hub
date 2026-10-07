@@ -30,7 +30,7 @@
  * @module csv-exporter
  */
 
-import { db } from "@/lib/dexie/db";
+import { readDb } from "@/lib/dexie/readDb";
 
 /**
  * Export filters for transaction queries
@@ -95,7 +95,7 @@ export class CSVExporter {
    * });
    */
   async exportTransactions(filters?: ExportFilters): Promise<string> {
-    let query = db.transactions.toCollection();
+    let query = readDb.transactions.toCollection();
 
     // Apply filters
     if (filters?.accountId) {
@@ -157,7 +157,7 @@ export class CSVExporter {
    * csvExporter.downloadCsv(csv, 'accounts-2024-01-15.csv');
    */
   async exportAccounts(): Promise<string> {
-    const accounts = await db.accounts.toArray();
+    const accounts = await readDb.accounts.toArray();
 
     const headers = ["name", "type", "initial_balance", "is_active"];
 
@@ -184,7 +184,7 @@ export class CSVExporter {
    * csvExporter.downloadCsv(csv, 'categories-2024-01-15.csv');
    */
   async exportCategories(): Promise<string> {
-    const categories = await db.categories.toArray();
+    const categories = await readDb.categories.toArray();
 
     const headers = ["name", "parent", "color", "is_active"];
 

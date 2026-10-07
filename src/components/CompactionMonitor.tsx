@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { db } from "@/lib/dexie/db";
+import { readDb } from "@/lib/dexie/readDb";
 import { useLiveQuery } from "dexie-react-hooks";
 import { AlertCircle } from "lucide-react";
 import { Link } from "@tanstack/react-router";
@@ -16,7 +16,7 @@ import { Link } from "@tanstack/react-router";
  */
 export function CompactionMonitor() {
   // Live query for total event count (triggers re-render when events change)
-  const eventCount = useLiveQuery(() => db.events.count());
+  const eventCount = useLiveQuery(() => readDb.events.count());
 
   // State for tracking how many entities need compaction
   const [needsCompaction, setNeedsCompaction] = useState(0);
@@ -30,7 +30,7 @@ export function CompactionMonitor() {
       // Count events per entity (memory-efficient streaming)
       const entityEventCounts = new Map<string, number>();
 
-      await db.events.each((event) => {
+      await readDb.events.each((event) => {
         const count = entityEventCounts.get(event.entity_id) || 0;
         entityEventCounts.set(event.entity_id, count + 1);
       });

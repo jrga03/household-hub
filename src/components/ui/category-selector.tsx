@@ -18,7 +18,7 @@ import { useId, useMemo, useState, type ComponentProps } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 
-import { db } from "@/lib/dexie/db";
+import { readDb } from "@/lib/dexie/readDb";
 import { useCategoriesGrouped } from "@/lib/supabaseQueries";
 import { cn } from "@/lib/utils";
 import {
@@ -103,7 +103,7 @@ export function CategorySelector({
   const recentCategoryIds = useLiveQuery(
     async (): Promise<string[]> => {
       try {
-        const recentTransactions = await db.transactions
+        const recentTransactions = await readDb.transactions
           .orderBy("created_at")
           .reverse()
           .limit(RECENT_SCAN_LIMIT)

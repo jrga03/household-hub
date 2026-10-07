@@ -43,7 +43,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { db } from "@/lib/dexie/db";
+import { readDb } from "@/lib/dexie/readDb";
 import {
   getPendingDrafts,
   updateDraft,
@@ -128,8 +128,10 @@ function DraftsPage() {
   const [regionRef, isNarrow] = useContainerNarrow(768);
 
   const drafts = useLiveQuery(() => getPendingDrafts());
-  const accounts = useLiveQuery(() => db.accounts.filter((a) => a.is_active).sortBy("name"));
-  const categories = useLiveQuery(() => db.categories.filter((c) => c.is_active).sortBy("name"));
+  const accounts = useLiveQuery(() => readDb.accounts.filter((a) => a.is_active).sortBy("name"));
+  const categories = useLiveQuery(() =>
+    readDb.categories.filter((c) => c.is_active).sortBy("name")
+  );
 
   const toggleSelect = (id: string) => {
     const next = new Set(selected);

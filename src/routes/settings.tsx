@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { eventCompactor, type CompactionStats } from "@/lib/event-compactor";
+import { eventCompactor, type CompactionStats } from "@/lib/sync/eventCompactor";
 import { csvExporter } from "@/lib/csv-exporter";
 import { toast } from "sonner";
 import { Loader2, Download, Monitor, Moon, Sun } from "lucide-react";

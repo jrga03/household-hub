@@ -8,12 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { usePDFImportStore } from "@/stores/pdfImportStore";
-import { db } from "@/lib/dexie/db";
+import { readDb } from "@/lib/dexie/readDb";
 
 export function AccountMapStep() {
   const { selectedAccountId, setSelectedAccountId, setStep } = usePDFImportStore();
 
-  const accounts = useLiveQuery(() => db.accounts.filter((a) => a.is_active).sortBy("name"));
+  const accounts = useLiveQuery(() => readDb.accounts.filter((a) => a.is_active).sortBy("name"));
 
   return (
     <Card>

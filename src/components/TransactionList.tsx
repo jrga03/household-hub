@@ -36,7 +36,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { SyncBadge } from "@/components/sync/SyncBadge";
 import { buildEntitySyncStatusMap } from "@/components/sync/queueBadgeStatus";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/dexie/db";
+import { readDb } from "@/lib/dexie/readDb";
 import { useNavStore } from "@/stores/navStore";
 import { useContainerNarrow } from "@/hooks/useContainerWidth";
 import { cn } from "@/lib/utils";
@@ -114,7 +114,10 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
   // Rows absent from the map have no pending local changes; failed items
   // surface as "failed" instead of an indefinite "pending" (review R3).
   const rowSyncStatuses = useLiveQuery(async () => {
-    const items = await db.syncQueue.where("status").anyOf("queued", "syncing", "failed").toArray();
+    const items = await readDb.syncQueue
+      .where("status")
+      .anyOf("queued", "syncing", "failed")
+      .toArray();
     return buildEntitySyncStatusMap(items, "transaction");
   }, []);
 

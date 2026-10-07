@@ -16,8 +16,8 @@ vi.mock("@/lib/supabase", () => ({
   },
 }));
 
-vi.mock("@/lib/dexie/db", () => ({
-  db: {
+vi.mock("@/lib/dexie/readDb", () => ({
+  readDb: {
     syncQueue: {
       where: vi.fn(() => ({
         anyOf: vi.fn(() => ({
@@ -64,7 +64,7 @@ vi.mock("@/router", () => ({
 // Now import subjects under test
 import { useAuthStore, checkUnsyncedData } from "../authStore";
 import { supabase } from "@/lib/supabase";
-import { db } from "@/lib/dexie/db";
+import { readDb } from "@/lib/dexie/readDb";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { csvExporter } from "@/lib/csv-exporter";
 import { toast } from "sonner";
@@ -84,7 +84,7 @@ describe("authStore", () => {
     });
     vi.clearAllMocks();
     // Default: no unsynced data
-    vi.mocked(db.syncQueue.where).mockReturnValue({
+    vi.mocked(readDb.syncQueue.where).mockReturnValue({
       anyOf: vi.fn().mockReturnValue({
         count: vi.fn().mockResolvedValue(0),
       }),
@@ -382,7 +382,7 @@ describe("authStore", () => {
     });
 
     it("returns true when outstanding queue items exist", async () => {
-      vi.mocked(db.syncQueue.where).mockReturnValue({
+      vi.mocked(readDb.syncQueue.where).mockReturnValue({
         anyOf: vi.fn().mockReturnValue({
           count: vi.fn().mockResolvedValue(3),
         }),

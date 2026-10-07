@@ -7,7 +7,7 @@ import { UpdatePrompt } from "@/components/UpdatePrompt";
 import { ThemeColorSync } from "@/components/ThemeColorSync";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { realtimeSync } from "@/lib/sync/realtime";
-import { eventCompactor } from "@/lib/event-compactor";
+import { eventCompactor } from "@/lib/sync/eventCompactor";
 // Router singleton + scroll restoration + Register augmentation live in
 // src/router.ts so non-component layers (authStore session expiry) can
 // navigate without importing the React tree.

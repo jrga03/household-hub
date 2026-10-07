@@ -45,6 +45,13 @@ const restrictSupabase = {
     "Routes and components fetch through a hook or @/lib/supabaseQueries so reads get the Dexie offline fallback and shared query keys.",
 };
 
+const restrictWritableDb = {
+  group: ["@/lib/dexie/db", "**/lib/dexie/db", "**/dexie/db"],
+  importNames: ["db"],
+  message:
+    "Read through readDb from @/lib/dexie/readDb. The writable db belongs to src/lib/{offline,debts,sync,dexie}, where an entity write enqueues its sync item in the same transaction.",
+};
+
 const restrictNanoid = {
   name: "nanoid",
   message: "Use crypto.randomUUID(): local ids are server ids and the columns are uuid.",
@@ -474,7 +481,10 @@ export default [
     files: ["src/routes/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"],
     ignores: srcTestFiles,
     rules: {
-      "no-restricted-imports": ["error", { patterns: [restrictSupabase, restrictAsCents] }],
+      "no-restricted-imports": [
+        "error",
+        { patterns: [restrictSupabase, restrictAsCents, restrictWritableDb] },
+      ],
     },
   },
   {
@@ -487,7 +497,14 @@ export default [
       "src/components/**",
     ],
     rules: {
-      "no-restricted-imports": ["error", { patterns: [restrictAsCents] }],
+      "no-restricted-imports": ["error", { patterns: [restrictAsCents, restrictWritableDb] }],
+    },
+  },
+  {
+    files: asCentsAllowed,
+    ignores: srcTestFiles,
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [restrictWritableDb] }],
     },
   },
   {

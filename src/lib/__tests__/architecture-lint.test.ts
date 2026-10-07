@@ -62,6 +62,12 @@ const cases = [
     flagged: "src/lib/debts/probe.ts",
     allowed: "src/lib/sync/probe.ts",
   },
+  {
+    rule: "no-restricted-imports",
+    code: 'import { db } from "@/lib/dexie/db";\nexport const count = () => db.transactions.count();\n',
+    flagged: "src/hooks/probe.ts",
+    allowed: "src/lib/offline/probe.ts",
+  },
 ];
 
 describe.each(cases)("$rule", ({ rule, code, flagged, allowed }) => {
@@ -126,4 +132,17 @@ it("no-restricted-imports flags asCents in src/lib/sync", async () => {
 it("no-restricted-imports still bans nanoid in src/lib/debts alongside asCents", async () => {
   const code = 'import { nanoid } from "nanoid";\nexport const id = nanoid();\n';
   expect(await ruleIds(code, "src/lib/debts/probe.ts")).toContain("no-restricted-imports");
+});
+
+it("no-restricted-imports allows type-only imports from the database module", async () => {
+  const code =
+    'import type { LocalTransaction } from "@/lib/dexie/db";\nexport type Row = LocalTransaction;\n';
+  expect(await ruleIds(code, "src/components/probe.tsx")).not.toContain("no-restricted-imports");
+});
+
+it("no-restricted-imports flags the writable db in validations and routes", async () => {
+  const code =
+    'import { db } from "@/lib/dexie/db";\nexport const count = () => db.transactions.count();\n';
+  expect(await ruleIds(code, "src/lib/validations/probe.ts")).toContain("no-restricted-imports");
+  expect(await ruleIds(code, "src/routes/probe.tsx")).toContain("no-restricted-imports");
 });

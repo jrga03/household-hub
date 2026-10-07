@@ -10,7 +10,7 @@
  * @module pdf-import-duplicates
  */
 
-import { db } from "@/lib/dexie/db";
+import { readDb } from "@/lib/dexie/readDb";
 import { generateFingerprint } from "@/lib/duplicate-detector";
 import { parsePHP } from "@/lib/currency";
 import type { ParsedTransactionRow } from "@/types/pdf-import";
@@ -36,7 +36,7 @@ export async function detectPDFDuplicates(
   );
 
   // Get all existing transaction fingerprints for this account
-  const existingTransactions = await db.transactions
+  const existingTransactions = await readDb.transactions
     .where("account_id")
     .equals(accountId)
     .toArray();
@@ -44,7 +44,7 @@ export async function detectPDFDuplicates(
   const existingFingerprints = new Set(existingTransactions.map((tx) => generateFingerprint(tx)));
 
   // Also check confirmed import drafts for this account
-  const confirmedDrafts = await db.importDrafts
+  const confirmedDrafts = await readDb.importDrafts
     .where("account_id")
     .equals(accountId)
     .filter((d) => d.draft_status === "confirmed")

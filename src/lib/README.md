@@ -71,12 +71,12 @@ Event sourcing implementation with immutable audit log:
   - Tracks lamport clocks per entity
   - Phase A: Simple structure, Phase B: Vector clocks
 - **`event-generator.test.ts`** - Event generation tests
-- **`event-compactor.ts`** (18.9KB) - Event log compaction
+- **`sync/eventCompactor.ts`** (18.9KB) - Event log compaction
   - Compacts events when >100 events OR monthly
   - Merges consecutive updates into snapshots
   - Maintains audit trail with compacted events
   - Runs daily at 3 AM (see `App.tsx:82`)
-- **`event-compactor.test.ts`** - Compaction logic tests
+- **`sync/__tests__/eventCompactor.test.ts`** - Compaction logic tests
 
 ### Conflict Resolution
 

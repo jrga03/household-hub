@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { User, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { db } from "@/lib/dexie/db";
+import { readDb } from "@/lib/dexie/readDb";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { csvExporter } from "@/lib/csv-exporter";
 import { queryClient } from "@/lib/queryClient";
@@ -42,7 +42,7 @@ interface AuthActions {
  */
 export async function checkUnsyncedData(): Promise<boolean> {
   try {
-    const queueCount = await db.syncQueue
+    const queueCount = await readDb.syncQueue
       .where("status")
       .anyOf(["queued", "syncing", "failed"]) // ✓ Matches SyncQueueItem schema
       .count();

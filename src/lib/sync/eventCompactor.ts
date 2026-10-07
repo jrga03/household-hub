@@ -30,11 +30,11 @@
  * - No data loss: All state preserved in snapshot
  *
  * @see docs/implementation/chunks/035-event-compaction/instructions.md
- * @module lib/event-compactor
+ * @module lib/sync/eventCompactor
  */
 
-import { db } from "./dexie/db";
-import type { TransactionEvent } from "./dexie/db";
+import { db } from "@/lib/dexie/db";
+import type { TransactionEvent } from "@/lib/dexie/db";
 import type { VectorClock } from "@/types/event";
 import { nanoid } from "nanoid";
 import { useSyncStore } from "@/stores/syncStore";
@@ -136,7 +136,7 @@ export interface CompactionHistoryRecord extends CompactionMetadata {
  *
  * Usage:
  * ```typescript
- * import { eventCompactor } from '@/lib/event-compactor';
+ * import { eventCompactor } from '@/lib/sync/eventCompactor';
  *
  * // Check if entity needs compaction
  * if (await eventCompactor.shouldCompact('tx-123')) {
@@ -567,7 +567,7 @@ export class EventCompactor {
  * Use this throughout the application to manage event log compaction.
  *
  * @example
- * import { eventCompactor } from '@/lib/event-compactor';
+ * import { eventCompactor } from '@/lib/sync/eventCompactor';
  *
  * // Check specific entity
  * if (await eventCompactor.shouldCompact('tx-123')) {
