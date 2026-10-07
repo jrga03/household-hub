@@ -2,12 +2,11 @@
  * React Hook for Sync Processor
  *
  * Provides a TanStack Query mutation hook for triggering manual sync operations.
- * Handles success/error notifications and query cache invalidation after sync.
+ * Handles success/error notifications after sync.
  *
  * Key Features:
  * - Manual sync trigger via mutation
  * - Toast notifications for user feedback
- * - Automatic query cache invalidation (refetches offline data)
  * - Loading/error state management
  *
  * Usage:
@@ -22,7 +21,7 @@
  * @module hooks/useSyncProcessor
  */
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
 import { syncProcessor } from "@/lib/sync/processor";
@@ -36,7 +35,6 @@ import { syncIssuesManager } from "@/lib/sync/SyncIssuesManager";
  * 1. Gets the current user from auth store
  * 2. Calls syncProcessor.processQueue()
  * 3. Shows toast notifications for success/failure
- * 4. Invalidates offline query cache to refetch updated data
  *
  * State Management:
  * - `isPending`: Sync in progress
@@ -102,7 +100,6 @@ import { syncIssuesManager } from "@/lib/sync/SyncIssuesManager";
  * }
  */
 export function useSyncProcessor() {
-  const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
 
   return useMutation({
@@ -123,16 +120,13 @@ export function useSyncProcessor() {
     },
 
     /**
-     * Success handler - shows toast and invalidates queries
+     * Success handler - shows toasts
      *
      * Toasts:
      * - Success: "Synced N items" (if synced > 0)
      * - Error: "N items failed to sync" (if failed > 0)
      *
-     * Query Invalidation:
-     * - Invalidates all queries with key ["offline"]
-     * - This triggers refetch of offline data from IndexedDB
-     * - Updated data (with server IDs) will be displayed
+     * Query invalidation happens in the processor after a drain that synced items.
      *
      * Sync Issues Integration:
      * - Logs conflicts if result.conflictsResolved exists (chunk 032)
@@ -143,10 +137,6 @@ export function useSyncProcessor() {
     onSuccess: (result) => {
       if (result.synced > 0) {
         toast.success(`Synced ${result.synced} items`);
-
-        // Invalidate all offline queries to refetch updated data
-        // This ensures UI shows server IDs instead of temp IDs
-        queryClient.invalidateQueries({ queryKey: ["offline"] });
       }
 
       if (result.failed > 0) {

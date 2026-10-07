@@ -2,13 +2,12 @@
  * React Hooks for Sync Queue Operations
  *
  * Provides TanStack Query mutation hooks for manual sync queue management.
- * These hooks handle retry, discard, and batch operations with proper
- * cache invalidation and user feedback.
+ * These hooks handle retry, discard, and batch operations with user feedback (the queue screens read Dexie through useLiveQuery and update themselves).
  *
  * @module hooks/useSyncQueueOperations
  */
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
 import {
@@ -21,7 +20,6 @@ import {
  * Hook for retrying a single failed sync queue item
  *
  * Resets the item's status to "queued" and triggers sync processor.
- * Automatically invalidates sync queue queries to update UI.
  *
  * @example
  * const retryMutation = useRetrySyncItem();
@@ -31,7 +29,6 @@ import {
  * </Button>
  */
 export function useRetrySyncItem() {
-  const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
 
   return useMutation({
@@ -41,9 +38,6 @@ export function useRetrySyncItem() {
     },
     onSuccess: (result) => {
       if (result.success) {
-        // Invalidate sync queue queries
-        queryClient.invalidateQueries({ queryKey: ["sync-queue", "pending"] });
-        queryClient.invalidateQueries({ queryKey: ["offline", "sync", "queue", "count"] });
         toast.success("Retry initiated - syncing now...");
       } else {
         toast.error(result.error || "Failed to retry item");
@@ -69,7 +63,6 @@ export function useRetrySyncItem() {
  * </Button>
  */
 export function useRetryAllFailed() {
-  const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
 
   return useMutation({
@@ -79,9 +72,6 @@ export function useRetryAllFailed() {
     },
     onSuccess: (result) => {
       if (result.success) {
-        queryClient.invalidateQueries({ queryKey: ["sync-queue", "pending"] });
-        queryClient.invalidateQueries({ queryKey: ["offline", "sync", "queue", "count"] });
-
         const count = result.count || 0;
         if (count > 0) {
           toast.success(`Retrying ${count} ${count === 1 ? "item" : "items"}...`);
@@ -119,7 +109,6 @@ export function useRetryAllFailed() {
  * };
  */
 export function useDiscardSyncItem() {
-  const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
 
   return useMutation({
@@ -129,8 +118,6 @@ export function useDiscardSyncItem() {
     },
     onSuccess: (result) => {
       if (result.success) {
-        queryClient.invalidateQueries({ queryKey: ["sync-queue", "pending"] });
-        queryClient.invalidateQueries({ queryKey: ["offline", "sync", "queue", "count"] });
         toast.success("Item discarded");
       } else {
         toast.error(result.error || "Failed to discard item");
