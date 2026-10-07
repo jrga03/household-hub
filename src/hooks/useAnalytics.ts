@@ -74,7 +74,7 @@ interface AnalyticsData {
   insights: Insights;
 }
 
-interface AnalyticsFilters {
+export interface AnalyticsFilters {
   accountId?: string;
   categoryId?: string;
   type?: "income" | "expense";

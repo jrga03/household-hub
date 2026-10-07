@@ -4,6 +4,7 @@ import tsParser from "@typescript-eslint/parser";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
 import jsxA11y from "eslint-plugin-jsx-a11y";
+import pluginQuery from "@tanstack/eslint-plugin-query";
 import prettier from "eslint-config-prettier";
 import { builtinRules } from "eslint/use-at-your-own-risk";
 
@@ -26,6 +27,15 @@ const srcTestFiles = [
   "src/**/__tests__/**",
   "src/test/**",
 ];
+
+// TanStack Query strict rules for production code (roadmap 4.3). Landed at
+// warn while the migration runs; Task 10 of the 2c-2 plan removes this map.
+const queryPluginConfigs = pluginQuery.configs["flat/recommended-strict"].map((config) => ({
+  ...config,
+  files: ["src/**/*.{ts,tsx}"],
+  ignores: srcTestFiles,
+  rules: Object.fromEntries(Object.keys(config.rules ?? {}).map((ruleId) => [ruleId, "warn"])),
+}));
 
 // The raw number → Cents constructor stays in the data layer (roadmap 4.4).
 const restrictAsCents = {
@@ -406,6 +416,7 @@ export default [
     },
   },
   { ...jsxA11y.flatConfigs.recommended, files: ["src/**/*.tsx"] },
+  ...queryPluginConfigs,
   // Architecture rules (roadmap 4.4-4.6). Each error message says why the rule
   // exists and what to do instead.
   {

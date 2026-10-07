@@ -47,6 +47,7 @@
     "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.1.14",
+    "@tanstack/eslint-plugin-query": "^5.104.1",
     "@tanstack/router-devtools": "^1.133.22",
     "@tanstack/router-vite-plugin": "^1.132.56",
     "@testing-library/dom": "^10.4.1",
