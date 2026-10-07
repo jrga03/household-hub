@@ -278,7 +278,7 @@ TransferList renders cards
 
 - Location: `src/hooks/useTransfers.ts`
 - Returns: Mutation with `mutateAsync` and `isPending` state
-- Invalidates: `["transfers"]` query key on success
+- Invalidates: everything a "transaction" write affects (invalidatesAfterWrite in src/lib/query-keys.ts)
 
 **`useTransfers(householdId)`** - Query hook for fetching transfers
 
@@ -601,10 +601,10 @@ User wants to see transfer history:
 
 ### 4. Transfer List Query Key
 
-**useTransfers hook likely uses:**
+**useTransfers hook uses:**
 
 ```typescript
-queryKey: ["transfers", householdId];
+queryKey: queryKeys.transfers.list(householdId);
 ```
 
 **Invalidation on create:**

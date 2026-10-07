@@ -971,7 +971,7 @@ const queryPluginConfigs = pluginQuery.configs["flat/recommended-strict"].map((c
         "error",
         {
           selector:
-            "Property[key.name='queryKey'] > :matches(ArrayExpression, TSAsExpression > ArrayExpression)",
+            "Property[key.name='queryKey'] > ArrayExpression, Property[key.name='queryKey'] > TSAsExpression > ArrayExpression",
           message:
             "Use queryKeys from @/lib/query-keys. Inline keys drift (see DATA-06) and break invalidation.",
         },

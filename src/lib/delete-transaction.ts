@@ -3,9 +3,10 @@
  *
  * Confirms with the user (transfer-aware message, app-level AlertDialog via
  * `@/lib/confirm` — review R39), deletes the transaction (the offline delete
- * reverses any linked debt payment), then toasts (useDeleteTransaction's write event refreshes debts). Used by
- * TransactionList's per-row Delete button and the narrow-layout detail sheet
- * (mobile UX review R38) so the two entry points cannot drift.
+ * reverses any linked debt payment), then toasts (useDeleteTransaction's write
+ * event refreshes debts). Used by TransactionList's per-row Delete button and
+ * the narrow-layout detail sheet (mobile UX review R38) so the two entry points
+ * cannot drift.
  */
 
 import { toast } from "sonner";
@@ -19,7 +20,8 @@ interface ConfirmAndDeleteTransactionArgs {
   isTransferLeg: boolean;
   /**
    * The `useDeleteTransaction().mutateAsync` function, injected so callers
-   * share the app's single mutation path (list/account invalidation included).
+   * share the app's single mutation path (it fires the transaction write event:
+   * lists, balances, totals and debts).
    */
   deleteTransaction: (id: string) => Promise<void>;
 }

@@ -227,7 +227,9 @@ export class SyncProcessor {
         // Persist for reloads: useSyncStatus reads this via liveQuery
         await db.meta.put({ key: "lastSyncTime", value: now.toISOString() });
 
-        // Local changes just reached the cloud: refresh what the synced entity types affect, once per drain (review R9). Fire-and-forget - refetching must not block sync.
+        // Local changes just reached the cloud: refresh what the synced entity types
+        // affect, once per drain (review R9). Fire-and-forget - refetching must not
+        // block sync.
         invalidateAfterWrite(queryClient, [...syncedEntities]);
       }
 

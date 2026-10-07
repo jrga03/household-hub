@@ -81,17 +81,6 @@ export interface AnalyticsFilters {
   type?: "income" | "expense";
 }
 
-/**
- * Analytics hook for financial insights
- *
- * @param startDate - Start date for analytics period
- * @param endDate - End date for analytics period
- * @param filters - Optional filters (accountId, categoryId, type)
- * @returns TanStack Query result with AnalyticsData
- *
- * CRITICAL: All queries exclude transfers using .is('transfer_group_id', null)
- * to prevent double-counting account movements as income/expenses.
- */
 export function analyticsQueryOptions(startDate: Date, endDate: Date, filters?: AnalyticsFilters) {
   return queryOptions({
     queryKey: queryKeys.analytics.range(
@@ -187,6 +176,17 @@ export function analyticsQueryOptions(startDate: Date, endDate: Date, filters?: 
   });
 }
 
+/**
+ * Analytics hook for financial insights
+ *
+ * @param startDate - Start date for analytics period
+ * @param endDate - End date for analytics period
+ * @param filters - Optional filters (accountId, categoryId, type)
+ * @returns TanStack Query result with AnalyticsData
+ *
+ * CRITICAL: All queries exclude transfers using .is('transfer_group_id', null)
+ * to prevent double-counting account movements as income/expenses.
+ */
 export function useAnalytics(startDate: Date, endDate: Date, filters?: AnalyticsFilters) {
   return useQuery(analyticsQueryOptions(startDate, endDate, filters));
 }

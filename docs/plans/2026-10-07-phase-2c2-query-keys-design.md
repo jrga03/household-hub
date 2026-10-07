@@ -110,12 +110,12 @@ export function invalidateAfterWrite(
 
 ```js
 {
-  selector: "Property[key.name='queryKey'] > :matches(ArrayExpression, TSAsExpression > ArrayExpression)",
+  selector: "Property[key.name='queryKey'] > ArrayExpression, Property[key.name='queryKey'] > TSAsExpression > ArrayExpression",
   message: "Use queryKeys from @/lib/query-keys. Inline keys drift (see DATA-06) and break invalidation.",
 }
 ```
 
-The roadmap's selector (`> ArrayExpression`) misses `["x"] as const`; the `:matches` form covers it. It is registered as its own alias, `arch/no-inline-query-keys`, in `architecturePlugin` (`eslint.config.js`), following the Phase 1a pattern of one `no-restricted-syntax` alias per invariant so its file list cannot clobber the other four.
+The roadmap's selector (`> ArrayExpression`) misses `["x"] as const`; the extended selector covers it. An earlier `:matches(ArrayExpression, TSAsExpression > ArrayExpression)` form was wrong because the child combinator applies to the inner array, whose parent is the cast. It is registered as its own alias, `arch/no-inline-query-keys`, in `architecturePlugin` (`eslint.config.js`), following the Phase 1a pattern of one `no-restricted-syntax` alias per invariant so its file list cannot clobber the other four.
 
 - The `afterOutboxWrite` and processor paths are enforced by types: they accept `EntityType`, not keys.
 

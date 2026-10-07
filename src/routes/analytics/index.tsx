@@ -29,7 +29,7 @@ function Analytics() {
   });
 
   // Shared hooks, not private queries: the old route cached its own fetch under
-  // the shared ["accounts"]/["categories"] keys and poisoned every other picker (DATA-06).
+  // the shared queryKeys.accounts.list()/categories.list() keys and poisoned every other picker (DATA-06).
   const { data: accounts = [] } = useAccounts();
   const { data: allCategories = [] } = useCategories();
   const categories = useMemo(

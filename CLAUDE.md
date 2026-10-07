@@ -34,6 +34,7 @@ Always ask: what happens offline, and what happens when two devices edit the sam
 ## Code conventions
 
 - TanStack Router (not react-router-dom); Sonner toasts (not react-hot-toast).
+- Query keys come from `src/lib/query-keys.ts`; each query is an `xQueryOptions()` builder next to its fetcher. A write calls `afterOutboxWrite(queryClient, userId, "<entity>")`; when new data derives from an entity, add its root to `invalidatesAfterWrite` (`arch/no-inline-query-keys` and `@tanstack/eslint-plugin-query` enforce this).
 - Server state in TanStack Query, client state in Zustand (minimal).
 - Every route uses `<PageShell variant="…">` (`src/components/layout/PageShell.tsx`). Inside rails, sheets, and panes, use container queries (`@[600px]:`), not viewport breakpoints.
 - No `any`. No `!` in production code under the strict program; narrow with a guard instead. Tests may use `!` after asserting length.

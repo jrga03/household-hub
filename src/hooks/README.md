@@ -89,17 +89,19 @@ Most hooks use TanStack Query for caching and state management:
 **Pattern:**
 
 ```typescript
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 
-export function useOfflineTransactions() {
-  return useQuery({
-    queryKey: ["transactions"],
-    queryFn: async () => {
-      // Fetch from IndexedDB
-      return await db.transactions.toArray();
-    },
+export function categoriesQueryOptions() {
+  return queryOptions({
+    queryKey: queryKeys.categories.list(),
+    queryFn: fetchCategories,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
+}
+
+export function useCategories() {
+  return useQuery(categoriesQueryOptions());
 }
 ```
 
@@ -126,10 +128,7 @@ export function useCreateCategory() {
     mutationFn: async (category) => {
       return await createOfflineCategory(category);
     },
-    onSuccess: () => {
-      // Invalidate cache to trigger refetch
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
-    },
+    onSuccess: () => afterOutboxWrite(queryClient, userId, "category"),
   });
 }
 ```
@@ -184,16 +183,11 @@ export function useOfflineTransactions() {
 
 ```typescript
 // useOfflineTags.ts
-import { useQuery } from "@tanstack/react-query";
+import { useLiveQuery } from "dexie-react-hooks";
 import { readDb } from "@/lib/dexie/readDb";
 
 export function useOfflineTags() {
-  return useQuery({
-    queryKey: ["tags"],
-    queryFn: async () => {
-      return await readDb.tags.toArray();
-    },
-  });
+  return useLiveQuery(() => readDb.tags.toArray(), []);
 }
 ```
 
@@ -202,11 +196,12 @@ export function useOfflineTags() {
 ```typescript
 // useTags.ts
 import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { supabase } from "@/lib/supabase";
 
 export function useTags() {
   return useQuery({
-    queryKey: ["tags", "remote"],
+    queryKey: queryKeys.tags.list(), // add a `tags` root to queryKeys in src/lib/query-keys.ts first
     queryFn: async () => {
       const { data, error } = await supabase.from("tags").select("*");
 
@@ -243,9 +238,7 @@ export function useCreateTag() {
 
   return useMutation({
     mutationFn: createOfflineTag,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tags"] });
-    },
+    onSuccess: () => afterOutboxWrite(queryClient, userId, "tag"),
     onError: (error) => {
       console.error("Failed to create tag:", error);
     },
@@ -279,7 +272,7 @@ export function useOfflineTransactions(filters?: {
   endDate?: string;
 }) {
   return useQuery({
-    queryKey: ["transactions", filters],
+    queryKey: queryKeys.transactions.list(filters),
     queryFn: async () => {
       let query = db.transactions;
 
@@ -320,7 +313,7 @@ export function useToggleTransactionStatus() {
       if (!result.success) throw new Error(result.error ?? "Failed to update status");
       return newStatus;
     },
-    onSuccess: () => afterOutboxWrite(queryClient, userId, [["transactions"], ["transaction"]]),
+    onSuccess: () => afterOutboxWrite(queryClient, userId, "transaction"),
   });
 }
 ```

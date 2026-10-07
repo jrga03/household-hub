@@ -68,7 +68,7 @@ import {
  *
  * Exported so useAccounts AND usePrefetchTransactionData use the SAME
  * queryKey + queryFn. Previously the prefetch fetched `select("*").order
- * ("name")` (no is_active filter) into key ["accounts"], poisoning the cache
+ * ("name")` (no is_active filter) into key queryKeys.accounts.all, poisoning the cache
  * so archived accounts appeared in every dropdown for 10 minutes (DATA-06).
  */
 export function accountsQueryOptions() {
@@ -483,9 +483,8 @@ export function useUpdateCategory() {
 }
 
 /**
- * TanStack Query hooks for transactions CRUD operations
- * CRITICAL: Always invalidate both ["transactions"] and ["accounts"] on mutations
- * to keep account balances in sync
+ * TanStack Query hooks for transactions CRUD operations.
+ * Writes call afterOutboxWrite; invalidatesAfterWrite in src/lib/query-keys.ts decides what goes stale.
  */
 
 /** Rows fetched per page of the transactions list (review R10). */
@@ -675,8 +674,8 @@ export type { TransactionsFilterSummary };
  *   three numbers always come from one source — never a server count next
  *   to client totals.
  * - Keyed under queryKeys.transactions.all so every transaction
- *   invalidation (mutations,
- *   post-sync drain) refreshes the summary alongside the list.
+ *   invalidation (mutations, post-sync drain) refreshes the summary
+ *   alongside the list.
  */
 export function useTransactionsFilterSummary(filters?: TransactionFilters) {
   return useQuery(transactionsFilterSummaryQueryOptions(filters));
@@ -1093,6 +1092,20 @@ export async function fetchCategoryTotalsFromServer(month: Date): Promise<Catego
   );
 }
 
+export function categoryTotalsQueryOptions(month: Date, staleTime?: number) {
+  // Adaptive caching: Historical months can be cached longer since they rarely change
+  const isCurrentMonth = format(month, "yyyy-MM") === format(new Date(), "yyyy-MM");
+  const defaultStaleTime = isCurrentMonth
+    ? 60 * 1000 // 1 minute for current month (frequent updates expected)
+    : 10 * 60 * 1000; // 10 minutes for historical months (rarely change)
+
+  return queryOptions({
+    queryKey: queryKeys.categoryTotals.month(format(month, "yyyy-MM")),
+    queryFn: () => fetchCategoryTotalsFromServer(month),
+    staleTime: staleTime ?? defaultStaleTime,
+  });
+}
+
 /**
  * Fetches category totals for a specific month with parent/child hierarchy.
  *
@@ -1117,20 +1130,6 @@ export async function fetchCategoryTotalsFromServer(month: Date): Promise<Catego
  * // Override cache duration
  * const { data: totals } = useCategoryTotals(new Date(2024, 0, 1), { staleTime: 5000 });
  */
-export function categoryTotalsQueryOptions(month: Date, staleTime?: number) {
-  // Adaptive caching: Historical months can be cached longer since they rarely change
-  const isCurrentMonth = format(month, "yyyy-MM") === format(new Date(), "yyyy-MM");
-  const defaultStaleTime = isCurrentMonth
-    ? 60 * 1000 // 1 minute for current month (frequent updates expected)
-    : 10 * 60 * 1000; // 10 minutes for historical months (rarely change)
-
-  return queryOptions({
-    queryKey: queryKeys.categoryTotals.month(format(month, "yyyy-MM")),
-    queryFn: () => fetchCategoryTotalsFromServer(month),
-    staleTime: staleTime ?? defaultStaleTime,
-  });
-}
-
 export function useCategoryTotals(month: Date, options?: { staleTime?: number }) {
   return useQuery(categoryTotalsQueryOptions(month, options?.staleTime));
 }

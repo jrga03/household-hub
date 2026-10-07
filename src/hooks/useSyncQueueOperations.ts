@@ -2,7 +2,8 @@
  * React Hooks for Sync Queue Operations
  *
  * Provides TanStack Query mutation hooks for manual sync queue management.
- * These hooks handle retry, discard, and batch operations with user feedback (the queue screens read Dexie through useLiveQuery and update themselves).
+ * These hooks handle retry, discard, and batch operations with user feedback
+ * (the queue screens read Dexie through useLiveQuery and update themselves).
  *
  * @module hooks/useSyncQueueOperations
  */
