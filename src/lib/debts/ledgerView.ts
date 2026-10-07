@@ -1,3 +1,4 @@
+import { diffCents, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import type { Debt, InternalDebt } from "@/types/debt";
 import { calculateDebtBalance } from "./balance";
@@ -9,7 +10,7 @@ import type { DebtKind } from "./outbox";
  */
 export class DebtLedgerView {
   private readonly debts = new Map<string, Debt | InternalDebt>();
-  private readonly balances = new Map<string, number>();
+  private readonly balances = new Map<string, Cents>();
 
   async debt(kind: DebtKind, id: string): Promise<Debt | InternalDebt | undefined> {
     const cached = this.debts.get(id);
@@ -19,7 +20,7 @@ export class DebtLedgerView {
     return row;
   }
 
-  async balance(kind: DebtKind, id: string): Promise<number> {
+  async balance(kind: DebtKind, id: string): Promise<Cents> {
     const cached = this.balances.get(id);
     if (cached !== undefined) return cached;
     const balance = await calculateDebtBalance(id, kind);
@@ -32,11 +33,11 @@ export class DebtLedgerView {
   }
 
   /** Signed ledger: a reversal's negative amount raises the balance. */
-  recordPayment(id: string, amountCents: number): void {
+  recordPayment(id: string, amountCents: Cents): void {
     const current = this.balances.get(id);
     if (current === undefined) {
       throw new Error(`Balance for debt ${id} was not loaded before recording a payment`);
     }
-    this.balances.set(id, current - amountCents);
+    this.balances.set(id, diffCents(current, amountCents));
   }
 }

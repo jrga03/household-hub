@@ -6,7 +6,7 @@
  */
 
 import { db } from "@/lib/dexie/db";
-import { ZERO_CENTS, asCents, diffCents } from "@/lib/currency";
+import { ZERO_CENTS, diffCents } from "@/lib/currency";
 import { getDeviceId } from "@/lib/dexie/deviceManager";
 import { DebtLedgerView } from "./ledgerView";
 import {
@@ -61,7 +61,7 @@ export async function prepareDebtPayment(
   const overpaymentAmount = !isOverpayment
     ? ZERO_CENTS
     : currentBalance > 0
-      ? diffCents(data.amount_cents, asCents(currentBalance))
+      ? diffCents(data.amount_cents, currentBalance)
       : data.amount_cents;
 
   const now = new Date().toISOString();

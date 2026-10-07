@@ -48,7 +48,13 @@ const cases = [
     rule: "no-restricted-imports",
     code: 'import { asCents } from "@/lib/currency";\nexport const total = asCents(1);\n',
     flagged: "src/hooks/probe.ts",
-    allowed: "src/lib/offline/probe.ts",
+    allowed: "src/lib/currency.ts",
+  },
+  {
+    rule: "no-restricted-imports",
+    code: 'import { asCents } from "@/lib/currency";\nexport const total = asCents(1);\n',
+    flagged: "src/lib/debts/probe.ts",
+    allowed: "src/lib/validations/probe.ts",
   },
   {
     rule: "no-restricted-imports",
@@ -105,4 +111,19 @@ it("formatPHP and the helpers stay importable everywhere", async () => {
 it("no-restricted-imports bans nanoid in src/lib/offline", async () => {
   const code = 'import { nanoid } from "nanoid";\nexport const id = nanoid();\n';
   expect(await ruleIds(code, "src/lib/offline/probe.ts")).toContain("no-restricted-imports");
+});
+
+it("no-restricted-imports flags asCents in src/lib/offline", async () => {
+  const code = 'import { asCents } from "@/lib/currency";\nexport const total = asCents(1);\n';
+  expect(await ruleIds(code, "src/lib/offline/probe.ts")).toContain("no-restricted-imports");
+});
+
+it("no-restricted-imports flags asCents in src/lib/sync", async () => {
+  const code = 'import { asCents } from "@/lib/currency";\nexport const total = asCents(1);\n';
+  expect(await ruleIds(code, "src/lib/sync/probe.ts")).toContain("no-restricted-imports");
+});
+
+it("no-restricted-imports still bans nanoid in src/lib/debts alongside asCents", async () => {
+  const code = 'import { nanoid } from "nanoid";\nexport const id = nanoid();\n';
+  expect(await ruleIds(code, "src/lib/debts/probe.ts")).toContain("no-restricted-imports");
 });

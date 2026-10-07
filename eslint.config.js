@@ -35,14 +35,20 @@ const restrictAsCents = {
     "Derive money with the @/lib/currency helpers (sumCents, diffCents, absCents, divideCents, ZERO_CENTS) or a schema in src/lib/validations. asCents is for the data layer only.",
 };
 
-const asCentsAllowed = [
-  "src/lib/currency.ts",
-  "src/lib/validations/**",
-  "src/lib/supabaseQueries.ts",
-  "src/lib/offline/**",
-  "src/lib/debts/**",
-  "src/lib/realtime-sync.ts",
-];
+const asCentsAllowed = ["src/lib/currency.ts", "src/lib/validations/**"];
+
+const dataLayer = ["src/lib/offline/**", "src/lib/debts/**", "src/lib/sync/**", "src/lib/dexie/**"];
+
+const restrictSupabase = {
+  group: ["**/lib/supabase", "**/lib/supabase.ts"],
+  message:
+    "Routes and components fetch through a hook or @/lib/supabaseQueries so reads get the Dexie offline fallback and shared query keys.",
+};
+
+const restrictNanoid = {
+  name: "nanoid",
+  message: "Use crypto.randomUUID(): local ids are server ids and the columns are uuid.",
+};
 
 export default [
   {
@@ -467,51 +473,41 @@ export default [
       ],
     },
   },
+  // no-restricted-imports: one block per disjoint file set. A later block's
+  // no-restricted-imports replaces an earlier one for the same file, so the
+  // sets must never overlap.
   {
     files: ["src/routes/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"],
     ignores: srcTestFiles,
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              group: ["**/lib/supabase", "**/lib/supabase.ts"],
-              message:
-                "Routes and components fetch through a hook or @/lib/supabaseQueries so reads get the Dexie offline fallback and shared query keys.",
-            },
-            restrictAsCents,
-          ],
-        },
-      ],
+      "no-restricted-imports": ["error", { patterns: [restrictSupabase, restrictAsCents] }],
     },
   },
   {
     files: ["src/**/*.{ts,tsx}"],
-    ignores: [...srcTestFiles, ...asCentsAllowed, "src/routes/**", "src/components/**"],
+    ignores: [
+      ...srcTestFiles,
+      ...asCentsAllowed,
+      ...dataLayer,
+      "src/routes/**",
+      "src/components/**",
+    ],
     rules: {
       "no-restricted-imports": ["error", { patterns: [restrictAsCents] }],
     },
   },
   {
-    // Server ids are uuid columns; a nanoid id can never sync (debt sync defects, 2026-10-06).
-    // These directories sit in asCentsAllowed today. If 2c narrows that list, this block must
-    // also carry restrictAsCents: a later block's no-restricted-imports replaces earlier ones.
     files: ["src/lib/debts/**/*.ts", "src/lib/offline/**/*.ts"],
     ignores: srcTestFiles,
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "nanoid",
-              message:
-                "Use crypto.randomUUID(): local ids are server ids and the columns are uuid.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": ["error", { paths: [restrictNanoid], patterns: [restrictAsCents] }],
+    },
+  },
+  {
+    files: ["src/lib/sync/**/*.ts", "src/lib/dexie/**/*.ts"],
+    ignores: srcTestFiles,
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [restrictAsCents] }],
     },
   },
   prettier,
