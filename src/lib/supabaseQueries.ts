@@ -352,6 +352,8 @@ export function activeExternalDebtsQueryOptions() {
         }))
       );
     },
+    // Local Dexie read: refetching on every mount is cheap and catches debts written outside the write events.
+    staleTime: 0,
   });
 }
 

@@ -50,6 +50,7 @@ describe("query options builders", () => {
     expect(activeExternalDebtsQueryOptions().queryKey).toEqual(
       queryKeys.debts.activeExternal("00000000-0000-0000-0000-000000000001")
     );
+    expect(activeExternalDebtsQueryOptions().staleTime).toBe(0);
   });
 
   it("transactions", () => {
