@@ -21,6 +21,7 @@ import { supabase } from "@/lib/supabase";
 import { db } from "@/lib/dexie/db";
 import { getPendingQueueItems } from "@/lib/offline/syncQueue";
 import { queryClient } from "@/lib/queryClient";
+import { keysAfterWrite, queryKeys } from "@/lib/query-keys";
 
 // ─── Helpers ─────────────────────────────────────
 function makeQueueItem(overrides: Partial<SyncQueueItem> = {}): SyncQueueItem {
@@ -250,20 +251,29 @@ describe("SyncProcessor (local outbox)", () => {
       expect(entry?.value).toBeTruthy();
     });
 
-    it("invalidates transactions/accounts/categories/dashboard/transfers/budgets queries once per drain that pushed items", async () => {
+    it("invalidates what the synced entity types affect, once per key per drain", async () => {
       const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
-      await db.syncQueue.bulkAdd([makeQueueItem(), makeQueueItem({ entity_id: "entity-2" })]);
+      await db.syncQueue.bulkAdd([
+        makeQueueItem(),
+        makeQueueItem({ entity_id: "entity-2" }),
+        makeQueueItem({ entity_id: "budget-1", entity_type: "budget" }),
+      ]);
 
       await processor.processQueue("user-1");
 
-      // Once per prefix (not per item), fired after the drain completes
-      expect(invalidateSpy).toHaveBeenCalledTimes(6);
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["transactions"] });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["accounts"] });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["categories"] });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["dashboard"] });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["transfers"] });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["budgets"] });
+      const keys = keysAfterWrite(["transaction", "budget"]);
+      expect(invalidateSpy).toHaveBeenCalledTimes(keys.length);
+      for (const queryKey of keys) expect(invalidateSpy).toHaveBeenCalledWith({ queryKey });
+    });
+
+    it("invalidates only what the synced entity types affect", async () => {
+      const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+      await db.syncQueue.add(makeQueueItem({ entity_id: "budget-1", entity_type: "budget" }));
+
+      await processor.processQueue("user-1");
+
+      expect(invalidateSpy).toHaveBeenCalledTimes(keysAfterWrite("budget").length);
+      expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: queryKeys.transactions.all });
     });
 
     it("does not invalidate queries when nothing was pushed", async () => {

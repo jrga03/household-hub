@@ -41,6 +41,7 @@ import { pickServerColumns } from "./serverColumns";
 import { syncIssuesManager } from "./SyncIssuesManager";
 import { useSyncStore } from "@/stores/syncStore";
 import { queryClient } from "@/lib/queryClient";
+import { invalidateAfterWrite } from "@/lib/query-keys";
 import type { SyncQueueItem, SyncQueueStatus, EntityType } from "@/types/sync";
 
 /**
@@ -204,10 +205,12 @@ export class SyncProcessor {
       store.setStatus("syncing");
 
       // Process each item sequentially (FIFO for causal ordering)
+      const syncedEntities = new Set<EntityType>();
       for (const item of items) {
         const result = await this.processItem(item);
         if (result.success) {
           synced++;
+          syncedEntities.add(item.entity_type);
         } else {
           failed++;
           if (result.terminal) {
@@ -224,19 +227,8 @@ export class SyncProcessor {
         // Persist for reloads: useSyncStatus reads this via liveQuery
         await db.meta.put({ key: "lastSyncTime", value: now.toISOString() });
 
-        // Local changes just reached the cloud: refresh the server-state
-        // queries once per drain so lists/balances pick up the synced rows
-        // (review R9). Fire-and-forget - refetching must not block sync.
-        for (const queryKey of [
-          ["transactions"],
-          ["accounts"],
-          ["categories"],
-          ["dashboard"],
-          ["transfers"],
-          ["budgets"],
-        ]) {
-          queryClient.invalidateQueries({ queryKey }).catch(() => {});
-        }
+        // Local changes just reached the cloud: refresh what the synced entity types affect, once per drain (review R9). Fire-and-forget - refetching must not block sync.
+        invalidateAfterWrite(queryClient, [...syncedEntities]);
       }
 
       // Clean up old completed items to prevent unbounded growth
