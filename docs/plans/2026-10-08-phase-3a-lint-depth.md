@@ -44,15 +44,15 @@
 - [x] Task A0: Branch and baseline (`deps-pr11`)
 - [x] Task A1: Apply PR #11 versions and fix the breaks
 - [x] Task A2: Budget, browser check, merge
-- [ ] Task B0: Branch and baseline (`phase-3a-lint-depth`)
-- [ ] Task B1: Type-aware rules at `warn`
-- [ ] Task B2: Sync and offline
-- [ ] Task B3: Hooks
-- [ ] Task B4: Routes
-- [ ] Task B5: Components, app shell, workers and tests
-- [ ] Task B6: `noUncheckedIndexedAccess` repo-wide; delete the strict program
-- [ ] Task B7: Exit: `error` and `--max-warnings=0`
-- [ ] Task B8: Acceptance, docs, merge
+- [x] Task B0: Branch and baseline (`phase-3a-lint-depth`)
+- [x] Task B1: Type-aware rules at `warn`
+- [x] Task B2: Sync and offline
+- [x] Task B3: Hooks
+- [x] Task B4: Routes
+- [x] Task B5: Components, app shell, workers and tests
+- [x] Task B6: `noUncheckedIndexedAccess` repo-wide; delete the strict program
+- [x] Task B7: Exit: `error` and `--max-warnings=0`
+- [x] Task B8: Acceptance, docs, merge
 
 ---
 
@@ -365,7 +365,17 @@ using Sonner's `toast` (already imported in most routes). Keep existing catches;
 
 ## Acceptance results
 
-Not run yet.
+Part A (`deps-pr11`, merged and pushed 2026-10-08 at `b5daff0`): 34 package ranges from Dependabot PR #11; recharts pie click and react-hooks render-time state fixed; bundle 363,502 → 383,354 B gz (react-dom 19.3, react-hook-form 7.89), budget 355 → 378 KB; smoke 11/11; browser: pie slice opens the category's 10 transactions, same as `main`.
+
+Part B (`phase-3a-lint-depth`, 2026-10-08):
+
+- Lint: `no-floating-promises`, `no-misused-promises`, `no-non-null-assertion` at `error`; `npm run lint -- --max-warnings=0` exit 0 (from 36 / 51 / 20 reports plus 2 warnings at B1). Enforced in CI, the Stop hook and pre-push. A planted floating promise fails lint as an error.
+- `noUncheckedIndexedAccess` repo-wide: 111 → 0 (4 production, 107 tests); `tsconfig.strict.json` removed from CI, pre-push, the Stop hook, `.husky/README.md` and CLAUDE.md.
+- vitest 97 files + 1 skipped, 1280 tests + 1 skipped (baseline 1278); tsc app/tests 0; build ok; size 374.7 KB gz of 378.
+- Full chromium E2E at `c505c85`: 37 passed / 24 skipped, per-test equal to the 2026-10-02 baseline except the logged ultrawide dashboard layout flake and the documented serial settings-export flips.
+- Pre-commit cost: type-aware ESLint on 8 files 5.0 s, Prettier 0.7 s.
+- Reviews: every task reviewed (B2, B5, B7 fix rounds); whole-branch review "Ready after fixes"; fixes for pre-push `--max-warnings=0`, drafts Undo error ownership and an architecture-lint length assertion.
+- Not run: the browser toast-on-failure check (the new toasts fire on Dexie/Supabase failures not reachable from the UI without fault injection); service worker and PDF worker error paths at runtime; non-chromium browsers.
 
 ## Decisions & Deferrals
 
@@ -383,5 +393,11 @@ Execution decisions (2026-10-08):
 - **The router plugin's regenerated `routeTree.gen.ts` is committed with Part A** (`de48360`); otherwise every build dirties the tree.
 - **`allowScripts` pin follows canvas 3.2.3** (Phase 1b already allows canvas for `scripts/generate-icons.js`).
 - **New warning to clear in Part B:** `react-hooks/incompatible-library` at `TransactionFormDialog.tsx:111` (`form.watch`) from react-hooks 7.1; Task B5 converts it (e.g. `useWatch`) so Task B7's zero-warning exit holds.
+
+- **`refetch` from `useQuery` joins the resolve-on-failure list** (B4); no `throwOnError` anywhere in `src`.
+- **TransactionFormDialog keeps one reasoned `react-hooks/set-state-in-effect` disable** (B5): `reset()` must stay in the effect, and the render-time pattern would stop re-expanding "More options" when the same cached transaction reopens.
+- **The live Stop hook caught ignored files tripping `--max-warnings=0`** (B7); fixed with `--no-warn-ignored`.
+- **Final review deferrals (2026-10-08).** Revisit each when its file is next touched unless noted: partial bulk discard in drafts reports the whole batch as failed and offers no Undo; sign-out can toast a raw Dexie message; a failed PWA install reports but shows no toast; budget handlers toast without `reportError` (policy: add when touched); autoSync test helpers no longer await the drain and the online-event test does not assert `reportError` arguments; realtime test `emit()` is silent for an unsubscribed table; optional `registration.update` rejection test; drafts confirm toast wording differs from the result-failure toast; `PDFImportPage` import placement; `useBudgetActuals` has no callers (3b Knip). Remaining `warn` rules (`no-unused-vars`, react-hooks recommended) stay at `warn`; `--max-warnings=0` already makes them blocking.
+- **Pre-existing: a blank CSV amount cell imports as ₱0** (`csv-importer` `parseAmountOrZero`; `parsePHP("")` returns 0 and `validateAmount(0)` passes). Revisit: its own fix (flag "Invalid amount" when a mapped amount cell is blank).
 
 From the spec (section 8), unchanged: order PR #11 → 3a → 3b; every misused-promise site fixed at default strength; budget = measured + 3 KB.
