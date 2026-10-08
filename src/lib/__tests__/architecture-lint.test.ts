@@ -5,7 +5,20 @@ import { beforeAll, describe, expect, it } from "vitest";
 // eslint/use-at-your-own-risk export cannot silently disable a rule.
 let eslint: ESLint;
 beforeAll(() => {
-  eslint = new ESLint();
+  // Probe paths are not on disk, so the project service cannot type them; the
+  // type-aware rules are covered by `npm run lint` over real files instead.
+  eslint = new ESLint({
+    overrideConfig: [
+      {
+        files: ["src/**/*.{ts,tsx}"],
+        languageOptions: { parserOptions: { projectService: false } },
+        rules: {
+          "@typescript-eslint/no-floating-promises": "off",
+          "@typescript-eslint/no-misused-promises": "off",
+        },
+      },
+    ],
+  });
 });
 
 async function ruleIds(code: string, filePath: string) {

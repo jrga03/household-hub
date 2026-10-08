@@ -335,6 +335,8 @@ export default [
         ecmaFeatures: {
           jsx: true,
         },
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
       },
       globals: {
         console: "readonly",
@@ -405,6 +407,10 @@ export default [
         },
       ],
       "@typescript-eslint/no-explicit-any": "error",
+      // Every promise has an owner (roadmap 4.7). warn until Phase 3a's exit commit.
+      "@typescript-eslint/no-floating-promises": "warn",
+      "@typescript-eslint/no-misused-promises": "warn",
+      "@typescript-eslint/no-non-null-assertion": "warn",
       "react/prop-types": "off",
       "react/react-in-jsx-scope": "off",
     },
@@ -413,6 +419,10 @@ export default [
         version: "detect",
       },
     },
+  },
+  {
+    files: srcTestFiles,
+    rules: { "@typescript-eslint/no-non-null-assertion": "off" },
   },
   { ...jsxA11y.flatConfigs.recommended, files: ["src/**/*.tsx"] },
   ...queryPluginConfigs,
