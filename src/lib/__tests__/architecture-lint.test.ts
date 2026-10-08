@@ -22,8 +22,9 @@ beforeAll(() => {
 });
 
 async function ruleIds(code: string, filePath: string) {
-  const [result] = await eslint.lintText(code, { filePath });
-  return result!.messages.map((message) => message.ruleId);
+  const results = await eslint.lintText(code, { filePath });
+  expect(results).toHaveLength(1);
+  return results[0]!.messages.map((message) => message.ruleId);
 }
 
 const cases = [
@@ -112,8 +113,11 @@ it("arch/no-inline-query-keys flags a plain array key", async () => {
 it("@tanstack/query/prefer-query-options is an error in production code", async () => {
   const code =
     'import { useQueryClient } from "@tanstack/react-query";\nexport const useProbe = () => { const queryClient = useQueryClient(); return () => queryClient.invalidateQueries({ queryKey: ["probe"] }); };\n';
-  const [result] = await eslint.lintText(code, { filePath: "src/hooks/probe.ts" });
-  const message = result!.messages.find((m) => m.ruleId === "@tanstack/query/prefer-query-options");
+  const results = await eslint.lintText(code, { filePath: "src/hooks/probe.ts" });
+  expect(results).toHaveLength(1);
+  const message = results[0]!.messages.find(
+    (m) => m.ruleId === "@tanstack/query/prefer-query-options"
+  );
   expect(message?.severity).toBe(2);
 });
 
