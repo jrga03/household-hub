@@ -73,7 +73,7 @@ describe("PreviewStep", () => {
     expect(cardInputs("Date")).toHaveLength(2);
     expect(cardInputs("Description")).toHaveLength(2);
     expect(cardInputs("Amount")).toHaveLength(2);
-    expect(cardInputs("Description")[0]).toHaveValue("Grocery run");
+    expect(cardInputs("Description")[0]!).toHaveValue("Grocery run");
 
     // The table is NOT mounted alongside it (double DOM for large imports)
     expect(document.querySelector("table")).toBeNull();
@@ -99,12 +99,12 @@ describe("PreviewStep", () => {
   it("propagates a card edit to the store", () => {
     render(<PreviewStep />);
 
-    fireEvent.change(cardInputs("Date")[0], { target: { value: "2026-07-15" } });
+    fireEvent.change(cardInputs("Date")[0]!, { target: { value: "2026-07-15" } });
 
     expect(usePDFImportStore.getState().userEdits.get(0)).toEqual({ date: "2026-07-15" });
-    expect(cardInputs("Date")[0]).toHaveValue("2026-07-15");
+    expect(cardInputs("Date")[0]!).toHaveValue("2026-07-15");
     // Other rows untouched
-    expect(cardInputs("Date")[1]).toHaveValue("2026-07-02");
+    expect(cardInputs("Date")[1]!).toHaveValue("2026-07-02");
   });
 
   it("propagates a table edit to the store", () => {
@@ -121,7 +121,7 @@ describe("PreviewStep", () => {
   it("shares edits across presentations through the store", () => {
     // Edit in the card presentation…
     const { unmount } = render(<PreviewStep />);
-    fireEvent.change(cardInputs("Description")[0], { target: { value: "Grocery (edited)" } });
+    fireEvent.change(cardInputs("Description")[0]!, { target: { value: "Grocery (edited)" } });
     unmount();
 
     // …then remount as the table (viewport crossed the breakpoint)
@@ -133,8 +133,8 @@ describe("PreviewStep", () => {
   it("accumulates edits across fields of the same row", () => {
     render(<PreviewStep />);
 
-    fireEvent.change(cardInputs("Description")[0], { target: { value: "Grocery (edited)" } });
-    fireEvent.change(cardInputs("Amount")[0], { target: { value: "1,600.00" } });
+    fireEvent.change(cardInputs("Description")[0]!, { target: { value: "Grocery (edited)" } });
+    fireEvent.change(cardInputs("Amount")[0]!, { target: { value: "1,600.00" } });
 
     expect(usePDFImportStore.getState().userEdits.get(0)).toEqual({
       description: "Grocery (edited)",

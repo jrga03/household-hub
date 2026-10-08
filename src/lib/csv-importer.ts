@@ -140,7 +140,8 @@ export function detectColumnMappings(headers: string[]): ColumnMapping {
 
   // Match each header against patterns
   for (let i = 0; i < headers.length; i++) {
-    const header = headers[i].trim();
+    const header = headers[i]?.trim();
+    if (header === undefined) continue;
 
     for (const [field, regexes] of Object.entries(patterns)) {
       for (const regex of regexes) {
@@ -168,7 +169,8 @@ export function detectColumnMappings(headers: string[]): ColumnMapping {
 export function mapRowToTransaction(row: string[], mapping: ColumnMapping): Partial<Transaction> {
   const transaction: Partial<Transaction> = {
     description: mapping.description !== null ? String(row[mapping.description] || "") : "",
-    amount_cents: mapping.amount !== null ? parseAmountOrZero(row[mapping.amount]) : ZERO_CENTS,
+    amount_cents:
+      mapping.amount !== null ? parseAmountOrZero(row[mapping.amount] ?? "") : ZERO_CENTS,
     date: mapping.date !== null ? String(row[mapping.date] || "") : "",
     account_id: mapping.account !== null ? String(row[mapping.account] || "") : "",
     category_id: mapping.category !== null ? String(row[mapping.category] || "") : "",

@@ -76,7 +76,7 @@ describe("AnalyticsFilterSheet", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Apply Filters" }));
 
     expect(onFilterChange).toHaveBeenCalledTimes(1);
-    const applied = onFilterChange.mock.calls[0][0] as AnalyticsFilterValues;
+    const applied = onFilterChange.mock.calls[0]?.[0] as AnalyticsFilterValues;
     expect(applied.startDate).toBeInstanceOf(Date);
     expect(applied.endDate).toBeInstanceOf(Date);
     // Default state applies no entity filters
@@ -96,7 +96,7 @@ describe("AnalyticsFilterSheet", () => {
     fireEvent.click(await screen.findByRole("button", { name: /clear/i }));
 
     expect(onFilterChange).toHaveBeenCalledTimes(1);
-    const cleared = onFilterChange.mock.calls[0][0] as AnalyticsFilterValues;
+    const cleared = onFilterChange.mock.calls[0]?.[0] as AnalyticsFilterValues;
     expect(cleared.startDate).toBeInstanceOf(Date);
     expect(cleared.endDate).toBeInstanceOf(Date);
 
@@ -141,7 +141,7 @@ describe("AnalyticsFilterSheet", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Apply Filters" }));
 
     // The original R8 bug: this emitted accountId/type: undefined, wiping them
-    const applied = onFilterChange.mock.calls[0][0] as AnalyticsFilterValues;
+    const applied = onFilterChange.mock.calls[0]?.[0] as AnalyticsFilterValues;
     expect(applied.accountId).toBe("acc-1");
     expect(applied.type).toBe("expense");
     expect(applied.startDate).toEqual(defaultApplied.startDate);

@@ -195,8 +195,8 @@ describe("Dexie Debt Migration", () => {
 
     // Should be sorted by payment_date DESC, then created_at DESC
     expect(payments).toHaveLength(2);
-    expect(payments[0].id).toBe("payment-2"); // Later timestamp first
-    expect(payments[1].id).toBe("payment-1");
+    expect(payments[0]!.id).toBe("payment-2"); // Later timestamp first
+    expect(payments[1]!.id).toBe("payment-1");
   });
 
   it("should verify no balance field in table schema", async () => {

@@ -53,7 +53,7 @@ describe("syncIssuesStore", () => {
 
       const remaining = useSyncIssuesStore.getState().issues;
       expect(remaining).toHaveLength(1);
-      expect(remaining[0].id).toBe("i2");
+      expect(remaining[0]!.id).toBe("i2");
     });
 
     it("does nothing if ID not found", () => {
@@ -83,7 +83,8 @@ describe("syncIssuesStore", () => {
         resolvedValue: { amount: 200 },
       });
       useSyncIssuesStore.getState().addIssue(issue);
-      const stored = useSyncIssuesStore.getState().issues[0];
+      expect(useSyncIssuesStore.getState().issues).toHaveLength(1);
+      const stored = useSyncIssuesStore.getState().issues[0]!;
       expect(stored.issueType).toBe("conflict-resolved");
       expect(stored.localValue).toEqual({ amount: 100 });
       expect(stored.remoteValue).toEqual({ amount: 200 });
@@ -96,7 +97,8 @@ describe("syncIssuesStore", () => {
         canRetry: false,
       });
       useSyncIssuesStore.getState().addIssue(issue);
-      expect(useSyncIssuesStore.getState().issues[0].canRetry).toBe(false);
+      expect(useSyncIssuesStore.getState().issues).toHaveLength(1);
+      expect(useSyncIssuesStore.getState().issues[0]!.canRetry).toBe(false);
     });
   });
 });

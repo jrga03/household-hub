@@ -194,8 +194,8 @@ self.addEventListener("notificationclick", (event: NotificationEvent) => {
         }
 
         // If no matching window, try to focus any open window and navigate
-        if (clientList.length > 0) {
-          const client = clientList[0];
+        const client = clientList[0];
+        if (client) {
           if ("focus" in client) {
             client.focus().catch((error: unknown) => console.error("[SW] focus failed", error));
           }

@@ -98,10 +98,10 @@ describe("detectDuplicates", () => {
     const dupes = await detectDuplicates(importData, existing);
 
     expect(dupes).toHaveLength(1);
-    expect(dupes[0].confidence).toBe(1.0);
-    expect(dupes[0].importIndex).toBe(0);
-    expect(dupes[0].importRow).toBe(importData[0]);
-    expect(dupes[0].existingTransaction).toBe(existing[0]);
+    expect(dupes[0]!.confidence).toBe(1.0);
+    expect(dupes[0]!.importIndex).toBe(0);
+    expect(dupes[0]!.importRow).toBe(importData[0]);
+    expect(dupes[0]!.existingTransaction).toBe(existing[0]);
   });
 
   it("returns empty for no matches", async () => {
@@ -138,8 +138,8 @@ describe("detectDuplicates", () => {
     const dupes = await detectDuplicates(importData, existing);
 
     expect(dupes).toHaveLength(2);
-    expect(dupes[0].importIndex).toBe(1); // "Groceries" is at index 1
-    expect(dupes[1].importIndex).toBe(2); // "Salary" is at index 2
+    expect(dupes[0]!.importIndex).toBe(1); // "Groceries" is at index 1
+    expect(dupes[1]!.importIndex).toBe(2); // "Salary" is at index 2
   });
 
   it("does not match when account differs (Decision #81)", async () => {

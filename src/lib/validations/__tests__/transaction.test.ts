@@ -49,7 +49,7 @@ describe("transactionSchema", () => {
       const result = transactionSchema.safeParse(validData({ date: futureDate }));
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].message).toContain("future");
+        expect(result.error.issues[0]?.message).toContain("future");
       }
     });
 
@@ -64,7 +64,7 @@ describe("transactionSchema", () => {
       const result = transactionSchema.safeParse(validData({ description: "ab" }));
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].message).toContain("3 characters");
+        expect(result.error.issues[0]?.message).toContain("3 characters");
       }
     });
 

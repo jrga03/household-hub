@@ -23,7 +23,7 @@ beforeAll(() => {
 
 async function ruleIds(code: string, filePath: string) {
   const [result] = await eslint.lintText(code, { filePath });
-  return result.messages.map((message) => message.ruleId);
+  return result!.messages.map((message) => message.ruleId);
 }
 
 const cases = [
@@ -113,7 +113,7 @@ it("@tanstack/query/prefer-query-options is an error in production code", async 
   const code =
     'import { useQueryClient } from "@tanstack/react-query";\nexport const useProbe = () => { const queryClient = useQueryClient(); return () => queryClient.invalidateQueries({ queryKey: ["probe"] }); };\n';
   const [result] = await eslint.lintText(code, { filePath: "src/hooks/probe.ts" });
-  const message = result.messages.find((m) => m.ruleId === "@tanstack/query/prefer-query-options");
+  const message = result!.messages.find((m) => m.ruleId === "@tanstack/query/prefer-query-options");
   expect(message?.severity).toBe(2);
 });
 

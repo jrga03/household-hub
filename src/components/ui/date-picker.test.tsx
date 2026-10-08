@@ -44,7 +44,7 @@ describe("DatePicker", () => {
     fireEvent.change(getInput(), { target: { value: "2026-07-05" } });
 
     expect(onChange).toHaveBeenCalledTimes(1);
-    const date = onChange.mock.calls[0][0] as Date;
+    const date = onChange.mock.calls[0]?.[0] as Date;
     expect(date.getFullYear()).toBe(2026);
     expect(date.getMonth()).toBe(6);
     expect(date.getDate()).toBe(5);
@@ -59,7 +59,7 @@ describe("DatePicker", () => {
     const tomorrow = format(addDays(new Date(), 1), "yyyy-MM-dd");
     fireEvent.change(getInput(), { target: { value: tomorrow } });
 
-    const date = onChange.mock.calls[0][0] as Date;
+    const date = onChange.mock.calls[0]?.[0] as Date;
     expect(date.getTime()).toBeLessThanOrEqual(Date.now());
     expect(format(date, "yyyy-MM-dd")).toBe(format(new Date(), "yyyy-MM-dd"));
   });

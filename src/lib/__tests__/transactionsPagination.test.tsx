@@ -193,15 +193,15 @@ describe("useTransactions infinite pagination (R10)", () => {
     // Short page (20 < page size) ends pagination
     expect(result.current.hasNextPage).toBe(false);
     // Flattened order is preserved
-    expect(result.current.data?.[0].id).toBe("srv-000");
-    expect(result.current.data?.[119].id).toBe("srv-119");
+    expect(result.current.data?.[0]!.id).toBe("srv-000");
+    expect(result.current.data?.[119]!.id).toBe("srv-119");
   });
 
   it("overlays an unsynced local row once across page boundaries (local wins)", async () => {
     const dataset = makeServerDataset(TRANSACTIONS_PAGE_SIZE + 5);
     // Server echo of the local row sits in PAGE 2's window
     const echoIndex = TRANSACTIONS_PAGE_SIZE + 2;
-    const echo = dataset[echoIndex];
+    const echo = dataset[echoIndex]!;
     const localEdit = makeLocalTransaction({
       id: echo.id,
       date: echo.date,
@@ -237,10 +237,10 @@ describe("useTransactions infinite pagination (R10)", () => {
   it("hides a server row whose delete is still queued in the outbox", async () => {
     const dataset = makeServerDataset(3);
     await db.syncQueue.add({
-      ...makeQueueItem(dataset[1].id),
+      ...makeQueueItem(dataset[1]!.id),
       operation: {
         op: "delete",
-        payload: { id: dataset[1].id },
+        payload: { id: dataset[1]!.id },
         idempotencyKey: "k",
         lamportClock: 2,
       },
@@ -250,7 +250,7 @@ describe("useTransactions infinite pagination (R10)", () => {
     const { result } = renderHook(() => useTransactions(), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(result.current.data?.map((t) => t.id)).toEqual([dataset[0].id, dataset[2].id]);
+    expect(result.current.data?.map((t) => t.id)).toEqual([dataset[0]!.id, dataset[2]!.id]);
   });
 
   it("pages the Dexie fallback with the same offset/limit when the network fails", async () => {
@@ -273,7 +273,7 @@ describe("useTransactions infinite pagination (R10)", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toHaveLength(TRANSACTIONS_PAGE_SIZE);
-    expect(result.current.data?.[0].id).toBe("loc-00"); // newest created_at first
+    expect(result.current.data?.[0]!.id).toBe("loc-00"); // newest created_at first
     expect(result.current.hasNextPage).toBe(true);
 
     await act(async () => {

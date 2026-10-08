@@ -34,15 +34,13 @@ interface MockTransactionsResult {
 }
 
 const fetchNextPage = vi.fn();
-const mockTransactionsQuery = vi.fn(
-  (): MockTransactionsResult => ({
-    data: [],
-    isLoading: false,
-    fetchNextPage,
-    hasNextPage: false,
-    isFetchingNextPage: false,
-  })
-);
+const mockTransactionsQuery = vi.fn((): MockTransactionsResult => ({
+  data: [],
+  isLoading: false,
+  fetchNextPage,
+  hasNextPage: false,
+  isFetchingNextPage: false,
+}));
 const toggleMutate = vi.fn();
 
 vi.mock("@/lib/supabaseQueries", () => ({
@@ -208,7 +206,7 @@ describe("row/card tap semantics (R14)", () => {
   it("calls onEdit when a table row is clicked", () => {
     const onEdit = renderList();
 
-    fireEvent.click(screen.getAllByTestId("transaction-row")[0]);
+    fireEvent.click(screen.getAllByTestId("transaction-row")[0]!);
 
     expect(onEdit).toHaveBeenCalledTimes(1);
     expect(onEdit).toHaveBeenCalledWith("txn-1");
@@ -247,7 +245,7 @@ describe("row/card tap semantics (R14)", () => {
     expect(onEdit).not.toHaveBeenCalled();
 
     // Row taps keep going through onEdit
-    fireEvent.click(screen.getAllByTestId("transaction-row")[0]);
+    fireEvent.click(screen.getAllByTestId("transaction-row")[0]!);
     expect(onEdit).toHaveBeenCalledTimes(1);
     expect(onEdit).toHaveBeenCalledWith("txn-1");
     expect(onRequestEdit).toHaveBeenCalledTimes(1);

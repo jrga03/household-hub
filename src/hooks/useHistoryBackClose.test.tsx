@@ -46,10 +46,11 @@ class ResizeObserverStub {
 globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof globalThis.ResizeObserver;
 
 // Per-host external controls, registered on render
-const setOpenControls: Record<string, (open: boolean) => void> = {};
-const closeSpies: Record<string, ReturnType<typeof vi.fn>> = {};
+type HostId = "a" | "b" | "c" | "sheet" | "dialog";
+const setOpenControls = {} as Record<HostId, (open: boolean) => void>;
+const closeSpies = {} as Record<HostId, ReturnType<typeof vi.fn>>;
 
-function HookHost({ id, initialOpen = false }: { id: string; initialOpen?: boolean }) {
+function HookHost({ id, initialOpen = false }: { id: HostId; initialOpen?: boolean }) {
   const [open, setOpen] = useState(initialOpen);
   useEffect(() => {
     setOpenControls[id] = setOpen;

@@ -298,7 +298,7 @@ describe("authStore", () => {
       await useAuthStore.getState().initialize();
 
       const calls = vi.mocked(supabase.auth.onAuthStateChange).mock.calls;
-      return calls[calls.length - 1][0];
+      return calls.at(-1)![0];
     }
 
     it("purges the query cache, toasts, and navigates to /login on a real signed-out transition", async () => {

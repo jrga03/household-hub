@@ -207,7 +207,7 @@ describe("CSV Exporter", () => {
 
         // Should have exactly 2 digits after decimal
         const [, decimalPart] = decimal.split(".");
-        expect(decimalPart.length).toBe(2);
+        expect(decimalPart?.length).toBe(2);
       });
     });
 

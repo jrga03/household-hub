@@ -12,7 +12,6 @@ npx vitest run             # unit tests (bare `npm test` is watch mode)
 npm run test:e2e:smoke     # chromium smoke; rebuilds dist/ first
 npm run size               # bundle budget (355 KB gz)
 npx tsc --noEmit -p tsconfig.tests.json    # tests/ + playwright config
-npx tsc --noEmit -p tsconfig.strict.json   # noUncheckedIndexedAccess over lib/{sync,offline,debts}
 npm run gen:types          # regenerate src/types/database.types.ts (commit with each migration)
 supabase test db           # pgTAP: RLS for every table, functions, the transfer view
 ```
@@ -37,7 +36,7 @@ Always ask: what happens offline, and what happens when two devices edit the sam
 - Query keys come from `src/lib/query-keys.ts`; each query is an `xQueryOptions()` builder next to its fetcher. A write calls `afterOutboxWrite(queryClient, userId, "<entity>")`; when new data derives from an entity, add its root to `invalidatesAfterWrite` (`arch/no-inline-query-keys` and `@tanstack/eslint-plugin-query` enforce this).
 - Server state in TanStack Query, client state in Zustand (minimal).
 - Every route uses `<PageShell variant="…">` (`src/components/layout/PageShell.tsx`). Inside rails, sheets, and panes, use container queries (`@[600px]:`), not viewport breakpoints.
-- No `any`. No `!` in production code under the strict program; narrow with a guard instead. Tests may use `!` after asserting length.
+- No `any`. No `!` in production code (lint-enforced); narrow with a guard instead. Tests may use `!` after asserting length.
 - No blanket `eslint-disable`; any disable needs a trailing reason.
 - Path alias `@/` maps to `src/`.
 - Keep all `@radix-ui/*` packages upgraded together; `npm ls @radix-ui/react-dismissable-layer` must show one version (two copies break popovers inside dialogs).

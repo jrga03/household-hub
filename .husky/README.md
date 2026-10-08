@@ -71,7 +71,7 @@ node scripts/pre-push.mjs
 
 1. **Lint** (`npm run lint`): verifies only, never rewrites files
 2. **Unit tests** (`vitest run --allowOnly=false --silent`): fails on any failing test or committed `.only`; `--silent` drops console output from passing tests so the failure summary stays readable
-3. **Type checks** (`tsc --noEmit` for `tsconfig.json`, `tsconfig.tests.json`, and `tsconfig.strict.json`)
+3. **Type checks** (`tsc --noEmit` for `tsconfig.json` and `tsconfig.tests.json`)
 
 Pushes whose changed files are all `*.md` or under `docs/` skip the checks.
 

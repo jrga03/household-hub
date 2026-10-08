@@ -35,7 +35,7 @@ describe("reconstructLines", () => {
     ];
     const lines = reconstructLines(items);
     expect(lines).toHaveLength(1);
-    expect(lines[0].text).toBe("HelloWorld");
+    expect(lines[0]!.text).toBe("HelloWorld");
   });
 
   it("groups items within y-tolerance into the same line", () => {
@@ -45,8 +45,8 @@ describe("reconstructLines", () => {
     ];
     const lines = reconstructLines(items);
     expect(lines).toHaveLength(1);
-    expect(lines[0].text).toContain("Hello");
-    expect(lines[0].text).toContain("World");
+    expect(lines[0]!.text).toContain("Hello");
+    expect(lines[0]!.text).toContain("World");
   });
 
   it("separates items beyond y-tolerance into different lines", () => {
@@ -56,37 +56,40 @@ describe("reconstructLines", () => {
     ];
     const lines = reconstructLines(items);
     expect(lines).toHaveLength(2);
-    expect(lines[0].text).toBe("Line1");
-    expect(lines[1].text).toBe("Line2");
+    expect(lines[0]!.text).toBe("Line1");
+    expect(lines[1]!.text).toBe("Line2");
   });
 
   it("sorts lines top-to-bottom (descending y in PDF coords)", () => {
     const items = [item("Bottom", 10, 100), item("Top", 10, 700), item("Middle", 10, 400)];
     const lines = reconstructLines(items);
-    expect(lines[0].text).toBe("Top");
-    expect(lines[1].text).toBe("Middle");
-    expect(lines[2].text).toBe("Bottom");
+    expect(lines).toHaveLength(3);
+    expect(lines[0]!.text).toBe("Top");
+    expect(lines[1]!.text).toBe("Middle");
+    expect(lines[2]!.text).toBe("Bottom");
   });
 
   it("sorts items left-to-right within a line", () => {
     const items = [item("C", 200, 700), item("A", 10, 700), item("B", 100, 700)];
     const lines = reconstructLines(items);
     expect(lines).toHaveLength(1);
-    expect(lines[0].text).toMatch(/A.*B.*C/);
+    expect(lines[0]!.text).toMatch(/A.*B.*C/);
   });
 
   it("inserts a space for small gaps (>5pt)", () => {
     // "Hello" at x=10 with width=30, "World" at x=46 → gap = 6pt
     const items = [item("Hello", 10, 700, 30), item("World", 46, 700, 30)];
     const lines = reconstructLines(items);
-    expect(lines[0].text).toBe("Hello World");
+    expect(lines).toHaveLength(1);
+    expect(lines[0]!.text).toBe("Hello World");
   });
 
   it("inserts multiple spaces for large gaps (>30pt)", () => {
     // "Hello" at x=10 with width=30, "World" at x=80 → gap = 40pt
     const items = [item("Hello", 10, 700, 30), item("World", 80, 700, 30)];
     const lines = reconstructLines(items);
-    expect(lines[0].text).toBe("Hello    World");
+    expect(lines).toHaveLength(1);
+    expect(lines[0]!.text).toBe("Hello    World");
   });
 
   it("returns empty array for empty input", () => {
@@ -98,8 +101,8 @@ describe("reconstructLines", () => {
     const lines = reconstructLines(items);
     expect(lines).toHaveLength(1);
     // Whitespace item is filtered, so Hello and World should be present
-    expect(lines[0].text).toContain("Hello");
-    expect(lines[0].text).toContain("World");
+    expect(lines[0]!.text).toContain("Hello");
+    expect(lines[0]!.text).toContain("World");
   });
 
   it("respects custom y-tolerance", () => {
@@ -352,14 +355,14 @@ describe("bdoCreditCardParser.parse", () => {
     expect(result.warnings).toHaveLength(0);
 
     // First transaction: expense
-    expect(result.transactions[0].date).toBe("2025-12-13");
-    expect(result.transactions[0].type).toBe("expense");
-    expect(result.transactions[0].amount).toBe("1245.00");
+    expect(result.transactions[0]!.date).toBe("2025-12-13");
+    expect(result.transactions[0]!.type).toBe("expense");
+    expect(result.transactions[0]!.amount).toBe("1245.00");
 
     // Second transaction: income
-    expect(result.transactions[1].date).toBe("2025-12-26");
-    expect(result.transactions[1].type).toBe("income");
-    expect(result.transactions[1].amount).toBe("5000.00");
+    expect(result.transactions[1]!.date).toBe("2025-12-26");
+    expect(result.transactions[1]!.type).toBe("income");
+    expect(result.transactions[1]!.amount).toBe("5000.00");
   });
 
   it("returns warning when no transactions are found", () => {
@@ -412,8 +415,8 @@ describe("bdoCreditCardParser.parse", () => {
 
     const result = bdoCreditCardParser.parse([page1, page2]);
     expect(result.transactions).toHaveLength(2);
-    expect(result.transactions[0].description).toBe("MERCHANT A");
-    expect(result.transactions[1].description).toBe("MERCHANT B");
+    expect(result.transactions[0]!.description).toBe("MERCHANT A");
+    expect(result.transactions[1]!.description).toBe("MERCHANT B");
   });
 
   it("records failed rows with page number and reason", () => {
@@ -421,8 +424,8 @@ describe("bdoCreditCardParser.parse", () => {
 
     const result = bdoCreditCardParser.parse([mockPage]);
     expect(result.failedRows).toHaveLength(1);
-    expect(result.failedRows[0].lineNumber).toBe(3);
-    expect(result.failedRows[0].reason).toContain("does not match");
+    expect(result.failedRows[0]!.lineNumber).toBe(3);
+    expect(result.failedRows[0]!.reason).toContain("does not match");
   });
 
   it("handles empty pages gracefully", () => {
