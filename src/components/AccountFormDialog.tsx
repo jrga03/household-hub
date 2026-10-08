@@ -20,6 +20,7 @@ import { ColorPicker } from "@/components/ui/color-picker";
 import { useCreateAccount, useUpdateAccount, useAccounts } from "@/lib/supabaseQueries";
 import type { AccountType, AccountVisibility } from "@/types/accounts";
 import { toast } from "sonner";
+import { reportError } from "@/lib/sentry";
 
 const accountSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
@@ -117,6 +118,7 @@ export function AccountFormDialog({ open, onClose, editingId }: Props) {
       onClose();
     } catch (error) {
       console.error("Failed to save account:", error);
+      reportError(error, { subsystem: "ui", operation: "save-account" });
 
       // Extract error message from Supabase error or use generic message
       const message =
@@ -138,7 +140,7 @@ export function AccountFormDialog({ open, onClose, editingId }: Props) {
           <DialogTitle>{editingId ? "Edit Account" : "Create Account"}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={(event) => void form.handleSubmit(onSubmit)(event)} className="space-y-4">
           {/* Name */}
           <div>
             <Label htmlFor="name">Account Name</Label>

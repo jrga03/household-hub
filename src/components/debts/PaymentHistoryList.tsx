@@ -47,7 +47,7 @@ export function PaymentHistoryList({
 
   // Build reversal map for strikethrough display
   const reversedIds = new Set(
-    payments.filter((p) => p.reverses_payment_id).map((p) => p.reverses_payment_id!)
+    payments.flatMap((p) => (p.reverses_payment_id ? [p.reverses_payment_id] : []))
   );
 
   return (

@@ -19,6 +19,7 @@ import { CheckCircle, XCircle, AlertCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { reportError } from "@/lib/sentry";
 import type { SyncIssue } from "@/stores/syncIssuesStore";
 
 /**
@@ -62,10 +63,20 @@ export function SyncIssueItem({ issue, onRetry, onDismiss }: SyncIssueItemProps)
     try {
       await onRetry();
       toast.success("Sync retried successfully");
-    } catch {
+    } catch (error) {
       toast.error("Retry failed");
+      reportError(error, { subsystem: "ui", operation: "retry-sync-issue" });
     } finally {
       setIsRetrying(false);
+    }
+  };
+
+  const handleDismiss = async () => {
+    try {
+      await onDismiss();
+    } catch (error) {
+      toast.error("Failed to dismiss sync issue");
+      reportError(error, { subsystem: "ui", operation: "dismiss-sync-issue" });
     }
   };
 
@@ -157,7 +168,7 @@ export function SyncIssueItem({ issue, onRetry, onDismiss }: SyncIssueItemProps)
             <Button
               variant="ghost"
               size="icon"
-              onClick={handleRetry}
+              onClick={() => void handleRetry()}
               disabled={isRetrying}
               className="text-blue-600 hover:text-blue-700 dark:text-blue-400"
               title="Retry sync"
@@ -171,7 +182,7 @@ export function SyncIssueItem({ issue, onRetry, onDismiss }: SyncIssueItemProps)
           <Button
             variant="ghost"
             size="icon"
-            onClick={onDismiss}
+            onClick={() => void handleDismiss()}
             className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
             title="Dismiss"
             aria-label="Dismiss issue"

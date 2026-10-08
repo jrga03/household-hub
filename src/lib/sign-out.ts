@@ -15,28 +15,30 @@
 import { toast } from "sonner";
 import { confirmWithOutcome } from "@/lib/confirm";
 import { useAuthStore, checkUnsyncedData } from "@/stores/authStore";
+import { reportError } from "@/lib/sentry";
 
 export async function signOutWithConfirm(): Promise<void> {
-  let exportFirst = false;
-
-  if (await checkUnsyncedData()) {
-    const choice = await confirmWithOutcome({
-      title: "You have unsynced changes",
-      description:
-        "Offline changes that haven't synced yet will be lost when you sign out. " +
-        "Export them as a CSV backup first?",
-      confirmLabel: "Export & sign out",
-      cancelLabel: "Sign out without export",
-    });
-    // Escape / dismissing the dialog means "stay signed in"
-    if (choice === "dismiss") return;
-    exportFirst = choice === "confirm";
-  }
-
   try {
+    let exportFirst = false;
+
+    if (await checkUnsyncedData()) {
+      const choice = await confirmWithOutcome({
+        title: "You have unsynced changes",
+        description:
+          "Offline changes that haven't synced yet will be lost when you sign out. " +
+          "Export them as a CSV backup first?",
+        confirmLabel: "Export & sign out",
+        cancelLabel: "Sign out without export",
+      });
+      // Escape / dismissing the dialog means "stay signed in"
+      if (choice === "dismiss") return;
+      exportFirst = choice === "confirm";
+    }
+
     await useAuthStore.getState().signOut({ exportFirst });
   } catch (error) {
     console.error("Sign out failed:", error);
+    reportError(error, { subsystem: "ui", operation: "sign-out" });
     toast.error(error instanceof Error ? error.message : "Failed to sign out");
   }
 }

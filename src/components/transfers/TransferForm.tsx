@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useCreateTransfer } from "@/hooks/useTransfers";
 import { toast } from "sonner";
+import { reportError } from "@/lib/sentry";
 
 const schema = z
   .object({
@@ -82,11 +83,12 @@ export function TransferForm({
     } catch (error) {
       toast.error("Failed to create transfer");
       console.error(error);
+      reportError(error, { subsystem: "ui", operation: "create-transfer" });
     }
   };
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={(event) => void form.handleSubmit(onSubmit)(event)} className="space-y-4">
       <Controller
         name="from_account_id"
         control={form.control}

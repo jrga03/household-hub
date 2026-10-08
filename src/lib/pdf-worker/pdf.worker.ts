@@ -118,7 +118,15 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
 
   switch (message.type) {
     case "EXTRACT":
-      extractPDF(message.payload.buffer, message.payload.password);
+      extractPDF(message.payload.buffer, message.payload.password).catch((error: unknown) => {
+        send({
+          type: "ERROR",
+          payload: {
+            code: "EXTRACTION_FAILED",
+            message: error instanceof Error ? error.message : "PDF extraction failed",
+          },
+        });
+      });
       break;
     case "CANCEL":
       cancelled = true;

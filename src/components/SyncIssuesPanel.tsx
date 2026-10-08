@@ -27,7 +27,9 @@
 
 import { useState } from "react";
 import { AlertCircle, XCircle } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { reportError } from "@/lib/sentry";
 import { useSyncIssuesStore } from "@/stores/syncIssuesStore";
 import { syncIssuesManager } from "@/lib/sync/SyncIssuesManager";
 import { SyncIssueItem } from "./SyncIssueItem";
@@ -64,6 +66,15 @@ import { SyncIssueItem } from "./SyncIssueItem";
 export function SyncIssuesPanel() {
   const issues = useSyncIssuesStore((state) => state.issues);
   const [expanded, setExpanded] = useState(false);
+
+  const handleClearAll = async () => {
+    try {
+      await syncIssuesManager.clearAll();
+    } catch (error) {
+      toast.error("Failed to clear sync issues");
+      reportError(error, { subsystem: "ui", operation: "clear-sync-issues" });
+    }
+  };
 
   // Don't render anything if no issues
   if (issues.length === 0) return null;
@@ -132,7 +143,7 @@ export function SyncIssuesPanel() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => syncIssuesManager.clearAll()}
+              onClick={() => void handleClearAll()}
               className="text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
               aria-label="Clear all sync issues"
             >

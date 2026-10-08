@@ -22,6 +22,7 @@ import {
   type CreateExternalDebtFormData,
 } from "@/lib/debts/validation";
 import { toast } from "sonner";
+import { reportError } from "@/lib/sentry";
 import { useAuthStore } from "@/stores/authStore";
 
 interface CreateExternalDebtFormProps {
@@ -91,6 +92,7 @@ export function CreateExternalDebtForm({
       form.reset();
     } catch (error) {
       console.error("Failed to create debt:", error);
+      reportError(error, { subsystem: "ui", operation: "create-external-debt" });
 
       // Check for specific error types
       if (error instanceof Error) {
@@ -110,7 +112,7 @@ export function CreateExternalDebtForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={(event) => void form.handleSubmit(onSubmit)(event)} className="space-y-6">
         <fieldset disabled={form.formState.isSubmitting} className="space-y-4">
           {/* Name field */}
           <FormField

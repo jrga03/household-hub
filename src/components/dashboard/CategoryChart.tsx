@@ -60,7 +60,7 @@ export function CategoryChart({ data }: Props) {
     if (!categoryId) return;
 
     // Navigate to transactions page filtered by category
-    navigate({
+    void navigate({
       to: "/transactions",
       search: { categoryId: categoryId },
     });

@@ -7,6 +7,7 @@ import { eventCompactor, type CompactionStats } from "@/lib/sync/eventCompactor"
 import { csvExporter } from "@/lib/csv-exporter";
 import { toast } from "sonner";
 import { Loader2, Download, Monitor, Moon, Sun } from "lucide-react";
+import { reportError } from "@/lib/sentry";
 import { PageShell } from "@/components/layout/PageShell";
 import { SettingsNav } from "@/components/settings/SettingsNav";
 
@@ -45,6 +46,7 @@ function SettingsPage() {
       }
     } catch (error) {
       console.error("[Settings] Compaction failed:", error);
+      reportError(error, { subsystem: "ui", operation: "settings-compaction" });
       toast.error("Compaction failed - see console for details");
     } finally {
       setCompacting(false);
@@ -77,6 +79,7 @@ function SettingsPage() {
       toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} exported successfully`);
     } catch (error) {
       console.error("Export failed:", error);
+      reportError(error, { subsystem: "ui", operation: "settings-export" });
       toast.error("Export failed. Please try again.");
     } finally {
       setIsExporting(false);

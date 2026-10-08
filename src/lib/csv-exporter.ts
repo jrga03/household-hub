@@ -104,11 +104,12 @@ export class CSVExporter {
     if (filters?.categoryId) {
       query = query.filter((t) => t.category_id === filters.categoryId);
     }
-    if (filters?.dateFrom) {
-      query = query.filter((t) => new Date(t.date) >= filters.dateFrom!);
+    const { dateFrom, dateTo } = filters ?? {};
+    if (dateFrom) {
+      query = query.filter((t) => new Date(t.date) >= dateFrom);
     }
-    if (filters?.dateTo) {
-      query = query.filter((t) => new Date(t.date) <= filters.dateTo!);
+    if (dateTo) {
+      query = query.filter((t) => new Date(t.date) <= dateTo);
     }
 
     const transactions = await query.toArray();

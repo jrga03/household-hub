@@ -11,7 +11,10 @@ import { initSentry } from "@/lib/sentry";
 // This ensures all errors are captured from the start
 initSentry();
 
-createRoot(document.getElementById("root")!).render(
+const rootElement = document.getElementById("root");
+if (!rootElement) throw new Error("#root element missing from index.html");
+
+createRoot(rootElement).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

@@ -116,11 +116,15 @@ export function ColumnMapper({
             <tbody>
               {sampleRows.slice(0, 3).map((row, i) => (
                 <tr key={i} className="border-b">
-                  {FIELDS.filter((f) => mapping[f.key] !== null).map((field) => (
-                    <td key={field.key} className="px-3 py-2">
-                      {mapping[field.key] !== null ? row[mapping[field.key]!] : ""}
-                    </td>
-                  ))}
+                  {FIELDS.map((field) => {
+                    const columnIndex = mapping[field.key];
+                    if (columnIndex === null) return null;
+                    return (
+                      <td key={field.key} className="px-3 py-2">
+                        {row[columnIndex]}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>

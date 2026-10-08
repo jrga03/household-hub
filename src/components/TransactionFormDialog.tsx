@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useBlocker } from "@tanstack/react-router";
-import { useForm, Controller, type SubmitErrorHandler } from "react-hook-form";
+import { useForm, useWatch, Controller, type SubmitErrorHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parseISO } from "date-fns";
 import { ChevronDown, ChevronUp } from "lucide-react";
@@ -29,6 +29,7 @@ import {
 import { transactionSchema, type TransactionFormData } from "@/lib/validations/transaction";
 import { useAuthStore } from "@/stores/authStore";
 import { toast } from "sonner";
+import { reportError } from "@/lib/sentry";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { confirmDiscardChanges } from "@/lib/confirm-discard";
 import { createOfflineTransaction, updateOfflineTransaction } from "@/lib/offline/transactions";
@@ -108,9 +109,9 @@ export function TransactionFormDialog({
   });
 
   // Watch form fields for debt selector logic
-  const isTransfer = !!form.watch("transfer_group_id");
-  const selectedDebtId = form.watch("debt_id");
-  const transactionAmount = form.watch("amount_cents");
+  const isTransfer = !!useWatch({ control: form.control, name: "transfer_group_id" });
+  const selectedDebtId = useWatch({ control: form.control, name: "debt_id" });
+  const transactionAmount = useWatch({ control: form.control, name: "amount_cents" });
 
   // Fetch active debts for selector
   const { data: debts } = useQuery({ ...activeExternalDebtsQueryOptions(), enabled: open });
@@ -175,6 +176,7 @@ export function TransactionFormDialog({
         !!editingTransaction.debt_id ||
         !!editingTransaction.internal_debt_id
       ) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- expands the collapsed section when the editing transaction loads, in step with the form reset
         setShowMoreOptions(true);
       }
     }
@@ -266,6 +268,7 @@ export function TransactionFormDialog({
       handleClose();
     } catch (error) {
       console.error("Failed to save transaction:", error);
+      reportError(error, { subsystem: "ui", operation: "save-transaction" });
       toast.error("Failed to save transaction. Please try again.");
     }
   };
@@ -276,7 +279,7 @@ export function TransactionFormDialog({
   // containers host the same fields and the sticky footer (review R5).
   const formBody = (
     <form
-      onSubmit={form.handleSubmit(onSubmit, onInvalid)}
+      onSubmit={(event) => void form.handleSubmit(onSubmit, onInvalid)(event)}
       className={cn("space-y-4", isMobile && "px-4")}
     >
       {/* Amount */}

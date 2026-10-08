@@ -121,7 +121,7 @@ export function NotificationSettings() {
         <div className="flex items-center gap-3">
           {!isSubscribed ? (
             <Button
-              onClick={subscribe}
+              onClick={() => void subscribe()}
               disabled={isLoading || permission === "denied"}
               className="gap-2"
             >
@@ -131,7 +131,7 @@ export function NotificationSettings() {
           ) : (
             <>
               <Button
-                onClick={unsubscribe}
+                onClick={() => void unsubscribe()}
                 variant="outline"
                 disabled={isLoading}
                 className="gap-2"
@@ -140,7 +140,7 @@ export function NotificationSettings() {
                 Disable
               </Button>
               <Button
-                onClick={sendTestNotification}
+                onClick={() => void sendTestNotification()}
                 variant="secondary"
                 disabled={isLoading}
                 className="gap-2"

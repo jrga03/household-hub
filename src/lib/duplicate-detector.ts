@@ -75,11 +75,12 @@ export async function detectDuplicates(
   for (const [i, importRow] of importData.entries()) {
     const fingerprint = generateFingerprint(importRow);
 
-    if (existingFingerprints.has(fingerprint)) {
+    const existingTransaction = existingFingerprints.get(fingerprint);
+    if (existingTransaction) {
       duplicates.push({
         importIndex: i,
         importRow,
-        existingTransaction: existingFingerprints.get(fingerprint)!,
+        existingTransaction,
         fingerprint,
         confidence: 1.0, // Exact match
       });

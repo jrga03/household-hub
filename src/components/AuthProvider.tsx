@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from "react";
+import { reportError } from "@/lib/sentry";
 import { useAuthStore } from "@/stores/authStore";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { ConfirmDialogHost } from "@/components/ConfirmDialog";
@@ -8,7 +9,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const initialized = useAuthStore((state) => state.initialized);
 
   useEffect(() => {
-    initialize();
+    initialize().catch((error) => {
+      reportError(error, { subsystem: "auth", operation: "initialize" });
+    });
   }, [initialize]);
 
   // Branded, screen-reader-announced boot screen (review R41): every app

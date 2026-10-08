@@ -6,6 +6,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
 import { ThemeColorSync } from "@/components/ThemeColorSync";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { reportError } from "@/lib/sentry";
 import { realtimeSync } from "@/lib/sync/realtime";
 import { eventCompactor } from "@/lib/sync/eventCompactor";
 // Router singleton + scroll restoration + Register augmentation live in
@@ -22,25 +23,31 @@ function App() {
   // autoSyncManager, started per-user in routes/__root.tsx. It pushes the
   // local outbox and pulls remote changes (debounced handleReconnection).
   useEffect(() => {
-    async function initSync() {
-      await realtimeSync.initialize();
-    }
-
-    initSync();
+    realtimeSync.initialize().catch((error) => {
+      reportError(error, { subsystem: "sync", operation: "realtime-initialize" });
+    });
 
     // Cleanup subscriptions on unmount
     return () => {
-      realtimeSync.cleanup();
+      realtimeSync.cleanup().catch((error) => {
+        reportError(error, { subsystem: "sync", operation: "realtime-cleanup" });
+      });
     };
   }, []);
 
   // Schedule periodic event compaction (production only)
   useEffect(() => {
     // Run startup compaction after 5 seconds (allow app to initialize)
-    const startupTimer = setTimeout(async () => {
-      console.log("[App] Running startup compaction...");
-      const stats = await eventCompactor.compactAll();
-      console.log("[App] Startup compaction complete:", stats);
+    const startupTimer = setTimeout(() => {
+      void (async () => {
+        try {
+          console.log("[App] Running startup compaction...");
+          const stats = await eventCompactor.compactAll();
+          console.log("[App] Startup compaction complete:", stats);
+        } catch (error) {
+          reportError(error, { subsystem: "sync", operation: "startup-compaction" });
+        }
+      })();
     }, 5000);
 
     // Schedule daily compaction at 3 AM local time (production only)
@@ -56,13 +63,19 @@ function App() {
       );
       const msUntil3AM = next3AM.getTime() - now.getTime();
 
-      const dailyTimer = setTimeout(async () => {
-        console.log("[App] Running scheduled compaction at 3 AM...");
-        const stats = await eventCompactor.compactAll();
-        console.log("[App] Daily compaction complete:", stats);
+      const dailyTimer = setTimeout(() => {
+        void (async () => {
+          try {
+            console.log("[App] Running scheduled compaction at 3 AM...");
+            const stats = await eventCompactor.compactAll();
+            console.log("[App] Daily compaction complete:", stats);
+          } catch (error) {
+            reportError(error, { subsystem: "sync", operation: "daily-compaction" });
+          }
 
-        // Schedule next run
-        scheduleDailyCompaction();
+          // Schedule next run
+          scheduleDailyCompaction();
+        })();
       }, msUntil3AM);
 
       return dailyTimer;

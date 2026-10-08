@@ -24,6 +24,7 @@ import { ZERO_CENTS } from "@/lib/currency";
 import { createInternalDebt } from "@/lib/debts/crud";
 import { createInternalDebtSchema, type CreateInternalDebtFormData } from "@/lib/debts/validation";
 import { toast } from "sonner";
+import { reportError } from "@/lib/sentry";
 import { useAuthStore } from "@/stores/authStore";
 
 interface CreateInternalDebtFormProps {
@@ -106,13 +107,14 @@ export function CreateInternalDebtForm({
       form.reset();
     } catch (error) {
       console.error("Failed to create internal debt:", error);
+      reportError(error, { subsystem: "ui", operation: "create-internal-debt" });
       toast.error("Failed to create internal debt. Please try again.");
     }
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={(event) => void form.handleSubmit(onSubmit)(event)} className="space-y-6">
         <fieldset disabled={form.formState.isSubmitting} className="space-y-4">
           {/* From Type */}
           <FormField

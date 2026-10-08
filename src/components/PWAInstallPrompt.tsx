@@ -20,6 +20,7 @@ import { X, Download, Share } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePwaPromptStore } from "@/stores/pwaPromptStore";
+import { reportError } from "@/lib/sentry";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -118,6 +119,7 @@ export function PWAInstallPrompt() {
       setShowPrompt(false);
     } catch (error) {
       console.error("Installation error:", error);
+      reportError(error, { subsystem: "ui", operation: "pwa-install" });
     }
   };
 
@@ -247,7 +249,7 @@ export function PWAInstallPrompt() {
           </div>
 
           <div className="flex gap-2">
-            <Button onClick={handleInstall} className="flex-1" size="sm">
+            <Button onClick={() => void handleInstall()} className="flex-1" size="sm">
               <Download className="mr-2 h-4 w-4" />
               Install
             </Button>

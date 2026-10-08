@@ -17,6 +17,7 @@ import { ColorPicker } from "@/components/ui/color-picker";
 import { IconPicker } from "@/components/ui/icon-picker";
 import { useCategories, useCreateCategory, useUpdateCategory } from "@/lib/supabaseQueries";
 import { toast } from "sonner";
+import { reportError } from "@/lib/sentry";
 
 const categorySchema = z.object({
   name: z.string().min(1, "Name is required").max(50, "Name too long"),
@@ -110,6 +111,7 @@ export function CategoryFormDialog({ open, onClose, editingId, defaultParentId }
       onClose();
     } catch (error) {
       console.error("Failed to save category:", error);
+      reportError(error, { subsystem: "ui", operation: "save-category" });
 
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       const action = editingId ? "update" : "create";
@@ -136,7 +138,7 @@ export function CategoryFormDialog({ open, onClose, editingId, defaultParentId }
           <DialogTitle>{editingId ? "Edit Category" : "Create Category"}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={(event) => void form.handleSubmit(onSubmit)(event)} className="space-y-4">
           {/* Name */}
           <div>
             <Label htmlFor="name">Category Name</Label>

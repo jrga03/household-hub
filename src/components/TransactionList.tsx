@@ -173,7 +173,7 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
   useEffect(() => {
     if (lastVirtualIndex < 0 || !hasNextPage || isFetchingNextPage) return;
     if (lastVirtualIndex >= rowCount - NEXT_PAGE_FETCH_THRESHOLD) {
-      fetchNextPage();
+      void fetchNextPage();
     }
   }, [lastVirtualIndex, rowCount, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
@@ -250,7 +250,7 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
     if (firstVirtualIndex <= PREV_PAGE_FETCH_THRESHOLD) {
       prevFetchArmedRef.current = false; // one prev-fetch per scroll gesture
       pendingPrevPrependRef.current = true; // arm the anchor for THIS prepend
-      fetchPreviousPage();
+      void fetchPreviousPage();
     }
   }, [firstVirtualIndex, hasPreviousPage, isFetchingPreviousPage, fetchPreviousPage]);
 
@@ -505,15 +505,23 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
               {selectedIds.size} of {totalCount ?? transactions.length} selected
             </span>
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => handleBulkStatusUpdate("cleared")}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void handleBulkStatusUpdate("cleared")}
+              >
                 <CheckCircle className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">Mark </span>Cleared
               </Button>
-              <Button variant="outline" size="sm" onClick={() => handleBulkStatusUpdate("pending")}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void handleBulkStatusUpdate("pending")}
+              >
                 <Circle className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">Mark </span>Pending
               </Button>
-              <Button variant="outline" size="sm" onClick={handleBulkDelete}>
+              <Button variant="outline" size="sm" onClick={() => void handleBulkDelete()}>
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
               </Button>
@@ -715,7 +723,7 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDelete(
+                              void handleDelete(
                                 transaction.id,
                                 transaction.description,
                                 !!transaction.transfer_group_id

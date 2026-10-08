@@ -20,6 +20,7 @@ import {
 import type { Debt } from "@/types/debt";
 import { formatPHP } from "@/lib/currency";
 import { toast } from "sonner";
+import { reportError } from "@/lib/sentry";
 import { useAuthStore } from "@/stores/authStore";
 
 interface EditExternalDebtFormProps {
@@ -80,6 +81,7 @@ export function EditExternalDebtForm({
       onSuccess?.();
     } catch (error) {
       console.error("Failed to update debt:", error);
+      reportError(error, { subsystem: "ui", operation: "update-external-debt" });
       toast.error("Failed to update debt. Please try again.");
     }
   };
@@ -96,13 +98,14 @@ export function EditExternalDebtForm({
       onArchive?.();
     } catch (error) {
       console.error("Failed to archive debt:", error);
+      reportError(error, { subsystem: "ui", operation: "archive-external-debt" });
       toast.error("Failed to archive debt. Please try again.");
     }
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={(event) => void form.handleSubmit(onSubmit)(event)} className="space-y-6">
         <fieldset disabled={form.formState.isSubmitting} className="space-y-4">
           {/* Name field */}
           <FormField
@@ -132,7 +135,7 @@ export function EditExternalDebtForm({
           <Button
             type="button"
             variant="destructive"
-            onClick={handleArchive}
+            onClick={() => void handleArchive()}
             disabled={form.formState.isSubmitting || debt.status === "archived"}
           >
             <Archive className="mr-2 h-4 w-4" />

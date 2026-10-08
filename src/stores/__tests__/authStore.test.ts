@@ -305,7 +305,7 @@ describe("authStore", () => {
       const authCallback = await initializeAndGetAuthCallback();
       useAuthStore.setState({ user: mockUser, session: mockSession });
 
-      authCallback("SIGNED_OUT", null);
+      await authCallback("SIGNED_OUT", null);
 
       expect(useAuthStore.getState().user).toBeNull();
       expect(queryClient.clear).toHaveBeenCalledTimes(1);
@@ -327,8 +327,8 @@ describe("authStore", () => {
     it("does nothing on a boot-time null session (no prior user)", async () => {
       const authCallback = await initializeAndGetAuthCallback();
 
-      authCallback("INITIAL_SESSION", null);
-      authCallback("SIGNED_OUT", null);
+      await authCallback("INITIAL_SESSION", null);
+      await authCallback("SIGNED_OUT", null);
       // Let any (incorrect) async navigation settle
       await Promise.resolve();
 
@@ -341,8 +341,8 @@ describe("authStore", () => {
       const authCallback = await initializeAndGetAuthCallback();
       useAuthStore.setState({ user: mockUser, session: mockSession });
 
-      authCallback("TOKEN_REFRESHED", mockSession);
-      authCallback("SIGNED_IN", mockSession);
+      await authCallback("TOKEN_REFRESHED", mockSession);
+      await authCallback("SIGNED_IN", mockSession);
       await Promise.resolve();
 
       expect(queryClient.clear).not.toHaveBeenCalled();
@@ -359,7 +359,7 @@ describe("authStore", () => {
       // store still holds the user — reproduce that ordering so the
       // deliberate-sign-out guard is what prevents double handling
       vi.mocked(supabase.auth.signOut).mockImplementation(async () => {
-        authCallback("SIGNED_OUT", null);
+        await authCallback("SIGNED_OUT", null);
         return { error: null } as never;
       });
 

@@ -249,7 +249,7 @@ function QueueItemCard({ item }: { item: SyncQueueItem }) {
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={handleDiscard}
+            onClick={() => void handleDiscard()}
             disabled={discardMutation.isPending}
             title="Discard"
           >

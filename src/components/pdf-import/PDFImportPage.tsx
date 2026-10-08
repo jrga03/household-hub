@@ -20,6 +20,7 @@ import { PDFUploadStep } from "./steps/PDFUploadStep";
 import { BankSelectStep } from "./steps/BankSelectStep";
 import { ExtractionProgress } from "./steps/ExtractionProgress";
 import { PreviewStep } from "./steps/PreviewStep";
+import { reportError } from "@/lib/sentry";
 import { AccountMapStep } from "./steps/AccountMapStep";
 import { DuplicateStep } from "./steps/DuplicateStep";
 import { CompleteStep } from "./steps/CompleteStep";
@@ -129,7 +130,8 @@ export function PDFImportPage() {
         failed: s.failedRows.length,
       });
       s.setStep("complete");
-    } catch {
+    } catch (error) {
+      reportError(error, { subsystem: "ui", operation: "pdf-import-confirm" });
       toast.error("Failed to create import session. Please try again.");
       s.setStep("duplicates");
     }
@@ -137,7 +139,7 @@ export function PDFImportPage() {
 
   useEffect(() => {
     if (store.step === "confirming") {
-      handleConfirm();
+      void handleConfirm();
     }
   }, [store.step, handleConfirm]);
 

@@ -301,7 +301,7 @@ export function AppSidebar() {
             </div>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={handleSignOut} tooltip="Sign Out">
+            <SidebarMenuButton onClick={() => void handleSignOut()} tooltip="Sign Out">
               <LogOut className="h-4 w-4" />
               {open && <span>Sign Out</span>}
             </SidebarMenuButton>

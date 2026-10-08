@@ -239,7 +239,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
             <div className="mb-4">
               <Separator className="mb-4" />
               <button
-                onClick={handleSignOut}
+                onClick={() => void handleSignOut()}
                 className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground active:bg-accent active:text-accent-foreground"
               >
                 <LogOut className="h-5 w-5" />

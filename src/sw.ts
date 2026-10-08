@@ -197,7 +197,7 @@ self.addEventListener("notificationclick", (event: NotificationEvent) => {
         if (clientList.length > 0) {
           const client = clientList[0];
           if ("focus" in client) {
-            client.focus();
+            client.focus().catch((error: unknown) => console.error("[SW] focus failed", error));
           }
           if ("navigate" in client) {
             return (client as WindowClient).navigate(new URL(targetUrl, self.location.origin).href);
@@ -239,7 +239,7 @@ self.addEventListener("notificationclose", (event: NotificationEvent) => {
 
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
-    self.skipWaiting();
+    event.waitUntil(self.skipWaiting());
   }
 });
 

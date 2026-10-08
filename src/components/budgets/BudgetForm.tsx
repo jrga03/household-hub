@@ -80,7 +80,10 @@ export function BudgetForm({ open, onClose, onSubmit, existingBudget }: Props) {
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form
+            onSubmit={(event) => void form.handleSubmit(handleSubmit)(event)}
+            className="space-y-4"
+          >
             {/* Category */}
             <FormField
               control={form.control}
