@@ -44,7 +44,7 @@ Always ask: what happens offline, and what happens when two devices edit the sam
 ## Git hooks
 
 - **pre-commit:** lint-staged runs `eslint --fix` and Prettier on staged files.
-- **pre-push:** `scripts/pre-push.mjs` runs lint, `vitest run --allowOnly=false --silent`, and the two tsc programs in parallel. Pushes that change only `*.md` or `docs/**` skip it. Run it by hand with `node scripts/pre-push.mjs`.
+- **pre-push:** `scripts/pre-push.mjs` runs lint (`--max-warnings=0`), `vitest run --allowOnly=false --silent`, and the two tsc programs in parallel. Pushes that change only `*.md` or `docs/**` skip it. Run it by hand with `node scripts/pre-push.mjs`.
 - **Claude Code hooks** (`.claude/settings.json`): a Bash guard blocks force pushes, `supabase db push`, and recursive deletes outside the repo; a Stop hook lints and type-checks changed files with `--max-warnings=0`.
 - `git push` over SSH hangs from Claude's shell (passphrase prompt). Ask the user to run it with `!`.
 

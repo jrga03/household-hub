@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 const ZERO_SHA = /^0+$/;
 
 export const CHECKS = [
-  { name: "lint", command: "npm", args: ["run", "lint"] },
+  { name: "lint", command: "npm", args: ["run", "lint", "--", "--max-warnings=0"] },
   { name: "unit tests", command: "npx", args: ["vitest", "run", "--allowOnly=false", "--silent"] },
   { name: "tsc src", command: "npx", args: ["tsc", "--noEmit", "-p", "tsconfig.json"] },
   { name: "tsc tests", command: "npx", args: ["tsc", "--noEmit", "-p", "tsconfig.tests.json"] },

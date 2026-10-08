@@ -69,7 +69,7 @@ node scripts/pre-push.mjs
 
 **Behavior:** runs these checks in parallel and prints the output of any that fail:
 
-1. **Lint** (`npm run lint`): verifies only, never rewrites files
+1. **Lint** (`npm run lint -- --max-warnings=0`): verifies only, never rewrites files, and fails on any warning
 2. **Unit tests** (`vitest run --allowOnly=false --silent`): fails on any failing test or committed `.only`; `--silent` drops console output from passing tests so the failure summary stays readable
 3. **Type checks** (`tsc --noEmit` for `tsconfig.json` and `tsconfig.tests.json`)
 
