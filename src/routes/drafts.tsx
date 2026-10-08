@@ -198,7 +198,11 @@ function DraftsPage() {
       toast.success("Draft discarded", {
         action: {
           label: "Undo",
-          onClick: () => void restoreDraft(id),
+          onClick: () =>
+            void restoreDraft(id).catch((error) => {
+              reportError(error, { subsystem: "ui", operation: "restore-draft" });
+              toast.error("Couldn't restore the draft. Please try again.");
+            }),
         },
       });
     } catch (error) {
@@ -217,7 +221,11 @@ function DraftsPage() {
       toast.success(`${ids.length} draft${ids.length !== 1 ? "s" : ""} discarded`, {
         action: {
           label: "Undo",
-          onClick: () => void restoreDrafts(ids),
+          onClick: () =>
+            void restoreDrafts(ids).catch((error) => {
+              reportError(error, { subsystem: "ui", operation: "restore-drafts" });
+              toast.error("Couldn't restore the drafts. Please try again.");
+            }),
         },
       });
     } catch (error) {
