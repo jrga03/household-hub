@@ -104,7 +104,11 @@ export function CategoryChart({ data }: Props) {
                     const dataEntry = data.find((d) => d.categoryName === entry.name);
                     return `${dataEntry?.percentOfTotal.toFixed(0) || 0}%`;
                   }}
-                  onClick={canHover ? (entry) => handleCategoryClick(entry.categoryId) : undefined}
+                  onClick={
+                    canHover
+                      ? (_sector, index) => handleCategoryClick(data[index]?.categoryId ?? null)
+                      : undefined
+                  }
                   cursor={canHover ? "pointer" : "default"}
                 >
                   {data.map((entry, index) => (

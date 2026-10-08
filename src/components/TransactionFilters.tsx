@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, subDays } from "date-fns";
 import { Search, X, Filter, Calendar, ChevronDown, ChevronUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -65,15 +65,13 @@ export function TransactionFiltersPanel({ filters, onFiltersChange }: Transactio
 
   const { data: accounts } = useAccounts();
 
-  // Sync local search state when parent filters change externally via useEffect
-  // Only updates when filters.search changes and differs from current input
-  useEffect(() => {
-    // Only update if the filter changed externally (not from our own input)
-    if (filters.search !== searchInput) {
-      setSearchInput(filters.search || "");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.search]);
+  // Resync the input when the search filter changes from outside (URL, clear
+  // button). Adjusting state during render replaces the old effect.
+  const [lastFilterSearch, setLastFilterSearch] = useState(filters.search);
+  if (filters.search !== lastFilterSearch) {
+    setLastFilterSearch(filters.search);
+    if ((filters.search ?? "") !== searchInput) setSearchInput(filters.search ?? "");
+  }
 
   const handleSearchChange = (value: string) => {
     setSearchInput(value);
