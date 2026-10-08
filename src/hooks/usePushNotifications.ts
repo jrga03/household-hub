@@ -75,7 +75,7 @@ export function usePushNotifications() {
       }
     };
 
-    checkSupport();
+    void checkSupport();
   }, []);
 
   // Convert VAPID key from base64 to Uint8Array

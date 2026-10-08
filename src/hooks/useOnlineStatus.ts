@@ -15,14 +15,15 @@ export function useOnlineStatus() {
     // Periodic health check (every 30 seconds)
     // Uses auth session check instead of querying business tables
     // to avoid RLS false negatives and reduce API load
-    const interval = setInterval(async () => {
+    const checkHealth = async () => {
       try {
         const { error } = await supabase.auth.getSession();
         setIsOnline(!error);
       } catch {
         setIsOnline(false);
       }
-    }, 30000);
+    };
+    const interval = setInterval(() => void checkHealth(), 30000);
 
     return () => {
       window.removeEventListener("online", handleOnline);

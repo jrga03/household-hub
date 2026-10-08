@@ -23,6 +23,7 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { reportError } from "@/lib/sentry";
 import { useAuthStore } from "@/stores/authStore";
 import { syncProcessor } from "@/lib/sync/processor";
 import { syncIssuesManager } from "@/lib/sync/SyncIssuesManager";
@@ -182,12 +183,16 @@ export function useSyncProcessor() {
 
       // Log sync failure to issues panel
       // User can see and retry from the sync issues panel
-      syncIssuesManager.logSyncFailure(
-        "transaction", // Generic entity type (actual type unknown at this level)
-        "batch-sync", // Batch sync operation (multiple items)
-        error instanceof Error ? error : new Error(errorMessage),
-        true // Can retry via manual sync button
-      );
+      void syncIssuesManager
+        .logSyncFailure(
+          "transaction", // Generic entity type (actual type unknown at this level)
+          "batch-sync", // Batch sync operation (multiple items)
+          error instanceof Error ? error : new Error(errorMessage),
+          true // Can retry via manual sync button
+        )
+        .catch((logError) =>
+          reportError(logError, { subsystem: "sync", operation: "logSyncFailure" })
+        );
     },
   });
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { reportError } from "@/lib/sentry";
 import { useRegisterSW } from "virtual:pwa-register/react";
 
 // Module-level guard: useServiceWorker is called from multiple components
@@ -29,7 +30,9 @@ export function useServiceWorker() {
         // (browsers cache SW for up to 24h).
         setInterval(
           () => {
-            registration.update();
+            void registration
+              .update()
+              .catch((error) => reportError(error, { subsystem: "pwa", operation: "swUpdate" }));
           },
           15 * 60 * 1000
         );

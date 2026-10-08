@@ -23,7 +23,7 @@ export function usePrefetchTransactionData() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    queryClient.prefetchQuery(accountsQueryOptions());
-    queryClient.prefetchQuery(categoriesQueryOptions());
+    void queryClient.prefetchQuery(accountsQueryOptions());
+    void queryClient.prefetchQuery(categoriesQueryOptions());
   }, [queryClient]);
 }

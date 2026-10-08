@@ -96,19 +96,19 @@ export function useKeyboardShortcuts() {
         // Navigation itself is the feedback; no success toast per hop (UI-09)
         switch (e.key) {
           case "d": // g then d: Dashboard
-            navigate({ to: "/" });
+            void navigate({ to: "/" });
             break;
           case "t": // g then t: Transactions
-            navigate({ to: "/transactions" });
+            void navigate({ to: "/transactions" });
             break;
           case "a": // g then a: Analytics
-            navigate({ to: "/analytics" });
+            void navigate({ to: "/analytics" });
             break;
           case "s": // g then s: Settings
-            navigate({ to: "/settings" });
+            void navigate({ to: "/settings" });
             break;
           case "i": // g then i: Import (CSV import is disabled; PDF only)
-            navigate({ to: "/import/pdf" });
+            void navigate({ to: "/import/pdf" });
             break;
           default:
             // Invalid sequence

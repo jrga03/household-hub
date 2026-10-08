@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { reportError } from "@/lib/sentry";
 
 /**
  * Storage quota information returned by the hook
@@ -53,10 +54,15 @@ export function useStorageQuota() {
       });
     };
 
-    checkQuota();
+    const runCheck = () =>
+      void checkQuota().catch((error) =>
+        reportError(error, { subsystem: "storage", operation: "checkQuota" })
+      );
+
+    runCheck();
 
     // Check every 5 minutes
-    const interval = setInterval(checkQuota, 5 * 60 * 1000);
+    const interval = setInterval(runCheck, 5 * 60 * 1000);
 
     return () => clearInterval(interval);
   }, []);
