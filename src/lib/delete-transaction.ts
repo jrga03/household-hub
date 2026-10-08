@@ -12,6 +12,7 @@
 import { toast } from "sonner";
 import { confirm } from "@/lib/confirm";
 import { isTransactionLinkedToDebt } from "@/lib/debts";
+import { reportError } from "@/lib/sentry";
 
 interface ConfirmAndDeleteTransactionArgs {
   id: string;
@@ -57,6 +58,7 @@ export async function confirmAndDeleteTransaction({
     return true;
   } catch (error) {
     console.error("Failed to delete:", error);
+    reportError(error, { subsystem: "ui", operation: "delete-transaction" });
     toast.error(error instanceof Error ? error.message : "Failed to delete transaction");
     return false;
   }

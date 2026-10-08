@@ -30,6 +30,7 @@ import { formatPHP } from "@/lib/currency";
 import { hasActiveTransactionFilters } from "@/lib/utils/filters";
 import type { TransactionFilters } from "@/types/transactions";
 import { toast } from "sonner";
+import { reportError } from "@/lib/sentry";
 import { confirm } from "@/lib/confirm";
 import { confirmAndDeleteTransaction } from "@/lib/delete-transaction";
 import { SyncBadge } from "@/components/sync/SyncBadge";
@@ -387,6 +388,7 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
         clearSelection();
       } catch (error) {
         console.error("Failed to bulk delete:", error);
+        reportError(error, { subsystem: "ui", operation: "bulk-delete-transactions" });
         toast.error(error instanceof Error ? error.message : "Failed to delete transactions");
       }
     }
@@ -401,6 +403,7 @@ export function TransactionList({ filters, onEdit, onRequestEdit, totalCount }: 
       clearSelection();
     } catch (error) {
       console.error("Failed to bulk update status:", error);
+      reportError(error, { subsystem: "ui", operation: "bulk-update-status" });
       toast.error(error instanceof Error ? error.message : "Failed to update status");
     }
   };
