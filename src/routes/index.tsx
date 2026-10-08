@@ -66,7 +66,7 @@ function DashboardPage() {
         <div className="container mx-auto max-w-7xl px-4">
           <OfflineEmptyState
             description="This device hasn't synced any data yet. Reconnect once and your dashboard will be available offline from then on."
-            onRetry={() => refetch()}
+            onRetry={() => void refetch()}
           />
         </div>
       </div>
@@ -83,7 +83,7 @@ function DashboardPage() {
               {error instanceof Error ? error.message : "An unexpected error occurred"}
             </p>
             <button
-              onClick={() => refetch()}
+              onClick={() => void refetch()}
               className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
               Try Again

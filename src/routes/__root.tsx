@@ -39,7 +39,11 @@ function RootComponent() {
 
   // Load persisted sync issues from IndexedDB on mount
   useEffect(() => {
-    syncIssuesManager.loadFromStorage();
+    void syncIssuesManager
+      .loadFromStorage()
+      .catch((error) =>
+        reportError(error, { subsystem: "sync-issues", operation: "loadFromStorage" })
+      );
   }, []);
 
   // Register device on login (chunk 027)
@@ -64,7 +68,7 @@ function RootComponent() {
       }
     }
 
-    register();
+    void register();
   }, [user?.id]);
 
   // Update device last_seen on window focus (chunk 027)

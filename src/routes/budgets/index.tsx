@@ -137,7 +137,7 @@ function BudgetsPage() {
               <Plus className="mr-2 h-4 w-4" />
               Add Budget
             </Button>
-            <Button variant="outline" onClick={handleCopyPrevious}>
+            <Button variant="outline" onClick={() => void handleCopyPrevious()}>
               <Copy className="mr-2 h-4 w-4" />
               Copy Previous Month
             </Button>
@@ -153,13 +153,17 @@ function BudgetsPage() {
           // keep the MonthSelector usable and say what's actually going on
           <OfflineEmptyState
             description="This month's budgets haven't been saved to this device yet. Reconnect to load them - after that they stay available offline."
-            onRetry={() => refetch()}
+            onRetry={() => void refetch()}
           />
         ) : (
           <div className="space-y-4">
             {/* Serving mirrored Dexie data while offline (review R11) */}
             {!isOnline && <OfflineHint />}
-            <BudgetList groups={budgetGroups || []} onEdit={handleEdit} onDelete={handleDelete} />
+            <BudgetList
+              groups={budgetGroups || []}
+              onEdit={handleEdit}
+              onDelete={(budgetId) => void handleDelete(budgetId)}
+            />
           </div>
         )}
       </main>
@@ -168,7 +172,7 @@ function BudgetsPage() {
       <BudgetForm
         open={isFormOpen}
         onClose={handleCloseForm}
-        onSubmit={editingBudget ? handleUpdate : handleCreate}
+        onSubmit={(data) => void (editingBudget ? handleUpdate(data) : handleCreate(data))}
         existingBudget={editingBudget || undefined}
       />
     </div>

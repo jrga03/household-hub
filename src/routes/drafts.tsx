@@ -14,6 +14,7 @@ import { LoadingSpinner } from "@/components/LoadingScreen";
 import { useLiveQuery } from "dexie-react-hooks";
 import { FileText, Check, CheckCheck, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { reportError } from "@/lib/sentry";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -168,10 +169,15 @@ function DraftsPage() {
   // Sheet: same editValues state, same updateDraft call (review R36).
   const saveEdit = async () => {
     if (!editingId) return;
-    await updateDraft(editingId, editValues);
-    setEditingId(null);
-    setEditValues({});
-    toast.success("Draft updated");
+    try {
+      await updateDraft(editingId, editValues);
+      setEditingId(null);
+      setEditValues({});
+      toast.success("Draft updated");
+    } catch (error) {
+      reportError(error, { subsystem: "ui", operation: "saveDraftEdit" });
+      toast.error("Couldn't update the draft. Please try again.");
+    }
   };
 
   const cancelEdit = () => {
@@ -180,34 +186,44 @@ function DraftsPage() {
   };
 
   const handleDiscard = async (id: string) => {
-    await discardDraft(id);
-    setSelected((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-    // Discard is a soft status flip, so Undo just restores the draft to
-    // "pending" and decrements the session's discarded counter (review R2).
-    toast.success("Draft discarded", {
-      action: {
-        label: "Undo",
-        onClick: () => void restoreDraft(id),
-      },
-    });
+    try {
+      await discardDraft(id);
+      setSelected((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      // Discard is a soft status flip, so Undo just restores the draft to
+      // "pending" and decrements the session's discarded counter (review R2).
+      toast.success("Draft discarded", {
+        action: {
+          label: "Undo",
+          onClick: () => void restoreDraft(id),
+        },
+      });
+    } catch (error) {
+      reportError(error, { subsystem: "ui", operation: "discardDraft" });
+      toast.error("Couldn't discard the draft. Please try again.");
+    }
   };
 
   const handleDiscardSelected = async () => {
     const ids = Array.from(selected);
-    for (const id of ids) {
-      await discardDraft(id);
+    try {
+      for (const id of ids) {
+        await discardDraft(id);
+      }
+      setSelected(new Set());
+      toast.success(`${ids.length} draft${ids.length !== 1 ? "s" : ""} discarded`, {
+        action: {
+          label: "Undo",
+          onClick: () => void restoreDrafts(ids),
+        },
+      });
+    } catch (error) {
+      reportError(error, { subsystem: "ui", operation: "discardSelectedDrafts" });
+      toast.error("Couldn't discard the selected drafts. Please try again.");
     }
-    setSelected(new Set());
-    toast.success(`${ids.length} draft${ids.length !== 1 ? "s" : ""} discarded`, {
-      action: {
-        label: "Undo",
-        onClick: () => void restoreDrafts(ids),
-      },
-    });
   };
 
   const handleConfirm = async (ids: string[]) => {
@@ -223,6 +239,9 @@ function DraftsPage() {
       } else {
         toast.error(result.error || "Failed to confirm drafts");
       }
+    } catch (error) {
+      reportError(error, { subsystem: "ui", operation: "confirmDrafts" });
+      toast.error("Couldn't confirm the drafts. Please try again.");
     } finally {
       setIsConfirming(false);
     }
@@ -231,7 +250,7 @@ function DraftsPage() {
   const handleConfirmSelected = () => handleConfirm(Array.from(selected));
   const handleConfirmAll = () => {
     if (!drafts) return;
-    handleConfirm(drafts.map((d) => d.id));
+    void handleConfirm(drafts.map((d) => d.id));
   };
 
   if (!drafts) {
@@ -300,13 +319,17 @@ function DraftsPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={handleConfirmSelected}
+                        onClick={() => void handleConfirmSelected()}
                         disabled={isConfirming}
                       >
                         <Check className="mr-1 h-4 w-4" />
                         Confirm Selected ({selected.size})
                       </Button>
-                      <Button size="sm" variant="outline" onClick={handleDiscardSelected}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void handleDiscardSelected()}
+                      >
                         <Trash2 className="mr-1 h-4 w-4" />
                         Discard Selected
                       </Button>
@@ -381,9 +404,9 @@ function DraftsPage() {
                             <DraftActions
                               draft={draft}
                               isConfirming={isConfirming}
-                              onConfirm={() => handleConfirm([draft.id])}
+                              onConfirm={() => void handleConfirm([draft.id])}
                               onEdit={() => startEditing(draft)}
-                              onDiscard={() => handleDiscard(draft.id)}
+                              onDiscard={() => void handleDiscard(draft.id)}
                             />
                           </div>
                         </div>
@@ -532,7 +555,7 @@ function DraftsPage() {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={saveEdit}
+                                  onClick={() => void saveEdit()}
                                   aria-label="Save draft changes"
                                 >
                                   <Check className="h-3 w-3" />
@@ -585,9 +608,9 @@ function DraftsPage() {
                                 <DraftActions
                                   draft={draft}
                                   isConfirming={isConfirming}
-                                  onConfirm={() => handleConfirm([draft.id])}
+                                  onConfirm={() => void handleConfirm([draft.id])}
                                   onEdit={() => startEditing(draft)}
-                                  onDiscard={() => handleDiscard(draft.id)}
+                                  onDiscard={() => void handleDiscard(draft.id)}
                                 />
                               </TableCell>
                             </>

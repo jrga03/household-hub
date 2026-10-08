@@ -147,7 +147,7 @@ function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="grid gap-3">
                 <Button
-                  onClick={() => exportAndDownload("transactions")}
+                  onClick={() => void exportAndDownload("transactions")}
                   disabled={isExporting}
                   variant="outline"
                   className="w-full justify-start"
@@ -157,7 +157,7 @@ function SettingsPage() {
                 </Button>
 
                 <Button
-                  onClick={() => exportAndDownload("accounts")}
+                  onClick={() => void exportAndDownload("accounts")}
                   disabled={isExporting}
                   variant="outline"
                   className="w-full justify-start"
@@ -167,7 +167,7 @@ function SettingsPage() {
                 </Button>
 
                 <Button
-                  onClick={() => exportAndDownload("categories")}
+                  onClick={() => void exportAndDownload("categories")}
                   disabled={isExporting}
                   variant="outline"
                   className="w-full justify-start"
@@ -209,7 +209,7 @@ function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4">
                 <Button
-                  onClick={handleCompaction}
+                  onClick={() => void handleCompaction()}
                   disabled={compacting}
                   variant="outline"
                   size="lg"

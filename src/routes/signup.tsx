@@ -13,7 +13,7 @@ function Signup() {
 
   useEffect(() => {
     if (user) {
-      navigate({ to: "/" });
+      void navigate({ to: "/" });
     }
   }, [user, navigate]);
 
