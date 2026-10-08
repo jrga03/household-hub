@@ -37,8 +37,7 @@ if printf '%s\n' "$changed" "$deleted" | grep -qE '^(tests/|playwright\.config\.
   typecheck_tests="yes"
 fi
 
-# Phase 3 exit criterion adds --max-warnings=0 here (roadmap section 5).
-output=$( { [ -z "$changed" ] || npx eslint $changed 2>&1; } \
+output=$( { [ -z "$changed" ] || npx eslint --max-warnings=0 $changed 2>&1; } \
   && npx tsc --noEmit -p tsconfig.json 2>&1 \
   && { [ -z "$typecheck_tests" ] || npx tsc --noEmit -p tsconfig.tests.json 2>&1; })
 if [ $? -eq 0 ]; then

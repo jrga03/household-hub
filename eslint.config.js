@@ -407,10 +407,10 @@ export default [
         },
       ],
       "@typescript-eslint/no-explicit-any": "error",
-      // Every promise has an owner (roadmap 4.7). warn until Phase 3a's exit commit.
-      "@typescript-eslint/no-floating-promises": "warn",
-      "@typescript-eslint/no-misused-promises": "warn",
-      "@typescript-eslint/no-non-null-assertion": "warn",
+      // Every promise has an owner (roadmap 4.7).
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
       "react/prop-types": "off",
       "react/react-in-jsx-scope": "off",
     },
@@ -420,6 +420,7 @@ export default [
       },
     },
   },
+  // Must stay after the src/** block above: in flat config later blocks win.
   {
     files: srcTestFiles,
     rules: { "@typescript-eslint/no-non-null-assertion": "off" },

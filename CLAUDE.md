@@ -10,7 +10,7 @@ npm run build              # tsc -b + vite build
 npm run lint               # eslint .
 npx vitest run             # unit tests (bare `npm test` is watch mode)
 npm run test:e2e:smoke     # chromium smoke; rebuilds dist/ first
-npm run size               # bundle budget (355 KB gz)
+npm run size               # bundle budget (378 KB gz)
 npx tsc --noEmit -p tsconfig.tests.json    # tests/ + playwright config
 npm run gen:types          # regenerate src/types/database.types.ts (commit with each migration)
 supabase test db           # pgTAP: RLS for every table, functions, the transfer view
@@ -44,8 +44,8 @@ Always ask: what happens offline, and what happens when two devices edit the sam
 ## Git hooks
 
 - **pre-commit:** lint-staged runs `eslint --fix` and Prettier on staged files.
-- **pre-push:** `scripts/pre-push.mjs` runs lint, `vitest run --allowOnly=false --silent`, and the three tsc programs in parallel. Pushes that change only `*.md` or `docs/**` skip it. Run it by hand with `node scripts/pre-push.mjs`.
-- **Claude Code hooks** (`.claude/settings.json`): a Bash guard blocks force pushes, `supabase db push`, and recursive deletes outside the repo; a Stop hook lints and type-checks changed files.
+- **pre-push:** `scripts/pre-push.mjs` runs lint, `vitest run --allowOnly=false --silent`, and the two tsc programs in parallel. Pushes that change only `*.md` or `docs/**` skip it. Run it by hand with `node scripts/pre-push.mjs`.
+- **Claude Code hooks** (`.claude/settings.json`): a Bash guard blocks force pushes, `supabase db push`, and recursive deletes outside the repo; a Stop hook lints and type-checks changed files with `--max-warnings=0`.
 - `git push` over SSH hangs from Claude's shell (passphrase prompt). Ask the user to run it with `!`.
 
 ## Known infrastructure issues

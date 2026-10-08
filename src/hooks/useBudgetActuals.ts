@@ -92,8 +92,12 @@ export function useBudgetActuals(_householdId: string, month: Date) {
   }, [budgetsQuery.data]);
 
   return {
-    ...budgetsQuery,
     data: comparisons,
+    isLoading: budgetsQuery.isLoading,
+    isFetching: budgetsQuery.isFetching,
+    isError: budgetsQuery.isError,
+    error: budgetsQuery.error,
+    refetch: budgetsQuery.refetch,
   };
 }
 
