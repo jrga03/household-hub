@@ -16,7 +16,7 @@
 - Fix policy (spec section 2, refined in Decisions below):
   - Async JSX handler: `onX={() => void run()}`; `run` catches, shows `toast.error(...)` and calls `reportError(error, { subsystem, operation })` from `@/lib/sentry`.
   - Async callback where void is expected (listeners, timers): a stable sync wrapper `() => void run()`, same ownership; `removeEventListener` must receive the same wrapper reference it was added with.
-  - Floating promise: `await` inside an async flow; otherwise `void p.catch((error) => reportError(error, {...}))`. A bare `void p` is allowed only for APIs that resolve on failure by contract: TanStack Router `navigate`, `queryClient.prefetchQuery`, `fetchNextPage` / `fetchPreviousPage`.
+  - Floating promise: `await` inside an async flow; otherwise `void p.catch((error) => reportError(error, {...}))`. A bare `void p` is allowed only for APIs that resolve on failure by contract: TanStack Router `navigate`, `queryClient.prefetchQuery`, `fetchNextPage` / `fetchPreviousPage`, and a `useQuery` result's `refetch` (no `throwOnError` anywhere in `src`).
   - Non-null `!` in production: narrow with a guard. UI and parser code skips or renders nothing; data-layer code throws `new Error("<what is missing>")` where a missing value means corrupt data.
   - Tests: floating promises are awaited; tests may use `!` after asserting length.
 - No `any`. No blanket `eslint-disable`; a disable needs a trailing `-- reason`.
