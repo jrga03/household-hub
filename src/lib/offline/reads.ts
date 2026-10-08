@@ -39,11 +39,12 @@ export function applyTransactionFilters(
   rows: LocalTransaction[],
   filters?: TransactionFilters
 ): LocalTransaction[] {
-  if (filters?.dateFrom) {
-    rows = rows.filter((t) => t.date >= filters.dateFrom!);
+  const { dateFrom, dateTo, amountMin, amountMax } = filters ?? {};
+  if (dateFrom) {
+    rows = rows.filter((t) => t.date >= dateFrom);
   }
-  if (filters?.dateTo) {
-    rows = rows.filter((t) => t.date <= filters.dateTo!);
+  if (dateTo) {
+    rows = rows.filter((t) => t.date <= dateTo);
   }
   if (filters?.accountId) {
     rows = rows.filter((t) => t.account_id === filters.accountId);
@@ -57,11 +58,11 @@ export function applyTransactionFilters(
   if (filters?.type) {
     rows = rows.filter((t) => t.type === filters.type);
   }
-  if (filters?.amountMin !== undefined) {
-    rows = rows.filter((t) => t.amount_cents >= filters.amountMin!);
+  if (amountMin !== undefined) {
+    rows = rows.filter((t) => t.amount_cents >= amountMin);
   }
-  if (filters?.amountMax !== undefined) {
-    rows = rows.filter((t) => t.amount_cents <= filters.amountMax!);
+  if (amountMax !== undefined) {
+    rows = rows.filter((t) => t.amount_cents <= amountMax);
   }
   if (filters?.search) {
     const needle = filters.search.toLowerCase();

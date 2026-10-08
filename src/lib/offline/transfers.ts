@@ -56,11 +56,11 @@ export function groupTransferLegs(legs: TransferLeg[]): TransferGroup[] {
   for (const leg of legs) {
     if (!leg.transfer_group_id) continue;
 
-    if (!transferGroups.has(leg.transfer_group_id)) {
-      transferGroups.set(leg.transfer_group_id, { expense: null, income: null });
+    let group = transferGroups.get(leg.transfer_group_id);
+    if (!group) {
+      group = { expense: null, income: null };
+      transferGroups.set(leg.transfer_group_id, group);
     }
-
-    const group = transferGroups.get(leg.transfer_group_id)!;
     if (leg.type === "expense") {
       group.expense = leg;
     } else {
@@ -69,18 +69,24 @@ export function groupTransferLegs(legs: TransferLeg[]): TransferGroup[] {
   }
 
   return Array.from(transferGroups.values())
-    .filter((g) => g.expense && g.income) // Only show complete transfer pairs
-    .map((g) => ({
-      id: g.expense!.id,
-      date: g.expense!.date,
-      amount_cents: g.expense!.amount_cents,
-      transfer_group_id: g.expense!.transfer_group_id,
-      description: g.expense!.description,
-      from_account: g.expense!.account,
-      to_account: g.income!.account,
-      from_account_name: g.expense!.account?.name || "Unknown",
-      to_account_name: g.income!.account?.name || "Unknown",
-    }))
+    .flatMap(({ expense, income }) =>
+      // Only complete transfer pairs are shown
+      expense && income
+        ? [
+            {
+              id: expense.id,
+              date: expense.date,
+              amount_cents: expense.amount_cents,
+              transfer_group_id: expense.transfer_group_id,
+              description: expense.description,
+              from_account: expense.account,
+              to_account: income.account,
+              from_account_name: expense.account?.name || "Unknown",
+              to_account_name: income.account?.name || "Unknown",
+            },
+          ]
+        : []
+    )
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 

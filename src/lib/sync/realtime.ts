@@ -80,12 +80,7 @@ type RealtimePayload = RealtimePostgresChangesPayload<Record<string, unknown>>;
  * Union type for all synced table records
  */
 type SyncRecord =
-  | LocalTransaction
-  | LocalAccount
-  | LocalCategory
-  | Debt
-  | InternalDebt
-  | DebtPayment;
+  LocalTransaction | LocalAccount | LocalCategory | Debt | InternalDebt | DebtPayment;
 
 /** Catch-up order: parents before the rows that reference them. */
 const SYNC_TABLES: SyncTableName[] = [
@@ -275,7 +270,7 @@ export class RealtimeSync {
           schema: "public",
           table: tableName,
         },
-        (payload) => this.handleTableChange(tableName, payload)
+        (payload) => void this.handleTableChange(tableName, payload)
       )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {

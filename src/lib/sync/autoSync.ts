@@ -75,6 +75,7 @@
  */
 
 import { toast } from "sonner";
+import { reportError } from "@/lib/sentry";
 import { syncProcessor } from "./processor";
 import { getFailedCount } from "@/lib/offline/syncQueue";
 import { realtimeSync } from "@/lib/sync/realtime";
@@ -198,9 +199,9 @@ export class AutoSyncManager {
    *
    * Arrow function preserves `this` context for event listener.
    */
-  private handleOnline = async () => {
+  private handleOnline = (): void => {
     console.log("[AutoSync] Online - triggering sync");
-    await this.triggerSync();
+    void this.triggerSync();
   };
 
   /**
@@ -215,10 +216,10 @@ export class AutoSyncManager {
    *
    * Arrow function preserves `this` context for event listener.
    */
-  private handleVisibilityChange = async () => {
+  private handleVisibilityChange = (): void => {
     if (!document.hidden && navigator.onLine) {
       console.log("[AutoSync] Visible - triggering sync");
-      await this.triggerSync();
+      void this.triggerSync();
     }
   };
 
@@ -233,12 +234,12 @@ export class AutoSyncManager {
    *
    * Arrow function preserves `this` context for event listener.
    */
-  private handleFocus = async () => {
+  private handleFocus = (): void => {
     if (!navigator.onLine) {
       return;
     }
     console.log("[AutoSync] Focused - triggering sync");
-    await this.triggerSync();
+    void this.triggerSync();
   };
 
   /**
@@ -258,7 +259,7 @@ export class AutoSyncManager {
         // Only sync if online AND tab is visible
         if (navigator.onLine && !document.hidden) {
           console.log("[AutoSync] Periodic - triggering sync");
-          this.triggerSync();
+          void this.triggerSync();
         }
       },
       5 * 60 * 1000
@@ -317,6 +318,7 @@ export class AutoSyncManager {
     } catch (error) {
       // Log error but don't throw (graceful degradation)
       console.error("[AutoSync] Sync failed:", error);
+      reportError(error, { subsystem: "sync", operation: "autoSync" });
     }
   }
 

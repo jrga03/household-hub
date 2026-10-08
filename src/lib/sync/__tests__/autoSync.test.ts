@@ -26,11 +26,14 @@ vi.mock("@/lib/offline/syncQueue", () => ({
   getFailedCount: vi.fn().mockResolvedValue(0),
 }));
 
+vi.mock("@/lib/sentry", () => ({ reportError: vi.fn() }));
+
 // ─── Imports (after mocks) ──────────────────────
 import { AutoSyncManager } from "../autoSync";
 import { syncProcessor } from "../processor";
 import { getFailedCount } from "@/lib/offline/syncQueue";
 import { toast } from "sonner";
+import { reportError } from "@/lib/sentry";
 
 /** Invoke the private unified trigger without going through DOM events. */
 function trigger(manager: AutoSyncManager): Promise<void> {
@@ -38,14 +41,14 @@ function trigger(manager: AutoSyncManager): Promise<void> {
 }
 
 /** Invoke the private focus handler directly (bypasses DOM event plumbing). */
-function focus(manager: AutoSyncManager): Promise<void> {
-  return (manager as unknown as { handleFocus(): Promise<void> }).handleFocus();
+function focus(manager: AutoSyncManager): void | Promise<void> {
+  return (manager as unknown as { handleFocus(): void | Promise<void> }).handleFocus();
 }
 
 /** Invoke the private visibilitychange handler directly. */
-function visibilityChange(manager: AutoSyncManager): Promise<void> {
+function visibilityChange(manager: AutoSyncManager): void | Promise<void> {
   return (
-    manager as unknown as { handleVisibilityChange(): Promise<void> }
+    manager as unknown as { handleVisibilityChange(): void | Promise<void> }
   ).handleVisibilityChange();
 }
 
@@ -227,5 +230,37 @@ describe("AutoSyncManager offline gating of focus/visibility triggers", () => {
     await visibilityChange(manager);
 
     expect(syncProcessor.processQueue).toHaveBeenCalledWith("user-1");
+  });
+});
+
+describe("AutoSyncManager error ownership", () => {
+  let manager: AutoSyncManager;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getFailedCount).mockResolvedValue(0);
+    manager = new AutoSyncManager();
+    manager.start("user-1");
+  });
+
+  afterEach(() => {
+    manager.stop();
+    restoreNavigatorOnLine();
+  });
+
+  it("reports a rejected drain instead of only logging it", async () => {
+    const failure = new Error("drain blew up");
+    vi.mocked(syncProcessor.processQueue).mockRejectedValueOnce(failure);
+
+    await trigger(manager);
+
+    expect(reportError).toHaveBeenCalledWith(failure, { subsystem: "sync", operation: "autoSync" });
+  });
+
+  it("an online event starts a drain without leaking a rejection", async () => {
+    vi.mocked(syncProcessor.processQueue).mockRejectedValueOnce(new Error("offline again"));
+
+    window.dispatchEvent(new Event("online"));
+    await vi.waitFor(() => expect(reportError).toHaveBeenCalled());
   });
 });

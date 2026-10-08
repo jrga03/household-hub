@@ -4,7 +4,7 @@ type ChangeHandler = (payload: {
   eventType: "INSERT" | "UPDATE" | "DELETE";
   new: Record<string, unknown>;
   old: Record<string, unknown>;
-}) => Promise<void>;
+}) => void;
 
 const handlers = new Map<string, ChangeHandler>();
 const catchUpRows = new Map<string, Record<string, unknown>[]>();
@@ -46,6 +46,22 @@ vi.mock("@/lib/sentry", () => ({ reportError: vi.fn() }));
 import { db } from "@/lib/dexie/db";
 import { RealtimeSync } from "@/lib/sync/realtime";
 import { reportError } from "@/lib/sentry";
+
+type ChangePayload = Parameters<ChangeHandler>[0];
+
+const tableChangeSpy = vi.spyOn(
+  RealtimeSync.prototype as unknown as {
+    handleTableChange(table: string, payload: ChangePayload): Promise<void>;
+  },
+  "handleTableChange"
+);
+
+/** Dispatch a realtime payload and wait for the handler the subscription callback started. */
+async function emit(table: string, payload: ChangePayload): Promise<void> {
+  tableChangeSpy.mockClear();
+  handlers.get(table)?.(payload);
+  await Promise.all(tableChangeSpy.mock.results.map((result) => result.value as Promise<void>));
+}
 
 const serverDebt = {
   id: "d-remote",
@@ -122,14 +138,14 @@ describe("RealtimeSync row validation", () => {
   });
 
   it("writes a valid INSERT with nulls normalised", async () => {
-    await handlers.get("transactions")?.({ eventType: "INSERT", new: serverTransaction, old: {} });
+    await emit("transactions", { eventType: "INSERT", new: serverTransaction, old: {} });
     const stored = await db.transactions.get("t-remote");
     expect(stored).toMatchObject({ amount_cents: 5000, tagged_user_ids: [] });
     expect(stored?.account_id).toBeUndefined();
   });
 
   it("skips and reports an INSERT that fails its schema", async () => {
-    await handlers.get("transactions")?.({
+    await emit("transactions", {
       eventType: "INSERT",
       new: { ...serverTransaction, amount_cents: 12.5 },
       old: {},
@@ -142,8 +158,8 @@ describe("RealtimeSync row validation", () => {
   });
 
   it("skips an UPDATE that fails its schema and keeps the local row", async () => {
-    await handlers.get("transactions")?.({ eventType: "INSERT", new: serverTransaction, old: {} });
-    await handlers.get("transactions")?.({
+    await emit("transactions", { eventType: "INSERT", new: serverTransaction, old: {} });
+    await emit("transactions", {
       eventType: "UPDATE",
       new: { ...serverTransaction, amount_cents: "9999", updated_at: "2026-10-05T00:00:00Z" },
       old: {},
@@ -190,18 +206,18 @@ describe("RealtimeSync row validation", () => {
     });
 
     it("inserts a debt from realtime", async () => {
-      await handlers.get("debts")?.({ eventType: "INSERT", new: serverDebt, old: {} });
+      await emit("debts", { eventType: "INSERT", new: serverDebt, old: {} });
       expect(await db.debts.get("d-remote")).toMatchObject({ original_amount_cents: 10000 });
     });
 
     it("treats payments as append-only", async () => {
-      await handlers.get("debt_payments")?.({ eventType: "INSERT", new: serverPayment, old: {} });
-      await handlers.get("debt_payments")?.({
+      await emit("debt_payments", { eventType: "INSERT", new: serverPayment, old: {} });
+      await emit("debt_payments", {
         eventType: "UPDATE",
         new: { ...serverPayment, amount_cents: 9999 },
         old: {},
       });
-      await handlers.get("debt_payments")?.({ eventType: "DELETE", new: {}, old: serverPayment });
+      await emit("debt_payments", { eventType: "DELETE", new: {}, old: serverPayment });
       expect(await db.debtPayments.get("p-remote")).toMatchObject({ amount_cents: 2500 });
     });
 
@@ -230,7 +246,7 @@ describe("RealtimeSync row validation", () => {
 
     it("catch-up never overwrites an existing payment", async () => {
       // Put a local payment first via realtime INSERT handler
-      await handlers.get("debt_payments")?.({ eventType: "INSERT", new: serverPayment, old: {} });
+      await emit("debt_payments", { eventType: "INSERT", new: serverPayment, old: {} });
       expect((await db.debtPayments.get("p-remote"))?.amount_cents).toBe(2500);
 
       // Try to overwrite it with a different amount via catch-up
