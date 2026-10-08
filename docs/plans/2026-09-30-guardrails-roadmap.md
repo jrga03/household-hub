@@ -456,6 +456,9 @@ Confirmed in review on 2026-09-30:
 
 - **Bundle budget has 18 B of headroom after 2c-2 (noted 2026-10-07).** 363,502 B gz against 363,520 (355 KB); query builders and the invalidation map cost about 30 B net. Why it matters: the next phase that adds runtime code will trip `npm run size`. Revisit: at the start of that phase, decide to raise `BUDGET_KB` or trim (e.g. lazy-load a route chunk), not mid-task.
 
+- **Bundle budget 355 → 378 KB after Dependabot PR #11 (decided by the user 2026-10-08).** Initial chunk 363,502 → 383,354 B gz (355.0 → 374.4 KB). Source-map attribution: react-dom 19.2 → 19.3 (+29 KB minified, about 9-10 KB gz), react-hook-form 7.66 → 7.89 (+10 KB minified, about 3 KB gz), then supabase auth-js; no module moved from a lazy chunk into the initial one. Budget = ceil(measured) + 3. Rejected: pinning React to 19.2; trimming first. Revisit: when the initial chunk is next reduced (lazy routes), lower the ceiling with it.
+- **Pre-existing: transactions "Clear" leaves URL filters (found 2026-10-08).** After typing a search and clicking Clear in the filters panel, the search box empties but `search=` and `categoryId` stay in the URL and the list stays filtered; identical on `main`. Revisit: its own fix (not Phase 3a).
+
 ## Resume state (2026-10-01)
 
 - Phases 0, 0.5a, and 0.5b are merged and pushed (`main` = `913efac`). Per-phase specs and plans: `docs/plans/2026-09-30-phase-0-live-bugs*`, `docs/plans/2026-09-30-phase-0.5a-outbox-writes*`, `docs/plans/2026-10-01-phase-0.5b-budget-outbox*`.

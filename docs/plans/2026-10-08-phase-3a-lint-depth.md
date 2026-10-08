@@ -41,9 +41,9 @@
 
 ## Progress
 
-- [ ] Task A0: Branch and baseline (`deps-pr11`)
-- [ ] Task A1: Apply PR #11 versions and fix the breaks
-- [ ] Task A2: Budget, browser check, merge
+- [x] Task A0: Branch and baseline (`deps-pr11`)
+- [x] Task A1: Apply PR #11 versions and fix the breaks
+- [x] Task A2: Budget, browser check, merge
 - [ ] Task B0: Branch and baseline (`phase-3a-lint-depth`)
 - [ ] Task B1: Type-aware rules at `warn`
 - [ ] Task B2: Sync and offline
@@ -376,5 +376,12 @@ Planning decisions (2026-10-08):
 - **`architecture-lint.test.ts` lints probe paths without type information.** Why: `projectService` rejects files that are not on disk (verified 2026-10-08); the type-aware rules are covered by `npm run lint` over real files.
 - **autoSync handlers become synchronous wrappers over `triggerSync`, which owns its errors.** Why: listeners must return void; keeping the handler names keeps the existing tests' direct calls.
 - **Sites in files Knip lists as unused are fixed anyway.** Why: they must pass lint at `error` until 3b decides to delete them.
+
+Execution decisions (2026-10-08):
+
+- **PR #11 changes 34 package ranges, not 38** (the plan's count included lockfile-only entries); `package.json` matches the PR's diff exactly.
+- **The router plugin's regenerated `routeTree.gen.ts` is committed with Part A** (`de48360`); otherwise every build dirties the tree.
+- **`allowScripts` pin follows canvas 3.2.3** (Phase 1b already allows canvas for `scripts/generate-icons.js`).
+- **New warning to clear in Part B:** `react-hooks/incompatible-library` at `TransactionFormDialog.tsx:111` (`form.watch`) from react-hooks 7.1; Task B5 converts it (e.g. `useWatch`) so Task B7's zero-warning exit holds.
 
 From the spec (section 8), unchanged: order PR #11 → 3a → 3b; every misused-promise site fixed at default strength; budget = measured + 3 KB.
