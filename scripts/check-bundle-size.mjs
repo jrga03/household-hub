@@ -25,7 +25,7 @@ import { gzipSync } from "node:zlib";
 import { join } from "node:path";
 
 const DIST = "dist";
-const BUDGET_KB = 355; // gzip regression ceiling (current ~351 after supabase 2.110); aspiration is <200
+const BUDGET_KB = 378; // gzip regression ceiling; reset to measured + 3 KB after Dependabot PR #11 (2026-10-08, was 355: react-dom 19.3 and react-hook-form 7.89); aspiration is <200
 const MANIFEST = join(DIST, ".vite", "manifest.json");
 
 if (!existsSync(MANIFEST)) {
