@@ -45,7 +45,7 @@
 - [x] Task 3: Dead files
 - [x] Task 4: Dead exports and types
 - [x] Task 5: Blocking gate in CI and pre-push
-- [ ] Task 6: Acceptance
+- [x] Task 6: Acceptance
 
 ---
 
@@ -411,7 +411,7 @@ git commit -m "ci(knip): blocking knip job and pre-push check"
 - [x] **Step 1:** `npm ci` (fresh install from the lockfile), then every gate: both tsc, `npm run lint -- --max-warnings=0`, `npx vitest run`, `npm run knip`, `npm run build`, `npm run size`. Expected: all exit 0; size within 0.1 KB of 374.7 KB (unused files were never bundled).
 - [x] **Step 2:** `supabase start` if not running, then `PW_TEST_HTML_REPORT_OPEN=never npm run test:e2e:smoke`. Expected: 11/11 passed (the e2e fixtures changed in Tasks 3-4).
 - [x] **Step 3:** Record results under Acceptance results (exact counts and the size line), check off the roadmap item `- [ ] Knip in CI, blocking` in `docs/plans/2026-09-30-guardrails-roadmap.md`, and add a Resume state bullet.
-- [ ] **Step 4:** Whole-branch review (superpowers:requesting-code-review), fixes, then merge to `main` by fast-forward. The user pushes; confirm the CI `knip` job and Security Checks are green and record run IDs.
+- [x] **Step 4:** Whole-branch review (superpowers:requesting-code-review), fixes, then merge to `main` by fast-forward. The user pushes; confirm the CI `knip` job and Security Checks are green and record run IDs.
 
 ## Acceptance results
 
@@ -438,3 +438,4 @@ git commit -m "ci(knip): blocking knip job and pre-push check"
 
 - 2026-10-09: plan approved, not started (Task 0 next). Not verified: whether Knip 6.40.0 honors `/** @public */` and `/** @alias */` (Task 4 has the `ignoreIssues` fallback).
 - 2026-10-09: executed subagent-driven. Tasks 0-5 reviewed clean (commits e5c9b50, f1be427, f3e7ae0, 8d7bf65, dc71813); whole-branch review (opus) ready with fixes, fixes in 0aa7d24 re-reviewed by the controller; final pre-push on 0aa7d24 five passes incl. knip. Fast-forwarded to `main` locally, not pushed. Next: user pushes `main` with `!`, then confirm CI (incl. the `knip` job) and Security Checks green, record run IDs, and tick Task 6.
+- Pushed (2026-10-09): `main` at `2b07737` (pre-push five passes incl. knip). CI 37903120158 success (jobs lint, knip, typecheck, unit-tests, build, database, e2e-smoke, e2e all success); Security Checks 37903120195 success. Phase 3b complete.
