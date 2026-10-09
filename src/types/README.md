@@ -52,16 +52,6 @@ The types directory contains **TypeScript type definitions** for the entire appl
   - `EventPayload` - Event payload union type
   - `VectorClock` - Vector clock type (Phase B)
 
-- **`device.ts`** - Device identification types
-  - `Device` - Device registration type
-  - `Platform` - OS platform enum
-  - `Browser` - Browser enum
-
-- **`resolution.ts`** - Conflict resolution types (Phase B)
-  - `Conflict` - Conflict detection result
-  - `ResolutionStrategy` - Resolution strategy enum
-  - `MergedEntity` - Result of conflict merge
-
 ### Generated Types
 
 - **`database.types.ts`** - **AUTO-GENERATED** from Supabase schema

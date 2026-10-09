@@ -631,8 +631,6 @@ value={Math.min(percentUsed, 100)}
 
 ### Hooks
 
-- [src/hooks/useBudgets.tsx](../../hooks/README.md) - Budget data fetching hook
-
 ## Further Context
 
 ### Project Documentation

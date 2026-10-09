@@ -18,7 +18,6 @@ Standard shadcn/ui components - see [shadcn/ui documentation](https://ui.shadcn.
 - `calendar.tsx` - Date picker calendar
 - `card.tsx` - Card containers (Card, CardHeader, CardTitle, CardContent, CardFooter)
 - `dialog.tsx` - Modal dialogs
-- `dropdown-menu.tsx` - Dropdown menus
 - `form.tsx` - Form field wrappers (React Hook Form integration)
 - `input.tsx` - Text inputs
 - `label.tsx` - Form labels

@@ -27,7 +27,6 @@ const syncQueue = useLiveQuery(
 
 ### Budgets & Analytics Hooks (TanStack Query)
 
-- **`useBudgets.ts`** - Budgets query (`budgetsQueryOptions` lives in `src/lib/supabaseQueries.ts`)
 - **`useBudgetActuals.ts`** - Calculate budget vs actual spending
 - **`useAnalytics.ts`** (12.9KB) - Complex analytics calculations
   - Spending by category

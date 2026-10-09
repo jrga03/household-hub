@@ -46,7 +46,6 @@ Browser-based tests using Playwright:
 
 - **`fixtures/`** - Test helpers and mock data
   - `helpers.ts` - Common test utilities
-  - `test-data.ts` - Mock transactions, accounts, categories
   - `test-users.ts` - Test user credentials
 
 **See:** [e2e/README.md](./e2e/) for E2E testing guide
@@ -345,12 +344,6 @@ describe("Sync Flow Integration", () => {
 - Pre-seeded test accounts
 - Different permission levels
 - Consistent credentials across tests
-
-**test-data.ts:**
-
-- Mock transactions, accounts, categories
-- Realistic data for E2E tests
-- Deterministic IDs for assertions
 
 **helpers.ts:**
 

@@ -18,7 +18,6 @@ End-to-end tests using **Playwright** to verify complete user workflows in real 
 ### Fixtures Directory
 
 - **`helpers.ts`** - Common test utilities (login, setup, teardown)
-- **`test-data.ts`** - Mock transactions, accounts, categories
 - **`test-users.ts`** - Test user credentials
 
 ## Running E2E Tests

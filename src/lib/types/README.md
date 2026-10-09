@@ -6,12 +6,7 @@ This directory contains **type definitions specific to lib functionality** - typ
 
 ## Contents
 
-- **`offline.ts`** (2.7KB) - Offline operation types
-  - `OfflineOperationType` - Operation types ('create' | 'update' | 'delete')
-  - `OfflineResult<T>` - Result type for offline operations
-  - `OfflineError` - Error structure for offline failures
-  - `CacheMetadata` - Cache freshness tracking
-  - `QueueMetrics` - Sync queue metrics
+_Currently empty._
 
 ## When to Use This Directory
 
@@ -28,12 +23,6 @@ This directory contains **type definitions specific to lib functionality** - typ
 - Part of public API
 
 ## Type Organization
-
-**Lib-Specific:**
-
-```
-src/lib/types/offline.ts  → Used by offline/ modules
-```
 
 **Application-Wide:**
 

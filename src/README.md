@@ -134,18 +134,18 @@ The following files are **auto-generated** and should not be edited manually:
 
 **"Where do I find..."**
 
-| What you're looking for | Directory      | Example files                                |
-| ----------------------- | -------------- | -------------------------------------------- |
-| UI components           | `components/`  | `TransactionList.tsx`, `BudgetCard.tsx`      |
-| Page layouts            | `routes/`      | `dashboard.tsx`, `transactions.tsx`          |
-| Data fetching logic     | `hooks/`       | `useOfflineTransactions.ts`, `useBudgets.ts` |
-| Business logic          | `lib/`         | `event-generator.ts`, `conflict-resolver.ts` |
-| Currency utilities      | `lib/`         | `currency.ts`, `currency.test.ts`            |
-| Sync engine             | `lib/sync/`    | `processor.ts`, `idempotency.ts`             |
-| Offline operations      | `lib/offline/` | `syncQueue.ts`, `transactions.ts`            |
-| Database schema         | `lib/dexie/`   | `db.ts`                                      |
-| Global state            | `stores/`      | `authStore.ts`, `syncStore.ts`               |
-| Type definitions        | `types/`       | `transactions.ts`, `database.types.ts`       |
+| What you're looking for | Directory      | Example files                                      |
+| ----------------------- | -------------- | -------------------------------------------------- |
+| UI components           | `components/`  | `TransactionList.tsx`, `BudgetCard.tsx`            |
+| Page layouts            | `routes/`      | `dashboard.tsx`, `transactions.tsx`                |
+| Data fetching logic     | `hooks/`       | `useOfflineTransactions.ts`, `useBudgetActuals.ts` |
+| Business logic          | `lib/`         | `event-generator.ts`, `conflict-resolver.ts`       |
+| Currency utilities      | `lib/`         | `currency.ts`, `currency.test.ts`                  |
+| Sync engine             | `lib/sync/`    | `processor.ts`, `idempotency.ts`                   |
+| Offline operations      | `lib/offline/` | `syncQueue.ts`, `transactions.ts`                  |
+| Database schema         | `lib/dexie/`   | `db.ts`                                            |
+| Global state            | `stores/`      | `authStore.ts`, `syncStore.ts`                     |
+| Type definitions        | `types/`       | `transactions.ts`, `database.types.ts`             |
 
 ## Common Development Tasks
 
