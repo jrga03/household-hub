@@ -47,9 +47,6 @@ The types directory contains **TypeScript type definitions** for the entire appl
   - `IdempotencyKey` - Idempotency key type
 
 - **`event.ts`** - Event sourcing types
-  - `TransactionEvent` - Event log entry structure
-  - `EventOperation` - Event operation enum
-  - `EventPayload` - Event payload union type
   - `VectorClock` - Vector clock type (Phase B)
 
 ### Generated Types
@@ -385,7 +382,6 @@ const input: CreateTransactionInput = {
 
 - [../lib/README.md](../lib/README.md) - Business logic that uses types
 - [../components/README.md](../components/README.md) - Components that use types
-- [../lib/types/README.md](../lib/types/README.md) - Lib-specific types
 
 ### External Resources
 

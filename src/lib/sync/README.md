@@ -281,7 +281,6 @@ Per-entity vector clock scoped to specific entity:
 **Core Functions:**
 
 - `calculateRetryDelay(attempt)` - Exponential backoff calculation
-- `sleep(ms)` - Async delay utility
 
 **Backoff Schedule:**
 

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   CHECKS,
@@ -91,11 +93,18 @@ describe("readPushInput", () => {
 });
 
 describe("CHECKS", () => {
-  it("runs knip with config hints as errors", () => {
+  it("runs knip through the npm script", () => {
     expect(CHECKS.find((check) => check.name === "knip")).toEqual({
       name: "knip",
       command: "npm",
       args: ["run", "knip"],
     });
+  });
+
+  it("keeps config hints as errors in the knip script", () => {
+    const packageJson = JSON.parse(
+      readFileSync(path.resolve(import.meta.dirname, "../package.json"), "utf8")
+    );
+    expect(packageJson.scripts.knip).toContain("--treat-config-hints-as-errors");
   });
 });

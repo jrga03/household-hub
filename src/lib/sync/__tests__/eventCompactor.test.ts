@@ -391,7 +391,7 @@ describe("EventCompactor - Snapshot Creation", () => {
 
     // Verify idempotencyKey starts with "snapshot-"
     expect(snapshot?.idempotency_key).toMatch(/^snapshot-/);
-    // Snapshot ids are server ids: transaction_events.id is a UUID column
+    // Snapshot ids follow the app-wide UUID id format
     expect(snapshot?.id).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
     );

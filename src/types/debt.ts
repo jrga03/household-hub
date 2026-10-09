@@ -386,7 +386,7 @@ export interface TransactionDeleteData {
  * - Compliance with immutable financial record-keeping
  */
 export interface BaseDebtEvent {
-  /** Event ID (nanoid) */
+  /** Event ID (UUID) */
   id: string;
 
   /** Entity type this event applies to (snake_case to match Dexie TransactionEvent) */

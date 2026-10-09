@@ -178,6 +178,8 @@ it.each([
   "src/hooks/probe.ts",
   "src/components/probe.tsx",
   "src/lib/probe.ts",
+  "src/lib/validations/probe.ts",
+  "src/lib/dexie/probe.ts",
 ])("no-restricted-imports bans nanoid in %s", async (filePath) => {
   const code = 'import { nanoid } from "nanoid";\nexport const id = nanoid();\n';
   expect(await ruleIds(code, filePath)).toContain("no-restricted-imports");
