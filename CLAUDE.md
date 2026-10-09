@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Household Hub: an offline-first, event-sourced PWA for household finances (PHP only). React 19 + TypeScript, TanStack Router/Query/Table/Virtual, Zustand, shadcn/ui + Tailwind v4, Dexie (IndexedDB), Supabase. Node 26 (`.nvmrc`).
+Household Hub: an offline-first, event-sourced PWA for household finances (PHP only). React 19 + TypeScript, TanStack Router/Query/Virtual (Table installed, not yet used), Zustand, shadcn/ui + Tailwind v4, Dexie (IndexedDB), Supabase. Node 26 (`.nvmrc`).
 
 ## Commands
 
@@ -8,6 +8,7 @@ Household Hub: an offline-first, event-sourced PWA for household finances (PHP o
 npm run dev                # Vite + local Supabase
 npm run build              # tsc -b + vite build
 npm run lint               # eslint .
+npm run knip               # unused files, exports, deps; stale ignores fail (knip.jsonc)
 npx vitest run             # unit tests (bare `npm test` is watch mode)
 npm run test:e2e:smoke     # chromium smoke; rebuilds dist/ first
 npm run size               # bundle budget (378 KB gz)
@@ -44,7 +45,7 @@ Always ask: what happens offline, and what happens when two devices edit the sam
 ## Git hooks
 
 - **pre-commit:** lint-staged runs `eslint --fix` and Prettier on staged files.
-- **pre-push:** `scripts/pre-push.mjs` runs lint (`--max-warnings=0`), `vitest run --allowOnly=false --silent`, and the two tsc programs in parallel. Pushes that change only `*.md` or `docs/**` skip it. Run it by hand with `node scripts/pre-push.mjs`.
+- **pre-push:** `scripts/pre-push.mjs` runs lint (`--max-warnings=0`), `vitest run --allowOnly=false --silent`, the two tsc programs, and Knip in parallel. Pushes that change only `*.md` or `docs/**` skip it. Run it by hand with `node scripts/pre-push.mjs`.
 - **Claude Code hooks** (`.claude/settings.json`): a Bash guard blocks force pushes, `supabase db push`, and recursive deletes outside the repo; a Stop hook lints and type-checks changed files with `--max-warnings=0`.
 - `git push` over SSH hangs from Claude's shell (passphrase prompt). Ask the user to run it with `!`.
 

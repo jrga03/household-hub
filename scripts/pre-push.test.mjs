@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { isDocsOnly, parsePushedRefs, readPushInput, shouldSkipChecks } from "./pre-push.mjs";
+import {
+  CHECKS,
+  isDocsOnly,
+  parsePushedRefs,
+  readPushInput,
+  shouldSkipChecks,
+} from "./pre-push.mjs";
 
 const SHA_A = "a".repeat(40);
 const SHA_B = "b".repeat(40);
@@ -81,5 +87,15 @@ describe("readPushInput", () => {
 
   it("returns an empty string when reading stdin throws", () => {
     expect(readPushInput({ isTTY: false, fd: -1 })).toBe("");
+  });
+});
+
+describe("CHECKS", () => {
+  it("runs knip with config hints as errors", () => {
+    expect(CHECKS.find((check) => check.name === "knip")).toEqual({
+      name: "knip",
+      command: "npm",
+      args: ["run", "knip"],
+    });
   });
 });

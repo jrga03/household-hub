@@ -12,6 +12,7 @@ export const CHECKS = [
   { name: "unit tests", command: "npx", args: ["vitest", "run", "--allowOnly=false", "--silent"] },
   { name: "tsc src", command: "npx", args: ["tsc", "--noEmit", "-p", "tsconfig.json"] },
   { name: "tsc tests", command: "npx", args: ["tsc", "--noEmit", "-p", "tsconfig.tests.json"] },
+  { name: "knip", command: "npm", args: ["run", "knip"] },
 ];
 
 export function isDocsOnly(files) {

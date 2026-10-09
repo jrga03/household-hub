@@ -9,7 +9,7 @@ Automated code quality checks via Husky git hooks. Ensures consistent formatting
 **2 active hooks:**
 
 - **`pre-commit`** - Runs Prettier formatting on staged files via lint-staged
-- **`pre-push`** - Runs `scripts/pre-push.mjs`: lint, unit tests (`--allowOnly=false --silent`), and every tsc program in parallel; skips pushes that change only `*.md` or `docs/**`
+- **`pre-push`** - Runs `scripts/pre-push.mjs`: lint, unit tests (`--allowOnly=false --silent`), and every tsc program, and Knip in parallel; skips pushes that change only `*.md` or `docs/**`
 
 **Infrastructure files:**
 
