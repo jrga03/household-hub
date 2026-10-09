@@ -424,3 +424,8 @@ git commit -m "ci(knip): blocking knip job and pre-push check"
 - **`workers/push-notifier` is its own Knip workspace (verified 2026-10-09).** Knip 6.40.0 accepts it without npm workspaces; `web-push` then resolves against the worker's manifest. `wrangler` is ignored there because the worker's `node_modules` is not installed in this repo.
 - **Nanoid ban stays off test files.** Why: tests are already outside every `no-restricted-imports` block; Knip's unlisted check catches a test importing `nanoid` once nothing lists it.
 - **`e2e` CI job also needs `knip`.** Why: matches how it already waits on lint, typecheck, unit tests and build.
+- **Plan approved with defaults; execution is subagent-driven (decided 2026-10-09).** The user accepted ignoring the `csv-importer.ts` helpers (above) and chose superpowers:subagent-driven-development, as in 3a.
+
+## Resume state
+
+- 2026-10-09: plan approved, not started (Task 0 next). Not verified: whether Knip 6.40.0 honors `/** @public */` and `/** @alias */` (Task 4 has the `ignoreIssues` fallback).
