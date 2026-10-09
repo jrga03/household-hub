@@ -55,34 +55,6 @@ export type OperationType = "create" | "update" | "delete";
 export type VectorClock = Record<string, number>;
 
 /**
- * Lamport clock value (monotonic counter per entity)
- *
- * Per-entity logical timestamp that increments with each event.
- * Provides total ordering of events within a single entity.
- */
-export type LamportClock = number;
-
-/**
- * Per-entity clock state stored in meta table
- *
- * Tracks both lamport and vector clocks for a specific entity.
- * Stored in Dexie meta table with key format: `clock:${entityId}`
- */
-export interface EntityClockState {
-  /** Entity ID this clock state belongs to */
-  entityId: string;
-
-  /** Current lamport clock value (monotonic counter) */
-  lamportClock: number;
-
-  /** Current vector clock (per-device counters) */
-  vectorClock: VectorClock;
-
-  /** Last update timestamp (ISO string) */
-  updatedAt: string;
-}
-
-/**
  * Sync queue operation payload
  *
  * Contains the operation details and metadata needed for sync
@@ -196,92 +168,6 @@ export interface SyncQueueItem {
    * retrying (review SYNC-09).
    */
   next_retry_at?: string | null;
-}
-
-/**
- * Sync queue insert data
- *
- * Fields required to create a new sync queue item.
- * Omits auto-generated fields (id, timestamps).
- */
-export interface SyncQueueInsert {
-  /**
-   * Household scope (optional - defaults to MVP household)
-   *
-   * If omitted, database applies default: '00000000-0000-0000-0000-000000000001'
-   */
-  household_id?: string;
-
-  /** Type of entity being synced */
-  entity_type: EntityType;
-
-  /** ID of entity being synced (may be temporary offline ID) */
-  entity_id: string;
-
-  /** Operation details */
-  operation: SyncQueueOperation;
-
-  /** Device that created this queue item */
-  device_id: string;
-
-  /** User who owns this queue item */
-  user_id: string;
-
-  /** Queue state (optional - defaults to 'queued') */
-  status?: SyncQueueStatus;
-
-  /** Number of sync attempts (optional - defaults to 0) */
-  retry_count?: number;
-
-  /** Maximum retry attempts (optional - defaults to 3) */
-  max_retries?: number;
-
-  /** Error message if sync failed */
-  error_message?: string | null;
-}
-
-/**
- * Sync queue update data
- *
- * Fields that can be updated on a sync queue item.
- */
-export interface SyncQueueUpdate {
-  /** Queue state */
-  status?: SyncQueueStatus;
-
-  /** Number of sync attempts */
-  retry_count?: number;
-
-  /** Maximum retry attempts */
-  max_retries?: number;
-
-  /** Error message if sync failed */
-  error_message?: string | null;
-
-  /** When sync completed successfully */
-  synced_at?: string | null;
-}
-
-/**
- * Sync queue filters
- *
- * Common filters for querying sync queue items.
- */
-export interface SyncQueueFilters {
-  /** Filter by status */
-  status?: SyncQueueStatus;
-
-  /** Filter by device ID */
-  device_id?: string;
-
-  /** Filter by entity type */
-  entity_type?: EntityType;
-
-  /** Filter by entity ID */
-  entity_id?: string;
-
-  /** Filter by user ID */
-  user_id?: string;
 }
 
 // The Conflict/ConflictDetectionResult/ConflictStats/ClockComparison types

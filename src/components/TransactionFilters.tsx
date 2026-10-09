@@ -415,16 +415,3 @@ export function TransactionFiltersPanel({ filters, onFiltersChange }: Transactio
     </div>
   );
 }
-
-/**
- * TransactionFilters — backward-compatible wrapper that adds card chrome.
- * Use {@link TransactionFiltersPanel} directly when embedding inside another
- * container (rail, sheet) where the outer chrome would double up.
- */
-export function TransactionFilters(props: TransactionFiltersProps) {
-  return (
-    <div className="rounded-lg border bg-card p-4">
-      <TransactionFiltersPanel {...props} />
-    </div>
-  );
-}

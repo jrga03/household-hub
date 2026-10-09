@@ -87,33 +87,3 @@ export function calculateRetryDelay(
 
   return capped + jitter;
 }
-
-/**
- * Sleep utility for async delays
- *
- * Returns a promise that resolves after the specified milliseconds.
- * Used with await to pause execution during retry backoff.
- *
- * @param ms - Milliseconds to sleep
- * @returns Promise that resolves after delay
- *
- * @example
- * const delay = calculateRetryDelay(1);
- * await sleep(delay); // Wait ~2 seconds before retry
- * await processItem(item); // Retry the operation
- *
- * @example
- * // Manual retry loop
- * for (let retry = 0; retry < 3; retry++) {
- *   try {
- *     await processItem(item);
- *     break; // Success - exit loop
- *   } catch (error) {
- *     const delay = calculateRetryDelay(retry);
- *     await sleep(delay); // Wait before next retry
- *   }
- * }
- */
-export function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}

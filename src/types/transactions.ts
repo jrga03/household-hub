@@ -95,47 +95,6 @@ export interface Transaction {
 }
 
 /**
- * Transaction insert data
- * Used when creating new transactions
- */
-export interface TransactionInsert {
-  household_id?: string;
-  date: string; // "YYYY-MM-DD" format
-  description: string;
-  amount_cents: Cents; // Must be positive
-  type: TransactionType;
-  account_id?: string | null;
-  category_id?: string | null;
-  transfer_group_id?: string | null;
-  debt_id?: string | null; // Optional link to external debt
-  internal_debt_id?: string | null; // Optional link to internal debt
-  status?: TransactionStatus;
-  visibility?: TransactionVisibility;
-  created_by_user_id?: string;
-  tagged_user_ids?: string[];
-  notes?: string | null;
-}
-
-/**
- * Transaction update data
- * Used when modifying existing transactions
- * Note: Cannot update transfer_group_id after creation
- */
-export interface TransactionUpdate {
-  date?: string;
-  description?: string;
-  amount_cents?: Cents;
-  type?: TransactionType;
-  account_id?: string | null;
-  category_id?: string | null;
-  debt_id?: string | null; // Optional link to external debt
-  internal_debt_id?: string | null; // Optional link to internal debt
-  status?: TransactionStatus;
-  notes?: string | null;
-  tagged_user_ids?: string[];
-}
-
-/**
  * Transaction filter parameters
  * Used for querying transactions with various filters
  *
@@ -153,41 +112,6 @@ export interface TransactionFilters {
   excludeTransfers?: boolean; // CRITICAL: Default true for analytics/budgets
   amountMin?: Cents;
   amountMax?: Cents;
-}
-
-/**
- * Transfer pair helper
- * Represents the two linked transactions that make up a transfer
- *
- * CRITICAL CONSTRAINTS:
- * - from_transaction.type must be 'expense'
- * - to_transaction.type must be 'income'
- * - Both must have same amount_cents
- * - Both must have same transfer_group_id
- *
- * @example
- * const transfer: TransferPair = {
- *   from_transaction: {
- *     description: 'Transfer to Savings',
- *     amount_cents: 50000,
- *     type: 'expense',
- *     account_id: checking_account_id,
- *     transfer_group_id: transfer_id
- *   },
- *   to_transaction: {
- *     description: 'Transfer from Checking',
- *     amount_cents: 50000,
- *     type: 'income',
- *     account_id: savings_account_id,
- *     transfer_group_id: transfer_id
- *   },
- *   transfer_group_id: transfer_id
- * }
- */
-export interface TransferPair {
-  from_transaction: TransactionInsert;
-  to_transaction: TransactionInsert;
-  transfer_group_id: string;
 }
 
 /**

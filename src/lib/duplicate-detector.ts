@@ -105,18 +105,3 @@ export interface DuplicateMatch {
   /** Confidence score (0-1, 1 = exact match) */
   confidence: number;
 }
-
-/**
- * Duplicate resolution action types
- */
-export type DuplicateAction = "skip" | "keep-both" | "replace";
-
-/**
- * User's resolution for a specific duplicate
- */
-export interface DuplicateResolution {
-  /** The duplicate match to resolve */
-  match: DuplicateMatch;
-  /** Action chosen by user */
-  action: DuplicateAction;
-}

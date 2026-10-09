@@ -32,7 +32,6 @@
  * @module lib/device-registration
  */
 
-import { supabase } from "./supabase";
 import { deviceManager } from "./dexie/deviceManager";
 
 /**
@@ -117,99 +116,4 @@ export function triggerDeviceLastSeenUpdate(): void {
     console.warn("Failed to trigger last_seen update:", error);
     // Non-critical error, app continues
   });
-}
-
-/**
- * Deactivate device (soft delete)
- *
- * Preserves device record for audit trail but marks as inactive.
- * Inactive devices should not create new events (enforced in chunk 030).
- *
- * Why soft delete instead of hard delete?
- * - Preserves event attribution history
- * - Maintains referential integrity for sync_queue.device_id
- * - Allows users to review past device activity
- * - Enables re-activation if needed
- *
- * RLS Policy: Users can only deactivate their own devices
- *
- * Error handling:
- * - Logs error to console
- * - Throws error (caller should handle)
- *
- * Future enhancement: Supabase function to auto-deactivate devices
- * inactive >90 days (prevents unbounded growth).
- *
- * @param deviceId Device ID to deactivate
- * @throws Error if Supabase update fails
- *
- * @example
- * // In device management UI (future chunk)
- * async function handleRemoveDevice(deviceId: string) {
- *   try {
- *     await deactivateDevice(deviceId);
- *     toast.success("Device removed");
- *   } catch (error) {
- *     toast.error("Failed to remove device");
- *   }
- * }
- */
-export async function deactivateDevice(deviceId: string): Promise<void> {
-  const { error } = await supabase
-    .from("devices")
-    .update({
-      is_active: false,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", deviceId);
-
-  if (error) {
-    console.error("Failed to deactivate device:", error);
-    throw error;
-  }
-
-  console.log("Device deactivated:", deviceId);
-}
-
-/**
- * Check if device is registered and active
- *
- * Used to verify device status before allowing sync operations.
- * Inactive devices should not create new events (enforced in chunk 030).
- *
- * Query optimization: Single SELECT with device ID (primary key lookup = instant)
- *
- * Error handling:
- * - Returns false on error (conservative: assume inactive if unsure)
- * - Warns to console for debugging
- * - Never throws (non-critical check)
- *
- * @param deviceId Device ID to check
- * @returns true if device exists and is active, false otherwise
- *
- * @example
- * // Before creating event (chunk 030)
- * const isActive = await isDeviceActive(deviceId);
- * if (!isActive) {
- *   throw new Error("Cannot create events from inactive device");
- * }
- */
-export async function isDeviceActive(deviceId: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabase
-      .from("devices")
-      .select("is_active")
-      .eq("id", deviceId)
-      .single();
-
-    if (error) {
-      console.warn("Failed to check device status:", error);
-      return false;
-    }
-
-    return data?.is_active ?? false;
-  } catch (error) {
-    console.warn("Error checking device status:", error);
-    return false;
-  }
 }

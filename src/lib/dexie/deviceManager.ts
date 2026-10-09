@@ -548,37 +548,3 @@ export const deviceManager = new DeviceManager();
 export async function getDeviceId(): Promise<string> {
   return deviceManager.getDeviceId();
 }
-
-/**
- * Clears the stored device ID (backward compatible wrapper).
- *
- * @returns Promise that resolves when all storage is cleared
- * @example
- * await clearDeviceId();
- */
-export async function clearDeviceId(): Promise<void> {
-  return deviceManager.clearDeviceId();
-}
-
-/**
- * Checks if a device ID exists without generating a new one.
- *
- * This is a lightweight check that only looks at localStorage for
- * backward compatibility with existing code.
- *
- * @returns true if device ID exists in any storage, false otherwise
- * @example
- * if (hasDeviceId()) {
- *   console.log("This device is already registered");
- * }
- */
-export function hasDeviceId(): boolean {
-  // Check localStorage first (fastest)
-  const localStorageId = localStorage.getItem(DEVICE_ID_KEY);
-  if (localStorageId) return true;
-
-  // Note: We don't check IndexedDB here because it's async and this needs
-  // to be synchronous for backward compatibility. The actual getDeviceId()
-  // call will check IndexedDB properly.
-  return false;
-}

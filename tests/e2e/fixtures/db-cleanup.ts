@@ -50,18 +50,6 @@ export async function deleteTestTransactions(descriptions: string[]) {
   if (error) console.error("Failed to delete test transactions:", error);
 }
 
-/**
- * Delete every [E2E] transaction. Full sweep for cleanupAll only; never call
- * it from a per-test hook.
- */
-export async function cleanupTestTransactions(userId?: string) {
-  if (!adminClient) return;
-  const query = adminClient.from("transactions").delete().ilike("description", "%[E2E]%");
-  if (userId) query.eq("created_by_user_id", userId);
-  const { error } = await query;
-  if (error) console.error("Failed to cleanup test transactions:", error);
-}
-
 export interface TestCategory {
   parentId: string;
   childId: string;
@@ -146,26 +134,6 @@ export async function getTestBudget(categoryId: string) {
 }
 
 /**
- * Delete budgets on every [E2E] category. Full sweep for cleanupAll only;
- * per-test hooks rely on deleteTestCategory cascading to budgets.
- */
-export async function cleanupTestBudgets() {
-  if (!adminClient) return;
-  const { data: categories, error: lookupError } = await adminClient
-    .from("categories")
-    .select("id")
-    .ilike("name", "%[E2E]%");
-  if (lookupError) {
-    console.error("Failed to look up test budget categories:", lookupError);
-    return;
-  }
-  const categoryIds = (categories ?? []).map((category) => category.id);
-  if (categoryIds.length === 0) return;
-  const { error } = await adminClient.from("budgets").delete().in("category_id", categoryIds);
-  if (error) console.error("Failed to cleanup test budgets:", error);
-}
-
-/**
  * Delete test transfers by finding paired transactions with "[E2E]" prefix
  */
 export async function cleanupTestTransfers(userId?: string) {
@@ -197,23 +165,4 @@ export async function cleanupTestCategories() {
     .delete()
     .or("name.ilike.%[E2E]%,name.ilike.Test Category%");
   if (error) console.error("Failed to cleanup test categories:", error);
-}
-
-/**
- * Full cleanup of all test data
- */
-export async function cleanupAll(userId?: string) {
-  await cleanupTestTransfers(userId);
-  await cleanupTestTransactions(userId);
-  await cleanupTestBudgets();
-  await cleanupTestCategories();
-}
-
-/**
- * Look up user ID by email for cleanup scoping
- */
-export async function getTestUserId(email: string): Promise<string | null> {
-  if (!adminClient) return null;
-  const { data } = await adminClient.from("profiles").select("id").eq("email", email).single();
-  return data?.id ?? null;
 }

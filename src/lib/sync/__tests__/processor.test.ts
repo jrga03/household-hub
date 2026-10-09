@@ -12,7 +12,6 @@ vi.mock("@/lib/supabase", () => {
 
 vi.mock("@/lib/sync/retry", () => ({
   calculateRetryDelay: vi.fn(() => 60_000), // predictable next_retry_at in tests
-  sleep: vi.fn().mockResolvedValue(undefined),
 }));
 
 // ─── Imports (after mocks) ──────────────────────

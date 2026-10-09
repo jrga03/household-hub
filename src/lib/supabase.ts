@@ -20,4 +20,5 @@ export const supabase = createClient<AppDatabase>(supabaseUrl, supabaseAnonKey, 
 // table at runtime (the sync processor writes queue payloads; ensureLocalRow
 // fetches by table name). A union of table names cannot select one typed
 // overload, and queue payloads are JSON whose shape is fixed where it is built.
+/** @alias */
 export const untypedSupabase: SupabaseClient = supabase;

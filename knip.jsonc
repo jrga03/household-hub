@@ -3,7 +3,7 @@
   "workspaces": {
     ".": {
       // Vite, Vitest, Playwright, Husky and lint-staged are auto-detected; these entries are not.
-      "entry": ["src/sw.ts", "supabase/functions/*/index.ts", "scripts/*.{mjs,js,cjs}"],
+      "entry": ["supabase/functions/*/index.ts", "scripts/*.{mjs,js,cjs}"],
       "ignore": [
         // One-off importer reading a local spreadsheet; xlsx is deliberately not installed.
         // Revisit: delete when the category seed no longer needs regenerating.
@@ -25,7 +25,6 @@
       "ignoreDependencies": ["@tanstack/react-table"],
     },
     "workers/push-notifier": {
-      "entry": ["src/index.ts"],
       // The worker's node_modules is not installed in this repo; it is deployed by hand with wrangler.
       "ignoreBinaries": ["wrangler"],
       "ignoreDependencies": ["wrangler"],

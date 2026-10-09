@@ -11,23 +11,6 @@ export interface Category {
   updated_at: string;
 }
 
-export interface CategoryInsert {
-  household_id?: string; // Auto-populated from database default or user session
-  parent_id?: string | null;
-  name: string;
-  color?: string;
-  icon?: string;
-  sort_order?: number;
-}
-
-export interface CategoryUpdate {
-  name?: string;
-  color?: string;
-  icon?: string;
-  sort_order?: number;
-  is_active?: boolean;
-}
-
 export interface CategoryWithChildren extends Category {
   children: Category[];
 }

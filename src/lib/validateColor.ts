@@ -62,49 +62,6 @@ export function sanitizeHexColor(color: string | null | undefined): string {
 }
 
 /**
- * Type guard for valid hex colors.
- * Useful in TypeScript for narrowing types based on validation.
- *
- * @param color - Color string to check
- * @returns True if color is a valid hex format
- *
- * @example
- * const color = getCategoryColor();
- * if (isValidHexColor(color)) {
- *   // TypeScript knows color is valid here
- *   applyColor(color);
- * } else {
- *   // Handle invalid color
- *   applyColor(DEFAULT_COLOR);
- * }
- */
-export function isValidHexColor(color: string): boolean {
-  const hexPattern = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
-  return hexPattern.test(color);
-}
-
-/**
- * Validates color and throws descriptive error if invalid.
- * Useful for form validation where you want to show specific errors to users.
- *
- * @param color - Color string to validate
- * @throws {Error} If color format is invalid
- *
- * @example
- * try {
- *   validateColorOrThrow(userInput);
- *   await saveCategory({ color: userInput });
- * } catch (error) {
- *   setFormError(error.message);
- * }
- */
-export function validateColorOrThrow(color: string): void {
-  if (!isValidHexColor(color)) {
-    throw new Error(`Invalid color format: "${color}". Expected hex format like #FF5733 or #F37`);
-  }
-}
-
-/**
  * Re-export default color for convenience
  */
 export { DEFAULT_COLOR };

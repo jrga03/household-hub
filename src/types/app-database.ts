@@ -41,6 +41,7 @@ export type SameKeys<A, B> = [keyof A] extends [keyof B]
   : false;
 
 // Fails tsc when `transactions` gains or loses a column that the view has not been recreated to match.
+/** @public */
 export const transactionsViewKeysMatchTable: SameKeys<
   NonTransferView["Row"],
   Public["Tables"]["transactions"]["Row"]

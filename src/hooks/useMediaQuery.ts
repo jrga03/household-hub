@@ -75,28 +75,3 @@ export function useIsMobile(): boolean {
 export function useIsTablet(): boolean {
   return useMediaQuery("(min-width: 768px) and (max-width: 1023px)");
 }
-
-export function useIsDesktop(): boolean {
-  return useMediaQuery("(min-width: 1024px)");
-}
-
-export function useIsLargeDesktop(): boolean {
-  return useMediaQuery("(min-width: 1280px)");
-}
-
-/**
- * Hook that returns the current breakpoint
- * Useful for conditional rendering based on screen size
- */
-export type Breakpoint = "mobile" | "tablet" | "desktop" | "largeDesktop";
-
-export function useBreakpoint(): Breakpoint {
-  const isMobile = useIsMobile();
-  const isTablet = useIsTablet();
-  const isLargeDesktop = useIsLargeDesktop();
-
-  if (isMobile) return "mobile";
-  if (isTablet) return "tablet";
-  if (isLargeDesktop) return "largeDesktop";
-  return "desktop";
-}

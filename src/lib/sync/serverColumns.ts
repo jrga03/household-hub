@@ -28,6 +28,7 @@ export const TRANSACTION_COLUMNS = [
 ] as const;
 
 // Fails tsc when the transactions table gains or loses a column that this list does not match.
+/** @public */
 export const transactionColumnsMatchTable: SameKeys<
   Record<(typeof TRANSACTION_COLUMNS)[number], unknown>,
   TransactionInsert

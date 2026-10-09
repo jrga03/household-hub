@@ -22,11 +22,6 @@
 export const MAX_AMOUNT_CENTS = 999999999;
 
 /**
- * Currency code for MVP (only PHP supported)
- */
-export const CURRENCY_CODE = "PHP";
-
-/**
  * Peso sign character
  */
 export const PESO_SIGN = "₱";
