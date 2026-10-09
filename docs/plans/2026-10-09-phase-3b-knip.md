@@ -39,12 +39,12 @@
 
 ## Progress
 
-- [ ] Task 0: Branch
-- [ ] Task 1: Knip config and script
-- [ ] Task 2: Dependencies and the nanoid ban
-- [ ] Task 3: Dead files
-- [ ] Task 4: Dead exports and types
-- [ ] Task 5: Blocking gate in CI and pre-push
+- [x] Task 0: Branch
+- [x] Task 1: Knip config and script
+- [x] Task 2: Dependencies and the nanoid ban
+- [x] Task 3: Dead files
+- [x] Task 4: Dead exports and types
+- [x] Task 5: Blocking gate in CI and pre-push
 - [ ] Task 6: Acceptance
 
 ---
@@ -408,14 +408,16 @@ git commit -m "ci(knip): blocking knip job and pre-push check"
 
 ### Task 6: Acceptance
 
-- [ ] **Step 1:** `npm ci` (fresh install from the lockfile), then every gate: both tsc, `npm run lint -- --max-warnings=0`, `npx vitest run`, `npm run knip`, `npm run build`, `npm run size`. Expected: all exit 0; size within 0.1 KB of 374.7 KB (unused files were never bundled).
-- [ ] **Step 2:** `supabase start` if not running, then `PW_TEST_HTML_REPORT_OPEN=never npm run test:e2e:smoke`. Expected: 11/11 passed (the e2e fixtures changed in Tasks 3-4).
-- [ ] **Step 3:** Record results under Acceptance results (exact counts and the size line), check off the roadmap item `- [ ] Knip in CI, blocking` in `docs/plans/2026-09-30-guardrails-roadmap.md`, and add a Resume state bullet.
+- [x] **Step 1:** `npm ci` (fresh install from the lockfile), then every gate: both tsc, `npm run lint -- --max-warnings=0`, `npx vitest run`, `npm run knip`, `npm run build`, `npm run size`. Expected: all exit 0; size within 0.1 KB of 374.7 KB (unused files were never bundled).
+- [x] **Step 2:** `supabase start` if not running, then `PW_TEST_HTML_REPORT_OPEN=never npm run test:e2e:smoke`. Expected: 11/11 passed (the e2e fixtures changed in Tasks 3-4).
+- [x] **Step 3:** Record results under Acceptance results (exact counts and the size line), check off the roadmap item `- [ ] Knip in CI, blocking` in `docs/plans/2026-09-30-guardrails-roadmap.md`, and add a Resume state bullet.
 - [ ] **Step 4:** Whole-branch review (superpowers:requesting-code-review), fixes, then merge to `main` by fast-forward. The user pushes; confirm the CI `knip` job and Security Checks are green and record run IDs.
 
 ## Acceptance results
 
-(filled in Task 6)
+- Task 5 red checks (2026-10-09, not committed): probe export `knipProbe` in `src/lib/utils.ts` → "Unused exports (1)" `knipProbe src/lib/utils.ts:7:14`, exit=1. Stale ignore `src/does-not-exist.ts` → "Configuration hints (1)" `src/does-not-exist.ts knip.jsonc Remove from ignore`, exit=1.
+- Task 5 pre-push: `node scripts/pre-push.mjs < /dev/null` exit=0 with pass lines for lint, unit tests, tsc src, tsc tests, knip.
+- Task 6 acceptance on dc71813 (2026-10-09, after fresh `npm ci` exit 0): `tsc -p tsconfig.json` exit 0; `tsc -p tsconfig.tests.json` exit 0; `npm run lint -- --max-warnings=0` exit 0; `npx vitest run` 97 files passed / 1 skipped, 1282 tests passed / 1 skipped; `npm run knip` exit 0; `npm run build` exit 0; `npm run size` "374.6 KB gz TOTAL (budget: 378 KB) ✅ Within budget."; `PW_TEST_HTML_REPORT_OPEN=never npm run test:e2e:smoke` exit 0, "11 passed (10.8s)".
 
 ## Decisions & Deferrals
 
@@ -425,7 +427,14 @@ git commit -m "ci(knip): blocking knip job and pre-push check"
 - **Nanoid ban stays off test files.** Why: tests are already outside every `no-restricted-imports` block; Knip's unlisted check catches a test importing `nanoid` once nothing lists it.
 - **`e2e` CI job also needs `knip`.** Why: matches how it already waits on lint, typecheck, unit tests and build.
 - **Plan approved with defaults; execution is subagent-driven (decided 2026-10-09).** The user accepted ignoring the `csv-importer.ts` helpers (above) and chose superpowers:subagent-driven-development, as in 3a.
+- **Redundant `entry` patterns removed from `knip.jsonc` (Task 4, 2026-10-09).** Knip 6.40.0 printed "Remove redundant entry pattern" hints for `src/sw.ts` and the worker's `src/index.ts` once the report was otherwise empty (hints did not appear in the Task 1 baseline), and `--treat-config-hints-as-errors` fails on them. Both are auto-detected (controller probe: an export appended to `src/sw.ts` is not reported, so it is still an entry). Revisit: if either file moves.
+- **`/** @public */` and `/** @alias */` work in Knip 6.40.0 (Task 4).** No `ignoreIssues` fallback needed for `supabase.ts`.
+- **Task 4 cascades deleted (fix rule, no references left):** `useIsLargeDesktop`, `isValidHexColor`, `cleanupTestTransactions`, `cleanupTestBudgets`, `DuplicateAction`, `EntityType`, `EventOp`, `TransactionInsert`.
+- **Final review (opus, 2026-10-09): ready with fixes, no Critical/Important.** Compactor id change is safe offline and across devices: snapshots live only in Dexie `events` (never synced), nothing parses event id format, old nanoid ids coexist. Fixed before merge (recommended defaults): deleted `src/lib/types/` (README-only), dead `dropdown-menu` CSS selectors, stale README lines, `.husky/README.md` double "and" (plan wording), pre-push test renamed plus a `--treat-config-hints-as-errors` assertion, two comments, nanoid probes for `src/lib/validations` and `src/lib/dexie`.
+- **Deferred: lockfile drift (final review).** Knip's install bumped dev-only `yaml` 2.8.3→2.9.1 and `package-manager-detector` 1.4.0→1.9.0; eslint 9.39.3 keeps a nested `@eslint/js` 9.39.3 while the top-level devDep is 9.39.5. Why: dev-only, patch/minor, gates green after `npm ci`. Revisit: next eslint bump (they converge).
+- **Deferred: docs under `docs/initial plan/` still name deleted symbols** (`useBudgets`, `deactivateDevice`, `mergeLamportClock`, `validateColorOrThrow`). Why: historical design records. Revisit: if those docs are refreshed.
 
 ## Resume state
 
 - 2026-10-09: plan approved, not started (Task 0 next). Not verified: whether Knip 6.40.0 honors `/** @public */` and `/** @alias */` (Task 4 has the `ignoreIssues` fallback).
+- 2026-10-09: executed subagent-driven. Tasks 0-5 reviewed clean (commits e5c9b50, f1be427, f3e7ae0, 8d7bf65, dc71813); whole-branch review (opus) ready with fixes, fixes in 0aa7d24 re-reviewed by the controller; final pre-push on 0aa7d24 five passes incl. knip. Fast-forwarded to `main` locally, not pushed. Next: user pushes `main` with `!`, then confirm CI (incl. the `knip` job) and Security Checks green, record run IDs, and tick Task 6.
