@@ -36,7 +36,6 @@
 import { db } from "@/lib/dexie/db";
 import type { TransactionEvent } from "@/lib/dexie/db";
 import type { VectorClock } from "@/types/event";
-import { nanoid } from "nanoid";
 import { useSyncStore } from "@/stores/syncStore";
 
 // Inlined from the removed lib/vector-clock.ts (Phase B conflict stack):
@@ -241,7 +240,7 @@ export class EventCompactor {
 
     // Create snapshot event
     const snapshotEvent: TransactionEvent = {
-      id: nanoid(),
+      id: crypto.randomUUID(),
       household_id: firstEvent.household_id,
       entity_id: entityId,
       entity_type: firstEvent.entity_type,

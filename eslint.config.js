@@ -526,7 +526,10 @@ export default [
     rules: {
       "no-restricted-imports": [
         "error",
-        { patterns: [restrictSupabase, restrictAsCents, restrictWritableDb] },
+        {
+          paths: [restrictNanoid],
+          patterns: [restrictSupabase, restrictAsCents, restrictWritableDb],
+        },
       ],
     },
   },
@@ -540,14 +543,20 @@ export default [
       "src/components/**",
     ],
     rules: {
-      "no-restricted-imports": ["error", { patterns: [restrictAsCents, restrictWritableDb] }],
+      "no-restricted-imports": [
+        "error",
+        { paths: [restrictNanoid], patterns: [restrictAsCents, restrictWritableDb] },
+      ],
     },
   },
   {
     files: asCentsAllowed,
     ignores: srcTestFiles,
     rules: {
-      "no-restricted-imports": ["error", { patterns: [restrictWritableDb] }],
+      "no-restricted-imports": [
+        "error",
+        { paths: [restrictNanoid], patterns: [restrictWritableDb] },
+      ],
     },
   },
   {
@@ -561,7 +570,7 @@ export default [
     files: ["src/lib/sync/**/*.ts", "src/lib/dexie/**/*.ts"],
     ignores: srcTestFiles,
     rules: {
-      "no-restricted-imports": ["error", { patterns: [restrictAsCents] }],
+      "no-restricted-imports": ["error", { paths: [restrictNanoid], patterns: [restrictAsCents] }],
     },
   },
   prettier,

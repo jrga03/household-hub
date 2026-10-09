@@ -13,7 +13,6 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { eventCompactor } from "../eventCompactor";
 import { db } from "@/lib/dexie/db";
 import type { TransactionEvent } from "@/lib/dexie/db";
-import { nanoid } from "nanoid";
 
 // ============================================================================
 // Test Helpers
@@ -36,7 +35,7 @@ function createTestEvent(
   payload: Record<string, unknown>
 ): TransactionEvent {
   return {
-    id: nanoid(),
+    id: crypto.randomUUID(),
     household_id: "test-household",
     entity_id: entityId,
     entity_type: "transaction",
@@ -392,6 +391,10 @@ describe("EventCompactor - Snapshot Creation", () => {
 
     // Verify idempotencyKey starts with "snapshot-"
     expect(snapshot?.idempotency_key).toMatch(/^snapshot-/);
+    // Snapshot ids are server ids: transaction_events.id is a UUID column
+    expect(snapshot?.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+    );
 
     // Verify payload contains final state
     const snapshotPayload = snapshot?.payload as Record<string, unknown>;
