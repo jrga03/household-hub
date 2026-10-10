@@ -42,10 +42,22 @@ vi.mock("@/lib/dexie/deviceManager", () => ({
   getDeviceId: vi.fn().mockResolvedValue("this-device"),
 }));
 vi.mock("@/lib/sentry", () => ({ reportError: vi.fn() }));
+vi.mock("@/lib/debts/reconcile", () => ({
+  reconcileDebtLedger: vi.fn().mockResolvedValue({ reversedPaymentIds: [] }),
+}));
+vi.mock("@/stores/authStore", () => ({
+  useAuthStore: { getState: () => ({ user: { id: "user-1" } }) },
+}));
+vi.mock("@/lib/sync/processor", () => ({
+  syncProcessor: {
+    processQueue: vi.fn().mockResolvedValue({ synced: 0, failed: 0, terminalFailures: 0 }),
+  },
+}));
 
 import { db } from "@/lib/dexie/db";
 import { RealtimeSync } from "@/lib/sync/realtime";
 import { reportError } from "@/lib/sentry";
+import { reconcileDebtLedger } from "@/lib/debts/reconcile";
 
 type ChangePayload = Parameters<ChangeHandler>[0];
 
@@ -255,6 +267,44 @@ describe("RealtimeSync row validation", () => {
 
       // Assert the local payment was not overwritten
       expect((await db.debtPayments.get("p-remote"))?.amount_cents).toBe(2500);
+    });
+  });
+
+  describe("debt ledger reconcile", () => {
+    beforeEach(async () => {
+      catchUpRows.clear();
+      vi.mocked(reconcileDebtLedger).mockClear();
+      await db.meta.clear();
+    });
+
+    it("reconciles the transactions and payments a catch-up pulled", async () => {
+      catchUpRows.set("transactions", [serverTransaction]);
+      catchUpRows.set("debt_payments", [serverPayment]);
+
+      await new RealtimeSync().handleReconnection();
+
+      expect(reconcileDebtLedger).toHaveBeenCalledWith(
+        { transactionIds: ["t-remote"], paymentIds: ["p-remote"] },
+        "user-1"
+      );
+    });
+
+    it("skips reconcile when the pull brought no ledger rows", async () => {
+      await new RealtimeSync().handleReconnection();
+      expect(reconcileDebtLedger).not.toHaveBeenCalled();
+    });
+
+    it("reports a reconcile failure without failing the catch-up", async () => {
+      catchUpRows.set("debt_payments", [serverPayment]);
+      vi.mocked(reconcileDebtLedger).mockRejectedValueOnce(new Error("boom"));
+
+      await new RealtimeSync().handleReconnection();
+
+      expect(reportError).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({ operation: "reconcile-debts" })
+      );
+      expect((await db.meta.get("syncHighWaterMark"))?.value).toBe("2026-10-04T03:00:00Z");
     });
   });
 });

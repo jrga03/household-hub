@@ -67,6 +67,9 @@ import { syncProcessor } from "@/lib/sync/processor";
 import { useSyncStore } from "@/stores/syncStore";
 import { useAuthStore } from "@/stores/authStore";
 import { reportError } from "@/lib/sentry";
+import { reconcileDebtLedger, type PulledDebtChanges } from "@/lib/debts/reconcile";
+import { invalidateAfterWrite } from "@/lib/query-keys";
+import { queryClient } from "@/lib/queryClient";
 import { parseSyncRow, type SyncTableName } from "@/lib/validations/syncRows";
 import type { ZodIssue } from "zod";
 import type { Debt, DebtPayment, InternalDebt } from "@/types/debt";
@@ -518,7 +521,10 @@ export class RealtimeSync {
       }
 
       // Step 2: Fetch latest changes from server to catch up
-      await this.fetchLatestChanges();
+      const pulled = await this.fetchLatestChanges();
+
+      // Step 3: Repair the debt ledger and statuses the pull may have unsettled
+      if (userId) await this.reconcileAfterPull(pulled, userId);
 
       // Success - update status
       useSyncStore.getState().setStatus("online");
@@ -555,7 +561,7 @@ export class RealtimeSync {
    *
    * @private
    */
-  private async fetchLatestChanges(): Promise<void> {
+  private async fetchLatestChanges(): Promise<PulledDebtChanges> {
     const HIGH_WATER_MARK_KEY = "syncHighWaterMark";
 
     const stored = await db.meta.get(HIGH_WATER_MARK_KEY);
@@ -565,6 +571,7 @@ export class RealtimeSync {
 
     console.log(`[RealtimeSync] Fetching changes since ${since.toISOString()}`);
 
+    const pulled: PulledDebtChanges = { transactionIds: [], paymentIds: [] };
     let maxSeen = "";
     let allSucceeded = true;
 
@@ -589,6 +596,10 @@ export class RealtimeSync {
           // Merge changes into IndexedDB
           for (const record of data) {
             await this.mergeRecord(tableName, record);
+            if (typeof record.id === "string") {
+              if (tableName === "transactions") pulled.transactionIds.push(record.id);
+              if (tableName === "debt_payments") pulled.paymentIds.push(record.id);
+            }
             const seenAt = record[column] as string;
             if (seenAt > maxSeen) {
               maxSeen = seenAt;
@@ -607,6 +618,19 @@ export class RealtimeSync {
     if (allSucceeded && maxSeen) {
       await db.meta.put({ key: HIGH_WATER_MARK_KEY, value: maxSeen });
     }
+
+    return pulled;
+  }
+
+  /** A reconcile failure is reported, never allowed to fail the catch-up. */
+  private async reconcileAfterPull(pulled: PulledDebtChanges, userId: string): Promise<void> {
+    if (pulled.transactionIds.length === 0 && pulled.paymentIds.length === 0) return;
+    try {
+      await reconcileDebtLedger(pulled, userId);
+    } catch (error) {
+      reportError(error, { subsystem: "realtime-sync", operation: "reconcile-debts" });
+    }
+    invalidateAfterWrite(queryClient, ["debt_payment", "debt"]);
   }
 
   /**
