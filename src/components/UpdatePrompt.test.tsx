@@ -30,14 +30,12 @@ interface ServiceWorkerHook {
 
 const updateMock = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
 const dismissMock = vi.fn();
-const mockUseServiceWorker = vi.fn(
-  (): ServiceWorkerHook => ({
-    needRefresh: false,
-    update: updateMock,
-    dismiss: dismissMock,
-    isOffline: false,
-  })
-);
+const mockUseServiceWorker = vi.fn((): ServiceWorkerHook => ({
+  needRefresh: false,
+  update: updateMock,
+  dismiss: dismissMock,
+  isOffline: false,
+}));
 
 vi.mock("@/hooks/useServiceWorker", () => ({
   useServiceWorker: () => mockUseServiceWorker(),

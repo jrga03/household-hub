@@ -9,22 +9,29 @@ export const ACCOUNT_NAME_MAX_LENGTH = 60;
 
 export const ACCOUNT_ENTITY = "account";
 export const ACCOUNT_CREATED = "account.created";
+export const ACCOUNT_EDITED = "account.edited";
+export const ACCOUNT_RETIRED = "account.retired";
+export const ACCOUNT_UNRETIRED = "account.unretired";
 
-export interface NewAccount {
+export type AccountChangeType =
+  typeof ACCOUNT_EDITED | typeof ACCOUNT_RETIRED | typeof ACCOUNT_UNRETIRED;
+
+/** The fields a member can edit after creating the account. */
+export interface AccountDetails {
   name: string;
   type: AccountType;
   startingBalanceCents: Cents;
 }
 
-type AccountCheck = { account: NewAccount; problem: null } | { account: null; problem: string };
+type DetailsCheck = { details: AccountDetails; problem: null } | { details: null; problem: string };
 
 const isAccountType = (value: unknown): value is AccountType =>
   ACCOUNT_TYPES.some((type) => type === value);
 
-const rejected = (problem: string): AccountCheck => ({ account: null, problem });
+const rejected = (problem: string): DetailsCheck => ({ details: null, problem });
 
-/** Validates a new account from the form or from another device's event. */
-export function checkNewAccount(input: Record<string, unknown>): AccountCheck {
+/** Validates account details from a form or from another device's event. */
+export function checkAccountDetails(input: Record<string, unknown>): DetailsCheck {
   const { name, type, startingBalanceCents } = input;
   const trimmedName = typeof name === "string" ? name.trim() : "";
   if (trimmedName === "") return rejected("An account needs a name.");
@@ -43,13 +50,67 @@ export function checkNewAccount(input: Record<string, unknown>): AccountCheck {
     );
   }
   return {
-    account: { name: trimmedName, type, startingBalanceCents: asCents(startingBalanceCents) },
+    details: { name: trimmedName, type, startingBalanceCents: asCents(startingBalanceCents) },
     problem: null,
   };
 }
 
-/** An account.created payload this version can read, or null. */
+export interface NewAccount extends AccountDetails {
+  /** The account a credit card's bill is paid from; null for every other type. */
+  payingAccountId: string | null;
+}
+
+type Payload = Record<string, unknown>;
+
+/**
+ * Each event type's current version, and how to lift a payload of version N
+ * to N + 1. Events are never rewritten, so old versions are translated on read.
+ */
+const EVENT_VERSIONS: Record<
+  string,
+  { current: number; upcasts: Record<number, (payload: Payload) => Payload> }
+> = {
+  [ACCOUNT_CREATED]: {
+    current: 2,
+    upcasts: { 1: (payload) => ({ ...payload, payingAccountId: null }) },
+  },
+  [ACCOUNT_EDITED]: { current: 1, upcasts: {} },
+  [ACCOUNT_RETIRED]: { current: 1, upcasts: {} },
+  [ACCOUNT_UNRETIRED]: { current: 1, upcasts: {} },
+};
+
+export const currentVersion = (eventType: string): number =>
+  EVENT_VERSIONS[eventType]?.current ?? 0;
+
+/** The payload in its type's current version, or null for a version this app doesn't know. */
+function upcast(event: LoggedEvent): Payload | null {
+  const versions = EVENT_VERSIONS[event.eventType];
+  if (!versions || event.eventVersion < 1 || event.eventVersion > versions.current) return null;
+  let payload = event.payload;
+  for (let version = event.eventVersion; version < versions.current; version++) {
+    const lift = versions.upcasts[version];
+    if (!lift) return null;
+    payload = lift(payload);
+  }
+  return payload;
+}
+
 export function decodeAccountCreated(event: LoggedEvent): NewAccount | null {
-  if (event.eventType !== ACCOUNT_CREATED || event.eventVersion !== 1) return null;
-  return checkNewAccount(event.payload).account;
+  if (event.eventType !== ACCOUNT_CREATED) return null;
+  const payload = upcast(event);
+  if (!payload || payload.payingAccountId !== null) return null;
+  const { details } = checkAccountDetails(payload);
+  return details && { ...details, payingAccountId: null };
+}
+
+export function decodeAccountEdited(event: LoggedEvent): AccountDetails | null {
+  if (event.eventType !== ACCOUNT_EDITED) return null;
+  const payload = upcast(event);
+  return payload && checkAccountDetails(payload).details;
+}
+
+/** Whether a retire or unretire event leaves the account retired, or null for any other event. */
+export function decodeAccountRetirement(event: LoggedEvent): boolean | null {
+  if (event.eventType !== ACCOUNT_RETIRED && event.eventType !== ACCOUNT_UNRETIRED) return null;
+  return upcast(event) && event.eventType === ACCOUNT_RETIRED;
 }

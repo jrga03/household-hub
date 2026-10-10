@@ -8,7 +8,7 @@
 import Dexie from "dexie";
 import { db, type MetaRow } from "@/lib/dexie/db";
 import { reportError } from "@/lib/sentry";
-import { formatHlc, initialHlc, parseHlc, receiveHlc, tickHlc, type Hlc } from "./hlc";
+import { formatHlc, initialHlc, isHlc, parseHlc, receiveHlc, tickHlc, type Hlc } from "./hlc";
 import { projectEvent } from "./projector";
 
 const VISIBILITIES = ["household", "personal"] as const;
@@ -60,6 +60,15 @@ async function readClock(): Promise<Hlc> {
 
 const writeClock = (clock: Hlc) => db.meta.put({ key: "clock", value: formatHlc(clock) });
 
+/** Projects the entity from every event this device holds for it that has a place in time. */
+async function projectEntity(event: LoggedEvent): Promise<void> {
+  const stored = await db.events.where("entityId").equals(event.entityId).toArray();
+  const history = stored.filter(
+    (candidate) => candidate.entityType === event.entityType && isHlc(candidate.hlc)
+  );
+  await projectEvent(event, history);
+}
+
 /** Records a local change and projects it. Only commands call this (lint-enforced). */
 export function appendEvent(draft: EventDraft): Promise<LoggedEvent> {
   return db.transaction("rw", logTables(), async () => {
@@ -72,7 +81,7 @@ export function appendEvent(draft: EventDraft): Promise<LoggedEvent> {
       deviceId: clock.deviceId,
     };
     await db.events.add({ ...event, pushed: 0 });
-    await projectEvent(event);
+    await projectEntity(event);
     return event;
   });
 }
@@ -123,7 +132,7 @@ export function receiveEvents(events: LoggedEvent[], pulledThrough: number): Pro
         });
         continue;
       }
-      await projectEvent(event);
+      await projectEntity(event);
     }
     await writeClock(clock);
     if (pulledThrough > (await readPullCursor())) {

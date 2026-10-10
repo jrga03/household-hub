@@ -15,6 +15,8 @@ import {
   requestToJoin,
   type MyJoinRequest,
 } from "@/lib/join-requests";
+import { FormError } from "@/components/ui/form-error";
+import { errorMessage } from "@/lib/utils";
 
 // How often a pending requester checks whether the Owner has answered.
 const ANSWER_POLL_MS = 5_000;
@@ -59,7 +61,7 @@ export function JoinForm({ userId }: { userId: string }) {
         await requestToJoin(userId, code);
         return { error: null };
       } catch (error) {
-        return { error: error instanceof Error ? error.message : "Couldn't send the request." };
+        return { error: errorMessage(error, "Couldn't send the request.") };
       }
     },
     { error: null }
@@ -90,11 +92,7 @@ export function JoinForm({ userId }: { userId: string }) {
             />
           </div>
 
-          {state.error && (
-            <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {state.error}
-            </div>
-          )}
+          <FormError>{state.error}</FormError>
 
           <SubmitButton
             className="w-full"
@@ -170,7 +168,7 @@ function RequestCard({
     try {
       await onAction();
     } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : "Something went wrong.");
+      setError(errorMessage(actionError, "Something went wrong."));
     } finally {
       setIsWorking(false);
     }
@@ -185,11 +183,7 @@ function RequestCard({
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {error && (
-          <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-            {error}
-          </div>
-        )}
+        <FormError>{error}</FormError>
         <Button
           variant="outline"
           className="w-full"

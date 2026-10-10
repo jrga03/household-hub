@@ -16,6 +16,8 @@ import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { createHousehold } from "@/lib/households";
 import { signOutWithToast } from "@/lib/sign-out";
 import { useAuthStore } from "@/stores/authStore";
+import { FormError } from "@/components/ui/form-error";
+import { errorMessage } from "@/lib/utils";
 
 export const Route = createFileRoute("/create-or-join")({
   component: CreateOrJoinPage,
@@ -79,7 +81,7 @@ function CreateHouseholdCard({ userId }: { userId: string }) {
         return { error: null };
       } catch (error) {
         return {
-          error: error instanceof Error ? error.message : "Couldn't create the household.",
+          error: errorMessage(error, "Couldn't create the household."),
         };
       }
     },
@@ -106,11 +108,7 @@ function CreateHouseholdCard({ userId }: { userId: string }) {
             />
           </div>
 
-          {state.error && (
-            <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {state.error}
-            </div>
-          )}
+          <FormError>{state.error}</FormError>
 
           <SubmitButton
             className="w-full"

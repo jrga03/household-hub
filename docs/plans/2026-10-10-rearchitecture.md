@@ -196,9 +196,40 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #21 merged (PR #28). #18 merged (PR #29).
 - #17 merged (PR #30).
 - #22 in review: PR #31 (`rearch/22-personal-accounts`). #25 owes: keep Personal events when a household is deleted; reset the pull cursor on leaving.
-- Next: #23 (its edit form shows visibility read-only), #19, #24, #25; #20 (keep-alive cron) is independent.
+- #23 in review: branch `rearch/23-edit-retire-accounts`.
+- Next: #19, #24, #25; #20 (keep-alive cron) is independent.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
   - `supabase test db` exits 1 when `supabase/tests/` has no `.sql` files; `000_empty_baseline.sql` (asserts public has no tables) must be replaced, not just deleted, by #21's baseline tests.
   - The auto-mode classifier blocks bulk `git rm` of test files; ask the user to run large deletions with `!`.
 - Unverified: nothing outstanding from #16.
+
+## Issue #23: edit and retire accounts
+
+Seams (from the issue's acceptance criteria): account projection (Vitest, through `receiveEvents`/`listAccounts`), the edit and retire commands (Vitest), one two-context Playwright flow.
+
+- [x] Projection rebuilds an account from its own events (Dexie v3 indexes `events.entityId`): earliest create fixes visibility, owner and household; details follow the latest create or edit; retirement follows the latest retire or unretire
+- [x] Permutation tests: concurrent edits resolve to the later HLC; equal wall time falls back to the counter, then the device id; an edit before its create applies once the create arrives
+- [x] `account.created` v2 adds `payingAccountId` (null for every non-card type); v1 upcasts to v2; fixture test
+- [x] Edits whose visibility or owner differ from the account's are ignored
+- [x] Commands: `editAccount`, `retireAccount`, `unretireAccount` (offline, carry the account's visibility and owner)
+- [x] UI: edit form per account (visibility read-only), retire/unretire, retired view; balance via `formatPHP`
+- [x] Playwright: two contexts edit the same account's name offline; after sync both show the later edit (chromium)
+- [x] GLOSSARY: Retired
+- [x] build, lint, vitest, both tsc, knip
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
+
+### #23 decisions
+
+- **`account.created` v2 adds a nullable `payingAccountId`** so the v1→v2 upcaster is real, not test-only; #19 fills it for credit cards. Why: the issue asks for an upcasting test and events are never rewritten. Revisit: #19.
+- **Details and retirement resolve independently** (each by its own latest HLC), so one device retiring while another renames keeps both. Revisit: if a retired account must refuse edits.
+- **Projections rebuild one entity from its own history**: `log.ts` reads every event it holds for the entity and the projector folds them in HLC order. An edit that arrives before its create is a sort, not a special case. Partly resolves the #18 "nothing re-projects" deferral: an event this version couldn't read is picked up at that entity's next event, not at app update. Revisit: a full replay on app update when a shipped version adds an event type that older devices already hold.
+- **Changes whose visibility or owner differ from the account's are ignored**, so an edit can't move an account across visibility (ADR 0002). The #22 stand-in test (a later create) is replaced by real edits.
+- **Edit events carry the actor's current household**, not the account's: RLS requires `household_id = current_household_id()`, and a Personal account travels with its owner. The projection keeps the household from the earliest create. Revisit: #25 if dissolving needs Personal events detached from a household.
+- **Dexie v3 upgrade normalizes account rows** (adds `retired: false` and `payingAccountId: null`, drops `hlc`/`createdHlc`); review found upgraded devices would otherwise list no accounts.
+- **Review fixes:** `FormError` and `errorMessage` extracted (resolves the #17 deferral; all forms and toasts use them); the edit dialog closes if another device retires its account; the dialog footer uses a container query; the account change command takes a typed event-type union; the e2e flow also checks the retirement reaches the other device.
+- **Review deferral: "type can't change to or from credit card" has no guard yet**, because the credit card type doesn't exist and the decoder rejects it. Revisit: #19 (enforce in `editAccount` and in the projection).
+- **Review deferral: the version table and `upcast` live in `accounts/events.ts`.** Revisit: #19 or the first non-account entity (move to `lib/events`, with the projection registry from #18).
+- **Review deferral: no bound on how far ahead a received HLC may be** (from #18). Every bound breaks convergence between devices with different clocks, so only reporting large drift is safe. Revisit: #24 (sync status could warn on a skewed clock).
+- **Review deferral: the starting balance input strips the peso sign from `formatPHP`**; a currency helper for input values would own that. Revisit: when a second amount field is pre-filled (transactions).

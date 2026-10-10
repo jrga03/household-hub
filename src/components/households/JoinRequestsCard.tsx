@@ -10,6 +10,7 @@ import {
   pendingJoinRequestsQueryOptions,
   type PendingJoinRequest,
 } from "@/lib/join-requests";
+import { errorMessage } from "@/lib/utils";
 
 const NEW_REQUEST_POLL_MS = 30_000;
 
@@ -64,7 +65,7 @@ function JoinRequestRow({ householdId, request }: JoinRequestRowProps) {
       await respond(householdId, request.id);
       toast.success(confirmation);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't answer the request.");
+      toast.error(errorMessage(error, "Couldn't answer the request."));
     } finally {
       setIsAnswering(false);
     }

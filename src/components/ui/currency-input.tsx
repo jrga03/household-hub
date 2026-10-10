@@ -9,8 +9,10 @@ import {
   type Cents,
 } from "@/lib/currency";
 
-export interface CurrencyInputProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value"> {
+export interface CurrencyInputProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "onChange" | "value"
+> {
   value?: Cents;
   onChange?: (value: Cents) => void;
   onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
