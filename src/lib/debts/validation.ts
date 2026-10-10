@@ -7,6 +7,7 @@
 
 import { db } from "@/lib/dexie/db";
 import type { DebtFormData, InternalDebtFormData, EntityType } from "@/types/debt";
+import type { SyncQueueItem } from "@/types/sync";
 import { z } from "zod";
 import { parsePHPSafe } from "@/lib/currency";
 import { centsSchema } from "@/lib/validations/cents";
@@ -220,6 +221,19 @@ export async function validateInternalDebtCreation(
 // Debt Deletion Validation
 // =====================================================
 
+/** The debt's own create, still waiting in the outbox: deleting the debt can cancel it instead. */
+export async function findUnsentDebtCreate(debtId: string): Promise<SyncQueueItem | undefined> {
+  const outstanding = await db.syncQueue
+    .where("entity_id")
+    .equals(debtId)
+    .filter((item) => item.status !== "completed")
+    .toArray();
+  const [only] = outstanding;
+  return outstanding.length === 1 && only?.operation.op === "create" && only.status === "queued"
+    ? only
+    : undefined;
+}
+
 export async function validateDebtDeletion(
   debtId: string,
   type: "external" | "internal"
@@ -241,7 +255,7 @@ export async function validateDebtDeletion(
     .and((item) => item.status === "queued" || item.status === "syncing")
     .count();
 
-  if (pendingOps > 0) {
+  if (pendingOps > 0 && !(await findUnsentDebtCreate(debtId))) {
     errors.push(
       "Cannot delete debt with pending sync operations. Please wait for sync to complete."
     );

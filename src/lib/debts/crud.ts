@@ -10,6 +10,7 @@ import {
   validateDebtCreation,
   validateInternalDebtCreation,
   validateDebtDeletion,
+  findUnsentDebtCreate,
   validateDebtName,
   getEntityDisplayName,
 } from "./validation";
@@ -324,6 +325,26 @@ export async function unarchiveDebt(
 // DELETE Operations
 // =====================================================
 
+/** Gap 3: the server never saw this debt, so drop the row and its queued create together. */
+async function cancelUnsentCreate(
+  debtId: string,
+  type: "external" | "internal",
+  queueItemId: string
+): Promise<void> {
+  await db.transaction("rw", [db.debts, db.internalDebts, db.syncQueue], async () => {
+    // Re-read inside the transaction: the processor may have picked the item up
+    const item = await db.syncQueue.get(queueItemId);
+    if (item?.status !== "queued") {
+      throw new Error(
+        "Cannot delete debt with pending sync operations. Please wait for sync to complete."
+      );
+    }
+    await db.syncQueue.delete(queueItemId);
+    if (type === "external") await db.debts.delete(debtId);
+    else await db.internalDebts.delete(debtId);
+  });
+}
+
 /**
  * Delete debt (hard delete)
  * Only allowed if no payment history exists
@@ -345,7 +366,12 @@ export async function deleteDebt(
     throw new Error("Debt not found");
   }
 
-  await commitDebtWriteSet(await prepareDebtDelete(debt, userId));
+  const unsentCreate = await findUnsentDebtCreate(debtId);
+  if (unsentCreate) {
+    await cancelUnsentCreate(debtId, type, unsentCreate.id);
+  } else {
+    await commitDebtWriteSet(await prepareDebtDelete(debt, userId));
+  }
 
   console.log("[Debt Deleted]", debt.name);
 }
