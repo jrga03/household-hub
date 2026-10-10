@@ -7,8 +7,6 @@ describe("navStore", () => {
     useNavStore.setState({
       sidebarCollapsed: false,
       mobileNavOpen: false,
-      quickAddOpen: false,
-      activeRoute: "/",
     });
   });
 
@@ -17,8 +15,6 @@ describe("navStore", () => {
       const state = useNavStore.getState();
       expect(state.sidebarCollapsed).toBe(false);
       expect(state.mobileNavOpen).toBe(false);
-      expect(state.quickAddOpen).toBe(false);
-      expect(state.activeRoute).toBe("/");
     });
   });
 
@@ -52,32 +48,6 @@ describe("navStore", () => {
     });
   });
 
-  describe("quickAddOpen", () => {
-    it("opens quick add dialog", () => {
-      useNavStore.getState().setQuickAddOpen(true);
-      expect(useNavStore.getState().quickAddOpen).toBe(true);
-    });
-
-    it("closes quick add dialog", () => {
-      useNavStore.getState().setQuickAddOpen(true);
-      useNavStore.getState().setQuickAddOpen(false);
-      expect(useNavStore.getState().quickAddOpen).toBe(false);
-    });
-  });
-
-  describe("activeRoute", () => {
-    it("updates the active route", () => {
-      useNavStore.getState().setActiveRoute("/transactions");
-      expect(useNavStore.getState().activeRoute).toBe("/transactions");
-    });
-
-    it("can change routes multiple times", () => {
-      useNavStore.getState().setActiveRoute("/budgets");
-      useNavStore.getState().setActiveRoute("/analytics");
-      expect(useNavStore.getState().activeRoute).toBe("/analytics");
-    });
-  });
-
   describe("localStorage persistence", () => {
     it("persists sidebarCollapsed to localStorage", () => {
       useNavStore.getState().setSidebarCollapsed(true);
@@ -92,8 +62,6 @@ describe("navStore", () => {
 
     it("only persists sidebarCollapsed (partialize)", () => {
       useNavStore.getState().setMobileNavOpen(true);
-      useNavStore.getState().setQuickAddOpen(true);
-      useNavStore.getState().setActiveRoute("/budgets");
 
       const stored = localStorage.getItem("nav-preferences");
       expect(stored).not.toBeNull();
@@ -102,8 +70,6 @@ describe("navStore", () => {
       // Only sidebarCollapsed should be in the persisted state
       expect(parsed.state).toHaveProperty("sidebarCollapsed");
       expect(parsed.state).not.toHaveProperty("mobileNavOpen");
-      expect(parsed.state).not.toHaveProperty("quickAddOpen");
-      expect(parsed.state).not.toHaveProperty("activeRoute");
     });
   });
 });

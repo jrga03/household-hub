@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,8 +10,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { buttonVariants } from "@/components/ui/button";
-import { confirm, useConfirmStore, type ConfirmRequest } from "@/lib/confirm";
-import { setConfirmDiscardImpl } from "@/lib/confirm-discard";
+import { useConfirmStore, type ConfirmRequest } from "@/lib/confirm";
 
 /**
  * Renders the pending `confirm()` request (see `@/lib/confirm`) as an
@@ -21,20 +20,6 @@ import { setConfirmDiscardImpl } from "@/lib/confirm-discard";
 export function ConfirmDialogHost() {
   const request = useConfirmStore((state) => state.request);
   const settle = useConfirmStore((state) => state.settle);
-
-  // While the host is mounted (the app's whole lifetime), dirty-form discard
-  // prompts (useBlocker in TransactionFormDialog) route through this
-  // AlertDialog instead of their window.confirm fallback (review R39)
-  useEffect(() => {
-    setConfirmDiscardImpl((message) =>
-      confirm({
-        title: message,
-        description: "Your changes will not be saved.",
-        confirmLabel: "Discard",
-        destructive: true,
-      })
-    );
-  }, []);
 
   // Keep the last request around while the close animation plays so the
   // dialog doesn't blank out mid-fade after settling (adjust-state-during-

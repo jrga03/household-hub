@@ -3,10 +3,7 @@ import { login } from "./fixtures/helpers";
 import { VIEWPORTS } from "./fixtures/viewports";
 
 const ROUTES = [
-  { path: "/", name: "dashboard" },
-  { path: "/transactions", name: "transactions" },
-  { path: "/analytics", name: "analytics" },
-  { path: "/accounts", name: "accounts" },
+  { path: "/", name: "home" },
   { path: "/settings", name: "settings" },
 ];
 
@@ -26,7 +23,6 @@ for (const [vpName, vp] of Object.entries(VIEWPORTS)) {
         await expect(page.locator("#main-content h1").first()).toBeVisible();
         await expect(page).toHaveScreenshot(`${route.name}-${vpName}.png`, {
           fullPage: true,
-          mask: [page.locator("[data-testid='sync-status']")],
           maxDiffPixelRatio: 0.02,
         });
       });

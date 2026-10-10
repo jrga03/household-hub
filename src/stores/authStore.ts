@@ -2,9 +2,7 @@ import { create } from "zustand";
 import type { User, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { readDb } from "@/lib/dexie/readDb";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
-import { csvExporter } from "@/lib/csv-exporter";
 import { queryClient } from "@/lib/queryClient";
 
 interface AuthState {
@@ -14,43 +12,11 @@ interface AuthState {
   initialized: boolean;
 }
 
-export interface SignOutOptions {
-  /**
-   * Export a CSV backup before local data is cleared. The "you have unsynced
-   * changes — export first?" confirmation lives in the component layer (see
-   * `signOutWithConfirm` in `@/lib/sign-out`), NOT in this store (review R39).
-   */
-  exportFirst?: boolean;
-}
-
 interface AuthActions {
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
-  signOut: (options?: SignOutOptions) => Promise<void>;
+  signOut: () => Promise<void>;
   initialize: () => Promise<void>;
-}
-
-/**
- * Check if there are unsynced changes in the sync queue
- *
- * Per SyncQueueItem schema (db.ts line 103), valid statuses are:
- * "queued" | "syncing" | "completed" | "failed"
- *
- * Queries the sync queue for non-completed items (unsynced data).
- *
- * @returns true if unsynced data exists, false otherwise (or on error)
- */
-export async function checkUnsyncedData(): Promise<boolean> {
-  try {
-    const queueCount = await readDb.syncQueue
-      .where("status")
-      .anyOf(["queued", "syncing", "failed"]) // ✓ Matches SyncQueueItem schema
-      .count();
-    return queueCount > 0;
-  } catch (error) {
-    console.error("Failed to check unsynced data:", error);
-    return false; // Fail gracefully - don't block logout
-  }
 }
 
 /**
@@ -213,34 +179,13 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
     }
   },
 
-  signOut: async (options?: SignOutOptions) => {
+  signOut: async () => {
     set({ loading: true });
     // The supabase SIGNED_OUT event fires DURING the signOut() await below;
     // flag it as deliberate so the onAuthStateChange handler stays quiet and
     // this action's own purge/toast/navigate runs exactly once.
     deliberateSignOut = true;
     try {
-      // Unsynced-data export before logout (Decision #84). Whether to export
-      // is decided by the CALLER (component-layer AlertDialog confirm); this
-      // store never prompts (review R39).
-      if (options?.exportFirst) {
-        try {
-          // Export all transactions
-          const csv = await csvExporter.exportTransactions();
-          const date = new Date().toISOString().split("T")[0];
-          const filename = `household-hub-backup-${date}.csv`;
-
-          csvExporter.downloadCsv(csv, filename);
-
-          // Give user time to see the download
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        } catch (error) {
-          console.error("Export failed:", error);
-          // Abort logout if export fails; the caller surfaces the message
-          throw new Error("Export failed. Please try manual export from Settings.");
-        }
-      }
-
       // Clear local data and sign out
       await clearIndexedDB();
       await supabase.auth.signOut();

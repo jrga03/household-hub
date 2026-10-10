@@ -1,15 +1,9 @@
 /**
  * AppLayout branch tests (mobile UX reviews C3, R42):
  *
- * isMobile is width-only (max-width: 767px), so landscape phones
- * (812-932px wide) render the tablet/desktop branch. The FAB must therefore
- * also render in that branch whenever the device's primary pointer is touch
- * ("(pointer: coarse)") — rotating a phone must not delete the primary add
- * action. Mouse-driven desktops stay FAB-free.
- *
- * The BottomTabBar (R42) is mobile-branch-ONLY (deliberate scope: the
- * tablet/desktop branch, including landscape phones, keeps the sidebar +
- * coarse-pointer FAB) and must never render on auth routes, where AppLayout
+ * isMobile is width-only (max-width: 767px), so landscape phones render the
+ * tablet/desktop branch with the sidebar. The BottomTabBar is
+ * mobile-branch-only and never renders on auth routes, where AppLayout
  * early-returns without navigation chrome.
  */
 
@@ -18,17 +12,15 @@ import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { AppLayout } from "./AppLayout";
 
-const { mockIsMobile, mockIsTablet, mockUseMediaQuery, mockPathname } = vi.hoisted(() => ({
+const { mockIsMobile, mockIsTablet, mockPathname } = vi.hoisted(() => ({
   mockIsMobile: vi.fn((): boolean => false),
   mockIsTablet: vi.fn((): boolean => false),
-  mockUseMediaQuery: vi.fn((_query: string): boolean => false),
   mockPathname: vi.fn((): string => "/"),
 }));
 
 vi.mock("@/hooks/useMediaQuery", () => ({
   useIsMobile: () => mockIsMobile(),
   useIsTablet: () => mockIsTablet(),
-  useMediaQuery: (query: string) => mockUseMediaQuery(query),
 }));
 
 vi.mock("@tanstack/react-router", () => ({
@@ -56,9 +48,6 @@ vi.mock("@/components/ui/sidebar", () => ({
     </button>
   ),
 }));
-vi.mock("@/components/sync/GlobalSyncStatus", () => ({
-  GlobalSyncStatus: () => null,
-}));
 vi.mock("@/components/sync/OfflineBanner", () => ({
   OfflineBanner: () => null,
 }));
@@ -68,63 +57,14 @@ vi.mock("@/components/StorageWarning", () => ({
 vi.mock("@/components/PWAInstallPrompt", () => ({
   PWAInstallPrompt: () => null,
 }));
-vi.mock("@/components/TransactionFormDialog", () => ({
-  TransactionFormDialog: () => null,
-}));
 vi.mock("@/hooks/useKeyboardShortcuts", () => ({
   useKeyboardShortcuts: () => undefined,
 }));
-
-// The REAL QuickActionButton renders (it is light: navStore + Button); the
-// assertions below target its accessible name.
-const FAB_NAME = "Add transaction";
-
-describe("AppLayout FAB branches (review C3)", () => {
-  beforeEach(() => {
-    mockIsMobile.mockReturnValue(false);
-    mockIsTablet.mockReturnValue(false);
-    mockUseMediaQuery.mockReturnValue(false);
-    mockPathname.mockReturnValue("/");
-  });
-
-  it("renders the FAB in the tablet/desktop branch on coarse-pointer devices (landscape phones)", () => {
-    mockIsTablet.mockReturnValue(true);
-    mockUseMediaQuery.mockImplementation((query) => query === "(pointer: coarse)");
-
-    render(<AppLayout />);
-
-    // Tablet/desktop branch is mounted (sidebar, not mobile drawer) …
-    expect(screen.getByTestId("app-sidebar")).toBeInTheDocument();
-    expect(screen.queryByTestId("mobile-nav")).not.toBeInTheDocument();
-    // … and the FAB is still available for touch input
-    expect(screen.getByRole("button", { name: FAB_NAME })).toBeInTheDocument();
-  });
-
-  it("keeps the tablet/desktop branch FAB-free for fine pointers (mouse desktops)", () => {
-    mockIsTablet.mockReturnValue(true);
-    mockUseMediaQuery.mockReturnValue(false);
-
-    render(<AppLayout />);
-
-    expect(screen.getByTestId("app-sidebar")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: FAB_NAME })).not.toBeInTheDocument();
-  });
-
-  it("still renders the FAB in the mobile branch regardless of pointer type", () => {
-    mockIsMobile.mockReturnValue(true);
-
-    render(<AppLayout />);
-
-    expect(screen.getByTestId("mobile-nav")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: FAB_NAME })).toBeInTheDocument();
-  });
-});
 
 describe("AppLayout bottom tab bar placement (review R42)", () => {
   beforeEach(() => {
     mockIsMobile.mockReturnValue(false);
     mockIsTablet.mockReturnValue(false);
-    mockUseMediaQuery.mockReturnValue(false);
     mockPathname.mockReturnValue("/");
   });
 
@@ -137,9 +77,8 @@ describe("AppLayout bottom tab bar placement (review R42)", () => {
     expect(screen.getByTestId("bottom-tab-bar")).toBeInTheDocument();
   });
 
-  it("does NOT render the tab bar in the tablet/desktop branch, even on coarse pointers (deliberate scope: landscape phones keep sidebar + FAB)", () => {
+  it("renders the sidebar and no tab bar in the tablet/desktop branch", () => {
     mockIsTablet.mockReturnValue(true);
-    mockUseMediaQuery.mockImplementation((query) => query === "(pointer: coarse)");
 
     render(<AppLayout />);
 
@@ -159,7 +98,6 @@ describe("AppLayout bottom tab bar placement (review R42)", () => {
       expect(screen.getByTestId("outlet")).toBeInTheDocument();
       expect(screen.queryByTestId("bottom-tab-bar")).not.toBeInTheDocument();
       expect(screen.queryByTestId("mobile-nav")).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: FAB_NAME })).not.toBeInTheDocument();
     }
   );
 });

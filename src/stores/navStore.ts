@@ -10,7 +10,6 @@ import { persist } from "zustand/middleware";
  * Features:
  * - Persistent sidebar collapsed state
  * - Responsive behavior states
- * - Quick action dialog states
  *
  * @see src/components/layout/AppLayout.tsx
  */
@@ -24,14 +23,6 @@ interface NavStore {
   // Mobile navigation state (not persisted)
   mobileNavOpen: boolean;
   setMobileNavOpen: (open: boolean) => void;
-
-  // Quick action states (not persisted)
-  quickAddOpen: boolean;
-  setQuickAddOpen: (open: boolean) => void;
-
-  // Active route tracking (for highlighting)
-  activeRoute: string;
-  setActiveRoute: (route: string) => void;
 }
 
 export const useNavStore = create<NavStore>()(
@@ -48,14 +39,6 @@ export const useNavStore = create<NavStore>()(
       // Mobile nav - always starts closed
       mobileNavOpen: false,
       setMobileNavOpen: (open) => set({ mobileNavOpen: open }),
-
-      // Quick actions
-      quickAddOpen: false,
-      setQuickAddOpen: (open) => set({ quickAddOpen: open }),
-
-      // Active route
-      activeRoute: "/",
-      setActiveRoute: (route) => set({ activeRoute: route }),
     }),
     {
       name: "nav-preferences", // localStorage key

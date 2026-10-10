@@ -1,46 +1,15 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import {
-  Tags,
-  BarChart3,
-  ArrowLeftRight,
-  Upload,
-  Settings,
-  LogOut,
-  User,
-  X,
-  FileText,
-} from "lucide-react";
+import { LogOut, Settings, User, X } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 import { useAuthStore } from "@/stores/authStore";
-import { useNavStore } from "@/stores/navStore";
-import { signOutWithConfirm } from "@/lib/sign-out";
-import { GlobalSyncStatus } from "@/components/sync/GlobalSyncStatus";
+import { signOutWithToast } from "@/lib/sign-out";
 import { cn } from "@/lib/utils";
-import { useLiveQuery } from "dexie-react-hooks";
-import { getPendingDraftCount } from "@/lib/offline/importDrafts";
 
 /**
- * Mobile navigation drawer component
- *
- * Uses Sheet component for a sliding drawer from the left.
- * Auto-closes on navigation to provide smooth UX.
- *
- * Holds the LONG TAIL of navigation only: the four highest-frequency
- * destinations (Dashboard, Transactions, Budgets, Accounts) live in the
- * fixed BottomTabBar (review R42) and are deliberately NOT listed here to
- * avoid duplication. The quick-add CTA, sync row, Settings, and sign out
- * stay in the drawer.
- *
- * Features:
- * - Full-height drawer with scrollable content
- * - Touch-friendly navigation items
- * - User profile section
- * - Sync status indicator
- * - Auto-close on route change
+ * Mobile navigation drawer: the user profile, Settings and sign out. Primary
+ * destinations live in the fixed BottomTabBar.
  *
  * @see src/components/layout/AppLayout.tsx - Parent layout component
  * @see src/components/layout/BottomTabBar.tsx - Primary destinations
@@ -51,71 +20,13 @@ interface MobileNavProps {
   onOpenChange: (open: boolean) => void;
 }
 
-interface NavItem {
-  to: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  badge?: number | string;
-}
-
-// Dashboard/Transactions/Budgets/Accounts are in the BottomTabBar (R42),
-// not here — the drawer lists only the long tail.
-const navItems: { section: string; items: NavItem[] }[] = [
-  {
-    section: "Planning & Analysis",
-    items: [
-      { to: "/categories", label: "Categories", icon: Tags },
-      { to: "/analytics", label: "Analytics", icon: BarChart3 },
-    ],
-  },
-  {
-    section: "Operations",
-    items: [
-      { to: "/transfers", label: "Transfers", icon: ArrowLeftRight },
-      // CSV import is disabled until it moves onto the draft pipeline
-      { to: "/import/pdf", label: "PDF Import", icon: Upload },
-      { to: "/drafts", label: "Drafts", icon: FileText },
-    ],
-  },
-];
-
 export function MobileNav({ open, onOpenChange }: MobileNavProps) {
-  const router = useRouterState();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const user = useAuthStore((state) => state.user);
-  const setQuickAddOpen = useNavStore((state) => state.setQuickAddOpen);
-  const draftCount = useLiveQuery(() => getPendingDraftCount()) ?? 0;
-
-  // Inject dynamic badge into Drafts item
-  const sections = navItems.map((section) => ({
-    ...section,
-    items: section.items.map((item) =>
-      item.to === "/drafts" && draftCount > 0 ? { ...item, badge: draftCount } : item
-    ),
-  }));
-
-  // Check if a route is active
-  const isActiveRoute = (path: string) => {
-    const currentPath = router.location.pathname;
-    if (path === "/") {
-      return currentPath === path;
-    }
-    return currentPath === path || currentPath.startsWith(path + "/");
-  };
-
-  // Handle navigation - close drawer after navigation
-  const handleNavigation = () => {
-    onOpenChange(false);
-  };
+  const settingsActive = pathname === "/settings" || pathname.startsWith("/settings/");
 
   const handleSignOut = async () => {
-    // Unsynced-changes confirm + export live in the shared component-layer
-    // flow, not the store (review R39)
-    await signOutWithConfirm();
-    onOpenChange(false);
-  };
-
-  const handleQuickAdd = () => {
-    setQuickAddOpen(true);
+    await signOutWithToast();
     onOpenChange(false);
   };
 
@@ -163,81 +74,27 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="border-b px-6 py-3">
-          <Button className="w-full" onClick={handleQuickAdd}>
-            Add Transaction
-          </Button>
-        </div>
-
-        {/* Sync Status (live outbox counts; tap to open the sync queue) */}
-        <div className="border-b px-6 py-3">
-          <GlobalSyncStatus variant="detailed" />
-        </div>
-
-        {/* Navigation Items */}
         <ScrollArea className="flex-1 min-h-0">
           <div className="px-3 py-2">
-            {sections.map((section, sectionIdx) => (
-              <div key={section.section} className="mb-4">
-                <div className="mb-2 px-3">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {section.section}
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  {section.items.map((item) => {
-                    const isActive = isActiveRoute(item.to);
-                    return (
-                      <Link
-                        key={item.to}
-                        to={item.to}
-                        onClick={handleNavigation}
-                        className={cn(
-                          "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-                          "hover:bg-accent hover:text-accent-foreground",
-                          "active:bg-accent active:text-accent-foreground",
-                          isActive && "bg-accent text-accent-foreground font-medium"
-                        )}
-                      >
-                        <item.icon className="h-5 w-5" />
-                        <span className="flex-1">{item.label}</span>
-                        {item.badge && (
-                          <Badge variant="destructive" className="h-5 px-1.5 text-xs">
-                            {item.badge}
-                          </Badge>
-                        )}
-                        {isActive && <div className="h-5 w-1 rounded-full bg-primary" />}
-                      </Link>
-                    );
-                  })}
-                </div>
-                {sectionIdx < sections.length - 1 && <Separator className="mt-4" />}
-              </div>
-            ))}
-
-            {/* Settings Section */}
             <div className="mb-4">
-              <Separator className="mb-4" />
               <Link
                 to="/settings"
-                onClick={handleNavigation}
+                onClick={() => onOpenChange(false)}
                 className={cn(
                   "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
                   "hover:bg-accent hover:text-accent-foreground",
                   "active:bg-accent active:text-accent-foreground",
-                  isActiveRoute("/settings") && "bg-accent text-accent-foreground font-medium"
+                  settingsActive && "bg-accent text-accent-foreground font-medium"
                 )}
               >
                 <Settings className="h-5 w-5" />
                 <span className="flex-1">Settings</span>
-                {isActiveRoute("/settings") && <div className="h-5 w-1 rounded-full bg-primary" />}
+                {settingsActive && <div className="h-5 w-1 rounded-full bg-primary" />}
               </Link>
             </div>
 
             {/* Sign Out */}
             <div className="mb-4">
-              <Separator className="mb-4" />
               <button
                 onClick={() => void handleSignOut()}
                 className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground active:bg-accent active:text-accent-foreground"

@@ -10,57 +10,13 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AccountsRouteImport } from './routes/accounts'
-import { Route as AnalyticsRouteImport } from './routes/analytics'
-import { Route as CategoriesRouteImport } from './routes/categories'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as DraftsRouteImport } from './routes/drafts'
-import { Route as ImportRouteImport } from './routes/import'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SignupRouteImport } from './routes/signup'
-import { Route as TransactionsRouteImport } from './routes/transactions'
-import { Route as TransfersRouteImport } from './routes/transfers'
-import { Route as AccountsAccountIdRouteImport } from './routes/accounts/$accountId'
-import { Route as AnalyticsIndexRouteImport } from './routes/analytics/index'
-import { Route as AnalyticsCategoriesRouteImport } from './routes/analytics/categories'
-import { Route as BudgetsIndexRouteImport } from './routes/budgets/index'
-import { Route as ImportPdfRouteImport } from './routes/import/pdf'
-import { Route as TransactionsNewRouteImport } from './routes/transactions.new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AccountsRoute = AccountsRouteImport.update({
-  id: '/accounts',
-  path: '/accounts',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AnalyticsRoute = AnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CategoriesRoute = CategoriesRouteImport.update({
-  id: '/categories',
-  path: '/categories',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DraftsRoute = DraftsRouteImport.update({
-  id: '/drafts',
-  path: '/drafts',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ImportRoute = ImportRouteImport.update({
-  id: '/import',
-  path: '/import',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -78,183 +34,39 @@ const SignupRoute = SignupRouteImport.update({
   path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TransactionsRoute = TransactionsRouteImport.update({
-  id: '/transactions',
-  path: '/transactions',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TransfersRoute = TransfersRouteImport.update({
-  id: '/transfers',
-  path: '/transfers',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AccountsAccountIdRoute = AccountsAccountIdRouteImport.update({
-  id: '/$accountId',
-  path: '/$accountId',
-  getParentRoute: () => AccountsRoute,
-} as any)
-const AnalyticsIndexRoute = AnalyticsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AnalyticsRoute,
-} as any)
-const AnalyticsCategoriesRoute = AnalyticsCategoriesRouteImport.update({
-  id: '/categories',
-  path: '/categories',
-  getParentRoute: () => AnalyticsRoute,
-} as any)
-const BudgetsIndexRoute = BudgetsIndexRouteImport.update({
-  id: '/budgets/',
-  path: '/budgets/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ImportPdfRoute = ImportPdfRouteImport.update({
-  id: '/pdf',
-  path: '/pdf',
-  getParentRoute: () => ImportRoute,
-} as any)
-const TransactionsNewRoute = TransactionsNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => TransactionsRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/accounts': typeof AccountsRouteWithChildren
-  '/analytics': typeof AnalyticsRouteWithChildren
-  '/categories': typeof CategoriesRoute
-  '/dashboard': typeof DashboardRoute
-  '/drafts': typeof DraftsRoute
-  '/import': typeof ImportRouteWithChildren
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
-  '/transactions': typeof TransactionsRouteWithChildren
-  '/transfers': typeof TransfersRoute
-  '/accounts/$accountId': typeof AccountsAccountIdRoute
-  '/analytics/categories': typeof AnalyticsCategoriesRoute
-  '/import/pdf': typeof ImportPdfRoute
-  '/transactions/new': typeof TransactionsNewRoute
-  '/analytics/': typeof AnalyticsIndexRoute
-  '/budgets/': typeof BudgetsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/accounts': typeof AccountsRouteWithChildren
-  '/categories': typeof CategoriesRoute
-  '/dashboard': typeof DashboardRoute
-  '/drafts': typeof DraftsRoute
-  '/import': typeof ImportRouteWithChildren
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
-  '/transactions': typeof TransactionsRouteWithChildren
-  '/transfers': typeof TransfersRoute
-  '/accounts/$accountId': typeof AccountsAccountIdRoute
-  '/analytics/categories': typeof AnalyticsCategoriesRoute
-  '/import/pdf': typeof ImportPdfRoute
-  '/transactions/new': typeof TransactionsNewRoute
-  '/analytics': typeof AnalyticsIndexRoute
-  '/budgets': typeof BudgetsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/accounts': typeof AccountsRouteWithChildren
-  '/analytics': typeof AnalyticsRouteWithChildren
-  '/categories': typeof CategoriesRoute
-  '/dashboard': typeof DashboardRoute
-  '/drafts': typeof DraftsRoute
-  '/import': typeof ImportRouteWithChildren
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
-  '/transactions': typeof TransactionsRouteWithChildren
-  '/transfers': typeof TransfersRoute
-  '/accounts/$accountId': typeof AccountsAccountIdRoute
-  '/analytics/categories': typeof AnalyticsCategoriesRoute
-  '/import/pdf': typeof ImportPdfRoute
-  '/transactions/new': typeof TransactionsNewRoute
-  '/analytics/': typeof AnalyticsIndexRoute
-  '/budgets/': typeof BudgetsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/accounts'
-    | '/analytics'
-    | '/categories'
-    | '/dashboard'
-    | '/drafts'
-    | '/import'
-    | '/login'
-    | '/settings'
-    | '/signup'
-    | '/transactions'
-    | '/transfers'
-    | '/accounts/$accountId'
-    | '/analytics/categories'
-    | '/import/pdf'
-    | '/transactions/new'
-    | '/analytics/'
-    | '/budgets/'
+  fullPaths: '/' | '/login' | '/settings' | '/signup'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/accounts'
-    | '/categories'
-    | '/dashboard'
-    | '/drafts'
-    | '/import'
-    | '/login'
-    | '/settings'
-    | '/signup'
-    | '/transactions'
-    | '/transfers'
-    | '/accounts/$accountId'
-    | '/analytics/categories'
-    | '/import/pdf'
-    | '/transactions/new'
-    | '/analytics'
-    | '/budgets'
-  id:
-    | '__root__'
-    | '/'
-    | '/accounts'
-    | '/analytics'
-    | '/categories'
-    | '/dashboard'
-    | '/drafts'
-    | '/import'
-    | '/login'
-    | '/settings'
-    | '/signup'
-    | '/transactions'
-    | '/transfers'
-    | '/accounts/$accountId'
-    | '/analytics/categories'
-    | '/import/pdf'
-    | '/transactions/new'
-    | '/analytics/'
-    | '/budgets/'
+  to: '/' | '/login' | '/settings' | '/signup'
+  id: '__root__' | '/' | '/login' | '/settings' | '/signup'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AccountsRoute: typeof AccountsRouteWithChildren
-  AnalyticsRoute: typeof AnalyticsRouteWithChildren
-  CategoriesRoute: typeof CategoriesRoute
-  DashboardRoute: typeof DashboardRoute
-  DraftsRoute: typeof DraftsRoute
-  ImportRoute: typeof ImportRouteWithChildren
   LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
-  TransactionsRoute: typeof TransactionsRouteWithChildren
-  TransfersRoute: typeof TransfersRoute
-  BudgetsIndexRoute: typeof BudgetsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -264,48 +76,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/accounts': {
-      id: '/accounts'
-      path: '/accounts'
-      fullPath: '/accounts'
-      preLoaderRoute: typeof AccountsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/analytics': {
-      id: '/analytics'
-      path: '/analytics'
-      fullPath: '/analytics'
-      preLoaderRoute: typeof AnalyticsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/categories': {
-      id: '/categories'
-      path: '/categories'
-      fullPath: '/categories'
-      preLoaderRoute: typeof CategoriesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/drafts': {
-      id: '/drafts'
-      path: '/drafts'
-      fullPath: '/drafts'
-      preLoaderRoute: typeof DraftsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/import': {
-      id: '/import'
-      path: '/import'
-      fullPath: '/import'
-      preLoaderRoute: typeof ImportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -329,128 +99,14 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/transactions': {
-      id: '/transactions'
-      path: '/transactions'
-      fullPath: '/transactions'
-      preLoaderRoute: typeof TransactionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/transfers': {
-      id: '/transfers'
-      path: '/transfers'
-      fullPath: '/transfers'
-      preLoaderRoute: typeof TransfersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/accounts/$accountId': {
-      id: '/accounts/$accountId'
-      path: '/$accountId'
-      fullPath: '/accounts/$accountId'
-      preLoaderRoute: typeof AccountsAccountIdRouteImport
-      parentRoute: typeof AccountsRoute
-    }
-    '/analytics/': {
-      id: '/analytics/'
-      path: '/'
-      fullPath: '/analytics/'
-      preLoaderRoute: typeof AnalyticsIndexRouteImport
-      parentRoute: typeof AnalyticsRoute
-    }
-    '/analytics/categories': {
-      id: '/analytics/categories'
-      path: '/categories'
-      fullPath: '/analytics/categories'
-      preLoaderRoute: typeof AnalyticsCategoriesRouteImport
-      parentRoute: typeof AnalyticsRoute
-    }
-    '/budgets/': {
-      id: '/budgets/'
-      path: '/budgets'
-      fullPath: '/budgets/'
-      preLoaderRoute: typeof BudgetsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/import/pdf': {
-      id: '/import/pdf'
-      path: '/pdf'
-      fullPath: '/import/pdf'
-      preLoaderRoute: typeof ImportPdfRouteImport
-      parentRoute: typeof ImportRoute
-    }
-    '/transactions/new': {
-      id: '/transactions/new'
-      path: '/new'
-      fullPath: '/transactions/new'
-      preLoaderRoute: typeof TransactionsNewRouteImport
-      parentRoute: typeof TransactionsRoute
-    }
   }
 }
 
-interface AccountsRouteChildren {
-  AccountsAccountIdRoute: typeof AccountsAccountIdRoute
-}
-
-const AccountsRouteChildren: AccountsRouteChildren = {
-  AccountsAccountIdRoute: AccountsAccountIdRoute,
-}
-
-const AccountsRouteWithChildren = AccountsRoute._addFileChildren(
-  AccountsRouteChildren,
-)
-
-interface AnalyticsRouteChildren {
-  AnalyticsCategoriesRoute: typeof AnalyticsCategoriesRoute
-  AnalyticsIndexRoute: typeof AnalyticsIndexRoute
-}
-
-const AnalyticsRouteChildren: AnalyticsRouteChildren = {
-  AnalyticsCategoriesRoute: AnalyticsCategoriesRoute,
-  AnalyticsIndexRoute: AnalyticsIndexRoute,
-}
-
-const AnalyticsRouteWithChildren = AnalyticsRoute._addFileChildren(
-  AnalyticsRouteChildren,
-)
-
-interface ImportRouteChildren {
-  ImportPdfRoute: typeof ImportPdfRoute
-}
-
-const ImportRouteChildren: ImportRouteChildren = {
-  ImportPdfRoute: ImportPdfRoute,
-}
-
-const ImportRouteWithChildren =
-  ImportRoute._addFileChildren(ImportRouteChildren)
-
-interface TransactionsRouteChildren {
-  TransactionsNewRoute: typeof TransactionsNewRoute
-}
-
-const TransactionsRouteChildren: TransactionsRouteChildren = {
-  TransactionsNewRoute: TransactionsNewRoute,
-}
-
-const TransactionsRouteWithChildren = TransactionsRoute._addFileChildren(
-  TransactionsRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AccountsRoute: AccountsRouteWithChildren,
-  AnalyticsRoute: AnalyticsRouteWithChildren,
-  CategoriesRoute: CategoriesRoute,
-  DashboardRoute: DashboardRoute,
-  DraftsRoute: DraftsRoute,
-  ImportRoute: ImportRouteWithChildren,
   LoginRoute: LoginRoute,
   SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,
-  TransactionsRoute: TransactionsRouteWithChildren,
-  TransfersRoute: TransfersRoute,
-  BudgetsIndexRoute: BudgetsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

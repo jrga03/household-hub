@@ -16,27 +16,8 @@ vi.mock("@/lib/supabase", () => ({
   },
 }));
 
-vi.mock("@/lib/dexie/readDb", () => ({
-  readDb: {
-    syncQueue: {
-      where: vi.fn(() => ({
-        anyOf: vi.fn(() => ({
-          count: vi.fn().mockResolvedValue(0),
-        })),
-      })),
-    },
-  },
-}));
-
 vi.mock("@/lib/dexie/reset", () => ({
   resetLocalDatabase: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock("@/lib/csv-exporter", () => ({
-  csvExporter: {
-    exportTransactions: vi.fn().mockResolvedValue("csv-data"),
-    downloadCsv: vi.fn(),
-  },
 }));
 
 vi.mock("sonner", () => ({
@@ -62,11 +43,9 @@ vi.mock("@/router", () => ({
 }));
 
 // Now import subjects under test
-import { useAuthStore, checkUnsyncedData } from "../authStore";
+import { useAuthStore } from "../authStore";
 import { supabase } from "@/lib/supabase";
-import { readDb } from "@/lib/dexie/readDb";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
-import { csvExporter } from "@/lib/csv-exporter";
 import { toast } from "sonner";
 import { queryClient } from "@/lib/queryClient";
 import { router } from "@/router";
@@ -83,12 +62,6 @@ describe("authStore", () => {
       initialized: false,
     });
     vi.clearAllMocks();
-    // Default: no unsynced data
-    vi.mocked(readDb.syncQueue.where).mockReturnValue({
-      anyOf: vi.fn().mockReturnValue({
-        count: vi.fn().mockResolvedValue(0),
-      }),
-    } as never);
   });
 
   describe("initial state", () => {
@@ -218,10 +191,6 @@ describe("authStore", () => {
   });
 
   describe("signOut", () => {
-    // The "unsynced data → export first?" confirm was LIFTED to the component
-    // layer (signOutWithConfirm in @/lib/sign-out, review R39): the store
-    // never prompts, it just honors the exportFirst option.
-
     it("clears IndexedDB and signs out", async () => {
       vi.mocked(supabase.auth.signOut).mockResolvedValue({
         error: null,
@@ -235,51 +204,6 @@ describe("authStore", () => {
       expect(supabase.auth.signOut).toHaveBeenCalled();
       expect(useAuthStore.getState().user).toBeNull();
       expect(useAuthStore.getState().session).toBeNull();
-      expect(useAuthStore.getState().loading).toBe(false);
-    });
-
-    it("does not export or prompt without exportFirst", async () => {
-      const confirmSpy = vi.spyOn(window, "confirm");
-      vi.mocked(supabase.auth.signOut).mockResolvedValue({
-        error: null,
-      } as never);
-
-      await useAuthStore.getState().signOut();
-
-      expect(confirmSpy).not.toHaveBeenCalled();
-      expect(csvExporter.exportTransactions).not.toHaveBeenCalled();
-      expect(supabase.auth.signOut).toHaveBeenCalled();
-    });
-
-    it("exports a CSV backup before signing out when exportFirst is set", async () => {
-      vi.mocked(csvExporter.exportTransactions).mockResolvedValue("csv-data");
-      vi.mocked(supabase.auth.signOut).mockResolvedValue({
-        error: null,
-      } as never);
-
-      await useAuthStore.getState().signOut({ exportFirst: true });
-
-      expect(csvExporter.exportTransactions).toHaveBeenCalled();
-      expect(csvExporter.downloadCsv).toHaveBeenCalledWith(
-        "csv-data",
-        expect.stringContaining("household-hub-backup-")
-      );
-      expect(supabase.auth.signOut).toHaveBeenCalled();
-    });
-
-    it("aborts logout and throws if the export fails", async () => {
-      vi.mocked(csvExporter.exportTransactions).mockRejectedValue(new Error("boom"));
-      vi.mocked(supabase.auth.signOut).mockResolvedValue({
-        error: null,
-      } as never);
-
-      await expect(useAuthStore.getState().signOut({ exportFirst: true })).rejects.toThrow(
-        /Export failed/
-      );
-
-      // Should NOT sign out — logout aborted, caller surfaces the error
-      expect(supabase.auth.signOut).not.toHaveBeenCalled();
-      expect(resetLocalDatabase).not.toHaveBeenCalled();
       expect(useAuthStore.getState().loading).toBe(false);
     });
   });
@@ -373,22 +297,6 @@ describe("authStore", () => {
         expect(router.navigate).toHaveBeenCalledTimes(1);
       });
       expect(router.navigate).toHaveBeenCalledWith(expect.objectContaining({ to: "/login" }));
-    });
-  });
-
-  describe("checkUnsyncedData", () => {
-    it("returns false when the outbox is clear", async () => {
-      await expect(checkUnsyncedData()).resolves.toBe(false);
-    });
-
-    it("returns true when outstanding queue items exist", async () => {
-      vi.mocked(readDb.syncQueue.where).mockReturnValue({
-        anyOf: vi.fn().mockReturnValue({
-          count: vi.fn().mockResolvedValue(3),
-        }),
-      } as never);
-
-      await expect(checkUnsyncedData()).resolves.toBe(true);
     });
   });
 });
