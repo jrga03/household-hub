@@ -49,7 +49,7 @@ Always ask: what happens offline, and what happens when two devices edit the sam
 - **pre-commit:** lint-staged runs `eslint --fix` and Prettier on staged files.
 - **pre-push:** `scripts/pre-push.mjs` runs lint (`--max-warnings=0`), `vitest run --allowOnly=false --silent`, the two tsc programs, and Knip in parallel. Pushes that change only `*.md` or `docs/**` skip it. Run it by hand with `node scripts/pre-push.mjs`.
 - **Claude Code hooks** (`.claude/settings.json`): a Bash guard blocks force pushes, `supabase db push`, and recursive deletes outside the repo; a Stop hook lints and type-checks changed files with `--max-warnings=0`.
-- `git push` over SSH hangs from Claude's shell (passphrase prompt). Ask the user to run it with `!`.
+- Push with `GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=10" git push`: it works when the key agent is loaded and fails fast instead of hanging on a passphrase prompt when it isn't. Only then ask the user to run it with `!`.
 
 ## Known infrastructure issues
 
