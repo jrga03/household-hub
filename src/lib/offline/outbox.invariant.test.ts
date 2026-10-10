@@ -18,6 +18,7 @@ import * as transfers from "./transfers";
 import type { OfflineOperationResult, TransactionInput } from "./types";
 import * as debtCrud from "@/lib/debts/crud";
 import * as debtPayments from "@/lib/debts/payments";
+import * as debtReconcile from "@/lib/debts/reconcile";
 import * as debtReversals from "@/lib/debts/reversals";
 import * as debtStatus from "@/lib/debts/status";
 import { createTestPayment } from "@/lib/debts/__tests__/test-utils";
@@ -520,6 +521,24 @@ const MUTATIONS: Record<string, Scenario> = {
     prepare: async () => {
       await debtNeedingStatusFlip();
       return () => debtStatus.recoverInvalidDebtStates("external", USER);
+    },
+  },
+  reconcileDebtLedger: {
+    entityTypes: ["debt_payment", "debt"],
+    prepare: async () => {
+      const { id: debtId } = await debt();
+      const { id } = await transaction({ debt_id: debtId });
+      // A second live payment for the same transaction, as another device's edit leaves it
+      await db.debtPayments.add(
+        createTestPayment({
+          debt_id: debtId,
+          transaction_id: id,
+          amount_cents: cents(2500),
+          household_id: DEFAULT_HOUSEHOLD_ID,
+        })
+      );
+      return () =>
+        debtReconcile.reconcileDebtLedger({ transactionIds: [id], paymentIds: [] }, USER);
     },
   },
 };
