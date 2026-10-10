@@ -168,7 +168,7 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP) and one tw
 
 - #16 merged (PR #26, 41f23ee) and CI pin bump merged (PR #27, afdeb7a); CI green on main after #27.
 - #21 merged (PR #28). #18 merged (PR #29).
-- #17 on branch `rearch/17-join-requests`.
+- #17 in review: PR #30 (`rearch/17-join-requests`).
 - Next: #22, #23, #19, #24, #25; #20 (keep-alive cron) is independent.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
