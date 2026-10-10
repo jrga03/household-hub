@@ -27,8 +27,9 @@ Make external debts creatable and viewable from the app, and close the five cros
 
 One migration, followed by `npm run gen:types` in the same commit.
 
-- **Gap 1, server `updated_at`:** add BEFORE UPDATE triggers on `debts` and `internal_debts` that call `update_updated_at_column()`. The server owns `updated_at` on update, so a late or skewed client value cannot sort below another device's catch-up mark. A queued status update also cannot move it behind the payment trigger's `NOW()`.
-- **Gap 5, transaction delete:** drop `NOT NULL` on `debt_payments.transaction_id` and re-create its foreign key with `ON DELETE SET NULL`. Referential actions bypass RLS, so clients still cannot UPDATE or DELETE ledger rows. Before writing the migration, check whether `validate_reversal_amount_trigger` or the overpayment trigger fire on UPDATE. If either does, it must tolerate a change to `transaction_id` alone.
+- **Gap 1, server `updated_at`:** add BEFORE INSERT OR UPDATE triggers on `debts` and `internal_debts` that call `update_updated_at_column()`. The server owns `updated_at`, so a late or skewed client value cannot sort below another device's catch-up mark. A queued status update also cannot move it behind the payment trigger's `NOW()`.
+- **Server `created_at` on `debt_payments` (added at planning, 2026-10-10):** a BEFORE INSERT trigger sets `created_at = now()`. Catch-up pulls payments on `created_at` with one shared cursor, so a payment pushed late from an offline device would otherwise sort below another device's mark and never reach it, and reconcile assumes every device eventually sees every payment.
+- **Gap 5, transaction delete:** drop `NOT NULL` on `debt_payments.transaction_id` and re-create its foreign key with `ON DELETE SET NULL`. Referential actions bypass RLS, so clients still cannot UPDATE or DELETE ledger rows. Every `debt_payments` trigger is BEFORE or AFTER INSERT only (checked at planning), so the SET NULL fires none of them.
 - **Gap 2, double reversal:** add a partial unique index `debt_payments_reverses_payment_id_unique` on `debt_payments(reverses_payment_id) WHERE reverses_payment_id IS NOT NULL`.
 - **Gap 4b, name collisions:** drop `idx_debts_household_name_unique` and `idx_internal_debts_household_name_unique`.
 
@@ -38,7 +39,7 @@ pgTAP covers each change:
 - Deleting a linked transaction keeps the payment and its reversal, with `transaction_id` null.
 - A second reversal of one payment fails with 23505.
 - Two active debts in one household can share a name.
-- An update moves `updated_at` to the server's time even when the client sends an older value.
+- An insert or update sets `updated_at` (debts) and an insert sets `created_at` (payments) to the server's time even when the client sends an older value.
 
 Production deploy (by the user, before `debts-sync-gaps` is pushed):
 
@@ -52,14 +53,15 @@ Production deploy (by the user, before `debts-sync-gaps` is pushed):
 
 - **Reversal conflict (gap 2):** a `debt_payment` insert that fails with 23505 and whose message names `debt_payments_reverses_payment_id_unique` means the payment is already reversed. The processor deletes the local reversal row and completes the queue item; no Sync Issue is raised. Any other 23505 keeps today's handling. The next pull brings the winning reversal.
 - **Reconcile pass (gap 2), `src/lib/debts/reconcile.ts`:** runs after each catch-up, over the transactions whose `transactions` or `debt_payments` rows changed in that pull.
-  - The expected ledger for transaction T is exactly one live payment of T's amount to T's `debt_id`. It is none when T is unlinked or no longer exists.
+  - The expected ledger for transaction T is exactly one live payment of T's amount to T's `debt_id`, and none when T is unlinked. When T is not in Dexie, reconcile skips it: it may not have been pulled yet, and a local delete already reversed its payments.
   - A live payment is a non-reversal payment that no reversal points at.
-  - The keeper is the newest live payment, by `created_at` then `id`, whose debt and amount match. Every other live payment for T is reversed with reason `reconcile`, through the outbox.
-  - Reconcile only writes reversals; it never creates payments. When no live payment matches the expected one, it reports through `reportError` and leaves the ledger unchanged.
+  - The keeper is the matching live payment with the smallest `id` (revised at planning: a device's own rows keep their client `created_at` while other devices hold the server's, so `created_at` is not the same on every device). Every other live payment for T is reversed with reason `reconcile`, through the outbox.
+  - A pulled live payment whose `transaction_id` is null lost its transaction to a delete that raced an edit; reconcile reverses it.
+  - Reconcile only writes reversals; it never creates payments. When live payments exist but none matches the expected one, it reports through `reportError` and leaves the ledger unchanged.
   - Reconcile skips any T that has `queued` or `syncing` outbox items for T or its payments. The local edit has not settled yet, and a later pull reconciles it.
   - Every device picks the same keeper, so concurrent runs reverse the same payments, and the unique index plus the 23505 rule collapse the duplicates.
-- **Status re-derivation (gap 4a):** after reconcile, call `updateDebtStatusFromBalance` for every debt whose payments changed in the pull or in reconcile. It writes only when the status changes, and `archived` is never touched. Two devices writing the same value is harmless under last-write-wins.
-- **Transaction delete, local side (gap 5):** `prepareTransactionDelete` also sets `transaction_id` to null on the deleted transaction's local payment and reversal rows, in the same write set. Catch-up is insert-only for `debt_payments`, so the server's SET NULL never reaches other devices; each device clears its own links. `DebtPayment.transaction_id` becomes `string | null`.
+- **Status re-derivation (gap 4a):** after reconcile, call `updateMultipleDebtStatuses` for every debt whose payments changed in the pull or in reconcile. It writes only when the status changes, and `archived` is never touched. Two devices writing the same value is harmless under last-write-wins.
+- **Transaction delete, local side (gap 5, revised at planning):** local ledger rows keep their `transaction_id`. Nulling locally would modify existing ledger rows without queue items, which the outbox invariant test forbids. The cost is cosmetic: the deleting device's history shows the old transaction reference instead of "Transaction deleted". `DebtPayment.transaction_id` becomes `string | null`.
 - **Delete while sync is pending (gap 3):** if a debt's only outbox item is its own create and that item is still `queued`, deleting the debt removes the row and the item in one Dexie transaction, and nothing is sent. Otherwise `validateDebtDeletion` keeps its guard: an item that is `syncing`, any other pending debt item, or any pending payment item.
 - **Names:** `isDebtNameUnique` stays as the same-device check on create and rename. The server no longer enforces uniqueness.
 
@@ -68,15 +70,15 @@ Production deploy (by the user, before `debts-sync-gaps` is pushed):
 - **Routes:**
   - `/debts` uses `<PageShell variant="split">`. `DebtList` in Main has an Active / Paid off / Archived filter. A summary aside shows the total owed and total paid, visible at `@[1100px]`.
   - `/debts/$debtId` shows `DebtBalanceDisplay`, `DebtProgressBar`, Record payment, Edit, Archive or Unarchive, Delete, and `PaymentHistoryList`.
-  - The file structure follows `/accounts` and `/accounts/$accountId`; the plan confirms how the accounts route renders its child.
+  - The file structure follows `/analytics`: `debts.tsx` is a layout route rendering `<Outlet />`, with `debts/index.tsx` and `debts/$debtId.tsx`. (`accounts.tsx` renders no `<Outlet />`, so `/accounts/$accountId` never shows its page; found at planning, out of scope.)
 - **Nav:** "Debts" in the Core Financial section after Accounts, in `AppSidebar` and `MobileNav`.
 - **Reads:** `debtsListQueryOptions()` (external debts with balances) and `debtDetailQueryOptions(debtId)` (the debt, its balance and its payments). Both sit in `supabaseQueries.ts` next to `activeExternalDebtsQueryOptions`, with keys under `queryKeys.debts`. Both read Dexie, which is the debts source of truth, so they work offline as is.
 - **Writes:**
   - `CreateExternalDebtForm` and `EditExternalDebtForm` open in a Dialog. Each write calls `afterOutboxWrite(queryClient, userId, "debt")`; today they only call `onSuccess`.
   - Archive, unarchive and delete call the existing `crud.ts` functions and invalidate the same way.
   - Record payment opens `TransactionFormDialog` with a new `defaultDebtId` prop. A payment remains a transaction linked to a debt.
-- **Delete affordance:** shown only for a debt with no payment history. While section 2's guard applies, Delete is disabled with a "waiting for sync" hint driven by `getSyncStatusForDebt`.
-- **Payment history:** a payment whose `transaction_id` is null reads "transaction deleted".
+- **Delete affordance:** shown only for a debt with no payment history. While section 2's guard applies, Delete is disabled and the guard's message from `validateDebtDeletion` is shown under it.
+- **Payment history:** a payment whose `transaction_id` is null reads "Transaction deleted". A non-null link keeps today's "Transaction #abcd1234" text even when this device deleted it: Dexie caches transactions on demand, so a missing row does not prove a delete. Dates are parsed with `parseLocalDate`.
 - **Errors:** write failures show a Sonner toast and call `reportError`; validation errors stay inline in the forms.
 - **Knip:** the commit that first imports `src/components/debts/**` from a route also deletes that ignore entry.
   - `CreateInternalDebtForm.tsx` gets an exact-path ignore with "Revisit: internal debts spec".
@@ -91,7 +93,7 @@ Production deploy (by the user, before `debts-sync-gaps` is pushed):
   - The 23505 rule, including that a 23505 on another constraint still fails.
   - Reconcile scenarios:
     - two devices edit one transaction;
-    - one device edits and the other deletes;
+    - an unlinked transaction with a live payment, and a pulled orphan payment;
     - a transaction with pending outbox items is skipped;
     - no matching payment reports and writes nothing;
     - two reconcile runs over the same pull write each reversal once.
@@ -130,3 +132,4 @@ Production deploy (by the user, before `debts-sync-gaps` is pushed):
 - **Gap 1: server-set `updated_at` on update for both debt tables (decided 2026-10-10).**
 - **Gap 3: coalesce delete with an unsent create; keep the guard otherwise (decided 2026-10-10, recommended default).** Why: the common case is deleting a debt created by mistake while offline. Revisit: if users report Delete stuck on "waiting for sync".
 - **Layout mirrors accounts: `/debts` split plus `/debts/$debtId`; nav in Core Financial after Accounts; Record payment reuses `TransactionFormDialog` (decided 2026-10-10).** Rejected: a single page with a sheet (no deep link); a tab under Accounts.
+- **Revised at planning (2026-10-10, recommended defaults; see the plan's Decisions Needed):** server-set `created_at` on payment inserts and `updated_at` on debt inserts; keeper by smallest `id`; local ledger rows keep their `transaction_id`; reconcile skips transactions missing from Dexie and reverses pulled orphans; layout route per `/analytics`. Why: each fixes a way devices could disagree or the outbox invariant would break, found while reading the code.
