@@ -2,6 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import { testUsers } from "./test-users";
 
 const EMAIL_EXISTS_CODE = "email_exists";
+const FIXTURE_HOUSEHOLD_NAME = "Test household";
+const ALREADY_IN_HOUSEHOLD = "You already belong to a household";
 const LOCAL_HOSTNAMES = new Set(["127.0.0.1", "localhost"]);
 
 function hostnameOf(url: string): string | null {
@@ -39,5 +41,27 @@ export async function ensureTestUsers(supabaseUrl: string, serviceRoleKey: strin
       throw new Error(`Failed to create E2E fixture user ${email}: ${error.message}`);
     }
     console.log(`[global-setup] fixture user ${email}: ${error ? "already present" : "created"}`);
+    await ensureHousehold(supabaseUrl, serviceRoleKey, email, password);
+  }
+}
+
+// Signed-in specs expect a member; create_household reads auth.uid(), so call it
+// as the fixture user rather than with the service role.
+async function ensureHousehold(
+  supabaseUrl: string,
+  apiKey: string,
+  email: string,
+  password: string
+) {
+  const userClient = createClient(supabaseUrl, apiKey, { auth: { persistSession: false } });
+  const { error: signInError } = await userClient.auth.signInWithPassword({ email, password });
+  if (signInError) {
+    throw new Error(`Failed to sign in E2E fixture user ${email}: ${signInError.message}`);
+  }
+  const { error } = await userClient.rpc("create_household", {
+    household_name: FIXTURE_HOUSEHOLD_NAME,
+  });
+  if (error && error.message !== ALREADY_IN_HOUSEHOLD) {
+    throw new Error(`Failed to create a household for ${email}: ${error.message}`);
   }
 }

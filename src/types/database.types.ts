@@ -23,13 +23,70 @@ export type Database = {
           }
         },"public": {
           Tables: {
-            [_ in never]: never
+            "household_members": {
+                  Row: {
+                    "household_id": string,"joined_at": string,"user_id": string
+                  }
+                  Insert: {
+                    "household_id": string,"joined_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "household_id"?: string,"joined_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "household_members_household_id_fkey"
+      columns: ["household_id"]
+isOneToOne: false
+      referencedRelation: "households"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"households": {
+                  Row: {
+                    "code": string,"created_at": string,"id": string,"name": string,"owner_user_id": string
+                  }
+                  Insert: {
+                    "code": string,"created_at"?: string,"id"?: string,"name": string,"owner_user_id": string
+                  }
+                  Update: {
+                    "code"?: string,"created_at"?: string,"id"?: string,"name"?: string,"owner_user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "households_owner_is_member"
+      columns: ["id","owner_user_id"]
+isOneToOne: false
+      referencedRelation: "household_members"
+      referencedColumns: ["household_id","user_id"]
+    }
+                  ]
+                }
           }
           Views: {
             [_ in never]: never
           }
           Functions: {
-            [_ in never]: never
+            "create_household":
+{ Args: { "household_name": string }; Returns: {
+              "code": string,
+"created_at": string,
+"id": string,
+"name": string,
+"owner_user_id": string
+            }
+                          SetofOptions: {
+        from: "*"
+        to: "households"
+        isOneToOne: true
+        isSetofReturn: false
+      } },
+"current_household_id":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
+"generate_household_code":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           }
           }
           Enums: {
             [_ in never]: never
