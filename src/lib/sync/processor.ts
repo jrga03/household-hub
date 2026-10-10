@@ -80,6 +80,20 @@ export interface ProcessQueueResult {
   terminalFailures: number;
 }
 
+const REVERSAL_INDEX = "debt_payments_reverses_payment_id_unique";
+
+/** Another device reversed this payment first; the server keeps that reversal. */
+function isAlreadyReversed(
+  entityType: EntityType,
+  error: { code?: string; message: string }
+): boolean {
+  return (
+    entityType === "debt_payment" &&
+    error.code === "23505" &&
+    error.message.includes(REVERSAL_INDEX)
+  );
+}
+
 /**
  * SyncProcessor - Main class for draining the offline sync queue
  *
@@ -311,6 +325,15 @@ export class SyncProcessor {
       const isDuplicatePkey = error.code === "23505" && error.message.includes("_pkey");
       if (isDuplicatePkey) {
         console.log(`${tableName} row already exists on server - treating create as synced`);
+        return;
+      }
+      if (isAlreadyReversed(entityType, error)) {
+        // The winner's reversal arrives with the next pull; reconcile and status
+        // re-derivation then settle the balance on this device.
+        if (typeof payload.id === "string") await db.debtPayments.delete(payload.id);
+        console.log(
+          `${tableName} payment already reversed on server - dropping the local reversal`
+        );
         return;
       }
       throw error;

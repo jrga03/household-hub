@@ -21,6 +21,8 @@ import { db } from "@/lib/dexie/db";
 import { getPendingQueueItems } from "@/lib/offline/syncQueue";
 import { queryClient } from "@/lib/queryClient";
 import { keysAfterWrite, queryKeys } from "@/lib/query-keys";
+import { createTestPayment } from "@/lib/debts/__tests__/test-utils";
+import { cents } from "@/test/cents";
 
 // ─── Helpers ─────────────────────────────────────
 function makeQueueItem(overrides: Partial<SyncQueueItem> = {}): SyncQueueItem {
@@ -114,6 +116,7 @@ describe("SyncProcessor (local outbox)", () => {
     await db.syncQueue.clear();
     await db.meta.clear();
     await db.syncIssues.clear();
+    await db.debtPayments.clear();
   });
 
   describe("processQueue", () => {
@@ -312,6 +315,68 @@ describe("SyncProcessor (local outbox)", () => {
       expect(result.success).toBe(true);
       const stored = await db.syncQueue.get(item.id);
       expect(stored?.status).toBe("completed");
+    });
+
+    it("drops a local reversal when another device already reversed the payment", async () => {
+      setupSupabaseMock({
+        insertError: makeSupabaseError(
+          'duplicate key value violates unique constraint "debt_payments_reverses_payment_id_unique"',
+          "23505"
+        ),
+      });
+      await db.debtPayments.put(
+        createTestPayment({
+          id: "rev-local",
+          amount_cents: cents(-500),
+          is_reversal: true,
+          reverses_payment_id: "pay-1",
+        })
+      );
+      const item = makeQueueItem({
+        entity_type: "debt_payment",
+        entity_id: "rev-local",
+        operation: {
+          op: "create",
+          payload: { id: "rev-local", reverses_payment_id: "pay-1", amount_cents: -500 },
+          idempotencyKey: "key-rev",
+          lamportClock: 1,
+          vectorClock: {},
+        },
+      });
+      await db.syncQueue.add(item);
+
+      const result = await processor.processItem(item);
+
+      expect(result.success).toBe(true);
+      expect((await db.syncQueue.get(item.id))?.status).toBe("completed");
+      expect(await db.debtPayments.get("rev-local")).toBeUndefined();
+    });
+
+    it("still fails a debt payment on any other unique violation", async () => {
+      setupSupabaseMock({
+        insertError: makeSupabaseError(
+          'duplicate key value violates unique constraint "debt_payments_other_unique"',
+          "23505"
+        ),
+      });
+      await db.debtPayments.put(createTestPayment({ id: "pay-local" }));
+      const item = makeQueueItem({
+        entity_type: "debt_payment",
+        entity_id: "pay-local",
+        operation: {
+          op: "create",
+          payload: { id: "pay-local" },
+          idempotencyKey: "key-pay",
+          lamportClock: 1,
+          vectorClock: {},
+        },
+      });
+      await db.syncQueue.add(item);
+
+      const result = await processor.processItem(item);
+
+      expect(result.success).toBe(false);
+      expect(await db.debtPayments.get("pay-local")).toBeDefined();
     });
 
     it("handles update: calls Supabase update", async () => {
