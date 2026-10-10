@@ -5,7 +5,7 @@
       // Vite, Vitest, Playwright, Husky and lint-staged are auto-detected; these entries are not.
       // The shadcn/ui kit is kept whole for the features #15 rebuilds on it.
       "entry": ["scripts/*.{mjs,js,cjs}", "src/components/ui/*.tsx"],
-      // Installed by supabase/setup-cli in CI and Homebrew locally (pinned 2.109.1 in CI).
+      // Installed by supabase/setup-cli in CI and Homebrew locally (pinned 2.119.0 in CI).
       "ignoreBinaries": ["supabase"],
       // Kept for planned table sorting and filtering. Revisit: when a table adopts it.
       "ignoreDependencies": ["@tanstack/react-table"],
