@@ -298,9 +298,7 @@ class HouseholdHubDB extends Dexie {
 
 ```typescript
 this.version(3)
-  .stores({
-    /* ... */
-  })
+  .stores({/* ... */})
   .upgrade((tx) => {
     // Optional: seed data or transform existing records
     console.log("Upgraded to version 3: Added tags table");

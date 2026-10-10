@@ -34,6 +34,10 @@ _Avoid_: Wallet (as the general term), source
 Whether an account is **Household** (every member sees it and it counts toward household totals) or **Personal** (only its owning member sees it, and it goes with them between households). Fixed when the account is created. Transactions take the visibility of their account.
 _Avoid_: Private, shared, scope
 
+**Retired**:
+An account no longer in use. It leaves the main accounts list but keeps its history, stays under a Retired view, and can be unretired.
+_Avoid_: Archived, closed, deleted
+
 **Transaction**:
 One thing that happened to money in one account on one date: an amount, always positive, and a direction (income or expense).
 _Avoid_: Entry, record, line item, event

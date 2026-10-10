@@ -45,6 +45,8 @@ export function formatHlc(hlc: Hlc): string {
   return `${wallTime}-${counter}-${hlc.deviceId}`;
 }
 
+export const isHlc = (formatted: string): boolean => HLC_PATTERN.test(formatted);
+
 export function parseHlc(formatted: string): Hlc {
   const match = HLC_PATTERN.exec(formatted);
   if (!match) throw new Error(`Not a hybrid logical clock timestamp: ${formatted}`);

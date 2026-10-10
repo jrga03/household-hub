@@ -35,6 +35,20 @@ export class HouseholdHubDB extends Dexie {
       accounts: "id",
       meta: "key",
     });
+    // Projections rebuild one entity from its own events.
+    this.version(3)
+      .stores({ events: "id, [pushed+hlc], entityId" })
+      .upgrade((transaction) =>
+        transaction
+          .table("accounts")
+          .toCollection()
+          .modify((account: Record<string, unknown>) => {
+            account.retired ??= false;
+            account.payingAccountId ??= null;
+            delete account.hlc;
+            delete account.createdHlc;
+          })
+      );
   }
 }
 
