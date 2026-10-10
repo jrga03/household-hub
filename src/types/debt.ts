@@ -341,6 +341,8 @@ export interface DebtSummary {
 export interface CreateReversalData {
   payment_id: string;
   reason?: string; // Optional: "transaction_edited" | "transaction_deleted" | "user_initiated"
+  /** The reversal compensates a deleted transaction: store no link, so its insert never depends on that row */
+  unlink_transaction?: boolean;
 }
 
 /**

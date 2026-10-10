@@ -142,7 +142,7 @@ export async function prepareReversal(
     household_id: originalPayment.household_id,
     debt_id: originalPayment.debt_id,
     internal_debt_id: originalPayment.internal_debt_id,
-    transaction_id: originalPayment.transaction_id,
+    transaction_id: data.unlink_transaction ? null : originalPayment.transaction_id,
     amount_cents: negateCents(originalPayment.amount_cents),
     payment_date: format(new Date(), "yyyy-MM-dd"),
     is_reversal: true,
@@ -326,7 +326,7 @@ export async function prepareTransactionDelete(
   let result: ReversalResult | undefined;
   for (const payment of livePayments) {
     const prepared = await prepareReversal(
-      { payment_id: payment.id, reason: "transaction_deleted" },
+      { payment_id: payment.id, reason: "transaction_deleted", unlink_transaction: true },
       userId,
       view
     );

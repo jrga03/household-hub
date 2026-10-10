@@ -542,6 +542,35 @@ describe("Reversal System", () => {
       expect(result?.newBalance).toBe(100000);
     });
 
+    it("creates the reversal without a transaction link, so it syncs after the delete", async () => {
+      const debt = await createExternalDebt(
+        { name: "Test Debt", original_amount_cents: cents(100000), household_id: "h1" },
+        "test-user-id"
+      );
+      await processDebtPayment(
+        {
+          transaction_id: "txn-unlink",
+          amount_cents: cents(50000),
+          payment_date: "2025-11-10",
+          debt_id: debt.id,
+          household_id: "h1",
+        },
+        "test-user-id"
+      );
+
+      const result = await handleTransactionDelete(
+        { transaction_id: "txn-unlink" },
+        "test-user-id"
+      );
+
+      expect(result?.reversal.transaction_id).toBeNull();
+      const item = await db.syncQueue
+        .where("entity_id")
+        .equals(result?.reversal.id ?? "")
+        .first();
+      expect(item?.operation.payload).toMatchObject({ transaction_id: null });
+    });
+
     it("should return undefined if no payment found", async () => {
       const result = await handleTransactionDelete(
         {
