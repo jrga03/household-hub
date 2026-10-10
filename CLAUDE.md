@@ -76,3 +76,17 @@ Check here before debugging a test or CLI failure you did not cause. A failure i
 | Past architecture review findings                           | `docs/reviews/2026-07-02-architecture-review.md`                                    |
 | Wide-screen layout design                                   | `docs/plans/2026-05-30-wide-screen-layout-design.md`                                |
 | Domain specialists                                          | `.claude/agents/*.md` (sync, offline, currency, schema, frontend, UI, Cloudflare)   |
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on jrga03/household-hub via `gh`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `GLOSSARY.md` and `docs/adr/` (plus legacy `docs/initial plan/DECISIONS.md`). See `docs/agents/domain.md`.
