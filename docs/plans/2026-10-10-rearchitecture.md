@@ -195,7 +195,7 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #16 merged (PR #26, 41f23ee) and CI pin bump merged (PR #27, afdeb7a); CI green on main after #27.
 - #21 merged (PR #28). #18 merged (PR #29).
 - #17 merged (PR #30).
-- #22 on `rearch/22-personal-accounts`.
+- #22 in review: PR #31 (`rearch/22-personal-accounts`). #25 owes: keep Personal events when a household is deleted; reset the pull cursor on leaving.
 - Next: #23 (its edit form shows visibility read-only), #19, #24, #25; #20 (keep-alive cron) is independent.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
