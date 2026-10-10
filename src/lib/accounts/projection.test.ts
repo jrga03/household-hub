@@ -114,6 +114,51 @@ describe("account projection", () => {
     expect(await listAccounts()).toMatchObject([{ id: BANK_ID }]);
   });
 
+  // No edit event exists yet (#23), so a later create of the same account
+  // stands in for an edit that tries to change visibility.
+  const personalSavings: LoggedEvent = {
+    ...accountCreated("e-savings", BANK_ID, "000000000001000-000000-device-b", {
+      name: "Savings",
+      type: "bank",
+      startingBalanceCents: 0,
+    }),
+    visibility: "personal",
+    ownerUserId: "user-b",
+  };
+  const savingsMadeHousehold = accountCreated(
+    "e-savings-2",
+    BANK_ID,
+    "000000000002000-000000-device-b",
+    { name: "Joint savings", type: "bank", startingBalanceCents: 0 }
+  );
+  const savingsMadeSomeoneElses: LoggedEvent = {
+    ...accountCreated("e-savings-3", BANK_ID, "000000000003000-000000-device-a", {
+      name: "Joint savings",
+      type: "bank",
+      startingBalanceCents: 0,
+    }),
+    visibility: "personal",
+    ownerUserId: "user-a",
+  };
+
+  it.each(
+    permutations([personalSavings, savingsMadeHousehold, savingsMadeSomeoneElses]).map((order) => [
+      order.map((e) => e.id),
+      order,
+    ])
+  )(
+    "keeps the visibility and owner the account was created with, in the order %j",
+    async (_ids, order) => {
+      for (const event of order) {
+        await receiveEvents([event], 0);
+      }
+
+      expect(await listAccounts()).toMatchObject([
+        { id: BANK_ID, name: "Joint savings", visibility: "personal", ownerUserId: "user-b" },
+      ]);
+    }
+  );
+
   it("keeps an event of a type this version doesn't know without projecting it", async () => {
     const fromNewerApp = { ...bank, id: "e-future", eventType: "account.renamed" };
 

@@ -164,12 +164,39 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP) and one tw
 - **Review deferral: "a replaced code" isn't tested**; codes can't be replaced yet. Lookup is by the current code, so an old one will get "No household with that code". Revisit: #25 (code replacement).
 - **Review deferral: the form-error box and `error instanceof Error ? … : fallback` repeat** across create, join, the request card and AccountsCard. Revisit: extract a `FormError` when the next form lands.
 
+## Issue #22: Personal accounts
+
+Seams (from the issue's acceptance criteria): server contract (pgTAP), account projection and `createAccount` (Vitest), one two-member Playwright flow.
+
+- [x] Migration: Personal events readable only by their owner (whatever their membership), appendable only by their owner while a member; Household events unchanged
+- [x] pgTAP: owner reads Personal, other members don't, foreign owner rejected, Household readable by all members, owner still reads Personal after leaving
+- [x] `createAccount` takes a visibility (Household by default) and keys Personal events to the actor
+- [x] Projection fixes visibility, owner and household from the earliest create; permutation test with a later create that tries to change it
+- [x] Add-account form: Household/Personal choice defaulting to Household (reset after each add); Personal badge in the list
+- [x] Playwright: B adds Personal and Household accounts; A sees only the Household one (chromium)
+- [x] Home laptop layout baselines regenerated (chromium, Mobile Chrome)
+- [x] build, lint, vitest, both tsc, knip, `supabase test db`, `supabase db lint`
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
+
+### #22 decisions
+
+- **The read-only visibility on edit forms moves to #23**, which builds the first edit form. Why: no edit form exists yet. Revisit: #23.
+- **Visibility, owner and household come from the account's earliest create (lowest HLC); every other field follows the latest event.** No edit event exists yet, so a later `account.created` stands in for an edit in the permutation test. #23's edit events must not touch them, and must carry the account's own visibility and owner so RLS shows them to the same people. Revisit: #23.
+- **A Personal event is readable by its owner whatever their membership** (RLS on `owner_user_id`, not household). Appending still needs current membership. Resolves the #18 deferral.
+- **Review fixes:** the pgTAP definer helper says why it reads past RLS; the e2e people are `owner` and `member`; the projection's locked fields are named `fixedAtCreation`.
+- **Review deferral: deleting a household cascades to its events, Personal ones included** (`events.household_id ... on delete cascade`). Leaving keeps them (pgTAP covers it), but dissolving a household would delete a sole member's Personal accounts, against ADR 0002. Fixing it now makes `householdId` nullable through the sync and projection types for a path that doesn't exist yet. Revisit: #25 (dissolve must keep Personal events, with a pgTAP case that deletes the household).
+- **Review deferral: the pull cursor is one global sequence.** A member who moves to another household would skip its earlier events. Revisit: #25 (the wipe on leaving resets the cursor to 0, which also re-pulls their Personal events).
+- **Local account rows from #18 have no `createdHlc`** and can't have their visibility corrected; dev-only, since there is no production data. Revisit: never.
+- **Extras beyond the issue:** a Personal badge in the accounts list, and a partial index on `(owner_user_id, sequence)` for the owner's Personal reads.
+
 ## Resume state
 
 - #16 merged (PR #26, 41f23ee) and CI pin bump merged (PR #27, afdeb7a); CI green on main after #27.
 - #21 merged (PR #28). #18 merged (PR #29).
-- #17 in review: PR #30 (`rearch/17-join-requests`).
-- Next: #22, #23, #19, #24, #25; #20 (keep-alive cron) is independent.
+- #17 merged (PR #30).
+- #22 in review: PR #31 (`rearch/22-personal-accounts`). #25 owes: keep Personal events when a household is deleted; reset the pull cursor on leaving.
+- Next: #23 (its edit form shows visibility read-only), #19, #24, #25; #20 (keep-alive cron) is independent.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
   - `supabase test db` exits 1 when `supabase/tests/` has no `.sql` files; `000_empty_baseline.sql` (asserts public has no tables) must be replaced, not just deleted, by #21's baseline tests.

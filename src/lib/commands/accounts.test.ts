@@ -43,6 +43,28 @@ describe("createAccount", () => {
     ]);
   });
 
+  it("is a Household account unless Personal is chosen", async () => {
+    await createAccount(MEMBER, { name: "Cash", type: "cash", startingBalanceCents: cents(0) });
+
+    expect(await listUnpushed(10)).toMatchObject([{ visibility: "household", ownerUserId: null }]);
+  });
+
+  it("keys a Personal account's event to the member who adds it", async () => {
+    const account = await createAccount(MEMBER, {
+      name: "My savings",
+      type: "bank",
+      startingBalanceCents: cents(0),
+      visibility: "personal",
+    });
+
+    expect(await listAccounts()).toMatchObject([
+      { id: account.id, visibility: "personal", ownerUserId: MEMBER.userId },
+    ]);
+    expect(await listUnpushed(10)).toMatchObject([
+      { visibility: "personal", ownerUserId: MEMBER.userId, householdId: MEMBER.householdId },
+    ]);
+  });
+
   it("stamps each new event later than the one before", async () => {
     await createAccount(MEMBER, { name: "Cash", type: "cash", startingBalanceCents: cents(0) });
     await createAccount(MEMBER, { name: "Bank", type: "bank", startingBalanceCents: cents(0) });
