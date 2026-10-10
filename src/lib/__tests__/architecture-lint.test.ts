@@ -46,6 +46,42 @@ const cases = [
     flagged: "src/hooks/probe.ts",
     allowed: "src/lib/currency.ts",
   },
+  {
+    rule: "no-restricted-imports",
+    code: 'import { asCents } from "@/lib/currency";\nexport const total = asCents(1);\n',
+    flagged: "src/lib/accounts/projection.ts",
+    allowed: "src/lib/accounts/events.ts",
+  },
+  {
+    rule: "no-restricted-imports",
+    code: 'import { appendEvent } from "@/lib/events/log";\nexport { appendEvent };\n',
+    flagged: "src/lib/sync/probe.ts",
+    allowed: "src/lib/commands/probe.ts",
+  },
+  {
+    rule: "no-restricted-imports",
+    code: 'import { receiveEvents, markPushed } from "@/lib/events/log";\nexport { receiveEvents, markPushed };\n',
+    flagged: "src/components/probe.tsx",
+    allowed: "src/lib/sync/probe.ts",
+  },
+  {
+    rule: "arch/no-events-table-outside-sync",
+    code: 'import { supabase } from "@/lib/supabase";\nexport const push = () => supabase.from("events").insert([]);\n',
+    flagged: "src/lib/probe.ts",
+    allowed: "src/lib/sync/probe.ts",
+  },
+  {
+    rule: "arch/no-events-table-outside-sync",
+    code: 'import { supabase } from "@/lib/supabase";\nexport const pull = () => supabase.rpc("pull_events", { after_sequence: 0, batch_size: 1 });\n',
+    flagged: "src/hooks/probe.ts",
+    allowed: "src/lib/sync/probe.ts",
+  },
+  {
+    rule: "arch/no-direct-event-log",
+    code: 'import { db } from "@/lib/dexie/db";\nexport const add = () => db.events.add({} as never);\n',
+    flagged: "src/lib/commands/probe.ts",
+    allowed: "src/lib/events/probe.ts",
+  },
 ];
 
 describe.each(cases)("$rule", ({ rule, code, flagged, allowed }) => {
@@ -104,12 +140,35 @@ it("formatPHP and the helpers stay importable everywhere", async () => {
   ).not.toContain("no-restricted-imports");
 });
 
+it.each(["src/components/probe.tsx", "src/routes/probe.tsx", "src/lib/accounts/events.ts"])(
+  "no-restricted-imports bans appendEvent outside commands in %s",
+  async (filePath) => {
+    const code = 'import { appendEvent } from "@/lib/events/log";\nexport { appendEvent };\n';
+    expect(await ruleIds(code, filePath)).toContain("no-restricted-imports");
+  }
+);
+
+it.each(["src/lib/commands/probe.ts", "src/hooks/probe.ts", "src/lib/accounts/events.ts"])(
+  "no-restricted-imports keeps listUnpushed to the sync engine in %s",
+  async (filePath) => {
+    const code = 'import { listUnpushed } from "@/lib/events/log";\nexport { listUnpushed };\n';
+    expect(await ruleIds(code, filePath)).toContain("no-restricted-imports");
+  }
+);
+
+it("the sync engine may not append events", async () => {
+  const code = 'import { appendEvent } from "@/lib/events/log";\nexport { appendEvent };\n';
+  expect(await ruleIds(code, "src/lib/sync/engine.ts")).toContain("no-restricted-imports");
+});
+
 it.each([
-  "src/hooks/probe.ts",
+  "src/lib/commands/probe.ts",
+  "src/lib/accounts/events.ts",
   "src/components/probe.tsx",
   "src/lib/probe.ts",
   "src/lib/dexie/probe.ts",
   "src/lib/currency.ts",
+  "src/hooks/probe.ts",
 ])("no-restricted-imports bans nanoid in %s", async (filePath) => {
   const code = 'import { nanoid } from "nanoid";\nexport const id = nanoid();\n';
   expect(await ruleIds(code, filePath)).toContain("no-restricted-imports");

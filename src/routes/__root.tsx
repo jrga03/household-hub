@@ -2,11 +2,14 @@ import { createRootRoute, Link, redirect } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 import { useAuthStore } from "@/stores/authStore";
 import { enforceHouseholdGate } from "@/lib/households";
+import { useEventSync } from "@/hooks/useEventSync";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 function RootComponent() {
+  useEventSync();
+
   return (
     <>
       <AppLayout />

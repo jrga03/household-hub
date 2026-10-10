@@ -100,6 +100,43 @@ Fix commits cluster in `src/lib/{sync,offline,debts}`.
 - **Review deferral: the ADR 0001 refinement** (membership is relational, not events; the gate reads the network with a local fallback) is still owed. Revisit: when milestone 1 lands.
 - **E2E fixture users get a household** ("Test household") in global setup via `create_household`; the remote CI E2E job assumes its fixture users already have one. Revisit: if that job is re-enabled against a remote project.
 
+## Issue #18: event log tracer
+
+Seams (agreed): HLC (pure), event store + account projection + `createAccount` (Vitest + fake-indexeddb), sync engine against an in-memory remote (Vitest), server contract (pgTAP), architecture lint, one two-context Playwright flow.
+
+- [x] Migration: append-only `events` (client id, identity sequence, household, visibility, owner, entity, event type/version, HLC, device, actor, payload), RLS, insert-only grants, `pull_events`
+- [x] pgTAP: duplicate id keeps one row; pull after N is later events in order; non-member reads nothing; update and delete denied
+- [x] Regenerate `database.types.ts`
+- [x] HLC (`src/lib/events/hlc.ts`) with tests
+- [x] Dexie v2 tables (events, accounts, meta); event store; account projector (create only) with permutation and duplicate tests
+- [x] `createAccount` command: validate, append, project in one transaction
+- [x] Sync engine: push, pull, project; triggers on start, reconnect, local writes (debounced), visibility; tests with a fake remote
+- [x] Accounts list (local projection only) and add-account form on home
+- [x] Lint: only commands append events; only the sync engine touches the server `events`
+- [x] ADR 0004; CLAUDE.md data rules for the event log
+- [x] Playwright: offline create on A, reconnect, appears on B (chromium)
+- [x] build, lint, vitest, both tsc, knip, `supabase test db`, `supabase db lint`
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
+
+### #18 decisions
+
+- **Sequences are assigned by a trigger under a per-household advisory lock**, not by an identity default. A default draws the number before commit, so concurrent pushes could become visible out of order and a pull cursor would skip one forever. Revisit: if push contention in one household ever matters (it serializes that household's pushes).
+- **Clients have no privilege on the event sequence** (Supabase grants it by default); a client `setval` would rewind every cursor.
+- **Personal events are rejected by RLS for now** (insert and read are Household only). Revisit: #22.
+- **The accounts list lives on home**, not a new route, so navigation stays untouched. Revisit: when accounts get detail views (#23).
+- **Sync runs on app start, reconnect, visibility and local writes only; no polling or Realtime.** An open device sees another's change at its next trigger. Revisit: #24 (sync status) if members expect live updates.
+- **Sign-out halts sync and makes one push attempt (5 s cap) before wiping the local store**; unpushed events that still fail are lost. Revisit: #24 adds a sync status and an unsynced-events warning before sign-out.
+- **Sync failures without a Postgres code are treated as unreachable and only logged; server refusals go to Sentry.** A refused event blocks the push queue, but the device still pulls (review fix). Revisit: #24/#25 (membership removal will produce refusals).
+- **Events of unknown types, or with an unreadable payload, stay in the log unprojected.** Nothing re-projects them after an app update yet. Revisit: #23, when a second event type needs a projection rebuild (replay the log by HLC).
+- **`dexie-react-hooks` reinstalled** for the live accounts list.
+- **Home layout baselines regenerated.** The old ones still passed with the Accounts card added: `maxDiffPixelRatio: 0.02` absorbs a sparse card. Revisit: tighten when layouts are rebuilt.
+- **ADR 0001 refinement written as ADR 0004** (resolves the #21 deferral).
+- **Review fixes:** pull even when a push is refused; sign-out waits for an in-flight sync before its final push; `listUnpushed`/`markPushed`/`receiveEvents` are lint-fenced to `src/lib/sync` (and the sync engine can't `appendEvent`); a visibility guard replaces a cast; the balance-range message derives from `MAX_AMOUNT_CENTS`; CLAUDE.md says projections are read with `useLiveQuery`.
+- **Review deferral: projections aren't scoped to the signed-in member.** Session expiry keeps the local store (so unsynced events survive), so a different person signing in on that device would see the previous household's accounts, and their old events would be refused. Revisit: #25 (wipe or scope the store when the signed-in user or household changes).
+- **Review deferral: no bound on how far ahead a received HLC may be**; one device with a wrong clock drags every clock forward (ordering stays consistent). Revisit: #23, when edits make HLC order user-visible.
+- **Review deferral: adding a projection touches three places** (Dexie table, `logTables` in `log.ts`, the dispatch in `projector.ts`). Revisit: a projection registry when the second projection lands.
+
 ## Resume state
 
 - #16 merged (PR #26, 41f23ee) and CI pin bump merged (PR #27, afdeb7a); CI green on main after #27.

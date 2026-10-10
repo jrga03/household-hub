@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { queryClient } from "@/lib/queryClient";
 import { forgetLastKnownHousehold } from "@/lib/households";
+import { stopEventSyncForSignOut } from "@/lib/sync";
 
 interface AuthState {
   user: User | null;
@@ -187,7 +188,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
     // this action's own purge/toast/navigate runs exactly once.
     deliberateSignOut = true;
     try {
-      // Clear local data and sign out
+      // Clear local data and sign out. Sync stops first so nothing is pulled
+      // into the wiped store.
+      await stopEventSyncForSignOut();
       await clearIndexedDB();
       forgetLastKnownHousehold();
       await supabase.auth.signOut();

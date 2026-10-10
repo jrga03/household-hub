@@ -19,25 +19,24 @@ supabase test db           # pgTAP (empty-schema check until the #15 baseline)
 
 ## Rules that break data if ignored
 
-**Being replaced by the event-log rules in #15.** #16 stripped the row outbox, sync processor, debts data layer and transaction reads; until #15 lands, the rules marked _(replaced by #15)_ describe code that no longer exists. Do not rebuild them.
-
-- _(replaced by #15)_ ~~**Writes go through the outbox.**~~ The event log becomes the only thing that syncs (ADR 0001).
-- **IDs are client-generated** (`crypto.randomUUID()`); local ID equals server ID. No temp IDs.
-- **Money is integer cents**, typed `Cents` (`src/lib/currency.ts`), always positive, with `type: "income" | "expense"`. Parse input with `parsePHP` / `parsePHPSafe` / `parsePHPUnbounded`, display with `formatPHP`. Derive totals with `sumCents` / `diffCents` / `divideCents` (never divide cents without rounding); `asCents` only in the data layer.
-- _(replaced by #15)_ ~~**Transfers are excluded from analytics and budgets** via the `transactions_non_transfer` view and `supabaseQueries.ts`.~~ The principle stands; the mechanism will be a projection.
+- **Changes are events** (ADR 0001). UI calls a command in `src/lib/commands`; it validates, then `appendEvent` (`src/lib/events/log.ts`) writes the event and projects it in one Dexie transaction. Only commands append events, and only `src/lib/sync` talks to the server `events` table (both lint-enforced). Events are never rewritten: a correction is a new event, and a new payload shape is a new `eventVersion` that the decoder translates.
+- **Reads are always local**, from projections built by `src/lib/events/projector.ts`. Components never call Supabase directly (lint-enforced in routes and components).
+- **Projections are order-independent.** Devices receive events in any order, sometimes twice; a projector gives the same rows for every permutation (the later HLC wins per record) and ignores duplicates. Prove it with a permutation test like `src/lib/accounts/projection.test.ts`.
+- **Conflicts resolve by hybrid logical clock** (`src/lib/events/hlc.ts`). The server sequence only drives pulls; a trigger assigns it under a per-household lock so it matches commit order.
+- **Membership is relational and server-authoritative** (`households`, `household_members`; ADR 0004). Changing it needs a connection.
+- **IDs are client-generated** (`crypto.randomUUID()`); local ID equals server ID. Households are the exception (server-generated).
+- **Money is integer cents**, typed `Cents` (`src/lib/currency.ts`), always positive, with `type: "income" | "expense"`. Parse input with `parsePHP` / `parsePHPSafe` / `parsePHPUnbounded`, display with `formatPHP`. Derive totals with `sumCents` / `diffCents` / `divideCents` (never divide cents without rounding). `asCents` belongs to the data layer: currency.ts and the event decoders (`src/lib/*/events.ts`).
+- **Transfers are excluded from analytics and budgets**, through a projection.
 - **Transaction `date` is the user's local calendar date** (`DATE`); audit timestamps are UTC `TIMESTAMPTZ`. Parse "yyyy-MM-dd" with `parseLocalDate` (`src/lib/utils/dates.ts`), never `new Date("yyyy-MM-dd")`.
 - **Budgets are reference targets**, never balances; actual spend is always derived from transactions.
-- _(replaced by #15)_ ~~**Debt balance** from signed payment rows in `src/lib/debts/balance.ts`.~~ Debts return after milestone 1.
-- _(replaced by #15)_ ~~**Conflicts:** record-level last-write-wins on `updated_at`.~~ Conflicting edits resolve by hybrid logical clock.
-- _(replaced by #15)_ ~~**Reads fall back to Dexie** through `reads.ts` and `readDb`.~~ Reads are always local, from projections. Components still never call Supabase directly (lint-enforced in routes and components).
 
-Always ask: what happens offline, and what happens when two devices edit the same row?
+Always ask: what happens offline, and what happens when two devices edit the same record?
 
 ## Code conventions
 
 - TanStack Router (not react-router-dom); Sonner toasts (not react-hot-toast).
-- _(replaced by #15)_ ~~Query keys from `src/lib/query-keys.ts` and `afterOutboxWrite`.~~ `@tanstack/eslint-plugin-query` (strict) still applies to any query.
-- Server state in TanStack Query, client state in Zustand (minimal).
+- `@tanstack/eslint-plugin-query` (strict) applies to any query.
+- Server state in TanStack Query, client state in Zustand (minimal). Projections are read with `useLiveQuery` (dexie-react-hooks), so local writes and synced events re-render on their own.
 - Every route uses `<PageShell variant="…">` (`src/components/layout/PageShell.tsx`). Inside rails, sheets, and panes, use container queries (`@[600px]:`), not viewport breakpoints.
 - No `any`. No `!` in production code (lint-enforced); narrow with a guard instead. Tests may use `!` after asserting length.
 - No blanket `eslint-disable`; any disable needs a trailing reason.
@@ -63,19 +62,19 @@ Check here before debugging a test or CLI failure you did not cause. A failure i
 
 ## Load on demand
 
-| When working on                                             | Read                                                                                |
-| ----------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Schema, migrations, query patterns, currency and date specs | `docs/initial plan/DATABASE.md`                                                     |
-| Sync engine, idempotency, device ID, conflict resolution    | `docs/initial plan/SYNC-ENGINE.md`                                                  |
-| Why something is the way it is (numbered decisions)         | `docs/initial plan/DECISIONS.md`                                                    |
-| RLS policies                                                | `docs/initial plan/RLS-POLICIES.md`                                                 |
-| Overall architecture                                        | `docs/initial plan/ARCHITECTURE.md`                                                 |
-| Testing strategy, performance budgets                       | `docs/initial plan/TESTING-PLAN.md`, `docs/initial plan/PERFORMANCE-BUDGET.md`      |
-| Deployment (Cloudflare)                                     | `DEPLOYMENT.md`                                                                     |
-| Current roadmap and its decisions                           | `docs/plans/2026-09-30-guardrails-roadmap.md` (Resume state, Decisions & Deferrals) |
-| Past architecture review findings                           | `docs/reviews/2026-07-02-architecture-review.md`                                    |
-| Wide-screen layout design                                   | `docs/plans/2026-05-30-wide-screen-layout-design.md`                                |
-| Domain specialists                                          | `.claude/agents/*.md` (sync, offline, currency, schema, frontend, UI, Cloudflare)   |
+| When working on                                             | Read                                                                                              |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Schema, migrations, query patterns, currency and date specs | `docs/initial plan/DATABASE.md`                                                                   |
+| Event log, sync, projections, membership boundary           | `docs/adr/0001-event-log-is-the-only-synced-data.md`, `docs/adr/0004-membership-is-relational.md` |
+| Why something is the way it is (numbered decisions)         | `docs/initial plan/DECISIONS.md`                                                                  |
+| RLS policies                                                | `docs/initial plan/RLS-POLICIES.md`                                                               |
+| Overall architecture                                        | `docs/initial plan/ARCHITECTURE.md`                                                               |
+| Testing strategy, performance budgets                       | `docs/initial plan/TESTING-PLAN.md`, `docs/initial plan/PERFORMANCE-BUDGET.md`                    |
+| Deployment (Cloudflare)                                     | `DEPLOYMENT.md`                                                                                   |
+| Current roadmap and its decisions                           | `docs/plans/2026-09-30-guardrails-roadmap.md` (Resume state, Decisions & Deferrals)               |
+| Past architecture review findings                           | `docs/reviews/2026-07-02-architecture-review.md`                                                  |
+| Wide-screen layout design                                   | `docs/plans/2026-05-30-wide-screen-layout-design.md`                                              |
+| Domain specialists                                          | `.claude/agents/*.md` (sync, offline, currency, schema, frontend, UI, Cloudflare)                 |
 
 ## Agent skills
 
