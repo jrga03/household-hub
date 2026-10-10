@@ -11,21 +11,11 @@ import { ExpirationPlugin } from "workbox-expiration";
 
 declare const self: ServiceWorkerGlobalScope;
 
-interface ExtendedNotificationOptions extends NotificationOptions {
-  actions?: Array<{ action: string; title: string; icon?: string }>;
-  vibrate?: number[];
-}
-
 /**
  * Custom Service Worker for Household Hub PWA
  *
- * This service worker extends Vite PWA's functionality with:
- * - Push notification handlers
- * - Notification click routing
- * - All existing Workbox caching strategies from chunk 042
- *
- * Strategy Change: From generateSW (auto-generated) to injectManifest (custom)
- * This allows us to add push event handlers while preserving caching logic.
+ * Workbox precaching, app-shell navigation and runtime caching, plus the
+ * prompt-driven update flow (injectManifest, so the worker stays ours).
  */
 
 // ============================================================================
@@ -52,8 +42,8 @@ registerRoute(new NavigationRoute(createHandlerBoundToURL("index.html")));
 
 // 1. Supabase REST API - deliberately NOT cached. Responses are authenticated
 //    financial data; Cache Storage is keyed by URL only, so cached payloads
-//    would survive logout and could leak across sessions (SEC-07). Dexie is
-//    the app's offline data layer; the SW must not keep a second copy.
+//    would survive logout and could leak across sessions (SEC-07). IndexedDB
+//    is the app's offline data layer; the SW must not keep a second copy.
 
 // 2. Supabase Storage - Cache First (7-day cache)
 registerRoute(
@@ -74,154 +64,6 @@ registerRoute(
   ({ url }) => url.hostname.includes("supabase.co") && url.pathname.includes("/auth/"),
   new NetworkOnly()
 );
-
-// ============================================================================
-// PUSH NOTIFICATION HANDLERS
-// ============================================================================
-
-/**
- * Push Event Handler
- *
- * Triggered when the service worker receives a push notification from
- * the push service (via Cloudflare Worker).
- *
- * Displays the notification to the user even when the app is closed.
- */
-self.addEventListener("push", (event: PushEvent) => {
-  console.log("[Service Worker] Push notification received", event);
-
-  if (!event.data) {
-    console.warn("[Service Worker] Push event has no data");
-    return;
-  }
-
-  try {
-    const data = event.data.json();
-    const { title, body, icon, badge, data: notificationData } = data;
-
-    const options: ExtendedNotificationOptions = {
-      body,
-      icon: icon || "/icons/icon-192x192.png",
-      badge: badge || "/icons/badge-72x72.png",
-      data: notificationData,
-      tag: notificationData?.tag || "default",
-      requireInteraction: notificationData?.requireInteraction || false,
-    };
-
-    // Add action buttons for budget alerts
-    if (notificationData?.tag === "budget-alert") {
-      options.actions = [
-        {
-          action: "view-budget",
-          title: "View Budget",
-        },
-        {
-          action: "dismiss",
-          title: "Dismiss",
-        },
-      ];
-      options.vibrate = [200, 100, 200];
-    }
-
-    // Add action buttons for pending transactions
-    if (notificationData?.tag === "pending-transactions") {
-      options.actions = [
-        {
-          action: "view-transactions",
-          title: "View Pending",
-        },
-        {
-          action: "dismiss",
-          title: "Dismiss",
-        },
-      ];
-      options.vibrate = [200, 100, 200];
-    }
-
-    event.waitUntil(self.registration.showNotification(title, options));
-  } catch (error) {
-    console.error("[Service Worker] Error handling push event:", error);
-  }
-});
-
-/**
- * Notification Click Handler
- *
- * Handles user interactions with notifications:
- * - Clicking the notification opens/focuses the app
- * - Routes to relevant page based on notification type
- * - Handles action buttons (View Budget, View Pending, etc.)
- */
-self.addEventListener("notificationclick", (event: NotificationEvent) => {
-  console.log("[Service Worker] Notification clicked", event);
-
-  event.notification.close();
-
-  const data = event.notification.data;
-  const action = event.action;
-
-  // Determine target URL based on notification type and action
-  let targetUrl = "/";
-
-  if (action === "dismiss") {
-    // User clicked dismiss - just close the notification
-    return;
-  }
-
-  if (action === "view-budget" || data?.budgetId) {
-    targetUrl = "/budgets";
-  } else if (action === "view-transactions" || data?.tag === "pending-transactions") {
-    targetUrl = data?.url || "/transactions?status=pending";
-  } else if (data?.url) {
-    targetUrl = data.url;
-  }
-
-  // Open or focus existing window
-  event.waitUntil(
-    self.clients
-      .matchAll({
-        type: "window",
-        includeUncontrolled: true,
-      })
-      .then((clientList) => {
-        // Try to focus existing window with the target URL
-        for (const client of clientList) {
-          if (client.url.includes(new URL(targetUrl, self.location.origin).pathname)) {
-            if ("focus" in client) {
-              return client.focus();
-            }
-          }
-        }
-
-        // If no matching window, try to focus any open window and navigate
-        const client = clientList[0];
-        if (client) {
-          if ("focus" in client) {
-            client.focus().catch((error: unknown) => console.error("[SW] focus failed", error));
-          }
-          if ("navigate" in client) {
-            return (client as WindowClient).navigate(new URL(targetUrl, self.location.origin).href);
-          }
-        }
-
-        // No open windows - open new one
-        if (self.clients.openWindow) {
-          return self.clients.openWindow(new URL(targetUrl, self.location.origin).href);
-        }
-      })
-  );
-});
-
-/**
- * Notification Close Handler
- *
- * Optional: Track when users dismiss notifications without clicking.
- * Useful for analytics to understand notification engagement.
- */
-self.addEventListener("notificationclose", (event: NotificationEvent) => {
-  console.log("[Service Worker] Notification closed", event.notification.tag);
-  // Optional: Send analytics event about notification dismissal
-});
 
 // ============================================================================
 // SERVICE WORKER LIFECYCLE

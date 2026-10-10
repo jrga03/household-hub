@@ -1,8 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { login } from "./fixtures/helpers";
 
-// The dashboard lives at "/"; /dashboard is a legacy redirect
-const isDashboard = (url: URL) => url.pathname === "/";
+const isHome = (url: URL) => url.pathname === "/";
 
 test.describe("Authentication", () => {
   test("should sign up new user", async ({ page }) => {
@@ -14,9 +13,9 @@ test.describe("Authentication", () => {
 
     await page.click('button[type="submit"]');
 
-    await expect(page).toHaveURL(isDashboard);
+    await expect(page).toHaveURL(isHome);
     await expect(
-      page.getByRole("main").getByRole("heading", { level: 1, name: "Dashboard" })
+      page.getByRole("main").getByRole("heading", { level: 1, name: "Home" })
     ).toBeVisible();
   });
 
@@ -28,19 +27,24 @@ test.describe("Authentication", () => {
 
     await page.click('button[type="submit"]');
 
-    await expect(page).toHaveURL(isDashboard);
+    await expect(page).toHaveURL(isHome);
+    await expect(
+      page.getByRole("main").getByRole("heading", { level: 1, name: "Home" })
+    ).toBeVisible();
   });
 
-  test("should sign out", async ({ page }) => {
+  test("should sign out", async ({ page, isMobile }) => {
     await login(page);
 
+    // On phones, sign out lives in the navigation drawer
+    if (isMobile) await page.getByRole("button", { name: "Open navigation menu" }).click();
     await page.getByRole("button", { name: "Sign Out" }).click();
 
     await expect(page).toHaveURL(/\/login/);
   });
 
   test("should protect routes when not authenticated", async ({ page }) => {
-    await page.goto("/transactions");
+    await page.goto("/settings");
 
     // Should redirect to login
     await expect(page).toHaveURL(/\/login/);

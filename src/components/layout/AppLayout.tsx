@@ -6,31 +6,28 @@ import { Button } from "@/components/ui/button";
 import { AppSidebar } from "./AppSidebar";
 import { BottomTabBar } from "./BottomTabBar";
 import { MobileNav } from "./MobileNav";
-import { QuickActionButton } from "./QuickActionButton";
 import { useNavStore } from "@/stores/navStore";
-import { useIsMobile, useIsTablet, useMediaQuery } from "@/hooks/useMediaQuery";
+import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { cn } from "@/lib/utils";
-import { GlobalSyncStatus } from "@/components/sync/GlobalSyncStatus";
 import { OfflineBanner } from "@/components/sync/OfflineBanner";
 import { StorageWarning } from "@/components/StorageWarning";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
-import { TransactionFormDialog } from "@/components/TransactionFormDialog";
 
 /**
  * Main application layout component
  *
  * Handles responsive layout logic:
- * - Mobile: Header with hamburger + drawer navigation + bottom tab bar + FAB
- * - Tablet: Collapsible sidebar (default collapsed) + FAB on touch devices
- * - Desktop: Collapsible sidebar (default expanded) + FAB on touch devices
+ * - Mobile: Header with hamburger + drawer navigation + bottom tab bar
+ * - Tablet: Collapsible sidebar (default collapsed)
+ * - Desktop: Collapsible sidebar (default expanded)
  *
  * Bottom-edge geometry (review R42): everything pinned to the bottom edge
  * derives from the shared `--bottom-chrome` custom property (index.css),
  * which equals the BottomTabBar footprint at mobile widths and just the
- * safe area elsewhere. The tab bar is DELIBERATELY mobile-branch-only:
- * the tablet/desktop branch (including landscape phones, review C3) keeps
- * the sidebar + coarse-pointer FAB instead.
+ * safe area elsewhere. The tab bar is mobile-branch-only; the
+ * tablet/desktop branch (including landscape phones, review C3) keeps the
+ * sidebar instead.
  *
  * Features:
  * - Authentication-aware (no nav on login/signup)
@@ -47,31 +44,21 @@ const NO_NAV_ROUTES = ["/login", "/signup"];
 
 export function AppLayout() {
   const router = useRouterState();
-  const { mobileNavOpen, setMobileNavOpen, setActiveRoute } = useNavStore();
+  const { mobileNavOpen, setMobileNavOpen } = useNavStore();
 
   // Responsive breakpoints
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
 
-  // Landscape phones (812-932px wide) fall into the tablet/desktop branch
-  // because isMobile is width-only (review C3). Rewriting isMobile itself is
-  // deliberately out of scope (too many consumers); instead the FAB renders
-  // in the tablet/desktop branch too whenever the device's PRIMARY pointer is
-  // touch, so rotating the phone doesn't delete the primary add action.
-  // Mouse-driven desktops keep their FAB-free layout.
-  const isCoarsePointer = useMediaQuery("(pointer: coarse)");
-
   // Enable keyboard shortcuts
   useKeyboardShortcuts();
 
-  // Track active route. Also a safety net for the nav drawer: close it on any
-  // pathname change — the drawer's own links close it via onClick, but
+  // Safety net for the nav drawer: close it on any pathname change — the drawer's own links close it via onClick, but
   // programmatic navigations and back-gesture pops don't go through those
   // handlers (review R37).
   useEffect(() => {
-    setActiveRoute(router.location.pathname);
     setMobileNavOpen(false);
-  }, [router.location.pathname, setActiveRoute, setMobileNavOpen]);
+  }, [router.location.pathname, setMobileNavOpen]);
 
   // Authentication is enforced BEFORE render by the root route's beforeLoad
   // guard (routes/__root.tsx); no effect-based redirects here (review UI-07)
@@ -120,9 +107,6 @@ export function AppLayout() {
               </div>
               <span className="font-semibold">Household Hub</span>
             </div>
-
-            {/* Sync Status */}
-            <GlobalSyncStatus variant="compact" />
           </div>
         </header>
 
@@ -132,27 +116,18 @@ export function AppLayout() {
         {/* Offline + storage banners (shared fixed stack) */}
         <BannerStack />
 
-        {/* Main Content: bottom inset keeps the tab bar AND the FAB (raised
-            above the bar) from covering the last row's amounts on every route
-            (reviews R13, R42). 5.5rem = 1.5rem FAB gap + 3.5rem FAB + 0.5rem
-            clearance, measured from the top of the bottom chrome. */}
+        {/* Main Content: bottom inset keeps the tab bar from covering the
+            last row on every route (reviews R13, R42) */}
         <main
           id="main-content"
-          className="flex-1 bg-background pb-[calc(5.5rem+var(--bottom-chrome))]"
+          className="flex-1 bg-background pb-[calc(0.5rem+var(--bottom-chrome))]"
         >
           <Outlet />
         </main>
 
-        {/* Bottom tab bar: one-tap access to the four highest-frequency
-            destinations (review R42) */}
+        {/* Bottom tab bar: one-tap access to the primary destinations
+            (review R42) */}
         <BottomTabBar />
-
-        {/* Floating Action Button (raised above the tab bar via
-            --bottom-chrome) */}
-        <QuickActionButton />
-
-        {/* Quick-add dialog (FAB, drawer CTA, and shortcuts drive navStore) */}
-        <QuickAddTransactionDialog />
 
         {/* PWA Installation Prompt */}
         <PWAInstallPrompt />
@@ -199,24 +174,13 @@ export function AppLayout() {
             className={cn(
               "flex-1 bg-background",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-              "relative",
-              // Same FAB clearance as the mobile branch (review R13): keep the
-              // floating button from covering the last row's amounts. At these
-              // widths --bottom-chrome is just the safe area (no tab bar).
-              isCoarsePointer && "pb-[calc(5.5rem+var(--bottom-chrome))]"
+              "relative"
             )}
             tabIndex={-1}
           >
             <Outlet />
           </main>
         </div>
-
-        {/* FAB for touch devices that exceed the mobile width breakpoint
-            (landscape phones, tablets — review C3) */}
-        {isCoarsePointer && <QuickActionButton />}
-
-        {/* Quick-add dialog (sidebar/drawer CTAs and shortcuts drive navStore) */}
-        <QuickAddTransactionDialog />
 
         {/* PWA Installation Prompt */}
         <PWAInstallPrompt />
@@ -243,23 +207,6 @@ function BannerStack() {
 }
 
 /**
- * Single consumer of navStore.quickAddOpen. The mobile FAB, the sidebar
- * "Add Transaction" button, the mobile drawer CTA, keyboard shortcuts, and
- * the /transactions/new manifest-shortcut route all set the flag; this
- * renders the dialog for whichever layout branch is mounted.
- *
- * Mounted conditionally because TransactionFormDialog fetches data on mount.
- */
-function QuickAddTransactionDialog() {
-  const quickAddOpen = useNavStore((state) => state.quickAddOpen);
-  const setQuickAddOpen = useNavStore((state) => state.setQuickAddOpen);
-
-  if (!quickAddOpen) return null;
-
-  return <TransactionFormDialog open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />;
-}
-
-/**
  * Page title component for tablet header
  * Shows the current page name based on route
  */
@@ -269,16 +216,7 @@ function PageTitle() {
 
   // Map routes to titles
   const getTitleFromPath = (pathname: string): string => {
-    if (pathname === "/") return "Dashboard";
-    if (pathname.startsWith("/transactions")) return "Transactions";
-    if (pathname.startsWith("/accounts")) return "Accounts";
-    if (pathname.startsWith("/categories")) return "Categories";
-    if (pathname.startsWith("/budgets")) return "Budgets";
-    if (pathname.startsWith("/analytics")) return "Analytics";
-    if (pathname.startsWith("/transfers")) return "Transfers";
-    if (pathname.startsWith("/import/pdf")) return "PDF Import";
-    if (pathname.startsWith("/import")) return "Import";
-    if (pathname.startsWith("/drafts")) return "Drafts";
+    if (pathname === "/") return "Home";
     if (pathname.startsWith("/settings")) return "Settings";
     return "Household Hub";
   };

@@ -1,15 +1,9 @@
 /**
- * MobileNav drawer tests (mobile UX review R42):
+ * MobileNav drawer tests. Primary destinations live in the BottomTabBar; the
+ * drawer holds the profile, Settings and sign out.
  *
- * With the BottomTabBar owning the four highest-frequency destinations
- * (Dashboard, Transactions, Budgets, Accounts), the drawer must NOT list
- * them anymore — it keeps only the long tail (Categories, Analytics,
- * Transfers, PDF Import, Drafts, Settings), the quick-add CTA, the sync
- * row, and sign out.
- *
- * Rendered inside a real memory-history RouterProvider because MobileNav
- * uses useRouterState and the controlled Sheet wrapper engages the
- * history-back-close hook (review R37).
+ * Rendered inside a real memory-history RouterProvider because the
+ * controlled Sheet wrapper engages the history-back-close hook (review R37).
  */
 
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -23,7 +17,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { MobileNav } from "./MobileNav";
-import { useNavStore } from "@/stores/navStore";
+import { signOutWithToast } from "@/lib/sign-out";
 
 // Radix measures via ResizeObserver, which jsdom lacks
 class ResizeObserverStub {
@@ -40,22 +34,9 @@ vi.mock("@/stores/authStore", () => ({
     selector({ user: { email: "test@example.com" } }),
 }));
 
-// Sign-out flow (supabase + dexie + confirm dialog) is out of scope here
+// The sign-out flow itself (Supabase, local store reset) is covered in sign-out.test.ts
 vi.mock("@/lib/sign-out", () => ({
-  signOutWithConfirm: vi.fn().mockResolvedValue(undefined),
-}));
-
-// Live sync status reads the Dexie outbox; irrelevant to nav contents
-vi.mock("@/components/sync/GlobalSyncStatus", () => ({
-  GlobalSyncStatus: () => <div data-testid="sync-status-row" />,
-}));
-
-// Drafts badge count (Dexie liveQuery) pinned to zero
-vi.mock("dexie-react-hooks", () => ({
-  useLiveQuery: () => 0,
-}));
-vi.mock("@/lib/offline/importDrafts", () => ({
-  getPendingDraftCount: vi.fn().mockResolvedValue(0),
+  signOutWithToast: vi.fn().mockResolvedValue(undefined),
 }));
 
 const onOpenChange = vi.fn();
@@ -69,15 +50,7 @@ async function renderDrawer() {
       </>
     ),
   });
-  const paths = [
-    "/",
-    "/categories",
-    "/analytics",
-    "/transfers",
-    "/import/pdf",
-    "/drafts",
-    "/settings",
-  ];
+  const paths = ["/", "/settings"];
   const router = createRouter({
     routeTree: rootRoute.addChildren(
       paths.map((path) =>
@@ -94,53 +67,34 @@ async function renderDrawer() {
   await screen.findByText("Household Hub");
 }
 
-// Owned by the BottomTabBar (R42) — must NOT appear in the drawer
-const TAB_BAR_DESTINATIONS = ["Dashboard", "Transactions", "Budgets", "Accounts"] as const;
-
-// The drawer's long tail
-const DRAWER_LINKS = [
-  { name: "Categories", href: "/categories" },
-  { name: "Analytics", href: "/analytics" },
-  { name: "Transfers", href: "/transfers" },
-  { name: "PDF Import", href: "/import/pdf" },
-  { name: "Drafts", href: "/drafts" },
-  { name: "Settings", href: "/settings" },
-] as const;
-
-describe("MobileNav drawer contents (review R42)", () => {
+describe("MobileNav drawer", () => {
   beforeEach(() => {
-    useNavStore.setState({ quickAddOpen: false });
+    onOpenChange.mockClear();
   });
 
-  it("no longer lists the four tab-bar destinations", async () => {
+  it("shows the signed-in user", async () => {
     await renderDrawer();
 
-    for (const name of TAB_BAR_DESTINATIONS) {
-      expect(screen.queryByRole("link", { name })).not.toBeInTheDocument();
-    }
+    expect(screen.getByText("test@example.com")).toBeInTheDocument();
   });
 
-  it("keeps the long-tail destinations", async () => {
+  it("links only to Settings, and closes on navigation", async () => {
     await renderDrawer();
 
-    for (const { name, href } of DRAWER_LINKS) {
-      expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
-    }
-  });
+    const links = screen.getAllByRole("link");
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute("href", "/settings");
 
-  it("keeps the quick-add CTA wired to navStore and closes the drawer", async () => {
-    await renderDrawer();
-
-    fireEvent.click(screen.getByRole("button", { name: "Add Transaction" }));
-
-    expect(useNavStore.getState().quickAddOpen).toBe(true);
+    fireEvent.click(links[0]!);
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it("keeps the sync row and sign out", async () => {
+  it("signs out and closes the drawer", async () => {
     await renderDrawer();
 
-    expect(screen.getByTestId("sync-status-row")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign Out" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Sign Out" }));
+
+    await vi.waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    expect(signOutWithToast).toHaveBeenCalledOnce();
   });
 });

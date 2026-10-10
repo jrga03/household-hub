@@ -1,15 +1,7 @@
 /**
- * BottomTabBar tests (mobile UX review R42):
- *
- * - renders the four primary destinations as links with accessible names
- * - active state is PREFIX-matched (TanStack fuzzy matching): a memory
- *   router at /transactions/abc keeps the Transactions tab lit
- * - "/" is exact-matched, so Dashboard lights ONLY at "/" (fuzzy "/" would
- *   match every route)
- * - TanStack Link marks the active tab with aria-current="page"
- *
- * Uses a REAL router over memory history (not mocks) because the assertions
- * are about the router's own active-link semantics.
+ * BottomTabBar tests (mobile UX review R42). Uses a real router over memory
+ * history because the assertions are about the router's own active-link
+ * semantics: prefix matching for nested routes, exact matching for "/".
  */
 
 import { describe, expect, it } from "vitest";
@@ -33,44 +25,22 @@ async function renderAt(initialPath: string) {
       </>
     ),
   });
-  const routes = [
+  const routes = ["/", "/settings", "/settings/$section"].map((path) =>
     createRoute({
       getParentRoute: () => rootRoute,
-      path: "/",
-      component: () => <div data-testid="route-dashboard" />,
-    }),
-    createRoute({
-      getParentRoute: () => rootRoute,
-      path: "/transactions",
-      component: () => <div data-testid="route-transactions" />,
-    }),
-    createRoute({
-      getParentRoute: () => rootRoute,
-      path: "/transactions/$transactionId",
-      component: () => <div data-testid="route-transaction-detail" />,
-    }),
-    createRoute({
-      getParentRoute: () => rootRoute,
-      path: "/budgets",
-      component: () => <div data-testid="route-budgets" />,
-    }),
-    createRoute({
-      getParentRoute: () => rootRoute,
-      path: "/accounts",
-      component: () => <div data-testid="route-accounts" />,
-    }),
-  ];
+      path,
+      component: () => <div data-testid={`route-${path}`} />,
+    })
+  );
   const router = createRouter({
     routeTree: rootRoute.addChildren(routes),
     history: createMemoryHistory({ initialEntries: [initialPath] }),
   });
   render(<RouterProvider router={router} />);
-  // Wait for the initial route to mount before asserting active states
   await screen.findByRole("navigation", { name: "Primary navigation" });
-  return router;
 }
 
-const TAB_NAMES = ["Dashboard", "Transactions", "Budgets", "Accounts"] as const;
+const TAB_NAMES = ["Home", "Settings"] as const;
 
 function activeTabNames(): string[] {
   return TAB_NAMES.filter(
@@ -79,48 +49,22 @@ function activeTabNames(): string[] {
 }
 
 describe("BottomTabBar (review R42)", () => {
-  it("renders all four primary destinations as links", async () => {
+  it("renders the primary destinations as links", async () => {
     await renderAt("/");
 
-    for (const name of TAB_NAMES) {
-      expect(screen.getByRole("link", { name })).toBeInTheDocument();
-    }
-    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: "Transactions" })).toHaveAttribute(
-      "href",
-      "/transactions"
-    );
-    expect(screen.getByRole("link", { name: "Budgets" })).toHaveAttribute("href", "/budgets");
-    expect(screen.getByRole("link", { name: "Accounts" })).toHaveAttribute("href", "/accounts");
+    expect(screen.getByRole("link", { name: "Home" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
   });
 
-  it("lights ONLY Dashboard at / (exact match — fuzzy '/' would match everything)", async () => {
+  it("lights only Home at / (exact match; fuzzy '/' would match everything)", async () => {
     await renderAt("/");
 
-    expect(activeTabNames()).toEqual(["Dashboard"]);
-    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
+    expect(activeTabNames()).toEqual(["Home"]);
   });
 
-  it("keeps Transactions lit on a child route via prefix matching (/transactions/abc)", async () => {
-    await renderAt("/transactions/abc");
+  it("keeps Settings lit on a child route via prefix matching", async () => {
+    await renderAt("/settings/appearance");
 
-    expect(screen.getByTestId("route-transaction-detail")).toBeInTheDocument();
-    expect(activeTabNames()).toEqual(["Transactions"]);
-  });
-
-  it("lights Transactions at /transactions itself", async () => {
-    await renderAt("/transactions");
-
-    expect(activeTabNames()).toEqual(["Transactions"]);
-  });
-
-  it("lights Budgets and Accounts on their own routes, never Dashboard", async () => {
-    await renderAt("/budgets");
-    expect(activeTabNames()).toEqual(["Budgets"]);
-  });
-
-  it("lights Accounts at /accounts", async () => {
-    await renderAt("/accounts");
-    expect(activeTabNames()).toEqual(["Accounts"]);
+    expect(activeTabNames()).toEqual(["Settings"]);
   });
 });

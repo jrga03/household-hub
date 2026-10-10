@@ -10,15 +10,11 @@ import { builtinRules } from "eslint/use-at-your-own-risk";
 
 // The core no-restricted-syntax rule, registered once per invariant. Flat config
 // replaces a rule's options wholesale per rule ID, so one shared array could not
-// carry five different allowlists (Phase 1a design, section 1).
+// carry different allowlists (Phase 1a design, section 1).
 const restrictedSyntax = builtinRules.get("no-restricted-syntax");
 const architecturePlugin = {
   rules: {
-    "no-direct-dexie-writes": restrictedSyntax,
-    "no-direct-supabase-writes": restrictedSyntax,
     "no-ad-hoc-money-parse": restrictedSyntax,
-    "no-raw-transactions-from": restrictedSyntax,
-    "no-inline-query-keys": restrictedSyntax,
   },
 };
 
@@ -41,31 +37,13 @@ const restrictAsCents = {
   group: ["@/lib/currency", "**/lib/currency", "**/lib/currency.ts", "./currency", "../currency"],
   importNames: ["asCents"],
   message:
-    "Derive money with the @/lib/currency helpers (sumCents, diffCents, absCents, divideCents, ZERO_CENTS) or a schema in src/lib/validations. asCents is for the data layer only.",
+    "Derive money with the @/lib/currency helpers (sumCents, diffCents, absCents, divideCents, ZERO_CENTS). asCents is for the data layer only.",
 };
-
-const asCentsAllowed = ["src/lib/currency.ts", "src/lib/validations/**"];
-
-const dataLayer = ["src/lib/offline/**", "src/lib/debts/**", "src/lib/sync/**", "src/lib/dexie/**"];
 
 const restrictSupabase = {
   group: ["**/lib/supabase", "**/lib/supabase.ts"],
   message:
-    "Routes and components fetch through a hook or @/lib/supabaseQueries so reads get the Dexie offline fallback and shared query keys.",
-};
-
-const restrictWritableDb = {
-  group: [
-    "@/lib/dexie/db",
-    "@/lib/dexie/db.ts",
-    "**/lib/dexie/db",
-    "**/lib/dexie/db.ts",
-    "**/dexie/db",
-    "**/dexie/db.ts",
-  ],
-  importNames: ["db", "HouseholdHubDB"],
-  message:
-    "Read through readDb from @/lib/dexie/readDb. The writable db and HouseholdHubDB belong to src/lib/{offline,debts,sync,dexie}, where an entity write enqueues its sync item in the same transaction.",
+    "Routes and components read and write through a hook or a src/lib module, never Supabase directly.",
 };
 
 const restrictNanoid = {
@@ -161,49 +139,6 @@ export default [
         },
       ],
       "@typescript-eslint/no-explicit-any": "warn", // Relaxed for edge functions
-    },
-  },
-
-  // Cloudflare Workers configuration
-  {
-    files: ["workers/**/*.ts"],
-    languageOptions: {
-      parser: tsParser,
-      parserOptions: {
-        ecmaVersion: "latest",
-        sourceType: "module",
-      },
-      globals: {
-        Request: "readonly",
-        Response: "readonly",
-        Headers: "readonly",
-        URL: "readonly",
-        URLSearchParams: "readonly",
-        ExecutionContext: "readonly",
-        console: "readonly",
-        crypto: "readonly",
-        TextEncoder: "readonly",
-        TextDecoder: "readonly",
-        atob: "readonly",
-        btoa: "readonly",
-        fetch: "readonly",
-        addEventListener: "readonly",
-        dispatchEvent: "readonly",
-      },
-    },
-    plugins: {
-      "@typescript-eslint": typescript,
-    },
-    rules: {
-      ...typescript.configs.recommended.rules,
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        {
-          argsIgnorePattern: "^_",
-          varsIgnorePattern: "^_",
-        },
-      ],
-      "@typescript-eslint/no-explicit-any": "warn", // Relaxed for workers
     },
   },
 
@@ -435,84 +370,14 @@ export default [
   },
   {
     files: ["src/**/*.{ts,tsx}"],
-    ignores: [
-      ...srcTestFiles,
-      "src/lib/offline/**",
-      "src/lib/debts/**",
-      "src/lib/sync/**",
-      "src/lib/dexie/**",
-    ],
-    rules: {
-      "arch/no-direct-dexie-writes": [
-        "error",
-        {
-          selector:
-            "CallExpression[callee.object.object.name='db'][callee.object.property.name=/^(transactions|accounts|categories|budgets|debts|internalDebts|debtPayments)$/][callee.property.name=/^(add|put|update|delete|bulkAdd|bulkPut|bulkUpdate|bulkDelete|clear)$/]",
-          message:
-            "Entity writes go through src/lib/offline/* (or src/lib/debts/*), which write the row and its sync-queue item in one Dexie transaction. A direct db.<table> write never reaches Supabase (IMP-01).",
-        },
-      ],
-    },
-  },
-  {
-    files: ["src/**/*.{ts,tsx}"],
-    ignores: [
-      ...srcTestFiles,
-      "src/lib/sync/**",
-      "src/lib/dexie/deviceManager.ts",
-      "src/lib/device-registration.ts",
-    ],
-    rules: {
-      "arch/no-direct-supabase-writes": [
-        "error",
-        {
-          selector:
-            "CallExpression[callee.property.name=/^(insert|upsert|update|delete)$/][callee.object.callee.property.name='from']",
-          message:
-            "Supabase entity writes belong to the sync processor (src/lib/sync). Write through src/lib/offline/* instead; a direct write skips the outbox, the event log, and offline support.",
-        },
-      ],
-    },
-  },
-  {
-    files: ["src/**/*.{ts,tsx}"],
-    ignores: [...srcTestFiles, "src/lib/currency.ts", "src/lib/supabaseQueries.ts"],
+    ignores: [...srcTestFiles, "src/lib/currency.ts"],
     rules: {
       "arch/no-ad-hoc-money-parse": [
         "error",
         {
           selector: "CallExpression[callee.name=/^(parseFloat|Number)$/]",
           message:
-            "Parse peso input with parsePHP, parsePHPSafe, or parsePHPUnbounded from @/lib/currency, which return validated integer cents. URL amount params are already cents: validate them in the route's search schema (see src/lib/validations/transactionsSearch.ts). For a number that is not an amount, disable this line with a `-- reason`.",
-        },
-      ],
-    },
-  },
-  {
-    files: ["src/**/*.{ts,tsx}"],
-    ignores: [...srcTestFiles, "src/lib/supabaseQueries.ts", "src/lib/sync/**", "src/lib/debts/**"],
-    rules: {
-      "arch/no-raw-transactions-from": [
-        "error",
-        {
-          selector: "CallExpression[callee.property.name='from'] > Literal[value='transactions']",
-          message:
-            "Read transactions through src/lib/supabaseQueries.ts. Totals (analytics, dashboard, budgets) read the transactions_non_transfer view so transfers can never leak into them.",
-        },
-      ],
-    },
-  },
-  {
-    files: ["src/**/*.{ts,tsx}"],
-    ignores: [...srcTestFiles, "src/lib/query-keys.ts"],
-    rules: {
-      "arch/no-inline-query-keys": [
-        "error",
-        {
-          selector:
-            "Property[key.name='queryKey'] > ArrayExpression, Property[key.name='queryKey'] > TSAsExpression > ArrayExpression",
-          message:
-            "Use queryKeys from @/lib/query-keys. Inline keys drift (see DATA-06) and break invalidation.",
+            "Parse peso input with parsePHP, parsePHPSafe, or parsePHPUnbounded from @/lib/currency, which return validated integer cents. For a number that is not an amount, disable this line with a `-- reason`.",
         },
       ],
     },
@@ -526,51 +391,21 @@ export default [
     rules: {
       "no-restricted-imports": [
         "error",
-        {
-          paths: [restrictNanoid],
-          patterns: [restrictSupabase, restrictAsCents, restrictWritableDb],
-        },
+        { paths: [restrictNanoid], patterns: [restrictSupabase, restrictAsCents] },
       ],
     },
   },
   {
     files: ["src/**/*.{ts,tsx}"],
-    ignores: [
-      ...srcTestFiles,
-      ...asCentsAllowed,
-      ...dataLayer,
-      "src/routes/**",
-      "src/components/**",
-    ],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        { paths: [restrictNanoid], patterns: [restrictAsCents, restrictWritableDb] },
-      ],
-    },
-  },
-  {
-    files: asCentsAllowed,
-    ignores: srcTestFiles,
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        { paths: [restrictNanoid], patterns: [restrictWritableDb] },
-      ],
-    },
-  },
-  {
-    files: ["src/lib/debts/**/*.ts", "src/lib/offline/**/*.ts"],
-    ignores: srcTestFiles,
+    ignores: [...srcTestFiles, "src/lib/currency.ts", "src/routes/**", "src/components/**"],
     rules: {
       "no-restricted-imports": ["error", { paths: [restrictNanoid], patterns: [restrictAsCents] }],
     },
   },
   {
-    files: ["src/lib/sync/**/*.ts", "src/lib/dexie/**/*.ts"],
-    ignores: srcTestFiles,
+    files: ["src/lib/currency.ts"],
     rules: {
-      "no-restricted-imports": ["error", { paths: [restrictNanoid], patterns: [restrictAsCents] }],
+      "no-restricted-imports": ["error", { paths: [restrictNanoid] }],
     },
   },
   prettier,

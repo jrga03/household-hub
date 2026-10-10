@@ -34,29 +34,6 @@ test.describe("PWA Features", () => {
     await expect(page.getByRole("heading")).toBeVisible();
   });
 
-  test("should load cached transactions offline", async ({ page, context }) => {
-    // Login and load transactions
-    await page.goto("/login");
-    await page.fill('[name="email"]', "test@example.com");
-    await page.fill('[name="password"]', "TestPassword123!");
-    await page.click('button[type="submit"]');
-
-    await page.goto("/transactions");
-    await page.waitForLoadState("networkidle");
-
-    // Wait for data to be cached
-    await page.waitForTimeout(1000);
-
-    // Go offline
-    await context.setOffline(true);
-
-    // Reload
-    await page.reload();
-
-    // Should still see cached transaction list
-    await expect(page.getByTestId("transaction-list")).toBeVisible();
-  });
-
   test("should show offline indicator when offline", async ({ page, context }) => {
     await page.goto("/");
 

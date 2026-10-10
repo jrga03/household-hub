@@ -61,32 +61,6 @@ export default defineConfig({
             purpose: "maskable",
           },
         ],
-        shortcuts: [
-          {
-            name: "Add Transaction",
-            short_name: "Add",
-            description: "Quickly add a new transaction",
-            url: "/transactions/new",
-            icons: [
-              {
-                src: "/icons/shortcut-add.png",
-                sizes: "96x96",
-              },
-            ],
-          },
-          {
-            name: "View Dashboard",
-            short_name: "Dashboard",
-            description: "View your financial dashboard",
-            url: "/dashboard",
-            icons: [
-              {
-                src: "/icons/shortcut-dashboard.png",
-                sizes: "96x96",
-              },
-            ],
-          },
-        ],
       },
       // injectManifest configuration (custom SW in src/sw.ts handles caching)
       injectManifest: {

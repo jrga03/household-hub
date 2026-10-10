@@ -6,10 +6,7 @@
  *
  * Supported Shortcuts:
  * - Cmd/Ctrl + K: Open command palette / quick search
- * - Cmd/Ctrl + N: New transaction
- * - g then d: Go to Dashboard
- * - g then t: Go to Transactions
- * - g then a: Go to Analytics
+ * - g then h: Go to Home
  * - g then s: Go to Settings
  * - ?: Show keyboard shortcuts help
  * - Esc: Close modals/dialogs
@@ -18,25 +15,6 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { useNavStore } from "@/stores/navStore";
-
-/**
- * Get keyboard shortcut key string for display
- * @param key - The key (e.g., "N", "K")
- * @param withModifier - Whether to include Cmd/Ctrl modifier
- * @returns Formatted shortcut string (e.g., "⌘N" on Mac, "Ctrl+N" on Windows)
- */
-export function getShortcutKey(key: string, withModifier = false): string {
-  const isMac =
-    typeof navigator !== "undefined" && navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-  const modKey = isMac ? "⌘" : "Ctrl+";
-
-  if (withModifier) {
-    return `${modKey}${key}`;
-  }
-
-  return key;
-}
 
 export function useKeyboardShortcuts() {
   const navigate = useNavigate();
@@ -66,18 +44,6 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // Cmd/Ctrl + N: New transaction. Drives navStore.quickAddOpen, which
-      // the always-mounted dialog in AppLayout reads, so it works from any
-      // route. The old approach navigated then dispatched a CustomEvent that
-      // the target route's listener hadn't mounted yet to receive (UI-09).
-      // (Note: browsers may reserve Cmd+N for a new window and not deliver
-      // the event; there is no reliable override, hence no false toast.)
-      if (modKey && e.key === "n") {
-        e.preventDefault();
-        useNavStore.getState().setQuickAddOpen(true);
-        return;
-      }
-
       // ?: Show keyboard shortcuts help
       if (e.key === "?" && !modKey) {
         e.preventDefault();
@@ -95,20 +61,11 @@ export function useKeyboardShortcuts() {
 
         // Navigation itself is the feedback; no success toast per hop (UI-09)
         switch (e.key) {
-          case "d": // g then d: Dashboard
+          case "h":
             void navigate({ to: "/" });
             break;
-          case "t": // g then t: Transactions
-            void navigate({ to: "/transactions" });
-            break;
-          case "a": // g then a: Analytics
-            void navigate({ to: "/analytics" });
-            break;
-          case "s": // g then s: Settings
+          case "s":
             void navigate({ to: "/settings" });
-            break;
-          case "i": // g then i: Import (CSV import is disabled; PDF only)
-            void navigate({ to: "/import/pdf" });
             break;
           default:
             // Invalid sequence
@@ -147,12 +104,8 @@ function showKeyboardShortcutsHelp() {
 
   const shortcuts = [
     { keys: `${modKey} + K`, description: "Open command palette / Quick search" },
-    { keys: `${modKey} + N`, description: "New transaction" },
-    { keys: "g then d", description: "Go to Dashboard" },
-    { keys: "g then t", description: "Go to Transactions" },
-    { keys: "g then a", description: "Go to Analytics" },
+    { keys: "g then h", description: "Go to Home" },
     { keys: "g then s", description: "Go to Settings" },
-    { keys: "g then i", description: "Go to Import" },
     { keys: "?", description: "Show keyboard shortcuts" },
     { keys: "Esc", description: "Close modals/dialogs" },
   ];

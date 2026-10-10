@@ -23,15 +23,8 @@ import { routeTree } from "./routeTree.gen";
  *   normal-flow <main>) is recorded and restored on history navigations, and
  *   reset to top on new pushes.
  * - INNER scrollable elements are recorded too (keyed by CSS selector), but
- *   restoration is a one-shot clamped `scrollTop` assignment on render. The
- *   virtualized TransactionList scrolls a keyed inner div (its virtualizer's
- *   getScrollElement is `parentRef.current`, NOT window — see
- *   TransactionList.tsx), so its restoration is best-effort: it works when
- *   TanStack Query still has the list cached on back-nav (the container has
- *   its full height on first render, and the assigned scrollTop fires a
- *   scroll event the virtualizer handles normally); when data loads async the
- *   assignment clamps to 0 and the list re-opens at the top. Neither case can
- *   crash or mis-position the virtualizer — worst case is top-of-list.
+ *   restoration is a one-shot clamped `scrollTop` assignment on render, so it
+ *   is best-effort when their content loads asynchronously.
  */
 export const router = createRouter({
   routeTree,

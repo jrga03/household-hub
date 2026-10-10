@@ -1,76 +1,27 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { login } from "./fixtures/helpers";
+
+const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
 test.describe("Accessibility", () => {
-  test("should not have accessibility violations on home page", async ({ page }) => {
-    await page.goto("/");
-
-    const accessibilityScanResults = await new AxeBuilder({ page })
-      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
-      .analyze();
-
-    expect(accessibilityScanResults.violations).toHaveLength(0);
-  });
-
-  test("should not have accessibility violations on transactions page", async ({ page }) => {
-    // Login first
+  test("should not have accessibility violations on the login page", async ({ page }) => {
     await page.goto("/login");
-    await page.fill('[name="email"]', "test@example.com");
-    await page.fill('[name="password"]', "TestPassword123!");
-    await page.click('button[type="submit"]');
 
-    await page.goto("/transactions");
+    const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
 
-    const accessibilityScanResults = await new AxeBuilder({ page })
-      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
-      .analyze();
-
-    expect(accessibilityScanResults.violations).toHaveLength(0);
+    expect(results.violations).toHaveLength(0);
   });
 
-  test("should not have accessibility violations on transaction form", async ({ page }) => {
-    await page.goto("/login");
-    await page.fill('[name="email"]', "test@example.com");
-    await page.fill('[name="password"]', "TestPassword123!");
-    await page.click('button[type="submit"]');
+  for (const path of ["/", "/settings"]) {
+    test(`should not have accessibility violations on ${path} when signed in`, async ({ page }) => {
+      await login(page);
+      await page.goto(path);
+      await expect(page.locator("#main-content h1").first()).toBeVisible();
 
-    await page.goto("/transactions");
-    await page.click("text=Add Transaction");
+      const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
 
-    const accessibilityScanResults = await new AxeBuilder({ page })
-      .withTags(["wcag2a", "wcag2aa"])
-      .analyze();
-
-    expect(accessibilityScanResults.violations).toHaveLength(0);
-  });
-
-  test("should not have accessibility violations on accounts page", async ({ page }) => {
-    await page.goto("/login");
-    await page.fill('[name="email"]', "test@example.com");
-    await page.fill('[name="password"]', "TestPassword123!");
-    await page.click('button[type="submit"]');
-
-    await page.goto("/accounts");
-
-    const accessibilityScanResults = await new AxeBuilder({ page })
-      .withTags(["wcag2a", "wcag2aa"])
-      .analyze();
-
-    expect(accessibilityScanResults.violations).toHaveLength(0);
-  });
-
-  test("should not have accessibility violations on budget page", async ({ page }) => {
-    await page.goto("/login");
-    await page.fill('[name="email"]', "test@example.com");
-    await page.fill('[name="password"]', "TestPassword123!");
-    await page.click('button[type="submit"]');
-
-    await page.goto("/budget");
-
-    const accessibilityScanResults = await new AxeBuilder({ page })
-      .withTags(["wcag2a", "wcag2aa"])
-      .analyze();
-
-    expect(accessibilityScanResults.violations).toHaveLength(0);
-  });
+      expect(results.violations).toHaveLength(0);
+    });
+  }
 });
