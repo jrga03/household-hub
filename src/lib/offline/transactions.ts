@@ -206,14 +206,6 @@ export async function updateOfflineTransaction(
       updated_at: new Date().toISOString(),
     };
 
-    const queueItem = await buildSyncQueueItem(
-      "transaction",
-      id,
-      "update",
-      updated as unknown as Record<string, unknown>,
-      userId
-    );
-
     const debtFieldsChanged =
       updates.amount_cents !== undefined ||
       updates.debt_id !== undefined ||
@@ -247,6 +239,18 @@ export async function updateOfflineTransaction(
         };
       }
     }
+
+    // Built after the debt items so they drain first, and stamped after them: a
+    // completed edit must leave the transaction newer than its own payments,
+    // which reconcile's staleness guard relies on.
+    updated.updated_at = new Date().toISOString();
+    const queueItem = await buildSyncQueueItem(
+      "transaction",
+      id,
+      "update",
+      updated as unknown as Record<string, unknown>,
+      userId
+    );
 
     await db.transaction("rw", [db.transactions, ...debtWriteTables()], async () => {
       await db.transactions.put(updated);

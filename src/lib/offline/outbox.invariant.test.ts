@@ -537,6 +537,7 @@ const MUTATIONS: Record<string, Scenario> = {
           household_id: DEFAULT_HOUSEHOLD_ID,
         })
       );
+      await db.transactions.update(id, { updated_at: new Date(Date.now() + 1000).toISOString() });
       return () =>
         debtReconcile.reconcileDebtLedger({ transactionIds: [id], paymentIds: [] }, USER);
     },

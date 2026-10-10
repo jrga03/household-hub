@@ -56,6 +56,10 @@ async function extrasForTransaction(
   if (rows.some((row) => pending.has(row.id))) return [];
 
   const live = await livePayments(rows);
+  // Another device's payment synced while its transaction update is still
+  // retrying, so this transaction row is stale and cannot judge the payments.
+  const transactionUpdatedAt = new Date(transaction.updated_at).getTime();
+  if (live.some((p) => new Date(p.created_at).getTime() > transactionUpdatedAt)) return [];
   const expectedDebt = transaction.debt_id ?? transaction.internal_debt_id;
   if (!expectedDebt) return live;
 

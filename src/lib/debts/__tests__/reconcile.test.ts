@@ -47,7 +47,15 @@ async function linkedTransaction(debtId: string, amount: number) {
   );
   if (!result.success || !result.data) throw new Error(result.error);
   await db.syncQueue.clear();
+  await touchTransaction(result.data.id);
   return result.data;
+}
+
+/** Stamps the transaction newer than its payments, as a completed edit leaves it. */
+async function touchTransaction(transactionId: string) {
+  await db.transactions.update(transactionId, {
+    updated_at: new Date(Date.now() + 1000).toISOString(),
+  });
 }
 
 /** A payment row as another device's edit leaves it after a pull. */
@@ -59,6 +67,7 @@ async function remotePayment(debtId: string, transactionId: string | null, amoun
     amount_cents: cents(amount),
   });
   await db.debtPayments.add(row);
+  if (transactionId) await touchTransaction(transactionId);
   return row;
 }
 
@@ -178,6 +187,24 @@ describe("reconcileDebtLedger", () => {
       expect.objectContaining({ operation: "reconcile" })
     );
     expect(await db.syncQueue.count()).toBe(0);
+  });
+
+  it("skips a transaction older than a live payment, whose update is still retrying", async () => {
+    const { id: debtId } = await debt();
+    const transaction = await linkedTransaction(debtId, 4000);
+    const theirs = await remotePayment(debtId, transaction.id, 3000);
+    await db.transactions.update(transaction.id, {
+      updated_at: new Date(new Date(theirs.created_at).getTime() - 60_000).toISOString(),
+    });
+
+    const result = await reconcileDebtLedger(
+      { transactionIds: [transaction.id], paymentIds: [theirs.id] },
+      USER
+    );
+
+    expect(result.reversedPaymentIds).toEqual([]);
+    expect(await livePaymentIds(transaction.id)).toHaveLength(2);
+    expect(reportError).not.toHaveBeenCalled();
   });
 
   it("writes each reversal once across repeated runs", async () => {

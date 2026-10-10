@@ -110,9 +110,31 @@ describe("transaction writes with a debt link", () => {
     await db.syncQueue.clear();
     const result = await updateOfflineTransaction(tx.id, { debt_id: null }, USER_ID);
     expect(result.success).toBe(true);
-    expect(await queuedTypes()).toEqual(["transaction:update", "debt_payment:create"]);
+    expect(await queuedTypes()).toEqual(["debt_payment:create", "transaction:update"]);
     const reversal = (await db.debtPayments.toArray()).find((p) => p.is_reversal);
     expect(reversal?.amount_cents).toBe(-2500);
+  });
+
+  it("queues the debt items of an amount edit before the transaction update", async () => {
+    const tx = await linkedTransaction(debtId);
+    await db.syncQueue.clear();
+    await updateOfflineTransaction(tx.id, { amount_cents: cents(3000) }, USER_ID);
+
+    const items = await db.syncQueue.toArray();
+    const update = items.find((item) => item.entity_type === "transaction");
+    const debtItems = items.filter((item) => item.entity_type !== "transaction");
+    expect(update).toBeDefined();
+    expect(debtItems.length).toBeGreaterThan(0);
+    for (const item of debtItems) {
+      expect(item.created_at < (update?.created_at ?? "")).toBe(true);
+    }
+    const edited = await db.transactions.get(tx.id);
+    const payments = await db.debtPayments.toArray();
+    for (const payment of payments) {
+      expect(new Date(payment.created_at).getTime()).toBeLessThanOrEqual(
+        new Date(edited?.updated_at ?? 0).getTime()
+      );
+    }
   });
 
   it("queues the reversal before the transaction delete", async () => {
