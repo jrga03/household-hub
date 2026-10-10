@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { OfflineBanner } from "@/components/sync/OfflineBanner";
 import { StorageWarning } from "@/components/StorageWarning";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { CREATE_OR_JOIN_PATH } from "@/lib/households";
 
 /**
  * Main application layout component
@@ -40,7 +41,7 @@ import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
  */
 
 // Routes that should not show navigation
-const NO_NAV_ROUTES = ["/login", "/signup"];
+const NO_NAV_ROUTES = ["/login", "/signup", CREATE_OR_JOIN_PATH];
 
 export function AppLayout() {
   const router = useRouterState();
@@ -62,10 +63,13 @@ export function AppLayout() {
 
   // Authentication is enforced BEFORE render by the root route's beforeLoad
   // guard (routes/__root.tsx); no effect-based redirects here (review UI-07)
-  const currentPath = router.location.pathname;
+  // Chrome follows the route on screen, not the pending one: swapping branches
+  // mid-navigation remounts the current page, and a page that navigates on
+  // mount (login, signup) would loop against the household gate's redirect.
+  const currentPath = (router.resolvedLocation ?? router.location).pathname;
   const isAuthRoute = NO_NAV_ROUTES.includes(currentPath);
 
-  // If on auth pages (login/signup), render without navigation
+  // Auth pages and create-or-join render without navigation
   if (isAuthRoute) {
     return (
       <div className="min-h-dvh bg-background">

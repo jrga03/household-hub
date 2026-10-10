@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { queryClient } from "@/lib/queryClient";
+import { forgetLastKnownHousehold } from "@/lib/households";
 
 interface AuthState {
   user: User | null;
@@ -188,6 +189,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
     try {
       // Clear local data and sign out
       await clearIndexedDB();
+      forgetLastKnownHousehold();
       await supabase.auth.signOut();
       set({
         user: null,

@@ -1,6 +1,7 @@
 import { createRootRoute, Link, redirect } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 import { useAuthStore } from "@/stores/authStore";
+import { enforceHouseholdGate } from "@/lib/households";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,9 +51,13 @@ export const Route = createRootRoute({
 
     await useAuthStore.getState().initialize();
 
-    if (!useAuthStore.getState().user) {
+    const user = useAuthStore.getState().user;
+    if (!user) {
       throw redirect({ to: "/login", search: { redirect: location.href } });
     }
+
+    // A person must belong to a household before reaching anything else.
+    await enforceHouseholdGate(location.pathname, user.id);
   },
   component: RootComponent,
   notFoundComponent: NotFoundComponent,

@@ -206,6 +206,19 @@ describe("authStore", () => {
       expect(useAuthStore.getState().session).toBeNull();
       expect(useAuthStore.getState().loading).toBe(false);
     });
+
+    it("forgets the last known household so the next person on the device starts clean", async () => {
+      vi.mocked(supabase.auth.signOut).mockResolvedValue({ error: null } as never);
+      localStorage.setItem(
+        "household-hub-last-household",
+        JSON.stringify({ userId: mockUser.id, household: null })
+      );
+      useAuthStore.setState({ user: mockUser, session: mockSession });
+
+      await useAuthStore.getState().signOut();
+
+      expect(localStorage.getItem("household-hub-last-household")).toBeNull();
+    });
   });
 
   describe("session expiry UX (review C2)", () => {

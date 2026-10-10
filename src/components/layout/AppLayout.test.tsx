@@ -12,10 +12,11 @@ import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { AppLayout } from "./AppLayout";
 
-const { mockIsMobile, mockIsTablet, mockPathname } = vi.hoisted(() => ({
+const { mockIsMobile, mockIsTablet, mockPathname, mockResolvedPathname } = vi.hoisted(() => ({
   mockIsMobile: vi.fn((): boolean => false),
   mockIsTablet: vi.fn((): boolean => false),
   mockPathname: vi.fn((): string => "/"),
+  mockResolvedPathname: vi.fn((): string | undefined => undefined),
 }));
 
 vi.mock("@/hooks/useMediaQuery", () => ({
@@ -25,7 +26,13 @@ vi.mock("@/hooks/useMediaQuery", () => ({
 
 vi.mock("@tanstack/react-router", () => ({
   Outlet: () => <div data-testid="outlet" />,
-  useRouterState: () => ({ location: { pathname: mockPathname() } }),
+  useRouterState: () => {
+    const resolvedPathname = mockResolvedPathname();
+    return {
+      location: { pathname: mockPathname() },
+      resolvedLocation: resolvedPathname === undefined ? undefined : { pathname: resolvedPathname },
+    };
+  },
 }));
 
 // Heavy neighbors stubbed out — this test targets branch selection only
@@ -66,6 +73,7 @@ describe("AppLayout bottom tab bar placement (review R42)", () => {
     mockIsMobile.mockReturnValue(false);
     mockIsTablet.mockReturnValue(false);
     mockPathname.mockReturnValue("/");
+    mockResolvedPathname.mockReturnValue(undefined);
   });
 
   it("renders the bottom tab bar in the mobile branch", () => {
@@ -86,7 +94,7 @@ describe("AppLayout bottom tab bar placement (review R42)", () => {
     expect(screen.queryByTestId("bottom-tab-bar")).not.toBeInTheDocument();
   });
 
-  it.each(["/login", "/signup"])(
+  it.each(["/login", "/signup", "/create-or-join"])(
     "does NOT render the tab bar (or any nav chrome) on the %s auth route",
     (authPath) => {
       mockIsMobile.mockReturnValue(true);
@@ -100,4 +108,15 @@ describe("AppLayout bottom tab bar placement (review R42)", () => {
       expect(screen.queryByTestId("mobile-nav")).not.toBeInTheDocument();
     }
   );
+
+  it("keeps the rendered route's chrome while a navigation is still pending", () => {
+    // Swapping branches early would remount the outlet's current page mid-navigation
+    mockIsMobile.mockReturnValue(true);
+    mockPathname.mockReturnValue("/");
+    mockResolvedPathname.mockReturnValue("/signup");
+
+    render(<AppLayout />);
+
+    expect(screen.queryByTestId("mobile-nav")).not.toBeInTheDocument();
+  });
 });

@@ -71,6 +71,35 @@ Fix commits cluster in `src/lib/{sync,offline,debts}`.
 - **Navigation destinations stay spread across sidebar, tab bar, drawer, shortcuts and page title** (review smell). Revisit: centralize when #15 adds real routes.
 - **Shortcut icons (`public/icons/shortcut-*.png`) and their generation in `scripts/generate-icons.js` stay** though the manifest shortcuts are gone. Revisit: a separate icon-pipeline cleanup.
 
+## Issue #21: create a household
+
+- [x] Baseline migration: `households`, `household_members`, Household Code generator, `create_household`, RLS, privileges
+- [x] pgTAP replaces `000_empty_baseline.sql`: create and own, second create fails, non-member can't read, members read their own, code format and uniqueness
+- [x] Regenerate `database.types.ts`
+- [x] `src/lib/households.ts`: query options with an offline fallback to the last known membership, `createHousehold`, the route gate (unit tests)
+- [x] Root `beforeLoad` gate both ways; `/create-or-join` route (create form, offline explanation, sign out); home shows the household and the Owner's code
+- [x] Sign-out clears the cached membership
+- [x] E2E: fixture users get a household; signup spec walks create-or-join to the Owner view; home layout baselines (chromium, Mobile Chrome)
+- [x] build, lint, vitest, both tsc, knip, `supabase test db`, `supabase db lint`
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
+
+### #21 decisions
+
+- **Household Codes are unique across all households, not only active ones.** Dissolving (#25) will delete the household row, so this is the same rule. Revisit: if dissolved households are kept (soft delete); use a partial unique index then.
+- **Household ids are server-generated** (`gen_random_uuid()`), unlike records: households are server-authoritative and creating one needs a connection. Revisit: never, unless households become events.
+- **The gate falls back to the last membership seen online** (localStorage, keyed by user, cleared on sign-out), so a member opening the app offline isn't sent to create-or-join. Revisit: when #18 adds local storage for membership, or #25 needs removal to wipe it.
+- **The Join card on create-or-join is a placeholder** ("coming soon"). Revisit: #17 replaces it with the code form.
+- **The Household Code shows only to the Owner on home.** Revisit: #17/#25 if Members should share it too.
+- **Found and fixed a redirect loop:** AppLayout picked its chrome from the pending location, which remounted signup/login mid-navigation; their mount effects re-navigated against the gate's redirect. AppLayout now follows `resolvedLocation`, and signup depends on the stable router like login.
+- **Review fixes:** a concurrent second create now reports "You already belong to a household" (the member insert's unique violation is mapped), and `HouseholdRow` uses the generated `Tables<"households">`.
+- **Review deferral: the gate reuses a cached membership for the global 5-minute `staleTime`.** Harmless while nobody can leave. Revisit: #25 (removal must reach the gate promptly).
+- **Review deferral: an Owner's auth user can't be deleted** (`owner_user_id` has no `on delete`, plus the owner-is-member FK). Revisit: #25 dissolve and handover.
+- **Review deferral: `households.ts` holds the gate, the last-known cache and Supabase I/O together.** Revisit: split when #17 adds join functions.
+- **Review deferral: the fixture setup matches the "already belong" message text** to stay idempotent. Revisit: if that message changes or gets its own errcode.
+- **Review deferral: the ADR 0001 refinement** (membership is relational, not events; the gate reads the network with a local fallback) is still owed. Revisit: when milestone 1 lands.
+- **E2E fixture users get a household** ("Test household") in global setup via `create_household`; the remote CI E2E job assumes its fixture users already have one. Revisit: if that job is re-enabled against a remote project.
+
 ## Resume state
 
 - #16 merged (PR #26, 41f23ee) and CI pin bump merged (PR #27, afdeb7a); CI green on main after #27.

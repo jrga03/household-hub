@@ -24,6 +24,8 @@ for (const [vpName, vp] of Object.entries(VIEWPORTS)) {
         await expect(page).toHaveScreenshot(`${route.name}-${vpName}.png`, {
           fullPage: true,
           maxDiffPixelRatio: 0.02,
+          // The Household Code differs on every database
+          mask: [page.getByTestId("household-code")],
         });
       });
     }

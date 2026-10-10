@@ -1,22 +1,14 @@
 import { test, expect } from "@playwright/test";
-import { login } from "./fixtures/helpers";
+import { login, signUpNewPerson } from "./fixtures/helpers";
 
 const isHome = (url: URL) => url.pathname === "/";
 
 test.describe("Authentication", () => {
   test("should sign up new user", async ({ page }) => {
-    await page.goto("/signup");
+    await signUpNewPerson(page);
 
-    await page.fill('[name="email"]', `test-${Date.now()}@example.com`);
-    await page.fill('[name="password"]', "TestPassword123!");
-    await page.fill('[name="confirmPassword"]', "TestPassword123!");
-
-    await page.click('button[type="submit"]');
-
-    await expect(page).toHaveURL(isHome);
-    await expect(
-      page.getByRole("main").getByRole("heading", { level: 1, name: "Home" })
-    ).toBeVisible();
+    // A new person belongs to no household yet
+    await expect(page).toHaveURL(/\/create-or-join/);
   });
 
   test("should sign in existing user", async ({ page }) => {
