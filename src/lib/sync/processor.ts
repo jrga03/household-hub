@@ -81,6 +81,16 @@ export interface ProcessQueueResult {
 }
 
 const REVERSAL_INDEX = "debt_payments_reverses_payment_id_unique";
+const TRANSACTION_FK = "debt_payments_transaction_id_fkey";
+
+/** The payment's transaction was deleted on the server before this create landed. */
+function isTransactionGone(entityType: EntityType, error: { code?: string; message: string }) {
+  return (
+    entityType === "debt_payment" &&
+    error.code === "23503" &&
+    error.message.includes(TRANSACTION_FK)
+  );
+}
 
 /** Another device reversed this payment first; the server keeps that reversal. */
 function isAlreadyReversed(
@@ -335,6 +345,15 @@ export class SyncProcessor {
           `${tableName} payment already reversed on server - dropping the local reversal`
         );
         return;
+      }
+      if (isTransactionGone(entityType, error) && typeof payload.id === "string") {
+        // Same outcome the server's ON DELETE SET NULL gives a payment that lost
+        // the race the other way round.
+        const retry = await table.insert({ ...payload, transaction_id: null });
+        if (!retry.error) {
+          await db.debtPayments.update(payload.id, { transaction_id: null });
+          return;
+        }
       }
       throw error;
     }

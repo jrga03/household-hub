@@ -66,6 +66,7 @@ function makeSupabaseError(message: string, code?: string): Error & { code?: str
 function setupSupabaseMock(
   options: {
     insertError?: unknown;
+    insertErrors?: unknown[];
     updateError?: unknown;
     deleteError?: unknown;
     upsertError?: unknown;
@@ -77,6 +78,7 @@ function setupSupabaseMock(
 ) {
   const {
     insertError = null,
+    insertErrors,
     updateError = null,
     deleteError = null,
     upsertError = null,
@@ -86,12 +88,15 @@ function setupSupabaseMock(
     onUpsert,
   } = options;
 
+  let insertCalls = 0;
   vi.mocked(supabase.from).mockImplementation(((table: string) => {
     onTable?.(table);
     return {
       insert: vi.fn((payload: Record<string, unknown>) => {
         onInsert?.(payload);
-        return Promise.resolve({ error: insertError });
+        const error = insertErrors ? (insertErrors[insertCalls] ?? null) : insertError;
+        insertCalls += 1;
+        return Promise.resolve({ error });
       }),
       upsert: vi.fn((payload: unknown, upsertOptions: unknown) => {
         onUpsert?.(payload, upsertOptions);
@@ -350,6 +355,82 @@ describe("SyncProcessor (local outbox)", () => {
       expect(result.success).toBe(true);
       expect((await db.syncQueue.get(item.id))?.status).toBe("completed");
       expect(await db.debtPayments.get("rev-local")).toBeUndefined();
+    });
+
+    describe("debt payment whose transaction was deleted on the server", () => {
+      const fkError = (constraint: string) =>
+        makeSupabaseError(
+          `insert or update on table "debt_payments" violates foreign key constraint "${constraint}"`,
+          "23503"
+        );
+
+      async function queuePayment() {
+        await db.debtPayments.put(
+          createTestPayment({ id: "pay-local", transaction_id: "tx-gone" })
+        );
+        const item = makeQueueItem({
+          entity_type: "debt_payment",
+          entity_id: "pay-local",
+          operation: {
+            op: "create",
+            payload: { id: "pay-local", transaction_id: "tx-gone" },
+            idempotencyKey: "key-pay",
+            lamportClock: 1,
+            vectorClock: {},
+          },
+        });
+        await db.syncQueue.add(item);
+        return item;
+      }
+
+      it("retries once without the transaction link and clears it locally", async () => {
+        const inserts: Record<string, unknown>[] = [];
+        setupSupabaseMock({
+          insertErrors: [fkError("debt_payments_transaction_id_fkey"), null],
+          onInsert: (payload) => inserts.push(payload),
+        });
+        const item = await queuePayment();
+
+        const result = await processor.processItem(item);
+
+        expect(result.success).toBe(true);
+        expect(inserts).toEqual([
+          { id: "pay-local", transaction_id: "tx-gone" },
+          { id: "pay-local", transaction_id: null },
+        ]);
+        expect((await db.syncQueue.get(item.id))?.status).toBe("completed");
+        expect((await db.debtPayments.get("pay-local"))?.transaction_id).toBeNull();
+      });
+
+      it("still fails on a different foreign key", async () => {
+        const inserts: Record<string, unknown>[] = [];
+        setupSupabaseMock({
+          insertError: fkError("debt_payments_debt_id_fkey"),
+          onInsert: (payload) => inserts.push(payload),
+        });
+        const item = await queuePayment();
+
+        const result = await processor.processItem(item);
+
+        expect(result.success).toBe(false);
+        expect(inserts).toHaveLength(1);
+        expect((await db.debtPayments.get("pay-local"))?.transaction_id).toBe("tx-gone");
+      });
+
+      it("keeps the error handling when the retry fails too", async () => {
+        setupSupabaseMock({
+          insertErrors: [
+            fkError("debt_payments_transaction_id_fkey"),
+            fkError("debt_payments_debt_id_fkey"),
+          ],
+        });
+        const item = await queuePayment();
+
+        const result = await processor.processItem(item);
+
+        expect(result.success).toBe(false);
+        expect((await db.debtPayments.get("pay-local"))?.transaction_id).toBe("tx-gone");
+      });
     });
 
     it("still fails a debt payment on any other unique violation", async () => {
