@@ -4,8 +4,10 @@ import { toast } from "sonner";
 import { PageShell } from "@/components/layout/PageShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AccountsCard } from "@/components/accounts/AccountsCard";
 import { useHousehold } from "@/hooks/useHousehold";
+import { useAuthStore } from "@/stores/authStore";
 
 export const Route = createFileRoute("/")({
   component: HomePage,
@@ -13,6 +15,7 @@ export const Route = createFileRoute("/")({
 
 function HomePage() {
   const { household, isOwner } = useHousehold();
+  const userId = useAuthStore((state) => state.user?.id);
 
   return (
     <div className="bg-background">
@@ -31,11 +34,11 @@ function HomePage() {
                   <CardTitle>{household.name}</CardTitle>
                   <Badge variant="secondary">{isOwner ? "Owner" : "Member"}</Badge>
                 </div>
-                <CardDescription>Your accounts will show up here.</CardDescription>
               </CardHeader>
               {isOwner && <HouseholdCode code={household.code} />}
             </Card>
           )}
+          {household && userId && <AccountsCard actor={{ householdId: household.id, userId }} />}
         </PageShell.Main>
       </PageShell>
     </div>

@@ -15,6 +15,8 @@ const restrictedSyntax = builtinRules.get("no-restricted-syntax");
 const architecturePlugin = {
   rules: {
     "no-ad-hoc-money-parse": restrictedSyntax,
+    "no-events-table-outside-sync": restrictedSyntax,
+    "no-direct-event-log": restrictedSyntax,
   },
 };
 
@@ -45,6 +47,27 @@ const restrictSupabase = {
   message:
     "Routes and components read and write through a hook or a src/lib module, never Supabase directly.",
 };
+
+// Only commands append events (ADR 0001): they validate, append and project in
+// one local transaction.
+const restrictAppendEvent = {
+  group: ["@/lib/events/log", "**/events/log", "**/events/log.ts", "./log"],
+  importNames: ["appendEvent"],
+  message:
+    "Record changes through a command in src/lib/commands, which validates, appends and projects in one transaction.",
+};
+
+const restrictSyncOnlyLog = {
+  group: ["@/lib/events/log", "**/events/log", "**/events/log.ts", "./log"],
+  importNames: ["listUnpushed", "markPushed", "receiveEvents"],
+  message:
+    "Only the sync engine (src/lib/sync) pushes and receives events. Record changes with a command; read projections.",
+};
+
+// Event decoders turn synced payloads into Cents, so they are data layer.
+const eventDecoderFiles = ["src/lib/*/events.ts"];
+const commandFiles = ["src/lib/commands/**"];
+const syncFiles = ["src/lib/sync/**"];
 
 const restrictNanoid = {
   name: "nanoid",
@@ -382,6 +405,35 @@ export default [
       ],
     },
   },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [...srcTestFiles, "src/lib/sync/**"],
+    rules: {
+      "arch/no-events-table-outside-sync": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.property.name='from'][arguments.0.value='events'], CallExpression[callee.property.name='rpc'][arguments.0.value='pull_events']",
+          message:
+            "Only the sync engine (src/lib/sync) talks to the server event log. Screens read local projections; commands record changes.",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [...srcTestFiles, "src/lib/events/**"],
+    rules: {
+      "arch/no-direct-event-log": [
+        "error",
+        {
+          selector: "MemberExpression[object.name='db'][property.name='events']",
+          message:
+            "The local event log is reached only through src/lib/events/log: commands append, the sync engine pushes and receives.",
+        },
+      ],
+    },
+  },
   // no-restricted-imports: one block per disjoint file set. A later block's
   // no-restricted-imports replaces an earlier one for the same file, so the
   // sets must never overlap.
@@ -391,15 +443,62 @@ export default [
     rules: {
       "no-restricted-imports": [
         "error",
-        { paths: [restrictNanoid], patterns: [restrictSupabase, restrictAsCents] },
+        {
+          paths: [restrictNanoid],
+          patterns: [restrictSupabase, restrictAsCents, restrictAppendEvent, restrictSyncOnlyLog],
+        },
+      ],
+    },
+  },
+  {
+    files: commandFiles,
+    ignores: srcTestFiles,
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { paths: [restrictNanoid], patterns: [restrictAsCents, restrictSyncOnlyLog] },
+      ],
+    },
+  },
+  {
+    files: syncFiles,
+    ignores: srcTestFiles,
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { paths: [restrictNanoid], patterns: [restrictAsCents, restrictAppendEvent] },
+      ],
+    },
+  },
+  {
+    files: eventDecoderFiles,
+    ignores: srcTestFiles,
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { paths: [restrictNanoid], patterns: [restrictAppendEvent, restrictSyncOnlyLog] },
       ],
     },
   },
   {
     files: ["src/**/*.{ts,tsx}"],
-    ignores: [...srcTestFiles, "src/lib/currency.ts", "src/routes/**", "src/components/**"],
+    ignores: [
+      ...srcTestFiles,
+      ...commandFiles,
+      ...syncFiles,
+      ...eventDecoderFiles,
+      "src/lib/currency.ts",
+      "src/routes/**",
+      "src/components/**",
+    ],
     rules: {
-      "no-restricted-imports": ["error", { paths: [restrictNanoid], patterns: [restrictAsCents] }],
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [restrictNanoid],
+          patterns: [restrictAsCents, restrictAppendEvent, restrictSyncOnlyLog],
+        },
+      ],
     },
   },
   {

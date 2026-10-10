@@ -39,7 +39,8 @@ describe("opening the app over the legacy local database", () => {
 
     expect(await databaseExists("HouseholdHubDB")).toBe(false);
     expect(db.isOpen()).toBe(true);
-    expect(db.tables).toHaveLength(0);
+    const rowCounts = await Promise.all(db.tables.map((table) => table.count()));
+    expect(rowCounts.every((count) => count === 0)).toBe(true);
   });
 
   it("is safe to run again once the legacy database is gone", async () => {
