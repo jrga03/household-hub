@@ -417,6 +417,40 @@ describe("SyncProcessor (local outbox)", () => {
         expect((await db.debtPayments.get("pay-local"))?.transaction_id).toBe("tx-gone");
       });
 
+      it("leaves the item queued when the retry fails transiently", async () => {
+        setupSupabaseMock({
+          insertErrors: [
+            fkError("debt_payments_transaction_id_fkey"),
+            makeSupabaseError("FetchError: network request failed"),
+          ],
+        });
+        const item = await queuePayment();
+
+        const result = await processor.processItem(item);
+
+        expect(result.success).toBe(false);
+        expect((await db.syncQueue.get(item.id))?.status).not.toBe("failed");
+      });
+
+      it("drops the local reversal when the retry hits the reversal index", async () => {
+        setupSupabaseMock({
+          insertErrors: [
+            fkError("debt_payments_transaction_id_fkey"),
+            makeSupabaseError(
+              'duplicate key value violates unique constraint "debt_payments_reverses_payment_id_unique"',
+              "23505"
+            ),
+          ],
+        });
+        const item = await queuePayment();
+
+        const result = await processor.processItem(item);
+
+        expect(result.success).toBe(true);
+        expect((await db.syncQueue.get(item.id))?.status).toBe("completed");
+        expect(await db.debtPayments.get("pay-local")).toBeUndefined();
+      });
+
       it("keeps the error handling when the retry fails too", async () => {
         setupSupabaseMock({
           insertErrors: [

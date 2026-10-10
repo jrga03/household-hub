@@ -326,10 +326,19 @@ export class SyncProcessor {
     const tableName = this.getTableName(entityType);
 
     const table = untypedSupabase.from(tableName);
-    const { error } =
+    const first =
       entityType === "budget"
         ? await table.upsert(payload, { onConflict: "household_id,category_id,month" })
         : await table.insert(payload);
+
+    let error = first.error;
+    if (error && isTransactionGone(entityType, error) && typeof payload.id === "string") {
+      // Same outcome the server's ON DELETE SET NULL gives a payment that lost
+      // the race the other way round.
+      const retry = await table.insert({ ...payload, transaction_id: null });
+      error = retry.error;
+      if (!error) await db.debtPayments.update(payload.id, { transaction_id: null });
+    }
 
     if (error) {
       const isDuplicatePkey = error.code === "23505" && error.message.includes("_pkey");
@@ -345,15 +354,6 @@ export class SyncProcessor {
           `${tableName} payment already reversed on server - dropping the local reversal`
         );
         return;
-      }
-      if (isTransactionGone(entityType, error) && typeof payload.id === "string") {
-        // Same outcome the server's ON DELETE SET NULL gives a payment that lost
-        // the race the other way round.
-        const retry = await table.insert({ ...payload, transaction_id: null });
-        if (!retry.error) {
-          await db.debtPayments.update(payload.id, { transaction_id: null });
-          return;
-        }
       }
       throw error;
     }
