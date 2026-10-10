@@ -14,6 +14,11 @@ import { projectEvent } from "./projector";
 const VISIBILITIES = ["household", "personal"] as const;
 export type Visibility = (typeof VISIBILITIES)[number];
 
+export const VISIBILITY_LABELS: Record<Visibility, string> = {
+  household: "Household",
+  personal: "Personal",
+};
+
 export const isVisibility = (value: string): value is Visibility =>
   VISIBILITIES.some((visibility) => visibility === value);
 

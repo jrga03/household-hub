@@ -197,12 +197,40 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #17 merged (PR #30).
 - #22 in review: PR #31 (`rearch/22-personal-accounts`). #25 owes: keep Personal events when a household is deleted; reset the pull cursor on leaving.
 - #23 in review: PR #32 (`rearch/23-edit-retire-accounts`).
-- Next: #19, #24, #25; #20 (keep-alive cron) is independent.
+- #19 in progress on `rearch/19-credit-cards`.
+- Next: #24, #25; #20 (keep-alive cron) is independent.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
   - `supabase test db` exits 1 when `supabase/tests/` has no `.sql` files; `000_empty_baseline.sql` (asserts public has no tables) must be replaced, not just deleted, by #21's baseline tests.
   - The auto-mode classifier blocks bulk `git rm` of test files; ask the user to run large deletions with `!`.
 - Unverified: nothing outstanding from #16.
+
+## Issue #19: credit cards with a Paying Account
+
+Seams (from the issue's acceptance criteria): the Paying Account picker's filter (Vitest, pure), account projection (Vitest, through `receiveEvents`/`listAccounts`), the create, edit and retire commands (Vitest), one Playwright demo flow.
+
+- [x] `credit_card` type; account details carry `payingAccountId` (required for a card, null otherwise); `account.edited` v2 adds it, v1 upcasts to null
+- [x] Picker filter: non-card, same visibility and owner, not retired; unit tests
+- [x] Projection: a card resolves its Paying Account at read time, so it resolves whenever that account arrives; edits that cross card/non-card are ignored
+- [x] Commands: create and edit validate the Paying Account against local accounts; type can't change to or from credit card; retiring a Paying Account of an active card is blocked, naming the card
+- [x] UI: Paying Account picker on add and edit for cards; the list shows a card's Paying Account
+- [x] Playwright: add a household bank account, then a card paying from it; the card shows its Paying Account (chromium)
+- [x] build, lint, vitest, both tsc, knip
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
+
+### #19 decisions
+
+- **A card's Paying Account resolves when the list is read, not when the card is projected.** The card stores only `payingAccountId`; `listAccounts` joins it, so a card whose Paying Account arrives later shows it as soon as it does, with no cross-entity re-projection. Only an account of the card's own visibility and owner resolves.
+- **`account.edited` v2 adds `payingAccountId`**; v1 upcasts to null, which is right because v1 edits predate cards.
+- **Being a credit card is fixed at creation**, like visibility (resolves the #23 deferral). `editAccount` refuses either direction; the projection ignores an edit whose card-ness differs from the account's. The edit form shows a card's type as text and offers non-card accounts only non-card types.
+- **Only cards in use block retiring their Paying Account**, so a card and its bank can be retired together (card first). Unretiring a card whose Paying Account is retired is blocked the same way ("Unretire BDO Savings first"), so one device can't reach a card in use paying from a retired account. Why: the issue doesn't say, and blocking on retired cards would force unretiring a card just to repoint it.
+- **The block is local, so two offline devices can still leave a card paying from a retired account.** The list shows "Paid from X (retired)", and the edit form makes the member choose again. Revisit: Card Payments, if a retired Paying Account must be impossible.
+- **Paying Account validation lives in the commands** (against this device's accounts); `checkAccountDetails` only checks that a card has one and nothing else does, and the projection rejects a card paying from itself.
+- **Review fixes:** the type-crossing guard has a permutation test; the read-time join refuses a card as a Paying Account (`canPay`, shared with the picker); one `Ownership` type replaces four inline copies; the form's type state is an `AccountType`; unretiring a card checks its Paying Account.
+- **Review deferral: the version table and `upcast` still live in `accounts/events.ts`** (from #23). Why: accounts are still the only entity. Revisit: the first non-account entity (move to `lib/events`, with the projection registry).
+- **Review deferral: no test of two devices changing the same card's Paying Account at once.** Concurrent edits of any detail already resolve by HLC (#23's permutation tests), and the Paying Account permutation test covers one edit against every arrival order. Revisit: if the Paying Account ever resolves apart from the other details.
+- **A card's starting balance is labelled "Starting amount owed"** (GLOSSARY: a card's balance is an amount owed). Stored the same way as other starting balances.
 
 ## Issue #23: edit and retire accounts
 

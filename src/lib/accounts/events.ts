@@ -1,9 +1,10 @@
 import { asCents, formatPHP, MAX_AMOUNT_CENTS, ZERO_CENTS, type Cents } from "@/lib/currency";
 import type { LoggedEvent } from "@/lib/events/log";
 
-/** Credit cards arrive with Paying Accounts (#19). */
-export const ACCOUNT_TYPES = ["bank", "cash", "e_wallet", "investment"] as const;
+export const ACCOUNT_TYPES = ["bank", "cash", "e_wallet", "investment", "credit_card"] as const;
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
+
+export const CREDIT_CARD = "credit_card";
 
 export const ACCOUNT_NAME_MAX_LENGTH = 60;
 
@@ -21,18 +22,26 @@ export interface AccountDetails {
   name: string;
   type: AccountType;
   startingBalanceCents: Cents;
+  /** The account a credit card's bill is paid from; null for every other type. */
+  payingAccountId: string | null;
 }
 
 type DetailsCheck = { details: AccountDetails; problem: null } | { details: null; problem: string };
 
-const isAccountType = (value: unknown): value is AccountType =>
+export const isAccountType = (value: unknown): value is AccountType =>
   ACCOUNT_TYPES.some((type) => type === value);
 
 const rejected = (problem: string): DetailsCheck => ({ details: null, problem });
 
-/** Validates account details from a form or from another device's event. */
+export const isCreditCard = (account: { type: AccountType }) => account.type === CREDIT_CARD;
+
+/**
+ * Validates account details from a form or from another device's event. Whether
+ * the Paying Account exists and fits is checked by the commands, against the
+ * accounts this device holds.
+ */
 export function checkAccountDetails(input: Record<string, unknown>): DetailsCheck {
-  const { name, type, startingBalanceCents } = input;
+  const { name, type, startingBalanceCents, payingAccountId } = input;
   const trimmedName = typeof name === "string" ? name.trim() : "";
   if (trimmedName === "") return rejected("An account needs a name.");
   if (trimmedName.length > ACCOUNT_NAME_MAX_LENGTH) {
@@ -49,15 +58,22 @@ export function checkAccountDetails(input: Record<string, unknown>): DetailsChec
       `The starting balance must be between ${formatPHP(ZERO_CENTS)} and ${formatPHP(asCents(MAX_AMOUNT_CENTS))}.`
     );
   }
+  if (type === CREDIT_CARD) {
+    if (typeof payingAccountId !== "string" || payingAccountId === "") {
+      return rejected("Choose the account this card is paid from.");
+    }
+  } else if (payingAccountId != null) {
+    return rejected("Only a credit card has a paying account.");
+  }
   return {
-    details: { name: trimmedName, type, startingBalanceCents: asCents(startingBalanceCents) },
+    details: {
+      name: trimmedName,
+      type,
+      startingBalanceCents: asCents(startingBalanceCents),
+      payingAccountId: type === CREDIT_CARD ? String(payingAccountId) : null,
+    },
     problem: null,
   };
-}
-
-export interface NewAccount extends AccountDetails {
-  /** The account a credit card's bill is paid from; null for every other type. */
-  payingAccountId: string | null;
 }
 
 type Payload = Record<string, unknown>;
@@ -74,7 +90,10 @@ const EVENT_VERSIONS: Record<
     current: 2,
     upcasts: { 1: (payload) => ({ ...payload, payingAccountId: null }) },
   },
-  [ACCOUNT_EDITED]: { current: 1, upcasts: {} },
+  [ACCOUNT_EDITED]: {
+    current: 2,
+    upcasts: { 1: (payload) => ({ ...payload, payingAccountId: null }) },
+  },
   [ACCOUNT_RETIRED]: { current: 1, upcasts: {} },
   [ACCOUNT_UNRETIRED]: { current: 1, upcasts: {} },
 };
@@ -95,18 +114,12 @@ function upcast(event: LoggedEvent): Payload | null {
   return payload;
 }
 
-export function decodeAccountCreated(event: LoggedEvent): NewAccount | null {
-  if (event.eventType !== ACCOUNT_CREATED) return null;
+/** The details a create or edit sets, or null for any other event. A card can't pay from itself. */
+export function decodeAccountDetails(event: LoggedEvent): AccountDetails | null {
+  if (event.eventType !== ACCOUNT_CREATED && event.eventType !== ACCOUNT_EDITED) return null;
   const payload = upcast(event);
-  if (!payload || payload.payingAccountId !== null) return null;
-  const { details } = checkAccountDetails(payload);
-  return details && { ...details, payingAccountId: null };
-}
-
-export function decodeAccountEdited(event: LoggedEvent): AccountDetails | null {
-  if (event.eventType !== ACCOUNT_EDITED) return null;
-  const payload = upcast(event);
-  return payload && checkAccountDetails(payload).details;
+  const details = payload && checkAccountDetails(payload).details;
+  return details && details.payingAccountId !== event.entityId ? details : null;
 }
 
 /** Whether a retire or unretire event leaves the account retired, or null for any other event. */
