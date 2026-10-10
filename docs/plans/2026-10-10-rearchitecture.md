@@ -137,11 +137,39 @@ Seams (agreed): HLC (pure), event store + account projection + `createAccount` (
 - **Review deferral: no bound on how far ahead a received HLC may be**; one device with a wrong clock drags every clock forward (ordering stays consistent). Revisit: #23, when edits make HLC order user-visible.
 - **Review deferral: adding a projection touches three places** (Dexie table, `logTables` in `log.ts`, the dispatch in `projector.ts`). Revisit: a projection registry when the second projection lands.
 
+## Issue #17: Join Request lifecycle
+
+Seams (from the issue's acceptance criteria): server contract (pgTAP) and one two-context Playwright flow.
+
+- [x] Migration: `join_requests` (pending or declined; accepted and cancelled rows are deleted), one pending per person, `request_to_join`, `my_join_request`, `cancel_join_request`, `accept_join_request`, `decline_join_request`, `dismiss_join_request`; becoming a member clears that person's requests
+- [x] pgTAP: request by code, no household data revealed, Owner-only answers, requester-only cancel, accept makes a Member, members can't request, one pending at a time, unknown code
+- [x] Regenerate `database.types.ts`
+- [x] `src/lib/join-requests.ts` (split from `households.ts`)
+- [x] create-or-join: join form, pending screen with cancel, declined notice; Owner's pending list on home
+- [x] Playwright: two contexts, create, request, accept, B lands home; unknown code; decline
+- [x] build, lint, vitest, both tsc, knip, `supabase test db`, `supabase db lint`
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
+
+### #17 decisions
+
+- **Only pending and declined requests are kept**; accepting or cancelling deletes the row, since membership is the record and its history isn't kept (ADR 0004). One pending request per person is a partial unique index. Revisit: if the Owner needs a request history.
+- **Becoming a Member by any path clears that person's requests** (a trigger on `household_members`), so creating a household while a request is open leaves nothing dangling.
+- **A requester sees nothing of the household**, not even its name, until accepted: `my_join_request()` returns only id and status, and the table's RLS is Owner-only.
+- **The Owner sees the requester's email**, snapshotted at request time; there are no display names yet. Revisit: when profiles exist.
+- **A decline stays until the requester presses OK** (`dismiss_join_request`), across sessions; asking again replaces it.
+- **Answers arrive by polling**: a pending requester checks every 5 s, the Owner's list every 30 s and on focus. No Realtime, as in #18. Revisit: #24 if it feels slow.
+- **The join-request card on home is the Owner's only.** Members see no list, and RLS returns them nothing.
+- **Review fixes:** accept and decline lock the request row (an Owner accepting while the requester cancels made them a Member anyway); a vanished request says "no longer pending" instead of "only the Owner"; the Owner-only refusal is a plain `raise`, so only messages our functions write reach people (passing 42501 through would have shown Postgres's own permission errors); pgTAP covers decline by a non-Owner; the household refetch moved from a `queryFn` into the hook; create-or-join owns the branching between choices and an open request.
+- **Review deferral: "a replaced code" isn't tested**; codes can't be replaced yet. Lookup is by the current code, so an old one will get "No household with that code". Revisit: #25 (code replacement).
+- **Review deferral: the form-error box and `error instanceof Error ? … : fallback` repeat** across create, join, the request card and AccountsCard. Revisit: extract a `FormError` when the next form lands.
+
 ## Resume state
 
 - #16 merged (PR #26, 41f23ee) and CI pin bump merged (PR #27, afdeb7a); CI green on main after #27.
-- #21 merged (PR #28). #18 in review: PR #29 (`rearch/18-event-log`).
-- Next: #17 (Join Request lifecycle), then #22, #23, #19, #24, #25; #20 (keep-alive cron) is independent.
+- #21 merged (PR #28). #18 merged (PR #29).
+- #17 on branch `rearch/17-join-requests`.
+- Next: #22, #23, #19, #24, #25; #20 (keep-alive cron) is independent.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
   - `supabase test db` exits 1 when `supabase/tests/` has no `.sql` files; `000_empty_baseline.sql` (asserts public has no tables) must be replaced, not just deleted, by #21's baseline tests.

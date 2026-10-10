@@ -80,13 +80,38 @@ isOneToOne: false
       referencedColumns: ["household_id","user_id"]
     }
                   ]
+                },"join_requests": {
+                  Row: {
+                    "created_at": string,"household_id": string,"id": string,"requester_email": string,"requester_user_id": string,"status": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"household_id": string,"id"?: string,"requester_email": string,"requester_user_id": string,"status"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"household_id"?: string,"id"?: string,"requester_email"?: string,"requester_user_id"?: string,"status"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "join_requests_household_id_fkey"
+      columns: ["household_id"]
+isOneToOne: false
+      referencedRelation: "households"
+      referencedColumns: ["id"]
+    }
+                  ]
                 }
           }
           Views: {
             [_ in never]: never
           }
           Functions: {
-            "create_household":
+            "accept_join_request":
+{ Args: { "request_id": string }; Returns: undefined
+                           },
+"cancel_join_request":
+{ Args: { "request_id": string }; Returns: undefined
+                           },
+"create_household":
 { Args: { "household_name": string }; Returns: {
               "code": string,
 "created_at": string,
@@ -103,9 +128,35 @@ isOneToOne: false
 "current_household_id":
 { Args: Record<PropertyKey, never>; Returns: string
                            },
+"decline_join_request":
+{ Args: { "request_id": string }; Returns: undefined
+                           },
+"dismiss_join_request":
+{ Args: { "request_id": string }; Returns: undefined
+                           },
 "generate_household_code":
 { Args: Record<PropertyKey, never>; Returns: string
                            },
+"my_join_request":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "id": string,"status": string
+            }[]
+                           },
+"pending_join_request_for_owner":
+{ Args: { "request_id": string }; Returns: {
+              "created_at": string,
+"household_id": string,
+"id": string,
+"requester_email": string,
+"requester_user_id": string,
+"status": string
+            }
+                          SetofOptions: {
+        from: "*"
+        to: "join_requests"
+        isOneToOne: true
+        isSetofReturn: false
+      } },
 "pull_events":
 { Args: { "after_sequence": number,"batch_size": number }; Returns: {
               "actor_user_id": string,
@@ -128,7 +179,10 @@ isOneToOne: false
         to: "events"
         isOneToOne: false
         isSetofReturn: true
-      } }
+      } },
+"request_to_join":
+{ Args: { "household_code": string }; Returns: undefined
+                           }
           }
           Enums: {
             [_ in never]: never

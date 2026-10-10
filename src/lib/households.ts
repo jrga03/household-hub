@@ -25,6 +25,10 @@ const toHousehold = (row: HouseholdRow): Household => ({
 // A plain plpgsql `raise exception`: the membership functions write these messages for people.
 const RAISED_BY_FUNCTION = "P0001";
 
+export function membershipError(error: { code?: string; message: string }, fallback: string) {
+  return new Error(error.code === RAISED_BY_FUNCTION ? error.message : fallback);
+}
+
 async function fetchMyHousehold(): Promise<Household | null> {
   const { data, error } = await supabase
     .from("households")
@@ -95,10 +99,9 @@ export const householdQueryOptions = (userId: string) =>
 export async function createHousehold(userId: string, name: string): Promise<Household> {
   const { data, error } = await supabase.rpc("create_household", { household_name: name });
   if (error) {
-    throw new Error(
-      error.code === RAISED_BY_FUNCTION
-        ? error.message
-        : "Couldn't create the household. Check your connection and try again."
+    throw membershipError(
+      error,
+      "Couldn't create the household. Check your connection and try again."
     );
   }
   const household = toHousehold(data);

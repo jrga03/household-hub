@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AccountsCard } from "@/components/accounts/AccountsCard";
+import { JoinRequestsCard } from "@/components/households/JoinRequestsCard";
 import { useHousehold } from "@/hooks/useHousehold";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -38,6 +39,7 @@ function HomePage() {
               {isOwner && <HouseholdCode code={household.code} />}
             </Card>
           )}
+          {household && isOwner && <JoinRequestsCard householdId={household.id} />}
           {household && userId && <AccountsCard actor={{ householdId: household.id, userId }} />}
         </PageShell.Main>
       </PageShell>
