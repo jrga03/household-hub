@@ -140,7 +140,8 @@ Seams (agreed): HLC (pure), event store + account projection + `createAccount` (
 ## Resume state
 
 - #16 merged (PR #26, 41f23ee) and CI pin bump merged (PR #27, afdeb7a); CI green on main after #27.
-- Next: milestone 1 tickets under #15, in order #21 (create a household + fresh baseline migration), then #18 (event log tracer), then #17, #22, #23, #19, #24, #25; #20 (keep-alive cron) is independent.
+- #21 merged (PR #28). #18 in review: PR #29 (`rearch/18-event-log`).
+- Next: #17 (Join Request lifecycle), then #22, #23, #19, #24, #25; #20 (keep-alive cron) is independent.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
   - `supabase test db` exits 1 when `supabase/tests/` has no `.sql` files; `000_empty_baseline.sql` (asserts public has no tables) must be replaced, not just deleted, by #21's baseline tests.
