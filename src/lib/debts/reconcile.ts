@@ -65,7 +65,7 @@ async function extrasForTransaction(
 
   const keeper = live
     .filter((p) => debtOf(p) === expectedDebt && p.amount_cents === transaction.amount_cents)
-    .sort((a, b) => a.id.localeCompare(b.id))[0];
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))[0];
   if (!keeper) {
     if (live.length > 0) {
       reportError(new Error("Debt ledger does not match its transaction"), {

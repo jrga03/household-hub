@@ -113,6 +113,37 @@ describe("reconcileDebtLedger", () => {
     expect(await livePaymentIds(transaction.id)).toEqual([keeper]);
   });
 
+  it("picks the keeper by code-unit order whatever the device locale", async () => {
+    const { id: debtId } = await debt();
+    const transaction = await linkedTransaction(debtId, 4000);
+    await db.debtPayments.where("transaction_id").equals(transaction.id).delete();
+    const keeperId = "aa000000-0000-4000-8000-000000000000";
+    const otherId = "ab000000-0000-4000-8000-000000000000";
+    for (const id of [keeperId, otherId]) {
+      await db.debtPayments.add({
+        ...createTestPayment({
+          household_id: DEFAULT_HOUSEHOLD_ID,
+          debt_id: debtId,
+          transaction_id: transaction.id,
+          amount_cents: cents(4000),
+        }),
+        id,
+      });
+    }
+    const danish = new Intl.Collator("da-DK");
+    vi.spyOn(String.prototype, "localeCompare").mockImplementation(function (this: string, other) {
+      return danish.compare(this, other);
+    });
+
+    try {
+      await reconcileDebtLedger({ transactionIds: [transaction.id], paymentIds: [] }, USER);
+    } finally {
+      vi.restoreAllMocks();
+    }
+
+    expect(await livePaymentIds(transaction.id)).toEqual([keeperId]);
+  });
+
   it("reverses every live payment of a transaction that is no longer linked", async () => {
     const { id: debtId } = await debt();
     const transaction = await linkedTransaction(debtId, 4000);
