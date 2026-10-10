@@ -1,5 +1,5 @@
 begin;
-select plan(8);
+select plan(10);
 select tests.seed();
 
 -- A reversal of pay_h1, as the ledger holds it after an edit
@@ -49,6 +49,19 @@ values (tests.id('debt_h1_new'), tests.household('h1'), 'New', 5000, '2000-01-01
 select ok(
   (select updated_at > '2000-01-02' from public.debts where id = tests.id('debt_h1_new')),
   'an insert sets debts.updated_at to server time');
+update public.internal_debts set name = 'Renamed IOU', updated_at = '2000-01-01'
+where id = tests.id('idebt_h1');
+select ok(
+  (select updated_at > '2000-01-02' from public.internal_debts where id = tests.id('idebt_h1')),
+  'an update sets internal_debts.updated_at to server time');
+insert into public.internal_debts
+  (id, household_id, name, original_amount_cents, from_type, from_id, from_display_name,
+   to_type, to_id, to_display_name, updated_at)
+values (tests.id('idebt_h1_new'), tests.household('h1'), 'New IOU', 5000, 'member',
+        tests.id('user_a1'), 'A1', 'member', tests.id('user_a2'), 'A2', '2000-01-01');
+select ok(
+  (select updated_at > '2000-01-02' from public.internal_debts where id = tests.id('idebt_h1_new')),
+  'an insert sets internal_debts.updated_at to server time');
 insert into public.debt_payments
   (id, household_id, debt_id, transaction_id, amount_cents, payment_date, device_id, created_at)
 values (tests.id('pay_h1_late'), tests.household('h1'), tests.id('debt_h1_new'),

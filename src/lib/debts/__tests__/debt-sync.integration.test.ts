@@ -174,7 +174,11 @@ describe.skipIf(!enabled)("debt sync against the local stack", () => {
       { ...base, id: remotePayment, amount_cents: 3000 },
     ]);
     expect(insertError).toBeNull();
-    await admin.from("transactions").update({ amount_cents: 3000 }).eq("id", transactionId);
+    const { error: transactionUpdateError } = await admin
+      .from("transactions")
+      .update({ amount_cents: 3000 })
+      .eq("id", transactionId);
+    expect(transactionUpdateError).toBeNull();
 
     // This device, unaware, edits to 4000 and syncs: its reversal loses, its payment lands
     const edited = await updateOfflineTransaction(
