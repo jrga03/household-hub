@@ -160,8 +160,8 @@ export interface DebtPayment {
   /** Internal debt ID (null for external debt payments) */
   internal_debt_id?: string;
 
-  /** Transaction ID that created this payment */
-  transaction_id: string;
+  /** Transaction that created this payment; null once that transaction is deleted (ON DELETE SET NULL) */
+  transaction_id: string | null;
 
   /** Payment amount in cents
    * - Positive for regular payments (reduces balance)

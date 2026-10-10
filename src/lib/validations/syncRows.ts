@@ -4,12 +4,7 @@ import type { LocalAccount, LocalCategory, LocalTransaction } from "@/lib/dexie/
 import type { Debt, DebtPayment, InternalDebt } from "@/types/debt";
 
 export type SyncTableName =
-  | "transactions"
-  | "accounts"
-  | "categories"
-  | "debts"
-  | "internal_debts"
-  | "debt_payments";
+  "transactions" | "accounts" | "categories" | "debts" | "internal_debts" | "debt_payments";
 
 const EPOCH = "1970-01-01T00:00:00.000Z";
 
@@ -146,7 +141,7 @@ export const debtPaymentRowSchema = z
     household_id: z.string(),
     debt_id: optionalText,
     internal_debt_id: optionalText,
-    transaction_id: z.string(),
+    transaction_id: z.string().nullable(),
     amount_cents: centsValue,
     payment_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     device_id: z.string(),
