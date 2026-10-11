@@ -20,3 +20,12 @@ export function readStoredSession(): Session | null {
     return null;
   }
 }
+
+/** auth-js keeps the session when sign-out can't reach the server. */
+export function forgetStoredSession(): void {
+  try {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+  } catch {
+    // Storage blocked: nothing was kept.
+  }
+}

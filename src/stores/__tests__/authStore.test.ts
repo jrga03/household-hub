@@ -264,6 +264,17 @@ describe("authStore", () => {
       expect(useAuthStore.getState().loading).toBe(false);
     });
 
+    it("forgets the stored session even when auth-js couldn't, so the next person offline starts signed out", async () => {
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(mockSession));
+      vi.mocked(supabase.auth.signOut).mockResolvedValue({
+        error: new AuthRetryableFetchError("Failed to fetch", 0),
+      } as never);
+
+      await useAuthStore.getState().signOut();
+
+      expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull();
+    });
+
     it("forgets the last known household so the next person on the device starts clean", async () => {
       vi.mocked(supabase.auth.signOut).mockResolvedValue({ error: null } as never);
       localStorage.setItem(
@@ -329,6 +340,15 @@ describe("authStore", () => {
       expect(queryClient.clear).not.toHaveBeenCalled();
       expect(toast.error).not.toHaveBeenCalled();
       expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it("keeps a signed-in member when auth-js reports no initial session after an offline refresh fails", async () => {
+      const authCallback = await initializeAndGetAuthCallback();
+      useAuthStore.setState({ user: mockUser, session: mockSession });
+
+      await authCallback("INITIAL_SESSION", null);
+
+      expect(useAuthStore.getState().user).toEqual(mockUser);
     });
 
     it("does not purge or navigate on TOKEN_REFRESHED or SIGNED_IN", async () => {

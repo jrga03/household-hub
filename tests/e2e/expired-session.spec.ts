@@ -1,5 +1,6 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { loginAs, signUpNewPerson } from "./fixtures/helpers";
+import { AUTH_STORAGE_KEY } from "../../src/lib/auth-storage";
 
 const accountsList = (page: Page) => page.getByRole("list", { name: "Accounts" });
 
@@ -17,13 +18,12 @@ async function openOfflineWithExpiredToken(page: Page, context: BrowserContext, 
     .poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null))
     .toBe(true);
 
-  await page.evaluate(() => {
-    const key = "household-hub-auth";
+  await page.evaluate((key) => {
     const session = JSON.parse(window.localStorage.getItem(key) ?? "null");
     if (!session) throw new Error("No stored session");
     session.expires_at = Math.floor(Date.now() / 1000) - 3600;
     window.localStorage.setItem(key, JSON.stringify(session));
-  });
+  }, AUTH_STORAGE_KEY);
 
   await context.setOffline(true);
   await page.reload();
@@ -34,6 +34,7 @@ test("offline with an expired access token, a member still reaches home", async 
   page,
   context,
 }) => {
+  test.setTimeout(60_000);
   await openOfflineWithExpiredToken(page, context, "Expired token home");
 
   // Well under the ~26 s auth-js spends retrying the refresh.
@@ -41,6 +42,11 @@ test("offline with an expired access token, a member still reaches home", async 
     timeout: 3_000,
   });
   await expect(page).toHaveURL((url) => url.pathname === "/");
+
+  // auth-js gives up on the refresh after about 26 s; the member stays signed in.
+  await page.waitForTimeout(30_000);
+  await page.getByRole("link", { name: "Settings" }).click();
+  await expect(page).toHaveURL((url) => url.pathname === "/settings");
 });
 
 test("back online, the token refreshes and changes made offline sync without signing in again", async ({
@@ -64,7 +70,8 @@ test("back online, the token refreshes and changes made offline sync without sig
   await expect(page).toHaveURL((url) => url.pathname === "/");
   const storedExpiry = () =>
     page.evaluate(
-      () => JSON.parse(window.localStorage.getItem("household-hub-auth") ?? "{}").expires_at
+      (key) => JSON.parse(window.localStorage.getItem(key) ?? "{}").expires_at,
+      AUTH_STORAGE_KEY
     );
   await expect.poll(storedExpiry).toBeGreaterThan(Date.now() / 1000);
 

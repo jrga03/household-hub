@@ -393,6 +393,10 @@ Seams (agreed): `useAuthStore.initialize()` (Vitest, `getSession` faked), Playwr
 - [x] Playwright: expired token, offline reload reaches home within 3 s (chromium). Red first: the login page; with only the retryable fallback, still loading after 150 s
 - [x] Playwright: back online, the stored expiry moves into the future (a real refresh) and an account added offline reaches a second device without signing in again (chromium)
 - [x] lint, vitest, both tsc, knip; chromium E2E 34 passed, only the 3 known failures
+- [x] Code review fixes:
+  - After about 26 s offline, auth-js's failed refresh reported a null `INITIAL_SESSION` and the listener cleared the user, so the next navigation went to login (reproduced: `/login?redirect=%2Fsettings`). The listener now ignores a null session on any event but `SIGNED_OUT`; the e2e waits 30 s offline, then opens Settings.
+  - Signing out offline left the session in storage (auth-js keeps it when the server can't be reached), so the next person's offline start could read it. `signOut` now removes the stored session itself.
+  - Smaller: the e2e reads `AUTH_STORAGE_KEY` instead of the literal; `initialize()` uses an explicit `if`.
 
 Decisions:
 
