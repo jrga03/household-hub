@@ -4,7 +4,7 @@ import { isRedirect } from "@tanstack/react-router";
 const { maybeSingle, rpc } = vi.hoisted(() => ({ maybeSingle: vi.fn(), rpc: vi.fn() }));
 
 vi.mock("@/lib/supabase", () => ({
-  supabase: { from: () => ({ select: () => ({ maybeSingle }) }), rpc },
+  supabase: { from: () => ({ select: () => ({ retry: () => ({ maybeSingle }) }) }), rpc },
 }));
 
 import { createHousehold, enforceHouseholdGate } from "../households";

@@ -49,3 +49,27 @@ test.describe("PWA Features", () => {
     await expect(syncStatus).toHaveAccessibleName("Sync status: Synced");
   });
 });
+
+test("a member opening the app offline sees their household without waiting on retries", async ({
+  page,
+  context,
+}) => {
+  await signUpNewPerson(page);
+  await page.getByLabel("Household name").fill("Offline start home");
+  await page.getByRole("button", { name: "Create household" }).click();
+  await expect(page.getByRole("main").getByText("Offline start home")).toBeVisible();
+
+  // The service worker serves the app only to pages it controls.
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload();
+  await expect
+    .poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null))
+    .toBe(true);
+
+  await context.setOffline(true);
+  await page.reload();
+  // Well under the ~7 s that request retries would hold the route gate.
+  await expect(page.getByRole("main").getByText("Offline start home")).toBeVisible({
+    timeout: 3_000,
+  });
+});
