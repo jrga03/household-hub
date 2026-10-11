@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { signUpNewPerson } from "./fixtures/helpers";
 
 test.describe("PWA Features", () => {
   test("should register service worker", async ({ page }) => {
@@ -35,18 +36,16 @@ test.describe("PWA Features", () => {
   });
 
   test("should show offline indicator when offline", async ({ page, context }) => {
-    await page.goto("/");
+    await signUpNewPerson(page);
+    await page.getByLabel("Household name").fill("PWA home");
+    await page.getByRole("button", { name: "Create household" }).click();
+    const syncStatus = page.getByRole("button", { name: /^Sync status:/ });
+    await expect(syncStatus).toHaveAccessibleName("Sync status: Synced");
 
-    // Go offline
     await context.setOffline(true);
+    await expect(syncStatus).toHaveAccessibleName("Sync status: Offline");
 
-    // Offline indicator should appear
-    await expect(page.getByTestId("offline-indicator")).toBeVisible();
-
-    // Go back online
     await context.setOffline(false);
-
-    // Offline indicator should disappear
-    await expect(page.getByTestId("offline-indicator")).not.toBeVisible({ timeout: 3000 });
+    await expect(syncStatus).toHaveAccessibleName("Sync status: Synced");
   });
 });

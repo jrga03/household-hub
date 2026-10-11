@@ -248,6 +248,7 @@ Seams (from the issue's acceptance criteria): the event store's push states, wai
 - [x] Playwright: offline, add two accounts, "2 waiting", reconnect to "Synced"; a refused push shows stuck, discard removes the account (chromium)
 - [x] Layout baselines regenerated (chromium, Mobile Chrome)
 - [x] Remove the offline banner (the indicator covers it)
+- [x] Point the pwa "show offline indicator" e2e at the sync indicator (removes it from CLAUDE.md's known failures)
 - [x] build, lint, vitest, both tsc, knip
 - [x] Code review (standards + spec), fixes applied
 - [x] Commit
