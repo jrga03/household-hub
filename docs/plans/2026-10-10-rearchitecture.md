@@ -100,10 +100,10 @@ Spec: #46. Scoped 2026-10-12 (decisions above, dated 2026-10-11 and 2026-10-12).
 
 - **Seams were taken from the issue's acceptance criteria** (a fake entity driven through `log.ts`, plus the existing account tests), as in #19, #23 and #24.
 - **The registry upcasts before the fold and the description**, so an entity's decoders only see current-version payloads and can't forget to upcast. An unknown version is left out of the fold and described from its type and the current row. The version tables stay with their entity (`ACCOUNT_VERSIONS`); the type and `upcast` live in `lib/events`.
-- **The household-switch wipe is generic**: every registered row carries `householdId` and `visibility`, so the registry deletes other households' Household rows from each table. Revisit: an entity whose rows don't carry visibility.
+- **The household-switch wipe is generic**: every registered row carries `householdId` and `visibility`, so the registry deletes other households' Household rows from each table. Revisit: an entity whose rows don't carry visibility. Agreed 2026-10-12.
 - **Entities are registered in `projector.ts`** (one line each), not by side effect on import, so the registry is never empty when the log receives events. Tests can register more.
-- **Review deferral: commands pair a version table with an event type by hand** (`currentVersion(ACCOUNT_VERSIONS, eventType)`), so a new entity could pass the wrong table. Revisit: #48, when the second real entity lands (bind the lookup to the entity).
-- **Review deferral: `ACCOUNT_VERSIONS` stays in `accounts/events.ts`**, while the issue's acceptance line says version tables live in `lib/events`. Only the type and `upcast` moved, so each entity keeps its own table. Revisit: never, unless a cross-entity version lookup is needed.
+- **Review deferral: commands pair a version table with an event type by hand** (`currentVersion(ACCOUNT_VERSIONS, eventType)`), so a new entity could pass the wrong table. Revisit: #48, when the second real entity lands (bind the lookup to the entity). Agreed 2026-10-12.
+- **Each entity keeps its version table in its own `events.ts`** (`ACCOUNT_VERSIONS`); only the type and `upcast` live in `lib/events`. Why: upcasters are payload knowledge, which CLAUDE.md and the lint config place in `src/lib/*/events.ts`; a central table would mean editing `lib/events` for every entity and import cycles with each entity's constants. The #47 acceptance line was reworded to match. Agreed 2026-10-12.
 - **The registry stores table names, not tables**, for the log's transactions (Dexie's `Table<Row>` is invariant, so typed tables can't share a list without `any`).
 
 ## Issue #16: strip the app to its shell
