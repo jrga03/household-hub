@@ -1,12 +1,44 @@
-/** Sign-out flow shared by every sign-out button: failures surface as a toast. */
+/**
+ * Sign-out flow shared by every sign-out button. Signing out wipes this
+ * device, so changes the server doesn't have yet are offered as a JSON export
+ * first. Failures surface as a toast.
+ */
 
+import { format } from "date-fns";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
 import { reportError } from "@/lib/sentry";
-import { errorMessage } from "@/lib/utils";
+import { confirmWithOutcome } from "@/lib/confirm";
+import { listEventsNotPushed } from "@/lib/events/log";
+import { syncBeforeSignOut } from "@/lib/sync";
+import { countChanges, errorMessage } from "@/lib/utils";
+import { downloadJson } from "@/lib/utils/download";
+
+/** False when the member chose to stay signed in. */
+async function offerExportOfUnpushed(): Promise<boolean> {
+  await syncBeforeSignOut();
+  const unpushed = await listEventsNotPushed();
+  if (unpushed.length === 0) return true;
+
+  const outcome = await confirmWithOutcome({
+    title: "Some changes haven't synced",
+    description: `${countChanges(unpushed.length)} on this device haven't reached the server. Signing out deletes them from this device. Export them first to keep a copy.`,
+    confirmLabel: "Export and sign out",
+    alternativeLabel: "Sign out anyway",
+    cancelLabel: "Cancel",
+  });
+  if (outcome === "confirm") {
+    downloadJson(`household-hub-unsynced-${format(new Date(), "yyyy-MM-dd")}.json`, {
+      exportedAt: new Date().toISOString(),
+      events: unpushed,
+    });
+  }
+  return outcome === "confirm" || outcome === "alternative";
+}
 
 export async function signOutWithToast(): Promise<void> {
   try {
+    if (!(await offerExportOfUnpushed())) return;
     await useAuthStore.getState().signOut();
   } catch (error) {
     console.error("Sign out failed:", error);

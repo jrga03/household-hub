@@ -49,10 +49,14 @@ function applyAccountEvent(account: AccountRow | null, event: LoggedEvent): Acco
   return retired === null ? account : { ...account, retired };
 }
 
-/** Folds an account's events in HLC order, so the row is the same whatever order they arrived in. */
-export async function projectAccount(history: LoggedEvent[]): Promise<void> {
+/**
+ * Folds an account's events in HLC order, so the row is the same whatever order
+ * they arrived in. With no create left (one was discarded), there is no row.
+ */
+export async function projectAccount(accountId: string, history: LoggedEvent[]): Promise<void> {
   const account = [...history].sort(byHlc).reduce<AccountRow | null>(applyAccountEvent, null);
   if (account) await db.accounts.put(account);
+  else await db.accounts.delete(accountId);
 }
 
 export const getAccount = (id: string) => db.accounts.get(id);

@@ -6,17 +6,29 @@
 import {
   listUnpushed,
   markPushed,
+  markStuck,
   readPullCursor,
   receiveEvents,
   type LoggedEvent,
 } from "@/lib/events/log";
+
+/** The server refused the events and will every time; a transient failure is a plain Error. */
+export class EventLogRejected extends Error {
+  constructor(
+    message: string,
+    readonly code: string
+  ) {
+    super(message);
+    this.name = "EventLogRejected";
+  }
+}
 
 export interface PulledEvent extends LoggedEvent {
   sequence: number;
 }
 
 export interface RemoteEventLog {
-  /** Must ignore events the server already has. */
+  /** Must ignore events the server already has, and throw EventLogRejected for a refusal that won't change. */
   push(events: LoggedEvent[]): Promise<void>;
   /** Events after `afterSequence`, in sequence order, at most `batchSize`. */
   pull(afterSequence: number, batchSize: number): Promise<PulledEvent[]>;
@@ -24,15 +36,42 @@ export interface RemoteEventLog {
 
 const DEFAULT_BATCH_SIZE = 500;
 
-export function createSyncEngine(remote: RemoteEventLog, { batchSize = DEFAULT_BATCH_SIZE } = {}) {
+interface SyncEngineOptions {
+  batchSize?: number;
+  /** Called for each change the server refused for good. */
+  onStuck?: (event: LoggedEvent, rejection: EventLogRejected) => void;
+}
+
+export function createSyncEngine(
+  remote: RemoteEventLog,
+  { batchSize = DEFAULT_BATCH_SIZE, onStuck = () => {} }: SyncEngineOptions = {}
+) {
   let halted = false;
+
+  /** Pushes `events`, returning the refusal instead of throwing it; other failures throw. */
+  async function tryPush(events: LoggedEvent[]): Promise<EventLogRejected | null> {
+    try {
+      await remote.push(events);
+    } catch (error) {
+      if (error instanceof EventLogRejected) return error;
+      throw error;
+    }
+    await markPushed(events.map((event) => event.id));
+    return null;
+  }
 
   async function pushAll() {
     for (;;) {
       const unpushed = await listUnpushed(batchSize);
       if (unpushed.length === 0) return;
-      await remote.push(unpushed);
-      await markPushed(unpushed.map((event) => event.id));
+      if ((await tryPush(unpushed)) === null) continue;
+      // The server refuses a batch as a whole: send them one at a time to find which.
+      for (const event of unpushed) {
+        const rejection = await tryPush([event]);
+        if (rejection === null) continue;
+        await markStuck(event.id, rejection.message);
+        onStuck(event, rejection);
+      }
     }
   }
 
@@ -55,7 +94,7 @@ export function createSyncEngine(remote: RemoteEventLog, { batchSize = DEFAULT_B
   async function run() {
     do {
       runAgain = false;
-      // A refused push must not also cut the device off from everyone else's events.
+      // A failed push must not also cut the device off from everyone else's events.
       let pushFailure: unknown = null;
       try {
         await pushAll();

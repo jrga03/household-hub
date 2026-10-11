@@ -9,7 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useConfirmStore, type ConfirmRequest } from "@/lib/confirm";
 
 /**
@@ -36,7 +36,7 @@ export function ConfirmDialogHost() {
       onOpenChange={(open) => {
         // Escape (Radix alert dialogs don't close on outside click) =
         // dismissed without choosing. Distinct from the explicit cancel
-        // button so callers using `distinguishDismiss` (sign-out) can treat
+        // button so callers using `confirmWithOutcome` (sign-out) can treat
         // dismissal as "abort" rather than as the cancel action. After a
         // button click this fires too, but settle() is already a no-op then.
         if (!open) settle("dismiss");
@@ -55,6 +55,11 @@ export function ConfirmDialogHost() {
           <AlertDialogCancel onClick={() => settle("cancel")}>
             {display?.cancelLabel ?? "Cancel"}
           </AlertDialogCancel>
+          {display?.alternativeLabel && (
+            <Button variant="outline" onClick={() => settle("alternative")}>
+              {display.alternativeLabel}
+            </Button>
+          )}
           <AlertDialogAction
             className={
               display?.destructive ? buttonVariants({ variant: "destructive" }) : undefined

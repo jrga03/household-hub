@@ -1,4 +1,7 @@
-/** When the device syncs: app start, reconnect, the page becoming visible, and after local writes. */
+/**
+ * When the device syncs: app start, reconnect, the page becoming visible, after
+ * local writes, and after a failure, with a delay that doubles each time.
+ */
 
 type Sync = () => Promise<void>;
 
@@ -11,10 +14,31 @@ export function requestSync(): void {
 
 export function startSyncTriggers(
   sync: Sync,
-  { debounceMs = 1000, onError = (_error: unknown) => {} } = {}
+  {
+    debounceMs = 1000,
+    retryBaseMs = 2000,
+    retryMaxMs = 5 * 60_000,
+    onError = (_error: unknown) => {},
+  } = {}
 ): () => void {
+  let stopped = false;
+  let failures = 0;
+  let retryTimer: ReturnType<typeof setTimeout> | undefined;
+
   const runSync = () => {
-    sync().catch(onError);
+    clearTimeout(retryTimer);
+    sync().then(
+      () => {
+        failures = 0;
+      },
+      (error: unknown) => {
+        onError(error);
+        if (stopped) return;
+        const delay = Math.min(retryBaseMs * 2 ** failures, retryMaxMs);
+        failures += 1;
+        retryTimer = setTimeout(runSync, delay);
+      }
+    );
   };
   const runWhenVisible = () => {
     if (document.visibilityState === "visible") runSync();
@@ -31,8 +55,10 @@ export function startSyncTriggers(
   runSync();
 
   return () => {
+    stopped = true;
     onLocalWrite = null;
     clearTimeout(debounceTimer);
+    clearTimeout(retryTimer);
     window.removeEventListener("online", runSync);
     document.removeEventListener("visibilitychange", runWhenVisible);
   };

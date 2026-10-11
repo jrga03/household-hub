@@ -18,7 +18,8 @@ export function useOnlineStatus() {
     const checkHealth = async () => {
       try {
         const { error } = await supabase.auth.getSession();
-        setIsOnline(!error);
+        // getSession reads storage and succeeds offline, so it can't vouch for the connection alone.
+        setIsOnline(navigator.onLine && !error);
       } catch {
         setIsOnline(false);
       }

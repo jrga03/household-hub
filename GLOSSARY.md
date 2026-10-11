@@ -100,3 +100,13 @@ One row read from a bank or credit card statement.
 **Draft**:
 A statement line held for review. It becomes a transaction only when a member confirms it.
 _Avoid_: Pending transaction, staged import
+
+## Sync
+
+**Waiting**:
+A change made on this device that hasn't reached the server yet. It goes out on its own once the device is online.
+_Avoid_: Pending (that is a transaction state), queued, unsynced
+
+**Stuck**:
+A change the server refused for good. It stays on the device until a member retries or discards it; discarding removes it as if it had never been made.
+_Avoid_: Failed, rejected

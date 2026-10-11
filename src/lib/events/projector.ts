@@ -1,5 +1,5 @@
-import { ACCOUNT_ENTITY } from "@/lib/accounts/events";
-import { projectAccount } from "@/lib/accounts/projection";
+import { ACCOUNT_ENTITY, describeAccountEvent } from "@/lib/accounts/events";
+import { getAccount, projectAccount } from "@/lib/accounts/projection";
 import type { LoggedEvent } from "./log";
 
 /**
@@ -10,5 +10,13 @@ import type { LoggedEvent } from "./log";
  * in the log only.
  */
 export async function projectEvent(event: LoggedEvent, history: LoggedEvent[]): Promise<void> {
-  if (event.entityType === ACCOUNT_ENTITY) await projectAccount(history);
+  if (event.entityType === ACCOUNT_ENTITY) await projectAccount(event.entityId, history);
+}
+
+/** A readable line for one change, for showing an event the server refused. */
+export async function describeEvent(event: LoggedEvent): Promise<string> {
+  if (event.entityType === ACCOUNT_ENTITY) {
+    return describeAccountEvent(event, (await getAccount(event.entityId))?.name);
+  }
+  return `Unknown change (${event.eventType})`;
 }

@@ -17,6 +17,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuthStore } from "@/stores/authStore";
 import { signOutWithToast } from "@/lib/sign-out";
+import { SyncStatusIndicator } from "@/components/sync/SyncStatusIndicator";
 import { cn } from "@/lib/utils";
 
 /**
@@ -111,6 +112,9 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t">
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SyncStatusIndicator compact={!open} />
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <div className="flex items-center gap-3 px-2 py-2">
               {/* User Avatar */}

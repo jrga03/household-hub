@@ -11,6 +11,7 @@ import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { cn } from "@/lib/utils";
 import { OfflineBanner } from "@/components/sync/OfflineBanner";
+import { SyncStatusIndicator } from "@/components/sync/SyncStatusIndicator";
 import { StorageWarning } from "@/components/StorageWarning";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { CREATE_OR_JOIN_PATH } from "@/lib/households";
@@ -105,12 +106,13 @@ export function AppLayout() {
             </Button>
 
             {/* App Title */}
-            <div className="flex flex-1 items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <span className="text-xs font-bold">HH</span>
               </div>
-              <span className="font-semibold">Household Hub</span>
+              <span className="truncate font-semibold">Household Hub</span>
             </div>
+            <SyncStatusIndicator />
           </div>
         </header>
 

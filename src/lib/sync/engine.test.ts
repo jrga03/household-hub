@@ -1,10 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
-import { listUnpushed, type LoggedEvent } from "@/lib/events/log";
+import { countWaiting, listStuck, listUnpushed, type LoggedEvent } from "@/lib/events/log";
 import { listAccounts } from "@/lib/accounts/projection";
 import { createAccount } from "@/lib/commands/accounts";
 import { cents } from "@/test/cents";
-import { createSyncEngine, type PulledEvent, type RemoteEventLog } from "./engine";
+import {
+  createSyncEngine,
+  EventLogRejected,
+  type PulledEvent,
+  type RemoteEventLog,
+} from "./engine";
 import { startSyncTriggers } from "./triggers";
 
 const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
@@ -13,12 +18,15 @@ const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "u
 class FakeRemote implements RemoteEventLog {
   events: PulledEvent[] = [];
   offline = false;
-  refusePush = false;
+  /** Refuses every push that contains one of these events, as RLS refuses a whole insert. */
+  refused = new Set<string>();
   pullGate: Promise<void> | null = null;
 
   async push(events: LoggedEvent[]) {
     if (this.offline) throw new Error("Failed to fetch");
-    if (this.refusePush) throw new Error("new row violates row-level security policy");
+    if (events.some((event) => this.refused.has(event.entityId))) {
+      throw new EventLogRejected("new row violates row-level security policy", "42501");
+    }
     for (const event of events) {
       if (this.events.some((existing) => existing.id === event.id)) continue;
       this.events.push({ ...event, sequence: this.events.length + 1 });
@@ -106,6 +114,7 @@ describe("sync engine", () => {
     await expect(engine.sync()).rejects.toThrow("Failed to fetch");
     expect(await listAccounts()).toHaveLength(1);
     expect(await listUnpushed(10)).toHaveLength(1);
+    expect(await listStuck()).toEqual([]);
 
     remote.offline = false;
     await engine.sync();
@@ -114,15 +123,48 @@ describe("sync engine", () => {
     expect(await listUnpushed(10)).toHaveLength(0);
   });
 
-  it("still pulls when the server refuses a push", async () => {
+  it("holds a refused change as stuck and still pushes the rest and pulls", async () => {
     await createAccount(MEMBER, { name: "Cash", type: "cash", startingBalanceCents: cents(0) });
+    const { id: refusedId } = await createAccount(MEMBER, {
+      name: "BPI Savings",
+      type: "bank",
+      startingBalanceCents: cents(0),
+    });
+    await createAccount(MEMBER, { name: "Wallet", type: "cash", startingBalanceCents: cents(0) });
     await remote.push([accountFromOtherDevice("BDO")]);
-    remote.refusePush = true;
+    remote.refused.add(refusedId);
+    const onStuck = vi.fn();
 
-    await expect(createSyncEngine(remote).sync()).rejects.toThrow("row-level security");
+    await createSyncEngine(remote, { onStuck }).sync();
 
-    expect((await listAccounts()).map((account) => account.name)).toEqual(["BDO", "Cash"]);
-    expect(await listUnpushed(10)).toHaveLength(1);
+    expect(remote.events.map((event) => event.payload.name)).toEqual(["BDO", "Cash", "Wallet"]);
+    expect(await countWaiting()).toBe(0);
+    expect(await listStuck()).toEqual([
+      expect.objectContaining({ description: "Add account: BPI Savings" }),
+    ]);
+    expect(onStuck).toHaveBeenCalledOnce();
+    expect((await listAccounts()).map((account) => account.name)).toEqual([
+      "BDO",
+      "BPI Savings",
+      "Cash",
+      "Wallet",
+    ]);
+  });
+
+  it("does not resend a stuck change on later syncs", async () => {
+    const { id } = await createAccount(MEMBER, {
+      name: "BPI Savings",
+      type: "bank",
+      startingBalanceCents: cents(0),
+    });
+    remote.refused.add(id);
+    const engine = createSyncEngine(remote);
+    await engine.sync();
+    const push = vi.spyOn(remote, "push");
+
+    await engine.sync();
+
+    expect(push).not.toHaveBeenCalled();
   });
 
   it("runs again when asked during a sync, so a write made mid-sync still goes out", async () => {
@@ -210,5 +252,40 @@ describe("sync triggers", () => {
     vi.advanceTimersByTime(500);
     expect(sync).toHaveBeenCalledTimes(1);
     stop();
+  });
+
+  it("retries a failed sync with growing delays until one succeeds", async () => {
+    const sync = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Failed to fetch"))
+      .mockRejectedValueOnce(new Error("Failed to fetch"))
+      .mockResolvedValue(undefined);
+    const stop = startSyncTriggers(sync, { retryBaseMs: 1000 });
+    await vi.waitFor(() => expect(sync).toHaveBeenCalledTimes(1));
+
+    await vi.advanceTimersByTimeAsync(999);
+    expect(sync).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(sync).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(sync).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(sync).toHaveBeenCalledTimes(3);
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(sync).toHaveBeenCalledTimes(3);
+    stop();
+  });
+
+  it("stops retrying once stopped", async () => {
+    const sync = vi.fn().mockRejectedValue(new Error("Failed to fetch"));
+    const stop = startSyncTriggers(sync, { retryBaseMs: 1000 });
+    await vi.waitFor(() => expect(sync).toHaveBeenCalledTimes(1));
+
+    stop();
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(sync).toHaveBeenCalledTimes(1);
   });
 });

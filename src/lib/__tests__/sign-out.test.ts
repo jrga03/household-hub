@@ -12,22 +12,89 @@ vi.mock("sonner", () => ({
   toast: { error: vi.fn() },
 }));
 
+vi.mock("@/lib/sync", () => ({ syncBeforeSignOut: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@/lib/events/log", () => ({ listEventsNotPushed: vi.fn() }));
+vi.mock("@/lib/confirm", () => ({ confirmWithOutcome: vi.fn() }));
+vi.mock("@/lib/utils/download", () => ({ downloadJson: vi.fn() }));
+
 import { signOutWithToast } from "../sign-out";
 import { toast } from "sonner";
+import { syncBeforeSignOut } from "@/lib/sync";
+import { listEventsNotPushed, type StoredEvent } from "@/lib/events/log";
+import { confirmWithOutcome } from "@/lib/confirm";
+import { downloadJson } from "@/lib/utils/download";
+
+const UNPUSHED = [
+  { id: "event-1", pushState: "waiting" },
+  { id: "event-2", pushState: "stuck" },
+];
 
 beforeEach(() => {
-  signOutMock.mockReset();
-  vi.mocked(toast.error).mockClear();
+  vi.clearAllMocks();
+  signOutMock.mockResolvedValue(undefined);
+  vi.mocked(listEventsNotPushed).mockResolvedValue([]);
 });
 
+const withUnpushed = () =>
+  vi.mocked(listEventsNotPushed).mockResolvedValue(UNPUSHED as StoredEvent[]);
+
 describe("signOutWithToast", () => {
-  it("signs out", async () => {
-    signOutMock.mockResolvedValue(undefined);
+  it("signs out without asking once everything has synced", async () => {
+    await signOutWithToast();
+
+    expect(syncBeforeSignOut).toHaveBeenCalledOnce();
+    expect(confirmWithOutcome).not.toHaveBeenCalled();
+    expect(signOutMock).toHaveBeenCalledOnce();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it("warns about unpushed changes, offering export, sign out anyway, and cancel", async () => {
+    withUnpushed();
+    vi.mocked(confirmWithOutcome).mockResolvedValue("cancel");
 
     await signOutWithToast();
 
+    expect(confirmWithOutcome).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: expect.stringContaining("2 changes"),
+        confirmLabel: "Export and sign out",
+        alternativeLabel: "Sign out anyway",
+        cancelLabel: "Cancel",
+      })
+    );
+    expect(signOutMock).not.toHaveBeenCalled();
+  });
+
+  it("stays signed in when the warning is dismissed", async () => {
+    withUnpushed();
+    vi.mocked(confirmWithOutcome).mockResolvedValue("dismiss");
+
+    await signOutWithToast();
+
+    expect(signOutMock).not.toHaveBeenCalled();
+  });
+
+  it("downloads the unpushed changes as JSON, then signs out", async () => {
+    withUnpushed();
+    vi.mocked(confirmWithOutcome).mockResolvedValue("confirm");
+
+    await signOutWithToast();
+
+    expect(downloadJson).toHaveBeenCalledWith(
+      expect.stringMatching(/^household-hub-unsynced-.*\.json$/),
+      expect.objectContaining({ events: UNPUSHED })
+    );
     expect(signOutMock).toHaveBeenCalledOnce();
-    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it("signs out without exporting when asked to sign out anyway", async () => {
+    withUnpushed();
+    vi.mocked(confirmWithOutcome).mockResolvedValue("alternative");
+
+    await signOutWithToast();
+
+    expect(downloadJson).not.toHaveBeenCalled();
+    expect(signOutMock).toHaveBeenCalledOnce();
   });
 
   it("shows the error as a toast when sign-out fails", async () => {

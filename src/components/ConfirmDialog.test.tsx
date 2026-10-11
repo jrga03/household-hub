@@ -116,4 +116,18 @@ describe("confirmWithOutcome() (three-way outcome)", () => {
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });
   });
+
+  it("resolves 'alternative' from a third button, when the request offers one", async () => {
+    render(<ConfirmDialogHost />);
+
+    const result = confirmWithOutcome({
+      title: "Sign out?",
+      confirmLabel: "Export and sign out",
+      alternativeLabel: "Sign out anyway",
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Sign out anyway" }));
+
+    await expect(result).resolves.toBe("alternative");
+  });
 });
