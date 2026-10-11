@@ -41,9 +41,12 @@ export async function callMembershipFunction(
 }
 
 async function fetchMyHousehold(): Promise<Household | null> {
+  // Offline, the client's GET retries would hold the route gate for seconds
+  // before it falls back to the last known household.
   const { data, error } = await supabase
     .from("households")
     .select("id, name, code, owner_user_id")
+    .retry(false)
     .maybeSingle();
   if (error) throw error;
   return data ? toHousehold(data) : null;

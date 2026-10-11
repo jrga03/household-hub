@@ -199,7 +199,7 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #24 merged (PR #34).
 - #25 merged (PR #38, 7f7bf9c). Follow-up: #36 (offline gate retry delay).
 - #20 merged (PR #37, 6eefab2). After deploy, check the Supabase dashboard a week later that the project stayed active.
-- #36 in progress (`fix/36-gate-retry`).
+- #36 in review (`fix/36-gate-retry`). After it merges, the roadmap's queue is empty: pick the next issue from GitHub.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
   - `supabase test db` exits 1 when `supabase/tests/` has no `.sql` files; `000_empty_baseline.sql` (asserts public has no tables) must be replaced, not just deleted, by #21's baseline tests.
@@ -335,7 +335,7 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP); the local
 - **The household and members queries go stale after 30 s, not 5 min** (resolves the #21 gate deferral): removal reaches a device through sync; a new Owner's controls appear at the next refocus.
 - **Sync runs on create-or-join too**, once membership is known, so a removed person who opens the app online still has the household wiped.
 - **A removed Member's Personal changes wait, and go out once they join a household again.** The insert policy now requires membership and ownership for a Personal event but not a matching household, since an offline change names the household it was made in (review fix; the first version said Retry would work, but the old policy refused it every time).
-- **Observed, not fixed: the route gate's household GET also retries offline** (about 7 s before falling back to the last known membership on an offline app start). Pre-existing since the supabase-js upgrade. Revisit: #36.
+- **Observed, not fixed: the route gate's household GET also retries offline** (about 7 s before falling back to the last known membership on an offline app start). Pre-existing since the supabase-js upgrade. Fixed in #36.
 - **A Household event projects unless it belongs to a household this device has left** (meta `leftHouseholdIds`; rejoining removes it). Why: matching the recorded household instead hid changes made in a just-joined household before the first sync (found while fixing review findings).
 - **Review fixes:** membership is checked before the push; the wipe touches only Household data of other households, so changes made in the new household stay; a device that never recorded its household is wiped too; one `callMembershipFunction` serves join requests and membership; clearer names in `MembersCard`; ADR 0001 records that discarding a stuck create drops its unpushed changes, ADR 0004 records leaving and dissolving, and GLOSSARY's Stuck covers changes from a left household.
 - **Review deferral: no permutation test for the left-household filter.** It drops events by household before the HLC fold, so it can't depend on arrival order; the account permutation tests still cover the fold. Revisit: if the filter ever depends on event order.
@@ -365,3 +365,11 @@ Seams: `public.keep_alive()` privileges (pgTAP), `pingSupabase` logging and fail
 - **`keep_alive()` is `select true`, reading no table.** Supabase doesn't document what counts as activity; a REST call that reaches Postgres very likely does. Revisit: if the project still pauses a week after the Worker is deployed (then read a catalog table, still with no grant to anon).
 - **CLAUDE.md's `tsconfig.tests.json` comment now lists `workers/`** (review fix, user-approved).
 - Gotcha: worktrees share one local Supabase stack. To test a migration without disturbing another branch's DB, copy `supabase/` to a scratch dir, change `project_id` and the db/api/pooler/shadow ports, and run `supabase db start`/`test db`/`stop --no-backup` with `--workdir`.
+
+## Issue #36: offline app start waits on the gate's retries
+
+Seam (from the issue): one Playwright flow, an offline reload of home (chromium).
+
+- [x] Playwright: create a household, reload under the service worker, go offline, reload; the household shows within 3 s. Red first: blank page at 3 s, passing at 15 s (12.6 s run)
+- [x] `.retry(false)` on the gate's household read (`fetchMyHousehold`); the households unit test's Supabase fake gains `retry()`
+- [x] lint, vitest, both tsc, knip; chromium E2E 32 passed, only the 3 known failures
