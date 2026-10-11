@@ -199,7 +199,7 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #23 in review: PR #32 (`rearch/23-edit-retire-accounts`).
 - #19 in review: PR #33 (`rearch/19-credit-cards`).
 - #24 merged (PR #34).
-- Next: #25. #20 (keep-alive cron) in progress on `rearch/20-keep-alive`.
+- Next: #25. #20 (keep-alive cron) in review on `rearch/20-keep-alive`; after deploy, check the Supabase dashboard a week later that the project stayed active.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
   - `supabase test db` exits 1 when `supabase/tests/` has no `.sql` files; `000_empty_baseline.sql` (asserts public has no tables) must be replaced, not just deleted, by #21's baseline tests.
@@ -324,5 +324,5 @@ Seams: `public.keep_alive()` privileges (pgTAP), `pingSupabase` logging and fail
 - **Wrangler is not a dependency**; the Worker deploys with `npx wrangler` by hand. Why: workerd is a large download for every `npm ci`, for a Worker that changes rarely. Revisit: if the Worker gains logic worth a CI deploy.
 - **Migration version `20261011200000` and pgTAP file `060_keep_alive.sql`**: #25's in-progress branch already uses `20261011120000` (in the shared local DB) and `050_household_lifecycle.sql`.
 - **`keep_alive()` is `select true`, reading no table.** Supabase doesn't document what counts as activity; a REST call that reaches Postgres very likely does. Revisit: if the project still pauses a week after the Worker is deployed (then read a catalog table, still with no grant to anon).
-- **Review deferral: CLAUDE.md's `tsconfig.tests.json` comment** (`# tests/ + playwright config`) doesn't mention `workers/`. Left for the user to approve. Revisit: before merge.
+- **CLAUDE.md's `tsconfig.tests.json` comment now lists `workers/`** (review fix, user-approved).
 - Gotcha: worktrees share one local Supabase stack. To test a migration without disturbing another branch's DB, copy `supabase/` to a scratch dir, change `project_id` and the db/api/pooler/shadow ports, and run `supabase db start`/`test db`/`stop --no-backup` with `--workdir`.
