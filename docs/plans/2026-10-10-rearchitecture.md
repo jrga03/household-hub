@@ -199,7 +199,7 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #23 in review: PR #32 (`rearch/23-edit-retire-accounts`).
 - #19 in review: PR #33 (`rearch/19-credit-cards`).
 - #24 merged (PR #34).
-- #25 in review on `rearch/25-household-lifecycle`.
+- #25 in review: PR #38 (`rearch/25-household-lifecycle`). Follow-up: #36 (offline gate retry delay).
 - Next: #20 (keep-alive cron) is independent.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
