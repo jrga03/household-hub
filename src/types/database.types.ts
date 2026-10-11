@@ -137,6 +137,9 @@ isOneToOne: false
 "generate_household_code":
 { Args: Record<PropertyKey, never>; Returns: string
                            },
+"keep_alive":
+{ Args: Record<PropertyKey, never>; Returns: boolean
+                           },
 "my_join_request":
 { Args: Record<PropertyKey, never>; Returns: {
               "id": string,"status": string

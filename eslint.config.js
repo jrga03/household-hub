@@ -172,6 +172,34 @@ export default [
     },
   },
 
+  // Cloudflare Workers
+  {
+    files: ["workers/**/*.ts"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+      },
+      globals: {
+        Response: "readonly",
+        console: "readonly",
+        fetch: "readonly",
+      },
+    },
+    plugins: {
+      "@typescript-eslint": typescript,
+    },
+    rules: {
+      ...typescript.configs.recommended.rules,
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+      "@typescript-eslint/no-non-null-assertion": "error",
+    },
+  },
+
   // Service Worker configuration
   {
     files: ["src/sw.ts"],
