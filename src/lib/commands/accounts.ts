@@ -1,4 +1,4 @@
-import { isVisibility, VISIBILITY_LABELS } from "@/lib/events/log";
+import { isVisibility, VISIBILITY_LABELS, type Ownership } from "@/lib/events/log";
 import { requestSync } from "@/lib/sync/triggers";
 import {
   ACCOUNT_CREATED,
@@ -12,7 +12,7 @@ import {
   type AccountChangeType,
   type AccountDetails,
 } from "@/lib/accounts/events";
-import { payingAccountChoices, type Ownership } from "@/lib/accounts/paying-account";
+import { payingAccountChoices } from "@/lib/accounts/paying-account";
 import { getAccount, listAccounts, type AccountRow } from "@/lib/accounts/projection";
 import type { Cents } from "@/lib/currency";
 import { appenderFor } from "./append";
@@ -63,7 +63,7 @@ export async function createAccount(actor: Actor, input: NewAccountInput): Promi
   await checkPayingAccount(details, { visibility, ownerUserId });
 
   const id = crypto.randomUUID();
-  await appendAccountEvent(actor, { visibility, ownerUserId }, id, ACCOUNT_CREATED, { ...details });
+  await appendAccountEvent(actor, { id, visibility, ownerUserId }, ACCOUNT_CREATED, { ...details });
   requestSync();
   return { id };
 }
@@ -84,7 +84,7 @@ async function appendAccountChange(
   eventType: AccountChangeType,
   payload: Record<string, unknown>
 ): Promise<void> {
-  await appendAccountEvent(actor, account, account.id, eventType, payload);
+  await appendAccountEvent(actor, account, eventType, payload);
   requestSync();
 }
 

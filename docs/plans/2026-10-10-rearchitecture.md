@@ -82,7 +82,7 @@ Fix commits cluster in `src/lib/{sync,offline,debts}`.
 Spec: #46. Scoped 2026-10-12 (decisions above, dated 2026-10-11 and 2026-10-12). Order follows the blocking edges.
 
 - [x] #47 Projection registry
-- [ ] #48 Categories and groups (blocked by #47)
+- [x] #48 Categories and groups (branch `feat/48-categories`, not yet merged)
 - [ ] #49 Transactions core (blocked by #48)
 - [ ] #50 Card Payment reservation (blocked by #49)
 - [ ] #51 Allocations and the Categories screen (blocked by #48, #49)
@@ -101,8 +101,8 @@ Seams (from #46's Testing Decisions and the issue's acceptance criteria): catego
 - [x] `/categories` route in the sidebar, tab bar and drawer; empty state offers the defaults; Retired section
 - [x] Playwright: seed defaults, add a Personal group and category (chromium)
 - [x] build, lint, vitest, both tsc, knip
-- [ ] Code review (standards + spec), fixes applied
-- [ ] Commit
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
 
 ### #48 decisions
 
@@ -117,6 +117,11 @@ Seams (from #46's Testing Decisions and the issue's acceptance criteria): catego
 - **Commands stamp events through `appenderFor(entityType, versions)`** (`src/lib/commands/append.ts`), and `currentVersion` takes only its table's own event types, so pairing an event with another entity's table no longer compiles. Accounts moved onto it. Resolves the #47 review deferral.
 - **The Household/Personal radio is one `VisibilityField`**, shared by the account and group forms.
 - **The drawer lists Categories above Settings**; the tab bar has Home, Categories, Settings.
+- **Deferred: "Retired, still holding money"**. A retired category is listed under Retired with no amount, since categories hold no money until transactions and allocations land. Revisit: #51 (allocations and the Categories screen).
+- **Review: the default group "Personal" (a Household group) sits beside "Personal" visibility badges.** Kept: the default list was agreed 2026-10-12. Revisit: if members confuse the two.
+- **Review: a new member's device offers the defaults until its first pull brings the household's groups**, so seeding then adds defaults the household never chose (deterministic IDs keep it to one set). Kept: gating on a first pull would hide the button forever in a new household with no events. Revisit: if it happens in use.
+- **Review fixes:** `g c` navigates and the tablet header names the page; `Ownership` moved beside `Visibility` in `lib/events/log`; the appender takes the record (ID plus ownership) as one argument; the glossary's Retired covers groups and categories; the ownership test is a permutation test.
+- **Review deferral: the try/toast transition shape repeats** in the retire, unretire and seed actions. Revisit: at a fourth copy.
 - **Worktrees need `.env.local` copied from the main checkout** (gitignored): without it the build has no Supabase URL and every E2E test sees a blank page.
 
 ## Issue #47: projection registry

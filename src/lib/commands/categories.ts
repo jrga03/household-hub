@@ -1,4 +1,4 @@
-import { isVisibility, VISIBILITY_LABELS } from "@/lib/events/log";
+import { isVisibility, VISIBILITY_LABELS, type Ownership } from "@/lib/events/log";
 import { requestSync } from "@/lib/sync/triggers";
 import {
   CATEGORY_CREATED,
@@ -9,6 +9,7 @@ import {
   CATEGORY_UNRETIRED,
   CATEGORY_VERSIONS,
   checkCategoryName,
+  type RecordNoun,
   GROUP_CREATED,
   GROUP_ENTITY,
   GROUP_RENAMED,
@@ -25,7 +26,6 @@ import {
   type CategoryRow,
   type GroupRow,
 } from "@/lib/categories/projection";
-import type { Ownership } from "@/lib/accounts/paying-account";
 import type { Actor } from "./accounts";
 import { appenderFor } from "./append";
 
@@ -43,18 +43,23 @@ export async function seedDefaultCategories(actor: Actor): Promise<void> {
   for (const group of DEFAULT_GROUPS) {
     const groupId = await defaultGroupId(actor.householdId, group.key);
     if (!(await getGroup(groupId))) {
-      await appendGroupEvent(actor, HOUSEHOLD, groupId, GROUP_CREATED, { name: group.name });
+      await appendGroupEvent(actor, { ...HOUSEHOLD, id: groupId }, GROUP_CREATED, {
+        name: group.name,
+      });
     }
     for (const name of group.categories) {
       const categoryId = await defaultCategoryId(actor.householdId, name);
       if (await getCategory(categoryId)) continue;
-      await appendCategoryEvent(actor, HOUSEHOLD, categoryId, CATEGORY_CREATED, { name, groupId });
+      await appendCategoryEvent(actor, { ...HOUSEHOLD, id: categoryId }, CATEGORY_CREATED, {
+        name,
+        groupId,
+      });
     }
   }
   requestSync();
 }
 
-function checkedName(input: string, noun: "group" | "category"): string {
+function checkedName(input: string, noun: RecordNoun): string {
   const { name, problem } = checkCategoryName(input, noun);
   if (problem !== null) throw new Error(problem);
   return name;
@@ -87,7 +92,7 @@ export async function createGroup(
   const ownerUserId = visibility === "personal" ? actor.userId : null;
 
   const id = crypto.randomUUID();
-  await appendGroupEvent(actor, { visibility, ownerUserId }, id, GROUP_CREATED, { name });
+  await appendGroupEvent(actor, { id, visibility, ownerUserId }, GROUP_CREATED, { name });
   requestSync();
   return { id };
 }
@@ -95,7 +100,7 @@ export async function createGroup(
 export async function renameGroup(actor: Actor, groupId: string, input: string): Promise<void> {
   const name = checkedName(input, "group");
   const group = await requireGroup(groupId);
-  await appendGroupEvent(actor, group, group.id, GROUP_RENAMED, { name });
+  await appendGroupEvent(actor, group, GROUP_RENAMED, { name });
   requestSync();
 }
 
@@ -109,13 +114,13 @@ export async function retireGroup(actor: Actor, groupId: string): Promise<void> 
     const names = inUse.map((category) => category.name).sort((a, b) => a.localeCompare(b));
     throw new Error(`Retire ${conjunction.format(names)} first.`);
   }
-  await appendGroupEvent(actor, group, group.id, GROUP_RETIRED, {});
+  await appendGroupEvent(actor, group, GROUP_RETIRED, {});
   requestSync();
 }
 
 export async function unretireGroup(actor: Actor, groupId: string): Promise<void> {
   const group = await requireGroup(groupId);
-  await appendGroupEvent(actor, group, group.id, GROUP_UNRETIRED, {});
+  await appendGroupEvent(actor, group, GROUP_UNRETIRED, {});
   requestSync();
 }
 
@@ -129,7 +134,7 @@ export async function createCategory(
   refuseRetired(group);
 
   const id = crypto.randomUUID();
-  await appendCategoryEvent(actor, group, id, CATEGORY_CREATED, { name, groupId: group.id });
+  await appendCategoryEvent(actor, { ...group, id }, CATEGORY_CREATED, { name, groupId: group.id });
   requestSync();
   return { id };
 }
@@ -141,7 +146,7 @@ export async function renameCategory(
 ): Promise<void> {
   const name = checkedName(input, "category");
   const category = await requireCategory(categoryId);
-  await appendCategoryEvent(actor, category, category.id, CATEGORY_RENAMED, { name });
+  await appendCategoryEvent(actor, category, CATEGORY_RENAMED, { name });
   requestSync();
 }
 
@@ -157,14 +162,14 @@ export async function moveCategory(
     throw new Error(`Choose a ${VISIBILITY_LABELS[category.visibility]} group.`);
   }
   refuseRetired(group);
-  await appendCategoryEvent(actor, category, category.id, CATEGORY_MOVED, { groupId: group.id });
+  await appendCategoryEvent(actor, category, CATEGORY_MOVED, { groupId: group.id });
   requestSync();
 }
 
 /** Hidden from pickers and kept under Retired; its history stays. */
 export async function retireCategory(actor: Actor, categoryId: string): Promise<void> {
   const category = await requireCategory(categoryId);
-  await appendCategoryEvent(actor, category, category.id, CATEGORY_RETIRED, {});
+  await appendCategoryEvent(actor, category, CATEGORY_RETIRED, {});
   requestSync();
 }
 
@@ -172,6 +177,6 @@ export async function retireCategory(actor: Actor, categoryId: string): Promise<
 export async function unretireCategory(actor: Actor, categoryId: string): Promise<void> {
   const category = await requireCategory(categoryId);
   refuseRetired(await getGroup(category.groupId));
-  await appendCategoryEvent(actor, category, category.id, CATEGORY_UNRETIRED, {});
+  await appendCategoryEvent(actor, category, CATEGORY_UNRETIRED, {});
   requestSync();
 }

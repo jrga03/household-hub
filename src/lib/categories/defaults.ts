@@ -1,4 +1,4 @@
-/** The suggested Household categories (plan doc, 2026-10-12). Personal categories have none. */
+/** The suggested Household categories. Personal categories have none. */
 export const DEFAULT_GROUPS = [
   {
     key: "savings",

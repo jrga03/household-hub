@@ -25,6 +25,12 @@ export const VISIBILITY_LABELS: Record<Visibility, string> = {
   personal: "Personal",
 };
 
+/** Who sees a record: its visibility, and its owner when Personal. */
+export interface Ownership {
+  visibility: Visibility;
+  ownerUserId: string | null;
+}
+
 export const isVisibility = (value: string): value is Visibility =>
   VISIBILITIES.some((visibility) => visibility === value);
 

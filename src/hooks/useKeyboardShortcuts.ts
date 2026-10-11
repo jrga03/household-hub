@@ -7,6 +7,7 @@
  * Supported Shortcuts:
  * - Cmd/Ctrl + K: Open command palette / quick search
  * - g then h: Go to Home
+ * - g then c: Go to Categories
  * - g then s: Go to Settings
  * - ?: Show keyboard shortcuts help
  * - Esc: Close modals/dialogs
@@ -64,6 +65,9 @@ export function useKeyboardShortcuts() {
           case "h":
             void navigate({ to: "/" });
             break;
+          case "c":
+            void navigate({ to: "/categories" });
+            break;
           case "s":
             void navigate({ to: "/settings" });
             break;
@@ -105,6 +109,7 @@ function showKeyboardShortcutsHelp() {
   const shortcuts = [
     { keys: `${modKey} + K`, description: "Open command palette / Quick search" },
     { keys: "g then h", description: "Go to Home" },
+    { keys: "g then c", description: "Go to Categories" },
     { keys: "g then s", description: "Go to Settings" },
     { keys: "?", description: "Show keyboard shortcuts" },
     { keys: "Esc", description: "Close modals/dialogs" },

@@ -1,12 +1,6 @@
-import type { Visibility } from "@/lib/events/log";
+import type { Ownership } from "@/lib/events/log";
 import { isCreditCard } from "./events";
 import type { AccountRow } from "./projection";
-
-/** Who sees an account: its visibility, and its owner when Personal. */
-export interface Ownership {
-  visibility: Visibility;
-  ownerUserId: string | null;
-}
 
 /** A card's Paying Account must be seen by exactly the people who see the card (ADR 0002). */
 export const canPay = (paying: AccountRow, card: Ownership) =>

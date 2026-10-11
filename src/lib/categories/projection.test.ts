@@ -197,21 +197,30 @@ describe("visibility", () => {
     ...personal,
   };
 
-  it("ignores a change that doesn't carry the category's own visibility and owner", async () => {
-    const groceries = categoryOnlyEvent("e-groceries", "category.created", 3000, {
-      name: "Groceries",
-      groupId: FOOD,
-    });
-    const personalRename = {
-      ...categoryOnlyEvent("e-renamed", "category.renamed", 4000, { name: "Mine now" }),
-      ...personal,
-    };
-    await receiveEvents([food, groceries, personalRename], 0);
-
-    expect((await readCategoryList()).groups).toMatchObject([
-      { id: FOOD, categories: [{ name: "Groceries", visibility: "household" }] },
-    ]);
+  const groceries = categoryOnlyEvent("e-groceries", "category.created", 3000, {
+    name: "Groceries",
+    groupId: FOOD,
   });
+  const personalRename = {
+    ...categoryOnlyEvent("e-renamed", "category.renamed", 4000, { name: "Mine now" }),
+    ...personal,
+  };
+  const personalMove = {
+    ...categoryOnlyEvent("e-moved", "category.moved", 5000, { groupId: BILLS }),
+    ...personal,
+  };
+
+  it.each(orders([food, mine, groceries, personalRename, personalMove]))(
+    "ignores changes that don't carry the category's own visibility and owner, in the order %j",
+    async (_ids, order) => {
+      for (const event of order) await receiveEvents([event], 0);
+
+      expect((await readCategoryList()).groups).toMatchObject([
+        { id: FOOD, categories: [{ name: "Groceries", visibility: "household", groupId: FOOD }] },
+        { id: BILLS, categories: [] },
+      ]);
+    }
+  );
 
   it("lists a category as ungrouped while its group is missing or of another visibility", async () => {
     const inMine = categoryOnlyEvent("e-groceries", "category.created", 3000, {

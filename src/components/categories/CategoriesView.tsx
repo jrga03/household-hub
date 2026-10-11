@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCategoryList } from "@/hooks/useCategories";
 import { DEFAULT_GROUPS } from "@/lib/categories/defaults";
+import type { RecordNoun } from "@/lib/categories/events";
 import type { CategoryList, CategoryRow, GroupRow } from "@/lib/categories/projection";
 import { seedDefaultCategories, unretireCategory, unretireGroup } from "@/lib/commands/categories";
 import type { Actor } from "@/lib/commands/accounts";
@@ -12,7 +13,7 @@ import { errorMessage } from "@/lib/utils";
 import { AddCategoryForm, AddGroupForm } from "./AddCategoryForms";
 import { EditCategoryDialog, EditGroupDialog } from "./EditCategoryDialogs";
 
-type Editing = { kind: "group" | "category"; id: string } | null;
+type Editing = { kind: RecordNoun; id: string } | null;
 
 function findEditing(list: CategoryList, editing: Editing) {
   if (!editing) return { group: undefined, category: undefined };
@@ -58,7 +59,7 @@ export function CategoriesView({ actor }: { actor: Actor }) {
               {list.groups.map((group) => (
                 <li key={group.id} className="rounded-md border">
                   <div className="flex items-center justify-between gap-3 border-b bg-muted/40 px-3 py-2">
-                    <RecordName record={group} retired={group.retired} />
+                    <RecordName record={group} showRetired />
                     <Button
                       variant="ghost"
                       size="sm"
@@ -121,12 +122,13 @@ export function CategoriesView({ actor }: { actor: Actor }) {
   );
 }
 
-function RecordName({ record, retired }: { record: GroupRow; retired?: boolean }) {
+/** A group or category's name, badged when Personal, and when retired if `showRetired`. */
+function RecordName({ record, showRetired }: { record: GroupRow; showRetired?: boolean }) {
   return (
     <p className="flex min-w-0 items-center gap-2">
       <span className="truncate font-medium">{record.name}</span>
       {record.visibility === "personal" && <Badge variant="secondary">Personal</Badge>}
-      {retired && <Badge variant="outline">Retired</Badge>}
+      {showRetired && record.retired && <Badge variant="outline">Retired</Badge>}
     </p>
   );
 }

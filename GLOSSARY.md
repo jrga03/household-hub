@@ -35,7 +35,7 @@ Whether an account is **Household** (every member sees it and it counts toward h
 _Avoid_: Private, shared, scope
 
 **Retired**:
-An account no longer in use. It leaves the main accounts list but keeps its history, stays under a Retired view, and can be unretired.
+An account, group or category no longer in use. It leaves the main list and the pickers but keeps its history, stays under a Retired view, and can be unretired. A group retires only once its categories are retired.
 _Avoid_: Archived, closed, deleted
 
 **Transaction**:
