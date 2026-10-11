@@ -199,7 +199,8 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #23 in review: PR #32 (`rearch/23-edit-retire-accounts`).
 - #19 in review: PR #33 (`rearch/19-credit-cards`).
 - #24 merged (PR #34).
-- Next: #25; #20 (keep-alive cron) is independent.
+- #25 committed on `rearch/25-household-lifecycle` (ac6b3c5), not yet pushed or PR'd.
+- Next: #20 (keep-alive cron) is independent.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
   - `supabase test db` exits 1 when `supabase/tests/` has no `.sql` files; `000_empty_baseline.sql` (asserts public has no tables) must be replaced, not just deleted, by #21's baseline tests.
@@ -304,3 +305,42 @@ Seams (from the issue's acceptance criteria): account projection (Vitest, throug
 - **Review deferral: the version table and `upcast` live in `accounts/events.ts`.** Revisit: #19 or the first non-account entity (move to `lib/events`, with the projection registry from #18).
 - **Review deferral: no bound on how far ahead a received HLC may be** (from #18). Every bound breaks convergence between devices with different clocks, so only reporting large drift is safe. Revisit: #24 (sync status could warn on a skewed clock).
 - **Review deferral: the starting balance input strips the peso sign from `formatPHP`**; a currency helper for input values would own that. Revisit: when a second amount field is pre-filled (transactions).
+
+## Issue #25: leaving, removal, ownership handover and code replacement
+
+Seams (from the issue's acceptance criteria): server contract (pgTAP); the local store's household switch and projection rule (Vitest + fake-indexeddb); the sync engine's membership check with a fake remote; one two-member Playwright flow.
+
+- [x] Migration: `leave_household` (Owner blocked while others remain; the last Member dissolves), `remove_member`, `hand_over_ownership`, `replace_household_code`, `list_household_members`; drop the `events.household_id` foreign key so dissolving keeps Personal events
+- [x] pgTAP: Owner-only controls; Owner can't leave with others; last Member dissolves (Personal events survive); removed Member reads Personal only and can't insert; departed Member's Household events stay readable; old code finds nothing
+- [x] Regenerate `database.types.ts`
+- [x] Local store: `switchHousehold` wipes pushed Household events and Household projections, marks waiting Household events stuck, resets the pull cursor; Household events of another household never project
+- [x] Discarding a stuck create also drops that account's unpushed edits (from #24)
+- [x] Engine: membership check between push and pull; a change calls back so the gate re-runs
+- [x] Sync runs whenever someone is signed in and membership is known, so a non-member's device wipes too
+- [x] UI: Members card on home (list for everyone; remove and hand over for the Owner; Leave for all); Replace code for the Owner
+- [x] Docs: README/DEPLOYMENT note that a device which never syncs keeps its copy
+- [x] Playwright: A removes B; B's next sync drops the household account, keeps B's Personal one, shows create-or-join (chromium)
+- [x] build, lint, vitest, both tsc, knip, `supabase test db`, `supabase db lint`
+- [x] Home layout baselines regenerated (chromium, Mobile Chrome)
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
+
+### #25 decisions
+
+- **Unpushed Household changes survive losing membership as stuck, and never project.** They appear in the sign-out export and can be discarded. Why: no silent loss of offline work. Chosen by the user 2026-10-11.
+- **Signed-in user scoping stays deferred** (the #18/#24 deferral). Chosen by the user 2026-10-11. Revisit: if devices are shared between members.
+- **Members card on home** holds the member list, the Owner's remove and hand-over, and Leave. Chosen by the user 2026-10-11.
+- **Dissolving deletes the household's Household events and keeps Personal events** by dropping the `events.household_id` foreign key; RLS's insert check already ties new events to the caller's current household. Resolves the #22 deferral without a nullable `householdId`.
+- **The engine asks the server for the caller's household first in every sync**, so a changed household resets the cursor before the pull (resolves the #22 cursor deferral), and a device in no household pushes nothing (resolves the #24 deferral: a removed device no longer reports a 42501 per event to Sentry).
+- **Membership reads in sync skip the client's GET retries** (`.retry(false)`). supabase-js retries GETs 3 times (1 s, 2 s, 4 s) on network errors, which held sign-out's last sync offline past its 5 s cap; the e2e sign-out test caught it. The triggers already back off.
+- **The household and members queries go stale after 30 s, not 5 min** (resolves the #21 gate deferral): removal reaches a device through sync; a new Owner's controls appear at the next refocus.
+- **Sync runs on create-or-join too**, once membership is known, so a removed person who opens the app online still has the household wiped.
+- **A removed Member's Personal changes wait, and go out once they join a household again.** The insert policy now requires membership and ownership for a Personal event but not a matching household, since an offline change names the household it was made in (review fix; the first version said Retry would work, but the old policy refused it every time).
+- **Observed, not fixed: the route gate's household GET also retries offline** (about 7 s before falling back to the last known membership on an offline app start). Pre-existing since the supabase-js upgrade. Revisit: a follow-up issue (add `.retry(false)` to `fetchMyHousehold`).
+- **A Household event projects unless it belongs to a household this device has left** (meta `leftHouseholdIds`; rejoining removes it). Why: matching the recorded household instead hid changes made in a just-joined household before the first sync (found while fixing review findings).
+- **Review fixes:** membership is checked before the push; the wipe touches only Household data of other households, so changes made in the new household stay; a device that never recorded its household is wiped too; one `callMembershipFunction` serves join requests and membership; clearer names in `MembersCard`; ADR 0001 records that discarding a stuck create drops its unpushed changes, ADR 0004 records leaving and dissolving, and GLOSSARY's Stuck covers changes from a left household.
+- **Review deferral: no permutation test for the left-household filter.** It drops events by household before the HLC fold, so it can't depend on arrival order; the account permutation tests still cover the fold. Revisit: if the filter ever depends on event order.
+- **Review deferral: `accept_join_request` doesn't lock the household row**, so an accept racing a hand-over can land just after it. Locking it there would take the request lock before the household lock, the reverse of a dissolve, and risk deadlocks. Revisit: if an ex-Owner's accept ever matters.
+- **Review deferral: a Household event inserted while its household dissolves can commit after the delete**, leaving an unreadable row. Harmless (nobody can read it). Revisit: if orphaned events need cleaning.
+- **Still deferred: an Owner's auth user can't be deleted** (from #21; `owner_user_id` has no `on delete`). Leaving and dissolving don't need it. Revisit: account deletion.
+- **Review deferral: a per-entity projection registry** (`isCreation` joins `projectEvent` and `describeEvent`; `switchHousehold` names `db.accounts`). Same as the #18/#24 deferrals. Revisit: the first non-account entity.
