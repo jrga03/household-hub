@@ -199,7 +199,7 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #24 merged (PR #34).
 - #25 merged (PR #38, 7f7bf9c). Follow-up: #36 (offline gate retry delay).
 - #20 merged (PR #37, 6eefab2). After deploy, check the Supabase dashboard a week later that the project stayed active.
-- #36 in review (`fix/36-gate-retry`). After it merges, the roadmap's queue is empty: pick the next issue from GitHub.
+- #36 in review (`fix/36-gate-retry`). After it merges: #42 (offline start with an expired token), needs triage.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
   - `supabase test db` exits 1 when `supabase/tests/` has no `.sql` files; `000_empty_baseline.sql` (asserts public has no tables) must be replaced, not just deleted, by #21's baseline tests.
@@ -379,4 +379,4 @@ Deferrals:
 
 - No unit assertion that `retry` gets `false`: it would test the call, not the behaviour; the e2e catches a regression. Revisit if the e2e is dropped.
 - `fetchPendingJoinRequests` still retries offline: it delays only the Owner's join-request card, not reaching home. Revisit if that card's offline state feels slow.
-- Unverified (read from auth-js, not run): an expired access token may stall `getSession()` in the root `beforeLoad` offline, since token refresh retries network errors with backoff. The new test uses a fresh session, so it can't see this. Revisit: reproduce with an expired token before filing an issue.
+- Offline start with an expired access token lands on the login page (reproduced with a Playwright probe: valid token, home in 55 ms; expired, the login page and no home within 90 s). Revisit: #42.
