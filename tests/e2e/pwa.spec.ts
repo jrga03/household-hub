@@ -68,9 +68,8 @@ test("a member opening the app offline sees their household without waiting on r
 
   await context.setOffline(true);
   await page.reload();
-  // Without the fix, request retries hold the route gate for about 7 s.
+  // Well under the ~7 s that request retries would hold the route gate.
   await expect(page.getByRole("main").getByText("Offline start home")).toBeVisible({
     timeout: 3_000,
   });
-  await context.setOffline(false);
 });

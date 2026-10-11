@@ -335,7 +335,7 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP); the local
 - **The household and members queries go stale after 30 s, not 5 min** (resolves the #21 gate deferral): removal reaches a device through sync; a new Owner's controls appear at the next refocus.
 - **Sync runs on create-or-join too**, once membership is known, so a removed person who opens the app online still has the household wiped.
 - **A removed Member's Personal changes wait, and go out once they join a household again.** The insert policy now requires membership and ownership for a Personal event but not a matching household, since an offline change names the household it was made in (review fix; the first version said Retry would work, but the old policy refused it every time).
-- **Observed, not fixed: the route gate's household GET also retries offline** (about 7 s before falling back to the last known membership on an offline app start). Pre-existing since the supabase-js upgrade. Fixed in #36.
+- **Route gate's household GET retried offline** (about 7 s before falling back to the last known membership on an offline app start). Pre-existing since the supabase-js upgrade. Fixed in #36.
 - **A Household event projects unless it belongs to a household this device has left** (meta `leftHouseholdIds`; rejoining removes it). Why: matching the recorded household instead hid changes made in a just-joined household before the first sync (found while fixing review findings).
 - **Review fixes:** membership is checked before the push; the wipe touches only Household data of other households, so changes made in the new household stay; a device that never recorded its household is wiped too; one `callMembershipFunction` serves join requests and membership; clearer names in `MembersCard`; ADR 0001 records that discarding a stuck create drops its unpushed changes, ADR 0004 records leaving and dissolving, and GLOSSARY's Stuck covers changes from a left household.
 - **Review deferral: no permutation test for the left-household filter.** It drops events by household before the HLC fold, so it can't depend on arrival order; the account permutation tests still cover the fold. Revisit: if the filter ever depends on event order.
@@ -373,3 +373,10 @@ Seam (from the issue): one Playwright flow, an offline reload of home (chromium)
 - [x] Playwright: create a household, reload under the service worker, go offline, reload; the household shows within 3 s. Red first: blank page at 3 s, passing at 15 s (12.6 s run)
 - [x] `.retry(false)` on the gate's household read (`fetchMyHousehold`); the households unit test's Supabase fake gains `retry()`
 - [x] lint, vitest, both tsc, knip; chromium E2E 32 passed, only the 3 known failures
+- [x] Code review: no standards violations; spec met. Fixes: test comment, dropped a no-op `setOffline(false)`, this decision line's wording
+
+Deferrals:
+
+- No unit assertion that `retry` gets `false`: it would test the call, not the behaviour; the e2e catches a regression. Revisit if the e2e is dropped.
+- `fetchPendingJoinRequests` still retries offline: it delays only the Owner's join-request card, not reaching home. Revisit if that card's offline state feels slow.
+- Unverified (read from auth-js, not run): an expired access token may stall `getSession()` in the root `beforeLoad` offline, since token refresh retries network errors with backoff. The new test uses a fresh session, so it can't see this. Revisit: reproduce with an expired token before filing an issue.
