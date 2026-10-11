@@ -1,6 +1,6 @@
 # Re-architecture against the vision
 
-Source of truth: `docs/VISION.md`. Vocabulary: `GLOSSARY.md`. Status: grilling done pending confirmation; nothing is built from this yet. ADRs: `docs/adr/0001`-`0003`.
+Source of truth: `docs/VISION.md`. Vocabulary: `GLOSSARY.md`. Status: Milestone 1 (#15) landed and closed 2026-10-11; production keep-alive check pending in #40. ADRs: `docs/adr/0001`-`0004`.
 
 ## Context
 
@@ -43,6 +43,7 @@ Fix commits cluster in `src/lib/{sync,offline,debts}`.
 - **Typos are fixed by edit events**: transactions, allocations, budgets, accounts and categories are freely editable. Only debt payments are corrected by a visible reversal. A move across visibility is a remove plus an add (ADR 0002).
 - **Milestone 1 = foundation plus accounts** (spec: issue #15). Fresh baseline, households and membership, event-log sync with HLC, local projections, sync status, and Accounts as the first projected entity. Why: proves event, sync, projection and screen end to end before money features. Test seams: projection (Vitest), server contract (pgTAP), one two-device Playwright flow. Revisit: if accounts alone don't exercise enough of the pipeline.
 - **Households, membership and join requests stay relational, server-authoritative tables, not events.** Why: they are the access boundary RLS checks. This refines ADR 0001 to "the only synced record data"; record it as an ADR when milestone 1 lands. Revisit: if membership history needs to be shown.
+- **Milestone 1's seam 3 stays split across three e2e specs** (`personal-accounts`, `event-sync`, `household-lifecycle`), not one two-member offline flow. Why: each step is covered, and pushing an event doesn't depend on which member wrote it; another two-browser test would slow E2E for little gain. Revisit: if a push or pull bug shows up only between two members.
 
 ## Issue #16: strip the app to its shell
 
@@ -201,7 +202,8 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #20 merged (PR #37, 6eefab2). Deployed 2026-10-11: production reset to the six new migrations (`supabase db reset --linked --no-seed`; old tables held 0 estimated rows), `keep_alive()` returns `true` with the anon key, Worker `household-hub-keep-alive` deployed (version cd146b55). Owes: first run 2026-10-13 00:00 UTC shows `Supabase keep-alive succeeded` in Observability; around 2026-10-18 the Supabase project is still active.
 - #36 merged (PR #41, e294de5).
 - #42 merged (PR #43, 57587d4).
-- Next: triage the open GitHub issues (the plan's queue is empty), in a fresh session.
+- Triaged 2026-10-11: #15 closed as completed; #40 updated (deploy steps done; first-run check 2026-10-13, still-active check on or after 2026-10-17).
+- Next: #40's two dashboard checks (human). After that, plan Milestone 2.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
   - `supabase test db` exits 1 when `supabase/tests/` has no `.sql` files; `000_empty_baseline.sql` (asserts public has no tables) must be replaced, not just deleted, by #21's baseline tests.
