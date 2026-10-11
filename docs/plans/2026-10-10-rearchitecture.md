@@ -197,7 +197,7 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #17 merged (PR #30).
 - #22 in review: PR #31 (`rearch/22-personal-accounts`). #25 owes: keep Personal events when a household is deleted; reset the pull cursor on leaving.
 - #23 in review: PR #32 (`rearch/23-edit-retire-accounts`).
-- #19 in progress on `rearch/19-credit-cards`.
+- #19 in review: PR #33 (`rearch/19-credit-cards`).
 - Next: #24, #25; #20 (keep-alive cron) is independent.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
@@ -224,13 +224,13 @@ Seams (from the issue's acceptance criteria): the Paying Account picker's filter
 - **A card's Paying Account resolves when the list is read, not when the card is projected.** The card stores only `payingAccountId`; `listAccounts` joins it, so a card whose Paying Account arrives later shows it as soon as it does, with no cross-entity re-projection. Only an account of the card's own visibility and owner resolves.
 - **`account.edited` v2 adds `payingAccountId`**; v1 upcasts to null, which is right because v1 edits predate cards.
 - **Being a credit card is fixed at creation**, like visibility (resolves the #23 deferral). `editAccount` refuses either direction; the projection ignores an edit whose card-ness differs from the account's. The edit form shows a card's type as text and offers non-card accounts only non-card types.
-- **Only cards in use block retiring their Paying Account**, so a card and its bank can be retired together (card first). Unretiring a card whose Paying Account is retired is blocked the same way ("Unretire BDO Savings first"), so one device can't reach a card in use paying from a retired account. Why: the issue doesn't say, and blocking on retired cards would force unretiring a card just to repoint it.
+- **Only cards in use block retiring their Paying Account**, so a card and its bank can be retired together (card first). Unretiring a card whose Paying Account is retired is blocked the same way ("Unretire BDO Savings first"), so one device can't reach a card in use paying from a retired account. Why: the issue doesn't say, and blocking on retired cards would force unretiring a card just to repoint it. Confirmed by the user 2026-10-11.
 - **The block is local, so two offline devices can still leave a card paying from a retired account.** The list shows "Paid from X (retired)", and the edit form makes the member choose again. Revisit: Card Payments, if a retired Paying Account must be impossible.
 - **Paying Account validation lives in the commands** (against this device's accounts); `checkAccountDetails` only checks that a card has one and nothing else does, and the projection rejects a card paying from itself.
 - **Review fixes:** the type-crossing guard has a permutation test; the read-time join refuses a card as a Paying Account (`canPay`, shared with the picker); one `Ownership` type replaces four inline copies; the form's type state is an `AccountType`; unretiring a card checks its Paying Account.
 - **Review deferral: the version table and `upcast` still live in `accounts/events.ts`** (from #23). Why: accounts are still the only entity. Revisit: the first non-account entity (move to `lib/events`, with the projection registry).
 - **Review deferral: no test of two devices changing the same card's Paying Account at once.** Concurrent edits of any detail already resolve by HLC (#23's permutation tests), and the Paying Account permutation test covers one edit against every arrival order. Revisit: if the Paying Account ever resolves apart from the other details.
-- **A card's starting balance is labelled "Starting amount owed"** (GLOSSARY: a card's balance is an amount owed). Stored the same way as other starting balances.
+- **A card's starting balance is labelled "Starting amount owed"** (GLOSSARY: a card's balance is an amount owed). Stored the same way as other starting balances. Confirmed by the user 2026-10-11.
 
 ## Issue #23: edit and retire accounts
 
