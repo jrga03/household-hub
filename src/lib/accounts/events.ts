@@ -77,7 +77,7 @@ export function checkAccountDetails(input: Record<string, unknown>): DetailsChec
   };
 }
 
-export const ACCOUNT_VERSIONS: EventVersions = {
+export const ACCOUNT_VERSIONS = {
   [ACCOUNT_CREATED]: {
     current: 2,
     upcasts: { 1: (payload) => ({ ...payload, payingAccountId: null }) },
@@ -88,7 +88,7 @@ export const ACCOUNT_VERSIONS: EventVersions = {
   },
   [ACCOUNT_RETIRED]: { current: 1, upcasts: {} },
   [ACCOUNT_UNRETIRED]: { current: 1, upcasts: {} },
-};
+} satisfies EventVersions;
 
 /** The details a create or edit sets (in its current version), or null for any other event. A card can't pay from itself. */
 export function decodeAccountDetails(event: LoggedEvent): AccountDetails | null {

@@ -1,5 +1,4 @@
-import { appendEvent, isVisibility, VISIBILITY_LABELS } from "@/lib/events/log";
-import { currentVersion } from "@/lib/events/versions";
+import { isVisibility, VISIBILITY_LABELS } from "@/lib/events/log";
 import { requestSync } from "@/lib/sync/triggers";
 import {
   ACCOUNT_CREATED,
@@ -16,6 +15,7 @@ import {
 import { payingAccountChoices, type Ownership } from "@/lib/accounts/paying-account";
 import { getAccount, listAccounts, type AccountRow } from "@/lib/accounts/projection";
 import type { Cents } from "@/lib/currency";
+import { appenderFor } from "./append";
 
 export interface Actor {
   householdId: string;
@@ -34,6 +34,8 @@ export interface NewAccountInput extends AccountDetailsInput {
   /** Household unless the member deliberately chooses Personal; fixed once created. */
   visibility?: string;
 }
+
+const appendAccountEvent = appenderFor(ACCOUNT_ENTITY, ACCOUNT_VERSIONS);
 
 function checkedDetails(input: AccountDetailsInput): AccountDetails {
   const { details, problem } = checkAccountDetails({ ...input });
@@ -61,17 +63,7 @@ export async function createAccount(actor: Actor, input: NewAccountInput): Promi
   await checkPayingAccount(details, { visibility, ownerUserId });
 
   const id = crypto.randomUUID();
-  await appendEvent({
-    householdId: actor.householdId,
-    visibility,
-    ownerUserId,
-    entityType: ACCOUNT_ENTITY,
-    entityId: id,
-    eventType: ACCOUNT_CREATED,
-    eventVersion: currentVersion(ACCOUNT_VERSIONS, ACCOUNT_CREATED),
-    actorUserId: actor.userId,
-    payload: { ...details },
-  });
+  await appendAccountEvent(actor, { visibility, ownerUserId }, id, ACCOUNT_CREATED, { ...details });
   requestSync();
   return { id };
 }
@@ -92,17 +84,7 @@ async function appendAccountChange(
   eventType: AccountChangeType,
   payload: Record<string, unknown>
 ): Promise<void> {
-  await appendEvent({
-    householdId: actor.householdId,
-    visibility: account.visibility,
-    ownerUserId: account.ownerUserId,
-    entityType: ACCOUNT_ENTITY,
-    entityId: account.id,
-    eventType,
-    eventVersion: currentVersion(ACCOUNT_VERSIONS, eventType),
-    actorUserId: actor.userId,
-    payload,
-  });
+  await appendAccountEvent(actor, account, account.id, eventType, payload);
   requestSync();
 }
 

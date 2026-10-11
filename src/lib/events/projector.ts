@@ -6,6 +6,7 @@
 
 import type { Table } from "dexie";
 import { accountProjection } from "@/lib/accounts/projection";
+import { categoryProjection, groupProjection } from "@/lib/categories/projection";
 import type { LoggedEvent, Visibility } from "./log";
 import { upcast, type EventVersions } from "./versions";
 
@@ -68,6 +69,8 @@ export function registerProjection<Row extends ProjectedRow>(entity: EntityProje
 }
 
 registerProjection(accountProjection);
+registerProjection(groupProjection);
+registerProjection(categoryProjection);
 
 /** Every projection table's name, for the log's transactions. */
 export const projectionTableNames = () =>

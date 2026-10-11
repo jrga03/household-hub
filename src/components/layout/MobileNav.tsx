@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LogOut, Settings, User, X } from "lucide-react";
+import { Layers, LogOut, Settings, User, X } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -8,12 +8,17 @@ import { signOutWithToast } from "@/lib/sign-out";
 import { cn } from "@/lib/utils";
 
 /**
- * Mobile navigation drawer: the user profile, Settings and sign out. Primary
- * destinations live in the fixed BottomTabBar.
+ * Mobile navigation drawer: the user profile, Categories, Settings and sign
+ * out. Primary destinations also live in the fixed BottomTabBar.
  *
  * @see src/components/layout/AppLayout.tsx - Parent layout component
  * @see src/components/layout/BottomTabBar.tsx - Primary destinations
  */
+
+const DRAWER_LINKS = [
+  { to: "/categories", label: "Categories", icon: Layers },
+  { to: "/settings", label: "Settings", icon: Settings },
+] as const;
 
 interface MobileNavProps {
   open: boolean;
@@ -23,7 +28,7 @@ interface MobileNavProps {
 export function MobileNav({ open, onOpenChange }: MobileNavProps) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const user = useAuthStore((state) => state.user);
-  const settingsActive = pathname === "/settings" || pathname.startsWith("/settings/");
+  const isActive = (path: string) => pathname === path || pathname.startsWith(path + "/");
 
   const handleSignOut = async () => {
     await signOutWithToast();
@@ -76,21 +81,24 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
 
         <ScrollArea className="flex-1 min-h-0">
           <div className="px-3 py-2">
-            <div className="mb-4">
-              <Link
-                to="/settings"
-                onClick={() => onOpenChange(false)}
-                className={cn(
-                  "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-                  "hover:bg-accent hover:text-accent-foreground",
-                  "active:bg-accent active:text-accent-foreground",
-                  settingsActive && "bg-accent text-accent-foreground font-medium"
-                )}
-              >
-                <Settings className="h-5 w-5" />
-                <span className="flex-1">Settings</span>
-                {settingsActive && <div className="h-5 w-1 rounded-full bg-primary" />}
-              </Link>
+            <div className="mb-4 space-y-1">
+              {DRAWER_LINKS.map((link) => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  onClick={() => onOpenChange(false)}
+                  className={cn(
+                    "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+                    "hover:bg-accent hover:text-accent-foreground",
+                    "active:bg-accent active:text-accent-foreground",
+                    isActive(link.to) && "bg-accent text-accent-foreground font-medium"
+                  )}
+                >
+                  <link.icon className="h-5 w-5" />
+                  <span className="flex-1">{link.label}</span>
+                  {isActive(link.to) && <div className="h-5 w-1 rounded-full bg-primary" />}
+                </Link>
+              ))}
             </div>
 
             {/* Sign Out */}

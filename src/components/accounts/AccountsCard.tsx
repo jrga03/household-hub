@@ -3,15 +3,14 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { ACCOUNT_TYPES, isCreditCard } from "@/lib/accounts/events";
 import type { AccountListItem } from "@/lib/accounts/projection";
 import { createAccount, unretireAccount, type Actor } from "@/lib/commands/accounts";
 import { formatPHP } from "@/lib/currency";
-import { isVisibility, type Visibility } from "@/lib/events/log";
+import type { Visibility } from "@/lib/events/log";
+import { VisibilityField } from "@/components/VisibilityField";
 import {
   ACCOUNT_TYPE_LABELS,
   AccountDetailsFields,
@@ -186,45 +185,7 @@ function NewAccountFields({ userId }: { userId: string }) {
         ownership={{ visibility, ownerUserId: visibility === "personal" ? userId : null }}
       />
 
-      <fieldset className="space-y-2">
-        <legend className="text-sm font-medium">Who sees it</legend>
-        <RadioGroup
-          name="visibility"
-          value={visibility}
-          onValueChange={(value) => isVisibility(value) && setVisibility(value)}
-        >
-          <VisibilityOption value="household" label="Household">
-            Every member sees it.
-          </VisibilityOption>
-          <VisibilityOption value="personal" label="Personal">
-            Only you see it, and it stays yours if you leave the household.
-          </VisibilityOption>
-        </RadioGroup>
-        <p className="text-sm text-muted-foreground">Visibility can&apos;t be changed later.</p>
-      </fieldset>
+      <VisibilityField idPrefix="account" value={visibility} onChange={setVisibility} />
     </>
-  );
-}
-
-function VisibilityOption({
-  value,
-  label,
-  children,
-}: {
-  value: Visibility;
-  label: string;
-  children: string;
-}) {
-  const id = `account-visibility-${value}`;
-  return (
-    <div className="flex items-start gap-3">
-      <RadioGroupItem id={id} value={value} aria-describedby={`${id}-hint`} className="mt-0.5" />
-      <div className="space-y-0.5">
-        <Label htmlFor={id}>{label}</Label>
-        <p id={`${id}-hint`} className="text-sm text-muted-foreground">
-          {children}
-        </p>
-      </div>
-    </div>
   );
 }

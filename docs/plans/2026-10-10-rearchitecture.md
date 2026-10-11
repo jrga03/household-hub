@@ -90,6 +90,35 @@ Spec: #46. Scoped 2026-10-12 (decisions above, dated 2026-10-11 and 2026-10-12).
 - [ ] #53 Transaction list actions: bulk, swipe, detail pane (blocked by #52)
 - [ ] Close #46
 
+## Issue #48: categories and groups
+
+Seams (from #46's Testing Decisions and the issue's acceptance criteria): category and group projections through `receiveEvents` and the read functions (Vitest; permutations and duplicates), the commands (Vitest), one Playwright demo flow on chromium.
+
+- [x] Version lookup bound to each entity's own table (resolves the #47 review deferral)
+- [x] Group and category events, decoders and projections; registered; Dexie v5 tables
+- [x] Deterministic default IDs; seeding on two devices gives one set (permutation and duplicate tests)
+- [x] Commands: add, rename, move, retire and unretire; group retires only once its categories are; seed defaults
+- [x] `/categories` route in the sidebar, tab bar and drawer; empty state offers the defaults; Retired section
+- [x] Playwright: seed defaults, add a Personal group and category (chromium)
+- [x] build, lint, vitest, both tsc, knip
+- [ ] Code review (standards + spec), fixes applied
+- [ ] Commit
+
+### #48 decisions
+
+- **Rename and move are separate events**, so a rename on one device and a move on another both survive; each resolves by latest HLC, like accounts' details vs retirement.
+- **A category takes its group's visibility and owner**: choosing the group is choosing Household or Personal, so a mismatch can't be created. Moves stay within the same visibility and owner. A group's visibility is chosen when it is added (Household by default).
+- **The earliest create fixes a category or group, and later creates of the same ID are ignored** (accounts let a later create act as an edit). Why: seeded defaults share IDs across devices, so a second device's seed must not undo a rename or move made after the first.
+- **Seeded IDs are UUIDv5 of the household ID and a fixed key** (`default-group:food`, `default-category:groceries`); event IDs stay random. The server's duplicate-ignoring insert is per event ID, so the two seeds' events both land and the projection collapses them.
+- **A category's group resolves at read time**, like a card's Paying Account: a category whose group isn't on this device yet, or doesn't share its visibility and owner, is listed as Ungrouped.
+- **Retire blocks are local**, like accounts': a group retires only once its categories are retired; a category can't be added to, moved into or unretired in a retired group. Two offline devices can still leave an active category in a retired group; the group stays listed, marked retired.
+- **Groups and categories list by name**, like accounts. The default order in the plan isn't kept. Revisit: if members ask to reorder.
+- **The defaults are offered while this device holds no Household group**, retired ones included.
+- **Commands stamp events through `appenderFor(entityType, versions)`** (`src/lib/commands/append.ts`), and `currentVersion` takes only its table's own event types, so pairing an event with another entity's table no longer compiles. Accounts moved onto it. Resolves the #47 review deferral.
+- **The Household/Personal radio is one `VisibilityField`**, shared by the account and group forms.
+- **The drawer lists Categories above Settings**; the tab bar has Home, Categories, Settings.
+- **Worktrees need `.env.local` copied from the main checkout** (gitignored): without it the build has no Supabase URL and every E2E test sees a blank page.
+
 ## Issue #47: projection registry
 
 - [x] Version table type, `currentVersion` and `upcast` in `src/lib/events/versions.ts`
