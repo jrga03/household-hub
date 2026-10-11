@@ -200,7 +200,8 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #25 merged (PR #38, 7f7bf9c). Follow-up: #36 (offline gate retry delay).
 - #20 merged (PR #37, 6eefab2). Deployed 2026-10-11: production reset to the six new migrations (`supabase db reset --linked --no-seed`; old tables held 0 estimated rows), `keep_alive()` returns `true` with the anon key, Worker `household-hub-keep-alive` deployed (version cd146b55). Owes: first run 2026-10-13 00:00 UTC shows `Supabase keep-alive succeeded` in Observability; around 2026-10-18 the Supabase project is still active.
 - #36 merged (PR #41, e294de5).
-- #42 in review (`fix/42-offline-expired-token`).
+- #42 merged (PR #43, 57587d4).
+- Next: triage the open GitHub issues (the plan's queue is empty), in a fresh session.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
   - `supabase test db` exits 1 when `supabase/tests/` has no `.sql` files; `000_empty_baseline.sql` (asserts public has no tables) must be replaced, not just deleted, by #21's baseline tests.
@@ -402,3 +403,4 @@ Decisions:
 
 - **The app owns its auth storage key** (`household-hub-auth`), so it can read the stored session without copying auth-js's `sb-<ref>-auth-token` naming. Why: that naming is internal and could change in an upgrade. Cost: existing logins sign out once; production has no users. Revisit: never.
 - **Offline, skip the server on start instead of waiting for it to fail.** Why: offline, every supabase-js request first awaits auth-js, which retries an expired token's refresh for about 26 s; the gate's household read waited behind it too, so the retryable fallback alone never reached home in 150 s. `navigator.onLine` false means the stored session and last known household are used at once. Cost: a connection the browser thinks is online but isn't (captive portal) still waits ~26 s, then falls back. Revisit: if that case shows up in use.
+- **`src/stores/README.md` is stale** (wrong line count, a `loading` state, no offline stored-session fallback). Why: out of scope for #42, and it was already out of date. Revisit: a separate docs cleanup.
