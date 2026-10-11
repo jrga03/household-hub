@@ -75,6 +75,7 @@ Fix commits cluster in `src/lib/{sync,offline,debts}`.
 - **Default Household categories:** Savings (Forever House, Retirement, Big Ticket Items), Bills (Utilities, Subscriptions), Food (Groceries, Restaurants, Delivery), Getting Around (Transportation), Personal (Allowances). Personal categories get no defaults. Revisit: easy to edit later; the household renames and adds its own. Agreed 2026-10-12.
 - **Category visibility is ADR 0005.** Agreed 2026-10-12.
 - **M2 splits into seven sub-issues**: projection registry; categories and groups; transactions core; Card Payment reservation; allocations and the Categories screen; the transaction list; list actions. Agreed 2026-10-12.
+- **#53 (bulk, swipe, detail pane) stays one sub-issue.** Why: the three share the list's selection and row model. Revisit: split if it grows unwieldy during the build. Agreed 2026-10-12.
 
 ## Milestone 2
 
