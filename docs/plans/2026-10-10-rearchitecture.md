@@ -195,12 +195,11 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #16 merged (PR #26, 41f23ee) and CI pin bump merged (PR #27, afdeb7a); CI green on main after #27.
 - #21 merged (PR #28). #18 merged (PR #29).
 - #17 merged (PR #30).
-- #22 in review: PR #31 (`rearch/22-personal-accounts`). #25 owes: keep Personal events when a household is deleted; reset the pull cursor on leaving.
-- #23 in review: PR #32 (`rearch/23-edit-retire-accounts`).
-- #19 in review: PR #33 (`rearch/19-credit-cards`).
+- #22 merged (PR #31). #23 merged (PR #32). #19 merged (PR #33).
 - #24 merged (PR #34).
-- #25 merged (PR #38). Follow-up: #36 (offline gate retry delay).
-- #20 (keep-alive cron) in review: PR #37 (`rearch/20-keep-alive`); after deploy, check the Supabase dashboard a week later that the project stayed active.
+- #25 merged (PR #38, 7f7bf9c). Follow-up: #36 (offline gate retry delay).
+- #20 merged (PR #37, 6eefab2). Owes: deploy the Worker by hand (`DEPLOYMENT.md`, Keep-alive Worker), then check the Supabase dashboard a week later that the project stayed active.
+- Next: #36 (small, ready-for-agent).
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
   - `supabase test db` exits 1 when `supabase/tests/` has no `.sql` files; `000_empty_baseline.sql` (asserts public has no tables) must be replaced, not just deleted, by #21's baseline tests.
