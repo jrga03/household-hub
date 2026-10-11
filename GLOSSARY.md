@@ -55,7 +55,7 @@ The account a credit card's bill is normally paid from: a non-card account of th
 _Avoid_: Funding account, source account
 
 **Card Payment**:
-The money in a paying account that is set aside for a credit card's bill. It grows as card spending is recorded and shrinks when the bill is paid.
+The money in a paying account that is set aside for a credit card's bill. It grows as card spending is recorded and shrinks as refunds are recorded or the bill is paid. Members can also allocate money into or out of it, like a category.
 _Avoid_: Card reserve, float
 
 **Cleared** / **Pending**:
@@ -65,15 +65,19 @@ _Avoid_: Posted, reconciled
 ## Tracking
 
 **Category**:
-A named envelope of real money, arranged in two levels: a parent group containing categories. A category's money can sit in several accounts at once and carries over from month to month. It can go negative when overspent; every transaction says which category it draws from or adds to.
+A named envelope of real money, arranged in two levels: a group containing categories. Money sits only in categories; a group's money is the sum of its categories. A category's money can sit in several accounts at once and carries over from month to month. It can go negative when overspent. Like an account, a category is Household or Personal, fixed when it is created, and holds money only in accounts of the same visibility.
 _Avoid_: Tag, bucket
 
+**Group**:
+A named set of categories, such as Food containing Groceries and Restaurants. It holds no money of its own.
+_Avoid_: Parent category, section
+
 **Unassigned**:
-The part of an account's money not yet in any category. Income lands here unless it names a category. An account's balance always equals its Unassigned plus its category money.
+The part of an account's money not yet in any category. A transaction that names no category, income or expense, adds to or draws from it. An account's balance always equals its Unassigned plus its category money.
 _Avoid_: Ready to assign, free money
 
 **Allocation**:
-Moving money between categories inside one account. It is not a transaction: the account balance does not change and nothing counts as income or spending.
+Moving money inside one account between its categories, its Card Payments and its Unassigned. It is not a transaction: the account balance does not change and nothing counts as income or spending.
 _Avoid_: Budgeting, assignment, reallocation
 
 **Budget**:
