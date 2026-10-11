@@ -1,5 +1,6 @@
 import { asCents, formatPHP, MAX_AMOUNT_CENTS, ZERO_CENTS, type Cents } from "@/lib/currency";
 import type { LoggedEvent } from "@/lib/events/log";
+import type { EventVersions } from "@/lib/events/versions";
 
 export const ACCOUNT_TYPES = ["bank", "cash", "e_wallet", "investment", "credit_card"] as const;
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
@@ -76,16 +77,7 @@ export function checkAccountDetails(input: Record<string, unknown>): DetailsChec
   };
 }
 
-type Payload = Record<string, unknown>;
-
-/**
- * Each event type's current version, and how to lift a payload of version N
- * to N + 1. Events are never rewritten, so old versions are translated on read.
- */
-const EVENT_VERSIONS: Record<
-  string,
-  { current: number; upcasts: Record<number, (payload: Payload) => Payload> }
-> = {
+export const ACCOUNT_VERSIONS: EventVersions = {
   [ACCOUNT_CREATED]: {
     current: 2,
     upcasts: { 1: (payload) => ({ ...payload, payingAccountId: null }) },
@@ -98,34 +90,17 @@ const EVENT_VERSIONS: Record<
   [ACCOUNT_UNRETIRED]: { current: 1, upcasts: {} },
 };
 
-export const currentVersion = (eventType: string): number =>
-  EVENT_VERSIONS[eventType]?.current ?? 0;
-
-/** The payload in its type's current version, or null for a version this app doesn't know. */
-function upcast(event: LoggedEvent): Payload | null {
-  const versions = EVENT_VERSIONS[event.eventType];
-  if (!versions || event.eventVersion < 1 || event.eventVersion > versions.current) return null;
-  let payload = event.payload;
-  for (let version = event.eventVersion; version < versions.current; version++) {
-    const lift = versions.upcasts[version];
-    if (!lift) return null;
-    payload = lift(payload);
-  }
-  return payload;
-}
-
-/** The details a create or edit sets, or null for any other event. A card can't pay from itself. */
+/** The details a create or edit sets (in its current version), or null for any other event. A card can't pay from itself. */
 export function decodeAccountDetails(event: LoggedEvent): AccountDetails | null {
   if (event.eventType !== ACCOUNT_CREATED && event.eventType !== ACCOUNT_EDITED) return null;
-  const payload = upcast(event);
-  const details = payload && checkAccountDetails(payload).details;
+  const { details } = checkAccountDetails(event.payload);
   return details && details.payingAccountId !== event.entityId ? details : null;
 }
 
 /** Whether a retire or unretire event leaves the account retired, or null for any other event. */
 export function decodeAccountRetirement(event: LoggedEvent): boolean | null {
   if (event.eventType !== ACCOUNT_RETIRED && event.eventType !== ACCOUNT_UNRETIRED) return null;
-  return upcast(event) && event.eventType === ACCOUNT_RETIRED;
+  return event.eventType === ACCOUNT_RETIRED;
 }
 
 const ACTION_LABELS: Record<string, string> = {
