@@ -198,7 +198,7 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #22 in review: PR #31 (`rearch/22-personal-accounts`). #25 owes: keep Personal events when a household is deleted; reset the pull cursor on leaving.
 - #23 in review: PR #32 (`rearch/23-edit-retire-accounts`).
 - #19 in review: PR #33 (`rearch/19-credit-cards`).
-- #24 in review: `rearch/24-sync-status`.
+- #24 in review: PR #34 (`rearch/24-sync-status`).
 - Next: #25; #20 (keep-alive cron) is independent.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
