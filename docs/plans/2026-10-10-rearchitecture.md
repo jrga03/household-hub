@@ -1,6 +1,6 @@
 # Re-architecture against the vision
 
-Source of truth: `docs/VISION.md`. Vocabulary: `GLOSSARY.md`. Status: Milestone 1 (#15) landed and closed 2026-10-11; production keep-alive check pending in #40. ADRs: `docs/adr/0001`-`0004`.
+Source of truth: `docs/VISION.md`. Vocabulary: `GLOSSARY.md`. Status: Milestone 1 (#15) landed and closed 2026-10-11; production keep-alive check pending in #40. Milestone 2 scoped 2026-10-12. ADRs: `docs/adr/0001`-`0005`.
 
 ## Context
 
@@ -44,6 +44,50 @@ Fix commits cluster in `src/lib/{sync,offline,debts}`.
 - **Milestone 1 = foundation plus accounts** (spec: issue #15). Fresh baseline, households and membership, event-log sync with HLC, local projections, sync status, and Accounts as the first projected entity. Why: proves event, sync, projection and screen end to end before money features. Test seams: projection (Vitest), server contract (pgTAP), one two-device Playwright flow. Revisit: if accounts alone don't exercise enough of the pipeline.
 - **Households, membership and join requests stay relational, server-authoritative tables, not events.** Why: they are the access boundary RLS checks. This refines ADR 0001 to "the only synced record data"; record it as an ADR when milestone 1 lands. Revisit: if membership history needs to be shown.
 - **Milestone 1's seam 3 stays split across three e2e specs** (`personal-accounts`, `event-sync`, `household-lifecycle`), not one two-member offline flow. Why: each step is covered, and pushing an event doesn't depend on which member wrote it; another two-browser test would slow E2E for little gain. Revisit: if a push or pull bug shows up only between two members.
+- **Milestone 2 = transactions, categories as envelopes, allocations, Unassigned, and the Card Payment reservation.** Transfers (including paying a card bill), budgets, import, dashboard and export move to Milestone 3 and later. Why: under ADR 0003 every transaction moves envelope money, so transactions built without envelopes would need rework. Consequence: in M2 a Card Payment only shrinks through refunds or allocations. Agreed 2026-10-11.
+- **Categories carry visibility, fixed at creation, like accounts.** Household accounts use Household categories; a member's Personal accounts use their own Personal categories, which travel with them. Categories can still be added, renamed and retired. Why: a Personal account holding money in Household categories would strand it when the member leaves (ADR 0002's orphan argument). Agreed 2026-10-11.
+- **A transaction's category may be Unassigned, expenses included**, for when the member doesn't yet know which envelope. Income defaults to Unassigned. Agreed 2026-10-11.
+- **Groups hold no money**: money sits only in categories; a group's total is the sum of its categories. Agreed 2026-10-11.
+- **Removing a transaction is a `removed` event, undone by `restored`**, resolved by latest HLC apart from the details (like retire/unretire). The UI offers Undo in the toast; no trash view in M2. Agreed 2026-10-11.
+- **Cleared/pending resolves by its own latest HLC**, apart from the details. New transactions default to cleared. Agreed 2026-10-11.
+- **An account's balance is its starting balance plus income minus expenses** over transactions not removed (a card's amount owed goes the other way), shown with a "Cleared · Pending" split and the account's Unassigned. Agreed 2026-10-11.
+- **M2's transaction list is the vision's full list**: search, filters (month, account, category, type, status), totals of the filter, multi-select bulk actions, swipe actions on phones, a detail pane on wide screens, virtualized for 10,000 rows. Agreed 2026-10-11.
+- **Default categories are offered from the empty categories screen, with deterministic IDs** (derived from the household and a fixed key), so two members seeding offline produce the same events. Agreed 2026-10-11.
+- **A card transaction records the card's Paying Account when it is recorded**; its reservation stays there if the card's default changes later. Editing the transaction's account records the new one. Moving a reservation between accounts is a transfer (M3). Why: reading "the Paying Account at the time" would make the projection depend on HLC comparisons across entities. Agreed 2026-10-11.
+- **Uncategorized card transactions use the Paying Account's Unassigned**: a purchase moves Unassigned into Card Payment, a refund or cashback moves it back. Agreed 2026-10-11.
+- **A card's starting amount owed reserves nothing**; members allocate into its Card Payment themselves. Card Payment can be allocated to and from like a category. Agreed 2026-10-11.
+- **Uncategorized expenses show "Needs a category"**, with a filter and a count on the transactions screen. Agreed 2026-10-11.
+- **A transaction can move to another account of the same visibility**, card or not (its reservation follows). Across visibility it is a remove plus an add. Agreed 2026-10-11.
+- **Allocations have a date and are editable and removable** under the transaction rules (latest HLC; remove/restore; Undo toast). From and to are each a category, a Card Payment or Unassigned, inside one account. Agreed 2026-10-11.
+- **One Categories screen** lists groups and categories with their money (summed, expandable per account) and each account's Unassigned, with a Move money dialog. New Transactions and Categories routes join the nav. Allocating to budgets waits for M3. Agreed 2026-10-11.
+- **Retiring a category is allowed whatever it holds.** A retired category can't be picked for new transactions or allocations; one still holding money stays listed under "Retired, still holding money". A group retires only once its categories are retired. Agreed 2026-10-11.
+- **Transaction fields in M2:** local date (default today), direction, amount, account, category or Unassigned, status, optional description, optional notes. Tagging members waits for expense splitting. Agreed 2026-10-11.
+- **Bulk actions:** mark cleared, mark pending, change category, remove (with Undo). **Swipe:** toggle cleared, remove. **Search:** description and notes, plus an exact amount when the query is a number. Agreed 2026-10-11.
+- **A retired account takes no new transactions or allocations**; its existing ones stay editable and removable, and it stays filterable in the list. Agreed 2026-10-11.
+- **No server migration in M2**: `events.entity_type` accepts any non-empty type, so categories, transactions and allocations reuse the existing table and RLS.
+- **M2 starts with the projection registry** (resolves the #18, #19, #24 and #25 deferrals): per-entity table, decoder, version table and upcast (moved to `lib/events`), fold, description, creation check and household-switch wipe; accounts move onto it with no visible change. Agreed 2026-10-12.
+- **Envelope money is summed at read time** from the transaction and allocation projections, never stored as its own projection, so it is order-independent by construction. Guard: a Vitest timing test, 10,000 transactions summed for the Categories screen under 50 ms. Revisit: if that budget fails (then cache per account). Agreed 2026-10-12.
+- **Unassigned may go negative**: Move money warns but doesn't block; a negative Unassigned shows red with "Allocated more than this account has". Why: two offline devices can't be stopped from both allocating it. Agreed 2026-10-12.
+- **The Categories screen shows current money only**; month views come with budgets in M3, using the allocation dates recorded now. Agreed 2026-10-12.
+- **Quick entry from anywhere**: an Add transaction button in the shell (floating on phones, header button and `n` on wide screens), prefilled with today, the last-used account and category, and cleared. Agreed 2026-10-12.
+- **Transactions sort by date, then by recorded time (HLC).** The clock-skew warning stays deferred: a skewed clock only reorders same-day items. Revisit: if same-day order confuses members. Agreed 2026-10-12.
+- **M2 seams:** projections and read-time sums (Vitest + fake-indexeddb; permutations, duplicates, and the balance = Unassigned + category money invariant after every permutation, card cases included); commands (Vitest); Playwright on chromium for an offline card purchase reaching a second device, and for list filter totals and bulk mark-cleared. No pgTAP. Agreed 2026-10-12.
+- **Default Household categories:** Savings (Forever House, Retirement, Big Ticket Items), Bills (Utilities, Subscriptions), Food (Groceries, Restaurants, Delivery), Getting Around (Transportation), Personal (Allowances). Personal categories get no defaults. Revisit: easy to edit later; the household renames and adds its own. Agreed 2026-10-12.
+- **Category visibility is ADR 0005.** Agreed 2026-10-12.
+- **M2 splits into seven sub-issues**: projection registry; categories and groups; transactions core; Card Payment reservation; allocations and the Categories screen; the transaction list; list actions. Agreed 2026-10-12.
+
+## Milestone 2
+
+Spec: #46. Scoped 2026-10-12 (decisions above, dated 2026-10-11 and 2026-10-12). Order follows the blocking edges.
+
+- [ ] #47 Projection registry
+- [ ] #48 Categories and groups (blocked by #47)
+- [ ] #49 Transactions core (blocked by #48)
+- [ ] #50 Card Payment reservation (blocked by #49)
+- [ ] #51 Allocations and the Categories screen (blocked by #48, #49)
+- [ ] #52 Transaction list: virtualized, filters, totals, search (blocked by #49)
+- [ ] #53 Transaction list actions: bulk, swipe, detail pane (blocked by #52)
+- [ ] Close #46
 
 ## Issue #16: strip the app to its shell
 
@@ -98,7 +142,7 @@ Fix commits cluster in `src/lib/{sync,offline,debts}`.
 - **Review deferral: an Owner's auth user can't be deleted** (`owner_user_id` has no `on delete`, plus the owner-is-member FK). Revisit: #25 dissolve and handover.
 - **Review deferral: `households.ts` holds the gate, the last-known cache and Supabase I/O together.** Revisit: split when #17 adds join functions.
 - **Review deferral: the fixture setup matches the "already belong" message text** to stay idempotent. Revisit: if that message changes or gets its own errcode.
-- **Review deferral: the ADR 0001 refinement** (membership is relational, not events; the gate reads the network with a local fallback) is still owed. Revisit: when milestone 1 lands.
+- **Review deferral: the ADR 0001 refinement** (membership is relational, not events; the gate reads the network with a local fallback). Resolved: ADR 0004 (#18).
 - **E2E fixture users get a household** ("Test household") in global setup via `create_household`; the remote CI E2E job assumes its fixture users already have one. Revisit: if that job is re-enabled against a remote project.
 
 ## Issue #18: event log tracer
@@ -203,7 +247,8 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #36 merged (PR #41, e294de5).
 - #42 merged (PR #43, 57587d4).
 - Triaged 2026-10-11: #15 closed as completed; #40 updated (deploy steps done; first-run check 2026-10-13, still-active check on or after 2026-10-17).
-- Next: #40's two dashboard checks (human). After that, plan Milestone 2.
+- Next: #40's two dashboard checks (human).
+- Milestone 2 scoped 2026-10-12: spec #46, sub-issues #47-#53 (`ready-for-agent`), ADR 0005. Next: #47, in a worktree.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
   - `supabase test db` exits 1 when `supabase/tests/` has no `.sql` files; `000_empty_baseline.sql` (asserts public has no tables) must be replaced, not just deleted, by #21's baseline tests.
