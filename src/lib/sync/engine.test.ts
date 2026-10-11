@@ -17,6 +17,8 @@ const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "u
 /** The server contract pgTAP checks: duplicates ignored, pulls after N in sequence order. */
 class FakeRemote implements RemoteEventLog {
   events: PulledEvent[] = [];
+  /** The member's household; RLS shows its Household events and refuses pushes outside it. */
+  householdId: string | null = MEMBER.householdId;
   offline = false;
   /** Refuses every push that contains one of these events, as RLS refuses a whole insert. */
   refused = new Set<string>();
@@ -24,7 +26,12 @@ class FakeRemote implements RemoteEventLog {
 
   async push(events: LoggedEvent[]) {
     if (this.offline) throw new Error("Failed to fetch");
-    if (events.some((event) => this.refused.has(event.entityId))) {
+    // Appending needs membership; a Personal event may name the household it was made in.
+    const refused = (event: LoggedEvent) =>
+      this.refused.has(event.entityId) ||
+      this.householdId === null ||
+      (event.visibility === "household" && event.householdId !== this.householdId);
+    if (events.some(refused)) {
       throw new EventLogRejected("new row violates row-level security policy", "42501");
     }
     for (const event of events) {
@@ -36,16 +43,24 @@ class FakeRemote implements RemoteEventLog {
   async pull(afterSequence: number, batchSize: number) {
     await this.pullGate;
     if (this.offline) throw new Error("Failed to fetch");
-    return this.events.filter((event) => event.sequence > afterSequence).slice(0, batchSize);
+    return this.events
+      .filter((event) => event.sequence > afterSequence)
+      .filter((event) => event.visibility === "personal" || event.householdId === this.householdId)
+      .slice(0, batchSize);
+  }
+
+  async currentHouseholdId() {
+    if (this.offline) throw new Error("Failed to fetch");
+    return this.householdId;
   }
 }
 
 let otherDeviceAccounts = 0;
-function accountFromOtherDevice(name: string): LoggedEvent {
+function accountFromOtherDevice(name: string, householdId = MEMBER.householdId): LoggedEvent {
   otherDeviceAccounts += 1;
   return {
     id: crypto.randomUUID(),
-    householdId: MEMBER.householdId,
+    householdId,
     visibility: "household",
     ownerUserId: null,
     entityType: "account",
@@ -88,7 +103,7 @@ describe("sync engine", () => {
   });
 
   it("pulls in batches until it has caught up", async () => {
-    await remote.push(["A", "B", "C", "D", "E"].map(accountFromOtherDevice));
+    await remote.push(["A", "B", "C", "D", "E"].map((name) => accountFromOtherDevice(name)));
 
     await createSyncEngine(remote, { batchSize: 2 }).sync();
 
@@ -179,6 +194,81 @@ describe("sync engine", () => {
     await Promise.all([firstSync, secondSync]);
 
     expect(remote.events).toHaveLength(1);
+  });
+});
+
+describe("membership changes", () => {
+  const accountNames = async () => (await listAccounts()).map((account) => account.name);
+
+  it("after removal, the next sync drops Household accounts, keeps Personal ones and reports it", async () => {
+    await createAccount(MEMBER, { name: "Cash", type: "cash", startingBalanceCents: cents(0) });
+    await createAccount(MEMBER, {
+      name: "My wallet",
+      type: "cash",
+      startingBalanceCents: cents(0),
+      visibility: "personal",
+    });
+    const onHouseholdChanged = vi.fn();
+    const engine = createSyncEngine(remote, { onHouseholdChanged });
+    await engine.sync();
+
+    remote.householdId = null;
+    await engine.sync();
+
+    expect(await accountNames()).toEqual(["My wallet"]);
+    expect(onHouseholdChanged).toHaveBeenCalledOnce();
+  });
+
+  it("holds a Household change pushed after removal as stuck", async () => {
+    const engine = createSyncEngine(remote);
+    await engine.sync();
+    await createAccount(MEMBER, { name: "Cash", type: "cash", startingBalanceCents: cents(0) });
+
+    remote.householdId = null;
+    await engine.sync();
+
+    expect(await listStuck()).toEqual([
+      expect.objectContaining({ description: "Add account: Cash" }),
+    ]);
+    expect(await countWaiting()).toBe(0);
+    expect(remote.events).toEqual([]);
+  });
+
+  it("after removal, holds Personal changes until the member joins a household again", async () => {
+    const engine = createSyncEngine(remote);
+    await engine.sync();
+    remote.householdId = null;
+    await createAccount(MEMBER, {
+      name: "My wallet",
+      type: "cash",
+      startingBalanceCents: cents(0),
+      visibility: "personal",
+    });
+
+    await engine.sync();
+    expect(await countWaiting()).toBe(1);
+    expect(await listStuck()).toEqual([]);
+
+    remote.householdId = "22222222-2222-4222-8222-222222222222";
+    await engine.sync();
+    expect(await countWaiting()).toBe(0);
+    expect(remote.events).toEqual([expect.objectContaining({ householdId: MEMBER.householdId })]);
+  });
+
+  it("on moving to another household, pulls its events from the start", async () => {
+    const otherHousehold = "22222222-2222-4222-8222-222222222222";
+    // Recorded in the other household before this device's last pull, so below its cursor.
+    remote.householdId = otherHousehold;
+    await remote.push([accountFromOtherDevice("Joint savings", otherHousehold)]);
+    remote.householdId = MEMBER.householdId;
+    await remote.push([accountFromOtherDevice("Old household cash")]);
+    const engine = createSyncEngine(remote);
+    await engine.sync();
+
+    remote.householdId = otherHousehold;
+    await engine.sync();
+
+    expect(await accountNames()).toEqual(["Joint savings"]);
   });
 });
 

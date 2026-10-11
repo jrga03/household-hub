@@ -8,7 +8,7 @@ We chose this because merging immutable events is a set union, so a new entry ca
 
 The previous app ran a row outbox and a half-built event log side by side. Its client-timestamp catch-up cursor and missing tombstones caused most of its sync bugs.
 
-Events are never rewritten. The one exception is an event the server refused for good (stuck): it never left the device, so the member may discard it, and its entity is rebuilt without it. Each event type carries a version number, and the projection code translates old versions when it reads them. Corrections are new events.
+Events are never rewritten. The one exception is an event the server refused for good (stuck): it never left the device, so the member may discard it, and its entity is rebuilt without it. Discarding a stuck create also drops that entity's other unpushed changes, which no device has either. A household that dissolves deletes its Household events on the server (ADR 0004). Each event type carries a version number, and the projection code translates old versions when it reads them. Corrections are new events.
 
 ## Considered options
 

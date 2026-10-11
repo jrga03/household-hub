@@ -1,4 +1,4 @@
-import { ACCOUNT_ENTITY, describeAccountEvent } from "@/lib/accounts/events";
+import { ACCOUNT_CREATED, ACCOUNT_ENTITY, describeAccountEvent } from "@/lib/accounts/events";
 import { getAccount, projectAccount } from "@/lib/accounts/projection";
 import type { LoggedEvent } from "./log";
 
@@ -20,3 +20,6 @@ export async function describeEvent(event: LoggedEvent): Promise<string> {
   }
   return `Unknown change (${event.eventType})`;
 }
+
+/** Whether the event brings its entity into being, so nothing after it stands without it. */
+export const isCreation = (event: LoggedEvent): boolean => event.eventType === ACCOUNT_CREATED;

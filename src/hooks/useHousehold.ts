@@ -9,5 +9,10 @@ export function useHousehold() {
     ...householdQueryOptions(userId ?? ""),
     enabled: userId !== undefined,
   });
-  return { household: household ?? null, isOwner: household?.ownerUserId === userId };
+  return {
+    household: household ?? null,
+    isOwner: household?.ownerUserId === userId,
+    /** False until membership has been read, from the server or the last one seen online. */
+    isKnown: household !== undefined,
+  };
 }

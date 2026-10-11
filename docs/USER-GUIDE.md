@@ -363,6 +363,19 @@ Install Household Hub on your device for the best offline experience!
 
 ---
 
+## Households and Members
+
+Everything you record belongs to a household. The Owner approves join requests and manages who is in it; every Member has the same say over records. These changes need a connection.
+
+- **Leave:** any Member can leave from the Members card on Home. The Owner first makes another Member the Owner. If you are the last Member, leaving deletes the household and its Household accounts.
+- **Remove:** the Owner can remove a Member. It works as if they had left.
+- **Make Owner:** the Owner can hand ownership to another Member and stays a Member.
+- **Replace code:** the Owner can replace the Household Code. The old code stops working at once.
+
+When you leave or are removed, your device drops the household's accounts the next time it syncs, and you go back to creating or joining a household. Your Personal accounts stay with you. What you recorded in Household accounts stays with the household.
+
+**A device that never syncs again keeps its copy.** Removal takes effect on a device only when it next connects, so a phone that stays offline (or is never opened again) still holds the household's data as of its last sync. If a device is lost, remove the person and treat what it held as seen.
+
 ## Privacy & Security
 
 ### Your Data is Private

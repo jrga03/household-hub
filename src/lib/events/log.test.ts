@@ -10,7 +10,10 @@ import {
   listUnpushed,
   markPushed,
   markStuck,
+  readPullCursor,
+  receiveEvents,
   requeueStuck,
+  switchHousehold,
 } from "./log";
 
 const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
@@ -116,6 +119,23 @@ describe("discarding a stuck event", () => {
     expect((await listAccounts()).map((account) => account.name)).toEqual(["BPI Savings"]);
   });
 
+  it("drops the unpushed changes of an account whose create it was", async () => {
+    const { id } = await addCash("BPI Savings");
+    await stickAll();
+    await editAccount(MEMBER, id, {
+      name: "BPI Payroll",
+      type: "cash",
+      startingBalanceCents: cents(0),
+    });
+    const [created] = await listStuck();
+
+    await discardStuck(created!.id);
+
+    expect(await countWaiting()).toBe(0);
+    expect(await listStuck()).toEqual([]);
+    expect(await listAccounts()).toEqual([]);
+  });
+
   it("never removes an event that is not stuck", async () => {
     await addCash("BPI Savings");
     const [waiting] = await listUnpushed(1);
@@ -124,5 +144,79 @@ describe("discarding a stuck event", () => {
 
     expect(await countWaiting()).toBe(1);
     expect(await listAccounts()).toHaveLength(1);
+  });
+});
+
+describe("switching household", () => {
+  const pushAll = async () => markPushed((await listUnpushed(100)).map((event) => event.id));
+  const accountNames = async () => (await listAccounts()).map((account) => account.name);
+
+  it("on losing membership, wipes Household accounts, keeps Personal ones and pulls from the start", async () => {
+    await switchHousehold(MEMBER.householdId);
+    await addCash("Household cash");
+    await createAccount(MEMBER, {
+      name: "My wallet",
+      type: "cash",
+      startingBalanceCents: cents(0),
+      visibility: "personal",
+    });
+    await pushAll();
+    await receiveEvents([], 42);
+
+    expect(await switchHousehold(null)).toBe(true);
+
+    expect(await accountNames()).toEqual(["My wallet"]);
+    expect(await readPullCursor()).toBe(0);
+  });
+
+  it("holds unpushed Household changes as stuck, off every screen", async () => {
+    await switchHousehold(MEMBER.householdId);
+    await addCash("Offline cash");
+
+    await switchHousehold(null);
+
+    expect(await accountNames()).toEqual([]);
+    expect(await countWaiting()).toBe(0);
+    expect(await listStuck()).toEqual([
+      {
+        id: expect.any(String),
+        description: "Add account: Offline cash",
+        reason: "You're no longer a member of the household this change was made in.",
+      },
+    ]);
+  });
+
+  it("never projects a Household change from a household the device left", async () => {
+    await switchHousehold(MEMBER.householdId);
+    const { id } = await addCash("Offline cash");
+    await editAccount(MEMBER, id, {
+      name: "Renamed offline",
+      type: "cash",
+      startingBalanceCents: cents(0),
+    });
+    await switchHousehold(null);
+    const edit = (await listStuck()).find((stuck) => stuck.description.includes("Renamed"));
+
+    await discardStuck(edit!.id);
+
+    expect(await accountNames()).toEqual([]);
+  });
+
+  it("keeps Household changes made in the household it switches to", async () => {
+    await switchHousehold(null);
+    await addCash("Made after joining");
+
+    await switchHousehold(MEMBER.householdId);
+
+    expect(await accountNames()).toEqual(["Made after joining"]);
+    expect(await countWaiting()).toBe(1);
+  });
+
+  it("wipes Household accounts on a device that never recorded its household", async () => {
+    await addCash("From before households were recorded");
+
+    await switchHousehold(null);
+
+    expect(await accountNames()).toEqual([]);
   });
 });

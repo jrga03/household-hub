@@ -165,7 +165,7 @@ See `docs/initial plan/` for detailed architecture documentation:
 
 1. **Offline-First**: Everything works offline, sync when possible
 2. **Event Sourced**: Never lose data, complete audit trail
-3. **Privacy-Focused**: Private household app, no external tracking
+3. **Privacy-Focused**: Private household app, no external tracking. Leaving or removal wipes a household's data from a device at its next sync; a device that never syncs again keeps its copy (see `docs/USER-GUIDE.md`, Households and Members)
 4. **Free Tier Optimized**: Stay within Supabase/Cloudflare free limits
 5. **Progressive Enhancement**: Core features work everywhere
 

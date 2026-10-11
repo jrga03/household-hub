@@ -18,8 +18,8 @@ const LEGACY_DATABASE_NAME = "HouseholdHubDB";
 const DATABASE_NAME = "household-hub";
 
 export interface MetaRow {
-  key: "deviceId" | "clock" | "pullCursor";
-  value: string | number;
+  key: "deviceId" | "clock" | "pullCursor" | "householdId" | "leftHouseholdIds";
+  value: string | number | string[] | null;
 }
 
 export class HouseholdHubDB extends Dexie {

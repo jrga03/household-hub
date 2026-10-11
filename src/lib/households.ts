@@ -29,6 +29,17 @@ export function membershipError(error: { code?: string; message: string }, fallb
   return new Error(error.code === RAISED_BY_FUNCTION ? error.message : fallback);
 }
 
+/** Every membership function needs a connection (ADR 0004); failures read as the function's own message. */
+export async function callMembershipFunction(
+  request: PromiseLike<{ error: { code?: string; message: string } | null }>,
+  failureMessage: string
+): Promise<void> {
+  const { error } = await request;
+  if (error) {
+    throw membershipError(error, `${failureMessage} Check your connection and try again.`);
+  }
+}
+
 async function fetchMyHousehold(): Promise<Household | null> {
   const { data, error } = await supabase
     .from("households")
@@ -87,12 +98,16 @@ async function loadMyHousehold(userId: string): Promise<Household | null> {
   }
 }
 
+export const MEMBERSHIP_STALE_MS = 30_000;
+
 export const householdQueryOptions = (userId: string) =>
   queryOptions({
     queryKey: ["household", userId],
     queryFn: () => loadMyHousehold(userId),
     // The route gate awaits this; fall back to the last known membership at once.
     retry: false,
+    // Another device can change who owns the household; refocusing picks it up.
+    staleTime: MEMBERSHIP_STALE_MS,
   });
 
 /** Needs a connection: households are server-authoritative. */
@@ -105,9 +120,26 @@ export async function createHousehold(userId: string, name: string): Promise<Hou
     );
   }
   const household = toHousehold(data);
+  setMyHousehold(userId, household);
+  return household;
+}
+
+/** Records membership the server just confirmed, so the gate and the offline fallback agree with it. */
+export function setMyHousehold(userId: string, household: Household | null): void {
   writeLastKnown({ userId, household });
   queryClient.setQueryData(householdQueryOptions(userId).queryKey, household);
-  return household;
+}
+
+/**
+ * Membership changed on the server without this device doing it (removed,
+ * or the Owner changed): re-read it and re-run the route gate, which sends
+ * the person where they now belong.
+ */
+export async function reloadMembership(): Promise<void> {
+  await queryClient.invalidateQueries({ queryKey: ["household"] });
+  // Lazy, like authStore: a static import would cycle through the route tree.
+  const { router } = await import("@/router");
+  await router.invalidate();
 }
 
 export async function enforceHouseholdGate(pathname: string, userId: string): Promise<void> {
