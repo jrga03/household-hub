@@ -200,7 +200,7 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #25 merged (PR #38, 7f7bf9c). Follow-up: #36 (offline gate retry delay).
 - #20 merged (PR #37, 6eefab2). Deployed 2026-10-11: production reset to the six new migrations (`supabase db reset --linked --no-seed`; old tables held 0 estimated rows), `keep_alive()` returns `true` with the anon key, Worker `household-hub-keep-alive` deployed (version cd146b55). Owes: first run 2026-10-13 00:00 UTC shows `Supabase keep-alive succeeded` in Observability; around 2026-10-18 the Supabase project is still active.
 - #36 merged (PR #41, e294de5).
-- #42 in progress (`fix/42-offline-expired-token`).
+- #42 in review (`fix/42-offline-expired-token`).
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
   - `supabase test db` exits 1 when `supabase/tests/` has no `.sql` files; `000_empty_baseline.sql` (asserts public has no tables) must be replaced, not just deleted, by #21's baseline tests.
@@ -381,3 +381,20 @@ Deferrals:
 - No unit assertion that `retry` gets `false`: it would test the call, not the behaviour; the e2e catches a regression. Revisit if the e2e is dropped.
 - `fetchPendingJoinRequests` still retries offline: it delays only the Owner's join-request card, not reaching home. Revisit if that card's offline state feels slow.
 - Offline start with an expired access token lands on the login page (reproduced with a Playwright probe: valid token, home in 55 ms; expired, the login page and no home within 90 s). Revisit: #42.
+
+## Issue #42: offline start with an expired access token
+
+Cause (auth-js 2.117.3 `__loadSession`): an expired session triggers a refresh; offline it fails with a retryable error, `getSession()` returns no session, and the root `beforeLoad` redirects to login. The stored session survives a retryable failure.
+
+Seams (agreed): `useAuthStore.initialize()` (Vitest, `getSession` faked), Playwright offline start with an expired token, Playwright back online (refresh and sync resume).
+
+- [x] Unit: a network refresh failure keeps the stored user signed in; any other failure, or nothing stored, signs out; offline, neither `initialize()` nor the gate waits on the server
+- [x] Fixed `auth.storageKey`; `initialize()` falls back to the stored session on a retryable refresh failure, and uses it at once when `navigator.onLine` is false; the gate uses the last known household at once offline
+- [x] Playwright: expired token, offline reload reaches home within 3 s (chromium). Red first: the login page; with only the retryable fallback, still loading after 150 s
+- [x] Playwright: back online, the stored expiry moves into the future (a real refresh) and an account added offline reaches a second device without signing in again (chromium)
+- [x] lint, vitest, both tsc, knip; chromium E2E 34 passed, only the 3 known failures
+
+Decisions:
+
+- **The app owns its auth storage key** (`household-hub-auth`), so it can read the stored session without copying auth-js's `sb-<ref>-auth-token` naming. Why: that naming is internal and could change in an upgrade. Cost: existing logins sign out once; production has no users. Revisit: never.
+- **Offline, skip the server on start instead of waiting for it to fail.** Why: offline, every supabase-js request first awaits auth-js, which retries an expired token's refresh for about 26 s; the gate's household read waited behind it too, so the retryable fallback alone never reached home in 150 s. `navigator.onLine` false means the stored session and last known household are used at once. Cost: a connection the browser thinks is online but isn't (captive portal) still waits ~26 s, then falls back. Revisit: if that case shows up in use.

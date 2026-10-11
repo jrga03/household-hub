@@ -1,5 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import type { User, Session } from "@supabase/supabase-js";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import {
+  AuthApiError,
+  AuthRetryableFetchError,
+  type User,
+  type Session,
+} from "@supabase/supabase-js";
 
 // Mock external dependencies before import
 vi.mock("@/lib/supabase", () => ({
@@ -49,6 +54,7 @@ import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { toast } from "sonner";
 import { queryClient } from "@/lib/queryClient";
 import { router } from "@/router";
+import { AUTH_STORAGE_KEY } from "@/lib/auth-storage";
 
 const mockUser = { id: "user-1", email: "test@example.com" } as User;
 const mockSession = { user: mockUser, access_token: "token" } as Session;
@@ -107,6 +113,57 @@ describe("authStore", () => {
       await useAuthStore.getState().initialize();
 
       expect(useAuthStore.getState().initialized).toBe(true);
+    });
+
+    describe("when the access token can't be refreshed", () => {
+      const storeSession = () =>
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ ...mockSession, expires_at: 1 }));
+      const refreshFails = (error: Error) =>
+        vi.mocked(supabase.auth.getSession).mockResolvedValue({
+          data: { session: null },
+          error,
+        } as never);
+
+      afterEach(() => {
+        localStorage.clear();
+        vi.restoreAllMocks();
+      });
+
+      it("offline, keeps the stored user signed in", async () => {
+        storeSession();
+        refreshFails(new AuthRetryableFetchError("Failed to fetch", 0));
+
+        await useAuthStore.getState().initialize();
+
+        expect(useAuthStore.getState().user).toEqual(mockUser);
+      });
+
+      it("with no connection, uses the stored session without waiting on a refresh", async () => {
+        storeSession();
+        vi.mocked(supabase.auth.getSession).mockReturnValue(new Promise(() => {}));
+        vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+
+        await useAuthStore.getState().initialize();
+
+        expect(useAuthStore.getState().user).toEqual(mockUser);
+      });
+
+      it("signs out when the server refuses the refresh", async () => {
+        storeSession();
+        refreshFails(new AuthApiError("Invalid Refresh Token", 400, "refresh_token_not_found"));
+
+        await useAuthStore.getState().initialize();
+
+        expect(useAuthStore.getState().user).toBeNull();
+      });
+
+      it("signs out offline when nothing is stored", async () => {
+        refreshFails(new AuthRetryableFetchError("Failed to fetch", 0));
+
+        await useAuthStore.getState().initialize();
+
+        expect(useAuthStore.getState().user).toBeNull();
+      });
     });
 
     it("subscribes to auth state changes", async () => {

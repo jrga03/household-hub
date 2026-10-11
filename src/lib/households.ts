@@ -90,12 +90,15 @@ export function forgetLastKnownHousehold(): void {
 }
 
 async function loadMyHousehold(userId: string): Promise<Household | null> {
+  // Offline, any request first waits on auth-js, which can spend about 26 s
+  // retrying an expired token's refresh.
+  const lastKnown = readLastKnown(userId);
+  if (!navigator.onLine && lastKnown !== undefined) return lastKnown;
   try {
     const household = await fetchMyHousehold();
     writeLastKnown({ userId, household });
     return household;
   } catch (error) {
-    const lastKnown = readLastKnown(userId);
     if (lastKnown === undefined) throw error;
     return lastKnown;
   }

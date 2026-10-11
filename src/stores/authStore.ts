@@ -1,7 +1,8 @@
 import { create } from "zustand";
-import type { User, Session } from "@supabase/supabase-js";
+import { isAuthRetryableFetchError, type User, type Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+import { readStoredSession } from "@/lib/auth-storage";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { queryClient } from "@/lib/queryClient";
 import { forgetLastKnownHousehold } from "@/lib/households";
@@ -72,6 +73,11 @@ let deliberateSignOut = false;
 let initPromise: Promise<void> | null = null;
 let authSubscription: { unsubscribe: () => void } | null = null;
 
+async function loadSession(): Promise<Session | null> {
+  const { data, error } = await supabase.auth.getSession();
+  return data.session ?? (isAuthRetryableFetchError(error) ? readStoredSession() : null);
+}
+
 export const useAuthStore = create<AuthState & AuthActions>((set) => ({
   user: null,
   session: null,
@@ -85,10 +91,13 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
 
     initPromise = (async () => {
       try {
-        const { data } = await supabase.auth.getSession();
+        // Offline, an expired access token can't refresh, and getSession()
+        // retries for about 26 s before failing. The person stays signed in on
+        // the stored session; auth-js refreshes it when the connection returns.
+        const session = (!navigator.onLine && readStoredSession()) || (await loadSession());
         set({
-          user: data.session?.user ?? null,
-          session: data.session,
+          user: session?.user ?? null,
+          session,
           initialized: true,
         });
 

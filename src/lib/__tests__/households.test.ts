@@ -40,6 +40,7 @@ beforeEach(() => {
   localStorage.clear();
   maybeSingle.mockReset();
   rpc.mockReset();
+  vi.restoreAllMocks();
 });
 
 describe("household gate", () => {
@@ -76,6 +77,16 @@ describe("household gate", () => {
 
       expect(await redirectTarget("/settings")).toBeNull();
       expect(await redirectTarget("/create-or-join")).toBe("/");
+    });
+
+    it("with no connection, uses the last membership without waiting on the server", async () => {
+      serverReturns(householdRow);
+      await redirectTarget("/");
+      restartApp();
+      maybeSingle.mockReturnValue(new Promise(() => {}));
+      vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+
+      expect(await redirectTarget("/settings")).toBeNull();
     });
 
     it("sends a person to create-or-join when no membership was ever seen", async () => {
