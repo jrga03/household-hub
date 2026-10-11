@@ -7,10 +7,11 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
-import type { AccountRow } from "@/lib/accounts/projection";
+import { ACCOUNT_TYPES, isCreditCard } from "@/lib/accounts/events";
+import type { AccountListItem } from "@/lib/accounts/projection";
 import { createAccount, unretireAccount, type Actor } from "@/lib/commands/accounts";
 import { formatPHP } from "@/lib/currency";
-import type { Visibility } from "@/lib/events/log";
+import { isVisibility, type Visibility } from "@/lib/events/log";
 import {
   ACCOUNT_TYPE_LABELS,
   AccountDetailsFields,
@@ -65,7 +66,18 @@ export function AccountsCard({ actor }: { actor: Actor }) {
   );
 }
 
-function AccountItem({ account, children }: { account: AccountRow; children: React.ReactNode }) {
+function payingAccountSummary({ payingAccount }: AccountListItem): string {
+  if (!payingAccount) return "Paying account not on this device yet";
+  return `Paid from ${payingAccount.name}${payingAccount.retired ? " (retired)" : ""}`;
+}
+
+function AccountItem({
+  account,
+  children,
+}: {
+  account: AccountListItem;
+  children: React.ReactNode;
+}) {
   return (
     <li className="flex items-center justify-between gap-3 px-3 py-2">
       <div className="min-w-0">
@@ -73,7 +85,10 @@ function AccountItem({ account, children }: { account: AccountRow; children: Rea
           <span className="truncate font-medium">{account.name}</span>
           {account.visibility === "personal" && <Badge variant="secondary">Personal</Badge>}
         </p>
-        <p className="text-sm text-muted-foreground">{ACCOUNT_TYPE_LABELS[account.type]}</p>
+        <p className="text-sm text-muted-foreground">
+          {ACCOUNT_TYPE_LABELS[account.type]}
+          {isCreditCard(account) && ` · ${payingAccountSummary(account)}`}
+        </p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <span className="tabular-nums">{formatPHP(account.startingBalanceCents)}</span>
@@ -90,7 +105,7 @@ function RetiredAccounts({ actor }: { actor: Actor }) {
 
   if (!retired || retired.length === 0) return null;
 
-  const unretire = (account: AccountRow) =>
+  const unretire = (account: AccountListItem) =>
     startUnretiring(async () => {
       try {
         await unretireAccount(actor, account.id);
@@ -150,12 +165,34 @@ function AddAccountForm({ actor }: { actor: Actor }) {
 
   return (
     <form action={addAction} className="space-y-4" aria-label="Add an account">
-      <AccountDetailsFields idPrefix="account" />
+      {/* Keyed so each new account starts as a Household bank account again; Personal is a deliberate choice. */}
+      <NewAccountFields key={state.added} userId={actor.userId} />
+
+      <FormError>{state.error}</FormError>
+
+      <SubmitButton pendingText="Adding...">Add account</SubmitButton>
+    </form>
+  );
+}
+
+function NewAccountFields({ userId }: { userId: string }) {
+  const [visibility, setVisibility] = useState<Visibility>("household");
+
+  return (
+    <>
+      <AccountDetailsFields
+        idPrefix="account"
+        types={ACCOUNT_TYPES}
+        ownership={{ visibility, ownerUserId: visibility === "personal" ? userId : null }}
+      />
 
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">Who sees it</legend>
-        {/* Keyed so each new account starts as Household again; Personal is a deliberate choice. */}
-        <RadioGroup key={state.added} name="visibility" defaultValue="household">
+        <RadioGroup
+          name="visibility"
+          value={visibility}
+          onValueChange={(value) => isVisibility(value) && setVisibility(value)}
+        >
           <VisibilityOption value="household" label="Household">
             Every member sees it.
           </VisibilityOption>
@@ -165,11 +202,7 @@ function AddAccountForm({ actor }: { actor: Actor }) {
         </RadioGroup>
         <p className="text-sm text-muted-foreground">Visibility can&apos;t be changed later.</p>
       </fieldset>
-
-      <FormError>{state.error}</FormError>
-
-      <SubmitButton pendingText="Adding...">Add account</SubmitButton>
-    </form>
+    </>
   );
 }
 

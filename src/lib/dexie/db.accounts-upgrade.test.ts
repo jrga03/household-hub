@@ -41,6 +41,7 @@ describe("upgrading a store with accounts projected before retirement", () => {
         startingBalanceCents: 0,
         payingAccountId: null,
         retired: false,
+        payingAccount: null,
       },
     ]);
     expect(await listRetiredAccounts()).toHaveLength(0);

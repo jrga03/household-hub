@@ -81,9 +81,10 @@ describe("createAccount", () => {
   it.each([
     [{ name: "   ", type: "cash", startingBalanceCents: cents(0) }, "An account needs a name."],
     [{ name: "x".repeat(61), type: "cash", startingBalanceCents: cents(0) }, "at most 60"],
+    [{ name: "Visa", type: "debit", startingBalanceCents: cents(0) }, "Choose an account type."],
     [
       { name: "Visa", type: "credit_card", startingBalanceCents: cents(0) },
-      "Choose an account type.",
+      "Choose the account this card is paid from.",
     ],
   ])("rejects %j and records nothing", async (input, problem) => {
     await expect(createAccount(MEMBER, input)).rejects.toThrow(problem);
@@ -113,11 +114,16 @@ describe("editAccount", () => {
     expect((await listUnpushed(10))[1]).toMatchObject({
       entityId: id,
       eventType: "account.edited",
-      eventVersion: 1,
+      eventVersion: 2,
       visibility: "household",
       ownerUserId: null,
       householdId: MEMBER.householdId,
-      payload: { name: "Wallet", type: "e_wallet", startingBalanceCents: 1_500 },
+      payload: {
+        name: "Wallet",
+        type: "e_wallet",
+        startingBalanceCents: 1_500,
+        payingAccountId: null,
+      },
     });
   });
 
@@ -146,10 +152,7 @@ describe("editAccount", () => {
 
   it.each([
     [{ name: "", type: "cash", startingBalanceCents: cents(0) }, "An account needs a name."],
-    [
-      { name: "Visa", type: "credit_card", startingBalanceCents: cents(0) },
-      "Choose an account type.",
-    ],
+    [{ name: "Cash", type: "debit", startingBalanceCents: cents(0) }, "Choose an account type."],
   ])("rejects %j and records nothing", async (input, problem) => {
     const { id } = await createAccount(MEMBER, {
       name: "Cash",
@@ -198,5 +201,161 @@ describe("retireAccount and unretireAccount", () => {
       "account.retired",
       "account.unretired",
     ]);
+  });
+});
+
+describe("credit cards", () => {
+  const addBank = (visibility = "household") =>
+    createAccount(MEMBER, {
+      name: "BDO Savings",
+      type: "bank",
+      startingBalanceCents: cents(0),
+      visibility,
+    });
+
+  const addCard = (payingAccountId: string, visibility = "household") =>
+    createAccount(MEMBER, {
+      name: "Visa",
+      type: "credit_card",
+      startingBalanceCents: cents(0),
+      payingAccountId,
+      visibility,
+    });
+
+  it("adds a card that shows its Paying Account", async () => {
+    const bank = await addBank();
+
+    const card = await addCard(bank.id);
+
+    expect(await listAccounts()).toMatchObject([
+      { id: bank.id },
+      { id: card.id, type: "credit_card", payingAccount: { id: bank.id, name: "BDO Savings" } },
+    ]);
+    expect((await listUnpushed(10))[1]).toMatchObject({
+      eventType: "account.created",
+      payload: { type: "credit_card", payingAccountId: bank.id },
+    });
+  });
+
+  it.each([
+    ["an account this device doesn't have", async () => "aaaaaaaa-0000-4000-8000-000000000404"],
+    ["another card", async () => (await addCard((await addBank()).id)).id],
+    ["a Personal account for a Household card", async () => (await addBank("personal")).id],
+    [
+      "a retired account",
+      async () => {
+        const { id } = await addBank();
+        await retireAccount(MEMBER, id);
+        return id;
+      },
+    ],
+  ])("won't pay a card from %s", async (_case, payingAccount) => {
+    const payingAccountId = await payingAccount();
+    const before = (await listUnpushed(10)).length;
+
+    await expect(addCard(payingAccountId)).rejects.toThrow(
+      "Choose a Household account in use, other than a credit card, to pay this card from."
+    );
+
+    expect(await listUnpushed(10)).toHaveLength(before);
+  });
+
+  it("pays a Personal card from its owner's Personal account", async () => {
+    const bank = await addBank("personal");
+
+    const card = await addCard(bank.id, "personal");
+
+    expect(await listAccounts()).toMatchObject([
+      { id: bank.id },
+      { id: card.id, payingAccount: { id: bank.id } },
+    ]);
+  });
+
+  it("changes a card's Paying Account by editing it", async () => {
+    const bank = await addBank();
+    const cash = await createAccount(MEMBER, {
+      name: "Cash",
+      type: "cash",
+      startingBalanceCents: cents(0),
+    });
+    const card = await addCard(bank.id);
+
+    await editAccount(MEMBER, card.id, {
+      name: "Visa",
+      type: "credit_card",
+      startingBalanceCents: cents(0),
+      payingAccountId: cash.id,
+    });
+
+    expect((await listAccounts()).find((account) => account.id === card.id)).toMatchObject({
+      payingAccount: { id: cash.id, name: "Cash" },
+    });
+    expect((await listUnpushed(10)).at(-1)).toMatchObject({
+      eventType: "account.edited",
+      payload: { payingAccountId: cash.id },
+    });
+  });
+
+  it("keeps a card a card", async () => {
+    const bank = await addBank();
+    const card = await addCard(bank.id);
+
+    await expect(
+      editAccount(MEMBER, card.id, { name: "Visa", type: "bank", startingBalanceCents: cents(0) })
+    ).rejects.toThrow("A credit card can't become another type of account.");
+  });
+
+  it("doesn't turn another account into a card", async () => {
+    const bank = await addBank();
+    const cash = await createAccount(MEMBER, {
+      name: "Cash",
+      type: "cash",
+      startingBalanceCents: cents(0),
+    });
+
+    await expect(
+      editAccount(MEMBER, bank.id, {
+        name: "BDO Savings",
+        type: "credit_card",
+        startingBalanceCents: cents(0),
+        payingAccountId: cash.id,
+      })
+    ).rejects.toThrow("An account can't become a credit card. Add the card as a new account.");
+  });
+
+  it("won't retire a card's Paying Account, and names the card", async () => {
+    const bank = await addBank();
+    await addCard(bank.id);
+
+    await expect(retireAccount(MEMBER, bank.id)).rejects.toThrow(
+      "Visa is paid from BDO Savings. Choose another paying account for it first."
+    );
+
+    expect(await listRetiredAccounts()).toHaveLength(0);
+  });
+
+  it("retires a Paying Account once its card is retired", async () => {
+    const bank = await addBank();
+    const card = await addCard(bank.id);
+    await retireAccount(MEMBER, card.id);
+
+    await retireAccount(MEMBER, bank.id);
+
+    expect(await listRetiredAccounts()).toMatchObject([{ id: bank.id }, { id: card.id }]);
+  });
+
+  it("won't unretire a card whose Paying Account is retired", async () => {
+    const bank = await addBank();
+    const card = await addCard(bank.id);
+    await retireAccount(MEMBER, card.id);
+    await retireAccount(MEMBER, bank.id);
+
+    await expect(unretireAccount(MEMBER, card.id)).rejects.toThrow(
+      "Visa is paid from BDO Savings, which is retired. Unretire BDO Savings first."
+    );
+
+    await unretireAccount(MEMBER, bank.id);
+    await unretireAccount(MEMBER, card.id);
+    expect(await listAccounts()).toMatchObject([{ id: bank.id }, { id: card.id }]);
   });
 });

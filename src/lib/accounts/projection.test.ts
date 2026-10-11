@@ -38,9 +38,9 @@ function accountEdited(
   return {
     ...accountCreated(eventId, entityId, hlc, payload),
     eventType: "account.edited",
-    eventVersion: 1,
+    eventVersion: 2,
     deviceId: hlc.slice(-8),
-    payload,
+    payload: { payingAccountId: null, ...payload },
   };
 }
 
@@ -317,6 +317,137 @@ describe("account projection", () => {
     });
   });
 
+  describe("credit cards", () => {
+    const VISA_ID = "aaaaaaaa-0000-4000-8000-000000000003";
+    const visa = accountCreated("e-visa", VISA_ID, "000000000004000-000000-device-a", {
+      name: "Visa",
+      type: "credit_card",
+      startingBalanceCents: 0,
+      payingAccountId: BANK_ID,
+    });
+
+    it("resolves a card's Paying Account once that account arrives", async () => {
+      await receiveEvents([visa], 0);
+      expect(await listAccounts()).toMatchObject([
+        { id: VISA_ID, payingAccountId: BANK_ID, payingAccount: null },
+      ]);
+
+      await receiveEvents([bank], 0);
+
+      expect(await listAccounts()).toMatchObject([
+        { id: BANK_ID, payingAccount: null },
+        { id: VISA_ID, payingAccount: { id: BANK_ID, name: "BDO Savings" } },
+      ]);
+    });
+
+    it("still names a Paying Account that has since been retired", async () => {
+      const bankRetired = {
+        ...accountRetirement(
+          "account.retired",
+          "e-bank-retired",
+          "000000000005000-000000-device-b"
+        ),
+        entityId: BANK_ID,
+      };
+
+      await receiveEvents([visa, bank, bankRetired], 0);
+
+      expect(await listAccounts()).toMatchObject([
+        { id: VISA_ID, payingAccount: { name: "BDO Savings", retired: true } },
+      ]);
+    });
+
+    it("doesn't resolve a Paying Account of another visibility", async () => {
+      const personalBank = { ...bank, visibility: "personal" as const, ownerUserId: "user-b" };
+
+      await receiveEvents([visa, personalBank], 0);
+
+      expect(await listAccounts()).toMatchObject([
+        { id: BANK_ID },
+        { id: VISA_ID, payingAccount: null },
+      ]);
+    });
+
+    const payFromCash = accountEdited("e-visa-cash", VISA_ID, "000000000006000-000000-device-b", {
+      name: "Visa",
+      type: "credit_card",
+      startingBalanceCents: 0,
+      payingAccountId: CASH_ID,
+    });
+
+    it.each(
+      permutations([visa, bank, cash, payFromCash]).map((order) => [order.map((e) => e.id), order])
+    )("follows the later Paying Account edit, in the order %j", async (_ids, order) => {
+      for (const event of order) {
+        await receiveEvents([event], 0);
+      }
+
+      expect(await listAccounts()).toMatchObject([
+        { id: BANK_ID },
+        { id: CASH_ID },
+        { id: VISA_ID, payingAccountId: CASH_ID, payingAccount: { id: CASH_ID } },
+      ]);
+    });
+
+    it.each([
+      [
+        "a card edited into a bank account",
+        visa,
+        accountEdited("e-visa-bank", VISA_ID, "000000000006000-000000-device-b", {
+          name: "Not a card",
+          type: "bank",
+          startingBalanceCents: 0,
+          payingAccountId: null,
+        }),
+        { name: "Visa", type: "credit_card" },
+      ],
+      [
+        "a bank account edited into a card",
+        bank,
+        accountEdited("e-bank-card", BANK_ID, "000000000006000-000000-device-b", {
+          name: "Now a card",
+          type: "credit_card",
+          startingBalanceCents: 0,
+          payingAccountId: CASH_ID,
+        }),
+        { name: "BDO Savings", type: "bank" },
+      ],
+    ])("ignores %s, in every order", async (_case, created, crossing, expected) => {
+      for (const order of permutations([created, crossing])) {
+        await resetLocalDatabase();
+        for (const event of order) await receiveEvents([event], 0);
+
+        expect(await listAccounts()).toMatchObject([expected]);
+      }
+    });
+
+    it("doesn't resolve another card as a Paying Account", async () => {
+      const otherCard = accountCreated("e-other", BANK_ID, bank.hlc, {
+        name: "Mastercard",
+        type: "credit_card",
+        startingBalanceCents: 0,
+        payingAccountId: CASH_ID,
+      });
+
+      await receiveEvents([visa, otherCard], 0);
+
+      expect(await listAccounts()).toMatchObject([
+        { id: BANK_ID, name: "Mastercard" },
+        { id: VISA_ID, payingAccount: null },
+      ]);
+    });
+
+    it.each([
+      ["without a Paying Account", { payingAccountId: null }],
+      ["with an empty Paying Account", { payingAccountId: "" }],
+      ["paying from itself", { payingAccountId: VISA_ID }],
+    ])("skips a card created %s", async (_case, payload) => {
+      await receiveEvents([{ ...visa, payload: { ...visa.payload, ...payload } }], 0);
+
+      expect(await listAccounts()).toHaveLength(0);
+    });
+  });
+
   describe("older event versions", () => {
     it("projects a version 1 create, which had no paying account", async () => {
       const versionOne: LoggedEvent = {
@@ -329,6 +460,23 @@ describe("account projection", () => {
 
       expect(await listAccounts()).toMatchObject([
         { id: CASH_ID, name: "Cash", startingBalanceCents: 50_000, payingAccountId: null },
+      ]);
+    });
+
+    it("projects a version 1 edit, which had no paying account", async () => {
+      const versionOneEdit: LoggedEvent = {
+        ...accountEdited("e-cash-edit", CASH_ID, "000000000002000-000000-device-a", {
+          name: "Coins",
+          type: "cash",
+          startingBalanceCents: 50_000,
+        }),
+        eventVersion: 1,
+      };
+
+      await receiveEvents([cash, versionOneEdit], 0);
+
+      expect(await listAccounts()).toMatchObject([
+        { id: CASH_ID, name: "Coins", payingAccountId: null },
       ]);
     });
 

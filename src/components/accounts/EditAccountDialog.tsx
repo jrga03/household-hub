@@ -10,11 +10,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { ACCOUNT_TYPES, CREDIT_CARD, isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
 import { editAccount, retireAccount, type Actor } from "@/lib/commands/accounts";
 import { AccountDetailsFields, readAccountDetails } from "./AccountDetailsFields";
 import { FormError } from "@/components/ui/form-error";
 import { errorMessage } from "@/lib/utils";
+
+const NON_CARD_TYPES = ACCOUNT_TYPES.filter((type) => type !== CREDIT_CARD);
 
 const VISIBILITY_SUMMARY = {
   household: "Household: every member sees it.",
@@ -68,7 +71,12 @@ export function EditAccountDialog({
           </DialogDescription>
         </DialogHeader>
         <form action={saveAction} className="space-y-4" aria-label="Edit account">
-          <AccountDetailsFields idPrefix="edit-account" defaults={account} />
+          <AccountDetailsFields
+            idPrefix="edit-account"
+            types={isCreditCard(account) ? [CREDIT_CARD] : NON_CARD_TYPES}
+            ownership={account}
+            defaults={account}
+          />
           <div className="space-y-1">
             <p className="text-sm font-medium">Who sees it</p>
             <p className="text-sm text-muted-foreground">
