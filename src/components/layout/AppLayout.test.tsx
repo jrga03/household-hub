@@ -55,9 +55,6 @@ vi.mock("@/components/ui/sidebar", () => ({
     </button>
   ),
 }));
-vi.mock("@/components/sync/OfflineBanner", () => ({
-  OfflineBanner: () => null,
-}));
 vi.mock("@/components/StorageWarning", () => ({
   StorageWarning: () => null,
 }));

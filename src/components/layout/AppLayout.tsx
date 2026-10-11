@@ -10,7 +10,6 @@ import { useNavStore } from "@/stores/navStore";
 import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { cn } from "@/lib/utils";
-import { OfflineBanner } from "@/components/sync/OfflineBanner";
 import { SyncStatusIndicator } from "@/components/sync/SyncStatusIndicator";
 import { StorageWarning } from "@/components/StorageWarning";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
@@ -196,9 +195,9 @@ export function AppLayout() {
 }
 
 /**
- * Shared fixed container for the top-edge banners (offline + storage quota).
+ * Shared fixed container for the top-edge banners (storage quota for now).
  * The container owns positioning so simultaneous banners stack instead of
- * overpainting each other (review R29). Both children render null when
+ * overpainting each other (review R29). Each banner renders null when
  * inactive, so the container collapses to zero height. pointer-events-none
  * keeps the empty strip from blocking content; each banner re-enables
  * pointer events on its own card.
@@ -206,7 +205,6 @@ export function AppLayout() {
 function BannerStack() {
   return (
     <div className="pointer-events-none fixed inset-x-0 top-[calc(4rem+var(--safe-area-top))] z-40 flex flex-col gap-2">
-      <OfflineBanner />
       <StorageWarning />
     </div>
   );
