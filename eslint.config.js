@@ -59,7 +59,14 @@ const restrictAppendEvent = {
 
 const restrictSyncOnlyLog = {
   group: ["@/lib/events/log", "**/events/log", "**/events/log.ts", "./log"],
-  importNames: ["listUnpushed", "markPushed", "receiveEvents"],
+  importNames: [
+    "listUnpushed",
+    "markPushed",
+    "markStuck",
+    "requeueStuck",
+    "discardStuck",
+    "receiveEvents",
+  ],
   message:
     "Only the sync engine (src/lib/sync) pushes and receives events. Record changes with a command; read projections.",
 };

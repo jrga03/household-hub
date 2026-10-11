@@ -85,7 +85,6 @@ The components directory contains **all React UI components** for Household Hub,
 - `SyncStatus.tsx` - Detailed sync status
 - `SyncIssuesPanel.tsx` - Conflict resolution panel
 - `SyncIssueItem.tsx` - Individual sync issue
-- `OfflineBanner.tsx` - Offline mode banner
 - `OfflineIndicator.tsx` - Offline status indicator
 - `CompactionMonitor.tsx` - Event compaction monitoring
 - `ConflictIndicator.tsx` - Conflict indicator badge

@@ -9,7 +9,7 @@ import Dexie from "dexie";
 import { db, type MetaRow } from "@/lib/dexie/db";
 import { reportError } from "@/lib/sentry";
 import { formatHlc, initialHlc, isHlc, parseHlc, receiveHlc, tickHlc, type Hlc } from "./hlc";
-import { projectEvent } from "./projector";
+import { describeEvent, projectEvent } from "./projector";
 
 const VISIBILITIES = ["household", "personal"] as const;
 export type Visibility = (typeof VISIBILITIES)[number];
@@ -37,9 +37,13 @@ export interface LoggedEvent {
   payload: Record<string, unknown>;
 }
 
-/** IndexedDB can't index booleans. */
+/** Waiting to go out; refused by the server and held for the member; or on the server. */
+export type PushState = "waiting" | "stuck" | "pushed";
+
 export interface StoredEvent extends LoggedEvent {
-  pushed: 0 | 1;
+  pushState: PushState;
+  /** The server's reason, while stuck. */
+  stuckReason?: string;
 }
 
 export type EventDraft = Omit<LoggedEvent, "id" | "hlc" | "deviceId">;
@@ -85,24 +89,86 @@ export function appendEvent(draft: EventDraft): Promise<LoggedEvent> {
       hlc: formatHlc(clock),
       deviceId: clock.deviceId,
     };
-    await db.events.add({ ...event, pushed: 0 });
+    await db.events.add({ ...event, pushState: "waiting" });
     await projectEntity(event);
     return event;
   });
 }
 
+const inPushState = (state: PushState) =>
+  db.events.where("[pushState+hlc]").between([state, Dexie.minKey], [state, Dexie.maxKey]);
+
+const toLogged = ({ pushState: _pushState, stuckReason: _stuckReason, ...event }: StoredEvent) =>
+  event;
+
 /** Oldest first, so the server sequence follows the order things happened here. */
 export async function listUnpushed(limit: number): Promise<LoggedEvent[]> {
-  const unpushed = await db.events
-    .where("[pushed+hlc]")
-    .between([0, Dexie.minKey], [0, Dexie.maxKey])
-    .limit(limit)
-    .toArray();
-  return unpushed.map(({ pushed: _pushed, ...event }) => event);
+  const waiting = await inPushState("waiting").limit(limit).toArray();
+  return waiting.map(toLogged);
+}
+
+/** Local changes not yet sent; stuck ones aren't counted. */
+export const countWaiting = () => inPushState("waiting").count();
+
+/** Every local change the server doesn't have, waiting or stuck, for an export before sign-out. */
+export async function listEventsNotPushed(): Promise<StoredEvent[]> {
+  const [waiting, stuck] = await Promise.all([
+    inPushState("waiting").toArray(),
+    inPushState("stuck").toArray(),
+  ]);
+  return [...waiting, ...stuck];
+}
+
+export interface StuckEvent {
+  id: string;
+  description: string;
+  reason: string;
+}
+
+/** Changes the server refused, oldest first, each waiting for the member to retry or discard it. */
+export async function listStuck(): Promise<StuckEvent[]> {
+  const stuck = await inPushState("stuck").toArray();
+  return Promise.all(
+    stuck.map(async (event) => ({
+      id: event.id,
+      description: await describeEvent(event),
+      reason: event.stuckReason ?? "",
+    }))
+  );
+}
+
+/** The server refused it for good: hold it until the member retries or discards it. */
+export async function markStuck(eventId: string, reason: string): Promise<void> {
+  await db.events.update(eventId, { pushState: "stuck", stuckReason: reason });
+}
+
+export async function requeueStuck(eventId: string): Promise<void> {
+  await db.events
+    .where("id")
+    .equals(eventId)
+    .and((event) => event.pushState === "stuck")
+    .modify({ pushState: "waiting", stuckReason: undefined });
+}
+
+/**
+ * Deletes a refused change and rebuilds its entity without it, as if it had
+ * never been made. Only a stuck event can go: it never reached the server, so
+ * no other device holds it.
+ */
+export function discardStuck(eventId: string): Promise<void> {
+  return db.transaction("rw", logTables(), async () => {
+    const stored = await db.events.get(eventId);
+    if (stored?.pushState !== "stuck") return;
+    await db.events.delete(eventId);
+    await projectEntity(toLogged(stored));
+  });
 }
 
 export async function markPushed(eventIds: string[]): Promise<void> {
-  await db.events.where("id").anyOf(eventIds).modify({ pushed: 1 });
+  await db.events
+    .where("id")
+    .anyOf(eventIds)
+    .modify({ pushState: "pushed", stuckReason: undefined });
 }
 
 export async function readPullCursor(): Promise<number> {
@@ -122,10 +188,10 @@ export function receiveEvents(events: LoggedEvent[], pulledThrough: number): Pro
       const stored = await db.events.get(event.id);
       if (stored) {
         // Our own event coming back: the push landed even if marking it didn't.
-        if (stored.pushed === 0) await db.events.update(event.id, { pushed: 1 });
+        if (stored.pushState !== "pushed") await markPushed([event.id]);
         continue;
       }
-      await db.events.add({ ...event, pushed: 1 });
+      await db.events.add({ ...event, pushState: "pushed" });
       try {
         clock = receiveHlc(clock, parseHlc(event.hlc), Date.now());
       } catch (error) {

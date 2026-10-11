@@ -1,22 +1,27 @@
 import { supabase } from "@/lib/supabase";
 import { isVisibility, type LoggedEvent } from "@/lib/events/log";
 import type { Json, Tables, TablesInsert } from "@/types/database.types";
-import type { PulledEvent, RemoteEventLog } from "./engine";
+import { EventLogRejected, type PulledEvent, type RemoteEventLog } from "./engine";
 
-/** The server refused the request (as opposed to the device being unable to reach it). */
-export class EventLogRejected extends Error {
-  constructor(
-    message: string,
-    readonly code: string
-  ) {
-    super(message);
-    this.name = "EventLogRejected";
-  }
-}
+// Codes that will refuse the same events however often they are sent: data
+// exceptions, integrity violations, RLS, and exceptions our own functions
+// raise. Other class 42 errors (an undefined table or column) come from a
+// deploy out of step with the app, and clear once it is fixed.
+const PERMANENT_PREFIXES = ["22", "23", "42501", "P0"];
+
+/**
+ * Whether the server will refuse this request every time. Everything else is
+ * worth retrying: no code (supabase-js couldn't reach the server), PostgREST's
+ * own errors (an expired token, the database unreachable), dropped
+ * connections, conflicts, timeouts and overload.
+ */
+export const isPermanentRejection = (code: string): boolean =>
+  PERMANENT_PREFIXES.some((prefix) => code.startsWith(prefix));
 
 function toError(error: { message: string; code: string }): Error {
-  // supabase-js reports a failed fetch as an error with no Postgres code.
-  return error.code ? new EventLogRejected(error.message, error.code) : new Error(error.message);
+  return isPermanentRejection(error.code)
+    ? new EventLogRejected(error.message, error.code)
+    : new Error(error.message);
 }
 
 // actor_user_id is left to the server default, auth.uid().
@@ -60,6 +65,9 @@ function fromRow(row: Tables<"events">): PulledEvent {
 
 export const supabaseEventLog: RemoteEventLog = {
   async push(events) {
+    // Without a session the request goes out as anon and RLS refuses it, which would read as permanent.
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) throw new Error("Not signed in; the push waits for a session.");
     const { error } = await supabase
       .from("events")
       .upsert(events.map(toRow), { onConflict: "id", ignoreDuplicates: true });

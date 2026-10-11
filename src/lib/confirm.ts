@@ -7,11 +7,11 @@
  * `<ConfirmDialogHost />` (mounted once in AuthProvider) renders whatever
  * request is pending in this store.
  *
- * Outcomes: the dialog settles as "confirm" (action button), "cancel"
- * (explicit cancel button), or "dismiss" (Escape / closed without choosing).
- * The boolean `confirm()` API folds cancel+dismiss into `false`; call sites
- * where dismissal must NOT mean the cancel action (e.g. sign-out, where
- * Escape has to mean "stay signed in", not "sign out without export") use
+ * Outcomes: the dialog settles as "confirm" (action button), "alternative"
+ * (the optional second action), "cancel" (explicit cancel button), or
+ * "dismiss" (Escape / closed without choosing).
+ * The boolean `confirm()` API folds everything but confirm into `false`; call
+ * sites that offer an alternative (sign-out: export, or sign out anyway) use
  * `confirmWithOutcome()` to receive the raw outcome instead.
  *
  * In unit tests, mock this module (`vi.mock("@/lib/confirm")`) instead of
@@ -20,7 +20,7 @@
 
 import { create } from "zustand";
 
-export type ConfirmOutcome = "confirm" | "cancel" | "dismiss";
+export type ConfirmOutcome = "confirm" | "alternative" | "cancel" | "dismiss";
 
 export interface ConfirmOptions {
   title: string;
@@ -29,6 +29,8 @@ export interface ConfirmOptions {
   confirmLabel?: string;
   /** @default "Cancel" */
   cancelLabel?: string;
+  /** A second way forward beside the confirm action; settles as "alternative". Omitted, there is none. */
+  alternativeLabel?: string;
   /** Styles the confirm button as destructive (deletes, discards) */
   destructive?: boolean;
 }

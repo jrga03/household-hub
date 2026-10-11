@@ -49,6 +49,18 @@ export class HouseholdHubDB extends Dexie {
             delete account.createdHlc;
           })
       );
+    // A push the server refused waits for the member: retried or discarded, never resent on its own.
+    this.version(4)
+      .stores({ events: "id, [pushState+hlc], entityId" })
+      .upgrade((transaction) =>
+        transaction
+          .table("events")
+          .toCollection()
+          .modify((event: Record<string, unknown>) => {
+            event.pushState = event.pushed === 1 ? "pushed" : "waiting";
+            delete event.pushed;
+          })
+      );
   }
 }
 

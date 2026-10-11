@@ -198,7 +198,8 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #22 in review: PR #31 (`rearch/22-personal-accounts`). #25 owes: keep Personal events when a household is deleted; reset the pull cursor on leaving.
 - #23 in review: PR #32 (`rearch/23-edit-retire-accounts`).
 - #19 in review: PR #33 (`rearch/19-credit-cards`).
-- Next: #24, #25; #20 (keep-alive cron) is independent.
+- #24 in review: PR #34 (`rearch/24-sync-status`).
+- Next: #25; #20 (keep-alive cron) is independent.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
   - `supabase test db` exits 1 when `supabase/tests/` has no `.sql` files; `000_empty_baseline.sql` (asserts public has no tables) must be replaced, not just deleted, by #21's baseline tests.
@@ -231,6 +232,47 @@ Seams (from the issue's acceptance criteria): the Paying Account picker's filter
 - **Review deferral: the version table and `upcast` still live in `accounts/events.ts`** (from #23). Why: accounts are still the only entity. Revisit: the first non-account entity (move to `lib/events`, with the projection registry).
 - **Review deferral: no test of two devices changing the same card's Paying Account at once.** Concurrent edits of any detail already resolve by HLC (#23's permutation tests), and the Paying Account permutation test covers one edit against every arrival order. Revisit: if the Paying Account ever resolves apart from the other details.
 - **A card's starting balance is labelled "Starting amount owed"** (GLOSSARY: a card's balance is an amount owed). Stored the same way as other starting balances. Confirmed by the user 2026-10-11.
+
+## Issue #24: sync status
+
+Seams (from the issue's acceptance criteria): the event store's push states, waiting count, stuck list and discard rebuild (Vitest + fake-indexeddb); push-error classification (pure); the sync engine with a fake remote that refuses some events; retry backoff in the triggers; the indicator's label (pure); the sign-out flow (mocked confirm); one Playwright demo flow.
+
+- [x] Dexie v4: events carry `pushState` (`waiting`, `stuck`, `pushed`) and a stuck reason, replacing `pushed`
+- [x] Event store: waiting count, stuck list with descriptions, mark stuck, requeue, discard (deletes a stuck event and rebuilds its entity; the account disappears)
+- [x] Classification: Postgres classes 22, 23, 42501 and raised exceptions are permanent; network, auth and server-unavailable errors are transient; no session is transient
+- [x] Engine: a refused batch is pushed one event at a time; refused events go stuck and the queue moves on; transient errors still throw
+- [x] Triggers: transient failures retry with exponential backoff, reset by a success
+- [x] Retry and discard from `@/lib/sync`
+- [x] Indicator in the shell (mobile header, sidebar footer) with a panel: online/offline, waiting count, stuck events with Retry and Discard
+- [x] Sign-out: push first, then warn with "Export and sign out", "Sign out anyway", "Cancel"; export downloads the unpushed events as JSON; local data is still wiped
+- [x] Playwright: offline, add two accounts, "2 waiting", reconnect to "Synced"; a refused push shows stuck, discard removes the account (chromium)
+- [x] Layout baselines regenerated (chromium, Mobile Chrome)
+- [x] Remove the offline banner (the indicator covers it)
+- [x] build, lint, vitest, both tsc, knip
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
+
+### #24 decisions
+
+- **Seams were taken from the issue's acceptance criteria** (waiting count, stuck classification, discard rebuild) plus the existing engine, trigger and sign-out test files, as in #19 and #23.
+- **Stuck changes don't count as waiting.** The indicator shows both ("Offline · 3 waiting · 1 stuck"); stuck outranks offline, which outranks waiting.
+- **Permanent means Postgres classes 22, 23, 42501 and P0; everything else is transient** (no code = unreachable, PostgREST's own `PGRST*` errors, 08, 40, 53, 57). A push without a session is transient, since it would go out as anon and read as an RLS refusal. Revisit: #25, when removal makes 42501 the normal reply for a removed member.
+- **The server refuses a batch as a whole, so a refused batch is re-pushed one event at a time** to find which ones are stuck; the rest go out. Stuck events are never resent on their own.
+- **Transient failures retry from the triggers with a doubling delay (2 s up to 5 min)**, reset by any success; any other trigger cancels the pending retry.
+- **Discard is the one way an event leaves the log, and only a stuck one**: it never reached the server, so no device holds it. The entity is rebuilt from what remains; an account with no create left is deleted from the projection.
+- **Sign-out syncs first (5 s cap) and warns only if something is still unpushed** (waiting or stuck). The export is `{ exportedAt, events }` with each event's push state. The confirm dialog gained an optional third button (`alternativeLabel`, outcome `alternative`). Resolves the #16 and #18 sign-out deferrals.
+- **`useOnlineStatus`'s 30 s health check no longer overrides `navigator.onLine`**: `getSession` reads storage and succeeds offline, so it flipped the indicator back to online.
+- **The offline banner is removed**: the indicator already says "Offline", and the banner covered the top of the page and announced "Back online! Your changes are syncing" whether or not they were. Revisit: if members miss going offline (an `aria-live` announcement on the indicator is the lighter option).
+- **Layout baselines regenerated** with `--update-snapshots=all`; a plain `--update-snapshots` rewrote nothing because the 2% threshold absorbed the indicator.
+- **Deferred: warn on a skewed clock** (from #23). Revisit: when HLC order is visible in a list (transactions).
+- **The old ultrawide settings baseline predated #16** (it still showed transactions, export and compaction) and passed only within the 2% tolerance; the regenerated one shows the current shell.
+- **Review fixes:** only 42501 in class 42 is permanent (a missing table or column means a deploy out of step, which clears); the export's object URL is revoked after a delay so the download isn't cancelled; the tone is `waiting`, not `pending` (Pending is a transaction state); `stuckCount` names the number; `countChanges` shares the plural wording; an engine test checks a transient failure leaves nothing stuck; ADR 0001 records the discard exception; GLOSSARY gains Waiting and Stuck.
+- **Review deferral: events aren't tied to the signed-in user before they are pushed.** After a session expiry (local data kept on purpose), a different person signing in would push the previous person's waiting events. Same as the #18 deferral. Revisit: #25.
+- **Review deferral: with no session, pushes wait and retry quietly** ("Not signed in" is transient); the indicator says waiting, not "sign in". Session expiry already routes to /login. Revisit: if members get stuck signed out with waiting changes.
+- **Review deferral: discarding a stuck create leaves that account's later events in the log**, and they may already be on the server. Projections ignore changes with no create, so nothing shows. Revisit: #25 (decided 2026-10-11: also drop its unpushed edits there).
+- **Review deferral: per-entity dispatch now repeats in `projectEvent` and `describeEvent`.** Revisit: the projection registry, with the first non-account entity (from #18).
+- **Review deferral: sign-out can't confirm the export finished downloading** before wiping (browsers don't report it). The 1 s delayed revoke covers the cancel case. Revisit: if exports go missing on iOS.
+- **Deferred: live updates (polling or Realtime)** (from #18 and #17). The indicator shows what is waiting here, not what others changed. Revisit: if members expect it.
 
 ## Issue #23: edit and retire accounts
 

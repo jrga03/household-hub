@@ -12,7 +12,7 @@ import { HardDrive } from "lucide-react";
  * Only visible when storage usage exceeds 80%
  *
  * Positioning is owned by AppLayout's BannerStack (shared fixed container
- * with OfflineBanner) so simultaneous banners stack instead of overpainting
+ * for top-edge banners) so simultaneous banners stack instead of overpainting
  * each other (review R29).
  */
 export function StorageWarning() {

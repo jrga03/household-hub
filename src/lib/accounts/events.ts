@@ -127,3 +127,21 @@ export function decodeAccountRetirement(event: LoggedEvent): boolean | null {
   if (event.eventType !== ACCOUNT_RETIRED && event.eventType !== ACCOUNT_UNRETIRED) return null;
   return upcast(event) && event.eventType === ACCOUNT_RETIRED;
 }
+
+const ACTION_LABELS: Record<string, string> = {
+  [ACCOUNT_CREATED]: "Add account",
+  [ACCOUNT_EDITED]: "Edit account",
+  [ACCOUNT_RETIRED]: "Retire account",
+  [ACCOUNT_UNRETIRED]: "Unretire account",
+};
+
+/**
+ * What a change was, for a member deciding whether to keep it ("Add account:
+ * BPI Savings"). A create or edit names the account as it set it; anything
+ * else by the account's current name, when this device holds it.
+ */
+export function describeAccountEvent(event: LoggedEvent, currentName: string | undefined): string {
+  const action = ACTION_LABELS[event.eventType] ?? "Change account";
+  const name = decodeAccountDetails(event)?.name ?? currentName;
+  return name ? `${action}: ${name}` : action;
+}
