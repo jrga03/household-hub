@@ -1,7 +1,8 @@
 import { create } from "zustand";
-import type { User, Session } from "@supabase/supabase-js";
+import { isAuthRetryableFetchError, type User, type Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+import { forgetStoredSession, readStoredSession } from "@/lib/auth-storage";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { queryClient } from "@/lib/queryClient";
 import { forgetLastKnownHousehold } from "@/lib/households";
@@ -72,6 +73,11 @@ let deliberateSignOut = false;
 let initPromise: Promise<void> | null = null;
 let authSubscription: { unsubscribe: () => void } | null = null;
 
+async function loadSession(): Promise<Session | null> {
+  const { data, error } = await supabase.auth.getSession();
+  return data.session ?? (isAuthRetryableFetchError(error) ? readStoredSession() : null);
+}
+
 export const useAuthStore = create<AuthState & AuthActions>((set) => ({
   user: null,
   session: null,
@@ -85,10 +91,12 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
 
     initPromise = (async () => {
       try {
-        const { data } = await supabase.auth.getSession();
+        // Offline, getSession() can spend about 26 s retrying an expired token's refresh.
+        let session = navigator.onLine ? null : readStoredSession();
+        if (!session) session = await loadSession();
         set({
-          user: data.session?.user ?? null,
-          session: data.session,
+          user: session?.user ?? null,
+          session,
           initialized: true,
         });
 
@@ -99,6 +107,8 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
           data: { subscription },
         } = supabase.auth.onAuthStateChange((event, session) => {
           const hadUser = useAuthStore.getState().user !== null;
+          // A refresh that failed offline reports no session; only SIGNED_OUT ends one.
+          if (!session && event !== "SIGNED_OUT") return;
 
           set({
             user: session?.user ?? null,
@@ -194,6 +204,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
       await clearIndexedDB();
       forgetLastKnownHousehold();
       await supabase.auth.signOut();
+      forgetStoredSession();
       set({
         user: null,
         session: null,
