@@ -12,7 +12,7 @@ npm run knip               # unused files, exports, deps; stale ignores fail (kn
 npx vitest run             # unit tests (bare `npm test` is watch mode)
 npm run test:e2e:smoke     # chromium smoke; rebuilds dist/ first
 npm run size               # bundle budget (378 KB gz)
-npx tsc --noEmit -p tsconfig.tests.json    # tests/ + playwright config
+npx tsc --noEmit -p tsconfig.tests.json    # tests/, playwright config, workers/
 npm run gen:types          # regenerate src/types/database.types.ts (commit with each migration)
 supabase test db           # pgTAP (empty-schema check until the #15 baseline)
 ```

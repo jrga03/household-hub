@@ -46,7 +46,7 @@ jobs:
       - run: npm ci
       - name: Typecheck app
         run: npx tsc --noEmit -p tsconfig.json
-      # tests/ and the Playwright config are outside the app program.
+      # tests/, the Playwright config and workers/ are outside the app program.
       - name: Typecheck tests
         run: npx tsc --noEmit -p tsconfig.tests.json
 

@@ -17,6 +17,7 @@ Custom domain (if configured): `https://yourdomain.com`
 - **CDN**: Cloudflare Global Network (automatic)
 - **SSL**: Automatic HTTPS with Cloudflare
 - **Error Tracking**: Sentry (free tier, 5K errors/month)
+- **Keep-alive**: a Cloudflare Worker cron (free tier), see [Keep-alive Worker](#keep-alive-worker)
 
 ---
 
@@ -131,6 +132,43 @@ Every branch and PR automatically gets a preview deployment:
 2. Make changes and push: `git push origin feature/new-feature`
 3. Check Cloudflare Pages dashboard for preview URL
 4. Test changes before merging to main
+
+---
+
+## Keep-alive Worker
+
+Supabase Free pauses a project after a week without activity, and a paused project refuses every sync until someone restores it in the dashboard. `workers/keep-alive` is a separate Cloudflare Worker whose cron (`0 0 */3 * *`, 00:00 UTC on days 1, 4, 7, …, 31) calls `public.keep_alive()` through the REST API, so runs are never more than 3 days apart.
+
+The function returns `true` and reads no table. Of the client roles, only `anon` can execute it, and `anon` has no grant on households, membership or events (`supabase/tests/060_keep_alive.sql`). So the Worker uses the anon key, which is already public in the app bundle.
+
+### Secrets
+
+| Secret              | Value                                                |
+| ------------------- | ---------------------------------------------------- |
+| `SUPABASE_URL`      | Production Supabase project URL                      |
+| `SUPABASE_ANON_KEY` | Production anon (publishable) key, same as the app's |
+
+```bash
+cd workers/keep-alive
+npx wrangler@4.149.0 secret put SUPABASE_URL
+npx wrangler@4.149.0 secret put SUPABASE_ANON_KEY
+npx wrangler@4.149.0 deploy
+```
+
+Deploy again only when `workers/keep-alive` changes; pushes to `main` don't deploy it.
+
+### Run it locally
+
+With `supabase start` running and the migrations applied:
+
+```bash
+cd workers/keep-alive
+cp .dev.vars.example .dev.vars   # fill SUPABASE_ANON_KEY from `supabase status -o env`
+npx wrangler@4.149.0 dev --test-scheduled
+curl "http://localhost:8787/__scheduled?cron=0+0+*/3+*+*"
+```
+
+The Wrangler log prints `Supabase keep-alive succeeded`. A failed query logs `Supabase keep-alive failed: <status> <body>` as an error and fails the run, which shows up under the Worker's Observability tab in Cloudflare (enabled in `wrangler.jsonc`).
 
 ---
 

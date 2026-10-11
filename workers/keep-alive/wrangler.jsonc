@@ -1,0 +1,12 @@
+// Keeps Supabase Free from pausing the project for inactivity. See DEPLOYMENT.md.
+// Secrets: SUPABASE_URL and SUPABASE_ANON_KEY (`npx wrangler@4.149.0 secret put <name>`).
+{
+  "name": "household-hub-keep-alive",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-02-19",
+  "triggers": {
+    // 00:00 UTC on days 1, 4, 7, …, 31: never more than 3 days apart, well inside the 7-day idle limit.
+    "crons": ["0 0 */3 * *"],
+  },
+  "observability": { "enabled": true },
+}

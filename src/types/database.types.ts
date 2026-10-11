@@ -134,6 +134,9 @@ isOneToOne: false
 "hand_over_ownership":
 { Args: { "new_owner_user_id": string }; Returns: undefined
                            },
+"keep_alive":
+{ Args: Record<PropertyKey, never>; Returns: boolean
+                           },
 "leave_household":
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },

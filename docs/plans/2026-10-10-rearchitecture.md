@@ -199,8 +199,8 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #23 in review: PR #32 (`rearch/23-edit-retire-accounts`).
 - #19 in review: PR #33 (`rearch/19-credit-cards`).
 - #24 merged (PR #34).
-- #25 in review: PR #38 (`rearch/25-household-lifecycle`). Follow-up: #36 (offline gate retry delay).
-- Next: #20 (keep-alive cron) is independent.
+- #25 merged (PR #38). Follow-up: #36 (offline gate retry delay).
+- #20 (keep-alive cron) in review: PR #37 (`rearch/20-keep-alive`); after deploy, check the Supabase dashboard a week later that the project stayed active.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
   - `supabase test db` exits 1 when `supabase/tests/` has no `.sql` files; `000_empty_baseline.sql` (asserts public has no tables) must be replaced, not just deleted, by #21's baseline tests.
@@ -344,3 +344,25 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP); the local
 - **Review deferral: a Household event inserted while its household dissolves can commit after the delete**, leaving an unreadable row. Harmless (nobody can read it). Revisit: if orphaned events need cleaning.
 - **Still deferred: an Owner's auth user can't be deleted** (from #21; `owner_user_id` has no `on delete`). Leaving and dissolving don't need it. Revisit: account deletion.
 - **Review deferral: a per-entity projection registry** (`isCreation` joins `projectEvent` and `describeEvent`; `switchHousehold` names `db.accounts`). Same as the #18/#24 deferrals. Revisit: the first non-account entity.
+
+## Issue #20: keep-alive cron
+
+Seams: `public.keep_alive()` privileges (pgTAP), `pingSupabase` logging and failure (Vitest), a manual `wrangler dev --test-scheduled` run against local Supabase.
+
+- [x] Migration `20261011200000_keep_alive.sql`: `keep_alive()` returns `true`, security invoker, executable by `anon` only; pgTAP `060_keep_alive.sql`
+- [x] `database.types.ts` updated (matches `gen types` from an isolated DB byte for byte)
+- [x] `workers/keep-alive`: `pingSupabase` (unit tests), scheduled entry, `wrangler.jsonc` with cron `0 0 */3 * *`
+- [x] Local scheduled trigger: success logs `Supabase keep-alive succeeded`; a missing function logs the 404 as an error and fails the run
+- [x] Lint, knip and `tsconfig.tests.json` cover `workers/`
+- [x] `DEPLOYMENT.md`: the Worker, its secrets and why it exists
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
+
+### #20 decisions
+
+- **The Worker uses the anon key, not a dedicated key.** Why: it's already public in the app bundle, and `anon` can call only `keep_alive()` (no grant on households, membership or events, asserted in pgTAP). Revisit: if `anon` gets grants on any table.
+- **Wrangler is not a dependency**; the Worker deploys with `npx wrangler` by hand. Why: workerd is a large download for every `npm ci`, for a Worker that changes rarely. Revisit: if the Worker gains logic worth a CI deploy.
+- **Migration version `20261011200000` and pgTAP file `060_keep_alive.sql`**: #25 already used `20261011120000` and `050_household_lifecycle.sql`.
+- **`keep_alive()` is `select true`, reading no table.** Supabase doesn't document what counts as activity; a REST call that reaches Postgres very likely does. Revisit: if the project still pauses a week after the Worker is deployed (then read a catalog table, still with no grant to anon).
+- **CLAUDE.md's `tsconfig.tests.json` comment now lists `workers/`** (review fix, user-approved).
+- Gotcha: worktrees share one local Supabase stack. To test a migration without disturbing another branch's DB, copy `supabase/` to a scratch dir, change `project_id` and the db/api/pooler/shadow ports, and run `supabase db start`/`test db`/`stop --no-backup` with `--workdir`.
