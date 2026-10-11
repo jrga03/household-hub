@@ -198,7 +198,7 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #22 in review: PR #31 (`rearch/22-personal-accounts`). #25 owes: keep Personal events when a household is deleted; reset the pull cursor on leaving.
 - #23 in review: PR #32 (`rearch/23-edit-retire-accounts`).
 - #19 in review: PR #33 (`rearch/19-credit-cards`).
-- #24 in review: PR #34 (`rearch/24-sync-status`).
+- #24 merged (PR #34).
 - Next: #25; #20 (keep-alive cron) is independent.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
@@ -248,6 +248,7 @@ Seams (from the issue's acceptance criteria): the event store's push states, wai
 - [x] Playwright: offline, add two accounts, "2 waiting", reconnect to "Synced"; a refused push shows stuck, discard removes the account (chromium)
 - [x] Layout baselines regenerated (chromium, Mobile Chrome)
 - [x] Remove the offline banner (the indicator covers it)
+- [x] Point the pwa "show offline indicator" e2e at the sync indicator (removes it from CLAUDE.md's known failures)
 - [x] build, lint, vitest, both tsc, knip
 - [x] Code review (standards + spec), fixes applied
 - [x] Commit
