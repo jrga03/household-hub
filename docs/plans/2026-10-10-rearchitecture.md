@@ -80,7 +80,7 @@ Fix commits cluster in `src/lib/{sync,offline,debts}`.
 
 Spec: #46. Scoped 2026-10-12 (decisions above, dated 2026-10-11 and 2026-10-12). Order follows the blocking edges.
 
-- [ ] #47 Projection registry
+- [x] #47 Projection registry
 - [ ] #48 Categories and groups (blocked by #47)
 - [ ] #49 Transactions core (blocked by #48)
 - [ ] #50 Card Payment reservation (blocked by #49)
@@ -88,6 +88,21 @@ Spec: #46. Scoped 2026-10-12 (decisions above, dated 2026-10-11 and 2026-10-12).
 - [ ] #52 Transaction list: virtualized, filters, totals, search (blocked by #49)
 - [ ] #53 Transaction list actions: bulk, swipe, detail pane (blocked by #52)
 - [ ] Close #46
+
+## Issue #47: projection registry
+
+- [x] Version table type, `currentVersion` and `upcast` in `src/lib/events/versions.ts`
+- [x] Registry in `src/lib/events/projector.ts`: table, versions, creation check, fold, description; it upcasts, sorts by HLC, folds, and puts or deletes the row
+- [x] Accounts register through it; `log.ts` takes its transaction tables and household-switch wipe from it
+- [x] Fake second entity test (`projector.test.ts`): projects, upcasts, skips unknown versions, describes, discards, wipes on switch
+
+### #47 decisions
+
+- **Seams were taken from the issue's acceptance criteria** (a fake entity driven through `log.ts`, plus the existing account tests), as in #19, #23 and #24.
+- **The registry upcasts before the fold and the description**, so an entity's decoders only see current-version payloads and can't forget to upcast. An unknown version is left out of the fold and described from its type and the current row. The version tables stay with their entity (`ACCOUNT_VERSIONS`); the type and `upcast` live in `lib/events`.
+- **The household-switch wipe is generic**: every registered row carries `householdId` and `visibility`, so the registry deletes other households' Household rows from each table. Revisit: an entity whose rows don't carry visibility.
+- **Entities are registered in `projector.ts`** (one line each), not by side effect on import, so the registry is never empty when the log receives events. Tests can register more.
+- **The registry stores table names, not tables**, for the log's transactions (Dexie's `Table<Row>` is invariant, so typed tables can't share a list without `any`).
 
 ## Issue #16: strip the app to its shell
 
@@ -180,7 +195,7 @@ Seams (agreed): HLC (pure), event store + account projection + `createAccount` (
 - **Review fixes:** pull even when a push is refused; sign-out waits for an in-flight sync before its final push; `listUnpushed`/`markPushed`/`receiveEvents` are lint-fenced to `src/lib/sync` (and the sync engine can't `appendEvent`); a visibility guard replaces a cast; the balance-range message derives from `MAX_AMOUNT_CENTS`; CLAUDE.md says projections are read with `useLiveQuery`.
 - **Review deferral: projections aren't scoped to the signed-in member.** Session expiry keeps the local store (so unsynced events survive), so a different person signing in on that device would see the previous household's accounts, and their old events would be refused. Revisit: #25 (wipe or scope the store when the signed-in user or household changes).
 - **Review deferral: no bound on how far ahead a received HLC may be**; one device with a wrong clock drags every clock forward (ordering stays consistent). Revisit: #23, when edits make HLC order user-visible.
-- **Review deferral: adding a projection touches three places** (Dexie table, `logTables` in `log.ts`, the dispatch in `projector.ts`). Revisit: a projection registry when the second projection lands.
+- **Review deferral: adding a projection touches three places** (Dexie table, `logTables` in `log.ts`, the dispatch in `projector.ts`). Resolved: #47 (projection registry).
 
 ## Issue #17: Join Request lifecycle
 
@@ -278,7 +293,7 @@ Seams (from the issue's acceptance criteria): the Paying Account picker's filter
 - **The block is local, so two offline devices can still leave a card paying from a retired account.** The list shows "Paid from X (retired)", and the edit form makes the member choose again. Revisit: Card Payments, if a retired Paying Account must be impossible.
 - **Paying Account validation lives in the commands** (against this device's accounts); `checkAccountDetails` only checks that a card has one and nothing else does, and the projection rejects a card paying from itself.
 - **Review fixes:** the type-crossing guard has a permutation test; the read-time join refuses a card as a Paying Account (`canPay`, shared with the picker); one `Ownership` type replaces four inline copies; the form's type state is an `AccountType`; unretiring a card checks its Paying Account.
-- **Review deferral: the version table and `upcast` still live in `accounts/events.ts`** (from #23). Why: accounts are still the only entity. Revisit: the first non-account entity (move to `lib/events`, with the projection registry).
+- **Review deferral: the version table and `upcast` still live in `accounts/events.ts`** (from #23). Why: accounts are still the only entity. Resolved: #47 (`lib/events/versions.ts`).
 - **Review deferral: no test of two devices changing the same card's Paying Account at once.** Concurrent edits of any detail already resolve by HLC (#23's permutation tests), and the Paying Account permutation test covers one edit against every arrival order. Revisit: if the Paying Account ever resolves apart from the other details.
 - **A card's starting balance is labelled "Starting amount owed"** (GLOSSARY: a card's balance is an amount owed). Stored the same way as other starting balances. Confirmed by the user 2026-10-11.
 
@@ -320,7 +335,7 @@ Seams (from the issue's acceptance criteria): the event store's push states, wai
 - **Review deferral: events aren't tied to the signed-in user before they are pushed.** After a session expiry (local data kept on purpose), a different person signing in would push the previous person's waiting events. Same as the #18 deferral. Revisit: #25.
 - **Review deferral: with no session, pushes wait and retry quietly** ("Not signed in" is transient); the indicator says waiting, not "sign in". Session expiry already routes to /login. Revisit: if members get stuck signed out with waiting changes.
 - **Review deferral: discarding a stuck create leaves that account's later events in the log**, and they may already be on the server. Projections ignore changes with no create, so nothing shows. Revisit: #25 (decided 2026-10-11: also drop its unpushed edits there).
-- **Review deferral: per-entity dispatch now repeats in `projectEvent` and `describeEvent`.** Revisit: the projection registry, with the first non-account entity (from #18).
+- **Review deferral: per-entity dispatch now repeats in `projectEvent` and `describeEvent`.** Resolved: #47 (projection registry).
 - **Review deferral: sign-out can't confirm the export finished downloading** before wiping (browsers don't report it). The 1 s delayed revoke covers the cancel case. Revisit: if exports go missing on iOS.
 - **Deferred: live updates (polling or Realtime)** (from #18 and #17). The indicator shows what is waiting here, not what others changed. Revisit: if members expect it.
 
@@ -391,7 +406,7 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP); the local
 - **Review deferral: `accept_join_request` doesn't lock the household row**, so an accept racing a hand-over can land just after it. Locking it there would take the request lock before the household lock, the reverse of a dissolve, and risk deadlocks. Revisit: if an ex-Owner's accept ever matters.
 - **Review deferral: a Household event inserted while its household dissolves can commit after the delete**, leaving an unreadable row. Harmless (nobody can read it). Revisit: if orphaned events need cleaning.
 - **Still deferred: an Owner's auth user can't be deleted** (from #21; `owner_user_id` has no `on delete`). Leaving and dissolving don't need it. Revisit: account deletion.
-- **Review deferral: a per-entity projection registry** (`isCreation` joins `projectEvent` and `describeEvent`; `switchHousehold` names `db.accounts`). Same as the #18/#24 deferrals. Revisit: the first non-account entity.
+- **Review deferral: a per-entity projection registry** (`isCreation` joins `projectEvent` and `describeEvent`; `switchHousehold` names `db.accounts`). Same as the #18/#24 deferrals. Resolved: #47.
 
 ## Issue #20: keep-alive cron
 

@@ -1,4 +1,5 @@
 import { appendEvent, isVisibility, VISIBILITY_LABELS } from "@/lib/events/log";
+import { currentVersion } from "@/lib/events/versions";
 import { requestSync } from "@/lib/sync/triggers";
 import {
   ACCOUNT_CREATED,
@@ -6,8 +7,8 @@ import {
   ACCOUNT_ENTITY,
   ACCOUNT_RETIRED,
   ACCOUNT_UNRETIRED,
+  ACCOUNT_VERSIONS,
   checkAccountDetails,
-  currentVersion,
   isCreditCard,
   type AccountChangeType,
   type AccountDetails,
@@ -67,7 +68,7 @@ export async function createAccount(actor: Actor, input: NewAccountInput): Promi
     entityType: ACCOUNT_ENTITY,
     entityId: id,
     eventType: ACCOUNT_CREATED,
-    eventVersion: currentVersion(ACCOUNT_CREATED),
+    eventVersion: currentVersion(ACCOUNT_VERSIONS, ACCOUNT_CREATED),
     actorUserId: actor.userId,
     payload: { ...details },
   });
@@ -98,7 +99,7 @@ async function appendAccountChange(
     entityType: ACCOUNT_ENTITY,
     entityId: account.id,
     eventType,
-    eventVersion: currentVersion(eventType),
+    eventVersion: currentVersion(ACCOUNT_VERSIONS, eventType),
     actorUserId: actor.userId,
     payload,
   });

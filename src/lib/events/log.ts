@@ -9,7 +9,13 @@ import Dexie from "dexie";
 import { db, type MetaRow } from "@/lib/dexie/db";
 import { reportError } from "@/lib/sentry";
 import { formatHlc, initialHlc, isHlc, parseHlc, receiveHlc, tickHlc, type Hlc } from "./hlc";
-import { describeEvent, isCreation, projectEvent } from "./projector";
+import {
+  describeEvent,
+  isCreation,
+  projectEvent,
+  projectionTableNames,
+  wipeProjections,
+} from "./projector";
 
 const VISIBILITIES = ["household", "personal"] as const;
 export type Visibility = (typeof VISIBILITIES)[number];
@@ -48,7 +54,7 @@ export interface StoredEvent extends LoggedEvent {
 
 export type EventDraft = Omit<LoggedEvent, "id" | "hlc" | "deviceId">;
 
-const logTables = () => [db.events, db.accounts, db.meta];
+const logTables = () => [db.events.name, db.meta.name, ...projectionTableNames()];
 
 async function readMeta(key: MetaRow["key"]) {
   return (await db.meta.get(key))?.value;
@@ -229,7 +235,7 @@ export function switchHousehold(householdId: string | null): Promise<boolean> {
     await db.events
       .filter((event) => isOtherHousehold(event) && event.pushState === "waiting")
       .modify({ pushState: "stuck", stuckReason: LEFT_HOUSEHOLD });
-    await db.accounts.filter(isOtherHousehold).delete();
+    await wipeProjections(isOtherHousehold);
     await db.meta.put({ key: "pullCursor", value: 0 });
     return stored !== undefined;
   });

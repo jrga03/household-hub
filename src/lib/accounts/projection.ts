@@ -1,8 +1,12 @@
 import { db } from "@/lib/dexie/db";
 import type { LoggedEvent, Visibility } from "@/lib/events/log";
+import type { EntityProjection } from "@/lib/events/projector";
 import {
   ACCOUNT_CREATED,
+  ACCOUNT_ENTITY,
+  ACCOUNT_VERSIONS,
   decodeAccountDetails,
+  describeAccountEvent,
   decodeAccountRetirement,
   isCreditCard,
   type AccountDetails,
@@ -18,10 +22,6 @@ export interface AccountRow extends AccountDetails {
   /** Hidden from the main list, kept under Retired; resolved apart from the details. */
   retired: boolean;
 }
-
-// Formatted HLCs sort as strings; the event id keeps the order total.
-const byHlc = (a: LoggedEvent, b: LoggedEvent) =>
-  a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : a.id < b.id ? -1 : 1;
 
 function applyAccountEvent(account: AccountRow | null, event: LoggedEvent): AccountRow | null {
   const details = decodeAccountDetails(event);
@@ -49,15 +49,14 @@ function applyAccountEvent(account: AccountRow | null, event: LoggedEvent): Acco
   return retired === null ? account : { ...account, retired };
 }
 
-/**
- * Folds an account's events in HLC order, so the row is the same whatever order
- * they arrived in. With no create left (one was discarded), there is no row.
- */
-export async function projectAccount(accountId: string, history: LoggedEvent[]): Promise<void> {
-  const account = [...history].sort(byHlc).reduce<AccountRow | null>(applyAccountEvent, null);
-  if (account) await db.accounts.put(account);
-  else await db.accounts.delete(accountId);
-}
+export const accountProjection: EntityProjection<AccountRow> = {
+  entityType: ACCOUNT_ENTITY,
+  table: db.accounts,
+  versions: ACCOUNT_VERSIONS,
+  isCreation: (event) => event.eventType === ACCOUNT_CREATED,
+  fold: applyAccountEvent,
+  describe: (event, account) => describeAccountEvent(event, account?.name),
+};
 
 export const getAccount = (id: string) => db.accounts.get(id);
 
