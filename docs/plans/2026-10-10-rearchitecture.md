@@ -199,7 +199,7 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #23 in review: PR #32 (`rearch/23-edit-retire-accounts`).
 - #19 in review: PR #33 (`rearch/19-credit-cards`).
 - #24 merged (PR #34).
-- Next: #25. #20 (keep-alive cron) in review on `rearch/20-keep-alive`; after deploy, check the Supabase dashboard a week later that the project stayed active.
+- Next: #25. #20 (keep-alive cron) in review: PR #37 (`rearch/20-keep-alive`); after deploy, check the Supabase dashboard a week later that the project stayed active.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
   - `supabase test db` exits 1 when `supabase/tests/` has no `.sql` files; `000_empty_baseline.sql` (asserts public has no tables) must be replaced, not just deleted, by #21's baseline tests.
