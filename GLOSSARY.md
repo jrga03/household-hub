@@ -108,5 +108,5 @@ A change made on this device that hasn't reached the server yet. It goes out on 
 _Avoid_: Pending (that is a transaction state), queued, unsynced
 
 **Stuck**:
-A change the server refused for good. It stays on the device until a member retries or discards it; discarding removes it as if it had never been made.
+A change the server refused for good, or one made in a household the member has since left. It stays on the device until a member retries or discards it; discarding removes it as if it had never been made.
 _Avoid_: Failed, rejected

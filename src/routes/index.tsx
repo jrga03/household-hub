@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell } from "@/components/layout/PageShell";
@@ -7,6 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AccountsCard } from "@/components/accounts/AccountsCard";
 import { JoinRequestsCard } from "@/components/households/JoinRequestsCard";
+import { MembersCard } from "@/components/households/MembersCard";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { confirm } from "@/lib/confirm";
+import { replaceHouseholdCode } from "@/lib/household-members";
+import { errorMessage } from "@/lib/utils";
 import { useHousehold } from "@/hooks/useHousehold";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -36,10 +42,15 @@ function HomePage() {
                   <Badge variant="secondary">{isOwner ? "Owner" : "Member"}</Badge>
                 </div>
               </CardHeader>
-              {isOwner && <HouseholdCode code={household.code} />}
+              {isOwner && userId && (
+                <HouseholdCode userId={userId} householdId={household.id} code={household.code} />
+              )}
             </Card>
           )}
           {household && isOwner && <JoinRequestsCard householdId={household.id} />}
+          {household && userId && (
+            <MembersCard householdId={household.id} userId={userId} isOwner={isOwner} />
+          )}
           {household && userId && <AccountsCard actor={{ householdId: household.id, userId }} />}
         </PageShell.Main>
       </PageShell>
@@ -47,7 +58,35 @@ function HomePage() {
   );
 }
 
-function HouseholdCode({ code }: { code: string }) {
+interface HouseholdCodeProps {
+  userId: string;
+  householdId: string;
+  code: string;
+}
+
+function HouseholdCode({ userId, householdId, code }: HouseholdCodeProps) {
+  const isOnline = useOnlineStatus();
+  const [isReplacing, setIsReplacing] = useState(false);
+
+  async function replaceCode() {
+    const confirmed = await confirm({
+      title: "Replace the Household Code?",
+      description:
+        "The current code stops working at once. Requests already sent with it still reach you.",
+      confirmLabel: "Replace code",
+    });
+    if (!confirmed) return;
+    setIsReplacing(true);
+    try {
+      await replaceHouseholdCode(userId, householdId);
+      toast.success("Household Code replaced");
+    } catch (error) {
+      toast.error(errorMessage(error, "Couldn't replace the code."));
+    } finally {
+      setIsReplacing(false);
+    }
+  }
+
   async function copyCode() {
     try {
       await navigator.clipboard.writeText(code);
@@ -74,6 +113,14 @@ function HouseholdCode({ code }: { code: string }) {
           onClick={() => void copyCode()}
         >
           <Copy className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={!isOnline || isReplacing}
+          onClick={() => void replaceCode()}
+        >
+          Replace code
         </Button>
       </div>
       <p className="text-sm text-muted-foreground">

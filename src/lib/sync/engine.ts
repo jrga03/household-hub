@@ -9,6 +9,7 @@ import {
   markStuck,
   readPullCursor,
   receiveEvents,
+  switchHousehold,
   type LoggedEvent,
 } from "@/lib/events/log";
 
@@ -32,6 +33,8 @@ export interface RemoteEventLog {
   push(events: LoggedEvent[]): Promise<void>;
   /** Events after `afterSequence`, in sequence order, at most `batchSize`. */
   pull(afterSequence: number, batchSize: number): Promise<PulledEvent[]>;
+  /** The household the server says the member belongs to now, or null. */
+  currentHouseholdId(): Promise<string | null>;
 }
 
 const DEFAULT_BATCH_SIZE = 500;
@@ -40,11 +43,17 @@ interface SyncEngineOptions {
   batchSize?: number;
   /** Called for each change the server refused for good. */
   onStuck?: (event: LoggedEvent, rejection: EventLogRejected) => void;
+  /** Called when the member turns out to have left, been removed, or joined another household. */
+  onHouseholdChanged?: () => void;
 }
 
 export function createSyncEngine(
   remote: RemoteEventLog,
-  { batchSize = DEFAULT_BATCH_SIZE, onStuck = () => {} }: SyncEngineOptions = {}
+  {
+    batchSize = DEFAULT_BATCH_SIZE,
+    onStuck = () => {},
+    onHouseholdChanged = () => {},
+  }: SyncEngineOptions = {}
 ) {
   let halted = false;
 
@@ -75,6 +84,18 @@ export function createSyncEngine(
     }
   }
 
+  /**
+   * First in every sync: a different household means a different set of
+   * events, from the start, and changes made in the old one can't go out.
+   * Returns whether the member belongs to a household.
+   */
+  async function followMembership(): Promise<boolean> {
+    const householdId = await remote.currentHouseholdId();
+    if (halted) return false;
+    if (await switchHousehold(householdId)) onHouseholdChanged();
+    return householdId !== null;
+  }
+
   async function pullAll() {
     let cursor = await readPullCursor();
     for (;;) {
@@ -94,10 +115,12 @@ export function createSyncEngine(
   async function run() {
     do {
       runAgain = false;
+      const isMember = await followMembership();
+      // Without a household the server accepts nothing, so changes wait for the next one.
       // A failed push must not also cut the device off from everyone else's events.
       let pushFailure: unknown = null;
       try {
-        await pushAll();
+        if (isMember) await pushAll();
       } catch (error) {
         pushFailure = error;
       }

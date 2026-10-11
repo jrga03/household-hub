@@ -34,13 +34,7 @@ export type Database = {
                     "actor_user_id"?: string,"device_id"?: string,"entity_id"?: string,"entity_type"?: string,"event_type"?: string,"event_version"?: number,"hlc"?: string,"household_id"?: string,"id"?: string,"owner_user_id"?: string | null,"payload"?: NonNullable<Json>,"received_at"?: string,"sequence"?: number,"visibility"?: string
                   }
                   Relationships: [
-                    {
-      foreignKeyName: "events_household_id_fkey"
-      columns: ["household_id"]
-isOneToOne: false
-      referencedRelation: "households"
-      referencedColumns: ["id"]
-    }
+                    
                   ]
                 },"household_members": {
                   Row: {
@@ -137,6 +131,45 @@ isOneToOne: false
 "generate_household_code":
 { Args: Record<PropertyKey, never>; Returns: string
                            },
+"hand_over_ownership":
+{ Args: { "new_owner_user_id": string }; Returns: undefined
+                           },
+"leave_household":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"list_household_members":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "email": string,"is_owner": boolean,"user_id": string
+            }[]
+                           },
+"lock_household_as_owner":
+{ Args: { "refusal": string }; Returns: {
+              "code": string,
+"created_at": string,
+"id": string,
+"name": string,
+"owner_user_id": string
+            }
+                          SetofOptions: {
+        from: "*"
+        to: "households"
+        isOneToOne: true
+        isSetofReturn: false
+      } },
+"lock_my_household":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "code": string,
+"created_at": string,
+"id": string,
+"name": string,
+"owner_user_id": string
+            }
+                          SetofOptions: {
+        from: "*"
+        to: "households"
+        isOneToOne: true
+        isSetofReturn: false
+      } },
 "my_join_request":
 { Args: Record<PropertyKey, never>; Returns: {
               "id": string,"status": string
@@ -180,6 +213,12 @@ isOneToOne: false
         isOneToOne: false
         isSetofReturn: true
       } },
+"remove_member":
+{ Args: { "member_user_id": string }; Returns: undefined
+                           },
+"replace_household_code":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
 "request_to_join":
 { Args: { "household_code": string }; Returns: undefined
                            }

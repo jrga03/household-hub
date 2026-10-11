@@ -1,10 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { queryClient } from "@/lib/queryClient";
-import { membershipError } from "@/lib/households";
-
-// Every call needs a connection: Join Requests are server-authoritative, like membership.
-const CONNECTION_HINT = "Check your connection and try again.";
+import { callMembershipFunction } from "@/lib/households";
 
 export interface MyJoinRequest {
   id: string;
@@ -57,8 +54,7 @@ async function callAndRefresh(
   failureMessage: string,
   queryKey: readonly unknown[]
 ): Promise<void> {
-  const { error } = await call;
-  if (error) throw membershipError(error, `${failureMessage} ${CONNECTION_HINT}`);
+  await callMembershipFunction(call, failureMessage);
   await queryClient.invalidateQueries({ queryKey });
 }
 
