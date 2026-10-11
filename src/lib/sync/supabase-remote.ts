@@ -82,4 +82,17 @@ export const supabaseEventLog: RemoteEventLog = {
     if (error) throw toError(error);
     return data.map(fromRow);
   },
+
+  async currentHouseholdId() {
+    // RLS shows a member their own household and nobody else any. The sync
+    // triggers back off on their own; the client's GET retries would hold
+    // every offline sync (and sign-out's last sync) for seconds.
+    const { data, error } = await supabase
+      .from("households")
+      .select("id")
+      .retry(false)
+      .maybeSingle();
+    if (error) throw toError(error);
+    return data?.id ?? null;
+  },
 };

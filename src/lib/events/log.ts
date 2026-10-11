@@ -9,7 +9,7 @@ import Dexie from "dexie";
 import { db, type MetaRow } from "@/lib/dexie/db";
 import { reportError } from "@/lib/sentry";
 import { formatHlc, initialHlc, isHlc, parseHlc, receiveHlc, tickHlc, type Hlc } from "./hlc";
-import { describeEvent, projectEvent } from "./projector";
+import { describeEvent, isCreation, projectEvent } from "./projector";
 
 const VISIBILITIES = ["household", "personal"] as const;
 export type Visibility = (typeof VISIBILITIES)[number];
@@ -69,11 +69,23 @@ async function readClock(): Promise<Hlc> {
 
 const writeClock = (clock: Hlc) => db.meta.put({ key: "clock", value: formatHlc(clock) });
 
-/** Projects the entity from every event this device holds for it that has a place in time. */
+async function readLeftHouseholdIds(): Promise<string[]> {
+  const stored = await readMeta("leftHouseholdIds");
+  return Array.isArray(stored) ? stored : [];
+}
+
+/**
+ * Projects the entity from every event this device holds for it that has a
+ * place in time, leaving out Household events of a household it has left.
+ */
 async function projectEntity(event: LoggedEvent): Promise<void> {
+  const left = await readLeftHouseholdIds();
   const stored = await db.events.where("entityId").equals(event.entityId).toArray();
   const history = stored.filter(
-    (candidate) => candidate.entityType === event.entityType && isHlc(candidate.hlc)
+    (candidate) =>
+      candidate.entityType === event.entityType &&
+      isHlc(candidate.hlc) &&
+      !(candidate.visibility === "household" && left.includes(candidate.householdId))
   );
   await projectEvent(event, history);
 }
@@ -153,13 +165,21 @@ export async function requeueStuck(eventId: string): Promise<void> {
 /**
  * Deletes a refused change and rebuilds its entity without it, as if it had
  * never been made. Only a stuck event can go: it never reached the server, so
- * no other device holds it.
+ * no other device holds it. Discarding a create also drops the entity's other
+ * unpushed changes, which would otherwise wait on something that never existed.
  */
 export function discardStuck(eventId: string): Promise<void> {
   return db.transaction("rw", logTables(), async () => {
     const stored = await db.events.get(eventId);
     if (stored?.pushState !== "stuck") return;
     await db.events.delete(eventId);
+    if (isCreation(stored)) {
+      await db.events
+        .where("entityId")
+        .equals(stored.entityId)
+        .and((event) => event.entityType === stored.entityType && event.pushState !== "pushed")
+        .delete();
+    }
     await projectEntity(toLogged(stored));
   });
 }
@@ -174,6 +194,45 @@ export async function markPushed(eventIds: string[]): Promise<void> {
 export async function readPullCursor(): Promise<number> {
   const stored = await readMeta("pullCursor");
   return typeof stored === "number" ? stored : 0;
+}
+
+const LEFT_HOUSEHOLD = "You're no longer a member of the household this change was made in.";
+
+/**
+ * Points the device at the household the server says the member belongs to
+ * (null for none). Household events and projections of any other household
+ * go, Personal ones stay, and the next pull starts from the beginning, since
+ * the new household's events may sit below the old cursor. Returns whether
+ * the device had recorded a different household.
+ */
+export function switchHousehold(householdId: string | null): Promise<boolean> {
+  return db.transaction("rw", logTables(), async () => {
+    const stored = await db.meta.get("householdId");
+    if (stored?.value === householdId) return false;
+    await db.meta.put({ key: "householdId", value: householdId });
+
+    const isOtherHousehold = (record: { visibility: Visibility; householdId: string }) =>
+      record.visibility === "household" && record.householdId !== householdId;
+    const leftNow = (await db.events.filter(isOtherHousehold).toArray()).map(
+      (event) => event.householdId
+    );
+    const left = new Set([...(await readLeftHouseholdIds()), ...leftNow]);
+    if (typeof stored?.value === "string") left.add(stored.value);
+    // Rejoining a household brings its changes back.
+    if (householdId) left.delete(householdId);
+    await db.meta.put({ key: "leftHouseholdIds", value: [...left] });
+
+    await db.events
+      .filter((event) => isOtherHousehold(event) && event.pushState === "pushed")
+      .delete();
+    // The server refuses them now; they stay for the sign-out export or a discard.
+    await db.events
+      .filter((event) => isOtherHousehold(event) && event.pushState === "waiting")
+      .modify({ pushState: "stuck", stuckReason: LEFT_HOUSEHOLD });
+    await db.accounts.filter(isOtherHousehold).delete();
+    await db.meta.put({ key: "pullCursor", value: 0 });
+    return stored !== undefined;
+  });
 }
 
 /**

@@ -2,12 +2,16 @@ import { useEffect } from "react";
 import { useHousehold } from "@/hooks/useHousehold";
 import { startEventSync } from "@/lib/sync";
 
-/** Syncs the event log while a member of a household is signed in. */
+/**
+ * Syncs the event log while someone is signed in, including on create-or-join:
+ * a sync is how a device notices it left or was removed, and wipes the household.
+ */
 export function useEventSync() {
-  const householdId = useHousehold().household?.id;
+  const { household, isKnown } = useHousehold();
+  const householdId = household?.id ?? null;
 
   useEffect(() => {
-    if (!householdId) return;
+    if (!isKnown) return;
     return startEventSync();
-  }, [householdId]);
+  }, [isKnown, householdId]);
 }

@@ -1,4 +1,5 @@
 import { reportError } from "@/lib/sentry";
+import { reloadMembership } from "@/lib/households";
 import { discardStuck, requeueStuck } from "@/lib/events/log";
 import { createSyncEngine, EventLogRejected } from "./engine";
 import { supabaseEventLog } from "./supabase-remote";
@@ -12,6 +13,7 @@ const engine = createSyncEngine(supabaseEventLog, {
       operation: "push",
       extra: { code: rejection.code, eventType: event.eventType },
     }),
+  onHouseholdChanged: () => void reloadMembership(),
 });
 
 // Unreachable is normal for an offline-first app; it retries with backoff.
@@ -25,7 +27,7 @@ function onSyncError(error: unknown) {
 
 let stopTriggers: (() => void) | null = null;
 
-/** Starts syncing the signed-in member's household. Returns a stop function. */
+/** Starts syncing for the signed-in person, member or not, so a lost membership is noticed. Returns a stop function. */
 export function startEventSync(): () => void {
   stopTriggers?.();
   engine.resume();
@@ -37,10 +39,15 @@ export function startEventSync(): () => void {
   };
 }
 
+/** Syncs now, for a step that needs this device's changes on the server first; failures are logged, not thrown. */
+export async function syncNow(): Promise<void> {
+  await engine.sync().catch(onSyncError);
+}
+
 /** Puts a refused change back in the queue and syncs it now; refused again, it is stuck again. */
 export async function retryStuckEvent(eventId: string): Promise<void> {
   await requeueStuck(eventId);
-  await engine.sync().catch(onSyncError);
+  await syncNow();
 }
 
 /** Drops a refused change from this device and rebuilds what it touched. */

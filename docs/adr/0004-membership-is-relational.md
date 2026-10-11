@@ -12,3 +12,5 @@ Records (accounts now; transactions, categories and the rest later) stay events.
 - The route gate reads membership from the network and falls back to the last membership seen online, so a member opening the app offline still reaches their records.
 - Membership history isn't kept. If it ever needs showing, add an audit table rather than turning membership into events.
 - Server ids for households (`gen_random_uuid()`), unlike records, which use ids generated on the device.
+- Leaving and removal are the same to a device: at its next sync the server reports a different household (or none), and the device drops that household's Household events and projections, keeps Personal ones, and pulls again from the start. A device that never syncs again keeps its copy.
+- Dissolving a household (its last Member leaving) deletes the household and its Household events. Personal events stay with their owners, so `events.household_id` has no foreign key: it records where an event was made, and the insert policy checks current membership instead.
