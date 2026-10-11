@@ -100,9 +100,18 @@ const renamed = widgetEvent("e-renamed", "widget.renamed", 1, "000000000002000-0
 const labels = async () => (await widgets.toArray()).map((widget) => widget.label);
 
 describe("a registered entity", () => {
-  it("projects in HLC order whatever the arrival order, upcasting old versions", async () => {
-    await receiveEvents([renamed, created], 2);
-    expect(await labels()).toEqual(["Gear"]);
+  it("projects the same row for every arrival order, duplicates included, upcasting old versions", async () => {
+    const orders = [
+      [created, renamed],
+      [renamed, created],
+      [renamed, created, renamed],
+      [created, renamed, created],
+    ];
+    for (const order of orders) {
+      await resetLocalDatabase();
+      await receiveEvents(order, order.length);
+      expect(await labels()).toEqual(["Gear"]);
+    }
 
     await resetLocalDatabase();
     await receiveEvents([created], 1);

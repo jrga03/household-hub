@@ -18,7 +18,7 @@ export interface ProjectedRow {
 export interface EntityProjection<Row extends ProjectedRow> {
   entityType: string;
   table: Table<Row, string>;
-  /** `fold` and `describe` only see events lifted to their type's current version. */
+  /** `fold` sees only events lifted to their type's current version; `describe` gets an unknown version with an empty payload. */
   versions: EventVersions;
   /** Whether the event brings its entity into being, so nothing after it stands without it. */
   isCreation(event: LoggedEvent): boolean;
