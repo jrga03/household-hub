@@ -42,3 +42,9 @@ export function budgetsInForce(budgets: BudgetRow[], month: string): Map<string,
   }
   return inForce;
 }
+
+/** Every version of the category's budget, latest month first; a cleared one ends the one before it. */
+export const budgetHistory = (budgets: BudgetRow[], categoryId: string): BudgetRow[] =>
+  budgets
+    .filter((row) => row.categoryId === categoryId)
+    .sort((a, b) => b.fromMonth.localeCompare(a.fromMonth));

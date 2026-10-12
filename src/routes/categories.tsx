@@ -30,25 +30,28 @@ function CategoriesPage() {
   return (
     <div className="bg-background">
       <div className="border-b">
-        <div className="container mx-auto max-w-7xl px-4 py-4">
-          <h1 className="text-xl font-bold">Categories</h1>
-          <p className="text-sm text-muted-foreground">
-            The money in each envelope, where it sits, and each month&apos;s budgets.
-          </p>
+        {/* Aligned with the rail layout below, which drops its max width from 1100px. */}
+        <div className="@container">
+          <div className="mx-auto w-full max-w-7xl px-4 py-4 @[1100px]:max-w-none">
+            <h1 className="text-xl font-bold">Categories</h1>
+            <p className="text-sm text-muted-foreground">
+              The money in each envelope, where it sits, and each month&apos;s budgets. Tap a
+              category to see its month.
+            </p>
+          </div>
         </div>
       </div>
 
-      <PageShell variant="centered">
-        <PageShell.Main className="space-y-4">
-          {household && userId && (
-            <CategoriesView
-              actor={{ householdId: household.id, userId }}
-              month={month}
-              currentMonth={currentMonth}
-              onMonthChange={setMonth}
-            />
-          )}
-        </PageShell.Main>
+      {/* The categories fill the main column and the ledger the detail pane beside it. */}
+      <PageShell variant="rail">
+        {household && userId && (
+          <CategoriesView
+            actor={{ householdId: household.id, userId }}
+            month={month}
+            currentMonth={currentMonth}
+            onMonthChange={setMonth}
+          />
+        )}
       </PageShell>
     </div>
   );

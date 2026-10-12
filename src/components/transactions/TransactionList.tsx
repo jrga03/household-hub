@@ -1,12 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Link } from "@tanstack/react-router";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { format } from "date-fns";
@@ -14,10 +6,12 @@ import { ArrowLeftRight, SlidersHorizontal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { PageShell } from "@/components/layout/PageShell";
+import { BELOW_HEADER, PANE_MAX_HEIGHT } from "@/components/layout/pane";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
+import { useLaidOut } from "@/hooks/useLaidOut";
 import { useTransactionListRows } from "@/hooks/useTransactions";
 import { categoryNames, envelopeLabel } from "@/components/allocations/envelopes";
 import type { Actor } from "@/lib/commands/accounts";
@@ -65,24 +59,6 @@ const MONEY_OUT: AmountDisplay = { sign: "−", className: "tabular-nums" };
 const MONEY_MOVED: AmountDisplay = { sign: "", className: "tabular-nums text-muted-foreground" };
 
 const ROW_HEIGHT_ESTIMATE = 61;
-
-// The shell header is sticky and h-14.
-const BELOW_HEADER = "top-[calc(3.5rem+var(--safe-area-top))]";
-const PANE_MAX_HEIGHT = "max-h-[calc(100dvh-3.5rem-2rem-var(--safe-area-top))]";
-
-/** Whether the element is laid out: the pane is `hidden` below its breakpoint. */
-function useLaidOut(element: HTMLElement | null) {
-  const [laidOut, setLaidOut] = useState(false);
-  useEffect(() => {
-    if (!element) return;
-    const observer = new ResizeObserver(([entry]) =>
-      setLaidOut((entry?.contentRect.width ?? 0) > 0)
-    );
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [element]);
-  return laidOut;
-}
 
 /** "yyyy-MM" months holding transactions or transfers, newest first (the list is newest first). */
 const monthsOf = (rows: ListRow[]) => [...new Set(rows.map((row) => row.date.slice(0, 7)))];
