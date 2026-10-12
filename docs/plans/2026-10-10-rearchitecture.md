@@ -90,6 +90,33 @@ Spec: #46. Scoped 2026-10-12 (decisions above, dated 2026-10-11 and 2026-10-12).
 - [ ] #53 Transaction list actions: bulk, swipe, detail pane (blocked by #52)
 - [ ] Close #46
 
+## Issue #53: transaction list actions
+
+Seams (from #46's Testing Decisions): the bulk commands (Vitest), one Playwright bulk mark-cleared flow on chromium. Swipe is checked by hand on Mobile Chrome (throwaway spec), not a new seam.
+
+- [x] Bulk commands: status, category, remove, restore; one event per changed transaction through the existing commands; unchanged ones append nothing; per-transaction failures reported, not thrown
+- [x] Multi-select: row checkboxes, select all shown, a toolbar with Mark cleared, Mark pending, Change category, Remove (one Undo restores all)
+- [x] Swipe on phones: right toggles cleared, left removes with Undo; keyboard and screen-reader equivalents
+- [x] Filters collapse behind a button on phones (#52 deferral)
+- [x] Detail pane from `@[1100px]` (PageShell `rail`), editing in place; below it the dialog; the list keeps its scroll position
+- [x] Playwright (chromium): bulk mark cleared, and the pane keeps the list's place at 1600 px
+- [x] Layout baselines (chromium, Mobile Chrome): 18/18 pass unchanged, since the seeded user's `/transactions` is the empty state, still `centered`
+- [x] build, lint, vitest (42 files / 3849), both tsc, knip, size (297.2 KB gz); chromium smoke + list + card-payment 17/17 (one `household.spec.ts` flake in the first run, passed alone and on re-run)
+- [ ] Code review (standards + spec), fixes applied
+- [ ] Commit
+
+### #53 decisions
+
+- **A bulk action skips transactions already in the target state.** Why: re-sending a status or category carries a later HLC and would undo another device's change (the #49 unchanged-edit rule).
+- **A bulk action acts on the selected transactions still shown**; the selection is component state, cleared after an action.
+- **Change category offers only categories that fit every selected transaction's account** (plus Unassigned); a transaction the command still refuses is reported in the toast and the rest are changed.
+- **The pane's open transaction lives in component state, not the URL.** Why: a router navigation resets scroll, and the list uses the window scroller.
+- **Pane vs dialog is decided by whether the pane is laid out** (ResizeObserver on the aside), so the `@[1100px]` breakpoint lives only in CSS.
+- **Phones hide the row's remove icon**; swipe left, the dialog's Remove and bulk Remove replace it. The status button stays at every width as the keyboard and screen-reader equivalent of swipe right.
+- **Swipe is touch and pen only**; a mouse drag stays a click or text selection.
+- **Gotcha: Sonner toasts sit over the bottom rows on a phone and swipe themselves**, so a swipe spec must wait for toasts to clear first.
+- **Swipe has no unit seam**; it's checked by hand on Mobile Chrome. Why: the M2 seams were agreed without it, and the ticket runs unattended. Revisit: if swipe regresses.
+
 ## Issue #52: transaction list
 
 Seams (from the issue's acceptance criteria): filtering, search and totals as a pure module (`src/lib/transactions/filter.ts`, Vitest), one Playwright filter-totals flow on chromium.

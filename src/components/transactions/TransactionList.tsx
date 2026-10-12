@@ -1,11 +1,21 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { Link } from "@tanstack/react-router";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { format } from "date-fns";
-import { Trash2 } from "lucide-react";
+import { SlidersHorizontal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { PageShell } from "@/components/layout/PageShell";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useTransactions } from "@/hooks/useTransactions";
@@ -22,9 +32,11 @@ import {
 import type { TransactionRow } from "@/lib/transactions/projection";
 import { cn, errorMessage } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
+import { BulkActions, countOf } from "./BulkActions";
 import { removeWithUndo } from "./removeWithUndo";
-import { TransactionDialog } from "./TransactionDialog";
+import { SAVED_LOCALLY, TransactionDialog, TransactionEditor } from "./TransactionDialog";
 import { TransactionFilters } from "./TransactionFilters";
+import { SWIPE_THRESHOLD, useSwipe } from "./useSwipe";
 
 const STATUS_DISPLAY: Record<
   TransactionStatus,
@@ -41,8 +53,22 @@ const AMOUNT_DISPLAY: Record<TransactionType, { sign: string; className: string 
 
 const ROW_HEIGHT_ESTIMATE = 61;
 
-const countOf = (count: number, one: string, many: string) =>
-  count === 1 ? `1 ${one}` : `${count.toLocaleString("en-PH")} ${many}`;
+// Below the sticky shell header (h-14).
+const BELOW_HEADER = "top-[calc(3.5rem+var(--safe-area-top))]";
+
+/** Whether the element is laid out: the pane is `hidden` below its breakpoint. */
+function useLaidOut(element: HTMLElement | null) {
+  const [laidOut, setLaidOut] = useState(false);
+  useEffect(() => {
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) =>
+      setLaidOut((entry?.contentRect.width ?? 0) > 0)
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [element]);
+  return laidOut;
+}
 
 /** "yyyy-MM" months holding transactions, newest first (the list is newest first). */
 const monthsOf = (transactions: TransactionRow[]) => [
@@ -55,17 +81,28 @@ interface TransactionListProps {
   onFilterChange: (filter: TransactionFilter) => void;
 }
 
-/** Newest date first, filtered, with the totals of what's shown. */
+/**
+ * Newest date first, filtered, with the totals of what's shown. A row opens in
+ * the detail pane on wide screens and in a dialog otherwise.
+ */
 export function TransactionList({ actor, filter, onFilterChange }: TransactionListProps) {
   const transactions = useTransactions();
   const accounts = useAccounts();
   const retiredAccounts = useRetiredAccounts();
   const categories = useCategoryList();
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [pane, setPane] = useState<HTMLElement | null>(null);
+  const paneShown = useLaidOut(pane);
 
   const shown = useMemo(
     () => (transactions ? filterTransactions(transactions, filter) : []),
     [transactions, filter]
+  );
+  const selected = useMemo(
+    () => shown.filter((transaction) => selectedIds.has(transaction.id)),
+    [shown, selectedIds]
   );
   const totals = useMemo(() => totalTransactions(shown), [shown]);
   const months = useMemo(() => monthsOf(transactions ?? []), [transactions]);
@@ -78,14 +115,18 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
 
   if (transactions.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
-        No transactions yet. Add one with the Add transaction button or by pressing n.
-      </p>
+      <PageShell variant="centered">
+        <PageShell.Main>
+          <p className="text-sm text-muted-foreground">
+            No transactions yet. Add one with the Add transaction button or by pressing n.
+          </p>
+        </PageShell.Main>
+      </PageShell>
     );
   }
 
   const allAccounts = [...(accounts ?? []), ...(retiredAccounts ?? [])];
-  const accountNames = new Map(allAccounts.map((account) => [account.id, account.name]));
+  const accountsById = new Map(allAccounts.map((account) => [account.id, account]));
   const categoryNames = new Map(
     categories
       ? [
@@ -95,66 +136,166 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
         ].map((category) => [category.id, category.name])
       : []
   );
-  const editing = transactions.find((transaction) => transaction.id === editingId);
-  // Removed on another device mid-edit: drop it, so a restore doesn't reopen the dialog.
-  if (editingId && !editing) setEditingId(null);
+  const open = transactions.find((transaction) => transaction.id === openId);
+  // Removed on another device mid-edit: drop it, so a restore doesn't reopen it.
+  if (openId && !open) setOpenId(null);
+
+  const toggleSelected = (id: string, isSelected: boolean) =>
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+      if (isSelected) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  const allShownSelected = selected.length === shown.length;
+  const activeFilters = Object.keys(filter).length;
 
   return (
-    <>
-      <TransactionFilters
-        filter={filter}
-        onChange={onFilterChange}
-        months={months}
-        accounts={allAccounts}
-        categories={categories}
-      />
+    <PageShell variant="rail">
+      <PageShell.Main className="space-y-4">
+        {/* Phones show the rows first; the filters wait behind a button. */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="@[600px]:hidden"
+          aria-expanded={filtersOpen}
+          aria-controls="transaction-filters"
+          onClick={() => setFiltersOpen((wasOpen) => !wasOpen)}
+        >
+          <SlidersHorizontal className="size-4" aria-hidden="true" />
+          Search and filters{activeFilters > 0 && ` (${activeFilters})`}
+        </Button>
+        <div id="transaction-filters" className={cn(!filtersOpen && "hidden @[600px]:block")}>
+          <TransactionFilters
+            filter={filter}
+            onChange={onFilterChange}
+            months={months}
+            accounts={allAccounts}
+            categories={categories}
+          />
+        </div>
 
-      {needingCategory > 0 && !filter.needsCategory && (
-        <p className="text-sm">
-          <Link
-            to="/transactions"
-            search={{ needsCategory: true }}
-            className="font-medium text-amber-700 underline-offset-4 hover:underline dark:text-amber-400"
-          >
-            {countOf(needingCategory, "expense needs a category", "expenses need a category")}
-          </Link>
-        </p>
+        {needingCategory > 0 && !filter.needsCategory && (
+          <p className="text-sm">
+            <Link
+              to="/transactions"
+              search={{ needsCategory: true }}
+              className="font-medium text-amber-700 underline-offset-4 hover:underline dark:text-amber-400"
+            >
+              {countOf(needingCategory, "expense needs a category", "expenses need a category")}
+            </Link>
+          </p>
+        )}
+
+        <section
+          aria-label="Totals"
+          className="grid grid-cols-3 gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm"
+        >
+          <Total label="Income" cents={totals.incomeCents} />
+          <Total label="Expenses" cents={totals.expenseCents} />
+          <Total label="Net" cents={totals.netCents} />
+          <p className="col-span-3 text-xs text-muted-foreground">
+            {countOf(shown.length, "transaction", "transactions")}
+          </p>
+        </section>
+
+        {shown.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No transactions match these filters.</p>
+        ) : (
+          <>
+            <div
+              className={cn(
+                "sticky z-20 -mx-1 flex flex-wrap items-center gap-3 bg-background px-1 py-2",
+                BELOW_HEADER
+              )}
+            >
+              <div className="flex items-center gap-2 px-3">
+                <Checkbox
+                  id="select-all-shown"
+                  checked={allShownSelected ? true : selected.length > 0 ? "indeterminate" : false}
+                  onCheckedChange={(checked) =>
+                    setSelectedIds(
+                      checked === true
+                        ? new Set(shown.map((transaction) => transaction.id))
+                        : new Set()
+                    )
+                  }
+                />
+                <label htmlFor="select-all-shown" className="text-sm">
+                  Select all shown
+                </label>
+              </div>
+              {selected.length > 0 && (
+                <div className="min-w-0 basis-full @[600px]:basis-0 @[600px]:flex-1">
+                  <BulkActions
+                    actor={actor}
+                    selected={selected}
+                    accountsById={accountsById}
+                    categories={categories}
+                    onDone={() => setSelectedIds(new Set())}
+                  />
+                </div>
+              )}
+            </div>
+
+            <VirtualTransactionRows
+              actor={actor}
+              transactions={shown}
+              selectedIds={selectedIds}
+              openId={openId}
+              accountNameOf={(transaction) =>
+                accountsById.get(transaction.accountId)?.name ?? "Account not on this device yet"
+              }
+              categoryNameOf={(transaction) =>
+                transaction.categoryId === null
+                  ? "Unassigned"
+                  : (categoryNames.get(transaction.categoryId) ?? "Category not on this device yet")
+              }
+              onOpen={setOpenId}
+              onSelectedChange={toggleSelected}
+            />
+          </>
+        )}
+      </PageShell.Main>
+
+      <PageShell.RightAside ref={setPane} className="hidden @[1100px]:block">
+        <div
+          className={cn(
+            "@container sticky mt-0 max-h-[calc(100dvh-5.5rem-var(--safe-area-top))] overflow-y-auto rounded-md border p-4",
+            BELOW_HEADER
+          )}
+        >
+          {open && paneShown ? (
+            <section aria-label="Edit transaction" className="space-y-4">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h2 className="font-semibold">Edit transaction</h2>
+                  <p className="text-sm text-muted-foreground">{SAVED_LOCALLY}</p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setOpenId(null)}>
+                  Close
+                </Button>
+              </div>
+              {/* Keyed, so the form's defaults follow the transaction picked. */}
+              <TransactionEditor
+                key={open.id}
+                actor={actor}
+                transaction={open}
+                onClose={() => setOpenId(null)}
+              />
+            </section>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Choose a transaction to see and edit it here.
+            </p>
+          )}
+        </div>
+      </PageShell.RightAside>
+
+      {open && !paneShown && (
+        <TransactionDialog actor={actor} transaction={open} onClose={() => setOpenId(null)} />
       )}
-
-      <section
-        aria-label="Totals"
-        className="grid grid-cols-3 gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm"
-      >
-        <Total label="Income" cents={totals.incomeCents} />
-        <Total label="Expenses" cents={totals.expenseCents} />
-        <Total label="Net" cents={totals.netCents} />
-        <p className="col-span-3 text-xs text-muted-foreground">
-          {countOf(shown.length, "transaction", "transactions")}
-        </p>
-      </section>
-
-      {shown.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No transactions match these filters.</p>
-      ) : (
-        <VirtualTransactionRows
-          actor={actor}
-          transactions={shown}
-          accountNameOf={(transaction) =>
-            accountNames.get(transaction.accountId) ?? "Account not on this device yet"
-          }
-          categoryNameOf={(transaction) =>
-            transaction.categoryId === null
-              ? "Unassigned"
-              : (categoryNames.get(transaction.categoryId) ?? "Category not on this device yet")
-          }
-          onEdit={setEditingId}
-        />
-      )}
-
-      {editing && (
-        <TransactionDialog actor={actor} transaction={editing} onClose={() => setEditingId(null)} />
-      )}
-    </>
+    </PageShell>
   );
 }
 
@@ -172,18 +313,24 @@ function Total({ label, cents }: { label: string; cents: Cents }) {
 interface VirtualTransactionRowsProps {
   actor: Actor;
   transactions: TransactionRow[];
+  selectedIds: ReadonlySet<string>;
+  openId: string | null;
   accountNameOf: (transaction: TransactionRow) => string;
   categoryNameOf: (transaction: TransactionRow) => string;
-  onEdit: (id: string) => void;
+  onOpen: (id: string) => void;
+  onSelectedChange: (id: string, selected: boolean) => void;
 }
 
 /** Renders only the rows near the viewport; the page itself scrolls. */
 function VirtualTransactionRows({
   actor,
   transactions,
+  selectedIds,
+  openId,
   accountNameOf,
   categoryNameOf,
-  onEdit,
+  onOpen,
+  onSelectedChange,
 }: VirtualTransactionRowsProps) {
   const listRef = useRef<HTMLUListElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
@@ -212,7 +359,7 @@ function VirtualTransactionRows({
     <ul
       ref={listRef}
       aria-label="Transactions"
-      className="relative rounded-md border"
+      className="relative overflow-hidden rounded-md border"
       style={{ height: virtualizer.getTotalSize() }}
     >
       {virtualizer.getVirtualItems().map((item) => {
@@ -233,7 +380,10 @@ function VirtualTransactionRows({
               transaction={transaction}
               accountName={accountNameOf(transaction)}
               categoryName={categoryNameOf(transaction)}
-              onEdit={() => onEdit(transaction.id)}
+              selected={selectedIds.has(transaction.id)}
+              open={transaction.id === openId}
+              onOpen={() => onOpen(transaction.id)}
+              onSelectedChange={(selected) => onSelectedChange(transaction.id, selected)}
             />
           </li>
         );
@@ -247,19 +397,31 @@ interface TransactionItemProps {
   transaction: TransactionRow;
   accountName: string;
   categoryName: string;
-  onEdit: () => void;
+  selected: boolean;
+  open: boolean;
+  onOpen: () => void;
+  onSelectedChange: (selected: boolean) => void;
 }
 
+/**
+ * On phones a swipe right toggles the status and a swipe left removes; the
+ * status button, the dialog's Remove and the bulk actions do the same by
+ * keyboard or screen reader.
+ */
 function TransactionItem({
   actor,
   transaction,
   accountName,
   categoryName,
-  onEdit,
+  selected,
+  open,
+  onOpen,
+  onSelectedChange,
 }: TransactionItemProps) {
   const [changing, startChanging] = useTransition();
   const status = STATUS_DISPLAY[transaction.status];
   const amount = AMOUNT_DISPLAY[transaction.type];
+  const label = transaction.description || categoryName;
 
   const toggleStatus = () =>
     startChanging(async () => {
@@ -269,43 +431,75 @@ function TransactionItem({
         toast.error(errorMessage(caught, "Couldn't change the status."));
       }
     });
+  const remove = () => void removeWithUndo(actor, transaction);
+  const { offset, handlers } = useSwipe({ onSwipeRight: toggleStatus, onSwipeLeft: remove });
 
   return (
-    <div className="flex items-center gap-3 px-3 py-2">
-      <button
-        type="button"
-        className="min-w-0 flex-1 text-left"
-        aria-label={`Edit ${transaction.description || categoryName}`}
-        onClick={onEdit}
+    <div className="relative">
+      {offset !== 0 && (
+        <div
+          aria-hidden="true"
+          className={cn(
+            "absolute inset-0 flex items-center px-4 text-sm font-medium text-white",
+            offset > 0 ? "justify-start bg-green-700" : "justify-end bg-destructive",
+            Math.abs(offset) < SWIPE_THRESHOLD && "opacity-60"
+          )}
+        >
+          {offset > 0 ? `Mark ${status.toggleTo}` : "Remove"}
+        </div>
+      )}
+      <div
+        {...handlers}
+        className={cn(
+          "relative flex touch-pan-y items-center gap-3 bg-background px-3 py-2",
+          selected && "bg-muted",
+          open && "bg-accent ring-2 ring-inset ring-ring"
+        )}
+        style={offset === 0 ? undefined : { transform: `translateX(${offset}px)` }}
       >
-        <p className="truncate font-medium">{transaction.description || categoryName}</p>
-        <p className="truncate text-sm text-muted-foreground">
-          {format(parseLocalDate(transaction.date), "MMM d, yyyy")} · {accountName}
-          {transaction.description && ` · ${categoryName}`}
-          {needsCategory(transaction) && " · Needs a category"}
-        </p>
-      </button>
-      <span className={amount.className}>
-        {amount.sign}
-        {formatPHP(transaction.amountCents)}
-      </span>
-      <Button
-        variant="ghost"
-        size="sm"
-        disabled={changing}
-        aria-label={`Mark ${status.toggleTo}`}
-        onClick={toggleStatus}
-      >
-        <Badge variant={status.badge}>{status.label}</Badge>
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label="Remove"
-        onClick={() => void removeWithUndo(actor, transaction)}
-      >
-        <Trash2 className="size-4" aria-hidden="true" />
-      </Button>
+        <Checkbox
+          checked={selected}
+          aria-label={`Select ${label}`}
+          onCheckedChange={(checked) => onSelectedChange(checked === true)}
+        />
+        <button
+          type="button"
+          className="min-w-0 flex-1 text-left"
+          aria-label={`Edit ${label}`}
+          aria-current={open || undefined}
+          onClick={onOpen}
+        >
+          <p className="truncate font-medium">{label}</p>
+          <p className="truncate text-sm text-muted-foreground">
+            {format(parseLocalDate(transaction.date), "MMM d, yyyy")} · {accountName}
+            {transaction.description && ` · ${categoryName}`}
+            {needsCategory(transaction) && " · Needs a category"}
+          </p>
+        </button>
+        <span className={amount.className}>
+          {amount.sign}
+          {formatPHP(transaction.amountCents)}
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={changing}
+          aria-label={`Mark ${status.toggleTo}`}
+          onClick={toggleStatus}
+        >
+          <Badge variant={status.badge}>{status.label}</Badge>
+        </Button>
+        {/* Phones remove by swiping left, or from the dialog or the bulk actions. */}
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Remove"
+          className="hidden @[600px]:inline-flex"
+          onClick={remove}
+        >
+          <Trash2 className="size-4" aria-hidden="true" />
+        </Button>
+      </div>
     </div>
   );
 }

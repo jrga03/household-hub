@@ -8,10 +8,14 @@ import { createAccount, editAccount, retireAccount } from "./accounts";
 import { createCategory, createGroup, retireCategory } from "./categories";
 import {
   addTransaction,
+  changeTransactionsCategory,
   editTransaction,
   removeTransaction,
+  removeTransactions,
   restoreTransaction,
+  restoreTransactions,
   setTransactionStatus,
+  setTransactionsStatus,
   type TransactionInput,
 } from "./transactions";
 
@@ -290,5 +294,75 @@ describe("status and removal", () => {
     expect(await listTransactions()).toEqual([]);
     await restoreTransaction(MEMBER, id);
     expect(await listTransactions()).toMatchObject([{ id, description: "Market" }]);
+  });
+});
+
+describe("bulk actions", () => {
+  const eventsOf = async (eventType: string) =>
+    (await listUnpushed(1000)).filter((logged) => logged.eventType === eventType);
+
+  it("marks each pending transaction cleared with one event, skipping ones already cleared", async () => {
+    const pending = await Promise.all(
+      ["Market", "Bakery", "Dinner"].map(
+        async (description) =>
+          (await addTransaction(MEMBER, { ...expense({ description }), status: "pending" })).id
+      )
+    );
+    const { id: alreadyCleared } = await addTransaction(MEMBER, expense());
+
+    const result = await setTransactionsStatus(MEMBER, [...pending, alreadyCleared], "cleared");
+
+    expect(result).toEqual({ changed: pending, failed: [] });
+    expect((await listTransactions()).map((transaction) => transaction.status)).toEqual([
+      "cleared",
+      "cleared",
+      "cleared",
+      "cleared",
+    ]);
+    const marked = await eventsOf("transaction.marked_cleared");
+    expect(marked.map((event) => event.entityId).sort()).toEqual([...pending].sort());
+  });
+
+  it("moves each transaction into the category, skipping ones there and reporting refusals", async () => {
+    const { id: market } = await addTransaction(MEMBER, expense({ categoryId: null }));
+    const { id: bakery } = await addTransaction(MEMBER, expense({ description: "Bakery" }));
+    const travelId = await personalCategory(MEMBER);
+    const { id: personal } = await createAccount(MEMBER, {
+      name: "Wallet",
+      type: "cash",
+      visibility: "personal",
+      startingBalanceCents: peso("0"),
+    });
+    const { id: trip } = await addTransaction(
+      MEMBER,
+      expense({ accountId: personal, categoryId: travelId, description: "Trip" })
+    );
+    const before = await eventsOf("transaction.edited");
+
+    const result = await changeTransactionsCategory(MEMBER, [market, bakery, trip], groceriesId);
+
+    expect(result.changed).toEqual([market]);
+    expect(result.failed).toEqual([{ id: trip, reason: "Choose a Personal category for Wallet." }]);
+    expect(await eventsOf("transaction.edited")).toHaveLength(before.length + 1);
+    const byId = new Map((await listTransactions()).map((row) => [row.id, row]));
+    expect(byId.get(market)).toMatchObject({ categoryId: groceriesId, description: "Market" });
+    expect(byId.get(trip)).toMatchObject({ categoryId: travelId });
+  });
+
+  it("removes several transactions and restores them all", async () => {
+    const ids = await Promise.all(
+      ["Market", "Bakery"].map(
+        async (description) => (await addTransaction(MEMBER, expense({ description }))).id
+      )
+    );
+    const { id: kept } = await addTransaction(MEMBER, expense({ description: "Dinner" }));
+
+    expect(await removeTransactions(MEMBER, ids)).toEqual({ changed: ids, failed: [] });
+    expect((await listTransactions()).map((row) => row.id)).toEqual([kept]);
+
+    expect(await restoreTransactions(MEMBER, ids)).toEqual({ changed: ids, failed: [] });
+    expect(await listTransactions()).toHaveLength(3);
+    expect(await eventsOf("transaction.removed")).toHaveLength(2);
+    expect(await eventsOf("transaction.restored")).toHaveLength(2);
   });
 });

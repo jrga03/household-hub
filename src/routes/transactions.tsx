@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PageShell } from "@/components/layout/PageShell";
 import { TransactionList } from "@/components/transactions/TransactionList";
 import { useHousehold } from "@/hooks/useHousehold";
 import { readTransactionFilter, type TransactionFilter } from "@/lib/transactions/filter";
@@ -28,17 +27,13 @@ function TransactionsPage() {
         </div>
       </div>
 
-      <PageShell variant="centered">
-        <PageShell.Main className="space-y-4">
-          {household && userId && (
-            <TransactionList
-              actor={{ householdId: household.id, userId }}
-              filter={filter}
-              onFilterChange={setFilter}
-            />
-          )}
-        </PageShell.Main>
-      </PageShell>
+      {household && userId && (
+        <TransactionList
+          actor={{ householdId: household.id, userId }}
+          filter={filter}
+          onFilterChange={setFilter}
+        />
+      )}
     </div>
   );
 }

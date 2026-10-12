@@ -20,6 +20,7 @@ import {
 } from "@/lib/transactions/events";
 import { getTransaction, type TransactionRow } from "@/lib/transactions/projection";
 import type { Actor } from "./accounts";
+import { errorMessage } from "@/lib/utils";
 import { appenderFor } from "./append";
 
 export interface NewTransactionInput extends TransactionInput {
@@ -182,3 +183,65 @@ export const removeTransaction = (actor: Actor, transactionId: string) =>
 /** Undoes a removal; the transaction comes back with its latest details and status. */
 export const restoreTransaction = (actor: Actor, transactionId: string) =>
   appendChange(actor, transactionId, TRANSACTION_RESTORED);
+
+export interface BulkResult {
+  changed: string[];
+  failed: { id: string; reason: string }[];
+}
+
+/**
+ * Applies a single-transaction command to each one in turn, one event each.
+ * `change` returns false for a transaction already as asked, so nothing is appended
+ * for it: a re-sent change carries a later HLC and would undo another device's.
+ */
+async function forEachTransaction(
+  transactionIds: string[],
+  change: (transaction: TransactionRow) => Promise<boolean>
+): Promise<BulkResult> {
+  const result: BulkResult = { changed: [], failed: [] };
+  for (const id of transactionIds) {
+    try {
+      if (await change(await requireTransaction(id))) result.changed.push(id);
+    } catch (caught) {
+      result.failed.push({ id, reason: errorMessage(caught, "Couldn't change it.") });
+    }
+  }
+  return result;
+}
+
+export const setTransactionsStatus = (
+  actor: Actor,
+  transactionIds: string[],
+  status: TransactionStatus
+) =>
+  forEachTransaction(transactionIds, async (transaction) => {
+    if (transaction.status === status) return false;
+    await setTransactionStatus(actor, transaction.id, status);
+    return true;
+  });
+
+/** Null moves them to Unassigned. */
+export const changeTransactionsCategory = (
+  actor: Actor,
+  transactionIds: string[],
+  categoryId: string | null
+) =>
+  forEachTransaction(transactionIds, async (transaction) => {
+    if (transaction.categoryId === categoryId) return false;
+    await editTransaction(actor, transaction.id, { ...transaction, categoryId });
+    return true;
+  });
+
+export const removeTransactions = (actor: Actor, transactionIds: string[]) =>
+  forEachTransaction(transactionIds, async (transaction) => {
+    if (transaction.removed) return false;
+    await removeTransaction(actor, transaction.id);
+    return true;
+  });
+
+export const restoreTransactions = (actor: Actor, transactionIds: string[]) =>
+  forEachTransaction(transactionIds, async (transaction) => {
+    if (!transaction.removed) return false;
+    await restoreTransaction(actor, transaction.id);
+    return true;
+  });
