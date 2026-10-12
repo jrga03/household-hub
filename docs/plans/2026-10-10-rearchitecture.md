@@ -113,7 +113,7 @@ Spec: #70. Scoped 2026-10-12 (decisions above, agreed 2026-10-12). ADRs 0006 and
 - [x] #72 Pay a credit card (blocked by #71), PR #86
 - [x] #73 Budgets and the month view
 - [x] #74 Category ledger
-- [ ] #75 Distribute money (blocked by #71, #73)
+- [x] #75 Distribute money (blocked by #71, #73), PR #87
 - [x] #76 Export (blocked by #71)
 - [ ] #77 Opening checklist (blocked by #75)
 - [ ] Close #70
