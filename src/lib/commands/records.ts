@@ -12,13 +12,18 @@ export async function requireAccount(accountId: string): Promise<AccountRow> {
   return account;
 }
 
+export async function requireCategory(categoryId: string): Promise<CategoryRow> {
+  const category = await getCategory(categoryId);
+  if (!category) throw new Error("That category no longer exists.");
+  return category;
+}
+
 /** The category, once it's on this device and holds money in the account's visibility. */
 export async function requireCategoryFor(
   categoryId: string,
   account: AccountRow
 ): Promise<CategoryRow> {
-  const category = await getCategory(categoryId);
-  if (!category) throw new Error("That category no longer exists.");
+  const category = await requireCategory(categoryId);
   if (!canHoldMoneyIn(category, account)) {
     throw new Error(
       `Choose a ${VISIBILITY_LABELS[account.visibility]} category for ${account.name}.`

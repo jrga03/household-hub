@@ -75,16 +75,29 @@ function namedAmounts(
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-const groupFigures = (moneyView: MoneyView, categories: CategoryRow[]): MonthFigures =>
-  sumMonthFigures(categories.map((category) => categoryMonth(moneyView.month, category.id)));
+/** A group's sums count its retired categories too, so a month's spending doesn't vanish on retiring. */
+function groupFigures(
+  moneyView: MoneyView,
+  list: CategoryList,
+  group: GroupListItem
+): MonthFigures {
+  const retired = list.retiredCategories.filter((category) => category.group?.id === group.id);
+  return sumMonthFigures(
+    [...group.categories, ...retired].map((category) => categoryMonth(moneyView.month, category.id))
+  );
+}
+
+function findCategoryInUse(list: CategoryList, categoryId: string) {
+  const inUse = [...list.groups.flatMap((group) => group.categories), ...list.ungrouped];
+  return inUse.find((category) => category.id === categoryId);
+}
 
 function findEditing(list: CategoryList, editing: Editing) {
   if (!editing) return { group: undefined, category: undefined };
   if (editing.kind === "group") {
     return { group: list.groups.find((group) => group.id === editing.id), category: undefined };
   }
-  const inUse = [...list.groups.flatMap((group) => group.categories), ...list.ungrouped];
-  return { group: undefined, category: inUse.find((category) => category.id === editing.id) };
+  return { group: undefined, category: findCategoryInUse(list, editing.id) };
 }
 
 /** `month` is "yyyy-MM"; `currentMonth` is this month on this device. */
@@ -113,15 +126,11 @@ export function CategoriesView({
 
   if (!list || !accountMoney || !accountNames || !categoryMoney || !monthView) return null;
   const moneyView: MoneyView = { month: monthView, current: categoryMoney, accountNames };
-  const onBudget = (id: string) => setBudgeting(id);
 
   const { group: editingGroup, category: editingCategory } = findEditing(list, editing);
   // Another device retired it mid-edit: drop it, so unretiring later doesn't reopen the dialog.
   if (editing && !editingGroup && !editingCategory) setEditing(null);
-  const budgetingCategory =
-    budgeting === null
-      ? undefined
-      : findEditing(list, { kind: "category", id: budgeting }).category;
+  const budgetingCategory = budgeting === null ? undefined : findCategoryInUse(list, budgeting);
   if (budgeting !== null && !budgetingCategory) setBudgeting(null);
 
   const groupsInUse = list.groups.filter((group) => !group.retired);
@@ -157,7 +166,7 @@ export function CategoriesView({
                 <li key={group.id} className="rounded-md border">
                   <GroupHeader
                     group={group}
-                    figures={groupFigures(moneyView, group.categories)}
+                    figures={groupFigures(moneyView, list, group)}
                     onEdit={() => setEditing({ kind: "group", id: group.id })}
                   />
                   <CategoryItems
@@ -165,7 +174,7 @@ export function CategoriesView({
                     categories={group.categories}
                     moneyView={moneyView}
                     onEdit={(id) => setEditing({ kind: "category", id })}
-                    onBudget={onBudget}
+                    onBudget={setBudgeting}
                   />
                 </li>
               ))}
@@ -181,7 +190,7 @@ export function CategoriesView({
                 categories={list.ungrouped}
                 moneyView={moneyView}
                 onEdit={(id) => setEditing({ kind: "category", id })}
-                onBudget={onBudget}
+                onBudget={setBudgeting}
               />
             </div>
           )}
@@ -225,7 +234,6 @@ export function CategoriesView({
           actor={actor}
           category={budgetingCategory}
           month={month}
-          budget={categoryMonth(monthView, budgetingCategory.id).budget}
           onClose={() => setBudgeting(null)}
         />
       )}
@@ -324,16 +332,15 @@ function CategoryMoneyItem({
   money,
   byAccount,
   accountNames,
-  month,
-  onBudget,
+  budgeting,
   children,
 }: {
   category: CategoryRow;
   money: Cents;
   byAccount: Map<string, Cents>;
   accountNames: Map<string, string>;
-  month?: CategoryMonth;
-  onBudget?: () => void;
+  /** The month's figures, and opening Set budget; left out for a retired category. */
+  budgeting?: { month: CategoryMonth; onSet: () => void };
   children?: React.ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -360,22 +367,24 @@ function CategoryMoneyItem({
         </div>
       </div>
       <NegativeNote cents={money} label={OVERSPENT_CATEGORY} />
-      {month && onBudget && (
+      {budgeting && (
         <FigureList
           label={`${category.name} budget, spent and allocated`}
-          figures={{ ...month, budget: month.budget?.amountCents ?? ZERO_CENTS }}
+          figures={sumMonthFigures([budgeting.month])}
           budget={
             <Button
               variant="link"
               className="h-auto p-0 text-xs"
               aria-label={`Set budget for ${category.name}`}
-              onClick={onBudget}
+              onClick={budgeting.onSet}
             >
-              {month.budget ? formatPHP(month.budget.amountCents) : "Set"}
+              {budgeting.month.budget ? formatPHP(budgeting.month.budget.amountCents) : "Set"}
             </Button>
           }
           fundedBy={
-            month.budget ? (accountNames.get(month.budget.accountId) ?? "An account") : null
+            budgeting.month.budget
+              ? (accountNames.get(budgeting.month.budget.accountId) ?? "An account")
+              : null
           }
         />
       )}
@@ -438,19 +447,14 @@ function FigureList({
   figures,
   budget,
   fundedBy,
-  className,
 }: {
   label: string;
   figures: MonthFigures;
   budget?: React.ReactNode;
   fundedBy?: string | null;
-  className?: string;
 }) {
   return (
-    <dl
-      aria-label={label}
-      className={cn("grid grid-cols-3 gap-2 pt-1 text-xs text-muted-foreground", className)}
-    >
+    <dl aria-label={label} className="grid grid-cols-3 gap-2 pt-1 text-xs text-muted-foreground">
       <div className="min-w-0">
         <dt>Budget</dt>
         <dd className="truncate tabular-nums text-foreground">
@@ -589,8 +593,7 @@ function CategoryItems({
             money={month.money}
             byAccount={month.moneyByAccount}
             accountNames={moneyView.accountNames}
-            month={month}
-            onBudget={() => onBudget(category.id)}
+            budgeting={{ month, onSet: () => onBudget(category.id) }}
           >
             <Button
               variant="ghost"

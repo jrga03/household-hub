@@ -90,13 +90,22 @@ describe("setBudget", () => {
     expect(budgetInForce(budgets, groceriesId, "2027-01")).toBeNull();
   });
 
-  it("appends nothing when the month already has that budget", async () => {
+  it("appends nothing when the month's own version already says so", async () => {
     await setBudget(MEMBER, budget());
     await setBudget(MEMBER, budget());
-    await setBudget(MEMBER, budget({ fromMonth: "2026-11" }));
     await setBudget(MEMBER, budget({ fromMonth: "2026-09", amountCents: null, accountId: null }));
 
     expect(await budgetEvents()).toHaveLength(1);
+  });
+
+  it("pins a later month to the same budget, so changing an earlier month leaves it", async () => {
+    await setBudget(MEMBER, budget());
+    await setBudget(MEMBER, budget({ fromMonth: "2026-12" }));
+    await setBudget(MEMBER, budget({ amountCents: peso("7000") }));
+
+    const budgets = await listBudgets();
+    expect(budgetInForce(budgets, groceriesId, "2026-11")?.amountCents).toBe(700000);
+    expect(budgetInForce(budgets, groceriesId, "2026-12")?.amountCents).toBe(800000);
   });
 
   it("sets a budget on a Personal category funded by its member's Personal account", async () => {

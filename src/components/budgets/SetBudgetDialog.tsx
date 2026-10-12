@@ -20,39 +20,37 @@ import {
 } from "@/components/ui/select";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useAccounts } from "@/hooks/useAccounts";
-import { isCreditCard } from "@/lib/accounts/events";
-import type { Budget } from "@/lib/budgets/inForce";
+import { useBudgets } from "@/hooks/useBudgets";
+import { budgetInForce } from "@/lib/budgets/inForce";
+import { canFundBudget } from "@/lib/budgets/projection";
 import type { CategoryRow } from "@/lib/categories/projection";
+import type { BudgetRow } from "@/lib/budgets/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { setBudget } from "@/lib/commands/budgets";
 import { formatPHPInput, parsePHPSafe, PESO_SIGN } from "@/lib/currency";
-import { sameOwnership, VISIBILITY_LABELS } from "@/lib/events/log";
+import { VISIBILITY_LABELS } from "@/lib/events/log";
 import { errorMessage } from "@/lib/utils";
 import { monthLabel, shiftMonth } from "@/lib/utils/dates";
 
 /** How far either side of the chosen month a budget can be set from. */
 const MONTHS_AROUND = 12;
 
-/** Sets the category's budget from a month on; the amount and account start from the one in force. */
+/** Sets the category's budget from a month on; the amount and account start from the one in force then. */
 export function SetBudgetDialog({
   actor,
   category,
   month,
-  budget,
   onClose,
 }: {
   actor: Actor;
   category: CategoryRow;
   month: string;
-  budget: Budget | null;
   onClose: () => void;
 }) {
   const accounts = useAccounts();
-  if (!accounts) return null;
-  // The funding account shares the category's visibility and holds envelopes (ADR 0007).
-  const fundingChoices = accounts.filter(
-    (account) => sameOwnership(account, category) && !isCreditCard(account)
-  );
+  const budgets = useBudgets();
+  if (!accounts || !budgets) return null;
+  const fundingChoices = accounts.filter((account) => canFundBudget(account, category));
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -67,7 +65,7 @@ export function SetBudgetDialog({
           actor={actor}
           category={category}
           month={month}
-          budget={budget}
+          budgets={budgets}
           fundingChoices={fundingChoices}
           onClose={onClose}
         />
@@ -80,20 +78,41 @@ function SetBudgetForm({
   actor,
   category,
   month,
-  budget,
+  budgets,
   fundingChoices,
   onClose,
 }: {
   actor: Actor;
   category: CategoryRow;
   month: string;
-  budget: Budget | null;
+  budgets: BudgetRow[];
   fundingChoices: { id: string; name: string }[];
   onClose: () => void;
 }) {
+  const inForceFrom = (from: string) => budgetInForce(budgets, category.id, from);
+  const accountFor = (from: string) => {
+    const funding = inForceFrom(from)?.accountId;
+    return fundingChoices.some((account) => account.id === funding)
+      ? (funding ?? "")
+      : (fundingChoices[0]?.id ?? "");
+  };
+  const amountFor = (from: string) => {
+    const budget = inForceFrom(from);
+    return budget ? formatPHPInput(budget.amountCents) : "";
+  };
   const [fromMonth, setFromMonth] = useState(month);
-  const funding = fundingChoices.find((account) => account.id === budget?.accountId);
-  const [accountId, setAccountId] = useState(funding?.id ?? fundingChoices[0]?.id ?? "");
+  const [accountId, setAccountId] = useState(() => accountFor(month));
+  const [amountText, setAmountText] = useState(() => amountFor(month));
+  const budget = inForceFrom(fromMonth);
+  // A retired or no longer fitting funding account isn't a choice; say so rather than switch silently.
+  const fundingGone =
+    budget !== null && !fundingChoices.some((account) => account.id === budget.accountId);
+
+  const chooseFromMonth = (from: string) => {
+    setFromMonth(from);
+    setAccountId(accountFor(from));
+    setAmountText(amountFor(from));
+  };
   const months = Array.from({ length: MONTHS_AROUND * 2 + 1 }, (_, index) =>
     shiftMonth(month, index - MONTHS_AROUND)
   );
@@ -132,7 +151,8 @@ function SetBudgetForm({
             placeholder="0.00"
             autoComplete="off"
             required
-            defaultValue={budget ? formatPHPInput(budget.amountCents) : ""}
+            value={amountText}
+            onChange={(event) => setAmountText(event.target.value)}
             aria-describedby="budget-amount-hint"
           />
           <p id="budget-amount-hint" className="text-xs text-muted-foreground">
@@ -141,7 +161,7 @@ function SetBudgetForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="budget-from">From</Label>
-          <Select value={fromMonth} onValueChange={setFromMonth}>
+          <Select value={fromMonth} onValueChange={chooseFromMonth}>
             <SelectTrigger id="budget-from" className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -174,6 +194,11 @@ function SetBudgetForm({
                 ))}
               </SelectContent>
             </Select>
+          )}
+          {fundingGone && (
+            <p className="text-xs text-destructive">
+              Its funding account is retired or no longer fits. Choose another.
+            </p>
           )}
           <p className="text-xs text-muted-foreground">
             Where this budget&apos;s money goes when you distribute a payday.

@@ -1,3 +1,6 @@
+import { isCreditCard } from "@/lib/accounts/events";
+import type { AccountRow } from "@/lib/accounts/projection";
+import { canHoldMoneyIn, type CategoryRow } from "@/lib/categories/projection";
 import { db } from "@/lib/dexie/db";
 import { sameOwnership, type LoggedEvent, type Ownership } from "@/lib/events/log";
 import type { EntityProjection } from "@/lib/events/projector";
@@ -46,6 +49,10 @@ export const budgetProjection: EntityProjection<BudgetRow> = {
   fold: applyBudgetEvent,
   describe: describeBudgetEvent,
 };
+
+/** A funding account holds the category's money and isn't a card (ADR 0007); retirement is checked apart. */
+export const canFundBudget = (account: AccountRow, category: CategoryRow) =>
+  canHoldMoneyIn(category, account) && !isCreditCard(account);
 
 export const getBudget = (id: string) => db.budgets.get(id);
 

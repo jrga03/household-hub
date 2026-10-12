@@ -51,7 +51,9 @@ export function checkBudgetDetails(input: Record<string, unknown>): DetailsCheck
     amountCents < 0 ||
     amountCents > MAX_AMOUNT_CENTS
   ) {
-    return rejected(`A budget can be at most ${formatPHP(asCents(MAX_AMOUNT_CENTS))}.`);
+    return rejected(
+      `A budget must be more than zero and at most ${formatPHP(asCents(MAX_AMOUNT_CENTS))}. Enter 0 to clear it.`
+    );
   }
   if (typeof accountId !== "string" || accountId === "") {
     return rejected("Choose the account that funds it.");

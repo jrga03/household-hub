@@ -3,7 +3,7 @@ import { orders } from "@/test/permutations";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { describeEvent } from "@/lib/events/projector";
 import { receiveEvents, type LoggedEvent } from "@/lib/events/log";
-import { budgetId } from "./events";
+import { budgetId, checkBudgetDetails } from "./events";
 import { getBudget, listBudgets } from "./projection";
 
 const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
@@ -128,6 +128,12 @@ describe("budget projection", () => {
     await receiveEvents([event("e-broken", 1000, set(broken))], 0);
 
     expect(await getBudget(BUDGET)).toBeUndefined();
+  });
+
+  it("explains a negative amount", () => {
+    expect(checkBudgetDetails(set({ amountCents: -100 })).problem).toBe(
+      "A budget must be more than zero and at most ₱9,999,999.99. Enter 0 to clear it."
+    );
   });
 
   it("describes a set by its amount and month, and a clear", async () => {

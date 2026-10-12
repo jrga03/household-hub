@@ -1,4 +1,4 @@
-import { sameOwnership, VISIBILITY_LABELS } from "@/lib/events/log";
+import { VISIBILITY_LABELS } from "@/lib/events/log";
 import { requestSync } from "@/lib/sync/triggers";
 import { isCreditCard } from "@/lib/accounts/events";
 import {
@@ -10,13 +10,12 @@ import {
   type BudgetDetails,
 } from "@/lib/budgets/events";
 import { budgetInForce } from "@/lib/budgets/inForce";
-import { listBudgets } from "@/lib/budgets/projection";
+import { canFundBudget, getBudget, listBudgets } from "@/lib/budgets/projection";
 import type { CategoryRow } from "@/lib/categories/projection";
-import { getCategory } from "@/lib/categories/projection";
 import type { Cents } from "@/lib/currency";
 import type { Actor } from "./accounts";
 import { appenderFor } from "./append";
-import { refuseRetired, requireAccount } from "./records";
+import { refuseRetired, requireAccount, requireCategory } from "./records";
 
 export interface BudgetInput {
   categoryId: string;
@@ -30,29 +29,30 @@ export interface BudgetInput {
 
 const appendBudgetEvent = appenderFor(BUDGET_ENTITY, BUDGET_VERSIONS);
 
-async function requireCategory(categoryId: string): Promise<CategoryRow> {
-  const category = await getCategory(categoryId);
-  if (!category) throw new Error("That category no longer exists.");
-  return category;
-}
-
 /** The funding account shares the category's visibility and owner, and holds envelopes (ADR 0007). */
 async function checkFundingAccount(accountId: string, category: CategoryRow): Promise<void> {
   const account = await requireAccount(accountId);
-  if (!sameOwnership(account, category)) {
+  if (isCreditCard(account)) throw new Error("A credit card can't fund a budget.");
+  if (!canFundBudget(account, category)) {
     throw new Error(
       `Choose a ${VISIBILITY_LABELS[category.visibility]} account to fund ${category.name}.`
     );
   }
-  if (isCreditCard(account)) throw new Error("A credit card can't fund a budget.");
   refuseRetired(account);
 }
 
-/** Whether the month already has this budget, from its own version or an earlier one. */
-async function alreadyInForce(details: BudgetDetails): Promise<boolean> {
-  const current = budgetInForce(await listBudgets(), details.categoryId, details.fromMonth);
-  if (details.amountCents === null) return current === null;
-  return current?.amountCents === details.amountCents && current.accountId === details.accountId;
+/**
+ * Whether the month's own version already says this, or a clear meets no
+ * budget at all. A set matching an earlier month's budget is still recorded:
+ * it pins this month to that amount.
+ */
+async function alreadySet(id: string, details: BudgetDetails): Promise<boolean> {
+  const own = await getBudget(id);
+  if (own) return own.amountCents === details.amountCents && own.accountId === details.accountId;
+  return (
+    details.amountCents === null &&
+    budgetInForce(await listBudgets(), details.categoryId, details.fromMonth) === null
+  );
 }
 
 /**
@@ -66,10 +66,10 @@ export async function setBudget(actor: Actor, input: BudgetInput): Promise<void>
   const category = await requireCategory(details.categoryId);
   refuseRetired(category);
   if (details.accountId !== null) await checkFundingAccount(details.accountId, category);
-  // A re-sent unchanged set would carry a later HLC and undo another device's change.
-  if (await alreadyInForce(details)) return;
-
   const id = await budgetId(details.categoryId, details.fromMonth);
+  // A re-sent unchanged set would carry a later HLC and undo another device's change.
+  if (await alreadySet(id, details)) return;
+
   await appendBudgetEvent(actor, { ...category, id }, BUDGET_SET, { ...details });
   requestSync();
 }
