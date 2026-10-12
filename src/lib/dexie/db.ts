@@ -17,6 +17,7 @@ import type { AllocationRow } from "@/lib/allocations/projection";
 import type { BudgetRow } from "@/lib/budgets/projection";
 import type { CategoryRow, GroupRow } from "@/lib/categories/projection";
 import type { TransactionRow } from "@/lib/transactions/projection";
+import type { TransferRow } from "@/lib/transfers/projection";
 
 const LEGACY_DATABASE_NAME = "HouseholdHubDB";
 const DATABASE_NAME = "household-hub";
@@ -33,6 +34,7 @@ export class HouseholdHubDB extends Dexie {
   categories!: Table<CategoryRow, string>;
   transactions!: Table<TransactionRow, string>;
   allocations!: Table<AllocationRow, string>;
+  transfers!: Table<TransferRow, string>;
   budgets!: Table<BudgetRow, string>;
   meta!: Table<MetaRow, MetaRow["key"]>;
 
@@ -73,6 +75,7 @@ export class HouseholdHubDB extends Dexie {
     this.version(5).stores({ categoryGroups: "id", categories: "id" });
     this.version(6).stores({ transactions: "id, [date+recordedHlc]" });
     this.version(7).stores({ allocations: "id, [date+recordedHlc]" });
+    this.version(8).stores({ transfers: "id, [date+recordedHlc]" });
     this.version(9).stores({ budgets: "id" });
   }
 }

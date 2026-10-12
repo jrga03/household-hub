@@ -17,9 +17,9 @@ import {
   type TransactionStatus,
 } from "@/lib/transactions/events";
 import { getTransaction, type TransactionRow } from "@/lib/transactions/projection";
-import { errorMessage } from "@/lib/utils";
 import type { Actor } from "./accounts";
 import { appenderFor } from "./append";
+import { changeEach } from "./bulk";
 import { checkMove, refuseRetired, requireAccount, requireCategoryFor } from "./records";
 
 export interface NewTransactionInput extends TransactionInput {
@@ -156,41 +156,19 @@ export const removeTransaction = (actor: Actor, transactionId: string) =>
 export const restoreTransaction = (actor: Actor, transactionId: string) =>
   appendChange(actor, transactionId, TRANSACTION_RESTORED);
 
-export interface BulkResult {
-  changed: string[];
-  failed: { id: string; reason: string }[];
-}
-
-/**
- * Runs the single-transaction command on each one in turn, one event each,
- * skipping those already as asked: a re-sent change carries a later HLC and
- * would undo another device's.
- */
-async function changeEach(
+/** Runs the single-transaction command on each, skipping those already as asked. */
+const changeEachTransaction = (
   transactionIds: string[],
   isAlready: (transaction: TransactionRow) => boolean,
   change: (transaction: TransactionRow) => Promise<void>
-): Promise<BulkResult> {
-  const result: BulkResult = { changed: [], failed: [] };
-  for (const id of transactionIds) {
-    try {
-      const transaction = await requireTransaction(id);
-      if (isAlready(transaction)) continue;
-      await change(transaction);
-      result.changed.push(id);
-    } catch (caught) {
-      result.failed.push({ id, reason: errorMessage(caught, "Couldn't change it.") });
-    }
-  }
-  return result;
-}
+) => changeEach(transactionIds, requireTransaction, isAlready, change);
 
 export const setTransactionsStatus = (
   actor: Actor,
   transactionIds: string[],
   status: TransactionStatus
 ) =>
-  changeEach(
+  changeEachTransaction(
     transactionIds,
     (transaction) => transaction.status === status,
     (transaction) => setTransactionStatus(actor, transaction.id, status)
@@ -202,21 +180,21 @@ export const changeTransactionsCategory = (
   transactionIds: string[],
   categoryId: string | null
 ) =>
-  changeEach(
+  changeEachTransaction(
     transactionIds,
     (transaction) => transaction.categoryId === categoryId,
     (transaction) => editTransaction(actor, transaction.id, { ...transaction, categoryId })
   );
 
 export const removeTransactions = (actor: Actor, transactionIds: string[]) =>
-  changeEach(
+  changeEachTransaction(
     transactionIds,
     (transaction) => transaction.removed,
     (transaction) => removeTransaction(actor, transaction.id)
   );
 
 export const restoreTransactions = (actor: Actor, transactionIds: string[]) =>
-  changeEach(
+  changeEachTransaction(
     transactionIds,
     (transaction) => !transaction.removed,
     (transaction) => restoreTransaction(actor, transaction.id)

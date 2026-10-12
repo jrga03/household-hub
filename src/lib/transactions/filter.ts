@@ -1,4 +1,5 @@
 import { diffCents, parsePHPUnbounded, sumCents, type Cents } from "@/lib/currency";
+import type { TransferRow } from "@/lib/transfers/projection";
 import {
   isTransactionStatus,
   isTransactionType,
@@ -10,13 +11,24 @@ import type { TransactionRow } from "./projection";
 /** The category filter's value for transactions in no category. */
 export const UNASSIGNED_FILTER = "unassigned";
 
+/** The type filter's value for transfers, beside Expense and Income. */
+export const TRANSFER_TYPE = "transfer";
+
+export type ListType = TransactionType | typeof TRANSFER_TYPE;
+
+/** One row of the transaction list: a transaction, or a transfer shown once for both legs. */
+export type ListRow = TransactionRow | TransferRow;
+
+export const isTransfer = (row: ListRow): row is TransferRow => "fromAccountId" in row;
+
 export interface TransactionFilter {
-  /** "yyyy-MM", matched against the transaction's local date. */
+  /** "yyyy-MM", matched against the local date. */
   month?: string;
+  /** A transfer matches on either side. */
   account?: string;
-  /** A category ID, or UNASSIGNED_FILTER. */
+  /** A category ID, or UNASSIGNED_FILTER; a transfer matches by its envelope. */
   category?: string;
-  type?: TransactionType;
+  type?: ListType;
   status?: TransactionStatus;
   needsCategory?: boolean;
   /** Matches the description or notes, or the exact amount when it's a number. */
@@ -28,6 +40,9 @@ const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const nonEmpty = (value: unknown) =>
   typeof value === "string" && value !== "" ? value : undefined;
 
+export const isListType = (value: unknown): value is ListType =>
+  value === TRANSFER_TYPE || isTransactionType(value);
+
 /** The route's search params as a filter; anything unusable is left out. */
 export function readTransactionFilter(search: Record<string, unknown>): TransactionFilter {
   const filter: TransactionFilter = {};
@@ -36,7 +51,7 @@ export function readTransactionFilter(search: Record<string, unknown>): Transact
   if (account) filter.account = account;
   const category = nonEmpty(search.category);
   if (category) filter.category = category;
-  if (isTransactionType(search.type)) filter.type = search.type;
+  if (isListType(search.type)) filter.type = search.type;
   if (isTransactionStatus(search.status)) filter.status = search.status;
   if (search.needsCategory === true) filter.needsCategory = true;
   // The router parses a bare number in the URL as a number.
@@ -45,21 +60,31 @@ export function readTransactionFilter(search: Record<string, unknown>): Transact
   return filter;
 }
 
-export const needsCategory = (transaction: TransactionRow) =>
-  transaction.type === "expense" && transaction.categoryId === null;
+export const needsCategory = (row: ListRow) =>
+  !isTransfer(row) && row.type === "expense" && row.categoryId === null;
 
-function matchesFilter(transaction: TransactionRow, filter: TransactionFilter): boolean {
-  if (filter.month !== undefined && !transaction.date.startsWith(`${filter.month}-`)) return false;
-  if (filter.account !== undefined && transaction.accountId !== filter.account) return false;
-  if (
-    filter.category !== undefined &&
-    (transaction.categoryId ?? UNASSIGNED_FILTER) !== filter.category
-  ) {
-    return false;
-  }
-  if (filter.type !== undefined && transaction.type !== filter.type) return false;
-  if (filter.status !== undefined && transaction.status !== filter.status) return false;
-  if (filter.needsCategory && !needsCategory(transaction)) return false;
+/** The category filter's value a row matches, or null for a Card Payment transfer. */
+function categoryKey(row: ListRow): string | null {
+  if (!isTransfer(row)) return row.categoryId ?? UNASSIGNED_FILTER;
+  const { envelope } = row;
+  if (envelope.kind === "unassigned") return UNASSIGNED_FILTER;
+  return envelope.kind === "category" ? envelope.id : null;
+}
+
+const touchesAccount = (row: ListRow, accountId: string) =>
+  isTransfer(row)
+    ? row.fromAccountId === accountId || row.toAccountId === accountId
+    : row.accountId === accountId;
+
+const typeOf = (row: ListRow): ListType => (isTransfer(row) ? TRANSFER_TYPE : row.type);
+
+function matchesFilter(row: ListRow, filter: TransactionFilter): boolean {
+  if (filter.month !== undefined && !row.date.startsWith(`${filter.month}-`)) return false;
+  if (filter.account !== undefined && !touchesAccount(row, filter.account)) return false;
+  if (filter.category !== undefined && categoryKey(row) !== filter.category) return false;
+  if (filter.type !== undefined && typeOf(row) !== filter.type) return false;
+  if (filter.status !== undefined && row.status !== filter.status) return false;
+  if (filter.needsCategory && !needsCategory(row)) return false;
   return true;
 }
 
@@ -69,22 +94,43 @@ function matchesQuery(query: string) {
   const text = query.trim().toLowerCase();
   if (text === "") return () => true;
   const amount: Cents | null = AMOUNT_QUERY.test(text) ? parsePHPUnbounded(text) : null;
-  return (transaction: TransactionRow) =>
-    transaction.amountCents === amount ||
-    transaction.description.toLowerCase().includes(text) ||
-    transaction.notes.toLowerCase().includes(text);
+  return (row: ListRow) =>
+    row.amountCents === amount ||
+    row.description.toLowerCase().includes(text) ||
+    row.notes.toLowerCase().includes(text);
 }
 
 /** Every filter given must hold; order is kept. */
-export function filterTransactions(
-  transactions: TransactionRow[],
+export function filterTransactions<Row extends ListRow>(
+  rows: Row[],
   filter: TransactionFilter
-): TransactionRow[] {
+): Row[] {
   const matchesSearch = matchesQuery(filter.query ?? "");
-  return transactions.filter(
-    (transaction) => matchesFilter(transaction, filter) && matchesSearch(transaction)
-  );
+  return rows.filter((row) => matchesFilter(row, filter) && matchesSearch(row));
 }
+
+/** Which way a transfer moves for the filtered account; null when no account is filtered or it's neither side. */
+export function transferDirection(
+  transfer: TransferRow,
+  accountId: string | undefined
+): "in" | "out" | null {
+  if (accountId === transfer.fromAccountId) return "out";
+  if (accountId === transfer.toAccountId) return "in";
+  return null;
+}
+
+const newerFirst = (a: ListRow, b: ListRow) =>
+  a.date !== b.date
+    ? b.date.localeCompare(a.date)
+    : a.recordedHlc < b.recordedHlc
+      ? 1
+      : a.recordedHlc > b.recordedHlc
+        ? -1
+        : 0;
+
+/** Transactions and transfers in one list: newest date first, then the most recently recorded. */
+export const newestFirst = (transactions: TransactionRow[], transfers: TransferRow[]): ListRow[] =>
+  [...transactions, ...transfers].sort(newerFirst);
 
 export interface TransactionTotals {
   incomeCents: Cents;
@@ -93,11 +139,10 @@ export interface TransactionTotals {
   netCents: Cents;
 }
 
-export function totalTransactions(transactions: TransactionRow[]): TransactionTotals {
+/** Transfers move money without earning or spending it, so they're left out. */
+export function totalTransactions(rows: ListRow[]): TransactionTotals {
   const amountsOf = (type: TransactionType) =>
-    transactions
-      .filter((transaction) => transaction.type === type)
-      .map((transaction) => transaction.amountCents);
+    rows.filter((row) => !isTransfer(row) && row.type === type).map((row) => row.amountCents);
   const incomeCents = sumCents(amountsOf("income"));
   const expenseCents = sumCents(amountsOf("expense"));
   return { incomeCents, expenseCents, netCents: diffCents(incomeCents, expenseCents) };
