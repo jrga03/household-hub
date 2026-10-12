@@ -11,8 +11,11 @@ export type EventVersions = Record<
   { current: number; upcasts: Record<number, (payload: Payload) => Payload> }
 >;
 
-export const currentVersion = (versions: EventVersions, eventType: string): number =>
-  versions[eventType]?.current ?? 0;
+/** Typed by the table's own event types, so an entity can't stamp an event from another's table. */
+export const currentVersion = <Versions extends EventVersions>(
+  versions: Versions,
+  eventType: keyof Versions & string
+): number => versions[eventType]?.current ?? 0;
 
 /** The event with its payload in its type's current version, or null for a version this app doesn't know. */
 export function upcast(versions: EventVersions, event: LoggedEvent): LoggedEvent | null {

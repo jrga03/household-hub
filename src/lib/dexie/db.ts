@@ -13,6 +13,7 @@ import Dexie, { type Table } from "dexie";
 import { reportError } from "@/lib/sentry";
 import type { StoredEvent } from "@/lib/events/log";
 import type { AccountRow } from "@/lib/accounts/projection";
+import type { CategoryRow, GroupRow } from "@/lib/categories/projection";
 
 const LEGACY_DATABASE_NAME = "HouseholdHubDB";
 const DATABASE_NAME = "household-hub";
@@ -25,6 +26,8 @@ export interface MetaRow {
 export class HouseholdHubDB extends Dexie {
   events!: Table<StoredEvent, string>;
   accounts!: Table<AccountRow, string>;
+  categoryGroups!: Table<GroupRow, string>;
+  categories!: Table<CategoryRow, string>;
   meta!: Table<MetaRow, MetaRow["key"]>;
 
   constructor() {
@@ -61,6 +64,7 @@ export class HouseholdHubDB extends Dexie {
             delete event.pushed;
           })
       );
+    this.version(5).stores({ categoryGroups: "id", categories: "id" });
   }
 }
 

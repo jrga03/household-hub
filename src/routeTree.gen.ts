@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CategoriesRouteImport } from './routes/categories'
 import { Route as CreateOrJoinRouteImport } from './routes/create-or-join'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -18,6 +19,11 @@ import { Route as SignupRouteImport } from './routes/signup'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CategoriesRoute = CategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CreateOrJoinRoute = CreateOrJoinRouteImport.update({
@@ -43,6 +49,7 @@ const SignupRoute = SignupRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/categories': typeof CategoriesRoute
   '/create-or-join': typeof CreateOrJoinRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/categories': typeof CategoriesRoute
   '/create-or-join': typeof CreateOrJoinRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/categories': typeof CategoriesRoute
   '/create-or-join': typeof CreateOrJoinRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
@@ -65,14 +74,24 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/create-or-join' | '/login' | '/settings' | '/signup'
+  fullPaths:
+    '/' | '/categories' | '/create-or-join' | '/login' | '/settings' | '/signup'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/create-or-join' | '/login' | '/settings' | '/signup'
-  id: '__root__' | '/' | '/create-or-join' | '/login' | '/settings' | '/signup'
+  to:
+    '/' | '/categories' | '/create-or-join' | '/login' | '/settings' | '/signup'
+  id:
+    | '__root__'
+    | '/'
+    | '/categories'
+    | '/create-or-join'
+    | '/login'
+    | '/settings'
+    | '/signup'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CategoriesRoute: typeof CategoriesRoute
   CreateOrJoinRoute: typeof CreateOrJoinRoute
   LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRoute
@@ -86,6 +105,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/categories': {
+      id: '/categories'
+      path: '/categories'
+      fullPath: '/categories'
+      preLoaderRoute: typeof CategoriesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/create-or-join': {
@@ -121,6 +147,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CategoriesRoute: CategoriesRoute,
   CreateOrJoinRoute: CreateOrJoinRoute,
   LoginRoute: LoginRoute,
   SettingsRoute: SettingsRoute,

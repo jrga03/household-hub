@@ -221,6 +221,7 @@ function PageTitle() {
   // Map routes to titles
   const getTitleFromPath = (pathname: string): string => {
     if (pathname === "/") return "Home";
+    if (pathname.startsWith("/categories")) return "Categories";
     if (pathname.startsWith("/settings")) return "Settings";
     return "Household Hub";
   };

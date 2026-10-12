@@ -16,10 +16,10 @@ import {
   type AccountDetails,
   type AccountType,
 } from "@/lib/accounts/events";
-import { payingAccountChoices, type Ownership } from "@/lib/accounts/paying-account";
+import { payingAccountChoices } from "@/lib/accounts/paying-account";
 import type { AccountDetailsInput } from "@/lib/commands/accounts";
 import { formatPHP, parsePHPSafe, PESO_SIGN } from "@/lib/currency";
-import { VISIBILITY_LABELS } from "@/lib/events/log";
+import { VISIBILITY_LABELS, type Ownership } from "@/lib/events/log";
 
 export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   bank: "Bank account",
