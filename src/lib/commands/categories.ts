@@ -1,4 +1,7 @@
-import { isVisibility, VISIBILITY_LABELS, type Ownership } from "@/lib/events/log";
+import type { Envelope } from "@/lib/allocations/events";
+import { absCents, formatPHP, sumCents, type Cents } from "@/lib/currency";
+import { appendTogether, isVisibility, VISIBILITY_LABELS, type Ownership } from "@/lib/events/log";
+import { readAccountMoney, sumCategoryMoney } from "@/lib/transactions/money";
 import { requestSync } from "@/lib/sync/triggers";
 import {
   CATEGORY_CREATED,
@@ -23,9 +26,11 @@ import {
   getCategory,
   getGroup,
   listCategoriesInGroup,
+  type CategoryRow,
   type GroupRow,
 } from "@/lib/categories/projection";
 import type { Actor } from "./accounts";
+import { addAllocation } from "./allocations";
 import { appenderFor } from "./append";
 import { requireCategory } from "./records";
 
@@ -71,7 +76,7 @@ async function requireGroup(groupId: string): Promise<GroupRow> {
   return group;
 }
 
-function refuseRetired(group: GroupRow | undefined): void {
+function refuseRetired(group: GroupRow | CategoryRow | undefined): void {
   if (group?.retired) throw new Error(`${group.name} is retired. Unretire it first.`);
 }
 
@@ -160,11 +165,62 @@ export async function moveCategory(
   requestSync();
 }
 
-/** Hidden from pickers and kept under Retired; its history stays. */
-export async function retireCategory(actor: Actor, categoryId: string): Promise<void> {
-  const category = await requireCategory(categoryId);
-  await appendCategoryEvent(actor, category, CATEGORY_RETIRED, {});
-  requestSync();
+export interface MoneyDestination {
+  toCategoryId: string;
+  /** The allocations' date, the member's local date "yyyy-MM-dd". */
+  date: string;
+}
+
+/**
+ * Hidden from pickers and kept under Retired; its history stays. Money it
+ * holds in each account first moves into `destination` (money it owes moves
+ * back from it), as one change with the retire.
+ */
+export function retireCategory(
+  actor: Actor,
+  categoryId: string,
+  destination?: MoneyDestination
+): Promise<void> {
+  return appendTogether(async () => {
+    const category = await requireCategory(categoryId);
+    const held = [
+      ...(sumCategoryMoney(await readAccountMoney()).get(categoryId)?.byAccount ?? []),
+    ].filter(([, cents]) => cents !== 0);
+    if (held.length > 0) {
+      if (!destination) {
+        const total = sumCents(held.map(([, cents]) => cents));
+        throw new Error(
+          `${category.name} holds ${formatPHP(total)}. Choose a category to move it into.`
+        );
+      }
+      await moveAllMoney(actor, category, held, destination);
+    }
+    await appendCategoryEvent(actor, category, CATEGORY_RETIRED, {});
+    requestSync();
+  });
+}
+
+async function moveAllMoney(
+  actor: Actor,
+  category: CategoryRow,
+  held: [accountId: string, cents: Cents][],
+  { toCategoryId, date }: MoneyDestination
+): Promise<void> {
+  if (toCategoryId === category.id) {
+    throw new Error(`Choose another category to move ${category.name}' money into.`);
+  }
+  refuseRetired(await requireCategory(toCategoryId));
+  const retiring: Envelope = { kind: "category", id: category.id };
+  const receiving: Envelope = { kind: "category", id: toCategoryId };
+  for (const [accountId, cents] of held) {
+    await addAllocation(actor, {
+      date,
+      accountId,
+      amountCents: absCents(cents),
+      from: cents > 0 ? retiring : receiving,
+      to: cents > 0 ? receiving : retiring,
+    });
+  }
 }
 
 /** Comes back only into a group in use, so no category in use sits in a retired group. */

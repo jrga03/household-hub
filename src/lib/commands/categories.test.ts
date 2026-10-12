@@ -2,6 +2,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { listUnpushed, receiveEvents } from "@/lib/events/log";
 import { readCategoryList } from "@/lib/categories/projection";
+import { UNASSIGNED_ENVELOPE } from "@/lib/allocations/events";
+import { parsePHP } from "@/lib/currency";
+import { readAccountMoney, sumCategoryMoney } from "@/lib/transactions/money";
+import { createAccount } from "./accounts";
+import { addAllocation } from "./allocations";
 import {
   createCategory,
   createGroup,
@@ -14,6 +19,7 @@ import {
   unretireCategory,
   unretireGroup,
 } from "./categories";
+import { addTransaction } from "./transactions";
 
 const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
 const OTHER_HOUSEHOLD = { householdId: "22222222-2222-4222-8222-222222222222", userId: "user-a" };
@@ -242,5 +248,81 @@ describe("categories", () => {
     expect((await readCategoryList()).groups).toMatchObject([
       { id: food.id, categories: [{ id: groceries.id }] },
     ]);
+  });
+});
+
+describe("retiring a category that holds money", () => {
+  const TODAY = "2026-10-12";
+  let bpiId: string;
+  let gcashId: string;
+  let groceriesId: string;
+  let restaurantsId: string;
+
+  const allocate = (accountId: string, amount: string) =>
+    addAllocation(MEMBER, {
+      date: "2026-10-01",
+      accountId,
+      from: UNASSIGNED_ENVELOPE,
+      to: { kind: "category", id: groceriesId },
+      amountCents: parsePHP(amount),
+    });
+
+  const moneyIn = async (categoryId: string) => {
+    const money = sumCategoryMoney(await readAccountMoney()).get(categoryId);
+    return Object.fromEntries(money?.byAccount ?? []);
+  };
+
+  beforeEach(async () => {
+    const account = async (name: string) =>
+      (await createAccount(MEMBER, { name, type: "bank", startingBalanceCents: parsePHP("10000") }))
+        .id;
+    bpiId = await account("BPI");
+    gcashId = await account("GCash");
+    const food = await createGroup(MEMBER, { name: "Food" });
+    groceriesId = (await createCategory(MEMBER, { name: "Groceries", groupId: food.id })).id;
+    restaurantsId = (await createCategory(MEMBER, { name: "Restaurants", groupId: food.id })).id;
+  });
+
+  it("refuses without a category to move the money into, keeping nothing", async () => {
+    await allocate(bpiId, "800");
+    const before = (await listUnpushed(100)).length;
+
+    await expect(retireCategory(MEMBER, groceriesId)).rejects.toThrow(
+      "Groceries holds ₱800.00. Choose a category to move it into."
+    );
+    expect(await listUnpushed(100)).toHaveLength(before);
+  });
+
+  it("moves each account's money, overspent included, into the chosen category, then retires", async () => {
+    await allocate(bpiId, "800");
+    await allocate(gcashId, "300");
+    await addTransaction(MEMBER, {
+      date: "2026-10-05",
+      type: "expense",
+      amountCents: parsePHP("500"),
+      accountId: gcashId,
+      categoryId: groceriesId,
+    });
+
+    await retireCategory(MEMBER, groceriesId, { toCategoryId: restaurantsId, date: TODAY });
+
+    expect(await moneyIn(groceriesId)).toEqual({ [bpiId]: 0, [gcashId]: 0 });
+    expect(await moneyIn(restaurantsId)).toEqual({ [bpiId]: 80000, [gcashId]: -20000 });
+    expect((await readCategoryList()).retiredCategories).toMatchObject([{ id: groceriesId }]);
+  });
+
+  it("keeps nothing when the move is refused", async () => {
+    await allocate(bpiId, "800");
+    await retireCategory(MEMBER, restaurantsId);
+    const before = (await listUnpushed(100)).length;
+
+    await expect(
+      retireCategory(MEMBER, groceriesId, { toCategoryId: restaurantsId, date: TODAY })
+    ).rejects.toThrow("Restaurants is retired");
+    await expect(
+      retireCategory(MEMBER, groceriesId, { toCategoryId: groceriesId, date: TODAY })
+    ).rejects.toThrow("Choose another category to move Groceries' money into.");
+    expect(await listUnpushed(100)).toHaveLength(before);
+    expect(await moneyIn(groceriesId)).toEqual({ [bpiId]: 80000 });
   });
 });

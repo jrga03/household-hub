@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cents } from "@/test/cents";
-import { budgetInForce, budgetsInForce } from "./inForce";
+import { budgetHistory, budgetInForce, budgetsInForce } from "./inForce";
 import type { BudgetRow } from "./projection";
 
 const GROCERIES = "cccccccc-0000-4000-8000-000000000001";
@@ -61,5 +61,21 @@ describe("budgetsInForce", () => {
     expect([...inForce.keys()].sort()).toEqual([GROCERIES, RENT]);
     expect(inForce.get(GROCERIES)?.amountCents).toBe(800000);
     expect(budgetsInForce(history, "2027-03").has(GROCERIES)).toBe(false);
+  });
+});
+
+describe("budgetHistory", () => {
+  it("lists every version of the category, latest month first, cleared ones included", () => {
+    expect(
+      budgetHistory(history, GROCERIES).map(({ fromMonth, amountCents, accountId }) => ({
+        fromMonth,
+        amountCents,
+        accountId,
+      }))
+    ).toEqual([
+      { fromMonth: "2027-03", amountCents: null, accountId: null },
+      { fromMonth: "2026-12", amountCents: 900000, accountId: BPI },
+      { fromMonth: "2026-10", amountCents: 800000, accountId: BPI },
+    ]);
   });
 });

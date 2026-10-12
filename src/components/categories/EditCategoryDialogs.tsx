@@ -1,4 +1,5 @@
-import { useActionState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
+import { format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,9 +13,24 @@ import {
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { useAccountMoney } from "@/hooks/useTransactions";
 import { CATEGORY_NAME_MAX_LENGTH } from "@/lib/categories/events";
-import { canHold, type CategoryRow, type GroupRow } from "@/lib/categories/projection";
+import {
+  canHold,
+  type CategoryRow,
+  type GroupListItem,
+  type GroupRow,
+} from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import {
   moveCategory,
@@ -23,6 +39,9 @@ import {
   retireCategory,
   retireGroup,
 } from "@/lib/commands/categories";
+import { formatPHP, type Cents } from "@/lib/currency";
+import { sameOwnership } from "@/lib/events/log";
+import { sumCategoryMoney } from "@/lib/transactions/money";
 import { errorMessage } from "@/lib/utils";
 import { GroupSelect } from "./GroupSelect";
 
@@ -163,9 +182,11 @@ export function EditCategoryDialog({
 }: {
   actor: Actor;
   category: CategoryRow;
-  groups: GroupRow[];
+  groups: GroupListItem[];
   onClose: () => void;
 }) {
+  const accountMoney = useAccountMoney();
+  const [movingMoney, setMovingMoney] = useState(false);
   const choices = groups.filter((group) => canHold(group, category));
   // Rename and move are separate changes, so each survives another device's edit of the other.
   const [error, saveAction] = useSaveAction(async (formData) => {
@@ -182,6 +203,22 @@ export function EditCategoryDialog({
     onClose
   );
   const inChoices = choices.some((group) => group.id === category.groupId);
+  const held = accountMoney && sumCategoryMoney(accountMoney).get(category.id);
+  const holdsMoney =
+    held !== undefined && [...held.byAccount.values()].some((cents) => cents !== 0);
+
+  if (movingMoney && held) {
+    return (
+      <RetireMovingMoneyDialog
+        actor={actor}
+        category={category}
+        held={held.total}
+        groups={groups}
+        onBack={() => setMovingMoney(false)}
+        onClose={onClose}
+      />
+    );
+  }
 
   return (
     <EditDialog
@@ -191,7 +228,7 @@ export function EditCategoryDialog({
       saveAction={saveAction}
       error={error}
       retiring={retiring}
-      onRetire={retire}
+      onRetire={holdsMoney ? () => setMovingMoney(true) : retire}
       retireLabel="Retire category"
     >
       <GroupSelect
@@ -200,5 +237,98 @@ export function EditCategoryDialog({
         defaultValue={inChoices ? category.groupId : undefined}
       />
     </EditDialog>
+  );
+}
+
+/** A category holding money retires only once its money moves into another (one change). */
+function RetireMovingMoneyDialog({
+  actor,
+  category,
+  held,
+  groups,
+  onBack,
+  onClose,
+}: {
+  actor: Actor;
+  category: CategoryRow;
+  held: Cents;
+  groups: GroupListItem[];
+  onBack: () => void;
+  onClose: () => void;
+}) {
+  const choices = groups
+    .map((group) => ({
+      ...group,
+      categories: group.categories.filter(
+        (other) => other.id !== category.id && sameOwnership(other, category)
+      ),
+    }))
+    .filter((group) => group.categories.length > 0);
+  const [error, retireAction] = useActionState(
+    async (_previous: string | null, formData: FormData) => {
+      try {
+        await retireCategory(actor, category.id, {
+          toCategoryId: String(formData.get("toCategoryId") ?? ""),
+          date: format(new Date(), "yyyy-MM-dd"),
+        });
+        toast.success(`${category.name} retired`);
+        onClose();
+        return null;
+      } catch (caught) {
+        return errorMessage(caught, `Couldn't retire ${category.name}.`);
+      }
+    },
+    null
+  );
+  const title = `Retire ${category.name}`;
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="@container">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>
+            {category.name} holds {formatPHP(held)}. Its money moves into another category first.
+          </DialogDescription>
+        </DialogHeader>
+        <form action={retireAction} className="space-y-4" aria-label={title}>
+          {choices.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Add another category for its money first.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="retire-move-to">Move its money into</Label>
+              <Select name="toCategoryId" required>
+                <SelectTrigger id="retire-move-to" className="w-full">
+                  <SelectValue placeholder="Choose a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {choices.map((group) => (
+                    <SelectGroup key={group.id}>
+                      <SelectLabel>{group.name}</SelectLabel>
+                      {group.categories.map((other) => (
+                        <SelectItem key={other.id} value={other.id}>
+                          {other.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <FormError>{error}</FormError>
+          <DialogFooter className="gap-2 @[480px]:justify-between">
+            <Button type="button" variant="outline" onClick={onBack}>
+              Back
+            </Button>
+            <SubmitButton pendingText="Retiring..." disabled={choices.length === 0}>
+              Move and retire
+            </SubmitButton>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

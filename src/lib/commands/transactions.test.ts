@@ -18,6 +18,7 @@ import {
   setTransactionsStatus,
   type TransactionInput,
 } from "./transactions";
+import { retireOnAnotherDevice } from "@/test/anotherDevice";
 
 const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
@@ -189,7 +190,7 @@ describe("editTransaction", () => {
 
   it("keeps a transaction on a retired account or category editable", async () => {
     const { id } = await addTransaction(MEMBER, expense());
-    await retireCategory(MEMBER, groceriesId);
+    await retireOnAnotherDevice(MEMBER, groceriesId);
     await retireAccount(MEMBER, bankId);
 
     await editTransaction(MEMBER, id, expense({ description: "Wet market" }));
