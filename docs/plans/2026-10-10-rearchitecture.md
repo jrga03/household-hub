@@ -209,9 +209,9 @@ Seams (from #70's Testing Decisions): the transfer projection and read-time sums
 - [x] List: one row per transfer, signed under an account filter, out of income and expense totals; type filter gains Transfer
 - [x] Edit, remove with Undo, swipe and bulk status and remove on transfers
 - [x] Playwright (chromium, two browsers): offline transfer reaches B
-- [ ] build, lint, vitest, both tsc, knip
-- [ ] Code review (standards + spec), fixes applied
-- [ ] Commit
+- [x] build, lint, vitest, both tsc, knip
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
 
 ### #71 decisions
 
@@ -226,6 +226,10 @@ Seams (from #70's Testing Decisions): the transfer projection and read-time sums
 - **List rows:** a transfer shows "BPI → GCash" (or its description, with the path beneath), the envelope, a transfer icon, and an unsigned muted amount; under an account filter it's minus (from) or plus (to). The category filter matches its envelope (Unassigned or a category; a Card Payment transfer matches no category). Search covers its description, notes and amount. The count line reads "N transactions, M transfers (not in the totals)".
 - **Bulk status and Remove split the selection** into transactions and transfers and run each kind's commands (`changeEach` moved to `commands/bulk.ts`, generic over the record); Change category acts on the transactions only and is disabled when only transfers are selected. Toasts name the kinds ("2 transactions and 1 transfer").
 - **Shared helpers:** `isAmount` / `AMOUNT_PROBLEM` / `optionalText` in `transactions/events.ts` (the amount check was copied in transactions and allocations); `requireCardFor` and `refusePaidElsewhere` moved to `commands/records.ts`; `decodeEnvelope` exported.
+- **Review fixes:** the entry form's direction reuses `ListType` / `isListType` (no second `Direction` type); `isAmount` / `AMOUNT_PROBLEM` live in `currency.ts` beside `MAX_AMOUNT_CENTS`; the list names mixed rows `rows` / `openRow`; account names are mapped once per render; the transfer form's direction choice is built once; a new From starts To over, so an earlier To doesn't come back unseen; the money tests gain a duplicate transfer and the per-account Groceries split.
+- **Review: a transfer into a card, or a Card Payment between accounts, may come from any account of its visibility**, not only one holding the reservation, so the from side's Card Payment can go negative (shown red, like an overspent envelope). Kept: #72's pay-from-another-account flow writes its allocations first, two offline devices can't be stopped from both drawing a reservation, and allocations already allow drawing any Card Payment. Revisit: #72, if a lone pay-card transfer from a non-paying account should be refused.
+- **Review deferral: list rows are told apart by a field (`"fromAccountId" in row`)**, not a `kind` tag. Revisit: if a transaction ever gains a from account, or a third row kind joins the list.
+- **Review deferral: the list-row helpers (`ListRow`, `isTransfer`, `newestFirst`, `transferDirection`) sit in `transactions/filter.ts`.** Revisit: #74 (the ledger lists transactions, transfers and allocations), move them to their own module then.
 - **Known, not mine:** `transactions.spec.ts` fails on Mobile Chrome (on main it fails earlier, at the focus check; past that it clicks the row's Remove icon, which #53 hides on phones). Logged in CLAUDE.md. Chromium passes.
 
 ## Milestone 2

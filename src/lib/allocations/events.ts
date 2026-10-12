@@ -1,7 +1,7 @@
-import { asCents, formatPHP, type Cents } from "@/lib/currency";
+import { AMOUNT_PROBLEM, asCents, formatPHP, isAmount, type Cents } from "@/lib/currency";
 import type { LoggedEvent } from "@/lib/events/log";
 import type { EventVersions } from "@/lib/events/versions";
-import { AMOUNT_PROBLEM, isAmount, isLocalDate } from "@/lib/transactions/events";
+import { isLocalDate } from "@/lib/transactions/events";
 
 export const ALLOCATION_ENTITY = "allocation";
 export const ALLOCATION_CREATED = "allocation.created";

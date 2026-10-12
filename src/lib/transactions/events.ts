@@ -1,4 +1,4 @@
-import { asCents, formatPHP, MAX_AMOUNT_CENTS, type Cents } from "@/lib/currency";
+import { AMOUNT_PROBLEM, asCents, formatPHP, isAmount, type Cents } from "@/lib/currency";
 import type { LoggedEvent } from "@/lib/events/log";
 import type { EventVersions } from "@/lib/events/versions";
 import { parseLocalDate } from "@/lib/utils/dates";
@@ -75,15 +75,6 @@ export function isLocalDate(value: unknown): value is string {
 /** Null or missing, or a non-empty ID. */
 const isOptionalId = (value: unknown): value is string | null | undefined =>
   value == null || (typeof value === "string" && value !== "");
-
-/** A positive whole number of cents, at most MAX_AMOUNT_CENTS. */
-export const isAmount = (value: unknown): value is number =>
-  typeof value === "number" &&
-  Number.isSafeInteger(value) &&
-  value > 0 &&
-  value <= MAX_AMOUNT_CENTS;
-
-export const AMOUNT_PROBLEM = `The amount must be more than zero and at most ${formatPHP(asCents(MAX_AMOUNT_CENTS))}.`;
 
 export const optionalText = (value: unknown) => (typeof value === "string" ? value.trim() : "");
 

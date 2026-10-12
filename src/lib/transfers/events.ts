@@ -1,11 +1,9 @@
-import { asCents, formatPHP, type Cents } from "@/lib/currency";
+import { AMOUNT_PROBLEM, asCents, formatPHP, isAmount, type Cents } from "@/lib/currency";
 import { decodeEnvelope, type Envelope } from "@/lib/allocations/events";
 import type { LoggedEvent } from "@/lib/events/log";
 import type { EventVersions } from "@/lib/events/versions";
 import {
-  AMOUNT_PROBLEM,
   DESCRIPTION_MAX_LENGTH,
-  isAmount,
   isLocalDate,
   isTransactionStatus,
   NOTES_MAX_LENGTH,

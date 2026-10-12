@@ -597,9 +597,26 @@ describe("account money", () => {
           envelopes: null,
         });
         expectBalanceEqualsEnvelopes(money, [BANK, WALLET]);
-        expect(sumCategoryMoney(money).get(GROCERIES)?.total).toBe(30000);
+        // Groceries keeps its total, split differently per account.
+        expect(sumCategoryMoney(money).get(GROCERIES)).toEqual({
+          total: 30000,
+          byAccount: new Map([
+            [BANK, 0],
+            [WALLET, 30000],
+          ]),
+        });
       }
     );
+
+    it("counts a transfer received twice once", async () => {
+      await receiveEvents([bank, wallet, toWallet, toWalletEdited], 0);
+      await receiveEvents([toWallet, toWalletEdited, toWallet], 0);
+
+      const money = await readAccountMoney();
+      expect(money.get(BANK)?.balance).toBe(70000);
+      expect(money.get(WALLET)?.balance).toBe(30000);
+      expectBalanceEqualsEnvelopes(money, [BANK, WALLET]);
+    });
 
     it("raises what a card owes when money leaves it", async () => {
       const outOfCard = transfer("x-out-of-card", transferId(4), 4000, {

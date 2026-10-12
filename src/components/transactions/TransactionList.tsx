@@ -106,7 +106,7 @@ interface TransactionListProps {
  * filtered. A row opens in the detail pane on wide screens and in a dialog otherwise.
  */
 export function TransactionList({ actor, filter, onFilterChange }: TransactionListProps) {
-  const transactions = useTransactionListRows();
+  const rows = useTransactionListRows();
   const accounts = useAccounts();
   const retiredAccounts = useRetiredAccounts();
   const categories = useCategoryList();
@@ -122,24 +122,18 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
     setSelectedIds(new Set());
   }
 
-  const shown = useMemo(
-    () => (transactions ? filterTransactions(transactions, filter) : []),
-    [transactions, filter]
-  );
+  const shown = useMemo(() => (rows ? filterTransactions(rows, filter) : []), [rows, filter]);
   const selected = useMemo(
-    () => shown.filter((transaction) => selectedIds.has(transaction.id)),
+    () => shown.filter((row) => selectedIds.has(row.id)),
     [shown, selectedIds]
   );
   const totals = useMemo(() => totalTransactions(shown), [shown]);
-  const months = useMemo(() => monthsOf(transactions ?? []), [transactions]);
-  const needingCategory = useMemo(
-    () => (transactions ?? []).filter(needsCategory).length,
-    [transactions]
-  );
+  const months = useMemo(() => monthsOf(rows ?? []), [rows]);
+  const needingCategory = useMemo(() => (rows ?? []).filter(needsCategory).length, [rows]);
 
-  if (!transactions) return null;
+  if (!rows) return null;
 
-  if (transactions.length === 0) {
+  if (rows.length === 0) {
     return (
       <PageShell.Main className="@[1100px]:col-span-full">
         <p className="text-sm text-muted-foreground">
@@ -152,17 +146,14 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
   const allAccounts = [...(accounts ?? []), ...(retiredAccounts ?? [])];
   const accountsById = new Map(allAccounts.map((account) => [account.id, account]));
   const namesOfCategories = categories ? categoryNames(categories) : new Map<string, string>();
+  const namesOfAccounts = new Map(allAccounts.map((account) => [account.id, account.name]));
   const accountNameOf = (accountId: string) =>
-    accountsById.get(accountId)?.name ?? "Account not on this device yet";
+    namesOfAccounts.get(accountId) ?? "Account not on this device yet";
   const date = (row: ListRow) => format(parseLocalDate(row.date), "MMM d, yyyy");
   const display = (row: ListRow): RowDisplay => {
     if (isTransfer(row)) {
       const path = `${accountNameOf(row.fromAccountId)} → ${accountNameOf(row.toAccountId)}`;
-      const envelope = envelopeLabel(
-        row.envelope,
-        namesOfCategories,
-        new Map(allAccounts.map((account) => [account.id, account.name]))
-      );
+      const envelope = envelopeLabel(row.envelope, namesOfCategories, namesOfAccounts);
       const direction = transferDirection(row, filter.account);
       return {
         label: row.description || path,
@@ -187,11 +178,10 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
       amount: row.type === "income" ? MONEY_IN : MONEY_OUT,
     };
   };
-  const openTransaction = transactions.find((transaction) => transaction.id === openId);
+  const openRow = rows.find((row) => row.id === openId);
   // Removed on another device mid-edit: drop it, so a restore doesn't reopen it.
-  if (openId && !openTransaction) setOpenId(null);
-  const paneTitle =
-    openTransaction && isTransfer(openTransaction) ? "Edit transfer" : "Edit transaction";
+  if (openId && !openRow) setOpenId(null);
+  const paneTitle = openRow && isTransfer(openRow) ? "Edit transfer" : "Edit transaction";
 
   const toggleSelected = (id: string, isSelected: boolean) =>
     setSelectedIds((previous) => {
@@ -271,9 +261,7 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
                   checked={allShownSelected ? true : selected.length > 0 ? "indeterminate" : false}
                   onCheckedChange={(checked) =>
                     setSelectedIds(
-                      checked === true
-                        ? new Set(shown.map((transaction) => transaction.id))
-                        : new Set()
+                      checked === true ? new Set(shown.map((row) => row.id)) : new Set()
                     )
                   }
                 />
@@ -296,7 +284,7 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
 
             <VirtualTransactionRows
               actor={actor}
-              transactions={shown}
+              rows={shown}
               selectedIds={selectedIds}
               openId={openId}
               display={display}
@@ -315,7 +303,7 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
             PANE_MAX_HEIGHT
           )}
         >
-          {openTransaction && paneShown ? (
+          {openRow && paneShown ? (
             <section aria-label={paneTitle} className="space-y-4">
               <div className="flex items-start justify-between gap-2">
                 <div>
@@ -327,18 +315,18 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
                 </Button>
               </div>
               {/* Keyed, so the form's defaults follow the row picked. */}
-              {isTransfer(openTransaction) ? (
+              {isTransfer(openRow) ? (
                 <TransferEditor
-                  key={openTransaction.id}
+                  key={openRow.id}
                   actor={actor}
-                  transfer={openTransaction}
+                  transfer={openRow}
                   onClose={() => setOpenId(null)}
                 />
               ) : (
                 <TransactionEditor
-                  key={openTransaction.id}
+                  key={openRow.id}
                   actor={actor}
-                  transaction={openTransaction}
+                  transaction={openRow}
                   onClose={() => setOpenId(null)}
                 />
               )}
@@ -351,20 +339,12 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
         </div>
       </PageShell.RightAside>
 
-      {openTransaction &&
+      {openRow &&
         !paneShown &&
-        (isTransfer(openTransaction) ? (
-          <TransferDialog
-            actor={actor}
-            transfer={openTransaction}
-            onClose={() => setOpenId(null)}
-          />
+        (isTransfer(openRow) ? (
+          <TransferDialog actor={actor} transfer={openRow} onClose={() => setOpenId(null)} />
         ) : (
-          <TransactionDialog
-            actor={actor}
-            transaction={openTransaction}
-            onClose={() => setOpenId(null)}
-          />
+          <TransactionDialog actor={actor} transaction={openRow} onClose={() => setOpenId(null)} />
         ))}
     </>
   );
@@ -383,7 +363,7 @@ function Total({ label, cents }: { label: string; cents: Cents }) {
 
 interface VirtualTransactionRowsProps {
   actor: Actor;
-  transactions: ListRow[];
+  rows: ListRow[];
   selectedIds: ReadonlySet<string>;
   openId: string | null;
   display: (row: ListRow) => RowDisplay;
@@ -394,7 +374,7 @@ interface VirtualTransactionRowsProps {
 /** Renders only the rows near the viewport; the page itself scrolls. */
 function VirtualTransactionRows({
   actor,
-  transactions,
+  rows,
   selectedIds,
   openId,
   display,
@@ -416,12 +396,12 @@ function VirtualTransactionRows({
   }, []);
 
   const virtualizer = useWindowVirtualizer({
-    count: transactions.length,
+    count: rows.length,
     estimateSize: () => ROW_HEIGHT_ESTIMATE,
     overscan: 8,
     scrollMargin,
     // Stable across renders, so the virtualizer keeps its measured offsets.
-    getItemKey: useCallback((index: number) => transactions[index]?.id ?? index, [transactions]),
+    getItemKey: useCallback((index: number) => rows[index]?.id ?? index, [rows]),
   });
 
   return (
@@ -432,26 +412,26 @@ function VirtualTransactionRows({
       style={{ height: virtualizer.getTotalSize() }}
     >
       {virtualizer.getVirtualItems().map((item) => {
-        const transaction = transactions[item.index];
-        if (!transaction) return null;
+        const row = rows[item.index];
+        if (!row) return null;
         return (
           <li
             key={item.key}
             ref={virtualizer.measureElement}
             data-index={item.index}
-            aria-setsize={transactions.length}
+            aria-setsize={rows.length}
             aria-posinset={item.index + 1}
             className="absolute left-0 top-0 w-full border-b last:border-b-0"
             style={{ transform: `translateY(${item.start - scrollMargin}px)` }}
           >
             <TransactionItem
               actor={actor}
-              row={transaction}
-              display={display(transaction)}
-              selected={selectedIds.has(transaction.id)}
-              open={transaction.id === openId}
-              onOpen={() => onOpen(transaction.id)}
-              onSelectedChange={(selected) => onSelectedChange(transaction.id, selected)}
+              row={row}
+              display={display(row)}
+              selected={selectedIds.has(row.id)}
+              open={row.id === openId}
+              onOpen={() => onOpen(row.id)}
+              onSelectedChange={(selected) => onSelectedChange(row.id, selected)}
             />
           </li>
         );

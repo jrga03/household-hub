@@ -54,17 +54,16 @@ import {
   NOTES_MAX_LENGTH,
   type TransactionStatus,
 } from "@/lib/transactions/events";
-import { TRANSFER_TYPE } from "@/lib/transactions/filter";
+import { TRANSFER_TYPE, type ListType } from "@/lib/transactions/filter";
 import { transferLabel } from "@/lib/transfers/events";
 import type { TransferRow } from "@/lib/transfers/projection";
-import { errorMessage } from "@/lib/utils";
+import { cn, errorMessage } from "@/lib/utils";
 import { useQuickEntryStore } from "@/stores/quickEntryStore";
 import {
   ChoiceItem,
   DirectionChoice,
   FULL_ROW,
   SAVED_LOCALLY,
-  type Direction,
   useFocusNewEntry,
 } from "./EntryFields";
 
@@ -243,7 +242,7 @@ export function TransferForm({
   categories: CategoryList;
   draftAmount?: string;
   /** Offered for a new entry, so it can become an expense or income, carrying the amount typed. */
-  onDirectionChange?: (direction: Direction, amount: string) => void;
+  onDirectionChange?: (direction: ListType, amount: string) => void;
   onClose: () => void;
 }) {
   const lastUsedAccountId = useQuickEntryStore((state) => state.lastUsed.accountId);
@@ -279,6 +278,11 @@ export function TransferForm({
       (isOwn(account) || (!account.retired && !isCreditCard(account)))
   );
   const [toId, setToId] = useState(transfer?.toAccountId ?? toChoices[0]?.id ?? "");
+  // A new From starts To over, so an earlier choice doesn't come back unseen.
+  const chooseFrom = (id: string) => {
+    setFromId(id);
+    setToId("");
+  };
   // A destination of another visibility, or the same account, can't follow the change.
   const shownToId = toChoices.some((account) => account.id === toId)
     ? toId
@@ -317,18 +321,20 @@ export function TransferForm({
     null
   );
 
+  const directionChoice = onDirectionChange && (
+    <DirectionChoice
+      value={TRANSFER_TYPE}
+      withTransfer
+      onChange={(next) =>
+        next !== TRANSFER_TYPE && onDirectionChange(next, amountRef.current?.value ?? "")
+      }
+    />
+  );
+
   if (fromChoices.length < 2 && !transfer) {
     return (
       <div className="space-y-4">
-        {onDirectionChange && (
-          <DirectionChoice
-            value={TRANSFER_TYPE}
-            withTransfer
-            onChange={(next) =>
-              next !== TRANSFER_TYPE && onDirectionChange(next, amountRef.current?.value ?? "")
-            }
-          />
-        )}
+        {directionChoice}
         <p className="text-sm text-muted-foreground">
           A transfer needs two accounts in use, other than credit cards. Add another on Home.
         </p>
@@ -349,7 +355,7 @@ export function TransferForm({
       aria-label={transfer ? "Edit transfer" : "Add transfer"}
     >
       <div className="grid gap-4 @[480px]:grid-cols-2">
-        <div className={onDirectionChange ? `space-y-2 ${FULL_ROW}` : "space-y-2"}>
+        <div className={cn("space-y-2", onDirectionChange && FULL_ROW)}>
           <Label htmlFor="transfer-amount">Amount ({PESO_SIGN})</Label>
           <Input
             id="transfer-amount"
@@ -362,15 +368,7 @@ export function TransferForm({
             defaultValue={transfer ? formatPHPInput(transfer.amountCents) : draftAmount}
           />
         </div>
-        {onDirectionChange && (
-          <DirectionChoice
-            value={TRANSFER_TYPE}
-            withTransfer
-            onChange={(next) =>
-              next !== TRANSFER_TYPE && onDirectionChange(next, amountRef.current?.value ?? "")
-            }
-          />
-        )}
+        {directionChoice}
         <div className="space-y-2">
           <Label htmlFor="transfer-date">Date</Label>
           <Input
@@ -383,7 +381,7 @@ export function TransferForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="transfer-from">From</Label>
-          <Select name="fromAccountId" value={fromId} onValueChange={setFromId}>
+          <Select name="fromAccountId" value={fromId} onValueChange={chooseFrom}>
             <SelectTrigger id="transfer-from" className="w-full">
               <SelectValue />
             </SelectTrigger>

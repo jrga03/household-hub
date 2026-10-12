@@ -1,8 +1,7 @@
 import { useEffect, type RefObject } from "react";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { isTransactionType, type TransactionType } from "@/lib/transactions/events";
-import { TRANSFER_TYPE } from "@/lib/transactions/filter";
+import { isListType, TRANSFER_TYPE, type ListType } from "@/lib/transactions/filter";
 import { cn } from "@/lib/utils";
 
 export const SAVED_LOCALLY = "Saved on this device at once; it reaches others when they sync.";
@@ -20,26 +19,21 @@ export function useFocusNewEntry(amount: RefObject<HTMLInputElement | null>, isN
   }, [amount, isNew]);
 }
 
-export type Direction = TransactionType | typeof TRANSFER_TYPE;
-
-const isDirection = (value: string): value is Direction =>
-  value === TRANSFER_TYPE || isTransactionType(value);
-
 /** Expense, Income and, for a new entry, Transfer. */
 export function DirectionChoice({
   value,
   onChange,
   withTransfer,
 }: {
-  value: Direction;
-  onChange: (direction: Direction) => void;
+  value: ListType;
+  onChange: (direction: ListType) => void;
   withTransfer: boolean;
 }) {
   return (
     <RadioGroup
       name="type"
       value={value}
-      onValueChange={(next) => isDirection(next) && onChange(next)}
+      onValueChange={(next) => isListType(next) && onChange(next)}
       // Three choices need a row of their own.
       className={cn(
         "grid gap-2 self-end",
