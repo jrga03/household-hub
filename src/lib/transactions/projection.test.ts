@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { orders } from "@/test/permutations";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { receiveEvents, type LoggedEvent } from "@/lib/events/log";
 import { listTransactions } from "./projection";
@@ -43,19 +44,6 @@ const lunchDetails = {
   description: "Lunch",
   notes: "",
 };
-
-function permutations<T>(items: T[]): T[][] {
-  if (items.length <= 1) return [items];
-  return items.flatMap((item, index) =>
-    permutations([...items.slice(0, index), ...items.slice(index + 1)]).map((rest) => [
-      item,
-      ...rest,
-    ])
-  );
-}
-
-const orders = (events: LoggedEvent[]) =>
-  permutations(events).map((order) => [order.map((event) => event.id), order] as const);
 
 beforeEach(async () => {
   await resetLocalDatabase();

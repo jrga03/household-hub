@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { permutations } from "@/test/permutations";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { receiveEvents, type LoggedEvent } from "@/lib/events/log";
 import { listAccounts, listRetiredAccounts } from "./projection";
@@ -75,16 +76,6 @@ const cashAgainLater = accountCreated("e-cash-2", CASH_ID, "000000000003000-0000
   type: "cash",
   startingBalanceCents: 70_000,
 });
-
-function permutations<T>(items: T[]): T[][] {
-  if (items.length <= 1) return [items];
-  return items.flatMap((item, index) =>
-    permutations([...items.slice(0, index), ...items.slice(index + 1)]).map((rest) => [
-      item,
-      ...rest,
-    ])
-  );
-}
 
 const EXPECTED_ACCOUNTS = [
   {
