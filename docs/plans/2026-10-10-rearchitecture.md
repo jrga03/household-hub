@@ -108,7 +108,7 @@ Seams (from #46's Testing Decisions and the issue's acceptance criteria): the tr
 
 ### #49 decisions
 
-- **Five event types**: `transaction.created` (details plus status), `transaction.edited` (details), `transaction.marked_cleared` / `transaction.marked_pending`, `transaction.removed` / `transaction.restored`. Details, status and removal each resolve by their own latest HLC, like accounts' details vs retirement.
+- **Six event types**: `transaction.created` (details plus status), `transaction.edited` (details), `transaction.marked_cleared` / `transaction.marked_pending`, `transaction.removed` / `transaction.restored`. Details, status and removal each resolve by their own latest HLC, like accounts' details vs retirement.
 - **The direction field is `type: "income" | "expense"`**, as CLAUDE.md's money rule names it; the UI says Expense and Income.
 - **A removed transaction stays in the projection with `removed: true`**, so a restore brings back its latest details and status; reads leave it out.
 - **Unassigned is summed directly** (starting balance plus uncategorized transactions), not as balance minus category money, so the invariant test checks two independent sums. Allocations (#51) add to both sides.
