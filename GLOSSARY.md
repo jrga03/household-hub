@@ -35,7 +35,7 @@ Whether an account is **Household** (every member sees it and it counts toward h
 _Avoid_: Private, shared, scope
 
 **Retired**:
-An account, group or category no longer in use. It leaves the main list and the pickers but keeps its history, stays under a Retired view, and can be unretired. A group retires only once its categories are retired.
+An account, group or category no longer in use. It leaves the main list and the pickers but keeps its history, stays under a Retired view, and can be unretired. A group retires only once its categories are retired. A category holding money retires only after its money moves into another category.
 _Avoid_: Archived, closed, deleted
 
 **Transaction**:
@@ -83,6 +83,10 @@ _Avoid_: Budgeting, assignment, reallocation
 **Budget**:
 A monthly target amount for a category, compared against what was spent that month, naming its funding account. Set from a month, it stands until a later month replaces it, so a category keeps a budget history. It never goes down as money is spent; the category's money does.
 _Avoid_: Envelope, allocation, pot
+
+**Ledger**:
+A category's month record by record: every transaction, transfer and allocation touching it, in date order, with a running balance from its money at the start of the month to its money at the end, and its budget history beneath.
+_Avoid_: Statement, history
 
 **Funding Account**:
 The account a budget's money is distributed into. It shares the category's visibility and is never a credit card. Not to be confused with a credit card's Paying Account.

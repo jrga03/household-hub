@@ -1,4 +1,4 @@
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { AllocationList } from "@/components/allocations/AllocationList";
@@ -58,7 +58,7 @@ import type {
 import { seedDefaultCategories, unretireCategory, unretireGroup } from "@/lib/commands/categories";
 import type { Actor } from "@/lib/commands/accounts";
 import { formatPHP, ZERO_CENTS, type Cents } from "@/lib/currency";
-import { sumCategoryMoney, type AccountMoney, type CategoryMoney } from "@/lib/transactions/money";
+import type { AccountMoney } from "@/lib/transactions/money";
 import { cn, errorMessage } from "@/lib/utils";
 import { monthLabel, shiftMonth } from "@/lib/utils/dates";
 import { AddCategoryForm, AddGroupForm } from "./AddCategoryForms";
@@ -70,10 +70,9 @@ type Editing = { kind: RecordNoun; id: string } | null;
 /** Closed, adding an allocation, or editing one. */
 type Moving = { allocation?: AllocationRow } | null;
 
-/** The chosen month's figures, plus the current money a retired category still holds. */
+/** The chosen month's figures. */
 interface MoneyView {
   month: MonthView;
-  current: Map<string, CategoryMoney>;
   accountNames: Map<string, string>;
   onOpenLedger: (categoryId: string) => void;
 }
@@ -131,10 +130,6 @@ export function CategoriesView({
   const accountMoney = useAccountMoney();
   const accountNames = useAccountNames();
   const monthView = useMonthView(month, currentMonth);
-  const categoryMoney = useMemo(
-    () => accountMoney && sumCategoryMoney(accountMoney),
-    [accountMoney]
-  );
   const [editing, setEditing] = useState<Editing>(null);
   const [moving, setMoving] = useState<Moving>(null);
   const [budgeting, setBudgeting] = useState<string | null>(null);
@@ -144,10 +139,9 @@ export function CategoriesView({
   const [pane, setPane] = useState<HTMLElement | null>(null);
   const paneShown = useLaidOut(pane);
 
-  if (!list || !accountMoney || !accountNames || !categoryMoney || !monthView) return null;
+  if (!list || !accountMoney || !accountNames || !monthView) return null;
   const moneyView: MoneyView = {
     month: monthView,
-    current: categoryMoney,
     accountNames,
     onOpenLedger: setLedgerId,
   };
@@ -238,7 +232,6 @@ export function CategoriesView({
                 />
               </div>
             )}
-            <RetiredHoldingMoney categories={list.retiredCategories} moneyView={moneyView} />
             <RetiredCategories actor={actor} list={list} />
           </CardContent>
         </Card>
@@ -446,8 +439,8 @@ function CategoryMoneyItem({
   byAccount: Map<string, Cents>;
   accountNames: Map<string, string>;
   onOpenLedger: () => void;
-  /** The month's figures, and opening Set budget; left out for a retired category. */
-  budgeting?: { month: CategoryMonth; onSet: () => void };
+  /** The month's figures, and opening Set budget. */
+  budgeting: { month: CategoryMonth; onSet: () => void };
   children?: React.ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -481,27 +474,25 @@ function CategoryMoneyItem({
         </div>
       </div>
       <NegativeNote cents={money} label={OVERSPENT_CATEGORY} />
-      {budgeting && (
-        <FigureList
-          label={`${category.name} budget, spent and allocated`}
-          figures={sumMonthFigures([budgeting.month])}
-          budget={
-            <Button
-              variant="link"
-              className="h-auto p-0 text-xs"
-              aria-label={`Set budget for ${category.name}`}
-              onClick={budgeting.onSet}
-            >
-              {budgeting.month.budget ? formatPHP(budgeting.month.budget.amountCents) : "Set"}
-            </Button>
-          }
-          fundedBy={
-            budgeting.month.budget
-              ? (accountNames.get(budgeting.month.budget.accountId) ?? "An account")
-              : null
-          }
-        />
-      )}
+      <FigureList
+        label={`${category.name} budget, spent and allocated`}
+        figures={sumMonthFigures([budgeting.month])}
+        budget={
+          <Button
+            variant="link"
+            className="h-auto p-0 text-xs"
+            aria-label={`Set budget for ${category.name}`}
+            onClick={budgeting.onSet}
+          >
+            {budgeting.month.budget ? formatPHP(budgeting.month.budget.amountCents) : "Set"}
+          </Button>
+        }
+        fundedBy={
+          budgeting.month.budget
+            ? (accountNames.get(budgeting.month.budget.accountId) ?? "An account")
+            : null
+        }
+      />
       {expanded && holding.length > 0 && (
         <ul aria-label={`${category.name} by account`} className="mt-1 space-y-1 pl-3">
           {holding.map(({ id, cents, name }) => (
@@ -631,41 +622,6 @@ function MonthPicker({
           ? "Each category's money now, with this month's budget, spending and allocations."
           : `Each category's money at the end of ${monthLabel(month)}, with that month's budget, spending and allocations.`}
       </p>
-    </div>
-  );
-}
-
-/** Retired categories keep their money until it's moved out, so they stay listed with it. */
-function RetiredHoldingMoney({
-  categories,
-  moneyView,
-}: {
-  categories: CategoryRow[];
-  moneyView: MoneyView;
-}) {
-  const stillHolding = categories.filter((category) =>
-    [...(moneyView.current.get(category.id)?.byAccount.values() ?? [])].some((cents) => cents !== 0)
-  );
-  if (stillHolding.length === 0) return null;
-
-  return (
-    <div className="rounded-md border">
-      <p className="border-b px-3 py-2 text-sm font-medium">Retired, still holding money</p>
-      <ul aria-label="Retired, still holding money" className="divide-y">
-        {stillHolding.map((category) => {
-          const current = moneyView.current.get(category.id);
-          return (
-            <CategoryMoneyItem
-              key={category.id}
-              category={category}
-              money={current?.total ?? ZERO_CENTS}
-              byAccount={current?.byAccount ?? new Map()}
-              accountNames={moneyView.accountNames}
-              onOpenLedger={() => moneyView.onOpenLedger(category.id)}
-            />
-          );
-        })}
-      </ul>
     </div>
   );
 }

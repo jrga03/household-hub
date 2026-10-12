@@ -170,9 +170,9 @@ Seams: the ledger read function (Vitest: rows, opening and closing money, runnin
 - [x] build, lint, vitest, both tsc, knip
 - [x] Code review (standards + spec), fixes applied
 - [x] Commit
-- [ ] This month's ledger shows money dated later
-- [ ] Retiring a category with money moves it into a chosen category first; the retired-with-money list goes
-- [ ] "Ledger" in GLOSSARY.md
+- [x] This month's ledger shows money dated later
+- [x] Retiring a category with money moves it into a chosen category first; the retired-with-money list goes
+- [x] "Ledger" in GLOSSARY.md
 - [ ] PR
 
 ### #74 decisions

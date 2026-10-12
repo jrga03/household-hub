@@ -19,6 +19,7 @@ import {
   setTransfersStatus,
   type TransferInput,
 } from "./transfers";
+import { retireOnAnotherDevice } from "@/test/anotherDevice";
 
 const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
@@ -355,7 +356,7 @@ describe("editTransfer", () => {
 
   it("keeps a retired category the transfer already has", async () => {
     const { id } = await addTransfer(MEMBER, transfer());
-    await retireCategory(MEMBER, groceriesId);
+    await retireOnAnotherDevice(MEMBER, groceriesId);
 
     await editTransfer(MEMBER, id, transfer({ amountCents: peso("100") }));
 
