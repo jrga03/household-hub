@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { orders } from "@/test/permutations";
 import { sumCents } from "@/lib/currency";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { receiveEvents, type LoggedEvent } from "@/lib/events/log";
 import { listAccounts } from "@/lib/accounts/projection";
-import { readAccountMoney, sumAccountMoney, type AccountMoney } from "./money";
+import { listAllocations } from "@/lib/allocations/projection";
+import { readAccountMoney, sumAccountMoney, sumCategoryMoney, type AccountMoney } from "./money";
 import { listTransactions } from "./projection";
 
 const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
@@ -11,6 +13,7 @@ const BANK = "aaaaaaaa-0000-4000-8000-000000000001";
 const WALLET = "aaaaaaaa-0000-4000-8000-000000000002";
 const CARD = "aaaaaaaa-0000-4000-8000-000000000003";
 const GROCERIES = "cccccccc-0000-4000-8000-000000000001";
+const RENT = "cccccccc-0000-4000-8000-000000000002";
 
 const hlcAt = (millis: number) => `${String(millis).padStart(15, "0")}-000000-device-b`;
 
@@ -76,19 +79,6 @@ const transaction = (
   );
 
 const txId = (n: number) => `dddddddd-0000-4000-8000-00000000000${n}`;
-
-function permutations<T>(items: T[]): T[][] {
-  if (items.length <= 1) return [items];
-  return items.flatMap((item, index) =>
-    permutations([...items.slice(0, index), ...items.slice(index + 1)]).map((rest) => [
-      item,
-      ...rest,
-    ])
-  );
-}
-
-const orders = (events: LoggedEvent[]) =>
-  permutations(events).map((order) => [order.map((event) => event.id), order] as const);
 
 function expectBalanceEqualsEnvelopes(money: Map<string, AccountMoney>, accountIds: string[]) {
   for (const accountId of accountIds) {
@@ -375,6 +365,115 @@ describe("account money", () => {
     });
   });
 
+  describe("allocations move money inside one account", () => {
+    const allocationId = (n: number) => `eeeeeeee-0000-4000-8000-00000000000${n}`;
+    const allocation = (
+      id: string,
+      entityId: string,
+      millis: number,
+      details: Record<string, unknown>,
+      eventType = "allocation.created"
+    ) =>
+      event(id, "allocation", entityId, eventType, millis, {
+        date: "2026-10-12",
+        accountId: BANK,
+        from: { kind: "unassigned" },
+        ...details,
+      });
+    const toGroceries = { kind: "category", id: GROCERIES };
+
+    const intoGroceries = allocation("m-groceries", allocationId(1), 1000, {
+      to: toGroceries,
+      amountCents: 30000,
+    });
+    const intoGroceriesEdited = allocation(
+      "m-groceries-edited",
+      allocationId(1),
+      1500,
+      { to: toGroceries, amountCents: 40000 },
+      "allocation.edited"
+    );
+    const intoCardPayment = allocation("m-card-payment", allocationId(2), 2000, {
+      from: toGroceries,
+      to: { kind: "card_payment", id: CARD },
+      amountCents: 10000,
+    });
+    const undone = allocation("m-undone", allocationId(3), 3000, {
+      to: toGroceries,
+      amountCents: 5000,
+    });
+    const undoneRemoved = event(
+      "m-undone-removed",
+      "allocation",
+      allocationId(3),
+      "allocation.removed",
+      3500
+    );
+    const onCard = allocation("m-on-card", allocationId(4), 4000, {
+      accountId: CARD,
+      to: toGroceries,
+      amountCents: 7000,
+    });
+    // More than the Bank's Unassigned holds: it goes negative.
+    const overspent = allocation("m-overspent", allocationId(5), 5000, {
+      to: { kind: "category", id: RENT },
+      amountCents: 200000,
+    });
+    const inWallet = allocation("m-wallet", allocationId(6), 6000, {
+      accountId: WALLET,
+      to: toGroceries,
+      amountCents: 2000,
+    });
+    const spent = transaction("m-spent", txId(1), 500, {
+      type: "expense",
+      amountCents: 15000,
+      accountId: BANK,
+      categoryId: GROCERIES,
+    });
+
+    it.each(
+      orders([intoGroceriesEdited, intoCardPayment, undoneRemoved, onCard, overspent, inWallet])
+    )("sums the same money from events in the order %j", async (_ids, order) => {
+      await receiveEvents([bank, wallet, card, spent, intoGroceries, undone], 0);
+      for (const arriving of order) await receiveEvents([arriving], 0);
+
+      const money = await readAccountMoney();
+      expect(money.get(BANK)).toEqual({
+        balance: 85000,
+        cleared: 85000,
+        pending: 0,
+        envelopes: {
+          unassigned: -140000,
+          categories: new Map([
+            [GROCERIES, 15000],
+            [RENT, 200000],
+          ]),
+          cardPayments: new Map([[CARD, 10000]]),
+        },
+      });
+      expect(money.get(WALLET)?.envelopes?.unassigned).toBe(-2000);
+      // An allocation on a card moves nothing: a card holds no envelopes.
+      expect(money.get(CARD)).toMatchObject({ balance: 50000, envelopes: null });
+      expectBalanceEqualsEnvelopes(money, [BANK, WALLET]);
+
+      expect(sumCategoryMoney(money)).toEqual(
+        new Map([
+          [
+            GROCERIES,
+            {
+              total: 17000,
+              byAccount: new Map([
+                [BANK, 15000],
+                [WALLET, 2000],
+              ]),
+            },
+          ],
+          [RENT, { total: 200000, byAccount: new Map([[BANK, 200000]]) }],
+        ])
+      );
+    });
+  });
+
   it("sums 10,000 transactions for the Categories screen in under 50 ms", async () => {
     const many = Array.from({ length: 10_000 }, (_, index) =>
       transaction(`t-${index}`, crypto.randomUUID(), 10_000 + index, {
@@ -384,14 +483,29 @@ describe("account money", () => {
         categoryId: index % 4 === 0 ? null : GROCERIES,
       })
     );
-    await receiveEvents([bank, wallet, ...many], 0);
+    const moves = Array.from({ length: 500 }, (_, index) =>
+      event(`m-${index}`, "allocation", crypto.randomUUID(), "allocation.created", 30_000 + index, {
+        date: "2026-10-12",
+        accountId: index % 2 === 0 ? BANK : WALLET,
+        from: { kind: "unassigned" },
+        to: { kind: "category", id: index % 3 === 0 ? RENT : GROCERIES },
+        amountCents: 100 + index,
+      })
+    );
+    await receiveEvents([bank, wallet, ...many, ...moves], 0);
 
-    const [accounts, transactions] = await Promise.all([listAccounts(), listTransactions()]);
+    const [accounts, transactions, allocations] = await Promise.all([
+      listAccounts(),
+      listTransactions(),
+      listAllocations(),
+    ]);
     const started = performance.now();
-    const money = sumAccountMoney(accounts, transactions);
+    const money = sumAccountMoney(accounts, transactions, allocations);
+    const categoryMoney = sumCategoryMoney(money);
     const elapsed = performance.now() - started;
 
     expect(money.size).toBe(2);
+    expect(categoryMoney.size).toBe(2);
     expect(elapsed).toBeLessThan(50);
   });
 });

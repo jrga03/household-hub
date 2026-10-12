@@ -1,10 +1,12 @@
 /**
- * Account money summed at read time from the account and transaction
- * projections, never stored, so it is order-independent by construction.
+ * Account money summed at read time from the account, transaction and
+ * allocation projections, never stored, so it is order-independent by construction.
  */
 
 import { isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
+import type { Envelope } from "@/lib/allocations/events";
+import type { AllocationRow } from "@/lib/allocations/projection";
 import { negateCents, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import type { TransactionRow } from "./projection";
@@ -43,10 +45,16 @@ function addToEnvelope(envelopes: Envelopes, categoryId: string | null, amount: 
   else addToTotal(envelopes.categories, categoryId, amount);
 }
 
+function addToAllocated(envelopes: Envelopes, envelope: Envelope, amount: Cents) {
+  if (envelope.kind === "card_payment") addToTotal(envelopes.cardPayments, envelope.id, amount);
+  else addToEnvelope(envelopes, envelope.kind === "category" ? envelope.id : null, amount);
+}
+
 /** Balance = Unassigned + category money + Card Payments holds for every account with envelopes. */
 export function sumAccountMoney(
   accounts: AccountRow[],
-  transactions: TransactionRow[]
+  transactions: TransactionRow[],
+  allocations: AllocationRow[]
 ): Map<string, AccountMoney> {
   const totals = new Map<string, { cleared: Cents; pending: Cents; envelopes: Envelopes }>();
   const cards = new Set<string>();
@@ -84,6 +92,14 @@ export function sumAccountMoney(
     addToTotal(paying.envelopes.cardPayments, transaction.accountId, amount);
   }
 
+  // An allocation moves money between two envelopes of one account; its balance doesn't change.
+  for (const allocation of allocations) {
+    const account = totals.get(allocation.accountId);
+    if (!account || allocation.removed || cards.has(allocation.accountId)) continue;
+    addToAllocated(account.envelopes, allocation.from, negateCents(allocation.amountCents));
+    addToAllocated(account.envelopes, allocation.to, allocation.amountCents);
+  }
+
   const money = new Map<string, AccountMoney>();
   for (const [accountId, { cleared, pending, envelopes }] of totals) {
     money.set(accountId, {
@@ -98,9 +114,31 @@ export function sumAccountMoney(
 
 /** Every account's money on this device, retired ones included, by account ID. */
 export async function readAccountMoney(): Promise<Map<string, AccountMoney>> {
-  const [accounts, transactions] = await Promise.all([
+  const [accounts, transactions, allocations] = await Promise.all([
     db.accounts.toArray(),
     db.transactions.toArray(),
+    db.allocations.toArray(),
   ]);
-  return sumAccountMoney(accounts, transactions);
+  return sumAccountMoney(accounts, transactions, allocations);
+}
+
+export interface CategoryMoney {
+  total: Cents;
+  /** The category's money in each account holding some, by account ID. */
+  byAccount: Map<string, Cents>;
+}
+
+/** Each category's money summed across accounts, by category ID. */
+export function sumCategoryMoney(money: Map<string, AccountMoney>): Map<string, CategoryMoney> {
+  const byCategory = new Map<string, CategoryMoney>();
+  for (const [accountId, { envelopes }] of money) {
+    if (!envelopes) continue;
+    for (const [categoryId, cents] of envelopes.categories) {
+      const category = byCategory.get(categoryId) ?? { total: ZERO_CENTS, byAccount: new Map() };
+      category.total = sumCents([category.total, cents]);
+      category.byAccount.set(accountId, cents);
+      byCategory.set(categoryId, category);
+    }
+  }
+  return byCategory;
 }

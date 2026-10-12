@@ -6,6 +6,7 @@
 
 import type { Table } from "dexie";
 import { accountProjection } from "@/lib/accounts/projection";
+import { allocationProjection } from "@/lib/allocations/projection";
 import { categoryProjection, groupProjection } from "@/lib/categories/projection";
 import { transactionProjection } from "@/lib/transactions/projection";
 import type { LoggedEvent, Visibility } from "./log";
@@ -73,6 +74,7 @@ registerProjection(accountProjection);
 registerProjection(groupProjection);
 registerProjection(categoryProjection);
 registerProjection(transactionProjection);
+registerProjection(allocationProjection);
 
 /** Every projection table's name, for the log's transactions. */
 export const projectionTableNames = () =>
