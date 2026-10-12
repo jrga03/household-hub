@@ -7,7 +7,7 @@ import { addAllocation } from "@/lib/commands/allocations";
 import { createCategory, createGroup } from "@/lib/commands/categories";
 import { addTransaction, removeTransaction } from "@/lib/commands/transactions";
 import { addTransfer } from "@/lib/commands/transfers";
-import { readCategoryLedger } from "./ledger";
+import { readCategoryLedger, readLedgerRecord } from "./ledger";
 
 const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
 
@@ -148,5 +148,17 @@ describe("category ledger", () => {
     const ledger = await october();
 
     expect(ledger).toMatchObject({ opening: 100000, rows: [], closing: 100000 });
+  });
+
+  it("reads an opened record as it is now, and as null once removed", async () => {
+    const { id } = await spendOnGroceries("2026-10-05", "1200");
+    expect(await readLedgerRecord({ kind: "transaction", id })).toMatchObject({
+      kind: "transaction",
+      record: { id, amountCents: 120000 },
+    });
+
+    await removeTransaction(MEMBER, id);
+
+    expect(await readLedgerRecord({ kind: "transaction", id })).toBeNull();
   });
 });

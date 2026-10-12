@@ -1,5 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { readCategoryLedger } from "@/lib/budgets/ledger";
+import { readCategoryLedger, readLedgerRecord, type LedgerRecordId } from "@/lib/budgets/ledger";
 import { readMonthView } from "@/lib/budgets/month";
 import { listBudgets } from "@/lib/budgets/projection";
 
@@ -16,4 +16,12 @@ export function useMonthView(month: string, currentMonth: string) {
 /** The month's records touching the category with a running balance; undefined while loading. */
 export function useCategoryLedger(categoryId: string, month: string) {
   return useLiveQuery(() => readCategoryLedger(categoryId, month), [categoryId, month]);
+}
+
+/** The opened ledger record, live; null once removed, undefined while loading or when none is open. */
+export function useLedgerRecord(opened: LedgerRecordId | null) {
+  return useLiveQuery(
+    async () => (opened ? readLedgerRecord(opened) : undefined),
+    [opened?.kind, opened?.id]
+  );
 }

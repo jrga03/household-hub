@@ -33,7 +33,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useAccountNames, useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
-import { useMonthView } from "@/hooks/useBudgets";
+import { useLedgerRecord, useMonthView } from "@/hooks/useBudgets";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useLaidOut } from "@/hooks/useLaidOut";
 import { useAccountMoney } from "@/hooks/useTransactions";
@@ -46,7 +46,7 @@ import {
   type MonthFigures,
   type MonthView,
 } from "@/lib/budgets/month";
-import type { LedgerRecord } from "@/lib/budgets/ledger";
+import type { LedgerRecordId } from "@/lib/budgets/ledger";
 import { DEFAULT_GROUPS } from "@/lib/categories/defaults";
 import type { RecordNoun } from "@/lib/categories/events";
 import type {
@@ -75,7 +75,6 @@ interface MoneyView {
   month: MonthView;
   current: Map<string, CategoryMoney>;
   accountNames: Map<string, string>;
-  /** Opens the category's ledger for the month. */
   onOpenLedger: (categoryId: string) => void;
 }
 
@@ -140,7 +139,8 @@ export function CategoriesView({
   const [moving, setMoving] = useState<Moving>(null);
   const [budgeting, setBudgeting] = useState<string | null>(null);
   const [ledgerId, setLedgerId] = useState<string | null>(null);
-  const [opened, setOpened] = useState<LedgerRecord | null>(null);
+  const [openedId, setOpenedId] = useState<LedgerRecordId | null>(null);
+  const opened = useLedgerRecord(openedId);
   const [pane, setPane] = useState<HTMLElement | null>(null);
   const paneShown = useLaidOut(pane);
 
@@ -151,6 +151,8 @@ export function CategoriesView({
     accountNames,
     onOpenLedger: setLedgerId,
   };
+  // Removed on another device mid-edit: close it, as the transaction list does.
+  if (openedId && opened === null) setOpenedId(null);
   const namesOfCategories = categoryNames(list);
   const ledgerName = ledgerId === null ? undefined : namesOfCategories.get(ledgerId);
   if (ledgerId !== null && ledgerName === undefined) setLedgerId(null);
@@ -161,9 +163,7 @@ export function CategoriesView({
       categoryName={ledgerName}
       month={month}
       names={{ accounts: accountNames, categories: namesOfCategories }}
-      onOpen={(record) =>
-        record.kind === "allocation" ? setMoving({ allocation: record.record }) : setOpened(record)
-      }
+      onOpen={({ kind, record }) => setOpenedId({ kind, id: record.id })}
     />
   );
 
@@ -308,11 +308,18 @@ export function CategoriesView({
         <TransactionDialog
           actor={actor}
           transaction={opened.record}
-          onClose={() => setOpened(null)}
+          onClose={() => setOpenedId(null)}
         />
       )}
       {opened?.kind === "transfer" && (
-        <TransferDialog actor={actor} transfer={opened.record} onClose={() => setOpened(null)} />
+        <TransferDialog actor={actor} transfer={opened.record} onClose={() => setOpenedId(null)} />
+      )}
+      {opened?.kind === "allocation" && (
+        <MoveMoneyDialog
+          actor={actor}
+          allocation={opened.record}
+          onClose={() => setOpenedId(null)}
+        />
       )}
 
       {editingGroup && (

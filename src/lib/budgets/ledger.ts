@@ -112,3 +112,22 @@ export async function readCategoryLedger(categoryId: string, month: string) {
   ]);
   return categoryLedger(categoryId, month, { accounts, transactions, allocations, transfers });
 }
+
+export interface LedgerRecordId {
+  kind: LedgerRecord["kind"];
+  id: string;
+}
+
+/** The record as it is now; null once it's gone or removed, so an open edit can close. */
+export async function readLedgerRecord({ kind, id }: LedgerRecordId): Promise<LedgerRecord | null> {
+  if (kind === "transaction") {
+    const record = await db.transactions.get(id);
+    return record && !record.removed ? { kind, record } : null;
+  }
+  if (kind === "transfer") {
+    const record = await db.transfers.get(id);
+    return record && !record.removed ? { kind, record } : null;
+  }
+  const record = await db.allocations.get(id);
+  return record && !record.removed ? { kind, record } : null;
+}

@@ -42,7 +42,6 @@ function CategoriesPage() {
         </div>
       </div>
 
-      {/* The categories fill the main column and the ledger the detail pane beside it. */}
       <PageShell variant="rail">
         {household && userId && (
           <CategoriesView

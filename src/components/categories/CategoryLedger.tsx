@@ -15,17 +15,18 @@ interface Names {
 
 const dateOf = (date: string) => format(parseLocalDate(date), "MMM d");
 
+const accountName = (names: Names, id: string) => names.accounts.get(id) ?? "An account";
+
 /** What a row shows: its name and the line beneath it. */
 function describe({ kind, record }: LedgerRecord, names: Names) {
-  const accountName = (id: string) => names.accounts.get(id) ?? "An account";
   if (kind === "transaction") {
     return {
       label: record.description || (record.type === "income" ? "Income" : "Expense"),
-      detail: [dateOf(record.date), accountName(record.accountId)].join(" · "),
+      detail: [dateOf(record.date), accountName(names, record.accountId)].join(" · "),
     };
   }
   if (kind === "transfer") {
-    const path = `${accountName(record.fromAccountId)} → ${accountName(record.toAccountId)}`;
+    const path = `${accountName(names, record.fromAccountId)} → ${accountName(names, record.toAccountId)}`;
     return {
       label: record.description || path,
       detail: [dateOf(record.date), record.description && path].filter(Boolean).join(" · "),
@@ -35,7 +36,7 @@ function describe({ kind, record }: LedgerRecord, names: Names) {
     envelopeLabel(envelope, names.categories, names.accounts);
   return {
     label: `${side(record.from)} → ${side(record.to)}`,
-    detail: [dateOf(record.date), accountName(record.accountId)].join(" · "),
+    detail: [dateOf(record.date), accountName(names, record.accountId)].join(" · "),
   };
 }
 
@@ -146,7 +147,7 @@ export function CategoryLedger({
                   <span className="block">From {monthLabel(version.fromMonth)}</span>
                   {version.accountId !== null && (
                     <span className="block truncate text-muted-foreground">
-                      {names.accounts.get(version.accountId) ?? "An account"}
+                      {accountName(names, version.accountId)}
                     </span>
                   )}
                 </span>
