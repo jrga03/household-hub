@@ -31,6 +31,9 @@ export interface Ownership {
   ownerUserId: string | null;
 }
 
+export const sameOwnership = (a: Ownership, b: Ownership) =>
+  a.visibility === b.visibility && a.ownerUserId === b.ownerUserId;
+
 export const isVisibility = (value: string): value is Visibility =>
   VISIBILITIES.some((visibility) => visibility === value);
 

@@ -1,7 +1,7 @@
-import { VISIBILITY_LABELS, type Ownership } from "@/lib/events/log";
+import { sameOwnership, VISIBILITY_LABELS } from "@/lib/events/log";
 import { requestSync } from "@/lib/sync/triggers";
 import { getAccount, type AccountRow } from "@/lib/accounts/projection";
-import { getCategory } from "@/lib/categories/projection";
+import { canHoldMoneyIn, getCategory } from "@/lib/categories/projection";
 import type { Cents } from "@/lib/currency";
 import {
   checkTransactionDetails,
@@ -39,9 +39,6 @@ export interface TransactionInput {
 
 const appendTransactionEvent = appenderFor(TRANSACTION_ENTITY, TRANSACTION_VERSIONS);
 
-const sameOwnership = (a: Ownership, b: Ownership) =>
-  a.visibility === b.visibility && a.ownerUserId === b.ownerUserId;
-
 function checkedDetails(input: TransactionInput): TransactionDetails {
   const { details, problem } = checkTransactionDetails({ ...input });
   if (problem !== null) throw new Error(problem);
@@ -58,12 +55,11 @@ async function requireAccount(accountId: string): Promise<AccountRow> {
   return account;
 }
 
-/** A category holds money only in accounts seen by exactly the people who see it (ADR 0005). */
 async function checkCategory(categoryId: string | null, account: AccountRow): Promise<void> {
   if (categoryId === null) return;
   const category = await getCategory(categoryId);
   if (!category) throw new Error("That category no longer exists.");
-  if (!sameOwnership(category, account)) {
+  if (!canHoldMoneyIn(category, account)) {
     throw new Error(
       `Choose a ${VISIBILITY_LABELS[account.visibility]} category for ${account.name}.`
     );
@@ -110,22 +106,35 @@ export async function editTransaction(
 ): Promise<void> {
   const details = checkedDetails(input);
   const transaction = await requireTransaction(transactionId);
+  // A re-sent unchanged edit would carry a later HLC and undo another device's edit.
+  if (sameDetails(details, transaction)) return;
   const accountChanged = details.accountId !== transaction.accountId;
-  if (accountChanged) {
-    const account = await requireAccount(details.accountId);
-    if (!sameOwnership(account, transaction)) {
-      const visibility = VISIBILITY_LABELS[transaction.visibility];
-      throw new Error(
-        `Choose a ${visibility} account. To move it to a ${VISIBILITY_LABELS[account.visibility]} one, remove it and add it there.`
-      );
-    }
-    refuseRetired(account);
-  }
   if (accountChanged || details.categoryId !== transaction.categoryId) {
-    await checkCategory(details.categoryId, await requireAccount(details.accountId));
+    const account = await requireAccount(details.accountId);
+    if (accountChanged) checkMove(account, transaction);
+    await checkCategory(details.categoryId, account);
   }
   await appendTransactionEvent(actor, transaction, TRANSACTION_EDITED, { ...details });
   requestSync();
+}
+
+const sameDetails = (a: TransactionDetails, b: TransactionDetails) =>
+  a.date === b.date &&
+  a.type === b.type &&
+  a.amountCents === b.amountCents &&
+  a.accountId === b.accountId &&
+  a.categoryId === b.categoryId &&
+  a.description === b.description &&
+  a.notes === b.notes;
+
+function checkMove(account: AccountRow, transaction: TransactionRow): void {
+  if (!sameOwnership(account, transaction)) {
+    const visibility = VISIBILITY_LABELS[transaction.visibility];
+    throw new Error(
+      `Choose a ${visibility} account. To move it to a ${VISIBILITY_LABELS[account.visibility]} one, remove it and add it there.`
+    );
+  }
+  refuseRetired(account);
 }
 
 async function appendChange(

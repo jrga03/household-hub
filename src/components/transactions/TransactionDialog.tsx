@@ -28,7 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import type { AccountRow } from "@/lib/accounts/projection";
-import type { CategoryList, CategoryRow } from "@/lib/categories/projection";
+import { canHoldMoneyIn, type CategoryList, type CategoryRow } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import {
   addTransaction,
@@ -37,7 +37,7 @@ import {
   type TransactionInput,
 } from "@/lib/commands/transactions";
 import { formatPHPInput, parsePHPSafe, PESO_SIGN } from "@/lib/currency";
-import type { Ownership } from "@/lib/events/log";
+import { sameOwnership } from "@/lib/events/log";
 import {
   DESCRIPTION_MAX_LENGTH,
   isTransactionStatus,
@@ -54,9 +54,6 @@ import { removeWithUndo } from "./removeWithUndo";
 // Radix Select can't hold an empty value.
 const UNASSIGNED = "unassigned";
 
-const sameOwnership = (a: Ownership, b: Ownership) =>
-  a.visibility === b.visibility && a.ownerUserId === b.ownerUserId;
-
 interface CategoryChoiceGroup {
   label: string;
   categories: CategoryRow[];
@@ -69,7 +66,7 @@ function categoryChoices(
   currentId: string | null
 ): CategoryChoiceGroup[] {
   if (!account) return [];
-  const fits = (category: CategoryRow) => sameOwnership(category, account);
+  const fits = (category: CategoryRow) => canHoldMoneyIn(category, account);
   const groups = [
     ...list.groups.map((group) => ({
       label: group.name,

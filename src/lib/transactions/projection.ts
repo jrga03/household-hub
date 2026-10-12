@@ -1,5 +1,5 @@
 import { db } from "@/lib/dexie/db";
-import type { LoggedEvent, Ownership } from "@/lib/events/log";
+import { sameOwnership, type LoggedEvent, type Ownership } from "@/lib/events/log";
 import type { EntityProjection } from "@/lib/events/projector";
 import {
   decodeRemoval,
@@ -48,13 +48,9 @@ function applyTransactionEvent(
     };
   }
   // Changes carry the transaction's own visibility and owner; anything else isn't a change to it.
-  if (
-    event.visibility !== transaction.visibility ||
-    event.ownerUserId !== transaction.ownerUserId
-  ) {
+  if (!sameOwnership(event, transaction) || event.eventType === TRANSACTION_CREATED) {
     return transaction;
   }
-  if (event.eventType === TRANSACTION_CREATED) return transaction;
   if (details) return { ...transaction, ...details };
   if (status) return { ...transaction, status };
   const removed = decodeRemoval(event);

@@ -22,7 +22,7 @@ export interface AccountMoney {
   /** The starting balance plus cleared transactions. */
   cleared: Cents;
   pending: Cents;
-  /** Null for a credit card: its purchases reserve money in its Paying Account (#50). */
+  /** Null for a credit card: its purchases reserve money in its Paying Account. */
   envelopes: Envelopes | null;
 }
 

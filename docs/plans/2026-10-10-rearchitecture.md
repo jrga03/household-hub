@@ -103,8 +103,8 @@ Seams (from #46's Testing Decisions and the issue's acceptance criteria): the tr
 - [x] Accounts card shows balance, Cleared · Pending and Unassigned
 - [x] Playwright: offline expense and income move balance, Groceries and Unassigned (chromium)
 - [x] build, lint, vitest, both tsc, knip
-- [ ] Code review (standards + spec), fixes applied
-- [ ] Commit
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
 
 ### #49 decisions
 
@@ -115,6 +115,14 @@ Seams (from #46's Testing Decisions and the issue's acceptance criteria): the tr
 - **Card transactions change only the card's amount owed** in #49; a card has no Unassigned or category money of its own. #50 adds the Paying Account to the event.
 - **Within a day, the newest recorded transaction lists first** (date descending, then create HLC descending), matching newest-first. Revisit: if members expect entry order within a day.
 - **Last-used account and category come from a small persisted Zustand store**, written when a transaction is added; a stale ID (retired or gone) falls back to the first choice.
+- **Choosing Income in a new transaction resets the category to Unassigned** (income lands in Unassigned unless named, 2026-10-11), overriding the last-used category. Revisit: if refunds are common enough that members want the last category kept.
+- **The wide-screen header now shows at every wide width**, holding the Add transaction button; the sidebar trigger and page title stay hidden from `lg`. Desktop layout baselines were regenerated (they were already stale from #48's Categories nav item).
+- **`g t` goes to Transactions**, like `g c` for Categories.
+- **Review fix: an edit with unchanged details appends nothing.** Why: the dialog sends the details with every save, so marking a transaction pending would re-stamp stale details with a later HLC and undo another device's amount edit. Covered by a command test.
+- **Review fixes:** `sameOwnership` lives beside `Ownership` in `lib/events/log` and `canHoldMoneyIn` beside `canHold`, shared by the command and the dialog; `editTransaction` reads the account once; the list maps status and type to their display once; edit-path tests for a retired category and a category of another visibility.
+- **Review deferral: a category's money per account isn't shown yet**, so the demo's "Groceries goes to −₱250" is checked by the Vitest sums, not on screen. Revisit: #51 (the Categories screen shows money per account).
+- **Review deferral: the edit dialog saves details and status as two events**; if the second append fails, the details are kept and the form shows the error. Revisit: if it happens in use.
+- **Review deferral: four test files carry their own `permutations` helper.** Revisit: at the next entity (#51 allocations), extract a shared test helper.
 
 ## Issue #48: categories and groups
 

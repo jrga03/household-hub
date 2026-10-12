@@ -10,13 +10,27 @@ import { useTransactions } from "@/hooks/useTransactions";
 import type { Actor } from "@/lib/commands/accounts";
 import { setTransactionStatus } from "@/lib/commands/transactions";
 import { formatPHP } from "@/lib/currency";
+import type { TransactionStatus, TransactionType } from "@/lib/transactions/events";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import { errorMessage } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
 import { removeWithUndo } from "./removeWithUndo";
 import { TransactionDialog } from "./TransactionDialog";
 
-/** Newest date first, until the full list (#52). */
+const STATUS_DISPLAY: Record<
+  TransactionStatus,
+  { label: string; toggleTo: TransactionStatus; badge: "secondary" | "outline" }
+> = {
+  cleared: { label: "Cleared", toggleTo: "pending", badge: "secondary" },
+  pending: { label: "Pending", toggleTo: "cleared", badge: "outline" },
+};
+
+const AMOUNT_DISPLAY: Record<TransactionType, { sign: string; className: string }> = {
+  income: { sign: "+", className: "tabular-nums text-green-700 dark:text-green-400" },
+  expense: { sign: "−", className: "tabular-nums" },
+};
+
+/** Newest date first. */
 export function TransactionList({ actor }: { actor: Actor }) {
   const transactions = useTransactions();
   const accounts = useAccounts();
@@ -49,7 +63,7 @@ export function TransactionList({ actor }: { actor: Actor }) {
         await setTransactionStatus(
           actor,
           transaction.id,
-          transaction.status === "cleared" ? "pending" : "cleared"
+          STATUS_DISPLAY[transaction.status].toggleTo
         );
       } catch (caught) {
         toast.error(errorMessage(caught, "Couldn't change the status."));
@@ -72,7 +86,8 @@ export function TransactionList({ actor }: { actor: Actor }) {
             transaction.categoryId === null
               ? "Unassigned"
               : (categoryNames.get(transaction.categoryId) ?? "Category not on this device yet");
-          const sign = transaction.type === "income" ? "+" : "−";
+          const status = STATUS_DISPLAY[transaction.status];
+          const amount = AMOUNT_DISPLAY[transaction.type];
           return (
             <li key={transaction.id} className="flex items-center gap-3 px-3 py-2">
               <button
@@ -88,26 +103,18 @@ export function TransactionList({ actor }: { actor: Actor }) {
                   {transaction.description && ` · ${category}`}
                 </p>
               </button>
-              <span
-                className={
-                  transaction.type === "income"
-                    ? "tabular-nums text-green-700 dark:text-green-400"
-                    : "tabular-nums"
-                }
-              >
-                {sign}
+              <span className={amount.className}>
+                {amount.sign}
                 {formatPHP(transaction.amountCents)}
               </span>
               <Button
                 variant="ghost"
                 size="sm"
                 disabled={changing}
-                aria-label={`Mark ${transaction.status === "cleared" ? "pending" : "cleared"}`}
+                aria-label={`Mark ${status.toggleTo}`}
                 onClick={() => toggleStatus(transaction)}
               >
-                <Badge variant={transaction.status === "cleared" ? "secondary" : "outline"}>
-                  {transaction.status === "cleared" ? "Cleared" : "Pending"}
-                </Badge>
+                <Badge variant={status.badge}>{status.label}</Badge>
               </Button>
               <Button
                 variant="ghost"

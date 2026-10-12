@@ -158,6 +158,31 @@ describe("editTransaction", () => {
     );
   });
 
+  it("appends nothing when the details are unchanged, so another device's edit isn't overwritten", async () => {
+    const { id } = await addTransaction(MEMBER, expense());
+    const before = await listUnpushed(100);
+
+    await editTransaction(MEMBER, id, expense({ description: "  Market  " }));
+
+    expect(await listUnpushed(100)).toHaveLength(before.length);
+  });
+
+  it("refuses moving a transaction into a retired category", async () => {
+    const { id } = await addTransaction(MEMBER, expense({ categoryId: null }));
+    await retireCategory(MEMBER, groceriesId);
+
+    await expect(editTransaction(MEMBER, id, expense())).rejects.toThrow("Groceries is retired.");
+  });
+
+  it("refuses a category of another visibility", async () => {
+    const { id } = await addTransaction(MEMBER, expense());
+    const travelId = await personalCategory(MEMBER);
+
+    await expect(editTransaction(MEMBER, id, expense({ categoryId: travelId }))).rejects.toThrow(
+      "Choose a Household category for Bank."
+    );
+  });
+
   it("keeps a transaction on a retired account or category editable", async () => {
     const { id } = await addTransaction(MEMBER, expense());
     await retireCategory(MEMBER, groceriesId);
