@@ -110,7 +110,7 @@ Spec: #70. Scoped 2026-10-12 (decisions above, agreed 2026-10-12). ADRs 0006 and
 - **`appendTogether(fn)` makes several commands one change**: commands called inside it join one Dexie transaction over the log tables, so a later refusal keeps none of the earlier events, and later commands see what earlier ones projected. Lint-fenced to commands like `appendEvent`. Agreed 2026-10-12.
 
 - [x] #71 Transfers
-- [ ] #72 Pay a credit card (blocked by #71)
+- [x] #72 Pay a credit card (blocked by #71), PR #86
 - [x] #73 Budgets and the month view
 - [x] #74 Category ledger
 - [ ] #75 Distribute money (blocked by #71, #73)
