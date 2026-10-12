@@ -83,10 +83,10 @@ Spec: #46. Scoped 2026-10-12 (decisions above, dated 2026-10-11 and 2026-10-12).
 
 - [x] #47 Projection registry
 - [x] #48 Categories and groups
-- [x] #49 Transactions core (branch `feat/49-transactions`, not yet merged)
-- [ ] #50 Card Payment reservation (blocked by #49)
-- [ ] #51 Allocations and the Categories screen (blocked by #48, #49)
-- [ ] #52 Transaction list: virtualized, filters, totals, search (blocked by #49)
+- [x] #49 Transactions core
+- [ ] #50 Card Payment reservation
+- [ ] #51 Allocations and the Categories screen
+- [ ] #52 Transaction list: virtualized, filters, totals, search
 - [ ] #53 Transaction list actions: bulk, swipe, detail pane (blocked by #52)
 - [ ] Close #46
 
@@ -334,7 +334,13 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #42 merged (PR #43, 57587d4).
 - Triaged 2026-10-11: #15 closed as completed; #40 updated (deploy steps done; first-run check 2026-10-13, still-active check on or after 2026-10-17).
 - Next: #40's two dashboard checks (human).
-- Milestone 2 scoped 2026-10-12: spec #46, sub-issues #47-#53 (`ready-for-agent`), ADR 0005. Next: #47, in a worktree.
+- Milestone 2 scoped 2026-10-12: spec #46, sub-issues #47-#53 (`ready-for-agent`), ADR 0005.
+- #47 merged (PR #56, ca6bba3). #48 merged (PR #57, 22a23d5). #49 merged (PR #58, 0593a29). Their worktrees and local branches are removed.
+- Next: #50 (Card Payment reservation), in a worktree. #51 and #52 are unblocked too.
+- Gotchas found in #49:
+  - A new route fails `tsc -b` until the route tree is regenerated: run `npx vite build` (the router plugin rewrites `src/routeTree.gen.ts`), then type-check.
+  - Shell changes move the laptop/desktop layout baselines; open the `*-diff.png` before `--update-snapshots`. There is no phone baseline, so check phone layout with a screenshot.
+  - #50 adds the Paying Account to `transaction.created` and `transaction.edited` as v2 with a v1 upcaster (`src/lib/transactions/events.ts`); `sumAccountMoney` (`src/lib/transactions/money.ts`) gives cards `envelopes: null` today.
 - Gotchas found in #16:
   - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
   - `supabase test db` exits 1 when `supabase/tests/` has no `.sql` files; `000_empty_baseline.sql` (asserts public has no tables) must be replaced, not just deleted, by #21's baseline tests.
