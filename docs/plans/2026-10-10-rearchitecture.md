@@ -113,8 +113,8 @@ Spec: #70. Scoped 2026-10-12 (decisions above, agreed 2026-10-12). ADRs 0006 and
 - [x] #72 Pay a credit card (blocked by #71), PR #86
 - [x] #73 Budgets and the month view
 - [x] #74 Category ledger
-- [ ] #75 Distribute money (blocked by #71, #73)
-- [ ] #76 Export (blocked by #71)
+- [x] #75 Distribute money (blocked by #71, #73), PR #87
+- [x] #76 Export (blocked by #71)
 - [ ] #77 Opening checklist (blocked by #75)
 - [ ] Close #70
 
@@ -157,17 +157,33 @@ Seams: the CSV and JSON builders (Vitest).
 
 Seams (from #70's Testing Decisions): the Distribute command and its prefill (Vitest, including a twice-monthly payday); Playwright chromium for a payroll distribution leaving the account at ₱0.
 
-- [ ] Prefill: remaining budget this month in any account, floored at 0
-- [ ] Command: one transfer per other destination account plus allocations; source lines as allocations; excess stays; shortfall warns
-- [ ] Retired categories skipped; retired funding account falls back to the source with "Funding account retired"
-- [ ] Unbudgeted categories added by hand
-- [ ] Entry points: income toast action (prefilled); opening-allocation mode
-- [ ] Playwright (chromium): payroll distribution leaves Unassigned at ₱0
-- [ ] build, lint, vitest, both tsc, knip
-- [ ] Code review (standards + spec), fixes applied
-- [ ] Commit
+- [x] Prefill: remaining budget this month in any account, floored at 0
+- [x] Command: one transfer per other destination account plus allocations; source lines as allocations; excess stays; shortfall warns
+- [x] Retired categories skipped; retired funding account falls back to the source with "Funding account retired"
+- [x] Unbudgeted categories added by hand
+- [x] Entry points: income toast action (prefilled); opening-allocation mode
+- [x] Playwright (chromium): payroll distribution leaves Unassigned at ₱0
+- [x] build, lint, vitest, both tsc, knip
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
 
 ### #75 decisions
+
+- **Seams:** `readDistributeLines(source, month, mode)` (`lib/budgets/distribute.ts`) and `distributeMoney` (`lib/commands/distribute.ts`), Vitest seeded through commands; `tests/e2e/distribute.spec.ts` on chromium.
+- **Distribute is a route, `/distribute?account&amount&date&mode=opening`**, not a dialog. Why: the toast, the Categories header and #77's checklist all link to it, and a list of lines needs a page on phones. #77 opens it with `mode=opening` (and `account` when it knows one).
+- **The month is the distribution date's month**, prefilled with the income's date. Allocations and transfers carry that date, so the next payday's prefill counts them.
+- **Opening mode lists every category in use the source can hold**, blank, kept in the source, with each budget shown for reference. Why: #77's checklist puts distribute before set budgets, so budget-only lines would be empty. Revisit: if the list is too long for a big household. Agreed 2026-10-12.
+- **Lines are only categories the source can hold** (same visibility and owner); a Personal budget doesn't show when distributing a Household account.
+- **A funding account that can't take the money** (retired, a card, another visibility, or not on this device) falls back to the source; only a retired one shows "Funding account retired".
+- **The Income field caps the warning**; left blank, the source's Unassigned does ("₱X more than BPI's Unassigned"). Opening mode has no Income field.
+- **The Distribute toast action shows only for income into Unassigned**: a categorized income (a refund) is already in an envelope. Agreed 2026-10-12.
+- **Each transfer is described "Distribute money"**, so it explains itself in the transaction list.
+- **A Distribute button sits in the Categories header**, so a payday is reachable after the toast is gone.
+- **"Allocated this month" is net**: Move money out of a category this month raises its next prefill by that much. It reuses the month view's figure, so Distribute and Categories agree. Agreed 2026-10-12.
+- **The shortfall line adds a hint** ("You can still distribute it; trim a line or Unassigned shows in red") after the spec's "₱X more than this income".
+- **Known limit: two devices distributing the same payday before syncing both fund the budgets.** Every record is new, so nothing is overwritten; the source's Unassigned goes negative and shows red. Revisit: if it happens in practice (a guard would need the server). Agreed 2026-10-12.
+- **Review fixes:** the top card's grid sits inside its `@container` (an element can't query itself); `categoriesHeldBy` shared by the reader and the add-a-category picker; `distributeMoney` is async and throws like the other commands.
+- **Review deferrals:** a `todayLocal()` helper for the repeated `format(new Date(), "yyyy-MM-dd")`, and using `categoriesHeldBy`-style flattening in `CategoriesView` and `envelopes.ts`. Why: they touch files other round-2 branches edit. Revisit: after round 2 merges. Agreed 2026-10-12.
 
 ## Issue #74: category ledger
 

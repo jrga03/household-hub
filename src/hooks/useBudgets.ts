@@ -1,5 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { readCategoryLedger, readLedgerRecord, type LedgerRecordId } from "@/lib/budgets/ledger";
+import { readDistributeLines, type DistributeMode } from "@/lib/budgets/distribute";
 import { readMonthView } from "@/lib/budgets/month";
 import { listBudgets } from "@/lib/budgets/projection";
 
@@ -23,5 +24,13 @@ export function useLedgerRecord(opened: LedgerRecordId | null) {
   return useLiveQuery(
     async () => (opened ? readLedgerRecord(opened) : undefined),
     [opened?.kind, opened?.id]
+  );
+}
+
+/** The lines Distribute money opens with; undefined while loading. */
+export function useDistributeLines(sourceAccountId: string, month: string, mode: DistributeMode) {
+  return useLiveQuery(
+    () => readDistributeLines(sourceAccountId, month, mode),
+    [sourceAccountId, month, mode]
   );
 }

@@ -1,4 +1,5 @@
 import { useActionState, useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -255,6 +256,7 @@ function TransactionForm({
   onClose: () => void;
 }) {
   const { lastUsed, setLastUsed } = useQuickEntryStore();
+  const navigate = useNavigate();
   const lastAccount = accounts.find((account) => account.id === lastUsed.accountId);
   const [type, setType] = useState<TransactionType>(transaction?.type ?? initialType);
   const amountRef = useRef<HTMLInputElement>(null);
@@ -293,7 +295,23 @@ function TransactionForm({
         } else {
           await addTransaction(actor, { ...input, status });
           setLastUsed({ accountId: input.accountId, categoryId: input.categoryId });
-          toast.success("Transaction added");
+          // Income into Unassigned is a payday: offer to split it across the budgets.
+          const distribute =
+            input.type === "income" && input.categoryId === null
+              ? {
+                  label: "Distribute",
+                  onClick: () =>
+                    void navigate({
+                      to: "/distribute",
+                      search: {
+                        account: input.accountId,
+                        amount: formatPHPInput(input.amountCents),
+                        date: input.date,
+                      },
+                    }),
+                }
+              : undefined;
+          toast.success("Transaction added", { action: distribute });
         }
         onClose();
         return null;
