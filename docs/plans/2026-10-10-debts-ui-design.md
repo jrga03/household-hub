@@ -1,5 +1,7 @@
 # Debts UI (Design)
 
+> **Superseded 2026-10-12.** This plan targets the old row-outbox design, which the re-architecture removed. Debts will be rebuilt on the event log after the first release; see `docs/plans/2026-10-10-rearchitecture.md` (Decisions & Deferrals).
+
 **Date:** 2026-10-10
 **Roadmap:** `docs/plans/2026-09-30-guardrails-roadmap.md`, the debts UI spec after Phase 3b.
 **Inputs:** the five cross-device gaps deferred in `docs/plans/2026-10-06-debt-sync-defects.md` (Decisions & Deferrals) and the 3b decision to route `src/components/debts/**` (`docs/plans/2026-10-09-phase-3b-knip-design.md`, section 8).
