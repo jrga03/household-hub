@@ -48,7 +48,7 @@ export function readTransactionFilter(search: Record<string, unknown>): Transact
 export const needsCategory = (transaction: TransactionRow) =>
   transaction.type === "expense" && transaction.categoryId === null;
 
-function matches(transaction: TransactionRow, filter: TransactionFilter): boolean {
+function matchesFilter(transaction: TransactionRow, filter: TransactionFilter): boolean {
   if (filter.month !== undefined && !transaction.date.startsWith(`${filter.month}-`)) return false;
   if (filter.account !== undefined && transaction.accountId !== filter.account) return false;
   if (
@@ -63,9 +63,9 @@ function matches(transaction: TransactionRow, filter: TransactionFilter): boolea
   return true;
 }
 
-const AMOUNT_QUERY = /^₱?\d{1,3}(,\d{3})*(\.\d{1,2})?$|^₱?\d+(\.\d{1,2})?$/;
+const AMOUNT_QUERY = /^₱?\s*(\d{1,3}(,\d{3})*|\d+)(\.\d{0,2})?$/;
 
-function searchFor(query: string) {
+function matchesQuery(query: string) {
   const text = query.trim().toLowerCase();
   if (text === "") return () => true;
   const amount: Cents | null = AMOUNT_QUERY.test(text) ? parsePHPUnbounded(text) : null;
@@ -80,8 +80,10 @@ export function filterTransactions(
   transactions: TransactionRow[],
   filter: TransactionFilter
 ): TransactionRow[] {
-  const found = searchFor(filter.query ?? "");
-  return transactions.filter((transaction) => matches(transaction, filter) && found(transaction));
+  const matchesSearch = matchesQuery(filter.query ?? "");
+  return transactions.filter(
+    (transaction) => matchesFilter(transaction, filter) && matchesSearch(transaction)
+  );
 }
 
 export interface TransactionTotals {

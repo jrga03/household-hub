@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Link } from "@tanstack/react-router";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { format } from "date-fns";
@@ -41,7 +41,8 @@ const AMOUNT_DISPLAY: Record<TransactionType, { sign: string; className: string 
 
 const ROW_HEIGHT_ESTIMATE = 61;
 
-const formatCount = (count: number) => count.toLocaleString("en-PH");
+const countOf = (count: number, one: string, many: string) =>
+  count === 1 ? `1 ${one}` : `${count.toLocaleString("en-PH")} ${many}`;
 
 /** "yyyy-MM" months holding transactions, newest first (the list is newest first). */
 const monthsOf = (transactions: TransactionRow[]) => [
@@ -83,9 +84,8 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
     );
   }
 
-  const accountNames = new Map(
-    [...(accounts ?? []), ...(retiredAccounts ?? [])].map((account) => [account.id, account.name])
-  );
+  const allAccounts = [...(accounts ?? []), ...(retiredAccounts ?? [])];
+  const accountNames = new Map(allAccounts.map((account) => [account.id, account.name]));
   const categoryNames = new Map(
     categories
       ? [
@@ -105,8 +105,7 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
         filter={filter}
         onChange={onFilterChange}
         months={months}
-        accounts={accounts ?? []}
-        retiredAccounts={retiredAccounts ?? []}
+        accounts={allAccounts}
         categories={categories}
       />
 
@@ -117,9 +116,7 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
             search={{ needsCategory: true }}
             className="font-medium text-amber-700 underline-offset-4 hover:underline dark:text-amber-400"
           >
-            {needingCategory === 1
-              ? "1 expense needs a category"
-              : `${formatCount(needingCategory)} expenses need a category`}
+            {countOf(needingCategory, "expense needs a category", "expenses need a category")}
           </Link>
         </p>
       )}
@@ -132,7 +129,7 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
         <Total label="Expenses" cents={totals.expenseCents} />
         <Total label="Net" cents={totals.netCents} />
         <p className="col-span-3 text-xs text-muted-foreground">
-          {shown.length === 1 ? "1 transaction" : `${formatCount(shown.length)} transactions`}
+          {countOf(shown.length, "transaction", "transactions")}
         </p>
       </section>
 
@@ -140,22 +137,17 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
         <p className="text-sm text-muted-foreground">No transactions match these filters.</p>
       ) : (
         <VirtualTransactionRows
+          actor={actor}
           transactions={shown}
-          renderRow={(transaction) => (
-            <TransactionItem
-              actor={actor}
-              transaction={transaction}
-              accountName={
-                accountNames.get(transaction.accountId) ?? "Account not on this device yet"
-              }
-              categoryName={
-                transaction.categoryId === null
-                  ? "Unassigned"
-                  : (categoryNames.get(transaction.categoryId) ?? "Category not on this device yet")
-              }
-              onEdit={() => setEditingId(transaction.id)}
-            />
-          )}
+          accountNameOf={(transaction) =>
+            accountNames.get(transaction.accountId) ?? "Account not on this device yet"
+          }
+          categoryNameOf={(transaction) =>
+            transaction.categoryId === null
+              ? "Unassigned"
+              : (categoryNames.get(transaction.categoryId) ?? "Category not on this device yet")
+          }
+          onEdit={setEditingId}
         />
       )}
 
@@ -178,12 +170,21 @@ function Total({ label, cents }: { label: string; cents: Cents }) {
 }
 
 interface VirtualTransactionRowsProps {
+  actor: Actor;
   transactions: TransactionRow[];
-  renderRow: (transaction: TransactionRow) => React.ReactNode;
+  accountNameOf: (transaction: TransactionRow) => string;
+  categoryNameOf: (transaction: TransactionRow) => string;
+  onEdit: (id: string) => void;
 }
 
 /** Renders only the rows near the viewport; the page itself scrolls. */
-function VirtualTransactionRows({ transactions, renderRow }: VirtualTransactionRowsProps) {
+function VirtualTransactionRows({
+  actor,
+  transactions,
+  accountNameOf,
+  categoryNameOf,
+  onEdit,
+}: VirtualTransactionRowsProps) {
   const listRef = useRef<HTMLUListElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
 
@@ -203,7 +204,8 @@ function VirtualTransactionRows({ transactions, renderRow }: VirtualTransactionR
     estimateSize: () => ROW_HEIGHT_ESTIMATE,
     overscan: 8,
     scrollMargin,
-    getItemKey: (index) => transactions[index]?.id ?? index,
+    // Stable across renders, so the virtualizer keeps its measured offsets.
+    getItemKey: useCallback((index: number) => transactions[index]?.id ?? index, [transactions]),
   });
 
   return (
@@ -226,7 +228,13 @@ function VirtualTransactionRows({ transactions, renderRow }: VirtualTransactionR
             className="absolute left-0 top-0 w-full border-b last:border-b-0"
             style={{ transform: `translateY(${item.start - scrollMargin}px)` }}
           >
-            {renderRow(transaction)}
+            <TransactionItem
+              actor={actor}
+              transaction={transaction}
+              accountName={accountNameOf(transaction)}
+              categoryName={categoryNameOf(transaction)}
+              onEdit={() => onEdit(transaction.id)}
+            />
           </li>
         );
       })}

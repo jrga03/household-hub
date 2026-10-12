@@ -61,13 +61,15 @@ test("filters combine, and the totals and search follow them", async ({ page }) 
   await expect(totals.getByRole("group", { name: "Net" })).toContainText("-₱370.50");
 
   await filters.getByRole("button", { name: "Clear filters" }).click();
-  await filters.getByLabel("Search description, notes or amount").fill("250");
+  const search = filters.getByLabel("Search description, notes or amount");
+  await search.pressSequentially("250");
+  await expect(search).toHaveValue("250");
   await expect(list.getByRole("listitem")).toHaveCount(2);
   await expect(list).toContainText("Market");
   await expect(list).toContainText("Dinner");
   await expect(totals.getByRole("group", { name: "Expenses" })).toContainText("₱500.00");
 
-  await filters.getByLabel("Search description, notes or amount").fill("");
+  await search.fill("");
   await page.getByRole("link", { name: "1 expense needs a category" }).click();
   await expect(filters.getByLabel("Needs a category")).toBeChecked();
   await expect(list.getByRole("listitem")).toHaveCount(1);

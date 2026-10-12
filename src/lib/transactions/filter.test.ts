@@ -109,6 +109,8 @@ describe("filterTransactions search", () => {
     expect(ids(filterTransactions(rows, { query: "250" }))).toEqual([twoFifty.id]);
     expect(ids(filterTransactions(rows, { query: "₱250.00" }))).toEqual([twoFifty.id]);
     expect(ids(filterTransactions(rows, { query: "1,250" }))).toEqual([rows[3]?.id]);
+    expect(ids(filterTransactions(rows, { query: "₱ 250" }))).toEqual([twoFifty.id]);
+    expect(ids(filterTransactions(rows, { query: "250." }))).toEqual([twoFifty.id]);
   });
 
   it("still finds a number written in the description", () => {

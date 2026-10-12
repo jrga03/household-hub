@@ -56,8 +56,8 @@ interface TransactionFiltersProps {
   onChange: (filter: TransactionFilter) => void;
   /** "yyyy-MM" months holding transactions, newest first. */
   months: string[];
+  /** Retired ones included, so their transactions stay findable. */
   accounts: AccountRow[];
-  retiredAccounts: AccountRow[];
   categories: CategoryList | undefined;
 }
 
@@ -66,30 +66,29 @@ export function TransactionFilters({
   onChange,
   months,
   accounts,
-  retiredAccounts,
   categories,
 }: TransactionFiltersProps) {
+  // The input keeps its own text: the URL catches up a render later while typing.
   const [query, setQuery] = useState(filter.query ?? "");
-  const [shownQuery, setShownQuery] = useState(filter.query);
-  // Cleared or changed by a link: show the URL's query.
-  if (filter.query !== shownQuery) {
-    setShownQuery(filter.query);
-    setQuery(filter.query ?? "");
+  const [urlQuery, setUrlQuery] = useState(filter.query);
+  if (filter.query !== urlQuery) {
+    setUrlQuery(filter.query);
+    // Cleared by Clear filters or a link, not by typing.
+    if (filter.query === undefined) setQuery("");
   }
 
-  const change = (next: TransactionFilter) => onChange({ ...filter, ...next });
-  const choose = (value: string) => (value === ALL ? undefined : value);
+  const mergeFilter = (next: TransactionFilter) => onChange({ ...filter, ...next });
+  const unlessAll = (value: string) => (value === ALL ? undefined : value);
   const isFiltered = Object.keys(filter).length > 0;
 
-  const accountChoices: Choice[] = [
-    ...accounts.map((account) => ({ value: account.id, label: account.name })),
-    ...retiredAccounts.map((account) => ({
-      value: account.id,
-      label: `${account.name} (retired)`,
-    })),
-  ];
-  const monthChoices =
-    filter.month && !months.includes(filter.month) ? [filter.month, ...months] : months;
+  const accountChoices: Choice[] = accounts.map((account) => ({
+    value: account.id,
+    label: account.retired ? `${account.name} (retired)` : account.name,
+  }));
+  const thisMonth = format(new Date(), "yyyy-MM");
+  const monthChoices = [
+    ...new Set([thisMonth, ...(filter.month ? [filter.month] : []), ...months]),
+  ].sort((a, b) => b.localeCompare(a));
 
   return (
     <div className="space-y-3" role="search" aria-label="Filter transactions">
@@ -106,8 +105,7 @@ export function TransactionFilters({
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
-            setShownQuery(event.target.value || undefined);
-            change({ query: event.target.value || undefined });
+            mergeFilter({ query: event.target.value || undefined });
           }}
         />
       </div>
@@ -123,14 +121,14 @@ export function TransactionFilters({
               choices: monthChoices.map((month) => ({ value: month, label: monthLabel(month) })),
             },
           ]}
-          onChange={(value) => change({ month: choose(value) })}
+          onChange={(value) => mergeFilter({ month: unlessAll(value) })}
         />
         <FilterSelect
           label="Account"
           value={filter.account}
           allLabel="All accounts"
           groups={[{ label: "Accounts", choices: accountChoices }]}
-          onChange={(value) => change({ account: choose(value) })}
+          onChange={(value) => mergeFilter({ account: unlessAll(value) })}
         />
         <FilterSelect
           label="Category"
@@ -143,7 +141,7 @@ export function TransactionFilters({
             },
             ...categoryGroups(categories),
           ]}
-          onChange={(value) => change({ category: choose(value) })}
+          onChange={(value) => mergeFilter({ category: unlessAll(value) })}
         />
         <FilterSelect
           label="Type"
@@ -158,7 +156,7 @@ export function TransactionFilters({
               ],
             },
           ]}
-          onChange={(value) => change({ type: isTransactionType(value) ? value : undefined })}
+          onChange={(value) => mergeFilter({ type: isTransactionType(value) ? value : undefined })}
         />
         <FilterSelect
           label="Status"
@@ -173,7 +171,9 @@ export function TransactionFilters({
               ],
             },
           ]}
-          onChange={(value) => change({ status: isTransactionStatus(value) ? value : undefined })}
+          onChange={(value) =>
+            mergeFilter({ status: isTransactionStatus(value) ? value : undefined })
+          }
         />
       </div>
 
@@ -182,7 +182,7 @@ export function TransactionFilters({
           <Switch
             id="filter-needs-category"
             checked={filter.needsCategory ?? false}
-            onCheckedChange={(checked) => change({ needsCategory: checked || undefined })}
+            onCheckedChange={(checked) => mergeFilter({ needsCategory: checked || undefined })}
           />
           <Label htmlFor="filter-needs-category">Needs a category</Label>
         </div>
