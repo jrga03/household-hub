@@ -76,7 +76,16 @@ export function isLocalDate(value: unknown): value is string {
 const isOptionalId = (value: unknown): value is string | null | undefined =>
   value == null || (typeof value === "string" && value !== "");
 
-const optionalText = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+/** A positive whole number of cents, at most MAX_AMOUNT_CENTS. */
+export const isAmount = (value: unknown): value is number =>
+  typeof value === "number" &&
+  Number.isSafeInteger(value) &&
+  value > 0 &&
+  value <= MAX_AMOUNT_CENTS;
+
+export const AMOUNT_PROBLEM = `The amount must be more than zero and at most ${formatPHP(asCents(MAX_AMOUNT_CENTS))}.`;
+
+export const optionalText = (value: unknown) => (typeof value === "string" ? value.trim() : "");
 
 /**
  * Validates transaction details from a form or from another device's event.
@@ -87,16 +96,7 @@ export function checkTransactionDetails(input: Record<string, unknown>): Details
   const { date, type, amountCents, accountId, categoryId, payingAccountId } = input;
   if (!isLocalDate(date)) return rejected("Choose a date.");
   if (!isTransactionType(type)) return rejected("Choose Expense or Income.");
-  if (
-    typeof amountCents !== "number" ||
-    !Number.isSafeInteger(amountCents) ||
-    amountCents <= 0 ||
-    amountCents > MAX_AMOUNT_CENTS
-  ) {
-    return rejected(
-      `The amount must be more than zero and at most ${formatPHP(asCents(MAX_AMOUNT_CENTS))}.`
-    );
-  }
+  if (!isAmount(amountCents)) return rejected(AMOUNT_PROBLEM);
   if (typeof accountId !== "string" || accountId === "") return rejected("Choose an account.");
   if (!isOptionalId(categoryId)) return rejected("Choose a category or Unassigned.");
   if (!isOptionalId(payingAccountId)) return rejected("The card's Paying Account is missing.");

@@ -16,8 +16,13 @@ import {
 import { Switch } from "@/components/ui/switch";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { CategoryList } from "@/lib/categories/projection";
-import { UNASSIGNED_FILTER, type TransactionFilter } from "@/lib/transactions/filter";
-import { isTransactionStatus, isTransactionType } from "@/lib/transactions/events";
+import {
+  isListType,
+  TRANSFER_TYPE,
+  UNASSIGNED_FILTER,
+  type TransactionFilter,
+} from "@/lib/transactions/filter";
+import { isTransactionStatus } from "@/lib/transactions/events";
 import { parseLocalDate } from "@/lib/utils/dates";
 
 // Radix Select can't hold an empty value.
@@ -153,10 +158,11 @@ export function TransactionFilters({
               choices: [
                 { value: "expense", label: "Expense" },
                 { value: "income", label: "Income" },
+                { value: TRANSFER_TYPE, label: "Transfer" },
               ],
             },
           ]}
-          onChange={(value) => mergeFilter({ type: isTransactionType(value) ? value : undefined })}
+          onChange={(value) => mergeFilter({ type: isListType(value) ? value : undefined })}
         />
         <FilterSelect
           label="Status"

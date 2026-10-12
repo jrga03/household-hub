@@ -1,4 +1,5 @@
 import { sameOwnership, VISIBILITY_LABELS, type Ownership } from "@/lib/events/log";
+import { isCreditCard } from "@/lib/accounts/events";
 import { getAccount, type AccountRow } from "@/lib/accounts/projection";
 import { canHoldMoneyIn, getCategory, type CategoryRow } from "@/lib/categories/projection";
 
@@ -36,4 +37,23 @@ export function checkMove(account: AccountRow, record: Ownership): void {
     );
   }
   refuseRetired(account);
+}
+
+/** The card, once it's on this device and seen by the same people as the account. */
+export async function requireCardFor(cardId: string, account: AccountRow): Promise<AccountRow> {
+  const card = await getAccount(cardId);
+  if (!card || !isCreditCard(card)) throw new Error("That card no longer exists.");
+  if (!sameOwnership(card, account)) {
+    throw new Error(`Choose a ${VISIBILITY_LABELS[account.visibility]} card for ${account.name}.`);
+  }
+  return card;
+}
+
+/** Money goes into a Card Payment only where the card's bill is paid from. */
+export async function refusePaidElsewhere(card: AccountRow, account: AccountRow): Promise<void> {
+  if (card.payingAccountId === account.id) return;
+  const paying = card.payingAccountId === null ? undefined : await getAccount(card.payingAccountId);
+  throw new Error(
+    `${card.name} is paid from ${paying?.name ?? "another account"}. Choose a card paid from ${account.name}.`
+  );
 }

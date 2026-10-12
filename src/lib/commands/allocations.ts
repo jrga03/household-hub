@@ -1,7 +1,6 @@
-import { sameOwnership, VISIBILITY_LABELS } from "@/lib/events/log";
 import { requestSync } from "@/lib/sync/triggers";
 import { isCreditCard } from "@/lib/accounts/events";
-import { getAccount, type AccountRow } from "@/lib/accounts/projection";
+import type { AccountRow } from "@/lib/accounts/projection";
 import {
   ALLOCATION_CREATED,
   ALLOCATION_EDITED,
@@ -17,7 +16,14 @@ import {
 import { getAllocation, type AllocationRow } from "@/lib/allocations/projection";
 import type { Actor } from "./accounts";
 import { appenderFor } from "./append";
-import { checkMove, refuseRetired, requireAccount, requireCategoryFor } from "./records";
+import {
+  checkMove,
+  refusePaidElsewhere,
+  refuseRetired,
+  requireAccount,
+  requireCardFor,
+  requireCategoryFor,
+} from "./records";
 
 export type AllocationInput = AllocationDetails;
 
@@ -35,30 +41,12 @@ function refuseCard(account: AccountRow): void {
   }
 }
 
-async function requireCardFor(cardId: string, account: AccountRow): Promise<AccountRow> {
-  const card = await getAccount(cardId);
-  if (!card || !isCreditCard(card)) throw new Error("That card no longer exists.");
-  if (!sameOwnership(card, account)) {
-    throw new Error(`Choose a ${VISIBILITY_LABELS[account.visibility]} card for ${account.name}.`);
-  }
-  return card;
-}
-
 /** The envelope's category or card, once it fits the account; null for Unassigned. */
 function requireEnvelopeFor(envelope: Envelope, account: AccountRow) {
   if (envelope.kind === "unassigned") return null;
   return envelope.kind === "category"
     ? requireCategoryFor(envelope.id, account)
     : requireCardFor(envelope.id, account);
-}
-
-/** Money goes into a Card Payment only where the card's bill is paid from. */
-async function refusePaidElsewhere(card: AccountRow, account: AccountRow): Promise<void> {
-  if (card.payingAccountId === account.id) return;
-  const paying = card.payingAccountId === null ? undefined : await getAccount(card.payingAccountId);
-  throw new Error(
-    `${card.name} is paid from ${paying?.name ?? "another account"}. Choose a card paid from ${account.name}.`
-  );
 }
 
 /**

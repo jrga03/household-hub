@@ -6,6 +6,7 @@ import { receiveEvents, type LoggedEvent } from "@/lib/events/log";
 import { listAccounts } from "@/lib/accounts/projection";
 import { listAllocations } from "@/lib/allocations/projection";
 import { readAccountMoney, sumAccountMoney, sumCategoryMoney, type AccountMoney } from "./money";
+import { listTransfers } from "@/lib/transfers/projection";
 import { listTransactions } from "./projection";
 
 const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
@@ -488,7 +489,150 @@ describe("account money", () => {
     });
   });
 
-  it("sums 10,000 transactions for the Categories screen in under 50 ms", async () => {
+  describe("transfers move money and its envelope between accounts", () => {
+    const transferId = (n: number) => `ffffffff-0000-4000-8000-00000000000${n}`;
+    const transfer = (
+      id: string,
+      entityId: string,
+      millis: number,
+      details: Record<string, unknown>,
+      eventType = "transfer.created"
+    ) =>
+      event(id, "transfer", entityId, eventType, millis, {
+        date: "2026-10-12",
+        description: "",
+        notes: "",
+        ...(eventType === "transfer.created" ? { status: "cleared" } : {}),
+        ...details,
+      });
+    const groceriesEnvelope = { kind: "category", id: GROCERIES };
+
+    const intoGroceries = event("x-allocated", "allocation", txId(9), "allocation.created", 500, {
+      date: "2026-10-12",
+      accountId: BANK,
+      from: { kind: "unassigned" },
+      to: groceriesEnvelope,
+      amountCents: 50000,
+    });
+    const cardPurchase = transaction("x-card-purchase", txId(1), 600, {
+      type: "expense",
+      amountCents: 20000,
+      accountId: CARD,
+      categoryId: GROCERIES,
+      payingAccountId: BANK,
+    });
+    const toWallet = transfer("x-to-wallet", transferId(1), 1000, {
+      amountCents: 20000,
+      fromAccountId: BANK,
+      toAccountId: WALLET,
+      envelope: groceriesEnvelope,
+    });
+    const toWalletEdited = transfer(
+      "x-to-wallet-edited",
+      transferId(1),
+      1500,
+      { amountCents: 30000, fromAccountId: BANK, toAccountId: WALLET, envelope: groceriesEnvelope },
+      "transfer.edited"
+    );
+    const toWalletPending = event(
+      "x-to-wallet-pending",
+      "transfer",
+      transferId(1),
+      "transfer.marked_pending",
+      1800
+    );
+    const back = transfer("x-back", transferId(2), 2000, {
+      amountCents: 5000,
+      fromAccountId: WALLET,
+      toAccountId: BANK,
+      envelope: { kind: "unassigned" },
+    });
+    const backRemoved = event(
+      "x-back-removed",
+      "transfer",
+      transferId(2),
+      "transfer.removed",
+      2500
+    );
+    // Paying the card: from the Bank's Card Payment for it, into the card.
+    const payCard = transfer("x-pay-card", transferId(3), 3000, {
+      amountCents: 15000,
+      fromAccountId: BANK,
+      toAccountId: CARD,
+      envelope: { kind: "card_payment", id: CARD },
+    });
+
+    it.each(orders([toWallet, toWalletEdited, toWalletPending, back, backRemoved, payCard]))(
+      "sums the same money from events in the order %j",
+      async (_ids, order) => {
+        await receiveEvents([bank, wallet, card, intoGroceries, cardPurchase], 0);
+        for (const arriving of order) await receiveEvents([arriving], 0);
+
+        const money = await readAccountMoney();
+        expect(money.get(BANK)).toEqual({
+          balance: 55000,
+          cleared: 85000,
+          pending: -30000,
+          envelopes: {
+            unassigned: 50000,
+            categories: new Map([[GROCERIES, 0]]),
+            cardPayments: new Map([[CARD, 5000]]),
+          },
+        });
+        expect(money.get(WALLET)).toEqual({
+          balance: 30000,
+          cleared: 0,
+          pending: 30000,
+          envelopes: {
+            unassigned: 0,
+            categories: new Map([[GROCERIES, 30000]]),
+            cardPayments: new Map(),
+          },
+        });
+        // Paying the card lowers what it owes.
+        expect(money.get(CARD)).toEqual({
+          balance: 55000,
+          cleared: 55000,
+          pending: 0,
+          envelopes: null,
+        });
+        expectBalanceEqualsEnvelopes(money, [BANK, WALLET]);
+        expect(sumCategoryMoney(money).get(GROCERIES)?.total).toBe(30000);
+      }
+    );
+
+    it("raises what a card owes when money leaves it", async () => {
+      const outOfCard = transfer("x-out-of-card", transferId(4), 4000, {
+        amountCents: 10000,
+        fromAccountId: CARD,
+        toAccountId: WALLET,
+        envelope: { kind: "unassigned" },
+      });
+      await receiveEvents([bank, wallet, card, outOfCard], 0);
+
+      const money = await readAccountMoney();
+      expect(money.get(CARD)?.balance).toBe(60000);
+      expect(money.get(WALLET)?.envelopes?.unassigned).toBe(10000);
+      expectBalanceEqualsEnvelopes(money, [BANK, WALLET]);
+    });
+
+    it("moves only the side whose account is on this device", async () => {
+      const elsewhere = "aaaaaaaa-0000-4000-8000-000000000009";
+      const toUnknown = transfer("x-to-unknown", transferId(5), 5000, {
+        amountCents: 10000,
+        fromAccountId: BANK,
+        toAccountId: elsewhere,
+        envelope: { kind: "unassigned" },
+      });
+      await receiveEvents([bank, toUnknown], 0);
+
+      const money = await readAccountMoney();
+      expect(money.get(BANK)?.balance).toBe(90000);
+      expectBalanceEqualsEnvelopes(money, [BANK]);
+    });
+  });
+
+  it("sums 10,000 transactions, allocations and transfers for the Categories screen in under 50 ms", async () => {
     const many = Array.from({ length: 10_000 }, (_, index) =>
       transaction(`t-${index}`, crypto.randomUUID(), 10_000 + index, {
         type: index % 3 === 0 ? "income" : "expense",
@@ -506,15 +650,27 @@ describe("account money", () => {
         amountCents: 100 + index,
       })
     );
-    await receiveEvents([bank, wallet, ...many, ...moves], 0);
+    const transfers = Array.from({ length: 500 }, (_, index) =>
+      event(`x-${index}`, "transfer", crypto.randomUUID(), "transfer.created", 40_000 + index, {
+        date: "2026-10-12",
+        amountCents: 100 + index,
+        fromAccountId: index % 2 === 0 ? BANK : WALLET,
+        toAccountId: index % 2 === 0 ? WALLET : BANK,
+        envelope: { kind: "category", id: GROCERIES },
+        status: "cleared",
+      })
+    );
+    await receiveEvents([bank, wallet, ...many, ...moves, ...transfers], 0);
 
-    const [accounts, transactions, allocations] = await Promise.all([
+    const [accounts, transactions, allocations, transferRows] = await Promise.all([
       listAccounts(),
       listTransactions(),
       listAllocations(),
+      listTransfers(),
     ]);
+    expect(transferRows).toHaveLength(500);
     const started = performance.now();
-    const money = sumAccountMoney(accounts, transactions, allocations);
+    const money = sumAccountMoney(accounts, transactions, allocations, transferRows);
     const categoryMoney = sumCategoryMoney(money);
     const elapsed = performance.now() - started;
 

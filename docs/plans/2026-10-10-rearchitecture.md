@@ -203,17 +203,30 @@ Seams: the pay-card command (Vitest), the invariant after every permutation of a
 
 Seams (from #70's Testing Decisions): the transfer projection and read-time sums through `receiveEvents` (Vitest; permutations, duplicates, the balance = Unassigned + category money + Card Payments invariant after every permutation), the commands (Vitest), Playwright chromium for an offline transfer reaching a second device.
 
-- [ ] Transfer events, decoder and projection (details, status, removal resolve apart); registered; Dexie table
-- [ ] Read-time sums apply transfers to both accounts; invariant after every permutation
-- [ ] Commands: add, edit, set status, remove, restore; the transfer rules
-- [ ] List: one row per transfer, signed under an account filter, out of income and expense totals; type filter gains Transfer
-- [ ] Edit, remove with Undo, swipe and bulk status and remove on transfers
-- [ ] Playwright (chromium, two browsers): offline transfer reaches B
+- [x] Transfer events, decoder and projection (details, status, removal resolve apart); registered; Dexie table
+- [x] Read-time sums apply transfers to both accounts; invariant after every permutation
+- [x] Commands: add, edit, set status, remove, restore; the transfer rules
+- [x] List: one row per transfer, signed under an account filter, out of income and expense totals; type filter gains Transfer
+- [x] Edit, remove with Undo, swipe and bulk status and remove on transfers
+- [x] Playwright (chromium, two browsers): offline transfer reaches B
 - [ ] build, lint, vitest, both tsc, knip
 - [ ] Code review (standards + spec), fixes applied
 - [ ] Commit
 
 ### #71 decisions
+
+- **Six event types**: `transfer.created` (details plus status), `transfer.edited` (details: date, amount, from and to accounts, envelope, description, notes), `transfer.marked_cleared` / `transfer.marked_pending`, `transfer.removed` / `transfer.restored`; details, status and removal each resolve by their own latest HLC, like transactions. Dexie v8 `transfers`. The decoder refuses the same account on both sides, so such an event never projects.
+- **The envelope reuses the allocation's tagged `Envelope`** (`unassigned`, `category`, `card_payment`), so the sums, labels and select keys are shared.
+- **`sumAccountMoney` takes transfers as a required fourth argument.** Each leg moves the balance (in the transfer's status bucket) and the envelope; a card holds no envelopes, so money into a card lowers what it owes (paying it) and money out raises it. The sums handle a transfer out of a card or to an account not on this device (only the known side moves), though the command refuses the first. Why required: a caller that forgets transfers would show wrong balances. Revisit: never.
+- **Envelope fit:** a category in use of the accounts' visibility, Unassigned, or a Card Payment going into the card's current Paying Account (moving a reservation there). Into a card, the only envelope is that card's own Card Payment (paying it), from any account of its visibility. Money out of a Card Payment is allowed from any account, like allocations. Why: #72 pays from a non-default account after moving the reservation there, and the reservation-move transfer (2026-10-11 decision) lands where the bill is paid from. Revisit: #72, if paying needs another shape.
+- **The Add transfer UI offers no card destinations and no Card Payment envelopes**; #72 adds the Pay card action on top of `addTransfer`. Editing a transfer #72 made keeps its card and Card Payment as choices.
+- **An edit re-checks only what changed**, like transactions: changed accounts must be in use, of the transfer's visibility and not a card on the from side; a changed envelope (or accounts) must fit. An unchanged edit appends nothing. A retired account or category the transfer already has stays editable.
+- **Transfer is a third direction in the Add transaction dialog** (Expense, Income, Transfer), swapping to the transfer form and back; the amount typed so far follows the switch. On wide dialogs the amount and the three choices each take a full row.
+- **A new entry focuses its amount itself** (`useFocusNewEntry`). Why: the dialog's own first-field focus ran before the form had loaded its choices, so it landed on Close; `transactions.spec.ts`'s `toBeFocused` failed on main too in this environment, and the form switch needs it anyway.
+- **List rows:** a transfer shows "BPI → GCash" (or its description, with the path beneath), the envelope, a transfer icon, and an unsigned muted amount; under an account filter it's minus (from) or plus (to). The category filter matches its envelope (Unassigned or a category; a Card Payment transfer matches no category). Search covers its description, notes and amount. The count line reads "N transactions, M transfers (not in the totals)".
+- **Bulk status and Remove split the selection** into transactions and transfers and run each kind's commands (`changeEach` moved to `commands/bulk.ts`, generic over the record); Change category acts on the transactions only and is disabled when only transfers are selected. Toasts name the kinds ("2 transactions and 1 transfer").
+- **Shared helpers:** `isAmount` / `AMOUNT_PROBLEM` / `optionalText` in `transactions/events.ts` (the amount check was copied in transactions and allocations); `requireCardFor` and `refusePaidElsewhere` moved to `commands/records.ts`; `decodeEnvelope` exported.
+- **Known, not mine:** `transactions.spec.ts` fails on Mobile Chrome (on main it fails earlier, at the focus check; past that it clicks the row's Remove icon, which #53 hides on phones). Logged in CLAUDE.md. Chromium passes.
 
 ## Milestone 2
 
