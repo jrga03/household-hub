@@ -10,6 +10,7 @@ import {
   OVERSPENT_CATEGORY,
 } from "@/components/allocations/MoneyAmount";
 import { MoveMoneyDialog } from "@/components/allocations/MoveMoneyDialog";
+import { PayCardDialog } from "@/components/accounts/PayCardDialog";
 import { SetBudgetDialog } from "@/components/budgets/SetBudgetDialog";
 import { PageShell } from "@/components/layout/PageShell";
 import { BELOW_HEADER, PANE_MAX_HEIGHT } from "@/components/layout/pane";
@@ -179,6 +180,7 @@ export function CategoriesView({
         {!hasHouseholdGroup && <SuggestedCategories actor={actor} />}
 
         <UnassignedCard
+          actor={actor}
           accountMoney={accountMoney}
           accountNames={accountNames}
           onMove={() => setMoving({})}
@@ -348,20 +350,29 @@ export function CategoriesView({
 
 /**
  * Each account's Unassigned and Card Payments, where Move money starts. A
- * retired account still holding money stays listed until it's moved out.
+ * retired account still holding money stays listed until it's moved out. A
+ * card in use is paid from its Card Payment line in its Paying Account.
  */
 function UnassignedCard({
+  actor,
   accountMoney,
   accountNames,
   onMove,
 }: {
+  actor: Actor;
   accountMoney: Map<string, AccountMoney>;
   accountNames: Map<string, string>;
   onMove: () => void;
 }) {
   const accounts = useAccounts();
   const retiredAccounts = useRetiredAccounts();
+  const [payingCardId, setPayingCardId] = useState<string | null>(null);
   if (!accounts || !retiredAccounts) return null;
+  const payingCard = accounts.find((account) => account.id === payingCardId);
+  // Another device retired it mid-payment: drop it, so unretiring later doesn't reopen the dialog.
+  if (payingCardId && !payingCard) setPayingCardId(null);
+  const payableFrom = (cardId: string, accountId: string) =>
+    accounts.some((card) => card.id === cardId && card.payingAccountId === accountId);
   const inUse = accounts.filter((account) => !isCreditCard(account));
   const retiredHoldingMoney = retiredAccounts.filter((account) => {
     const envelopes = accountMoney.get(account.id)?.envelopes;
@@ -411,13 +422,28 @@ function UnassignedCard({
                       className="flex items-center justify-between gap-3 text-sm text-muted-foreground"
                     >
                       <span className="min-w-0 truncate">Card Payment · {name}</span>
-                      <MoneyAmount cents={cents} />
+                      <span className="flex shrink-0 items-center gap-2">
+                        <MoneyAmount cents={cents} />
+                        {payableFrom(id, account.id) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            aria-label={`Pay ${name}`}
+                            onClick={() => setPayingCardId(id)}
+                          >
+                            Pay
+                          </Button>
+                        )}
+                      </span>
                     </div>
                   ))}
                 </li>
               );
             })}
           </ul>
+        )}
+        {payingCard && (
+          <PayCardDialog actor={actor} card={payingCard} onClose={() => setPayingCardId(null)} />
         )}
       </CardContent>
     </Card>

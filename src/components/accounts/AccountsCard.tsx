@@ -19,15 +19,19 @@ import {
   readAccountDetails,
 } from "./AccountDetailsFields";
 import { EditAccountDialog } from "./EditAccountDialog";
+import { PayCardDialog } from "./PayCardDialog";
 import { FormError } from "@/components/ui/form-error";
 import { errorMessage } from "@/lib/utils";
 
 export function AccountsCard({ actor }: { actor: Actor }) {
   const accounts = useAccounts();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [payingId, setPayingId] = useState<string | null>(null);
   const editing = accounts?.find((account) => account.id === editingId);
+  const paying = accounts?.find((account) => account.id === payingId);
   // Another device retired it mid-edit: drop it, so unretiring later doesn't reopen the dialog.
   if (editingId && accounts && !editing) setEditingId(null);
+  if (payingId && accounts && !paying) setPayingId(null);
 
   return (
     <Card>
@@ -45,6 +49,16 @@ export function AccountsCard({ actor }: { actor: Actor }) {
           <ul aria-label="Accounts" className="divide-y rounded-md border">
             {accounts.map((account) => (
               <AccountItem key={account.id} account={account}>
+                {isCreditCard(account) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    aria-label={`Pay ${account.name}`}
+                    onClick={() => setPayingId(account.id)}
+                  >
+                    Pay
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -60,6 +74,7 @@ export function AccountsCard({ actor }: { actor: Actor }) {
         {editing && (
           <EditAccountDialog actor={actor} account={editing} onClose={() => setEditingId(null)} />
         )}
+        {paying && <PayCardDialog actor={actor} card={paying} onClose={() => setPayingId(null)} />}
         <RetiredAccounts actor={actor} />
         <AddAccountForm actor={actor} />
       </CardContent>
