@@ -43,7 +43,7 @@ export function OpeningChecklist({ householdId }: { householdId: string }) {
         </CardAction>
       </CardHeader>
       <CardContent>
-        <ol aria-label="Opening checklist" className="divide-y rounded-md border">
+        <ol aria-label="Opening checklist" className="@container divide-y rounded-md border">
           <Step
             done={steps.startingBalances}
             title="Set starting balances"
@@ -56,8 +56,8 @@ export function OpeningChecklist({ householdId }: { householdId: string }) {
           />
           <Step
             done={steps.distributed}
-            title="Distribute them into envelopes"
-            description="Put each account's starting money into categories."
+            title="Distribute them into categories"
+            description="Move each account's starting money out of Unassigned."
             action={
               <Link
                 to="/distribute"
@@ -94,22 +94,24 @@ function Step({
   action: ReactNode;
 }) {
   return (
-    <li className="flex items-center gap-3 px-3 py-2">
+    <li className="flex items-start gap-3 px-3 py-2">
       {done ? (
-        <CheckCircle2 aria-hidden className="size-5 shrink-0 text-primary" />
+        <CheckCircle2 aria-hidden className="mt-0.5 size-5 shrink-0 text-primary" />
       ) : (
-        <Circle aria-hidden className="size-5 shrink-0 text-muted-foreground" />
+        <Circle aria-hidden className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
       )}
-      <div className="min-w-0 flex-1">
-        <p className={done ? "font-medium text-muted-foreground line-through" : "font-medium"}>
-          {title}
-          <span className="sr-only">{done ? " (done)" : " (to do)"}</span>
-        </p>
-        <p className="text-sm text-muted-foreground">{description}</p>
+      <div className="flex min-w-0 flex-1 flex-col items-start gap-2 @[480px]:flex-row @[480px]:items-center @[480px]:justify-between">
+        <div className="min-w-0">
+          <p className={done ? "font-medium text-muted-foreground line-through" : "font-medium"}>
+            {title}
+            <span className="sr-only">{done ? " (done)" : " (to do)"}</span>
+          </p>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+        <Button asChild variant={done ? "ghost" : "outline"} size="sm" className="shrink-0">
+          {action}
+        </Button>
       </div>
-      <Button asChild variant={done ? "ghost" : "outline"} size="sm" className="shrink-0">
-        {action}
-      </Button>
     </li>
   );
 }

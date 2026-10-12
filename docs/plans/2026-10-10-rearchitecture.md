@@ -126,8 +126,8 @@ Seams (from #70's Testing Decisions and the issue's acceptance criteria): step c
 - [x] Checklist on home with links; Distribute opens in opening mode
 - [x] Per-device dismissal in localStorage, wrapped in try/catch
 - [x] build, lint, vitest, both tsc, knip
-- [ ] Code review (standards + spec), fixes applied
-- [ ] Commit
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
 
 ### #77 decisions
 
@@ -137,6 +137,8 @@ Seams (from #70's Testing Decisions and the issue's acceptance criteria): step c
 - **Budgets count any version with an amount**; a budget cleared in its only month doesn't.
 - **The checklist hides once all three steps are done**, as well as on dismissal. Dismissal is keyed by household, so joining another household shows its checklist.
 - **"Add an account" links to `/#add-account`**, the form on home; the router scrolls it into view.
+- **Review fixes:** step 2 reads "Distribute them into categories" (GLOSSARY avoids "envelope"); "Opening Checklist" added to GLOSSARY.md; each step's button stacks under its text below a 480px container, so phones don't squeeze the copy.
+- **Review deferrals:** an `allDone` field on `OpeningSteps`, a shared constant for the `add-account` anchor, and a glossary entry for Distribute. Why: low value for one caller each. Revisit: if a second caller appears.
 
 ## Issue #76: export
 

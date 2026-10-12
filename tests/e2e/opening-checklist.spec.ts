@@ -11,7 +11,7 @@ test("a new household's opening checklist ticks itself off and stays dismissed",
   const checklist = page.getByRole("list", { name: "Opening checklist" });
   await expect(checklist.getByRole("listitem")).toHaveText([
     /Set starting balances \(to do\)/,
-    /Distribute them into envelopes \(to do\)/,
+    /Distribute them into categories \(to do\)/,
     /Set budgets \(to do\)/,
   ]);
   await page.screenshot({ path: test.info().outputPath("checklist-new.png"), fullPage: true });
