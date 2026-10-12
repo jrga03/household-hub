@@ -86,7 +86,7 @@ Spec: #46. Scoped 2026-10-12 (decisions above, dated 2026-10-11 and 2026-10-12).
 - [x] #49 Transactions core
 - [x] #50 Card Payment reservation
 - [ ] #51 Allocations and the Categories screen
-- [ ] #52 Transaction list: virtualized, filters, totals, search
+- [x] #52 Transaction list: virtualized, filters, totals, search
 - [ ] #53 Transaction list actions: bulk, swipe, detail pane (blocked by #52)
 - [ ] Close #46
 
@@ -388,8 +388,12 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - Triaged 2026-10-11: #15 closed as completed; #40 updated (deploy steps done; first-run check 2026-10-13, still-active check on or after 2026-10-17).
 - Next: #40's two dashboard checks (human).
 - Milestone 2 scoped 2026-10-12: spec #46, sub-issues #47-#53 (`ready-for-agent`), ADR 0005.
-- #47 merged (PR #56, ca6bba3). #48 merged (PR #57, 22a23d5). #49 merged (PR #58, 0593a29). #50 merged (PR #60, dcf7044). Their worktrees and local branches are removed.
-- Next: #51 (allocations and the Categories screen), in a worktree; #52 is unblocked too.
+- #47 merged (PR #56, ca6bba3). #48 merged (PR #57, 22a23d5). #49 merged (PR #58, 0593a29). #50 merged (PR #60, dcf7044). #52 merged (PR #62, efc7c46). Their worktrees and local branches are removed.
+- Next: #51 (allocations and the Categories screen), in progress in its worktree; #53 (bulk, swipe, detail pane) is unblocked.
+- Gotchas found in #52:
+  - Filters live in the route's search params (`readTransactionFilter`); #53's selection and detail pane can add params the same way.
+  - The search box keeps its own text and resyncs only when the URL query is cleared; don't drive it from `useSearch` directly (the URL lags a render).
+  - #53 owes: collapsing the filters on phones (they fill the first screen), alongside the swipe row.
 - Gotchas found in #50:
   - A device that logs in right after another device writes may pull before the push lands; two-browser specs reconnect it until the item shows (`pullUntil` in `tests/e2e/card-payment.spec.ts`).
   - A card's row on the Accounts card names its Paying Account, so match account rows by their leading name, not `hasText: name`.
