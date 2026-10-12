@@ -24,7 +24,9 @@ test.describe("Create a household", () => {
     await expect(page).toHaveURL((url) => url.pathname === "/");
     const main = page.getByRole("main");
     await expect(main.getByText("Acido home")).toBeVisible();
-    await expect(main.getByText("Owner", { exact: true })).toBeVisible();
+    // The badge beside the household name; the Members list has its own "Owner".
+    const nameRow = main.getByText("Acido home").locator("..");
+    await expect(nameRow.getByText("Owner", { exact: true })).toBeVisible();
     await expect(page.getByTestId("household-code")).toHaveText(
       /^[23456789ABCDEFGHJKMNPQRSTVWXYZ]{6}$/
     );
