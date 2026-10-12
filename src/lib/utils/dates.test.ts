@@ -6,7 +6,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { parseLocalDate } from "./dates";
+import { isLocalMonth, localMonth, monthLabel, parseLocalDate, shiftMonth } from "./dates";
 
 beforeAll(() => {
   // Fix a non-UTC timezone so a UTC-midnight parse regression is detectable
@@ -48,5 +48,35 @@ describe("parseLocalDate", () => {
     expect(Number.isNaN(parseLocalDate("not-a-date").getTime())).toBe(true);
     expect(Number.isNaN(parseLocalDate("").getTime())).toBe(true);
     expect(Number.isNaN(parseLocalDate("2026-07").getTime())).toBe(true);
+  });
+});
+
+describe("months", () => {
+  it.each([
+    ["2026-10", true],
+    ["2026-12", true],
+    ["2026-13", false],
+    ["2026-00", false],
+    ["2026-10-01", false],
+    [202610, false],
+  ])("isLocalMonth(%j) is %s", (value, expected) => {
+    expect(isLocalMonth(value)).toBe(expected);
+  });
+
+  it.each([
+    ["2026-10", 1, "2026-11"],
+    ["2026-12", 1, "2027-01"],
+    ["2026-01", -1, "2025-12"],
+    ["2026-03", -14, "2025-01"],
+  ])("shiftMonth(%s, %i) is %s", (month, by, expected) => {
+    expect(shiftMonth(month, by)).toBe(expected);
+  });
+
+  it("names a month", () => {
+    expect(monthLabel("2026-10")).toBe("October 2026");
+  });
+
+  it("gives the local calendar month", () => {
+    expect(localMonth(new Date(2026, 9, 31, 23, 59))).toBe("2026-10");
   });
 });
