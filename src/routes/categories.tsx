@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
 import { PageShell } from "@/components/layout/PageShell";
 import { CategoriesView } from "@/components/categories/CategoriesView";
 import { useHousehold } from "@/hooks/useHousehold";
@@ -32,12 +33,17 @@ function CategoriesPage() {
       <div className="border-b">
         {/* Aligned with the rail layout below, which drops its max width from 1100px. */}
         <div className="@container">
-          <div className="mx-auto w-full max-w-7xl px-4 py-4 @[1100px]:max-w-none">
-            <h1 className="text-xl font-bold">Categories</h1>
-            <p className="text-sm text-muted-foreground">
-              The money in each envelope, where it sits, and each month&apos;s budgets. Tap a
-              category to see its month.
-            </p>
+          <div className="mx-auto flex w-full max-w-7xl items-start justify-between gap-4 px-4 py-4 @[1100px]:max-w-none">
+            <div>
+              <h1 className="text-xl font-bold">Categories</h1>
+              <p className="text-sm text-muted-foreground">
+                The money in each envelope, where it sits, and each month&apos;s budgets. Tap a
+                category to see its month.
+              </p>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/distribute">Distribute</Link>
+            </Button>
           </div>
         </div>
       </div>
