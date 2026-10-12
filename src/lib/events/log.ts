@@ -122,6 +122,16 @@ export function appendEvent(draft: EventDraft): Promise<LoggedEvent> {
   });
 }
 
+/**
+ * Records several changes as one: commands called inside `append` join its
+ * transaction, so either every event is kept or, if any command refuses,
+ * none is. Later commands see what earlier ones projected. Only commands call
+ * this (lint-enforced).
+ */
+export function appendTogether<Result>(append: () => Promise<Result>): Promise<Result> {
+  return db.transaction("rw", logTables(), append);
+}
+
 const inPushState = (state: PushState) =>
   db.events.where("[pushState+hlc]").between([state, Dexie.minKey], [state, Dexie.maxKey]);
 
