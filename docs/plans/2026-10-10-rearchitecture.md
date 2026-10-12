@@ -110,7 +110,7 @@ Spec: #70. Scoped 2026-10-12 (decisions above, agreed 2026-10-12). ADRs 0006 and
 - **`appendTogether(fn)` makes several commands one change**: commands called inside it join one Dexie transaction over the log tables, so a later refusal keeps none of the earlier events, and later commands see what earlier ones projected. Lint-fenced to commands like `appendEvent`. Agreed 2026-10-12.
 
 - [x] #71 Transfers
-- [ ] #72 Pay a credit card (blocked by #71)
+- [x] #72 Pay a credit card (blocked by #71), PR #86
 - [x] #73 Budgets and the month view
 - [x] #74 Category ledger
 - [ ] #75 Distribute money (blocked by #71, #73)
@@ -237,15 +237,28 @@ Seams (from #70's Testing Decisions): the budget projection through `receiveEven
 
 Seams: the pay-card command (Vitest), the invariant after every permutation of a payment from a non-default account.
 
-- [ ] Command: from the Paying Account one transfer; from another account two allocations plus the transfer
-- [ ] Refusals: non-card destination, visibility or owner mismatch, card or retired payer
-- [ ] Partial payments leave the rest reserved
-- [ ] Pay card action on the card row and the Card Payment line
-- [ ] build, lint, vitest, both tsc, knip
-- [ ] Code review (standards + spec), fixes applied
-- [ ] Commit
+- [x] Command: from the Paying Account one transfer; from another account the reservation moves there (up to what the Paying Account holds), then the transfer
+- [x] Refusals: non-card destination, visibility or owner mismatch, card or retired payer
+- [x] Partial payments leave the rest reserved; invariant after every permutation of a payment from another account
+- [x] Pay card action on the card row and the Card Payment line
+- [x] build, lint, vitest (55 files / 5618), both tsc, knip, size (301.3 KB gz); related chromium specs 9/9
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
 
 ### #72 decisions
+
+- **`payCard` lives in `commands/cards.ts`** and runs inside `appendTogether`: it checks the card and payer first (with payment wording), then writes the allocations and calls `addTransfer`, so any later refusal keeps nothing. Retired accounts are refused by `addTransfer` itself (same message).
+- **Paying from another account frees only what the Paying Account holds for the card, up to the payment** (`reservationFreed` in `transactions/money.ts`, shared with the dialog), and writes no allocation there when it holds nothing, so that case is one allocation plus the transfer, not two. The payer's Unassigned reserves the whole payment. Why: freeing more than is held would turn the Paying Account's Card Payment red and overstate its Unassigned. The cap reads this device's projections, so two offline payments can still draw it below zero (shown red, like any envelope). Agreed 2026-10-12; #72's acceptance criterion reworded to match. Revisit: if members expect the whole payment moved regardless.
+- **The payer's allocation into the Card Payment skips `refusePaidElsewhere`** through `reserveToPayFrom` in `commands/allocations.ts`, called only by `payCard` right before the transfer drains it. `addAllocation` keeps refusing a Card Payment outside the Paying Account. Revisit: never; a lone Card Payment outside the Paying Account still comes only from the #71 transfer rule.
+- **A lone pay-card transfer from a non-paying account stays allowed** (the #71 review question): `payCard` always moves the reservation first, and the Add transfer UI offers no card destinations, so only a crafted call skips it. Revisit: if such transfers show up in synced data.
+- **Paying from another account doesn't change the card's Paying Account**; it's a choice for this payment only.
+- **The Pay action shows on a card's Accounts row and on its Card Payment line in its Paying Account**, for cards in use. A Card Payment left behind in an earlier Paying Account has no Pay action; Move money frees it (agreed 2026-10-12). The dialog prefills what the Paying Account holds (blank when nothing), today and the Paying Account, notes how much of the reservation goes back when another payer is chosen, and warns (doesn't block) when the payer's Unassigned, or the Paying Account's Card Payment, would go negative.
+- **The Categories dialog state lives in `UnassignedCard`**, which resolves the card by ID each render, so a card retired on another device closes it. Keeps the `CategoriesView` diff small (#75 also edits it).
+- **Review fixes:** `cardPaymentEnvelope(cardId)` beside `UNASSIGNED_ENVELOPE`; `reserveToPayFrom` takes a `PaymentReservation` object; `checkPayer` keeps only the card-specific checks; `UnassignedCard` drops a card retired mid-payment; the reservation move no longer depends on the card having a Paying Account.
+- **Review: a card with no Paying Account can't reach `payCard`.** `checkAccountDetails` refuses a card without one, so a v1 card event (upcast to null) never projects. Kept the null-safe branch anyway.
+- **Review deferral: a card whose Paying Account was retired on another device can't be paid from elsewhere** (`addAllocation` refuses the retired Paying Account). Retiring an account that pays a card is refused locally, so only a concurrent offline retire and repoint reaches it; editing the card's Paying Account fixes it. Revisit: if seen in synced data.
+- **Review: kept the duplicated Pay button and dialog state** in `AccountsCard` and `UnassignedCard` rather than a `PayCardButton`: the dialogs mount in different places.
+- **Screens checked by a throwaway chromium spec** (the issue's demo, desktop and 390 px): Visa owes ₱0, BPI ₱17,000 all Unassigned, GCash ₱6,000. Resizing across the layout breakpoint closes any open dialog (the layout remounts); not new.
 
 ## Issue #71: transfers
 
