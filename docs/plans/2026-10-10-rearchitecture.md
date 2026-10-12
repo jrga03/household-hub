@@ -83,7 +83,7 @@ Spec: #46. Scoped 2026-10-12 (decisions above, dated 2026-10-11 and 2026-10-12).
 
 - [x] #47 Projection registry
 - [x] #48 Categories and groups
-- [ ] #49 Transactions core (branch `feat/49-transactions`, worktree `../household-hub-49`)
+- [x] #49 Transactions core (branch `feat/49-transactions`, not yet merged)
 - [ ] #50 Card Payment reservation (blocked by #49)
 - [ ] #51 Allocations and the Categories screen (blocked by #48, #49)
 - [ ] #52 Transaction list: virtualized, filters, totals, search (blocked by #49)
@@ -113,14 +113,14 @@ Seams (from #46's Testing Decisions and the issue's acceptance criteria): the tr
 - **A removed transaction stays in the projection with `removed: true`**, so a restore brings back its latest details and status; reads leave it out.
 - **Unassigned is summed directly** (starting balance plus uncategorized transactions), not as balance minus category money, so the invariant test checks two independent sums. Allocations (#51) add to both sides.
 - **Card transactions change only the card's amount owed** in #49; a card has no Unassigned or category money of its own. #50 adds the Paying Account to the event.
-- **Within a day, the newest recorded transaction lists first** (date descending, then create HLC descending), matching newest-first. Revisit: if members expect entry order within a day.
+- **Within a day, the newest recorded transaction lists first** (date descending, then create HLC descending), matching newest-first. Revisit: if members expect entry order within a day. Agreed 2026-10-12.
 - **Last-used account and category come from a small persisted Zustand store**, written when a transaction is added; a stale ID (retired or gone) falls back to the first choice.
-- **Choosing Income in a new transaction resets the category to Unassigned** (income lands in Unassigned unless named, 2026-10-11), overriding the last-used category. Revisit: if refunds are common enough that members want the last category kept.
-- **The wide-screen header now shows at every wide width**, holding the Add transaction button; the sidebar trigger and page title stay hidden from `lg`. Desktop layout baselines were regenerated (they were already stale from #48's Categories nav item).
+- **Choosing Income in a new transaction resets the category to Unassigned** (income lands in Unassigned unless named, 2026-10-11), overriding the last-used category. Revisit: if refunds are common enough that members want the last category kept. Agreed 2026-10-12.
+- **The wide-screen header now shows at every wide width**, holding the Add transaction button; the sidebar trigger and page title stay hidden from `lg`. Desktop layout baselines were regenerated (they were already stale from #48's Categories nav item). Agreed 2026-10-12 (the issue asks for a header button).
 - **`g t` goes to Transactions**, like `g c` for Categories.
 - **Review fix: an edit with unchanged details appends nothing.** Why: the dialog sends the details with every save, so marking a transaction pending would re-stamp stale details with a later HLC and undo another device's amount edit. Covered by a command test.
 - **Review fixes:** `sameOwnership` lives beside `Ownership` in `lib/events/log` and `canHoldMoneyIn` beside `canHold`, shared by the command and the dialog; `editTransaction` reads the account once; the list maps status and type to their display once; edit-path tests for a retired category and a category of another visibility.
-- **Review deferral: a category's money per account isn't shown yet**, so the demo's "Groceries goes to −₱250" is checked by the Vitest sums, not on screen. Revisit: #51 (the Categories screen shows money per account).
+- **Review deferral: a category's money per account isn't shown yet**, so the demo's "Groceries goes to −₱250" is checked by the Vitest sums, not on screen. Revisit: #51 (the Categories screen shows money per account). Agreed 2026-10-12.
 - **Review deferral: the edit dialog saves details and status as two events**; if the second append fails, the details are kept and the form shows the error. Revisit: if it happens in use.
 - **Review deferral: four test files carry their own `permutations` helper.** Revisit: at the next entity (#51 allocations), extract a shared test helper.
 
