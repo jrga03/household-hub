@@ -33,6 +33,16 @@ export function moneyIn(envelopes: Envelopes | null | undefined, envelope: Envel
   return held.get(envelope.id) ?? ZERO_CENTS;
 }
 
+/**
+ * How much of the Paying Account's reservation a payment from another account
+ * frees: what it holds, up to the payment, so its Card Payment isn't drawn
+ * below zero by this device.
+ */
+export function reservationFreed(held: Cents, payment: Cents): Cents {
+  if (held <= 0) return ZERO_CENTS;
+  return held < payment ? held : payment;
+}
+
 export interface AccountMoney {
   /** For a credit card, the amount owed. */
   balance: Cents;

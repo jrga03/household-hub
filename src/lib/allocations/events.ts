@@ -22,6 +22,11 @@ export type Envelope =
 
 export const UNASSIGNED_ENVELOPE: Envelope = { kind: "unassigned" };
 
+export const cardPaymentEnvelope = (cardId: string): Envelope => ({
+  kind: "card_payment",
+  id: cardId,
+});
+
 export function envelopeLabel(
   envelope: Envelope,
   categories: Map<string, string>,

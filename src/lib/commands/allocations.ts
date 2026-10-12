@@ -10,10 +10,13 @@ import {
   ALLOCATION_VERSIONS,
   checkAllocationDetails,
   sameEnvelope,
+  cardPaymentEnvelope,
+  UNASSIGNED_ENVELOPE,
   type AllocationDetails,
   type Envelope,
 } from "@/lib/allocations/events";
 import { getAllocation, type AllocationRow } from "@/lib/allocations/projection";
+import type { Cents } from "@/lib/currency";
 import type { Actor } from "./accounts";
 import { appenderFor } from "./append";
 import {
@@ -81,6 +84,34 @@ export async function addAllocation(actor: Actor, input: AllocationInput): Promi
   await appendAllocationEvent(actor, { ...account, id }, ALLOCATION_CREATED, { ...details });
   requestSync();
   return { id };
+}
+
+export interface PaymentReservation {
+  account: AccountRow;
+  cardId: string;
+  amountCents: Cents;
+  date: string;
+}
+
+/**
+ * Unassigned → the card's Card Payment in an account the card isn't paid
+ * from, skipping `refusePaidElsewhere`: a payment from there drains it in the
+ * same change, so no reservation stays outside the Paying Account.
+ */
+export async function reserveToPayFrom(
+  actor: Actor,
+  { account, cardId, amountCents, date }: PaymentReservation
+): Promise<void> {
+  const details = checkedDetails({
+    date,
+    accountId: account.id,
+    from: UNASSIGNED_ENVELOPE,
+    to: cardPaymentEnvelope(cardId),
+    amountCents,
+  });
+  await appendAllocationEvent(actor, { ...account, id: crypto.randomUUID() }, ALLOCATION_CREATED, {
+    ...details,
+  });
 }
 
 async function requireAllocation(allocationId: string): Promise<AllocationRow> {
