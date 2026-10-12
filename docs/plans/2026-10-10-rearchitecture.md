@@ -87,7 +87,7 @@ Spec: #46. Scoped 2026-10-12 (decisions above, dated 2026-10-11 and 2026-10-12).
 - [x] #50 Card Payment reservation
 - [x] #51 Allocations and the Categories screen
 - [x] #52 Transaction list: virtualized, filters, totals, search
-- [ ] #53 Transaction list actions: bulk, swipe, detail pane (blocked by #52)
+- [x] #53 Transaction list actions: bulk, swipe, detail pane (blocked by #52)
 - [ ] Close #46
 
 ## Issue #53: transaction list actions
@@ -453,8 +453,13 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - Triaged 2026-10-11: #15 closed as completed; #40 updated (deploy steps done; first-run check 2026-10-13, still-active check on or after 2026-10-17).
 - Next: #40's two dashboard checks (human).
 - Milestone 2 scoped 2026-10-12: spec #46, sub-issues #47-#53 (`ready-for-agent`), ADR 0005.
-- #47 merged (PR #56, ca6bba3). #48 merged (PR #57, 22a23d5). #49 merged (PR #58, 0593a29). #50 merged (PR #60, dcf7044). #52 merged (PR #62, efc7c46). #51 merged (PR #64, 791b302). Their worktrees and local branches are removed.
-- Next: #53 (bulk, swipe, detail pane), in progress in its worktree; then close #46.
+- #47 merged (PR #56, ca6bba3). #48 merged (PR #57, 22a23d5). #49 merged (PR #58, 0593a29). #50 merged (PR #60, dcf7044). #52 merged (PR #62, efc7c46). #51 merged (PR #64, 791b302). #53 merged (PR #66, 2c28b78). Their worktrees and local branches are removed.
+- Next: close #46 (all sub-issues #47-#53 closed); then scope Milestone 3. Small follow-up: the `household.spec.ts` Owner-badge flake logged in CLAUDE.md (scope the locator).
+- Gotchas found in #53:
+  - Sonner toasts sit over the bottom rows on a phone and handle swipes themselves; a swipe check must wait for toasts to clear.
+  - `/transactions` is `rail`: `TransactionList` returns `PageShell.Main` and `PageShell.RightAside` slots, and the page header shares the shell's `@[1100px]` breakpoint so the two stay aligned.
+  - The layout baselines use the seeded user's empty state, so the 2% pixel tolerance hides small shell changes; regenerate with `--update-snapshots=all` and look at the image.
+  - Bulk commands (`setTransactionsStatus`, `changeTransactionsCategory`, `removeTransactions`, `restoreTransactions`) skip rows already as asked and return `{ changed, failed }`; reuse `changeEach` for future bulk actions.
 - Gotchas found in #51:
   - Sub-issues built in parallel each add a section under Milestone 2 here, so the second PR to merge conflicts in this file; keep both sections, newest first.
   - Move money's selects name each option with its amount ("Groceries · ₱0.00"), so e2e picks options by that full name.
