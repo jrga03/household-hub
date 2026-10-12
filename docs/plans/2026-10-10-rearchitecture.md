@@ -1,6 +1,6 @@
 # Re-architecture against the vision
 
-Source of truth: `docs/VISION.md`. Vocabulary: `GLOSSARY.md`. Status: Milestone 1 (#15) landed and closed 2026-10-11; production keep-alive check pending in #40. Milestone 2 scoped 2026-10-12. ADRs: `docs/adr/0001`-`0005`.
+Source of truth: `docs/VISION.md`. Vocabulary: `GLOSSARY.md`. Status: Milestone 1 (#15) landed and closed 2026-10-11; production keep-alive check pending in #40. Milestone 2 (#46) landed and closed 2026-10-12. Milestone 3 scoped 2026-10-12 (spec #70). ADRs: `docs/adr/0001`-`0007`.
 
 ## Context
 
@@ -24,7 +24,7 @@ Fix commits cluster in `src/lib/{sync,offline,debts}`.
 - **Visibility belongs to the account; transactions inherit it.** Why: it removes orphans when a member leaves, and RLS checks one column. Revisit: if a personal expense ever needs to sit on a household account.
 - **Transfers only link accounts of the same visibility.** Money crossing between a personal and a household account is household income or spending (for example, an allowance). Why: allowances must show as household spending. Revisit: never (ADR candidate).
 - **Categories are envelopes of real money that can span accounts; a budget stays a monthly target.** Envelope money carries over. Income lands in Unassigned, and an Allocation moves money between envelopes inside one account (it is not a transaction). A transfer moves one envelope's money between accounts. This amends the vision's "not envelope budgeting" line. A budget never goes down; the envelope's money does. Allocating can default each envelope to its budget. Envelopes may go negative (shown in red with a label). A credit card has a Paying Account: recording a card purchase moves the category's money into that card's Card Payment envelope in the paying account, and paying the bill is a transfer from it.
-- **Transfer, Debt Payment and Draft are roles a transaction plays.** A reversal touches only the debt link, never a transaction.
+- **Transfer, Debt Payment and Draft are roles a transaction plays.** A reversal touches only the debt link, never a transaction. Superseded for transfers 2026-10-12: a transfer is its own record (ADR 0006).
 - **Refactor in place, not a new repo.** Revisit: if the households or sync replacement proves too entangled.
 - **There is no production data**, so schema and local storage can be reset freely, with no data migrations needed.
 - **Personal accounts belong to the member, not the household**, and travel with them. **Account visibility is fixed at creation.**
@@ -76,6 +76,144 @@ Fix commits cluster in `src/lib/{sync,offline,debts}`.
 - **Category visibility is ADR 0005.** Agreed 2026-10-12.
 - **M2 splits into seven sub-issues**: projection registry; categories and groups; transactions core; Card Payment reservation; allocations and the Categories screen; the transaction list; list actions. Agreed 2026-10-12.
 - **#53 (bulk, swipe, detail pane) stays one sub-issue.** Why: the three share the list's selection and row model. Revisit: split if it grows unwieldy during the build. Agreed 2026-10-12.
+- **Milestone 3 = transfers (including paying a card), budgets with a month view, the category ledger, Distribute money, export, and the opening checklist.** Statement import and the dashboard (the "at a glance" summary) move to Milestone 4, which completes the first release. Why: transfers and budgets are what the opening state and paydays need; import and the dashboard read on top of them. Revisit: never; this is the M3 scope. Agreed 2026-10-12.
+- **A transfer is its own entity type `transfer`** (created, edited, removed, restored), one HLC per record, shown as two legs (ADR 0006). It carries one envelope, the same on both sides: a category, Unassigned, or Card Payment. Moving into a different category is a transfer plus an allocation. Why: two linked transactions can drift apart under concurrent edits. Agreed 2026-10-12.
+- **Transfer rules:** accounts differ, share visibility, and aren't retired for new transfers; existing transfers stay editable. Edit, remove and Undo follow the transaction rules. One cleared/pending status for both legs. Revisit: per-leg status with per-side dates. Agreed 2026-10-12.
+- **Transfers in the list:** one row ("BPI → GCash · Groceries"), signed when an account filter is on, left out of income and expense totals, counted in balances. Agreed 2026-10-12.
+- **Paying a card is a transfer from the paying account's Card Payment for that card into the card.** A partial payment leaves the rest reserved. Paying from a non-default account B is one command writing three records: an allocation in the default account A (Card Payment → Unassigned), an allocation in B (Unassigned → Card Payment), then the transfer from B. Agreed 2026-10-12.
+- **A budget is `budget.set {categoryId, fromMonth, amount, accountId}`**, its ID derived from category and month, latest HLC wins within a month. It stands until a later fromMonth replaces it, so every set is a version (history). Amount 0 or null clears it. `accountId` is the funding account: same visibility as the category, not a card. Personal categories can have budgets (ADR 0007, amends 0003). Agreed 2026-10-12.
+- **"Spent" = expenses minus refunds in the category by local date**, transfers excluded, card purchases on their purchase date. Agreed 2026-10-12.
+- **Month view:** a month picker on Categories showing budget, spent, allocated this month, and end-of-month money (current money for this month). Groups show sums. Categories keep their name order (no user order exists; `src/lib/categories/projection.ts` sorts by name). Agreed 2026-10-12.
+- **Category ledger:** tapping a category in the month view opens every transaction, transfer and allocation touching it that month, with a running balance from the start to the end of the month, plus a "Budget history" list (versions with months, amount, account). Detail pane on wide screens, sheet on phones. Agreed 2026-10-12.
+- **Distribute money** starts from a source account's Unassigned. Lines come from the budgets (amount, and destination = the budget's funding account). Prefill = remaining budget this month (budget minus what was allocated to that category this month in any account, floored at 0), which handles twice-monthly PH payroll. Carryover balance is ignored. Agreed 2026-10-12.
+- **Distribute writes one command:** one transfer of Unassigned per destination account that isn't the source (the line totals), plus allocations in each destination; lines staying in the source are plain allocations. The excess stays in Unassigned. A shortfall warns ("₱X more than this income") but doesn't block. Unbudgeted categories can be added by hand. Retired categories are skipped. A retired funding account falls back to the source and shows "Funding account retired". Agreed 2026-10-12.
+- **Distribute entry points:** a "Distribute" action in the toast after recording income (prefilled with that account and amount), and an opening-allocation mode with blank amounts and the source as the destination. Agreed 2026-10-12.
+- **Export (Settings):** a transactions CSV (transfers included and marked) plus the event-log JSON, covering only what the member can see. No zip library. Agreed 2026-10-12.
+- **Opening checklist on home:** starting balances, then distribute, then set budgets. It ticks itself off from the data; dismissal is per device in localStorage, wrapped in try/catch. Agreed 2026-10-12.
+- **No server migration in M3** (`events.entity_type` accepts any type) **and no pgTAP.** Agreed 2026-10-12.
+- **M3 seams:** Vitest permutation and duplicate tests for the transfer and budget projections, plus the balance = Unassigned + category money invariant with transfers and card payments; Vitest for the Distribute command, including twice-monthly payday; Playwright chromium for an offline transfer reaching a second device and a payroll distribution leaving the account at ₱0. Agreed 2026-10-12.
+- **M3 splits into seven sub-issues** (#71-#77), built in rounds: {#71 Transfers, #73 Budgets}, then {#72 Pay card, #74 Category ledger, #75 Distribute, #76 Export}, then #77 Opening checklist. Agreed 2026-10-12.
+- **The glossary's Funding Account (a budget's) is distinct from a card's Paying Account**, so "Funding account" left Paying Account's avoid list. Why: the agreed budget design names its account the funding account. Revisit: if members confuse the two. 2026-10-12.
+- **Deferred: a per-account register.** Why: the filtered transaction list covers it for now. Revisit: Milestone 4, or on request. Agreed 2026-10-12.
+- **Deferred: category priority order for shortfalls.** Why: Distribute warns and the member trims by hand. Revisit: if trimming gets tedious. Agreed 2026-10-12.
+- **Dropped: a home account per category.** Why: superseded by the budget's funding account (ADR 0007). Revisit: never. Agreed 2026-10-12.
+- **Deferred: transfers out of a card.** A cash advance is a card expense plus income. Revisit: if they come up often. Agreed 2026-10-12.
+- **Deferred: restoring from a backup.** Revisit: after the first release. Agreed 2026-10-12.
+- **Deferred: export modes**, a size-optimized app-restorable one and a compatibility-optimized Excel/Sheets one (#69, `needs-triage`). Revisit: someday, after the first release, when no higher-value feature is waiting. Agreed 2026-10-12.
+- **The debts UI docs are obsolete** (`docs/plans/2026-10-10-debts-ui-design.md`, `docs/plans/2026-10-10-debts-ui.md`): they describe the old row-outbox design. Each carries a superseded line. Revisit: when debts are rebuilt on the event log (after the first release). Agreed 2026-10-12.
+
+## Milestone 3
+
+Spec: #70. Scoped 2026-10-12 (decisions above, agreed 2026-10-12). ADRs 0006 and 0007. Build rounds follow the blocking edges: {#71, #73}, then {#72, #74, #75, #76}, then #77. Each sub-issue fills in its own subsection below (checkboxes and a decisions list), so parallel PRs don't conflict here.
+
+- [ ] #71 Transfers
+- [ ] #72 Pay a credit card (blocked by #71)
+- [ ] #73 Budgets and the month view
+- [ ] #74 Category ledger (blocked by #71, #73)
+- [ ] #75 Distribute money (blocked by #71, #73)
+- [ ] #76 Export (blocked by #71)
+- [ ] #77 Opening checklist (blocked by #75)
+- [ ] Close #70
+
+## Issue #77: opening checklist
+
+Seams (from #70's Testing Decisions and the issue's acceptance criteria): step completion derived from the projections (Vitest).
+
+- [ ] Step completion (starting balances, distribute, budgets) from the projections
+- [ ] Checklist on home with links; Distribute opens in opening mode
+- [ ] Per-device dismissal in localStorage, wrapped in try/catch
+- [ ] build, lint, vitest, both tsc, knip
+- [ ] Code review (standards + spec), fixes applied
+- [ ] Commit
+
+### #77 decisions
+
+## Issue #76: export
+
+Seams: the CSV and JSON builders (Vitest).
+
+- [ ] Transactions CSV: transfers included and marked, removed records left out, values escaped
+- [ ] Event-log JSON of the local log
+- [ ] Settings section with two downloads (no zip library)
+- [ ] build, lint, vitest, both tsc, knip
+- [ ] Code review (standards + spec), fixes applied
+- [ ] Commit
+
+### #76 decisions
+
+## Issue #75: Distribute money
+
+Seams (from #70's Testing Decisions): the Distribute command and its prefill (Vitest, including a twice-monthly payday); Playwright chromium for a payroll distribution leaving the account at ₱0.
+
+- [ ] Prefill: remaining budget this month in any account, floored at 0
+- [ ] Command: one transfer per other destination account plus allocations; source lines as allocations; excess stays; shortfall warns
+- [ ] Retired categories skipped; retired funding account falls back to the source with "Funding account retired"
+- [ ] Unbudgeted categories added by hand
+- [ ] Entry points: income toast action (prefilled); opening-allocation mode
+- [ ] Playwright (chromium): payroll distribution leaves Unassigned at ₱0
+- [ ] build, lint, vitest, both tsc, knip
+- [ ] Code review (standards + spec), fixes applied
+- [ ] Commit
+
+### #75 decisions
+
+## Issue #74: category ledger
+
+Seams: the ledger read function (Vitest: rows, opening and closing money, running balance, with a transfer and a card purchase).
+
+- [ ] Ledger read function for a category and month
+- [ ] Budget history list (versions with month, amount, funding account)
+- [ ] Detail pane on wide screens, sheet on phones; rows open their record
+- [ ] build, lint, vitest, both tsc, knip
+- [ ] Code review (standards + spec), fixes applied
+- [ ] Commit
+
+### #74 decisions
+
+## Issue #73: budgets and the month view
+
+Seams (from #70's Testing Decisions): the budget projection through `receiveEvents` (Vitest; permutations and duplicates), the budget in force for a month and the month figures (Vitest), the commands (Vitest).
+
+- [ ] Budget events, decoder and projection; ID from category and month; registered; Dexie table
+- [ ] Budget in force for a month; 0 or null clears it
+- [ ] Commands: funding account visibility and owner, not a card, not retired
+- [ ] Month figures: spent, allocated this month, end-of-month money; group sums
+- [ ] Month picker on Categories; Set budget dialog
+- [ ] build, lint, vitest, both tsc, knip
+- [ ] Code review (standards + spec), fixes applied
+- [ ] Commit
+
+### #73 decisions
+
+## Issue #72: pay a credit card
+
+Seams: the pay-card command (Vitest), the invariant after every permutation of a payment from a non-default account.
+
+- [ ] Command: from the Paying Account one transfer; from another account two allocations plus the transfer
+- [ ] Refusals: non-card destination, visibility or owner mismatch, card or retired payer
+- [ ] Partial payments leave the rest reserved
+- [ ] Pay card action on the card row and the Card Payment line
+- [ ] build, lint, vitest, both tsc, knip
+- [ ] Code review (standards + spec), fixes applied
+- [ ] Commit
+
+### #72 decisions
+
+## Issue #71: transfers
+
+Seams (from #70's Testing Decisions): the transfer projection and read-time sums through `receiveEvents` (Vitest; permutations, duplicates, the balance = Unassigned + category money + Card Payments invariant after every permutation), the commands (Vitest), Playwright chromium for an offline transfer reaching a second device.
+
+- [ ] Transfer events, decoder and projection (details, status, removal resolve apart); registered; Dexie table
+- [ ] Read-time sums apply transfers to both accounts; invariant after every permutation
+- [ ] Commands: add, edit, set status, remove, restore; the transfer rules
+- [ ] List: one row per transfer, signed under an account filter, out of income and expense totals; type filter gains Transfer
+- [ ] Edit, remove with Undo, swipe and bulk status and remove on transfers
+- [ ] Playwright (chromium, two browsers): offline transfer reaches B
+- [ ] build, lint, vitest, both tsc, knip
+- [ ] Code review (standards + spec), fixes applied
+- [ ] Commit
+
+### #71 decisions
 
 ## Milestone 2
 
@@ -88,7 +226,7 @@ Spec: #46. Scoped 2026-10-12 (decisions above, dated 2026-10-11 and 2026-10-12).
 - [x] #51 Allocations and the Categories screen
 - [x] #52 Transaction list: virtualized, filters, totals, search
 - [x] #53 Transaction list actions: bulk, swipe, detail pane (blocked by #52)
-- [ ] Close #46
+- [x] Close #46
 
 ## Issue #53: transaction list actions
 
@@ -454,7 +592,9 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - Next: #40's two dashboard checks (human).
 - Milestone 2 scoped 2026-10-12: spec #46, sub-issues #47-#53 (`ready-for-agent`), ADR 0005.
 - #47 merged (PR #56, ca6bba3). #48 merged (PR #57, 22a23d5). #49 merged (PR #58, 0593a29). #50 merged (PR #60, dcf7044). #52 merged (PR #62, efc7c46). #51 merged (PR #64, 791b302). #53 merged (PR #66, 2c28b78). Their worktrees and local branches are removed.
-- Next: close #46 (all sub-issues #47-#53 closed); then scope Milestone 3. Small follow-up: the `household.spec.ts` Owner-badge flake logged in CLAUDE.md (scope the locator).
+- #46 closed 2026-10-12. The `household.spec.ts` Owner-badge flake fixed (PR #68).
+- Milestone 3 scoped 2026-10-12: spec #70, sub-issues #71-#77 (`ready-for-agent`, native blocked-by edges), ADRs 0006 and 0007, glossary Transfer, Budget and Funding Account. Export modes deferred to #69 (`needs-triage`).
+- Next: build round 1, #71 Transfers and #73 Budgets in parallel worktrees; then #72, #74, #75, #76; then #77. Still owed: #40's dashboard checks (human).
 - Gotchas found in #53:
   - Sonner toasts sit over the bottom rows on a phone and handle swipes themselves; a swipe check must wait for toasts to clear.
   - `/transactions` is `rail`: `TransactionList` returns `PageShell.Main` and `PageShell.RightAside` slots, and the page header shares the shell's `@[1100px]` breakpoint so the two stay aligned.

@@ -43,7 +43,7 @@ One thing that happened to money in one account on one date: an amount, always p
 _Avoid_: Entry, record, line item, event
 
 **Transfer**:
-Two linked transactions recording one category's money moving between two accounts of the same visibility. Neither side counts as income, spending, or against a budget. Money crossing between a personal and a household account is not a transfer: it is household income or spending.
+One record of money moving between two accounts of the same visibility, shown as two legs: out of one account, into the other. It carries one envelope (a category, Unassigned, or a Card Payment), the same on both sides. It doesn't count as income, spending, or against a budget. Money crossing between a personal and a household account is not a transfer: it is household income or spending.
 _Avoid_: Internal transaction, move
 
 **Credit Card**:
@@ -52,7 +52,7 @@ _Avoid_: Card account, liability account
 
 **Paying Account**:
 The account a credit card's bill is normally paid from: a non-card account of the same visibility, chosen when the card is added and changeable by editing the card or when paying.
-_Avoid_: Funding account, source account
+_Avoid_: Source account
 
 **Card Payment**:
 The money in a paying account that is set aside for a credit card's bill. It grows as card spending is recorded and shrinks as refunds are recorded or the bill is paid. Members can also allocate money into or out of it, like a category.
@@ -81,8 +81,12 @@ Moving money inside one account between its categories, its Card Payments and it
 _Avoid_: Budgeting, assignment, reallocation
 
 **Budget**:
-A monthly target amount for a category, compared against what was spent that month. It never goes down as money is spent; the category's money does.
+A monthly target amount for a category, compared against what was spent that month, naming its funding account. Set from a month, it stands until a later month replaces it, so a category keeps a budget history. It never goes down as money is spent; the category's money does.
 _Avoid_: Envelope, allocation, pot
+
+**Funding Account**:
+The account a budget's money is distributed into. It shares the category's visibility and is never a credit card. Not to be confused with a credit card's Paying Account.
+_Avoid_: Home account
 
 **Debt**:
 Money owed, tracked for visibility only; it never moves money. **External** debts are owed outside the household (a credit card's balance is not one: the card already shows it); **Internal** debts are borrowing within it, between accounts, categories, or members.
