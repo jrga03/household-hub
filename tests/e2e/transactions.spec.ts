@@ -6,6 +6,7 @@ const bankItem = (page: Page) =>
 
 test("transactions recorded offline move the balance, and a removal can be undone", async ({
   page,
+  isMobile,
 }) => {
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Transaction home");
@@ -49,7 +50,15 @@ test("transactions recorded offline move the balance, and a removal can be undon
   await page.getByRole("link", { name: "Transactions" }).click();
   const list = page.getByRole("list", { name: "Transactions" });
   const market = list.getByRole("listitem").filter({ hasText: "Market" });
-  await market.getByRole("button", { name: "Remove" }).click();
+  if (isMobile) {
+    await market.getByRole("button", { name: "Edit Market" }).click();
+    await page
+      .getByRole("dialog", { name: "Edit transaction" })
+      .getByRole("button", { name: "Remove" })
+      .click();
+  } else {
+    await market.getByRole("button", { name: "Remove" }).click();
+  }
   await expect(market).toBeHidden();
   await page.getByRole("button", { name: "Undo" }).click();
   await expect(market).toBeVisible();
