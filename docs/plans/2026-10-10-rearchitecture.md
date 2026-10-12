@@ -86,7 +86,7 @@ Spec: #46. Scoped 2026-10-12 (decisions above, dated 2026-10-11 and 2026-10-12).
 - [x] #49 Transactions core
 - [x] #50 Card Payment reservation
 - [ ] #51 Allocations and the Categories screen
-- [ ] #52 Transaction list: virtualized, filters, totals, search
+- [x] #52 Transaction list: virtualized, filters, totals, search
 - [ ] #53 Transaction list actions: bulk, swipe, detail pane (blocked by #52)
 - [ ] Close #46
 
@@ -122,6 +122,33 @@ Seams (from #46's Testing Decisions and the issue's acceptance criteria): the al
 - **Review: the timing guard measures the sums, not the Dexie reads.** Kept: fake-indexeddb read time doesn't represent a browser, and the agreed guard is on summing at read time (2026-10-12).
 - **Review deferral: `envelope.kind` is switched on in four places** (`moneyIn`, `addToAllocated`, `envelopeLabel`, `envelopeKey`). Revisit: if a fourth envelope kind is added.
 - **The 10,000-transaction timing guard now covers the screen**: 10,000 transactions plus 500 allocations, summed and pivoted by category (about 3 ms locally; one run under parallel load failed the 50 ms limit once and passed on every rerun).
+
+## Issue #52: transaction list
+
+Seams (from the issue's acceptance criteria): filtering, search and totals as a pure module (`src/lib/transactions/filter.ts`, Vitest), one Playwright filter-totals flow on chromium.
+
+- [x] Pure filter: month, account, category (or Unassigned), type, status, Needs a category; combined
+- [x] Search: description and notes, plus the exact amount for a numeric query; 10,000-row timing guard (under 50 ms)
+- [x] Totals (income, expenses, net) via `sumCents` / `diffCents`
+- [x] Filters in the URL (`validateSearch`); the uncategorized-expense count links to its filter
+- [x] TanStack Virtual reinstalled; window virtualizer
+- [x] Playwright (chromium): filter totals, search 250, the Needs a category link
+- [x] 10,000 rows checked by hand (throwaway spec, chromium and Mobile Chrome): 10 to 20 rows in the DOM, scroll frames median 16.7 ms, p95 under 18 ms
+- [x] Layout baselines: `/transactions` added (chromium, Mobile Chrome); home and settings unchanged
+- [x] build, lint, vitest, both tsc, knip, size (297.0 KB gz)
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
+
+### #52 decisions
+
+- **Filters live in the URL search params**, read by `readTransactionFilter`, which drops anything unusable (a stale link shows everything). Why: the uncategorized count is a plain link to its filter, and a reload or Back keeps the view. Filter changes replace the history entry.
+- **Month defaults to all months**; its choices are this month plus the months holding transactions, newest first.
+- **A numeric search matches the amount or the text** (OR), so "250" also finds "Room 250". Only a whole number-like query counts as an amount ("₱1,250.50" yes, "250abc" no).
+- **The Needs a category count covers every transaction**, not just the filtered ones, and its link replaces the other filters.
+- **Deferral: on phones the filters fill the first screen** before any row. Revisit: #53 (it reworks the phone row with swipe actions); collapse the filters behind a button then.
+- **Deferral: the transactions layout baseline shows the empty state**, since the shared seeded user has no transactions. Revisit: if the seed gains transactions.
+- **Review fixes:** the search box keeps its own text and only resets when the URL's query is cleared (it had snapped back to the lagging URL after each keystroke; the e2e now types key by key); a stable `getItemKey`, so the virtualizer keeps its measured offsets; this month is always a choice; "₱ 250" and "250." count as amounts; a `countOf` label helper; accounts passed as one list; clearer predicate names; rows render `TransactionItem` directly.
+- **Review: kept the 50 ms filter timing guard**, matching the money test's budget. Revisit: if CI flakes on it.
 
 ## Issue #50: Card Payment reservation
 
@@ -394,8 +421,17 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - Triaged 2026-10-11: #15 closed as completed; #40 updated (deploy steps done; first-run check 2026-10-13, still-active check on or after 2026-10-17).
 - Next: #40's two dashboard checks (human).
 - Milestone 2 scoped 2026-10-12: spec #46, sub-issues #47-#53 (`ready-for-agent`), ADR 0005.
-- #47 merged (PR #56, ca6bba3). #48 merged (PR #57, 22a23d5). #49 merged (PR #58, 0593a29). Their worktrees and local branches are removed.
-- Next: #50 (Card Payment reservation), in a worktree. #51 and #52 are unblocked too.
+- #47 merged (PR #56, ca6bba3). #48 merged (PR #57, 22a23d5). #49 merged (PR #58, 0593a29). #50 merged (PR #60, dcf7044). #52 merged (PR #62, efc7c46). Their worktrees and local branches are removed.
+- Next: #51 (allocations and the Categories screen), in progress in its worktree; #53 (bulk, swipe, detail pane) is unblocked.
+- Gotchas found in #52:
+  - Filters live in the route's search params (`readTransactionFilter`); #53's selection and detail pane can add params the same way.
+  - The search box keeps its own text and resyncs only when the URL query is cleared; don't drive it from `useSearch` directly (the URL lags a render).
+  - #53 owes: collapsing the filters on phones (they fill the first screen), alongside the swipe row.
+- Gotchas found in #50:
+  - A device that logs in right after another device writes may pull before the push lands; two-browser specs reconnect it until the item shows (`pullUntil` in `tests/e2e/card-payment.spec.ts`).
+  - A card's row on the Accounts card names its Paying Account, so match account rows by their leading name, not `hasText: name`.
+  - `chooseOption(page, field, option)` lives in `tests/e2e/fixtures/helpers.ts`.
+  - #51 owes: category money per account on screen (the #50 demo's Restaurants drop), and the shared `permutations` test helper (#49 deferral). Allocations add to the Card Payment envelopes in `sumAccountMoney` (`cardPayments`).
 - Gotchas found in #49:
   - A new route fails `tsc -b` until the route tree is regenerated: run `npx vite build` (the router plugin rewrites `src/routeTree.gen.ts`), then type-check.
   - Shell changes move the laptop/desktop layout baselines; open the `*-diff.png` before `--update-snapshots`. There is no phone baseline, so check phone layout with a screenshot.
