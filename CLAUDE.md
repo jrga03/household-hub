@@ -55,6 +55,7 @@ Always ask: what happens offline, and what happens when two devices edit the sam
 Check here before debugging a test or CLI failure you did not cause. A failure is yours only if it passes on `main` (stash or check out `main` and re-run).
 
 - **E2E has pre-existing failures.** After #16 stripped the app (2026-10-10, chromium and Mobile Chrome), these fail on both projects and predate #16 (they are ✘ in the older per-test baseline `docs/plans/2026-10-02-phase-1b-e2e-baseline.txt`): `keyboard-nav` "navigate main menu" (expects `data-nav` attributes), `performance` "acceptable bundle size", and `pwa` "work offline after caching". Compare per test, not by totals. Only chromium and Mobile Chrome layout baselines are trustworthy; firefox/webkit abort with `NS_BINDING_ABORTED`.
+- **`household.spec.ts` "creates a household and sees the Owner view" flakes under parallel load** (seen 2026-10-12, chromium): `main.getByText("Owner", { exact: true })` matches both the header badge and the Members list badge once the list renders (strict-mode violation). Passes alone. Fix: scope the locator.
 - **E2E needs** the local stack running (`supabase start`), `PW_TEST_HTML_REPORT_OPEN=never` for non-interactive runs, and a fresh `dist/` (`npm run test:e2e*` rebuild it; a bare `npx playwright test` does not).
 - **Scripts** must parse `supabase status -o env`, never the human-readable output.
 - **PWA update handoff** can cause one unexpected reload when a code-split route is tapped during the update window. Known and self-healing; no fix needed.
