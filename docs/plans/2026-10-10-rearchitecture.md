@@ -173,7 +173,7 @@ Seams: the ledger read function (Vitest: rows, opening and closing money, runnin
 - [x] This month's ledger shows money dated later
 - [x] Retiring a category with money moves it into a chosen category first; the retired-with-money list goes
 - [x] "Ledger" in GLOSSARY.md
-- [ ] PR
+- [x] PR (#85)
 
 ### #74 decisions
 
