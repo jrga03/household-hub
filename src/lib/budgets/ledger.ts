@@ -6,7 +6,7 @@
 
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { AllocationRow } from "@/lib/allocations/projection";
-import { sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
+import { diffCents, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import { sumAccountMoney, sumCategoryMoney } from "@/lib/transactions/money";
 import type { TransactionRow } from "@/lib/transactions/projection";
@@ -32,6 +32,8 @@ export interface CategoryLedger {
   rows: LedgerRow[];
   /** The category's money after the month's last day. */
   closing: Cents;
+  /** What records dated after the month add; this month's figure in the month view includes it. */
+  datedLater: Cents;
 }
 
 type MoneyRecords = Omit<MonthRecords, "budgets">;
@@ -100,7 +102,8 @@ export function categoryLedger(
       return { ...entry, change, balance };
     });
 
-  return { opening, rows, closing: balance };
+  const now = categoryMoney(categoryId, records);
+  return { opening, rows, closing: balance, datedLater: diffCents(now, balance) };
 }
 
 export async function readCategoryLedger(categoryId: string, month: string) {

@@ -150,6 +150,14 @@ describe("category ledger", () => {
     expect(ledger).toMatchObject({ opening: 100000, rows: [], closing: 100000 });
   });
 
+  it("adds up what records dated after the month change, for this month's figure", async () => {
+    await allocateToGroceries("2026-10-01", "3000");
+    await spendOnGroceries("2026-11-02", "400");
+    await allocateToGroceries("2026-12-01", "100");
+
+    expect(await october()).toMatchObject({ closing: 300000, datedLater: -30000 });
+  });
+
   it("reads an opened record as it is now, and as null once removed", async () => {
     const { id } = await spendOnGroceries("2026-10-05", "1200");
     expect(await readLedgerRecord({ kind: "transaction", id })).toMatchObject({

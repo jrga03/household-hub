@@ -49,15 +49,19 @@ function Change({ row }: { row: LedgerRow }) {
       </span>
     );
   }
+  return <SignedAmount cents={row.change} />;
+}
+
+function SignedAmount({ cents }: { cents: Cents }) {
   return (
     <span
       className={cn(
         "whitespace-nowrap tabular-nums",
-        row.change > 0 && "text-green-700 dark:text-green-400"
+        cents > 0 && "text-green-700 dark:text-green-400"
       )}
     >
-      {row.change > 0 ? "+" : "−"}
-      {formatPHP(absCents(row.change))}
+      {cents > 0 ? "+" : "−"}
+      {formatPHP(absCents(cents))}
     </span>
   );
 }
@@ -79,6 +83,7 @@ export function CategoryLedger({
   categoryId,
   categoryName,
   month,
+  isCurrentMonth,
   names,
   onOpen,
 }: {
@@ -86,6 +91,8 @@ export function CategoryLedger({
   categoryName: string;
   /** "yyyy-MM". */
   month: string;
+  /** This month's figure in the month view counts records dated later too. */
+  isCurrentMonth: boolean;
   names: Names;
   onOpen: (record: LedgerRecord) => void;
 }) {
@@ -128,6 +135,12 @@ export function CategoryLedger({
           </ul>
         )}
         <Balance label={`End of ${monthLabel(month)}`} cents={ledger.closing} />
+        {isCurrentMonth && ledger.datedLater !== 0 && (
+          <div className="flex items-center justify-between gap-3 px-3 py-2 text-sm text-muted-foreground">
+            <span>Dated later</span>
+            <SignedAmount cents={ledger.datedLater} />
+          </div>
+        )}
       </div>
 
       <section aria-labelledby="budget-history" className="space-y-2">

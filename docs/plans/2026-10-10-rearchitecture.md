@@ -164,14 +164,25 @@ Seams (from #70's Testing Decisions): the Distribute command and its prefill (Vi
 
 Seams: the ledger read function (Vitest: rows, opening and closing money, running balance, with a transfer and a card purchase).
 
-- [ ] Ledger read function for a category and month
-- [ ] Budget history list (versions with month, amount, funding account)
-- [ ] Detail pane on wide screens, sheet on phones; rows open their record
-- [ ] build, lint, vitest, both tsc, knip
-- [ ] Code review (standards + spec), fixes applied
-- [ ] Commit
+- [x] Ledger read function for a category and month
+- [x] Budget history list (versions with month, amount, funding account)
+- [x] Detail pane on wide screens, sheet on phones; rows open their record
+- [x] build, lint, vitest, both tsc, knip
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
+- [ ] This month's ledger shows money dated later
+- [ ] Retiring a category with money moves it into a chosen category first; the retired-with-money list goes
+- [ ] "Ledger" in GLOSSARY.md
+- [ ] PR
 
 ### #74 decisions
+
+- **A ledger row's change is `sumAccountMoney` run on that record alone**, so the ledger can't disagree with the month view. Agreed 2026-10-12.
+- **"End of month" is strict (records dated in the month); this month adds a muted "Dated later" line** when future-dated records make the category's money differ. Why: the month view counts them for this month. Agreed 2026-10-12.
+- **Ledger rows open their record by ID, looked up live**, so a removal on another device closes the edit (as the transaction list does). Agreed 2026-10-12.
+- **Retiring a category that holds money asks which category to move it into**; the move (one allocation per account, negative money moved back in) and the retire are one change. Retired categories no longer show money on Categories. A retired category left holding money by a sync race can still be emptied from Move money's Retired choices. Agreed 2026-10-12. Revisit: if such races happen in practice.
+- **Shared detail pane for Categories and Transactions is deferred** to its own refactor PR. Why: keeps #74's diff on the ledger. Revisit: after round 2 merges.
+- **The list-row helpers stay in `transactions/filter.ts`.** Why: the ledger uses its own `LedgerRecord` union and didn't need them. Revisit: if another screen lists mixed records.
 
 ## Issue #73: budgets and the month view
 

@@ -162,6 +162,7 @@ export function CategoriesView({
       categoryId={ledgerId}
       categoryName={ledgerName}
       month={month}
+      isCurrentMonth={month === currentMonth}
       names={{ accounts: accountNames, categories: namesOfCategories }}
       onOpen={({ kind, record }) => setOpenedId({ kind, id: record.id })}
     />
