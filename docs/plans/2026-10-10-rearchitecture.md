@@ -119,6 +119,7 @@ Seams (from #46's Testing Decisions): the bulk commands (Vitest), one Playwright
 - **The pane shows the edit form only**: no history, and a hint when nothing is open, not the design's filter summary (the totals are already above the list). Revisit: when event history gets a screen.
 - **Review fixes:** PageShell back in the route, with the list returning its slots and the page header aligned with the rail; a filter change clears the selection; swipe waits for an in-flight toggle; a bulk action that changes nothing says so, and one where every row fails keeps the selection; the four bulk commands share `changeEach`; `countOf` moved to `lib/utils`.
 - **Review deferral: each bulk item reads its transaction twice** (once to skip unchanged ones, once inside the single command). Revisit: if bulk actions on thousands of rows feel slow.
+- **No layout baseline shows the pane, toolbar or swipe row**, since the seeded user has no transactions; the pane is covered by the 1600 px e2e test instead. Revisit: with #52's empty-state deferral, if the seed gains transactions. Agreed 2026-10-12.
 - **Swipe has no unit seam**; it's checked by hand on Mobile Chrome. Why: the M2 seams were agreed without it, and the ticket runs unattended. Revisit: if swipe regresses.
 
 ## Issue #52: transaction list
