@@ -4,6 +4,7 @@ import { listAccounts } from "@/lib/accounts/projection";
 import { createAccount, editAccount, retireAccount } from "@/lib/commands/accounts";
 import { cents } from "@/test/cents";
 import {
+  appendTogether,
   countWaiting,
   discardStuck,
   listStuck,
@@ -36,6 +37,43 @@ describe("waiting count", () => {
     const [first] = await listUnpushed(1);
     await markPushed([first!.id]);
     expect(await countWaiting()).toBe(1);
+  });
+});
+
+describe("appending together", () => {
+  it("keeps every change when all of them succeed", async () => {
+    await appendTogether(async () => {
+      await addCash("Cash");
+      await addCash("Wallet");
+    });
+
+    expect((await listAccounts()).map((account) => account.name).sort()).toEqual([
+      "Cash",
+      "Wallet",
+    ]);
+    expect(await countWaiting()).toBe(2);
+  });
+
+  it("keeps none of them when a later command refuses", async () => {
+    const together = appendTogether(async () => {
+      await addCash("Cash");
+      await addCash("Wallet");
+      await retireAccount(MEMBER, "no-such-account");
+    });
+
+    await expect(together).rejects.toThrow();
+    expect(await listAccounts()).toEqual([]);
+    expect(await countWaiting()).toBe(0);
+  });
+
+  it("lets a later command see what an earlier one appended", async () => {
+    await appendTogether(async () => {
+      const { id } = await addCash("Cash");
+      await retireAccount(MEMBER, id);
+    });
+
+    expect(await listAccounts()).toEqual([]);
+    expect(await countWaiting()).toBe(2);
   });
 });
 

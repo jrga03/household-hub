@@ -52,7 +52,7 @@ const restrictSupabase = {
 // one local transaction.
 const restrictAppendEvent = {
   group: ["@/lib/events/log", "**/events/log", "**/events/log.ts", "./log"],
-  importNames: ["appendEvent"],
+  importNames: ["appendEvent", "appendTogether"],
   message:
     "Record changes through a command in src/lib/commands, which validates, appends and projects in one transaction.",
 };

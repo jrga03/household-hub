@@ -106,9 +106,12 @@ Fix commits cluster in `src/lib/{sync,offline,debts}`.
 
 Spec: #70. Scoped 2026-10-12 (decisions above, agreed 2026-10-12). ADRs 0006 and 0007. Build rounds follow the blocking edges: {#71, #73}, then {#72, #74, #75, #76}, then #77. Each sub-issue fills in its own subsection below (checkboxes and a decisions list), so parallel PRs don't conflict here.
 
-- [ ] #71 Transfers
+- **Round 2 runs all four in parallel**, after `appendTogether` (`src/lib/events/log.ts`) lands on main: #72 and #75 each write several records in one command, and building the helper twice would conflict. Merge order: #74 (it changes the Categories layout most), #76, #72, #75; each later branch merges main before its PR merges. Why: #72, #74 and #75 all edit `CategoriesView.tsx`. Agreed 2026-10-12.
+- **`appendTogether(fn)` makes several commands one change**: commands called inside it join one Dexie transaction over the log tables, so a later refusal keeps none of the earlier events, and later commands see what earlier ones projected. Lint-fenced to commands like `appendEvent`. Agreed 2026-10-12.
+
+- [x] #71 Transfers
 - [ ] #72 Pay a credit card (blocked by #71)
-- [ ] #73 Budgets and the month view
+- [x] #73 Budgets and the month view
 - [ ] #74 Category ledger (blocked by #71, #73)
 - [ ] #75 Distribute money (blocked by #71, #73)
 - [ ] #76 Export (blocked by #71)
@@ -636,7 +639,16 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #47 merged (PR #56, ca6bba3). #48 merged (PR #57, 22a23d5). #49 merged (PR #58, 0593a29). #50 merged (PR #60, dcf7044). #52 merged (PR #62, efc7c46). #51 merged (PR #64, 791b302). #53 merged (PR #66, 2c28b78). Their worktrees and local branches are removed.
 - #46 closed 2026-10-12. The `household.spec.ts` Owner-badge flake fixed (PR #68).
 - Milestone 3 scoped 2026-10-12: spec #70, sub-issues #71-#77 (`ready-for-agent`, native blocked-by edges), ADRs 0006 and 0007, glossary Transfer, Budget and Funding Account. Export modes deferred to #69 (`needs-triage`).
-- Next: build round 1, #71 Transfers and #73 Budgets in parallel worktrees; then #72, #74, #75, #76; then #77. Still owed: #40's dashboard checks (human).
+- #71 merged (PR #79, 734017b). #73 merged (PR #80, 0becd82); merging it after #71 needed transfers in the month-end money (a type error caught it). Their worktrees and local branches are removed. Follow-up #81 (`transactions.spec.ts` on Mobile Chrome).
+- Pending with the user: whether Unassigned and "Retired, still holding money" should follow the month picker (default: keep current money; see the #73 decisions).
+- Next: round 2, #72, #74, #75, #76 in parallel worktrees once `appendTogether` is on main; merge #74, #76, #72, #75 in that order; then #77. Still owed: #40's dashboard checks (human).
+- Gotchas found in #71 and #73:
+  - `sumAccountMoney(accounts, transactions, allocations, transfers)` takes transfers as a required fourth argument; any month or ledger sum must pass the transfers dated in range.
+  - List rows are `ListRow = TransactionRow | TransferRow` (`isTransfer`, `newestFirst`, `transferDirection` in `transactions/filter.ts`); `useTransactionListRows()` replaced `useTransactions()`.
+  - `addTransfer` with `envelope: { kind: "card_payment", id: card }` into the card already pays a card; the command refuses any other envelope into a card and any transfer out of one.
+  - Budgets: `budgetInForce` / `budgetsInForce` (`budgets/inForce.ts`), `readMonthView` / `categoryMonth` / `sumMonthFigures` (`budgets/month.ts`); the month is the Categories route's `?month=yyyy-MM`. Distribute's prefill is `budget - allocated`, floored at 0, from the month view.
+  - Dexie is at version 9 (8 transfers, 9 budgets).
+  - Bulk actions: generic `changeEach(ids, read, isAlready, change)` in `commands/bulk.ts`.
 - Gotchas found in #53:
   - Sonner toasts sit over the bottom rows on a phone and handle swipes themselves; a swipe check must wait for toasts to clear.
   - `/transactions` is `rail`: `TransactionList` returns `PageShell.Main` and `PageShell.RightAside` slots, and the page header shares the shell's `@[1100px]` breakpoint so the two stay aligned.
