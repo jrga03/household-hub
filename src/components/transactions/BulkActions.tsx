@@ -22,13 +22,11 @@ import {
   type BulkResult,
 } from "@/lib/commands/transactions";
 import type { TransactionRow } from "@/lib/transactions/projection";
-import { errorMessage } from "@/lib/utils";
+import type { TransactionStatus } from "@/lib/transactions/events";
+import { countOf, errorMessage } from "@/lib/utils";
 
 // Radix Select can't hold an empty value.
 const UNASSIGNED = "unassigned";
-
-export const countOf = (count: number, one: string, many: string) =>
-  count === 1 ? `1 ${one}` : `${count.toLocaleString("en-PH")} ${many}`;
 
 const transactionsCount = (count: number) => countOf(count, "transaction", "transactions");
 
@@ -75,33 +73,41 @@ export function BulkActions({
   const [acting, startActing] = useTransition();
   const ids = selected.map((transaction) => transaction.id);
 
-  const act = (run: () => Promise<BulkResult>, done: (result: BulkResult) => void) =>
+  const runBulk = (
+    command: () => Promise<BulkResult>,
+    onChanged: (result: BulkResult) => void,
+    alreadyMessage: string
+  ) =>
     startActing(async () => {
       try {
-        const result = await run();
+        const result = await command();
         reportFailures(result);
-        if (result.changed.length > 0) done(result);
-        onDone();
+        if (result.changed.length > 0) onChanged(result);
+        else if (result.failed.length === 0) toast.info(alreadyMessage);
+        // Kept when nothing could change, so the member can retry.
+        if (result.changed.length > 0 || result.failed.length === 0) onDone();
       } catch (caught) {
         toast.error(errorMessage(caught, "Couldn't change the transactions."));
       }
     });
 
-  const markAs = (status: "cleared" | "pending") =>
-    act(
+  const markAs = (status: TransactionStatus) =>
+    runBulk(
       () => setTransactionsStatus(actor, ids, status),
-      (result) => toast.success(`Marked ${transactionsCount(result.changed.length)} ${status}`)
+      (result) => toast.success(`Marked ${transactionsCount(result.changed.length)} ${status}`),
+      `They're already ${status}.`
     );
 
   const changeCategory = (value: string) =>
-    act(
+    runBulk(
       () => changeTransactionsCategory(actor, ids, value === UNASSIGNED ? null : value),
       (result) =>
-        toast.success(`Changed the category of ${transactionsCount(result.changed.length)}`)
+        toast.success(`Changed the category of ${transactionsCount(result.changed.length)}`),
+      "They're already in that category."
     );
 
   const remove = () =>
-    act(
+    runBulk(
       () => removeTransactions(actor, ids),
       (result) =>
         toast.success(`Removed ${transactionsCount(result.changed.length)}`, {
@@ -114,7 +120,8 @@ export function BulkActions({
                   toast.error(errorMessage(caught, "Couldn't restore the transactions."))
               ),
           },
-        })
+        }),
+      "They're already removed."
     );
 
   const choices = categories ? categoriesFittingAll(categories, selected, accountsById) : [];

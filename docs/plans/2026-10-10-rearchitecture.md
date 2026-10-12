@@ -100,10 +100,10 @@ Seams (from #46's Testing Decisions): the bulk commands (Vitest), one Playwright
 - [x] Filters collapse behind a button on phones (#52 deferral)
 - [x] Detail pane from `@[1100px]` (PageShell `rail`), editing in place; below it the dialog; the list keeps its scroll position
 - [x] Playwright (chromium): bulk mark cleared, and the pane keeps the list's place at 1600 px
-- [x] Layout baselines (chromium, Mobile Chrome): 18/18 pass unchanged, since the seeded user's `/transactions` is the empty state, still `centered`
+- [x] Layout baselines (chromium, Mobile Chrome): `/transactions` desktop and ultrawide regenerated (empty state now in the `rail` shell, header aligned with it); laptop, home and settings unchanged
 - [x] build, lint, vitest (42 files / 3849), both tsc, knip, size (297.2 KB gz); chromium smoke + list + card-payment 17/17 (one `household.spec.ts` flake in the first run, passed alone and on re-run)
-- [ ] Code review (standards + spec), fixes applied
-- [ ] Commit
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
 
 ### #53 decisions
 
@@ -115,6 +115,10 @@ Seams (from #46's Testing Decisions): the bulk commands (Vitest), one Playwright
 - **Phones hide the row's remove icon**; swipe left, the dialog's Remove and bulk Remove replace it. The status button stays at every width as the keyboard and screen-reader equivalent of swipe right.
 - **Swipe is touch and pen only**; a mouse drag stays a click or text selection.
 - **Gotcha: Sonner toasts sit over the bottom rows on a phone and swipe themselves**, so a swipe spec must wait for toasts to clear first.
+- **Transactions uses `rail`, not the layout design's `triple`.** Why: the filters stay above the list (#52), so there is one aside, the pane. Revisit: if the filters move into a side column.
+- **The pane shows the edit form only**: no history, and a hint when nothing is open, not the design's filter summary (the totals are already above the list). Revisit: when event history gets a screen.
+- **Review fixes:** PageShell back in the route, with the list returning its slots and the page header aligned with the rail; a filter change clears the selection; swipe waits for an in-flight toggle; a bulk action that changes nothing says so, and one where every row fails keeps the selection; the four bulk commands share `changeEach`; `countOf` moved to `lib/utils`.
+- **Review deferral: each bulk item reads its transaction twice** (once to skip unchanged ones, once inside the single command). Revisit: if bulk actions on thousands of rows feel slow.
 - **Swipe has no unit seam**; it's checked by hand on Mobile Chrome. Why: the M2 seams were agreed without it, and the ticket runs unattended. Revisit: if swipe regresses.
 
 ## Issue #52: transaction list

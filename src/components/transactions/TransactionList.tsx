@@ -30,9 +30,9 @@ import {
   type TransactionFilter,
 } from "@/lib/transactions/filter";
 import type { TransactionRow } from "@/lib/transactions/projection";
-import { cn, errorMessage } from "@/lib/utils";
+import { cn, countOf, errorMessage } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
-import { BulkActions, countOf } from "./BulkActions";
+import { BulkActions } from "./BulkActions";
 import { removeWithUndo } from "./removeWithUndo";
 import { SAVED_LOCALLY, TransactionDialog, TransactionEditor } from "./TransactionDialog";
 import { TransactionFilters } from "./TransactionFilters";
@@ -53,8 +53,9 @@ const AMOUNT_DISPLAY: Record<TransactionType, { sign: string; className: string 
 
 const ROW_HEIGHT_ESTIMATE = 61;
 
-// Below the sticky shell header (h-14).
+// The shell header is sticky and h-14.
 const BELOW_HEADER = "top-[calc(3.5rem+var(--safe-area-top))]";
+const PANE_MAX_HEIGHT = "max-h-[calc(100dvh-3.5rem-2rem-var(--safe-area-top))]";
 
 /** Whether the element is laid out: the pane is `hidden` below its breakpoint. */
 function useLaidOut(element: HTMLElement | null) {
@@ -95,6 +96,12 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [pane, setPane] = useState<HTMLElement | null>(null);
   const paneShown = useLaidOut(pane);
+  // A new filter starts a new selection, so hidden rows don't come back selected.
+  const [selectionFilter, setSelectionFilter] = useState(filter);
+  if (selectionFilter !== filter) {
+    setSelectionFilter(filter);
+    setSelectedIds(new Set());
+  }
 
   const shown = useMemo(
     () => (transactions ? filterTransactions(transactions, filter) : []),
@@ -115,13 +122,11 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
 
   if (transactions.length === 0) {
     return (
-      <PageShell variant="centered">
-        <PageShell.Main>
-          <p className="text-sm text-muted-foreground">
-            No transactions yet. Add one with the Add transaction button or by pressing n.
-          </p>
-        </PageShell.Main>
-      </PageShell>
+      <PageShell.Main className="@[1100px]:col-span-full">
+        <p className="text-sm text-muted-foreground">
+          No transactions yet. Add one with the Add transaction button or by pressing n.
+        </p>
+      </PageShell.Main>
     );
   }
 
@@ -136,9 +141,9 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
         ].map((category) => [category.id, category.name])
       : []
   );
-  const open = transactions.find((transaction) => transaction.id === openId);
+  const openTransaction = transactions.find((transaction) => transaction.id === openId);
   // Removed on another device mid-edit: drop it, so a restore doesn't reopen it.
-  if (openId && !open) setOpenId(null);
+  if (openId && !openTransaction) setOpenId(null);
 
   const toggleSelected = (id: string, isSelected: boolean) =>
     setSelectedIds((previous) => {
@@ -151,7 +156,7 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
   const activeFilters = Object.keys(filter).length;
 
   return (
-    <PageShell variant="rail">
+    <>
       <PageShell.Main className="space-y-4">
         {/* Phones show the rows first; the filters wait behind a button. */}
         <Button
@@ -261,11 +266,12 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
       <PageShell.RightAside ref={setPane} className="hidden @[1100px]:block">
         <div
           className={cn(
-            "@container sticky mt-0 max-h-[calc(100dvh-5.5rem-var(--safe-area-top))] overflow-y-auto rounded-md border p-4",
-            BELOW_HEADER
+            "@container sticky overflow-y-auto rounded-md border p-4",
+            BELOW_HEADER,
+            PANE_MAX_HEIGHT
           )}
         >
-          {open && paneShown ? (
+          {openTransaction && paneShown ? (
             <section aria-label="Edit transaction" className="space-y-4">
               <div className="flex items-start justify-between gap-2">
                 <div>
@@ -278,9 +284,9 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
               </div>
               {/* Keyed, so the form's defaults follow the transaction picked. */}
               <TransactionEditor
-                key={open.id}
+                key={openTransaction.id}
                 actor={actor}
-                transaction={open}
+                transaction={openTransaction}
                 onClose={() => setOpenId(null)}
               />
             </section>
@@ -292,10 +298,14 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
         </div>
       </PageShell.RightAside>
 
-      {open && !paneShown && (
-        <TransactionDialog actor={actor} transaction={open} onClose={() => setOpenId(null)} />
+      {openTransaction && !paneShown && (
+        <TransactionDialog
+          actor={actor}
+          transaction={openTransaction}
+          onClose={() => setOpenId(null)}
+        />
       )}
-    </PageShell>
+    </>
   );
 }
 
@@ -432,7 +442,10 @@ function TransactionItem({
       }
     });
   const remove = () => void removeWithUndo(actor, transaction);
-  const { offset, handlers } = useSwipe({ onSwipeRight: toggleStatus, onSwipeLeft: remove });
+  const { offset, handlers } = useSwipe({
+    onSwipeRight: () => !changing && toggleStatus(),
+    onSwipeLeft: remove,
+  });
 
   return (
     <div className="relative">
@@ -489,7 +502,6 @@ function TransactionItem({
         >
           <Badge variant={status.badge}>{status.label}</Badge>
         </Button>
-        {/* Phones remove by swiping left, or from the dialog or the bulk actions. */}
         <Button
           variant="ghost"
           size="icon"
