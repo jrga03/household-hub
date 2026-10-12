@@ -115,7 +115,7 @@ Spec: #70. Scoped 2026-10-12 (decisions above, agreed 2026-10-12). ADRs 0006 and
 - [x] #74 Category ledger
 - [x] #75 Distribute money (blocked by #71, #73), PR #87
 - [x] #76 Export (blocked by #71)
-- [ ] #77 Opening checklist (blocked by #75)
+- [x] #77 Opening checklist (blocked by #75), PR #89
 - [ ] Close #70
 
 ## Issue #77: opening checklist
