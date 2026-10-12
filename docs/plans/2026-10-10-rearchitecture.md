@@ -172,18 +172,18 @@ Seams (from #70's Testing Decisions): the Distribute command and its prefill (Vi
 - **Seams:** `readDistributeLines(source, month, mode)` (`lib/budgets/distribute.ts`) and `distributeMoney` (`lib/commands/distribute.ts`), Vitest seeded through commands; `tests/e2e/distribute.spec.ts` on chromium.
 - **Distribute is a route, `/distribute?account&amount&date&mode=opening`**, not a dialog. Why: the toast, the Categories header and #77's checklist all link to it, and a list of lines needs a page on phones. #77 opens it with `mode=opening` (and `account` when it knows one).
 - **The month is the distribution date's month**, prefilled with the income's date. Allocations and transfers carry that date, so the next payday's prefill counts them.
-- **Opening mode lists every category in use the source can hold**, blank, kept in the source, with each budget shown for reference. Why: #77's checklist puts distribute before set budgets, so budget-only lines would be empty. Revisit: if the list is too long for a big household.
+- **Opening mode lists every category in use the source can hold**, blank, kept in the source, with each budget shown for reference. Why: #77's checklist puts distribute before set budgets, so budget-only lines would be empty. Revisit: if the list is too long for a big household. Agreed 2026-10-12.
 - **Lines are only categories the source can hold** (same visibility and owner); a Personal budget doesn't show when distributing a Household account.
 - **A funding account that can't take the money** (retired, a card, another visibility, or not on this device) falls back to the source; only a retired one shows "Funding account retired".
 - **The Income field caps the warning**; left blank, the source's Unassigned does ("₱X more than BPI's Unassigned"). Opening mode has no Income field.
-- **The Distribute toast action shows only for income into Unassigned**: a categorized income (a refund) is already in an envelope.
+- **The Distribute toast action shows only for income into Unassigned**: a categorized income (a refund) is already in an envelope. Agreed 2026-10-12.
 - **Each transfer is described "Distribute money"**, so it explains itself in the transaction list.
 - **A Distribute button sits in the Categories header**, so a payday is reachable after the toast is gone.
-- **"Allocated this month" is net**: Move money out of a category this month raises its next prefill by that much. It reuses the month view's figure, so Distribute and Categories agree.
+- **"Allocated this month" is net**: Move money out of a category this month raises its next prefill by that much. It reuses the month view's figure, so Distribute and Categories agree. Agreed 2026-10-12.
 - **The shortfall line adds a hint** ("You can still distribute it; trim a line or Unassigned shows in red") after the spec's "₱X more than this income".
-- **Known limit: two devices distributing the same payday before syncing both fund the budgets.** Every record is new, so nothing is overwritten; the source's Unassigned goes negative and shows red. Revisit: if it happens in practice (a guard would need the server).
+- **Known limit: two devices distributing the same payday before syncing both fund the budgets.** Every record is new, so nothing is overwritten; the source's Unassigned goes negative and shows red. Revisit: if it happens in practice (a guard would need the server). Agreed 2026-10-12.
 - **Review fixes:** the top card's grid sits inside its `@container` (an element can't query itself); `categoriesHeldBy` shared by the reader and the add-a-category picker; `distributeMoney` is async and throws like the other commands.
-- **Review deferrals:** a `todayLocal()` helper for the repeated `format(new Date(), "yyyy-MM-dd")`, and using `categoriesHeldBy`-style flattening in `CategoriesView` and `envelopes.ts`. Why: they touch files other round-2 branches edit. Revisit: after round 2 merges.
+- **Review deferrals:** a `todayLocal()` helper for the repeated `format(new Date(), "yyyy-MM-dd")`, and using `categoriesHeldBy`-style flattening in `CategoriesView` and `envelopes.ts`. Why: they touch files other round-2 branches edit. Revisit: after round 2 merges. Agreed 2026-10-12.
 
 ## Issue #74: category ledger
 
