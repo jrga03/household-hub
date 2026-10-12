@@ -85,7 +85,7 @@ Spec: #46. Scoped 2026-10-12 (decisions above, dated 2026-10-11 and 2026-10-12).
 - [x] #48 Categories and groups
 - [x] #49 Transactions core
 - [x] #50 Card Payment reservation
-- [ ] #51 Allocations and the Categories screen
+- [x] #51 Allocations and the Categories screen
 - [x] #52 Transaction list: virtualized, filters, totals, search
 - [ ] #53 Transaction list actions: bulk, swipe, detail pane (blocked by #52)
 - [ ] Close #46
@@ -421,8 +421,12 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - Triaged 2026-10-11: #15 closed as completed; #40 updated (deploy steps done; first-run check 2026-10-13, still-active check on or after 2026-10-17).
 - Next: #40's two dashboard checks (human).
 - Milestone 2 scoped 2026-10-12: spec #46, sub-issues #47-#53 (`ready-for-agent`), ADR 0005.
-- #47 merged (PR #56, ca6bba3). #48 merged (PR #57, 22a23d5). #49 merged (PR #58, 0593a29). #50 merged (PR #60, dcf7044). #52 merged (PR #62, efc7c46). Their worktrees and local branches are removed.
-- Next: #51 (allocations and the Categories screen), in progress in its worktree; #53 (bulk, swipe, detail pane) is unblocked.
+- #47 merged (PR #56, ca6bba3). #48 merged (PR #57, 22a23d5). #49 merged (PR #58, 0593a29). #50 merged (PR #60, dcf7044). #52 merged (PR #62, efc7c46). #51 merged (PR #64, 791b302). Their worktrees and local branches are removed.
+- Next: #53 (bulk, swipe, detail pane), in progress in its worktree; then close #46.
+- Gotchas found in #51:
+  - Sub-issues built in parallel each add a section under Milestone 2 here, so the second PR to merge conflicts in this file; keep both sections, newest first.
+  - Move money's selects name each option with its amount ("Groceries · ₱0.00"), so e2e picks options by that full name.
+  - `sumAccountMoney` takes allocations as a third argument; `sumCategoryMoney` pivots its result per category, and `moneyIn` reads one envelope.
 - Gotchas found in #52:
   - Filters live in the route's search params (`readTransactionFilter`); #53's selection and detail pane can add params the same way.
   - The search box keeps its own text and resyncs only when the URL query is cleared; don't drive it from `useSearch` directly (the URL lags a render).
