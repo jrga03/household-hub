@@ -14,6 +14,7 @@ import { SyncStatusIndicator } from "@/components/sync/SyncStatusIndicator";
 import { StorageWarning } from "@/components/StorageWarning";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { CREATE_OR_JOIN_PATH } from "@/lib/households";
+import { AddTransactionButton, QuickEntryDialog } from "@/components/transactions/QuickEntry";
 
 /**
  * Main application layout component
@@ -134,6 +135,9 @@ export function AppLayout() {
             (review R42) */}
         <BottomTabBar />
 
+        <AddTransactionButton floating />
+        <QuickEntryDialog />
+
         {/* PWA Installation Prompt */}
         <PWAInstallPrompt />
       </div>
@@ -160,12 +164,15 @@ export function AppLayout() {
 
         {/* Main Content Area */}
         <div className="flex flex-1 flex-col">
-          {/* Optional Header for tablet/desktop (minimal) */}
-          <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 lg:hidden pt-[var(--safe-area-top)]">
+          {/* Header for tablet/desktop: the page title below lg, quick entry at every width */}
+          <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pt-[var(--safe-area-top)]">
             <div className="flex h-14 items-center px-4">
-              <SidebarTrigger className="mr-2" />
-              <div className="flex flex-1 items-center">
+              <SidebarTrigger className="mr-2 lg:hidden" />
+              <div className="flex flex-1 items-center lg:hidden">
                 <PageTitle />
+              </div>
+              <div className="ml-auto">
+                <AddTransactionButton />
               </div>
             </div>
           </header>
@@ -186,6 +193,8 @@ export function AppLayout() {
             <Outlet />
           </main>
         </div>
+
+        <QuickEntryDialog />
 
         {/* PWA Installation Prompt */}
         <PWAInstallPrompt />
@@ -221,6 +230,7 @@ function PageTitle() {
   // Map routes to titles
   const getTitleFromPath = (pathname: string): string => {
     if (pathname === "/") return "Home";
+    if (pathname.startsWith("/transactions")) return "Transactions";
     if (pathname.startsWith("/categories")) return "Categories";
     if (pathname.startsWith("/settings")) return "Settings";
     return "Household Hub";

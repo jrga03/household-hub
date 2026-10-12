@@ -27,6 +27,7 @@ import {
   negateCents,
   divideCents,
   formatPHPChartValue,
+  formatPHPInput,
 } from "./currency";
 
 describe("formatPHP", () => {
@@ -68,6 +69,18 @@ describe("formatPHP", () => {
     expect(formatPHP(asCents(101))).toBe("₱1.01");
     expect(formatPHP(asCents(102))).toBe("₱1.02");
     expect(formatPHP(asCents(109))).toBe("₱1.09");
+  });
+});
+
+describe("formatPHPInput", () => {
+  it("prefills an amount input without the peso sign, and parses back to the same cents", () => {
+    expect(formatPHPInput(asCents(150050))).toBe("1,500.50");
+    expect(formatPHPInput(asCents(MAX_AMOUNT_CENTS))).toBe("9,999,999.99");
+    expect(parsePHP(formatPHPInput(asCents(25000)))).toBe(25000);
+  });
+
+  it("leaves an empty amount empty", () => {
+    expect(formatPHPInput(ZERO_CENTS)).toBe("");
   });
 });
 

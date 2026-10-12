@@ -82,13 +82,39 @@ Fix commits cluster in `src/lib/{sync,offline,debts}`.
 Spec: #46. Scoped 2026-10-12 (decisions above, dated 2026-10-11 and 2026-10-12). Order follows the blocking edges.
 
 - [x] #47 Projection registry
-- [x] #48 Categories and groups (branch `feat/48-categories`, not yet merged)
-- [ ] #49 Transactions core (blocked by #48)
+- [x] #48 Categories and groups
+- [ ] #49 Transactions core (branch `feat/49-transactions`, worktree `../household-hub-49`)
 - [ ] #50 Card Payment reservation (blocked by #49)
 - [ ] #51 Allocations and the Categories screen (blocked by #48, #49)
 - [ ] #52 Transaction list: virtualized, filters, totals, search (blocked by #49)
 - [ ] #53 Transaction list actions: bulk, swipe, detail pane (blocked by #52)
 - [ ] Close #46
+
+## Issue #49: transactions core
+
+Seams (from #46's Testing Decisions and the issue's acceptance criteria): the transaction projection and the read-time account sums through `receiveEvents` (Vitest; permutations, duplicates, the balance = Unassigned + category money invariant after every permutation), the commands (Vitest), one Playwright demo flow on chromium.
+
+- [x] `formatPHPInput` currency helper for prefilled amounts; the account form uses it
+- [x] Transaction events, decoder and projection (details, status, removal resolve apart); registered; Dexie v6 table
+- [x] Read-time account money: balance, Cleared and Pending, Unassigned and category money per account; invariant after every permutation; 10,000-transaction timing guard
+- [x] Commands: add, edit, set status, remove, restore; refuse retired account/category and visibility or owner mismatch
+- [x] Quick entry: Add transaction button (floating on phones, header on wide screens), `n`, prefilled with today, last-used account and category, cleared
+- [x] `/transactions` basic list in the sidebar, tab bar and drawer; edit, toggle status, remove with Undo
+- [x] Accounts card shows balance, Cleared · Pending and Unassigned
+- [x] Playwright: offline expense and income move balance, Groceries and Unassigned (chromium)
+- [x] build, lint, vitest, both tsc, knip
+- [ ] Code review (standards + spec), fixes applied
+- [ ] Commit
+
+### #49 decisions
+
+- **Five event types**: `transaction.created` (details plus status), `transaction.edited` (details), `transaction.marked_cleared` / `transaction.marked_pending`, `transaction.removed` / `transaction.restored`. Details, status and removal each resolve by their own latest HLC, like accounts' details vs retirement.
+- **The direction field is `type: "income" | "expense"`**, as CLAUDE.md's money rule names it; the UI says Expense and Income.
+- **A removed transaction stays in the projection with `removed: true`**, so a restore brings back its latest details and status; reads leave it out.
+- **Unassigned is summed directly** (starting balance plus uncategorized transactions), not as balance minus category money, so the invariant test checks two independent sums. Allocations (#51) add to both sides.
+- **Card transactions change only the card's amount owed** in #49; a card has no Unassigned or category money of its own. #50 adds the Paying Account to the event.
+- **Within a day, the newest recorded transaction lists first** (date descending, then create HLC descending), matching newest-first. Revisit: if members expect entry order within a day.
+- **Last-used account and category come from a small persisted Zustand store**, written when a transaction is added; a stale ID (retired or gone) falls back to the first choice.
 
 ## Issue #48: categories and groups
 

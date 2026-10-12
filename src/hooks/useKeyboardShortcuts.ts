@@ -6,7 +6,9 @@
  *
  * Supported Shortcuts:
  * - Cmd/Ctrl + K: Open command palette / quick search
+ * - n: Add a transaction
  * - g then h: Go to Home
+ * - g then t: Go to Transactions
  * - g then c: Go to Categories
  * - g then s: Go to Settings
  * - ?: Show keyboard shortcuts help
@@ -16,11 +18,13 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { useQuickEntryStore } from "@/stores/quickEntryStore";
 
 export function useKeyboardShortcuts() {
   const navigate = useNavigate();
   const lastKeyRef = useRef<string | null>(null);
   const lastKeyTimeRef = useRef<number>(0);
+  const openQuickEntry = useQuickEntryStore((state) => state.setOpen);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -57,13 +61,27 @@ export function useKeyboardShortcuts() {
       // Gmail-style "g then x" navigation
       // Check if last key was 'g' within 1 second
       const now = Date.now();
-      if (lastKeyRef.current === "g" && now - lastKeyTimeRef.current < 1000) {
+      const inSequence = lastKeyRef.current === "g" && now - lastKeyTimeRef.current < 1000;
+
+      // n: quick entry, unless another dialog is already open
+      if (e.key === "n" && !modKey && !e.altKey && !inSequence) {
+        if (!document.querySelector('[role="dialog"]')) {
+          e.preventDefault();
+          openQuickEntry(true);
+        }
+        return;
+      }
+
+      if (inSequence) {
         e.preventDefault();
 
         // Navigation itself is the feedback; no success toast per hop (UI-09)
         switch (e.key) {
           case "h":
             void navigate({ to: "/" });
+            break;
+          case "t":
+            void navigate({ to: "/transactions" });
             break;
           case "c":
             void navigate({ to: "/categories" });
@@ -96,7 +114,7 @@ export function useKeyboardShortcuts() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [navigate]);
+  }, [navigate, openQuickEntry]);
 }
 
 /**
@@ -108,7 +126,9 @@ function showKeyboardShortcutsHelp() {
 
   const shortcuts = [
     { keys: `${modKey} + K`, description: "Open command palette / Quick search" },
+    { keys: "n", description: "Add a transaction" },
     { keys: "g then h", description: "Go to Home" },
+    { keys: "g then t", description: "Go to Transactions" },
     { keys: "g then c", description: "Go to Categories" },
     { keys: "g then s", description: "Go to Settings" },
     { keys: "?", description: "Show keyboard shortcuts" },

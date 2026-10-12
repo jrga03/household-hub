@@ -98,6 +98,11 @@ export function formatPHP(cents: Cents): string {
   return `${isNegative ? "-" : ""}${PESO_SIGN}${formattedPesos}.${formattedCentavos}`;
 }
 
+/** A prefilled amount input's value: formatted without the peso sign, empty for zero (the placeholder shows 0.00). */
+export function formatPHPInput(cents: Cents): string {
+  return cents === 0 ? "" : formatPHP(cents).replace(PESO_SIGN, "");
+}
+
 /**
  * Parses user input into integer cents with validation.
  *

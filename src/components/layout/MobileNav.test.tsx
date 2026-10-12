@@ -1,6 +1,6 @@
 /**
  * MobileNav drawer tests. Primary destinations live in the BottomTabBar; the
- * drawer holds the profile, Categories, Settings and sign out.
+ * drawer holds the profile, Transactions, Categories, Settings and sign out.
  *
  * Rendered inside a real memory-history RouterProvider because the
  * controlled Sheet wrapper engages the history-back-close hook (review R37).
@@ -50,7 +50,7 @@ async function renderDrawer() {
       </>
     ),
   });
-  const paths = ["/", "/categories", "/settings"];
+  const paths = ["/", "/transactions", "/categories", "/settings"];
   const router = createRouter({
     routeTree: rootRoute.addChildren(
       paths.map((path) =>
@@ -78,11 +78,15 @@ describe("MobileNav drawer", () => {
     expect(screen.getByText("test@example.com")).toBeInTheDocument();
   });
 
-  it("links to Categories and Settings, and closes on navigation", async () => {
+  it("links to Transactions, Categories and Settings, and closes on navigation", async () => {
     await renderDrawer();
 
     const links = screen.getAllByRole("link");
-    expect(links.map((link) => link.getAttribute("href"))).toEqual(["/categories", "/settings"]);
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/transactions",
+      "/categories",
+      "/settings",
+    ]);
 
     fireEvent.click(links[0]!);
     expect(onOpenChange).toHaveBeenCalledWith(false);

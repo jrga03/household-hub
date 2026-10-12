@@ -25,12 +25,13 @@ async function renderAt(initialPath: string) {
       </>
     ),
   });
-  const routes = ["/", "/categories", "/settings", "/settings/$section"].map((path) =>
-    createRoute({
-      getParentRoute: () => rootRoute,
-      path,
-      component: () => <div data-testid={`route-${path}`} />,
-    })
+  const routes = ["/", "/transactions", "/categories", "/settings", "/settings/$section"].map(
+    (path) =>
+      createRoute({
+        getParentRoute: () => rootRoute,
+        path,
+        component: () => <div data-testid={`route-${path}`} />,
+      })
   );
   const router = createRouter({
     routeTree: rootRoute.addChildren(routes),
@@ -40,7 +41,7 @@ async function renderAt(initialPath: string) {
   await screen.findByRole("navigation", { name: "Primary navigation" });
 }
 
-const TAB_NAMES = ["Home", "Categories", "Settings"] as const;
+const TAB_NAMES = ["Home", "Transactions", "Categories", "Settings"] as const;
 
 function activeTabNames(): string[] {
   return TAB_NAMES.filter(
@@ -53,6 +54,10 @@ describe("BottomTabBar (review R42)", () => {
     await renderAt("/");
 
     expect(screen.getByRole("link", { name: "Home" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Transactions" })).toHaveAttribute(
+      "href",
+      "/transactions"
+    );
     expect(screen.getByRole("link", { name: "Categories" })).toHaveAttribute("href", "/categories");
     expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
   });

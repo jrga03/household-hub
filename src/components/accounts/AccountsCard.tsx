@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
+import { useAccountMoney } from "@/hooks/useTransactions";
 import { ACCOUNT_TYPES, isCreditCard } from "@/lib/accounts/events";
 import type { AccountListItem } from "@/lib/accounts/projection";
 import { createAccount, unretireAccount, type Actor } from "@/lib/commands/accounts";
 import { formatPHP } from "@/lib/currency";
+import type { AccountMoney } from "@/lib/transactions/money";
 import type { Visibility } from "@/lib/events/log";
 import { VisibilityField } from "@/components/VisibilityField";
 import {
@@ -77,6 +79,7 @@ function AccountItem({
   account: AccountListItem;
   children: React.ReactNode;
 }) {
+  const money = useAccountMoney()?.get(account.id);
   return (
     <li className="flex items-center justify-between gap-3 px-3 py-2">
       <div className="min-w-0">
@@ -88,12 +91,37 @@ function AccountItem({
           {ACCOUNT_TYPE_LABELS[account.type]}
           {isCreditCard(account) && ` · ${payingAccountSummary(account)}`}
         </p>
+        {money && <MoneySummary money={money} />}
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <span className="tabular-nums">{formatPHP(account.startingBalanceCents)}</span>
+        {money && (
+          <span
+            className="tabular-nums"
+            aria-label={isCreditCard(account) ? "Amount owed" : "Balance"}
+          >
+            {formatPHP(money.balance)}
+          </span>
+        )}
         {children}
       </div>
     </li>
+  );
+}
+
+/** "Cleared ₱X · Pending ₱Y", and the account's Unassigned (red when negative). */
+function MoneySummary({ money }: { money: AccountMoney }) {
+  return (
+    <p className="text-sm text-muted-foreground tabular-nums">
+      Cleared {formatPHP(money.cleared)} · Pending {formatPHP(money.pending)}
+      {money.envelopes && (
+        <>
+          {" · "}
+          <span className={money.envelopes.unassigned < 0 ? "text-destructive" : undefined}>
+            Unassigned {formatPHP(money.envelopes.unassigned)}
+          </span>
+        </>
+      )}
+    </p>
   );
 }
 
