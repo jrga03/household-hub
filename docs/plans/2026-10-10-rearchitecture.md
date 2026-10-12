@@ -90,6 +90,33 @@ Spec: #46. Scoped 2026-10-12 (decisions above, dated 2026-10-11 and 2026-10-12).
 - [ ] #53 Transaction list actions: bulk, swipe, detail pane (blocked by #52)
 - [ ] Close #46
 
+## Issue #52: transaction list
+
+Seams (from the issue's acceptance criteria): filtering, search and totals as a pure module (`src/lib/transactions/filter.ts`, Vitest), one Playwright filter-totals flow on chromium.
+
+- [x] Pure filter: month, account, category (or Unassigned), type, status, Needs a category; combined
+- [x] Search: description and notes, plus the exact amount for a numeric query; 10,000-row timing guard (under 50 ms)
+- [x] Totals (income, expenses, net) via `sumCents` / `diffCents`
+- [x] Filters in the URL (`validateSearch`); the uncategorized-expense count links to its filter
+- [x] TanStack Virtual reinstalled; window virtualizer
+- [x] Playwright (chromium): filter totals, search 250, the Needs a category link
+- [x] 10,000 rows checked by hand (throwaway spec, chromium and Mobile Chrome): 10 to 20 rows in the DOM, scroll frames median 16.7 ms, p95 under 18 ms
+- [x] Layout baselines: `/transactions` added (chromium, Mobile Chrome); home and settings unchanged
+- [x] build, lint, vitest, both tsc, knip, size (297.0 KB gz)
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
+
+### #52 decisions
+
+- **Filters live in the URL search params**, read by `readTransactionFilter`, which drops anything unusable (a stale link shows everything). Why: the uncategorized count is a plain link to its filter, and a reload or Back keeps the view. Filter changes replace the history entry.
+- **Month defaults to all months**; its choices are this month plus the months holding transactions, newest first.
+- **A numeric search matches the amount or the text** (OR), so "250" also finds "Room 250". Only a whole number-like query counts as an amount ("₱1,250.50" yes, "250abc" no).
+- **The Needs a category count covers every transaction**, not just the filtered ones, and its link replaces the other filters.
+- **Deferral: on phones the filters fill the first screen** before any row. Revisit: #53 (it reworks the phone row with swipe actions); collapse the filters behind a button then.
+- **Deferral: the transactions layout baseline shows the empty state**, since the shared seeded user has no transactions. Revisit: if the seed gains transactions.
+- **Review fixes:** the search box keeps its own text and only resets when the URL's query is cleared (it had snapped back to the lagging URL after each keystroke; the e2e now types key by key); a stable `getItemKey`, so the virtualizer keeps its measured offsets; this month is always a choice; "₱ 250" and "250." count as amounts; a `countOf` label helper; accounts passed as one list; clearer predicate names; rows render `TransactionItem` directly.
+- **Review: kept the 50 ms filter timing guard**, matching the money test's budget. Revisit: if CI flakes on it.
+
 ## Issue #50: Card Payment reservation
 
 Seams (from #46's Testing Decisions and the issue's acceptance criteria): the read-time sums through `receiveEvents` (Vitest; the balance = Unassigned + category money + Card Payments invariant after every permutation, with purchases, refunds, an uncategorized purchase, a moved transaction and a removed one), the commands (Vitest), one two-browser Playwright demo on chromium.

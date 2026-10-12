@@ -5,6 +5,7 @@ import { VIEWPORTS } from "./fixtures/viewports";
 const ROUTES = [
   { path: "/", name: "home" },
   { path: "/settings", name: "settings" },
+  { path: "/transactions", name: "transactions" },
 ];
 
 for (const [vpName, vp] of Object.entries(VIEWPORTS)) {
