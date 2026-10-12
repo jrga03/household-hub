@@ -361,8 +361,13 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - Triaged 2026-10-11: #15 closed as completed; #40 updated (deploy steps done; first-run check 2026-10-13, still-active check on or after 2026-10-17).
 - Next: #40's two dashboard checks (human).
 - Milestone 2 scoped 2026-10-12: spec #46, sub-issues #47-#53 (`ready-for-agent`), ADR 0005.
-- #47 merged (PR #56, ca6bba3). #48 merged (PR #57, 22a23d5). #49 merged (PR #58, 0593a29). Their worktrees and local branches are removed.
-- Next: #50 (Card Payment reservation), in a worktree. #51 and #52 are unblocked too.
+- #47 merged (PR #56, ca6bba3). #48 merged (PR #57, 22a23d5). #49 merged (PR #58, 0593a29). #50 merged (PR #60, dcf7044). Their worktrees and local branches are removed.
+- Next: #51 (allocations and the Categories screen), in a worktree; #52 is unblocked too.
+- Gotchas found in #50:
+  - A device that logs in right after another device writes may pull before the push lands; two-browser specs reconnect it until the item shows (`pullUntil` in `tests/e2e/card-payment.spec.ts`).
+  - A card's row on the Accounts card names its Paying Account, so match account rows by their leading name, not `hasText: name`.
+  - `chooseOption(page, field, option)` lives in `tests/e2e/fixtures/helpers.ts`.
+  - #51 owes: category money per account on screen (the #50 demo's Restaurants drop), and the shared `permutations` test helper (#49 deferral). Allocations add to the Card Payment envelopes in `sumAccountMoney` (`cardPayments`).
 - Gotchas found in #49:
   - A new route fails `tsc -b` until the route tree is regenerated: run `npx vite build` (the router plugin rewrites `src/routeTree.gen.ts`), then type-check.
   - Shell changes move the laptop/desktop layout baselines; open the `*-diff.png` before `--update-snapshots`. There is no phone baseline, so check phone layout with a screenshot.
