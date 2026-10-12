@@ -107,6 +107,13 @@ export const isAmount = (value: unknown): value is number =>
 
 export const AMOUNT_PROBLEM = `The amount must be more than zero and at most ${formatPHP(asCents(MAX_AMOUNT_CENTS))}.`;
 
+/** A plain number a spreadsheet can sum: 150050 → "1500.50". */
+export function formatPHPDecimal(cents: Cents): string {
+  const sign = cents < 0 ? "-" : "";
+  const absolute = Math.abs(cents);
+  return `${sign}${Math.floor(absolute / 100)}.${String(absolute % 100).padStart(2, "0")}`;
+}
+
 /** A prefilled amount input's value: formatted without the peso sign, empty for zero (the placeholder shows 0.00). */
 export function formatPHPInput(cents: Cents): string {
   return cents === 0 ? "" : formatPHP(cents).replace(PESO_SIGN, "");

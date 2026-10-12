@@ -2,10 +2,10 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAllocations } from "@/hooks/useAllocations";
+import { envelopeLabel } from "@/lib/allocations/events";
 import type { AllocationRow } from "@/lib/allocations/projection";
 import { formatPHP } from "@/lib/currency";
 import { parseLocalDate } from "@/lib/utils/dates";
-import { envelopeLabel } from "./envelopes";
 
 /** Every allocation, newest first, each editable. */
 export function AllocationList({

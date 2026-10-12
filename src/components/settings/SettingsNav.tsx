@@ -1,7 +1,10 @@
 import { cn } from "@/lib/utils";
-import { Palette } from "lucide-react";
+import { Download, Palette } from "lucide-react";
 
-const SECTIONS = [{ id: "appearance", label: "Appearance", icon: Palette }] as const;
+const SECTIONS = [
+  { id: "appearance", label: "Appearance", icon: Palette },
+  { id: "export", label: "Export", icon: Download },
+] as const;
 
 interface SettingsNavProps {
   activeId?: string;

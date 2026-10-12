@@ -1,12 +1,7 @@
 import { useActionState, useRef, useState } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import {
-  categoryNames,
-  envelopeFromKey,
-  envelopeKey,
-  envelopeLabel,
-} from "@/components/allocations/envelopes";
+import { categoryNames, envelopeFromKey, envelopeKey } from "@/components/allocations/envelopes";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,7 +30,7 @@ import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import { isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
-import { UNASSIGNED_ENVELOPE, type Envelope } from "@/lib/allocations/events";
+import { envelopeLabel, UNASSIGNED_ENVELOPE, type Envelope } from "@/lib/allocations/events";
 import { canHoldMoneyIn, type CategoryList, type CategoryRow } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import {

@@ -10,6 +10,7 @@ import { db, type MetaRow } from "@/lib/dexie/db";
 import { reportError } from "@/lib/sentry";
 import { formatHlc, initialHlc, isHlc, parseHlc, receiveHlc, tickHlc, type Hlc } from "./hlc";
 import {
+  byHlc,
   describeEvent,
   isCreation,
   projectEvent,
@@ -154,6 +155,12 @@ export async function listEventsNotPushed(): Promise<StoredEvent[]> {
     inPushState("stuck").toArray(),
   ]);
   return [...waiting, ...stuck];
+}
+
+/** The whole local log as stored, oldest first, for an export. */
+export async function listAllEvents(): Promise<StoredEvent[]> {
+  const events = await db.events.toArray();
+  return events.sort(byHlc);
 }
 
 export interface StuckEvent {

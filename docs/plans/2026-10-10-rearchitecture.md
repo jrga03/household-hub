@@ -112,7 +112,7 @@ Spec: #70. Scoped 2026-10-12 (decisions above, agreed 2026-10-12). ADRs 0006 and
 - [x] #71 Transfers
 - [ ] #72 Pay a credit card (blocked by #71)
 - [x] #73 Budgets and the month view
-- [ ] #74 Category ledger (blocked by #71, #73)
+- [x] #74 Category ledger
 - [ ] #75 Distribute money (blocked by #71, #73)
 - [ ] #76 Export (blocked by #71)
 - [ ] #77 Opening checklist (blocked by #75)
@@ -135,14 +135,23 @@ Seams (from #70's Testing Decisions and the issue's acceptance criteria): step c
 
 Seams: the CSV and JSON builders (Vitest).
 
-- [ ] Transactions CSV: transfers included and marked, removed records left out, values escaped
-- [ ] Event-log JSON of the local log
-- [ ] Settings section with two downloads (no zip library)
-- [ ] build, lint, vitest, both tsc, knip
-- [ ] Code review (standards + spec), fixes applied
-- [ ] Commit
+- [x] Transactions CSV: transfers included and marked, removed records left out, values escaped
+- [x] Event-log JSON of the local log
+- [x] Settings section with two downloads (no zip library)
+- [x] build, lint, vitest, both tsc, knip
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
 
 ### #76 decisions
+
+- **Seams:** `toCsv` escaping, `readTransactionsCsv`, `readEventLogExport` (Vitest, seeded through commands); one Playwright spec downloads both offline. Agreed 2026-10-12.
+- **Amount is a plain positive decimal** ("1500.50"); the Type column says Expense, Income or Transfer. Why: spreadsheets sum it as a number. Agreed 2026-10-12.
+- **Text that starts like a formula** (`= + - @`, tab, CR) gets a leading apostrophe. Why: another member's description must not run as a formula. Agreed 2026-10-12.
+- **A transfer is one row**: Account is where the money leaves, To account where it goes, Category its envelope. Rows run oldest first (date, then recorded order).
+- **The CSV starts with a UTF-8 byte-order mark** so Excel keeps ₱, ñ and the Card Payment "·". Agreed 2026-10-12.
+- **No Visibility column in the CSV** for now. Why: the issue doesn't ask for one. Revisit with export modes (#69). Agreed 2026-10-12.
+- **Moving `envelopeLabel` out of `allocations/events.ts`** is deferred to #83. Why: a display label doesn't belong with the decoders, but it is a separate refactor. Agreed 2026-10-12.
+- **`categoryNames(list)` and `readCategoryNames()` both stay.** Why: low value. Revisit when either changes. Agreed 2026-10-12.
 
 ## Issue #75: Distribute money
 

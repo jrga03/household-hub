@@ -169,3 +169,9 @@ export async function readCategoryList(): Promise<CategoryList> {
       .map((category) => ({ ...category, group: groupOf(category) })),
   };
 }
+
+/** Every category's name on this device, retired ones included, by category ID. */
+export async function readCategoryNames(): Promise<Map<string, string>> {
+  const categories = await db.categories.toArray();
+  return new Map(categories.map((category) => [category.id, category.name]));
+}

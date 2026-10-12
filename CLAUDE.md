@@ -59,6 +59,7 @@ Check here before debugging a test or CLI failure you did not cause. A failure i
 - **`transaction-list.spec.ts` "filters" fails on Mobile Chrome** (seen 2026-10-12 on `main`): it picks a month from the filters, which phones hide behind the "Search and filters" button. Chromium passes. Fix: press that button first on phones.
 - **E2E needs** the local stack running (`supabase start`), `PW_TEST_HTML_REPORT_OPEN=never` for non-interactive runs, and a fresh `dist/` (`npm run test:e2e*` rebuild it; a bare `npx playwright test` does not).
 - **Scripts** must parse `supabase status -o env`, never the human-readable output.
+- **Worktrees share the e2e preview port** (seen 2026-10-12): `reuseExistingServer` makes Playwright reuse whatever `vite preview` already holds port 4173, often another worktree's build. Check `lsof -nP -iTCP:4173 -sTCP:LISTEN` before trusting a run; if another checkout owns it, run with a throwaway config on another port.
 - **PWA update handoff** can cause one unexpected reload when a code-split route is tapped during the update window. Known and self-healing; no fix needed.
 - Rules: do not root-cause a listed issue mid-task. Log a new pre-existing failure here in the same commit as any workaround; delete an entry when it is fixed.
 
