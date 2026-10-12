@@ -1,4 +1,4 @@
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { AllocationList } from "@/components/allocations/AllocationList";
@@ -11,6 +11,10 @@ import {
 } from "@/components/allocations/MoneyAmount";
 import { MoveMoneyDialog } from "@/components/allocations/MoveMoneyDialog";
 import { SetBudgetDialog } from "@/components/budgets/SetBudgetDialog";
+import { PageShell } from "@/components/layout/PageShell";
+import { BELOW_HEADER, PANE_MAX_HEIGHT } from "@/components/layout/pane";
+import { TransactionDialog } from "@/components/transactions/TransactionDialog";
+import { TransferDialog } from "@/components/transactions/TransferDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,9 +25,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useAccountNames, useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
-import { useMonthView } from "@/hooks/useBudgets";
+import { useLedgerRecord, useMonthView } from "@/hooks/useBudgets";
 import { useCategoryList } from "@/hooks/useCategories";
+import { useLaidOut } from "@/hooks/useLaidOut";
 import { useAccountMoney } from "@/hooks/useTransactions";
 import { isCreditCard } from "@/lib/accounts/events";
 import type { AllocationRow } from "@/lib/allocations/projection";
@@ -34,6 +46,7 @@ import {
   type MonthFigures,
   type MonthView,
 } from "@/lib/budgets/month";
+import type { LedgerRecordId } from "@/lib/budgets/ledger";
 import { DEFAULT_GROUPS } from "@/lib/categories/defaults";
 import type { RecordNoun } from "@/lib/categories/events";
 import type {
@@ -45,10 +58,11 @@ import type {
 import { seedDefaultCategories, unretireCategory, unretireGroup } from "@/lib/commands/categories";
 import type { Actor } from "@/lib/commands/accounts";
 import { formatPHP, ZERO_CENTS, type Cents } from "@/lib/currency";
-import { sumCategoryMoney, type AccountMoney, type CategoryMoney } from "@/lib/transactions/money";
+import type { AccountMoney } from "@/lib/transactions/money";
 import { cn, errorMessage } from "@/lib/utils";
 import { monthLabel, shiftMonth } from "@/lib/utils/dates";
 import { AddCategoryForm, AddGroupForm } from "./AddCategoryForms";
+import { CategoryLedger } from "./CategoryLedger";
 import { EditCategoryDialog, EditGroupDialog } from "./EditCategoryDialogs";
 
 type Editing = { kind: RecordNoun; id: string } | null;
@@ -56,11 +70,11 @@ type Editing = { kind: RecordNoun; id: string } | null;
 /** Closed, adding an allocation, or editing one. */
 type Moving = { allocation?: AllocationRow } | null;
 
-/** The chosen month's figures, plus the current money a retired category still holds. */
+/** The chosen month's figures. */
 interface MoneyView {
   month: MonthView;
-  current: Map<string, CategoryMoney>;
   accountNames: Map<string, string>;
+  onOpenLedger: (categoryId: string) => void;
 }
 
 /** Non-zero amounts by account ID, named and sorted by name. */
@@ -116,16 +130,37 @@ export function CategoriesView({
   const accountMoney = useAccountMoney();
   const accountNames = useAccountNames();
   const monthView = useMonthView(month, currentMonth);
-  const categoryMoney = useMemo(
-    () => accountMoney && sumCategoryMoney(accountMoney),
-    [accountMoney]
-  );
   const [editing, setEditing] = useState<Editing>(null);
   const [moving, setMoving] = useState<Moving>(null);
   const [budgeting, setBudgeting] = useState<string | null>(null);
+  const [ledgerId, setLedgerId] = useState<string | null>(null);
+  const [openedId, setOpenedId] = useState<LedgerRecordId | null>(null);
+  const opened = useLedgerRecord(openedId);
+  const [pane, setPane] = useState<HTMLElement | null>(null);
+  const paneShown = useLaidOut(pane);
 
-  if (!list || !accountMoney || !accountNames || !categoryMoney || !monthView) return null;
-  const moneyView: MoneyView = { month: monthView, current: categoryMoney, accountNames };
+  if (!list || !accountMoney || !accountNames || !monthView) return null;
+  const moneyView: MoneyView = {
+    month: monthView,
+    accountNames,
+    onOpenLedger: setLedgerId,
+  };
+  // Removed on another device mid-edit: close it, as the transaction list does.
+  if (openedId && opened === null) setOpenedId(null);
+  const namesOfCategories = categoryNames(list);
+  const ledgerName = ledgerId === null ? undefined : namesOfCategories.get(ledgerId);
+  if (ledgerId !== null && ledgerName === undefined) setLedgerId(null);
+  const ledger = ledgerId !== null && ledgerName !== undefined && (
+    <CategoryLedger
+      key={ledgerId}
+      categoryId={ledgerId}
+      categoryName={ledgerName}
+      month={month}
+      isCurrentMonth={month === currentMonth}
+      names={{ accounts: accountNames, categories: namesOfCategories }}
+      onOpen={({ kind, record }) => setOpenedId({ kind, id: record.id })}
+    />
+  );
 
   const { group: editingGroup, category: editingCategory } = findEditing(list, editing);
   // Another device retired it mid-edit: drop it, so unretiring later doesn't reopen the dialog.
@@ -140,83 +175,146 @@ export function CategoriesView({
 
   return (
     <>
-      {!hasHouseholdGroup && <SuggestedCategories actor={actor} />}
+      <PageShell.Main className="space-y-4">
+        {!hasHouseholdGroup && <SuggestedCategories actor={actor} />}
 
-      <UnassignedCard
-        accountMoney={accountMoney}
-        accountNames={accountNames}
-        onMove={() => setMoving({})}
-      />
+        <UnassignedCard
+          accountMoney={accountMoney}
+          accountNames={accountNames}
+          onMove={() => setMoving({})}
+        />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Groups and categories</CardTitle>
-          <CardDescription>
-            Household categories every member sees, and Personal ones only you see.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <MonthPicker month={month} currentMonth={currentMonth} onChange={onMonthChange} />
-          {list.groups.length === 0 && list.ungrouped.length === 0 && (
-            <p className="text-sm text-muted-foreground">No groups yet. Add the first one below.</p>
-          )}
-          {list.groups.length > 0 && (
-            <ul aria-label="Groups" className="space-y-4">
-              {list.groups.map((group) => (
-                <li key={group.id} className="rounded-md border">
-                  <GroupHeader
-                    group={group}
-                    figures={groupFigures(moneyView, list, group)}
-                    onEdit={() => setEditing({ kind: "group", id: group.id })}
-                  />
-                  <CategoryItems
-                    label={`${group.name} categories`}
-                    categories={group.categories}
-                    moneyView={moneyView}
-                    onEdit={(id) => setEditing({ kind: "category", id })}
-                    onBudget={setBudgeting}
-                  />
-                </li>
-              ))}
-            </ul>
-          )}
-          {list.ungrouped.length > 0 && (
-            <div className="space-y-2 rounded-md border">
-              <p className="border-b px-3 py-2 text-sm text-muted-foreground">
-                Waiting for their group to reach this device
+        <Card>
+          <CardHeader>
+            <CardTitle>Groups and categories</CardTitle>
+            <CardDescription>
+              Household categories every member sees, and Personal ones only you see.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <MonthPicker month={month} currentMonth={currentMonth} onChange={onMonthChange} />
+            {list.groups.length === 0 && list.ungrouped.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No groups yet. Add the first one below.
               </p>
-              <CategoryItems
-                label="Ungrouped categories"
-                categories={list.ungrouped}
-                moneyView={moneyView}
-                onEdit={(id) => setEditing({ kind: "category", id })}
-                onBudget={setBudgeting}
-              />
-            </div>
+            )}
+            {list.groups.length > 0 && (
+              <ul aria-label="Groups" className="space-y-4">
+                {list.groups.map((group) => (
+                  <li key={group.id} className="rounded-md border">
+                    <GroupHeader
+                      group={group}
+                      figures={groupFigures(moneyView, list, group)}
+                      onEdit={() => setEditing({ kind: "group", id: group.id })}
+                    />
+                    <CategoryItems
+                      label={`${group.name} categories`}
+                      categories={group.categories}
+                      moneyView={moneyView}
+                      onEdit={(id) => setEditing({ kind: "category", id })}
+                      onBudget={setBudgeting}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+            {list.ungrouped.length > 0 && (
+              <div className="space-y-2 rounded-md border">
+                <p className="border-b px-3 py-2 text-sm text-muted-foreground">
+                  Waiting for their group to reach this device
+                </p>
+                <CategoryItems
+                  label="Ungrouped categories"
+                  categories={list.ungrouped}
+                  moneyView={moneyView}
+                  onEdit={(id) => setEditing({ kind: "category", id })}
+                  onBudget={setBudgeting}
+                />
+              </div>
+            )}
+            <RetiredCategories actor={actor} list={list} />
+          </CardContent>
+        </Card>
+
+        <AllocationList
+          categoryNames={namesOfCategories}
+          accountNames={accountNames}
+          onEdit={(allocation) => setMoving({ allocation })}
+        />
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Add</CardTitle>
+            <CardDescription>
+              A category belongs to a group and is seen by the same people as its group.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-8">
+            {groupsInUse.length > 0 && <AddCategoryForm actor={actor} groups={groupsInUse} />}
+            <AddGroupForm actor={actor} />
+          </CardContent>
+        </Card>
+      </PageShell.Main>
+
+      <PageShell.RightAside ref={setPane} className="hidden @[1100px]:block">
+        <div
+          className={cn(
+            "@container sticky overflow-y-auto rounded-md border p-4",
+            BELOW_HEADER,
+            PANE_MAX_HEIGHT
           )}
-          <RetiredHoldingMoney categories={list.retiredCategories} moneyView={moneyView} />
-          <RetiredCategories actor={actor} list={list} />
-        </CardContent>
-      </Card>
+        >
+          {ledger && paneShown ? (
+            <section aria-label={`${ledgerName} ledger`} className="space-y-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h2 className="truncate font-semibold">{ledgerName}</h2>
+                  <p className="text-sm text-muted-foreground">{monthLabel(month)}</p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setLedgerId(null)}>
+                  Close
+                </Button>
+              </div>
+              {ledger}
+            </section>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Choose a category to see its month here.
+            </p>
+          )}
+        </div>
+      </PageShell.RightAside>
 
-      <AllocationList
-        categoryNames={categoryNames(list)}
-        accountNames={accountNames}
-        onEdit={(allocation) => setMoving({ allocation })}
-      />
+      <Sheet
+        open={Boolean(ledger) && !paneShown}
+        onOpenChange={(open) => !open && setLedgerId(null)}
+      >
+        <SheetContent side="bottom" className="@container gap-0">
+          <SheetHeader>
+            <SheetTitle>{ledgerName}</SheetTitle>
+            <SheetDescription>{monthLabel(month)}</SheetDescription>
+          </SheetHeader>
+          <div className="px-4 pb-6">{ledger}</div>
+        </SheetContent>
+      </Sheet>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Add</CardTitle>
-          <CardDescription>
-            A category belongs to a group and is seen by the same people as its group.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-8">
-          {groupsInUse.length > 0 && <AddCategoryForm actor={actor} groups={groupsInUse} />}
-          <AddGroupForm actor={actor} />
-        </CardContent>
-      </Card>
+      {opened?.kind === "transaction" && (
+        <TransactionDialog
+          actor={actor}
+          transaction={opened.record}
+          onClose={() => setOpenedId(null)}
+        />
+      )}
+      {opened?.kind === "transfer" && (
+        <TransferDialog actor={actor} transfer={opened.record} onClose={() => setOpenedId(null)} />
+      )}
+      {opened?.kind === "allocation" && (
+        <MoveMoneyDialog
+          actor={actor}
+          allocation={opened.record}
+          onClose={() => setOpenedId(null)}
+        />
+      )}
 
       {editingGroup && (
         <EditGroupDialog actor={actor} group={editingGroup} onClose={() => setEditing(null)} />
@@ -333,14 +431,16 @@ function CategoryMoneyItem({
   byAccount,
   accountNames,
   budgeting,
+  onOpenLedger,
   children,
 }: {
   category: CategoryRow;
   money: Cents;
   byAccount: Map<string, Cents>;
   accountNames: Map<string, string>;
-  /** The month's figures, and opening Set budget; left out for a retired category. */
-  budgeting?: { month: CategoryMonth; onSet: () => void };
+  onOpenLedger: () => void;
+  /** The month's figures, and opening Set budget. */
+  budgeting: { month: CategoryMonth; onSet: () => void };
   children?: React.ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -349,7 +449,14 @@ function CategoryMoneyItem({
   return (
     <li className="px-3 py-2 pl-6">
       <div className="flex items-center justify-between gap-3">
-        <RecordName record={category} />
+        <button
+          type="button"
+          className="min-w-0 rounded-sm text-left underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          aria-label={`${category.name} ledger`}
+          onClick={onOpenLedger}
+        >
+          <RecordName record={category} />
+        </button>
         <div className="flex shrink-0 items-center gap-1">
           <MoneyAmount cents={money} />
           {holding.length > 0 && (
@@ -367,27 +474,25 @@ function CategoryMoneyItem({
         </div>
       </div>
       <NegativeNote cents={money} label={OVERSPENT_CATEGORY} />
-      {budgeting && (
-        <FigureList
-          label={`${category.name} budget, spent and allocated`}
-          figures={sumMonthFigures([budgeting.month])}
-          budget={
-            <Button
-              variant="link"
-              className="h-auto p-0 text-xs"
-              aria-label={`Set budget for ${category.name}`}
-              onClick={budgeting.onSet}
-            >
-              {budgeting.month.budget ? formatPHP(budgeting.month.budget.amountCents) : "Set"}
-            </Button>
-          }
-          fundedBy={
-            budgeting.month.budget
-              ? (accountNames.get(budgeting.month.budget.accountId) ?? "An account")
-              : null
-          }
-        />
-      )}
+      <FigureList
+        label={`${category.name} budget, spent and allocated`}
+        figures={sumMonthFigures([budgeting.month])}
+        budget={
+          <Button
+            variant="link"
+            className="h-auto p-0 text-xs"
+            aria-label={`Set budget for ${category.name}`}
+            onClick={budgeting.onSet}
+          >
+            {budgeting.month.budget ? formatPHP(budgeting.month.budget.amountCents) : "Set"}
+          </Button>
+        }
+        fundedBy={
+          budgeting.month.budget
+            ? (accountNames.get(budgeting.month.budget.accountId) ?? "An account")
+            : null
+        }
+      />
       {expanded && holding.length > 0 && (
         <ul aria-label={`${category.name} by account`} className="mt-1 space-y-1 pl-3">
           {holding.map(({ id, cents, name }) => (
@@ -521,40 +626,6 @@ function MonthPicker({
   );
 }
 
-/** Retired categories keep their money until it's moved out, so they stay listed with it. */
-function RetiredHoldingMoney({
-  categories,
-  moneyView,
-}: {
-  categories: CategoryRow[];
-  moneyView: MoneyView;
-}) {
-  const stillHolding = categories.filter((category) =>
-    [...(moneyView.current.get(category.id)?.byAccount.values() ?? [])].some((cents) => cents !== 0)
-  );
-  if (stillHolding.length === 0) return null;
-
-  return (
-    <div className="rounded-md border">
-      <p className="border-b px-3 py-2 text-sm font-medium">Retired, still holding money</p>
-      <ul aria-label="Retired, still holding money" className="divide-y">
-        {stillHolding.map((category) => {
-          const current = moneyView.current.get(category.id);
-          return (
-            <CategoryMoneyItem
-              key={category.id}
-              category={category}
-              money={current?.total ?? ZERO_CENTS}
-              byAccount={current?.byAccount ?? new Map()}
-              accountNames={moneyView.accountNames}
-            />
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
 /** A group or category's name, badged when Personal, and when retired if `showRetired`. */
 function RecordName({ record, showRetired }: { record: GroupRow; showRetired?: boolean }) {
   return (
@@ -594,6 +665,7 @@ function CategoryItems({
             byAccount={month.moneyByAccount}
             accountNames={moneyView.accountNames}
             budgeting={{ month, onSet: () => onBudget(category.id) }}
+            onOpenLedger={() => moneyView.onOpenLedger(category.id)}
           >
             <Button
               variant="ghost"

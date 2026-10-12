@@ -15,6 +15,7 @@ import {
   restoreAllocation,
   type AllocationInput,
 } from "./allocations";
+import { retireOnAnotherDevice } from "@/test/anotherDevice";
 
 const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
@@ -121,7 +122,7 @@ describe("addAllocation", () => {
 
   it("refuses a retired category as the destination, but moves money out of one", async () => {
     await addAllocation(MEMBER, move());
-    await retireCategory(MEMBER, groceriesId);
+    await retireOnAnotherDevice(MEMBER, groceriesId);
 
     await expect(addAllocation(MEMBER, move())).rejects.toThrow("Groceries is retired");
 
@@ -250,7 +251,7 @@ describe("editAllocation", () => {
 
   it("keeps an allocation on a retired account or into a retired category editable", async () => {
     const { id } = await addAllocation(MEMBER, move());
-    await retireCategory(MEMBER, groceriesId);
+    await retireOnAnotherDevice(MEMBER, groceriesId);
     await retireAccount(MEMBER, bankId);
 
     await editAllocation(MEMBER, id, move({ amountCents: peso("1000") }));
@@ -260,7 +261,7 @@ describe("editAllocation", () => {
 
   it("refuses more money into a retired category", async () => {
     const { id } = await addAllocation(MEMBER, move());
-    await retireCategory(MEMBER, groceriesId);
+    await retireOnAnotherDevice(MEMBER, groceriesId);
 
     await expect(editAllocation(MEMBER, id, move({ amountCents: peso("9000") }))).rejects.toThrow(
       "Groceries is retired"
