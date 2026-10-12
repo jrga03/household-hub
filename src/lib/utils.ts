@@ -11,3 +11,7 @@ export const errorMessage = (error: unknown, fallback: string): string =>
 
 /** "1 change" or "3 changes". */
 export const countChanges = (count: number) => (count === 1 ? "1 change" : `${count} changes`);
+
+/** "1 transaction", "1,250 transactions". */
+export const countOf = (count: number, one: string, many: string) =>
+  count === 1 ? `1 ${one}` : `${count.toLocaleString("en-PH")} ${many}`;

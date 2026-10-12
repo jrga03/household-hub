@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 
 type Variant = "centered" | "rail" | "split" | "nav-content" | "triple";
 
@@ -14,6 +14,10 @@ interface SlotProps {
   children: ReactNode;
 }
 
+interface AsideProps extends SlotProps {
+  ref?: Ref<HTMLElement>;
+}
+
 function Main({ className, children }: SlotProps) {
   return (
     <div data-slot="main" className={cn("min-w-0", className)}>
@@ -22,17 +26,17 @@ function Main({ className, children }: SlotProps) {
   );
 }
 
-function LeftAside({ className, children }: SlotProps) {
+function LeftAside({ className, children, ref }: AsideProps) {
   return (
-    <aside data-slot="left-aside" className={cn("min-w-0", className)}>
+    <aside ref={ref} data-slot="left-aside" className={cn("min-w-0", className)}>
       {children}
     </aside>
   );
 }
 
-function RightAside({ className, children }: SlotProps) {
+function RightAside({ className, children, ref }: AsideProps) {
   return (
-    <aside data-slot="right-aside" className={cn("min-w-0", className)}>
+    <aside ref={ref} data-slot="right-aside" className={cn("min-w-0", className)}>
       {children}
     </aside>
   );

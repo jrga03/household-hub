@@ -93,6 +93,31 @@ export function TransactionDialog({
   transaction?: TransactionRow;
   onClose: () => void;
 }) {
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="@container max-h-[90dvh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{transaction ? "Edit transaction" : "Add transaction"}</DialogTitle>
+          <DialogDescription>{SAVED_LOCALLY}</DialogDescription>
+        </DialogHeader>
+        <TransactionEditor actor={actor} transaction={transaction} onClose={onClose} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export const SAVED_LOCALLY = "Saved on this device at once; it reaches others when they sync.";
+
+/** The form alone, for the dialog and the wide-screen detail pane. */
+export function TransactionEditor({
+  actor,
+  transaction,
+  onClose,
+}: {
+  actor: Actor;
+  transaction?: TransactionRow;
+  onClose: () => void;
+}) {
   const accounts = useAccounts();
   const retiredAccounts = useRetiredAccounts();
   const categories = useCategoryList();
@@ -106,28 +131,17 @@ export function TransactionDialog({
       ]
     : accounts;
 
+  if (accountChoices.length === 0) {
+    return <p className="text-sm text-muted-foreground">Add an account on Home first.</p>;
+  }
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="@container max-h-[90dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{transaction ? "Edit transaction" : "Add transaction"}</DialogTitle>
-          <DialogDescription>
-            Saved on this device at once; it reaches others when they sync.
-          </DialogDescription>
-        </DialogHeader>
-        {accountChoices.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Add an account on Home first.</p>
-        ) : (
-          <TransactionForm
-            actor={actor}
-            transaction={transaction}
-            accounts={accountChoices}
-            categories={categories}
-            onClose={onClose}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
+    <TransactionForm
+      actor={actor}
+      transaction={transaction}
+      accounts={accountChoices}
+      categories={categories}
+      onClose={onClose}
+    />
   );
 }
 

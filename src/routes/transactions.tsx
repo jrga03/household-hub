@@ -20,24 +20,26 @@ function TransactionsPage() {
   return (
     <div className="bg-background">
       <div className="border-b">
-        <div className="container mx-auto max-w-7xl px-4 py-4">
-          <h1 className="text-xl font-bold">Transactions</h1>
-          <p className="text-sm text-muted-foreground">
-            Everything recorded, newest first. Recorded offline, it syncs when you&apos;re back.
-          </p>
+        {/* Aligned with the rail layout below, which drops its max width from 1100px. */}
+        <div className="@container">
+          <div className="mx-auto w-full max-w-7xl px-4 py-4 @[1100px]:max-w-none">
+            <h1 className="text-xl font-bold">Transactions</h1>
+            <p className="text-sm text-muted-foreground">
+              Everything recorded, newest first. Recorded offline, it syncs when you&apos;re back.
+            </p>
+          </div>
         </div>
       </div>
 
-      <PageShell variant="centered">
-        <PageShell.Main className="space-y-4">
-          {household && userId && (
-            <TransactionList
-              actor={{ householdId: household.id, userId }}
-              filter={filter}
-              onFilterChange={setFilter}
-            />
-          )}
-        </PageShell.Main>
+      {/* The list fills the main column and the detail pane beside it. */}
+      <PageShell variant="rail">
+        {household && userId && (
+          <TransactionList
+            actor={{ householdId: household.id, userId }}
+            filter={filter}
+            onFilterChange={setFilter}
+          />
+        )}
       </PageShell>
     </div>
   );

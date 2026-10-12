@@ -7,6 +7,7 @@ interface Entry {
   description: string;
   category?: string;
   income?: boolean;
+  pending?: boolean;
 }
 
 async function addTransaction(page: Page, entry: Entry) {
@@ -16,11 +17,12 @@ async function addTransaction(page: Page, entry: Entry) {
   if (entry.income) await dialog.getByRole("radio", { name: "Income" }).check();
   if (entry.category) await chooseOption(page, dialog.getByLabel("Category"), entry.category);
   await dialog.getByLabel("Description (optional)").fill(entry.description);
+  if (entry.pending) await dialog.getByRole("radio", { name: "Pending" }).check();
   await dialog.getByRole("button", { name: "Add transaction" }).click();
   await expect(dialog).toBeHidden();
 }
 
-test("filters combine, and the totals and search follow them", async ({ page }) => {
+async function startHousehold(page: Page) {
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("List home");
   await page.getByRole("button", { name: "Create household" }).click();
@@ -29,6 +31,10 @@ test("filters combine, and the totals and search follow them", async ({ page }) 
   await addAccount.getByLabel("Account name").fill("BPI");
   await addAccount.getByLabel("Starting balance (₱)").fill("10000");
   await addAccount.getByRole("button", { name: "Add account" }).click();
+}
+
+test("filters combine, and the totals and search follow them", async ({ page }) => {
+  await startHousehold(page);
 
   await page.getByRole("link", { name: "Categories" }).click();
   await page.getByRole("button", { name: "Use suggested categories" }).click();
@@ -75,4 +81,60 @@ test("filters combine, and the totals and search follow them", async ({ page }) 
   await expect(list.getByRole("listitem")).toHaveCount(1);
   await expect(list).toContainText("Parking");
   await expect(totals.getByRole("group", { name: "Expenses" })).toContainText("₱80.00");
+});
+
+test("selected pending transactions are marked cleared in one action", async ({ page }) => {
+  await startHousehold(page);
+  await page.getByRole("link", { name: "Transactions" }).click();
+  const pending = ["Water", "Power", "Internet", "Rent", "Phone"];
+  for (const description of pending) {
+    await addTransaction(page, { amount: "100", description, pending: true });
+  }
+  await addTransaction(page, { amount: "50", description: "Snack" });
+
+  const list = page.getByRole("list", { name: "Transactions" });
+  await expect(list.getByRole("button", { name: "Mark cleared" })).toHaveCount(5);
+  for (const description of pending) {
+    await list.getByRole("checkbox", { name: `Select ${description}` }).check();
+  }
+  const toolbar = page.getByRole("toolbar", { name: "Selected transactions" });
+  await expect(toolbar).toContainText("5 selected");
+  await toolbar.getByRole("button", { name: "Mark cleared" }).click();
+
+  await expect(page.getByText("Marked 5 transactions cleared")).toBeVisible();
+  await expect(toolbar).toBeHidden();
+  await expect(list.getByRole("button", { name: "Mark cleared" })).toHaveCount(0);
+  await expect(list.getByRole("button", { name: "Mark pending" })).toHaveCount(6);
+});
+
+test.describe("on a wide screen", () => {
+  test.use({ viewport: { width: 1600, height: 600 } });
+
+  test("a row opens in the detail pane and the list keeps its place", async ({ page }) => {
+    await startHousehold(page);
+    await page.getByRole("link", { name: "Transactions" }).click();
+    for (let index = 1; index <= 12; index++) {
+      await addTransaction(page, { amount: `${index}00`, description: `Item ${index}` });
+    }
+
+    const list = page.getByRole("list", { name: "Transactions" });
+    // The oldest row renders only once the page scrolls down to it.
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    const row = list.getByRole("button", { name: "Edit Item 1", exact: true });
+    await expect(row).toBeInViewport();
+    const scrolledTo = await page.evaluate(() => window.scrollY);
+    expect(scrolledTo).toBeGreaterThan(0);
+    await row.click();
+
+    const pane = page.getByRole("region", { name: "Edit transaction" });
+    await expect(pane.getByLabel("Description (optional)")).toHaveValue("Item 1");
+    await expect(page.getByRole("dialog")).toBeHidden();
+    expect(await page.evaluate(() => window.scrollY)).toBe(scrolledTo);
+
+    await pane.getByLabel("Description (optional)").fill("Item one");
+    await pane.getByRole("button", { name: "Save" }).click();
+    await expect(list.getByRole("button", { name: "Edit Item one" })).toBeInViewport();
+    // Rows are re-measured as they render, which can shift the page by a pixel or two.
+    expect(Math.abs((await page.evaluate(() => window.scrollY)) - scrolledTo)).toBeLessThan(5);
+  });
 });
