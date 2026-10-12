@@ -1,6 +1,6 @@
 import { format } from "date-fns";
-import { envelopeLabel } from "@/components/allocations/envelopes";
 import { MoneyAmount } from "@/components/allocations/MoneyAmount";
+import { envelopeLabel } from "@/lib/allocations/events";
 import { useBudgets, useCategoryLedger } from "@/hooks/useBudgets";
 import { budgetHistory } from "@/lib/budgets/inForce";
 import type { LedgerRecord, LedgerRow } from "@/lib/budgets/ledger";
