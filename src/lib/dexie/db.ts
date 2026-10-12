@@ -14,6 +14,7 @@ import { reportError } from "@/lib/sentry";
 import type { StoredEvent } from "@/lib/events/log";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { AllocationRow } from "@/lib/allocations/projection";
+import type { BudgetRow } from "@/lib/budgets/projection";
 import type { CategoryRow, GroupRow } from "@/lib/categories/projection";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import type { TransferRow } from "@/lib/transfers/projection";
@@ -34,6 +35,7 @@ export class HouseholdHubDB extends Dexie {
   transactions!: Table<TransactionRow, string>;
   allocations!: Table<AllocationRow, string>;
   transfers!: Table<TransferRow, string>;
+  budgets!: Table<BudgetRow, string>;
   meta!: Table<MetaRow, MetaRow["key"]>;
 
   constructor() {
@@ -74,6 +76,7 @@ export class HouseholdHubDB extends Dexie {
     this.version(6).stores({ transactions: "id, [date+recordedHlc]" });
     this.version(7).stores({ allocations: "id, [date+recordedHlc]" });
     this.version(8).stores({ transfers: "id, [date+recordedHlc]" });
+    this.version(9).stores({ budgets: "id" });
   }
 }
 

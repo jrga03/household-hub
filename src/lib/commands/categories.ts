@@ -23,11 +23,11 @@ import {
   getCategory,
   getGroup,
   listCategoriesInGroup,
-  type CategoryRow,
   type GroupRow,
 } from "@/lib/categories/projection";
 import type { Actor } from "./accounts";
 import { appenderFor } from "./append";
+import { requireCategory } from "./records";
 
 const HOUSEHOLD: Ownership = { visibility: "household", ownerUserId: null };
 
@@ -69,12 +69,6 @@ async function requireGroup(groupId: string): Promise<GroupRow> {
   const group = await getGroup(groupId);
   if (!group) throw new Error("That group no longer exists.");
   return group;
-}
-
-async function requireCategory(categoryId: string): Promise<CategoryRow> {
-  const category = await getCategory(categoryId);
-  if (!category) throw new Error("That category no longer exists.");
-  return category;
 }
 
 function refuseRetired(group: GroupRow | undefined): void {

@@ -174,16 +174,41 @@ Seams: the ledger read function (Vitest: rows, opening and closing money, runnin
 
 Seams (from #70's Testing Decisions): the budget projection through `receiveEvents` (Vitest; permutations and duplicates), the budget in force for a month and the month figures (Vitest), the commands (Vitest).
 
-- [ ] Budget events, decoder and projection; ID from category and month; registered; Dexie table
-- [ ] Budget in force for a month; 0 or null clears it
-- [ ] Commands: funding account visibility and owner, not a card, not retired
-- [ ] Month figures: spent, allocated this month, end-of-month money; group sums
-- [ ] Month picker on Categories; Set budget dialog
-- [ ] build, lint, vitest, both tsc, knip
-- [ ] Code review (standards + spec), fixes applied
-- [ ] Commit
+- [x] Budget events, decoder and projection; ID from category and month; registered; Dexie table
+- [x] Budget in force for a month; 0 or null clears it
+- [x] Commands: funding account visibility and owner, not a card, not retired
+- [x] Month figures: spent, allocated this month, end-of-month money; group sums
+- [x] Month picker on Categories; Set budget dialog
+- [x] build, lint, vitest, both tsc, knip
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
 
 ### #73 decisions
+
+- **One event type, `budget.set {categoryId, fromMonth, amountCents, accountId}`**; an amount of 0 or null decodes to a clear (`amountCents: null, accountId: null`), and a clear is kept as a row, since it ends the earlier version from its month.
+- **The ID is UUIDv5 of the category ID and `budget:yyyy-MM`**; `uuidV5` moved from `categories/defaults.ts` to `lib/utils/uuid.ts` to share it. The earliest set fixes the category, month, visibility and owner; a later set naming another category or month under the same ID is ignored. Why: the fold is synchronous, so it can't re-derive the ID to check it.
+- **A budget set is never a creation** (`isCreation` is false): no set depends on another, so discarding one refused set leaves the rest.
+- **The budget in force is resolved at read time** (`budgetInForce`, `budgetsInForce` in `lib/budgets/inForce.ts`): the version with the latest `fromMonth` at or before the month, null when that version cleared it.
+- **`setBudget` appends nothing when the month's own version already says the same**, or a clear meets no budget in force. Why: a re-sent set carries a later HLC and would undo another device's change (the #49 rule). Setting December to what October already says is recorded, so December stays pinned if October changes later (review fix: "every set is a version").
+- **The command refuses a retired category for sets and clears alike**, and checks the funding account (same visibility and owner, not a card, not retired) only when setting an amount. Revisit: if a retired category's budget needs clearing (Distribute skips retired categories anyway).
+- **Allocated this month = allocations dated in the month into the category, less those out of it, in any account**, removed ones left out. Moves between two categories count on both (out of one, into the other).
+- **Spent = expenses minus refunds (income) in the category dated in the month**, removed ones left out, on any account (card purchases by their own date). Uncategorized transactions count nowhere.
+- **End-of-month money is `sumAccountMoney` over transactions and allocations dated up to the month's end**, pivoted by category; for this month it is the current money (future-dated records included), as on the Categories screen before. A month comparison is on the "yyyy-MM" prefix, never a `Date`.
+- **The month lives in the URL (`/categories?month=yyyy-MM`)**, left out for this month, so a bookmark follows the calendar; a bad value falls back to this month. The picker is previous/next buttons plus "This month".
+- **Each category row shows its month money on the right** (end of month, or now) and a Budget · Spent · Allocated line beneath; the Budget figure is the Set budget button ("Set" when none) with the funding account's name under it. Groups show the same three sums plus the money sum in their header.
+- **Unassigned and "Retired, still holding money" stay current**, whatever month is picked. Why: the month view is about categories; Unassigned feeds Move money, which acts now.
+- **The Set budget dialog** takes the amount (0 clears it), the from month (the chosen month by default, 12 either side) and the funding account (accounts in use that `canFundBudget`: the category's visibility and owner via `canHoldMoneyIn`, not cards). Amount and account prefill from the budget in force for the chosen From month and follow it when From changes; a funding account that is retired or no longer fits is named in a warning, not switched silently.
+- **Dexie `budgets` is version 9** (`id` only), after #71's transfers at version 8, which merged first.
+- **Merging #71: the month-end money includes transfers dated by the month's end**, so `moneyByAccount` splits a category's money between accounts as transfers moved it; a transfer never counts as spent or allocated. Covered by a month test (BPI → GCash Groceries transfers in October and November).
+- **Past months show current Unassigned.** Unassigned and "Retired, still holding money" ignore the month picker. Why: they are what can be allocated now. Pending: asked the user 2026-10-12.
+- **Clearing a retired category's budget is refused**, like setting one; Distribute skips retired categories anyway. Agreed 2026-10-12.
+- **Set budget's From month offers 12 months either side** of the chosen month. Revisit: if someone asks for more. Agreed 2026-10-12.
+- **A 10,000-transaction timing guard covers the month figures** (under 50 ms, like the money guard).
+- **A group's sums include its retired categories** (review fix), so a month's spending doesn't drop out of the group when a category is retired later.
+- **Review fixes:** `requireCategory` shared in `commands/records.ts`; `canFundBudget` beside the budget projection, used by the command and the dialog; a negative amount says "more than zero"; `findCategoryInUse` instead of a fake `Editing`; the category row takes one optional `budgeting` prop (month figures plus the Set handler); `useBudgets` holds both budget hooks.
+- **Review: kept the earliest set fixing a budget's visibility and owner.** Category visibility is fixed at creation (ADR 0005), so a later set never legitimately carries another.
+- **Review deferral: `budgetsInForce` filters the versions once per category** (O(versions × categories)). Revisit: if a household's budget history grows into thousands of versions.
+- **No layout baseline covers Categories**, so the screen was checked by a throwaway chromium spec with desktop and 390 px screenshots; `categories.spec.ts` and `allocations.spec.ts` still pass.
 
 ## Issue #72: pay a credit card
 

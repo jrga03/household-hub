@@ -1,5 +1,5 @@
 import { useMemo, useState, useTransition } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { AllocationList } from "@/components/allocations/AllocationList";
 import { categoryNames } from "@/components/allocations/envelopes";
@@ -10,6 +10,7 @@ import {
   OVERSPENT_CATEGORY,
 } from "@/components/allocations/MoneyAmount";
 import { MoveMoneyDialog } from "@/components/allocations/MoveMoneyDialog";
+import { SetBudgetDialog } from "@/components/budgets/SetBudgetDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,18 +22,32 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useAccountNames, useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
+import { useMonthView } from "@/hooks/useBudgets";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useAccountMoney } from "@/hooks/useTransactions";
 import { isCreditCard } from "@/lib/accounts/events";
 import type { AllocationRow } from "@/lib/allocations/projection";
+import {
+  categoryMonth,
+  sumMonthFigures,
+  type CategoryMonth,
+  type MonthFigures,
+  type MonthView,
+} from "@/lib/budgets/month";
 import { DEFAULT_GROUPS } from "@/lib/categories/defaults";
 import type { RecordNoun } from "@/lib/categories/events";
-import type { CategoryList, CategoryRow, GroupRow } from "@/lib/categories/projection";
+import type {
+  CategoryList,
+  CategoryRow,
+  GroupListItem,
+  GroupRow,
+} from "@/lib/categories/projection";
 import { seedDefaultCategories, unretireCategory, unretireGroup } from "@/lib/commands/categories";
 import type { Actor } from "@/lib/commands/accounts";
-import { sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
+import { formatPHP, ZERO_CENTS, type Cents } from "@/lib/currency";
 import { sumCategoryMoney, type AccountMoney, type CategoryMoney } from "@/lib/transactions/money";
 import { cn, errorMessage } from "@/lib/utils";
+import { monthLabel, shiftMonth } from "@/lib/utils/dates";
 import { AddCategoryForm, AddGroupForm } from "./AddCategoryForms";
 import { EditCategoryDialog, EditGroupDialog } from "./EditCategoryDialogs";
 
@@ -41,8 +56,10 @@ type Editing = { kind: RecordNoun; id: string } | null;
 /** Closed, adding an allocation, or editing one. */
 type Moving = { allocation?: AllocationRow } | null;
 
+/** The chosen month's figures, plus the current money a retired category still holds. */
 interface MoneyView {
-  categories: Map<string, CategoryMoney>;
+  month: MonthView;
+  current: Map<string, CategoryMoney>;
   accountNames: Map<string, string>;
 }
 
@@ -58,44 +75,63 @@ function namedAmounts(
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-const accountsHolding = (moneyView: MoneyView, categoryId: string) =>
-  namedAmounts(
-    moneyView.categories.get(categoryId)?.byAccount,
-    moneyView.accountNames,
-    "An account"
+/** A group's sums count its retired categories too, so a month's spending doesn't vanish on retiring. */
+function groupFigures(
+  moneyView: MoneyView,
+  list: CategoryList,
+  group: GroupListItem
+): MonthFigures {
+  const retired = list.retiredCategories.filter((category) => category.group?.id === group.id);
+  return sumMonthFigures(
+    [...group.categories, ...retired].map((category) => categoryMonth(moneyView.month, category.id))
   );
+}
 
-const totalOf = (moneyView: MoneyView, categories: CategoryRow[]): Cents =>
-  sumCents(
-    categories.map((category) => moneyView.categories.get(category.id)?.total ?? ZERO_CENTS)
-  );
+function findCategoryInUse(list: CategoryList, categoryId: string) {
+  const inUse = [...list.groups.flatMap((group) => group.categories), ...list.ungrouped];
+  return inUse.find((category) => category.id === categoryId);
+}
 
 function findEditing(list: CategoryList, editing: Editing) {
   if (!editing) return { group: undefined, category: undefined };
   if (editing.kind === "group") {
     return { group: list.groups.find((group) => group.id === editing.id), category: undefined };
   }
-  const inUse = [...list.groups.flatMap((group) => group.categories), ...list.ungrouped];
-  return { group: undefined, category: inUse.find((category) => category.id === editing.id) };
+  return { group: undefined, category: findCategoryInUse(list, editing.id) };
 }
 
-export function CategoriesView({ actor }: { actor: Actor }) {
+/** `month` is "yyyy-MM"; `currentMonth` is this month on this device. */
+export function CategoriesView({
+  actor,
+  month,
+  currentMonth,
+  onMonthChange,
+}: {
+  actor: Actor;
+  month: string;
+  currentMonth: string;
+  onMonthChange: (month: string) => void;
+}) {
   const list = useCategoryList();
   const accountMoney = useAccountMoney();
   const accountNames = useAccountNames();
+  const monthView = useMonthView(month, currentMonth);
   const categoryMoney = useMemo(
     () => accountMoney && sumCategoryMoney(accountMoney),
     [accountMoney]
   );
   const [editing, setEditing] = useState<Editing>(null);
   const [moving, setMoving] = useState<Moving>(null);
+  const [budgeting, setBudgeting] = useState<string | null>(null);
 
-  if (!list || !accountMoney || !accountNames || !categoryMoney) return null;
-  const moneyView: MoneyView = { categories: categoryMoney, accountNames };
+  if (!list || !accountMoney || !accountNames || !categoryMoney || !monthView) return null;
+  const moneyView: MoneyView = { month: monthView, current: categoryMoney, accountNames };
 
   const { group: editingGroup, category: editingCategory } = findEditing(list, editing);
   // Another device retired it mid-edit: drop it, so unretiring later doesn't reopen the dialog.
   if (editing && !editingGroup && !editingCategory) setEditing(null);
+  const budgetingCategory = budgeting === null ? undefined : findCategoryInUse(list, budgeting);
+  if (budgeting !== null && !budgetingCategory) setBudgeting(null);
 
   const groupsInUse = list.groups.filter((group) => !group.retired);
   const hasHouseholdGroup = [...list.groups, ...list.retiredGroups].some(
@@ -120,6 +156,7 @@ export function CategoriesView({ actor }: { actor: Actor }) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          <MonthPicker month={month} currentMonth={currentMonth} onChange={onMonthChange} />
           {list.groups.length === 0 && list.ungrouped.length === 0 && (
             <p className="text-sm text-muted-foreground">No groups yet. Add the first one below.</p>
           )}
@@ -127,28 +164,17 @@ export function CategoriesView({ actor }: { actor: Actor }) {
             <ul aria-label="Groups" className="space-y-4">
               {list.groups.map((group) => (
                 <li key={group.id} className="rounded-md border">
-                  <div className="flex items-center justify-between gap-3 border-b bg-muted/40 px-3 py-2">
-                    <RecordName record={group} showRetired />
-                    <div className="flex shrink-0 items-center gap-2">
-                      <MoneyAmount
-                        cents={totalOf(moneyView, group.categories)}
-                        className="font-medium"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-label={`Edit group ${group.name}`}
-                        onClick={() => setEditing({ kind: "group", id: group.id })}
-                      >
-                        Edit
-                      </Button>
-                    </div>
-                  </div>
+                  <GroupHeader
+                    group={group}
+                    figures={groupFigures(moneyView, list, group)}
+                    onEdit={() => setEditing({ kind: "group", id: group.id })}
+                  />
                   <CategoryItems
                     label={`${group.name} categories`}
                     categories={group.categories}
                     moneyView={moneyView}
                     onEdit={(id) => setEditing({ kind: "category", id })}
+                    onBudget={setBudgeting}
                   />
                 </li>
               ))}
@@ -164,6 +190,7 @@ export function CategoriesView({ actor }: { actor: Actor }) {
                 categories={list.ungrouped}
                 moneyView={moneyView}
                 onEdit={(id) => setEditing({ kind: "category", id })}
+                onBudget={setBudgeting}
               />
             </div>
           )}
@@ -200,6 +227,14 @@ export function CategoriesView({ actor }: { actor: Actor }) {
           category={editingCategory}
           groups={groupsInUse}
           onClose={() => setEditing(null)}
+        />
+      )}
+      {budgetingCategory && (
+        <SetBudgetDialog
+          actor={actor}
+          category={budgetingCategory}
+          month={month}
+          onClose={() => setBudgeting(null)}
         />
       )}
       {moving && (
@@ -291,27 +326,33 @@ function UnassignedCard({
   );
 }
 
-/** A category's money, expandable into the accounts holding it. */
+/** A category's money, expandable into the accounts holding it, with its month's figures when given. */
 function CategoryMoneyItem({
   category,
-  moneyView,
+  money,
+  byAccount,
+  accountNames,
+  budgeting,
   children,
 }: {
   category: CategoryRow;
-  moneyView: MoneyView;
+  money: Cents;
+  byAccount: Map<string, Cents>;
+  accountNames: Map<string, string>;
+  /** The month's figures, and opening Set budget; left out for a retired category. */
+  budgeting?: { month: CategoryMonth; onSet: () => void };
   children?: React.ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const byAccount = accountsHolding(moneyView, category.id);
-  const total = moneyView.categories.get(category.id)?.total ?? ZERO_CENTS;
+  const holding = namedAmounts(byAccount, accountNames, "An account");
 
   return (
     <li className="px-3 py-2 pl-6">
       <div className="flex items-center justify-between gap-3">
         <RecordName record={category} />
         <div className="flex shrink-0 items-center gap-1">
-          <MoneyAmount cents={total} />
-          {byAccount.length > 0 && (
+          <MoneyAmount cents={money} />
+          {holding.length > 0 && (
             <Button
               variant="ghost"
               size="icon"
@@ -325,10 +366,31 @@ function CategoryMoneyItem({
           {children}
         </div>
       </div>
-      <NegativeNote cents={total} label={OVERSPENT_CATEGORY} />
-      {expanded && byAccount.length > 0 && (
+      <NegativeNote cents={money} label={OVERSPENT_CATEGORY} />
+      {budgeting && (
+        <FigureList
+          label={`${category.name} budget, spent and allocated`}
+          figures={sumMonthFigures([budgeting.month])}
+          budget={
+            <Button
+              variant="link"
+              className="h-auto p-0 text-xs"
+              aria-label={`Set budget for ${category.name}`}
+              onClick={budgeting.onSet}
+            >
+              {budgeting.month.budget ? formatPHP(budgeting.month.budget.amountCents) : "Set"}
+            </Button>
+          }
+          fundedBy={
+            budgeting.month.budget
+              ? (accountNames.get(budgeting.month.budget.accountId) ?? "An account")
+              : null
+          }
+        />
+      )}
+      {expanded && holding.length > 0 && (
         <ul aria-label={`${category.name} by account`} className="mt-1 space-y-1 pl-3">
-          {byAccount.map(({ id, cents, name }) => (
+          {holding.map(({ id, cents, name }) => (
             <li
               key={id}
               className="flex items-center justify-between gap-3 text-sm text-muted-foreground"
@@ -343,6 +405,122 @@ function CategoryMoneyItem({
   );
 }
 
+/** A group's name and money, with its categories' month figures summed. */
+function GroupHeader({
+  group,
+  figures,
+  onEdit,
+}: {
+  group: GroupListItem;
+  figures: MonthFigures;
+  onEdit: () => void;
+}) {
+  return (
+    <div className="border-b bg-muted/40 px-3 py-2">
+      <div className="flex items-center justify-between gap-3">
+        <RecordName record={group} showRetired />
+        <div className="flex shrink-0 items-center gap-2">
+          <MoneyAmount cents={figures.money} className="font-medium" />
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label={`Edit group ${group.name}`}
+            onClick={onEdit}
+          >
+            Edit
+          </Button>
+        </div>
+      </div>
+      {group.categories.length > 0 && (
+        <FigureList label={`${group.name} budget, spent and allocated`} figures={figures} />
+      )}
+    </div>
+  );
+}
+
+/**
+ * A month's budget, spent and allocated. A category's budget is a button
+ * naming its funding account; a group's is the sum of its categories'.
+ */
+function FigureList({
+  label,
+  figures,
+  budget,
+  fundedBy,
+}: {
+  label: string;
+  figures: MonthFigures;
+  budget?: React.ReactNode;
+  fundedBy?: string | null;
+}) {
+  return (
+    <dl aria-label={label} className="grid grid-cols-3 gap-2 pt-1 text-xs text-muted-foreground">
+      <div className="min-w-0">
+        <dt>Budget</dt>
+        <dd className="truncate tabular-nums text-foreground">
+          {budget ?? formatPHP(figures.budget)}
+          {fundedBy && <span className="block truncate text-muted-foreground">{fundedBy}</span>}
+        </dd>
+      </div>
+      <div className="min-w-0">
+        <dt>Spent</dt>
+        <dd className="truncate tabular-nums text-foreground">{formatPHP(figures.spent)}</dd>
+      </div>
+      <div className="min-w-0">
+        <dt>Allocated</dt>
+        <dd className="truncate tabular-nums text-foreground">{formatPHP(figures.allocated)}</dd>
+      </div>
+    </dl>
+  );
+}
+
+function MonthPicker({
+  month,
+  currentMonth,
+  onChange,
+}: {
+  month: string;
+  currentMonth: string;
+  onChange: (month: string) => void;
+}) {
+  const isCurrent = month === currentMonth;
+  return (
+    <div className="space-y-1">
+      <div role="group" aria-label="Month" className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          aria-label="Previous month"
+          onClick={() => onChange(shiftMonth(month, -1))}
+        >
+          <ChevronLeft />
+        </Button>
+        <p className="min-w-36 text-center font-medium" aria-live="polite">
+          {monthLabel(month)}
+        </p>
+        <Button
+          variant="outline"
+          size="icon"
+          aria-label="Next month"
+          onClick={() => onChange(shiftMonth(month, 1))}
+        >
+          <ChevronRight />
+        </Button>
+        {!isCurrent && (
+          <Button variant="link" className="h-auto p-0" onClick={() => onChange(currentMonth)}>
+            This month
+          </Button>
+        )}
+      </div>
+      <p className="text-sm text-muted-foreground">
+        {isCurrent
+          ? "Each category's money now, with this month's budget, spending and allocations."
+          : `Each category's money at the end of ${monthLabel(month)}, with that month's budget, spending and allocations.`}
+      </p>
+    </div>
+  );
+}
+
 /** Retired categories keep their money until it's moved out, so they stay listed with it. */
 function RetiredHoldingMoney({
   categories,
@@ -351,8 +529,8 @@ function RetiredHoldingMoney({
   categories: CategoryRow[];
   moneyView: MoneyView;
 }) {
-  const stillHolding = categories.filter(
-    (category) => accountsHolding(moneyView, category.id).length > 0
+  const stillHolding = categories.filter((category) =>
+    [...(moneyView.current.get(category.id)?.byAccount.values() ?? [])].some((cents) => cents !== 0)
   );
   if (stillHolding.length === 0) return null;
 
@@ -360,9 +538,18 @@ function RetiredHoldingMoney({
     <div className="rounded-md border">
       <p className="border-b px-3 py-2 text-sm font-medium">Retired, still holding money</p>
       <ul aria-label="Retired, still holding money" className="divide-y">
-        {stillHolding.map((category) => (
-          <CategoryMoneyItem key={category.id} category={category} moneyView={moneyView} />
-        ))}
+        {stillHolding.map((category) => {
+          const current = moneyView.current.get(category.id);
+          return (
+            <CategoryMoneyItem
+              key={category.id}
+              category={category}
+              money={current?.total ?? ZERO_CENTS}
+              byAccount={current?.byAccount ?? new Map()}
+              accountNames={moneyView.accountNames}
+            />
+          );
+        })}
       </ul>
     </div>
   );
@@ -384,29 +571,41 @@ function CategoryItems({
   categories,
   moneyView,
   onEdit,
+  onBudget,
 }: {
   label: string;
   categories: CategoryRow[];
   moneyView: MoneyView;
   onEdit: (id: string) => void;
+  onBudget: (id: string) => void;
 }) {
   if (categories.length === 0) {
     return <p className="px-3 py-2 text-sm text-muted-foreground">No categories in use.</p>;
   }
   return (
     <ul aria-label={label} className="divide-y">
-      {categories.map((category) => (
-        <CategoryMoneyItem key={category.id} category={category} moneyView={moneyView}>
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-label={`Edit ${category.name}`}
-            onClick={() => onEdit(category.id)}
+      {categories.map((category) => {
+        const month = categoryMonth(moneyView.month, category.id);
+        return (
+          <CategoryMoneyItem
+            key={category.id}
+            category={category}
+            money={month.money}
+            byAccount={month.moneyByAccount}
+            accountNames={moneyView.accountNames}
+            budgeting={{ month, onSet: () => onBudget(category.id) }}
           >
-            Edit
-          </Button>
-        </CategoryMoneyItem>
-      ))}
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={`Edit ${category.name}`}
+              onClick={() => onEdit(category.id)}
+            >
+              Edit
+            </Button>
+          </CategoryMoneyItem>
+        );
+      })}
     </ul>
   );
 }
