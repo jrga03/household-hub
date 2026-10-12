@@ -1,6 +1,7 @@
 /**
- * Account money summed at read time from the account, transaction and
- * allocation projections, never stored, so it is order-independent by construction.
+ * Account money summed at read time from the account, transaction,
+ * allocation and transfer projections, never stored, so it is
+ * order-independent by construction.
  */
 
 import { isCreditCard } from "@/lib/accounts/events";
@@ -9,6 +10,7 @@ import type { Envelope } from "@/lib/allocations/events";
 import type { AllocationRow } from "@/lib/allocations/projection";
 import { negateCents, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
+import type { TransferRow } from "@/lib/transfers/projection";
 import type { TransactionRow } from "./projection";
 
 export interface Envelopes {
@@ -62,7 +64,8 @@ function addToAllocated(envelopes: Envelopes, envelope: Envelope, amount: Cents)
 export function sumAccountMoney(
   accounts: AccountRow[],
   transactions: TransactionRow[],
-  allocations: AllocationRow[]
+  allocations: AllocationRow[],
+  transfers: TransferRow[]
 ): Map<string, AccountMoney> {
   const totals = new Map<string, { cleared: Cents; pending: Cents; envelopes: Envelopes }>();
   const cards = new Set<string>();
@@ -108,6 +111,24 @@ export function sumAccountMoney(
     addToAllocated(account.envelopes, allocation.to, allocation.amountCents);
   }
 
+  // A transfer moves its envelope's money out of one account and into the other.
+  // A card holds no envelopes: money in lowers what it owes, money out raises it.
+  for (const transfer of transfers) {
+    if (transfer.removed) continue;
+    const legs = [
+      { accountId: transfer.fromAccountId, amount: negateCents(transfer.amountCents) },
+      { accountId: transfer.toAccountId, amount: transfer.amountCents },
+    ];
+    for (const { accountId, amount } of legs) {
+      const account = totals.get(accountId);
+      if (!account) continue;
+      const isCard = cards.has(accountId);
+      const change = isCard ? negateCents(amount) : amount;
+      account[transfer.status] = sumCents([account[transfer.status], change]);
+      if (!isCard) addToAllocated(account.envelopes, transfer.envelope, amount);
+    }
+  }
+
   const money = new Map<string, AccountMoney>();
   for (const [accountId, { cleared, pending, envelopes }] of totals) {
     money.set(accountId, {
@@ -122,12 +143,13 @@ export function sumAccountMoney(
 
 /** Every account's money on this device, retired ones included, by account ID. */
 export async function readAccountMoney(): Promise<Map<string, AccountMoney>> {
-  const [accounts, transactions, allocations] = await Promise.all([
+  const [accounts, transactions, allocations, transfers] = await Promise.all([
     db.accounts.toArray(),
     db.transactions.toArray(),
     db.allocations.toArray(),
+    db.transfers.toArray(),
   ]);
-  return sumAccountMoney(accounts, transactions, allocations);
+  return sumAccountMoney(accounts, transactions, allocations, transfers);
 }
 
 export interface CategoryMoney {

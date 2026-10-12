@@ -1,4 +1,4 @@
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import {
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { RadioGroup } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -41,15 +41,23 @@ import { sameOwnership } from "@/lib/events/log";
 import {
   DESCRIPTION_MAX_LENGTH,
   isTransactionStatus,
-  isTransactionType,
   NOTES_MAX_LENGTH,
   type TransactionStatus,
   type TransactionType,
 } from "@/lib/transactions/events";
 import type { TransactionRow } from "@/lib/transactions/projection";
-import { errorMessage } from "@/lib/utils";
+import { TRANSFER_TYPE, type ListType } from "@/lib/transactions/filter";
+import { cn, errorMessage } from "@/lib/utils";
 import { useQuickEntryStore } from "@/stores/quickEntryStore";
+import {
+  ChoiceItem,
+  DirectionChoice,
+  FULL_ROW,
+  SAVED_LOCALLY,
+  useFocusNewEntry,
+} from "./EntryFields";
 import { removeWithUndo } from "./removeWithUndo";
+import { TransferForm } from "./TransferDialog";
 
 // Radix Select can't hold an empty value.
 const UNASSIGNED = "unassigned";
@@ -106,8 +114,6 @@ export function TransactionDialog({
   );
 }
 
-export const SAVED_LOCALLY = "Saved on this device at once; it reaches others when they sync.";
-
 /** The form alone, for the dialog and the wide-screen detail pane. */
 export function TransactionEditor({
   actor,
@@ -134,12 +140,71 @@ export function TransactionEditor({
   if (accountChoices.length === 0) {
     return <p className="text-sm text-muted-foreground">Add an account on Home first.</p>;
   }
+  if (transaction) {
+    return (
+      <TransactionForm
+        actor={actor}
+        transaction={transaction}
+        accounts={accountChoices}
+        categories={categories}
+        onClose={onClose}
+      />
+    );
+  }
+  return (
+    <NewEntryForm
+      actor={actor}
+      accounts={accountChoices}
+      retiredAccounts={retiredAccounts}
+      categories={categories}
+      onClose={onClose}
+    />
+  );
+}
+
+/** A new entry is an expense, income or a transfer; switching to or from Transfer swaps the form. */
+function NewEntryForm({
+  actor,
+  accounts,
+  retiredAccounts,
+  categories,
+  onClose,
+}: {
+  actor: Actor;
+  accounts: AccountRow[];
+  retiredAccounts: AccountRow[];
+  categories: CategoryList;
+  onClose: () => void;
+}) {
+  // The amount typed so far follows a switch between forms.
+  const [draft, setDraft] = useState<{ direction: ListType; amount: string }>({
+    direction: "expense",
+    amount: "",
+  });
+  const switchTo = (direction: ListType, amount: string) => setDraft({ direction, amount });
+  const { direction } = draft;
+  if (direction === TRANSFER_TYPE) {
+    return (
+      <TransferForm
+        actor={actor}
+        accounts={accounts}
+        retiredAccounts={retiredAccounts}
+        categories={categories}
+        draftAmount={draft.amount}
+        onDirectionChange={switchTo}
+        onClose={onClose}
+      />
+    );
+  }
   return (
     <TransactionForm
+      key={direction}
       actor={actor}
-      transaction={transaction}
-      accounts={accountChoices}
+      initialType={direction}
+      accounts={accounts}
       categories={categories}
+      draftAmount={draft.amount}
+      onDirectionChange={switchTo}
       onClose={onClose}
     />
   );
@@ -172,19 +237,28 @@ function readTransactionForm(formData: FormData): ReadForm {
 function TransactionForm({
   actor,
   transaction,
+  initialType = "expense",
+  draftAmount,
   accounts,
   categories,
+  onDirectionChange,
   onClose,
 }: {
   actor: Actor;
   transaction?: TransactionRow;
+  initialType?: TransactionType;
+  draftAmount?: string;
   accounts: AccountRow[];
   categories: CategoryList;
+  /** Offered for a new entry, so it can become a transfer, carrying the amount typed. */
+  onDirectionChange?: (direction: ListType, amount: string) => void;
   onClose: () => void;
 }) {
   const { lastUsed, setLastUsed } = useQuickEntryStore();
   const lastAccount = accounts.find((account) => account.id === lastUsed.accountId);
-  const [type, setType] = useState<TransactionType>(transaction?.type ?? "expense");
+  const [type, setType] = useState<TransactionType>(transaction?.type ?? initialType);
+  const amountRef = useRef<HTMLInputElement>(null);
+  useFocusNewEntry(amountRef, !transaction);
   const [accountId, setAccountId] = useState(
     transaction?.accountId ?? lastAccount?.id ?? accounts[0]?.id ?? ""
   );
@@ -193,7 +267,12 @@ function TransactionForm({
   const isChoice = (id: string | null) =>
     choices.some((group) => group.categories.some((category) => category.id === id));
   const [categoryId, setCategoryId] = useState(() => {
-    const preferred = transaction ? transaction.categoryId : lastUsed.categoryId;
+    // New money lands in Unassigned unless the member names a category.
+    const preferred = transaction
+      ? transaction.categoryId
+      : type === "income"
+        ? null
+        : lastUsed.categoryId;
     return preferred !== null && isChoice(preferred) ? preferred : UNASSIGNED;
   });
   // A category of another visibility can't follow the account change.
@@ -239,7 +318,7 @@ function TransactionForm({
     >
       {/* The amount comes first, so the dialog opens with it focused. */}
       <div className="grid gap-4 @[480px]:grid-cols-2">
-        <div className="space-y-2">
+        <div className={cn("space-y-2", onDirectionChange && FULL_ROW)}>
           <Label htmlFor="transaction-amount">Amount ({PESO_SIGN})</Label>
           <Input
             id="transaction-amount"
@@ -248,24 +327,23 @@ function TransactionForm({
             placeholder="0.00"
             autoComplete="off"
             required
-            defaultValue={transaction && formatPHPInput(transaction.amountCents)}
+            ref={amountRef}
+            defaultValue={transaction ? formatPHPInput(transaction.amountCents) : draftAmount}
           />
         </div>
-        <RadioGroup
-          name="type"
+        <DirectionChoice
           value={type}
-          onValueChange={(next) => {
-            if (!isTransactionType(next)) return;
+          withTransfer={onDirectionChange !== undefined}
+          onChange={(next) => {
+            if (next === TRANSFER_TYPE) {
+              onDirectionChange?.(next, amountRef.current?.value ?? "");
+              return;
+            }
             setType(next);
             // New money lands in Unassigned unless the member names a category.
             if (next === "income" && !transaction) setCategoryId(UNASSIGNED);
           }}
-          className="grid grid-cols-2 gap-2 self-end"
-          aria-label="Expense or income"
-        >
-          <ChoiceItem id="transaction-type-expense" value="expense" label="Expense" />
-          <ChoiceItem id="transaction-type-income" value="income" label="Income" />
-        </RadioGroup>
+        />
         <div className="space-y-2">
           <Label htmlFor="transaction-date">Date</Label>
           <Input
@@ -363,16 +441,5 @@ function TransactionForm({
         </SubmitButton>
       </DialogFooter>
     </form>
-  );
-}
-
-function ChoiceItem({ id, value, label }: { id: string; value: string; label: string }) {
-  return (
-    <div className="flex items-center gap-2 rounded-md border px-3 py-2">
-      <RadioGroupItem id={id} value={value} />
-      <Label htmlFor={id} className="flex-1">
-        {label}
-      </Label>
-    </div>
   );
 }

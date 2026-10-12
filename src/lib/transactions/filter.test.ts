@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { asCents } from "@/lib/currency";
-import { filterTransactions, readTransactionFilter, totalTransactions } from "./filter";
+import type { TransferRow } from "@/lib/transfers/projection";
+import {
+  filterTransactions,
+  newestFirst,
+  readTransactionFilter,
+  totalTransactions,
+  transferDirection,
+} from "./filter";
 import type { TransactionRow } from "./projection";
 
 let nextId = 0;
@@ -27,7 +34,28 @@ function row(overrides: Partial<TransactionRow> = {}): TransactionRow {
   };
 }
 
-const ids = (rows: TransactionRow[]) => rows.map((transaction) => transaction.id);
+function transferRow(overrides: Partial<TransferRow> = {}): TransferRow {
+  nextId += 1;
+  return {
+    id: `x${nextId}`,
+    householdId: "h1",
+    visibility: "household",
+    ownerUserId: null,
+    date: "2026-10-12",
+    amountCents: asCents(200000),
+    fromAccountId: "bpi",
+    toAccountId: "gcash",
+    envelope: { kind: "category", id: "groceries" },
+    description: "",
+    notes: "",
+    status: "cleared",
+    removed: false,
+    recordedHlc: `hlc-${nextId}`,
+    ...overrides,
+  };
+}
+
+const ids = (rows: { id: string }[]) => rows.map((transaction) => transaction.id);
 
 describe("filterTransactions", () => {
   it("keeps every transaction when nothing is filtered", () => {
@@ -178,7 +206,85 @@ describe("a 10,000-transaction list", () => {
   });
 });
 
+describe("transfers in the list", () => {
+  const toGcash = transferRow();
+  const toBpi = transferRow({ fromAccountId: "gcash", toAccountId: "bpi" });
+  const expense = row({ accountId: "bpi" });
+  const rows = [toGcash, toBpi, expense];
+
+  it("keeps a transfer under the account filter of either side", () => {
+    expect(ids(filterTransactions(rows, { account: "gcash" }))).toEqual([toGcash.id, toBpi.id]);
+    expect(ids(filterTransactions(rows, { account: "bdo" }))).toEqual([]);
+  });
+
+  it("keeps only transfers under the Transfer type, and none under Expense or Income", () => {
+    expect(ids(filterTransactions(rows, { type: "transfer" }))).toEqual([toGcash.id, toBpi.id]);
+    expect(ids(filterTransactions(rows, { type: "expense" }))).toEqual([expense.id]);
+    expect(ids(filterTransactions(rows, { type: "income" }))).toEqual([]);
+  });
+
+  it("matches the category filter by the transfer's envelope", () => {
+    const unassigned = transferRow({ envelope: { kind: "unassigned" } });
+    const cardPayment = transferRow({ envelope: { kind: "card_payment", id: "visa" } });
+    const all = [toGcash, unassigned, cardPayment];
+
+    expect(ids(filterTransactions(all, { category: "groceries" }))).toEqual([toGcash.id]);
+    expect(ids(filterTransactions(all, { category: "unassigned" }))).toEqual([unassigned.id]);
+    expect(ids(filterTransactions(all, { category: "visa" }))).toEqual([]);
+  });
+
+  it("never counts a transfer as needing a category", () => {
+    const unassigned = transferRow({ envelope: { kind: "unassigned" } });
+
+    expect(filterTransactions([unassigned], { needsCategory: true })).toEqual([]);
+  });
+
+  it("applies month, status and search to transfers", () => {
+    const pending = transferRow({ status: "pending", date: "2026-09-30", notes: "Rent money" });
+
+    expect(ids(filterTransactions([toGcash, pending], { status: "pending" }))).toEqual([
+      pending.id,
+    ]);
+    expect(ids(filterTransactions([toGcash, pending], { month: "2026-09" }))).toEqual([pending.id]);
+    expect(ids(filterTransactions([toGcash, pending], { query: "rent" }))).toEqual([pending.id]);
+    expect(ids(filterTransactions([toGcash, expense], { query: "2,000" }))).toEqual([toGcash.id]);
+  });
+
+  it("leaves transfers out of the income and expense totals", () => {
+    expect(totalTransactions(rows)).toEqual({
+      incomeCents: 0,
+      expenseCents: 25000,
+      netCents: -25000,
+    });
+  });
+
+  it("signs a transfer by the filtered account's side", () => {
+    expect(transferDirection(toGcash, "bpi")).toBe("out");
+    expect(transferDirection(toGcash, "gcash")).toBe("in");
+    expect(transferDirection(toGcash, undefined)).toBeNull();
+    expect(transferDirection(toGcash, "bdo")).toBeNull();
+  });
+
+  it("merges transactions and transfers newest date first, then most recently recorded", () => {
+    const older = row({ date: "2026-10-11", recordedHlc: "hlc-9" });
+    const sameDayEarlier = transferRow({ date: "2026-10-12", recordedHlc: "hlc-1" });
+    const sameDayLater = row({ date: "2026-10-12", recordedHlc: "hlc-2" });
+    const newest = transferRow({ date: "2026-10-13", recordedHlc: "hlc-0" });
+
+    expect(ids(newestFirst([sameDayLater, older], [newest, sameDayEarlier]))).toEqual([
+      newest.id,
+      sameDayLater.id,
+      sameDayEarlier.id,
+      older.id,
+    ]);
+  });
+});
+
 describe("readTransactionFilter", () => {
+  it("reads the Transfer type", () => {
+    expect(readTransactionFilter({ type: "transfer" })).toEqual({ type: "transfer" });
+  });
+
   it("reads every filter from the URL", () => {
     expect(
       readTransactionFilter({
@@ -211,7 +317,7 @@ describe("readTransactionFilter", () => {
         month: "2026-13",
         account: "",
         category: 42,
-        type: "transfer",
+        type: "refund",
         status: "void",
         needsCategory: "yes",
         query: "",

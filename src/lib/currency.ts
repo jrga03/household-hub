@@ -98,6 +98,15 @@ export function formatPHP(cents: Cents): string {
   return `${isNegative ? "-" : ""}${PESO_SIGN}${formattedPesos}.${formattedCentavos}`;
 }
 
+/** A positive whole number of cents, at most MAX_AMOUNT_CENTS: an amount a record can hold. */
+export const isAmount = (value: unknown): value is number =>
+  typeof value === "number" &&
+  Number.isSafeInteger(value) &&
+  value > 0 &&
+  value <= MAX_AMOUNT_CENTS;
+
+export const AMOUNT_PROBLEM = `The amount must be more than zero and at most ${formatPHP(asCents(MAX_AMOUNT_CENTS))}.`;
+
 /** A prefilled amount input's value: formatted without the peso sign, empty for zero (the placeholder shows 0.00). */
 export function formatPHPInput(cents: Cents): string {
   return cents === 0 ? "" : formatPHP(cents).replace(PESO_SIGN, "");

@@ -1,4 +1,4 @@
-import { asCents, formatPHP, MAX_AMOUNT_CENTS, type Cents } from "@/lib/currency";
+import { AMOUNT_PROBLEM, asCents, formatPHP, isAmount, type Cents } from "@/lib/currency";
 import type { LoggedEvent } from "@/lib/events/log";
 import type { EventVersions } from "@/lib/events/versions";
 import { isLocalDate } from "@/lib/transactions/events";
@@ -40,7 +40,7 @@ type DetailsCheck =
 
 const rejected = (problem: string): DetailsCheck => ({ details: null, problem });
 
-function decodeEnvelope(value: unknown): Envelope | null {
+export function decodeEnvelope(value: unknown): Envelope | null {
   if (typeof value !== "object" || value === null || !("kind" in value)) return null;
   if (value.kind === "unassigned") return UNASSIGNED_ENVELOPE;
   if (value.kind !== "category" && value.kind !== "card_payment") return null;
@@ -62,16 +62,7 @@ export function checkAllocationDetails(input: Record<string, unknown>): DetailsC
   const to = decodeEnvelope(input.to);
   if (!to) return rejected("Choose where the money goes.");
   if (sameEnvelope(from, to)) return rejected("Choose two different places to move money between.");
-  if (
-    typeof amountCents !== "number" ||
-    !Number.isSafeInteger(amountCents) ||
-    amountCents <= 0 ||
-    amountCents > MAX_AMOUNT_CENTS
-  ) {
-    return rejected(
-      `The amount must be more than zero and at most ${formatPHP(asCents(MAX_AMOUNT_CENTS))}.`
-    );
-  }
+  if (!isAmount(amountCents)) return rejected(AMOUNT_PROBLEM);
   return {
     details: { date, accountId, from, to, amountCents: asCents(amountCents) },
     problem: null,
