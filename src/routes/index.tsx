@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AccountsCard } from "@/components/accounts/AccountsCard";
 import { JoinRequestsCard } from "@/components/households/JoinRequestsCard";
 import { MembersCard } from "@/components/households/MembersCard";
+import { OpeningChecklist } from "@/components/opening/OpeningChecklist";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { confirm } from "@/lib/confirm";
 import { replaceHouseholdCode } from "@/lib/household-members";
@@ -34,6 +35,7 @@ function HomePage() {
 
       <PageShell variant="centered">
         <PageShell.Main className="space-y-4">
+          {household && <OpeningChecklist key={household.id} householdId={household.id} />}
           {household && (
             <Card>
               <CardHeader>

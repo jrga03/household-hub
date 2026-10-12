@@ -122,14 +122,21 @@ Spec: #70. Scoped 2026-10-12 (decisions above, agreed 2026-10-12). ADRs 0006 and
 
 Seams (from #70's Testing Decisions and the issue's acceptance criteria): step completion derived from the projections (Vitest).
 
-- [ ] Step completion (starting balances, distribute, budgets) from the projections
-- [ ] Checklist on home with links; Distribute opens in opening mode
-- [ ] Per-device dismissal in localStorage, wrapped in try/catch
-- [ ] build, lint, vitest, both tsc, knip
+- [x] Step completion (starting balances, distribute, budgets) from the projections
+- [x] Checklist on home with links; Distribute opens in opening mode
+- [x] Per-device dismissal in localStorage, wrapped in try/catch
+- [x] build, lint, vitest, both tsc, knip
 - [ ] Code review (standards + spec), fixes applied
 - [ ] Commit
 
 ### #77 decisions
+
+- **Seams:** `readOpeningSteps()` (`lib/opening/steps.ts`), Vitest seeded through commands; an `OpeningChecklist` component test for dismissal and blocked storage; `tests/e2e/opening-checklist.spec.ts` on chromium. Home's layout baselines refreshed for the new card.
+- **"Distributed" counts allocations out of Unassigned only**, not transfers. Why: every Distribute line writes an allocation, while a transfer of Unassigned only moves it to another account's Unassigned. Revisit: if a household distributes by transfers alone.
+- **Starting balances count only active accounts with more than ₱0**, cards included; Distribute opens on the first such account that isn't a card.
+- **Budgets count any version with an amount**; a budget cleared in its only month doesn't.
+- **The checklist hides once all three steps are done**, as well as on dismissal. Dismissal is keyed by household, so joining another household shows its checklist.
+- **"Add an account" links to `/#add-account`**, the form on home; the router scrolls it into view.
 
 ## Issue #76: export
 
