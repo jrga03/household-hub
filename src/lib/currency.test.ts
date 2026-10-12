@@ -28,6 +28,7 @@ import {
   divideCents,
   formatPHPChartValue,
   formatPHPInput,
+  formatPHPDecimal,
 } from "./currency";
 
 describe("formatPHP", () => {
@@ -69,6 +70,16 @@ describe("formatPHP", () => {
     expect(formatPHP(asCents(101))).toBe("₱1.01");
     expect(formatPHP(asCents(102))).toBe("₱1.02");
     expect(formatPHP(asCents(109))).toBe("₱1.09");
+  });
+});
+
+describe("formatPHPDecimal", () => {
+  it("writes a plain number with two decimals and no separators", () => {
+    expect(formatPHPDecimal(asCents(150050))).toBe("1500.50");
+    expect(formatPHPDecimal(asCents(5))).toBe("0.05");
+    expect(formatPHPDecimal(ZERO_CENTS)).toBe("0.00");
+    expect(formatPHPDecimal(asCents(MAX_AMOUNT_CENTS))).toBe("9999999.99");
+    expect(formatPHPDecimal(asCents(-250))).toBe("-2.50");
   });
 });
 

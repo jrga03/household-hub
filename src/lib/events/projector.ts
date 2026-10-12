@@ -42,7 +42,7 @@ interface RegisteredProjection {
 }
 
 // Formatted HLCs sort as strings; the event id keeps the order total.
-const byHlc = (a: LoggedEvent, b: LoggedEvent) =>
+export const byHlc = (a: LoggedEvent, b: LoggedEvent) =>
   a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : a.id < b.id ? -1 : 1;
 
 const projections = new Map<string, RegisteredProjection>();

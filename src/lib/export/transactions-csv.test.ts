@@ -3,7 +3,7 @@ import { parsePHP } from "@/lib/currency";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { createAccount } from "@/lib/commands/accounts";
 import { createCategory, createGroup } from "@/lib/commands/categories";
-import { addTransaction, removeTransaction } from "@/lib/commands/transactions";
+import { addTransaction, removeTransaction, restoreTransaction } from "@/lib/commands/transactions";
 import { addTransfer, removeTransfer } from "@/lib/commands/transfers";
 import { readTransactionsCsv } from "./transactions-csv";
 
@@ -75,6 +75,24 @@ describe("transactions CSV", () => {
         "2026-10-03,Transfer,2000.00,BDO,Wallet,Groceries,Cleared,Cash for the market,",
         "",
       ].join("\r\n")
+    );
+  });
+
+  it("brings back a transaction that was removed and then restored", async () => {
+    const bankId = await account("BDO");
+    const { id } = await addTransaction(MEMBER, {
+      date: "2026-10-05",
+      type: "expense",
+      amountCents: parsePHP("80"),
+      accountId: bankId,
+      categoryId: null,
+      description: "Jeepney",
+    });
+    await removeTransaction(MEMBER, id);
+    await restoreTransaction(MEMBER, id);
+
+    expect(await readTransactionsCsv()).toContain(
+      "\r\n2026-10-05,Expense,80.00,BDO,,Unassigned,Cleared,Jeepney,\r\n"
     );
   });
 

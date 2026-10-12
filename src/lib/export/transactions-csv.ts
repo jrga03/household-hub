@@ -1,9 +1,9 @@
 import { readAccountNames } from "@/lib/accounts/projection";
 import { envelopeLabel, UNASSIGNED_ENVELOPE, type Envelope } from "@/lib/allocations/events";
 import { readCategoryNames } from "@/lib/categories/projection";
-import type { Cents } from "@/lib/currency";
+import { formatPHPDecimal } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
-import type { TransactionStatus } from "@/lib/transactions/events";
+import type { TransactionStatus, TransactionType } from "@/lib/transactions/events";
 import { toCsv } from "./csv";
 
 const HEADER = [
@@ -18,6 +18,11 @@ const HEADER = [
   "Notes",
 ];
 
+const TYPE_LABELS: Record<TransactionType, string> = {
+  expense: "Expense",
+  income: "Income",
+};
+
 const STATUS_LABELS: Record<TransactionStatus, string> = {
   cleared: "Cleared",
   pending: "Pending",
@@ -29,15 +34,15 @@ interface ExportRow {
   values: string[];
 }
 
-/** A plain number a spreadsheet can sum: 150050 → "1500.50". */
-const toDecimal = (cents: Cents) =>
-  `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`;
-
 const envelopeOf = (categoryId: string | null): Envelope =>
   categoryId === null ? UNASSIGNED_ENVELOPE : { kind: "category", id: categoryId };
 
-const byWhenRecorded = (a: ExportRow, b: ExportRow) =>
-  a.date.localeCompare(b.date) || a.recordedHlc.localeCompare(b.recordedHlc);
+// Dates and formatted HLCs both sort as strings, by code unit like the projector.
+const byWhenRecorded = (a: ExportRow, b: ExportRow) => {
+  const aKey = `${a.date} ${a.recordedHlc}`;
+  const bKey = `${b.date} ${b.recordedHlc}`;
+  return aKey < bKey ? -1 : aKey > bKey ? 1 : 0;
+};
 
 /**
  * Every transaction and transfer this device holds, oldest first, which is
@@ -59,8 +64,8 @@ export async function readTransactionsCsv(): Promise<string> {
       recordedHlc: transaction.recordedHlc,
       values: [
         transaction.date,
-        transaction.type === "income" ? "Income" : "Expense",
-        toDecimal(transaction.amountCents),
+        TYPE_LABELS[transaction.type],
+        formatPHPDecimal(transaction.amountCents),
         accountName(transaction.accountId),
         "",
         envelopeLabel(envelopeOf(transaction.categoryId), categoryNames, accountNames),
@@ -77,7 +82,7 @@ export async function readTransactionsCsv(): Promise<string> {
       values: [
         transfer.date,
         "Transfer",
-        toDecimal(transfer.amountCents),
+        formatPHPDecimal(transfer.amountCents),
         accountName(transfer.fromAccountId),
         accountName(transfer.toAccountId),
         envelopeLabel(transfer.envelope, categoryNames, accountNames),

@@ -139,8 +139,8 @@ Seams: the CSV and JSON builders (Vitest).
 - [x] Event-log JSON of the local log
 - [x] Settings section with two downloads (no zip library)
 - [x] build, lint, vitest, both tsc, knip
-- [ ] Code review (standards + spec), fixes applied
-- [ ] Commit
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
 
 ### #76 decisions
 
@@ -149,6 +149,7 @@ Seams: the CSV and JSON builders (Vitest).
 - **Text that starts like a formula** (`= + - @`, tab, CR) gets a leading apostrophe. Why: another member's description must not run as a formula. Agreed 2026-10-12.
 - **A transfer is one row**: Account is where the money leaves, To account where it goes, Category its envelope. Rows run oldest first (date, then recorded order).
 - **The CSV starts with a UTF-8 byte-order mark** so Excel keeps ₱, ñ and the Card Payment "·".
+- **Review follow-ups awaiting a call** (2026-10-12): a Visibility column in the CSV (proposed: defer to #69); moving `envelopeLabel` out of `allocations/events.ts` into its own module; folding `categoryNames(list)` into `readCategoryNames`. Revisit at PR review.
 
 ## Issue #75: Distribute money
 
