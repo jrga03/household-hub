@@ -92,6 +92,10 @@ _Avoid_: Statement, history
 The account a budget's money is distributed into. It shares the category's visibility and is never a credit card. Not to be confused with a credit card's Paying Account.
 _Avoid_: Home account
 
+**Opening Checklist**:
+Home's three steps for a new household: set starting balances, distribute them into categories, set budgets. Each ticks itself off from the data; a member can dismiss it on their device.
+_Avoid_: Onboarding, setup wizard
+
 **Debt**:
 Money owed, tracked for visibility only; it never moves money. **External** debts are owed outside the household (a credit card's balance is not one: the card already shows it); **Internal** debts are borrowing within it, between accounts, categories, or members.
 _Avoid_: Loan (as the general term), liability

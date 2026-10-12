@@ -230,7 +230,12 @@ function AddAccountForm({ actor }: { actor: Actor }) {
   );
 
   return (
-    <form action={addAction} className="space-y-4" aria-label="Add an account">
+    <form
+      id="add-account"
+      action={addAction}
+      className="scroll-mt-4 space-y-4"
+      aria-label="Add an account"
+    >
       {/* Keyed so each new account starts as a Household bank account again; Personal is a deliberate choice. */}
       <NewAccountFields key={state.added} userId={actor.userId} />
 
