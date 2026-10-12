@@ -116,7 +116,7 @@ Spec: #70. Scoped 2026-10-12 (decisions above, agreed 2026-10-12). ADRs 0006 and
 - [x] #75 Distribute money (blocked by #71, #73), PR #87
 - [x] #76 Export (blocked by #71)
 - [x] #77 Opening checklist (blocked by #75), PR #89
-- [ ] Close #70
+- [x] Close #70 (closed 2026-10-13)
 
 ## Issue #77: opening checklist
 
@@ -699,7 +699,9 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - Milestone 3 scoped 2026-10-12: spec #70, sub-issues #71-#77 (`ready-for-agent`, native blocked-by edges), ADRs 0006 and 0007, glossary Transfer, Budget and Funding Account. Export modes deferred to #69 (`needs-triage`).
 - #71 merged (PR #79, 734017b). #73 merged (PR #80, 0becd82); merging it after #71 needed transfers in the month-end money (a type error caught it). Their worktrees and local branches are removed. Follow-up #81 (`transactions.spec.ts` on Mobile Chrome).
 - Pending with the user: whether Unassigned and "Retired, still holding money" should follow the month picker (default: keep current money; see the #73 decisions).
-- Next: round 2, #72, #74, #75, #76 in parallel worktrees once `appendTogether` is on main; merge #74, #76, #72, #75 in that order; then #77. Still owed: #40's dashboard checks (human).
+- Round 2 merged: #74 (PR #85), #76 (PR #84), #72 (PR #86), #75 (PR #87). #77 merged (PR #89, f1eb4c2). Their worktrees and local branches are removed.
+- #70 closed 2026-10-13: Milestone 3 is complete. Follow-ups, all `needs-triage`: #83 (move `envelopeLabel`; its revisit point, round 2 merged, has passed), #88 (Distribute opening mode with no categories), #69 (export modes, after the first release).
+- Next: undecided (the user will choose): triage #83 and #88, or scope Milestone 4 (statement import and the dashboard). Still owed: #40's dashboard checks (human).
 - Gotchas found in #71 and #73:
   - `sumAccountMoney(accounts, transactions, allocations, transfers)` takes transfers as a required fourth argument; any month or ledger sum must pass the transfers dated in range.
   - List rows are `ListRow = TransactionRow | TransferRow` (`isTransfer`, `newestFirst`, `transferDirection` in `transactions/filter.ts`); `useTransactionListRows()` replaced `useTransactions()`.
