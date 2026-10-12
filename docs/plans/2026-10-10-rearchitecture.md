@@ -84,11 +84,37 @@ Spec: #46. Scoped 2026-10-12 (decisions above, dated 2026-10-11 and 2026-10-12).
 - [x] #47 Projection registry
 - [x] #48 Categories and groups
 - [x] #49 Transactions core
-- [ ] #50 Card Payment reservation
+- [x] #50 Card Payment reservation
 - [ ] #51 Allocations and the Categories screen
 - [ ] #52 Transaction list: virtualized, filters, totals, search
 - [ ] #53 Transaction list actions: bulk, swipe, detail pane (blocked by #52)
 - [ ] Close #46
+
+## Issue #50: Card Payment reservation
+
+Seams (from #46's Testing Decisions and the issue's acceptance criteria): the read-time sums through `receiveEvents` (Vitest; the balance = Unassigned + category money + Card Payments invariant after every permutation, with purchases, refunds, an uncategorized purchase, a moved transaction and a removed one), the commands (Vitest), one two-browser Playwright demo on chromium.
+
+- [x] `transaction.created` / `transaction.edited` v2 carry the Paying Account; v1 upcaster in `TRANSACTION_VERSIONS`; projection stores it
+- [x] Commands record the card's current Paying Account on add, and re-record it when an edit moves the transaction onto or off a card; an unchanged edit still appends nothing
+- [x] Read-time sums: card transactions move category money (or Unassigned) into the card's Card Payment in the recorded Paying Account; a card's starting amount owed reserves nothing; invariant after every permutation
+- [x] Changing a card's default Paying Account leaves existing reservations in place (Vitest)
+- [x] Accounts card shows each Card Payment under its Paying Account
+- [x] Playwright (chromium, two browsers): A records a ₱1,200 Restaurants card purchase offline and reconnects; B shows the amount owed, the unchanged balance and the Card Payment
+- [x] build, lint, vitest, both tsc, knip
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
+
+### #50 decisions
+
+- **Device B shows the Card Payment on the Accounts card** ("Card Payment · Visa ₱1,200.00" under the Paying Account). The category's drop is checked in Vitest, not on screen. Revisit: #51 (the Categories screen shows category money per account). Agreed 2026-10-12.
+- **`payingAccountId` is part of the transaction's details**, so it resolves with them by latest HLC. The command fills it in, never the form: from the card on add, and from the new account when an edit changes the account; otherwise the edit keeps the recorded one.
+- **v1 transaction events upcast to no Paying Account**, so they reserve nothing. There is no production data, so no v1 card transactions exist.
+- **A card transaction reserves nothing when its recorded Paying Account isn't on this device or is itself a card**; the card's amount owed still moves.
+- **The Accounts card hides a Card Payment of ₱0.00** and shows a negative one in red.
+- **A card not yet on this device is named "A card"** in its Card Payment line.
+- **Review deferral: each account row runs its own money and name live queries** (`useAccountMoney`, `useAccountNames`), the #49 idiom. Revisit: if the Accounts card slows with many accounts (hoist both to `AccountsCard`).
+- **Review fixes:** `isOptionalId` shared by the category and Paying Account checks; `chooseOption` moved to the e2e helpers; the permutation adds uncategorized card income and a move off a card; a v1 card transaction is tested to reserve nothing.
+- **Review deferral: `editTransaction` sets the new Paying Account after the unchanged-details check**; safe, since a changed account never matches. Revisit: if the edit path grows.
 
 ## Issue #49: transactions core
 

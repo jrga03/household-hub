@@ -57,14 +57,23 @@ const transaction = (
   details: Record<string, unknown>,
   eventType = "transaction.created"
 ) =>
-  event(id, "transaction", entityId, eventType, millis, {
-    date: "2026-10-12",
-    categoryId: null,
-    description: "",
-    notes: "",
-    status: "cleared",
-    ...details,
-  });
+  event(
+    id,
+    "transaction",
+    entityId,
+    eventType,
+    millis,
+    {
+      date: "2026-10-12",
+      categoryId: null,
+      payingAccountId: null,
+      description: "",
+      notes: "",
+      status: "cleared",
+      ...details,
+    },
+    2
+  );
 
 const txId = (n: number) => `dddddddd-0000-4000-8000-00000000000${n}`;
 
@@ -81,8 +90,16 @@ function permutations<T>(items: T[]): T[][] {
 const orders = (events: LoggedEvent[]) =>
   permutations(events).map((order) => [order.map((event) => event.id), order] as const);
 
-const categoryTotal = (money: AccountMoney) =>
-  money.envelopes ? sumCents(money.envelopes.categories.values()) : 0;
+function expectBalanceEqualsEnvelopes(money: Map<string, AccountMoney>, accountIds: string[]) {
+  for (const accountId of accountIds) {
+    const accountMoney = money.get(accountId);
+    if (!accountMoney?.envelopes) throw new Error(`No envelopes for ${accountId}`);
+    const { unassigned, categories, cardPayments } = accountMoney.envelopes;
+    expect(accountMoney.balance).toBe(
+      sumCents([unassigned, ...categories.values(), ...cardPayments.values()])
+    );
+  }
+}
 
 beforeEach(async () => {
   await resetLocalDatabase();
@@ -148,6 +165,7 @@ describe("account money", () => {
     amountCents: 20000,
     accountId: CARD,
     categoryId: GROCERIES,
+    payingAccountId: BANK,
   });
 
   it.each(orders([wallet, salary, snack, snackMoved, refund, refundRemoved]))(
@@ -161,30 +179,201 @@ describe("account money", () => {
         balance: 175000,
         cleared: 75000,
         pending: 100000,
-        envelopes: { unassigned: 200000, categories: new Map([[GROCERIES, -25000]]) },
+        envelopes: {
+          unassigned: 200000,
+          categories: new Map([[GROCERIES, -45000]]),
+          cardPayments: new Map([[CARD, 20000]]),
+        },
       });
       expect(money.get(WALLET)).toEqual({
         balance: -30000,
         cleared: -30000,
         pending: 0,
-        envelopes: { unassigned: 0, categories: new Map([[GROCERIES, -30000]]) },
+        envelopes: {
+          unassigned: 0,
+          categories: new Map([[GROCERIES, -30000]]),
+          cardPayments: new Map(),
+        },
       });
-      // A card's balance is what it owes: purchases raise it. Its envelopes come with #50.
+      // A card's balance is what it owes: purchases raise it.
       expect(money.get(CARD)).toEqual({
         balance: 70000,
         cleared: 70000,
         pending: 0,
         envelopes: null,
       });
-      for (const accountId of [BANK, WALLET]) {
-        const accountMoney = money.get(accountId);
-        if (!accountMoney?.envelopes) throw new Error(`No envelopes for ${accountId}`);
-        expect(accountMoney.balance).toBe(
-          accountMoney.envelopes.unassigned + categoryTotal(accountMoney)
-        );
-      }
+      expectBalanceEqualsEnvelopes(money, [BANK, WALLET]);
     }
   );
+
+  describe("card transactions reserve money in the Paying Account they recorded", () => {
+    const onCard = (details: Record<string, unknown>) => ({
+      accountId: CARD,
+      payingAccountId: BANK,
+      categoryId: GROCERIES,
+      ...details,
+    });
+    const purchase = transaction(
+      "c-purchase",
+      txId(1),
+      1000,
+      onCard({
+        type: "expense",
+        amountCents: 20000,
+      })
+    );
+    const refund = transaction(
+      "c-refund",
+      txId(2),
+      2000,
+      onCard({
+        type: "income",
+        amountCents: 5000,
+      })
+    );
+    const uncategorized = transaction(
+      "c-uncategorized",
+      txId(3),
+      3000,
+      onCard({
+        type: "expense",
+        amountCents: 10000,
+        categoryId: null,
+      })
+    );
+    const bankExpense = transaction("c-bank-expense", txId(4), 4000, {
+      type: "expense",
+      amountCents: 8000,
+      accountId: BANK,
+      categoryId: GROCERIES,
+    });
+    const movedOntoCard = transaction(
+      "c-moved-onto-card",
+      txId(4),
+      4500,
+      onCard({ type: "expense", amountCents: 8000 }),
+      "transaction.edited"
+    );
+    const removedPurchase = transaction(
+      "c-removed-purchase",
+      txId(5),
+      5000,
+      onCard({
+        type: "expense",
+        amountCents: 4000,
+      })
+    );
+    const removal = event("c-removal", "transaction", txId(5), "transaction.removed", 5500);
+    const uncategorizedRefund = transaction(
+      "c-uncategorized-refund",
+      txId(6),
+      6000,
+      onCard({ type: "income", amountCents: 3000, categoryId: null })
+    );
+    const offCardLater = transaction(
+      "c-off-card-later",
+      txId(7),
+      7000,
+      onCard({ type: "expense", amountCents: 6000 })
+    );
+    const movedOffCard = transaction(
+      "c-moved-off-card",
+      txId(7),
+      7500,
+      { type: "expense", amountCents: 6000, accountId: WALLET, categoryId: GROCERIES },
+      "transaction.edited"
+    );
+    const cardRepointed = event(
+      "c-card-repointed",
+      "account",
+      CARD,
+      "account.edited",
+      6000,
+      { name: "Card", type: "credit_card", startingBalanceCents: 50000, payingAccountId: WALLET },
+      2
+    );
+
+    it.each(orders([refund, uncategorized, movedOntoCard, removal, movedOffCard, cardRepointed]))(
+      "sums the same money from events in the order %j",
+      async (_ids, order) => {
+        await receiveEvents(
+          [
+            bank,
+            wallet,
+            card,
+            purchase,
+            bankExpense,
+            removedPurchase,
+            uncategorizedRefund,
+            offCardLater,
+          ],
+          0
+        );
+        for (const arriving of order) await receiveEvents([arriving], 0);
+
+        const money = await readAccountMoney();
+        // The starting amount owed reserves nothing; members allocate it themselves.
+        expect(money.get(CARD)).toEqual({
+          balance: 80000,
+          cleared: 80000,
+          pending: 0,
+          envelopes: null,
+        });
+        // The reservations stay in the Bank after the card's default moved to the Wallet.
+        expect(money.get(BANK)).toEqual({
+          balance: 100000,
+          cleared: 100000,
+          pending: 0,
+          envelopes: {
+            unassigned: 93000,
+            categories: new Map([[GROCERIES, -23000]]),
+            cardPayments: new Map([[CARD, 30000]]),
+          },
+        });
+        expect(money.get(WALLET)).toEqual({
+          balance: -6000,
+          cleared: -6000,
+          pending: 0,
+          envelopes: {
+            unassigned: 0,
+            categories: new Map([[GROCERIES, -6000]]),
+            cardPayments: new Map(),
+          },
+        });
+        expectBalanceEqualsEnvelopes(money, [BANK, WALLET]);
+      }
+    );
+
+    it("reserves nothing for a card transaction recorded before it carried the Paying Account", async () => {
+      const recordedByV1 = event(
+        "c-v1",
+        "transaction",
+        txId(8),
+        "transaction.created",
+        8000,
+        {
+          date: "2026-10-12",
+          type: "expense",
+          amountCents: 7000,
+          accountId: CARD,
+          categoryId: GROCERIES,
+          description: "",
+          notes: "",
+          status: "cleared",
+        },
+        1
+      );
+      await receiveEvents([bank, card, recordedByV1], 0);
+
+      const money = await readAccountMoney();
+      expect(money.get(CARD)?.balance).toBe(57000);
+      expect(money.get(BANK)?.envelopes).toEqual({
+        unassigned: 100000,
+        categories: new Map(),
+        cardPayments: new Map(),
+      });
+    });
+  });
 
   it("sums 10,000 transactions for the Categories screen in under 50 ms", async () => {
     const many = Array.from({ length: 10_000 }, (_, index) =>

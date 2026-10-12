@@ -86,3 +86,9 @@ async function listByRetirement(retired: boolean): Promise<AccountListItem[]> {
 export const listAccounts = () => listByRetirement(false);
 
 export const listRetiredAccounts = () => listByRetirement(true);
+
+/** Every account's name on this device, retired ones included, by account ID. */
+export async function readAccountNames(): Promise<Map<string, string>> {
+  const accounts = await db.accounts.toArray();
+  return new Map(accounts.map((account) => [account.id, account.name]));
+}

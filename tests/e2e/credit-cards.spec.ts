@@ -1,12 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
-import { signUpNewPerson } from "./fixtures/helpers";
+import { chooseOption, signUpNewPerson } from "./fixtures/helpers";
 
 const accountsList = (page: Page) => page.getByRole("list", { name: "Accounts" });
-
-async function chooseOption(page: Page, label: string, option: string) {
-  await page.getByRole("form", { name: "Add an account" }).getByLabel(label).click();
-  await page.getByRole("option", { name: option }).click();
-}
 
 test("a household credit card shows the bank account it is paid from", async ({ page }) => {
   await signUpNewPerson(page);
@@ -19,8 +14,8 @@ test("a household credit card shows the bank account it is paid from", async ({ 
   await expect(accountsList(page)).toContainText("BDO Savings");
 
   await addForm.getByLabel("Account name").fill("Visa");
-  await chooseOption(page, "Type", "Credit card");
-  await chooseOption(page, "Paid from", "BDO Savings");
+  await chooseOption(page, addForm.getByLabel("Type"), "Credit card");
+  await chooseOption(page, addForm.getByLabel("Paid from"), "BDO Savings");
   await addForm.getByRole("button", { name: "Add account" }).click();
 
   const card = accountsList(page).getByRole("listitem").filter({ hasText: "Visa" });

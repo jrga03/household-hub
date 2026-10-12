@@ -1,5 +1,6 @@
 import { sameOwnership, VISIBILITY_LABELS } from "@/lib/events/log";
 import { requestSync } from "@/lib/sync/triggers";
+import { isCreditCard } from "@/lib/accounts/events";
 import { getAccount, type AccountRow } from "@/lib/accounts/projection";
 import { canHoldMoneyIn, getCategory } from "@/lib/categories/projection";
 import type { Cents } from "@/lib/currency";
@@ -39,11 +40,16 @@ export interface TransactionInput {
 
 const appendTransactionEvent = appenderFor(TRANSACTION_ENTITY, TRANSACTION_VERSIONS);
 
+/** The details as the member entered them; the command records the Paying Account itself. */
 function checkedDetails(input: TransactionInput): TransactionDetails {
-  const { details, problem } = checkTransactionDetails({ ...input });
+  const { details, problem } = checkTransactionDetails({ ...input, payingAccountId: null });
   if (problem !== null) throw new Error(problem);
   return details;
 }
+
+/** The card's Paying Account right now, which the transaction keeps from then on. */
+const payingAccountOf = (account: AccountRow) =>
+  isCreditCard(account) ? account.payingAccountId : null;
 
 function refuseRetired(record: { name: string; retired: boolean }): void {
   if (record.retired) throw new Error(`${record.name} is retired. Choose one in use.`);
@@ -82,6 +88,7 @@ export async function addTransaction(
   const id = crypto.randomUUID();
   await appendTransactionEvent(actor, { ...account, id }, TRANSACTION_CREATED, {
     ...details,
+    payingAccountId: payingAccountOf(account),
     status,
   });
   requestSync();
@@ -104,14 +111,19 @@ export async function editTransaction(
   transactionId: string,
   input: TransactionInput
 ): Promise<void> {
-  const details = checkedDetails(input);
+  const entered = checkedDetails(input);
   const transaction = await requireTransaction(transactionId);
+  const accountChanged = entered.accountId !== transaction.accountId;
+  // The reservation stays where it was recorded unless the transaction changes account.
+  const details = { ...entered, payingAccountId: transaction.payingAccountId };
   // A re-sent unchanged edit would carry a later HLC and undo another device's edit.
   if (sameDetails(details, transaction)) return;
-  const accountChanged = details.accountId !== transaction.accountId;
   if (accountChanged || details.categoryId !== transaction.categoryId) {
     const account = await requireAccount(details.accountId);
-    if (accountChanged) checkMove(account, transaction);
+    if (accountChanged) {
+      checkMove(account, transaction);
+      details.payingAccountId = payingAccountOf(account);
+    }
     await checkCategory(details.categoryId, account);
   }
   await appendTransactionEvent(actor, transaction, TRANSACTION_EDITED, { ...details });
@@ -124,6 +136,7 @@ const sameDetails = (a: TransactionDetails, b: TransactionDetails) =>
   a.amountCents === b.amountCents &&
   a.accountId === b.accountId &&
   a.categoryId === b.categoryId &&
+  a.payingAccountId === b.payingAccountId &&
   a.description === b.description &&
   a.notes === b.notes;
 

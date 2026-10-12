@@ -20,9 +20,15 @@ export const TRANSACTION_MARKED_PENDING = "transaction.marked_pending";
 export const TRANSACTION_REMOVED = "transaction.removed";
 export const TRANSACTION_RESTORED = "transaction.restored";
 
+// v2 records the card's Paying Account; v1 transactions reserve nothing.
+const withoutPayingAccount = (payload: Record<string, unknown>) => ({
+  ...payload,
+  payingAccountId: null,
+});
+
 export const TRANSACTION_VERSIONS = {
-  [TRANSACTION_CREATED]: { current: 1, upcasts: {} },
-  [TRANSACTION_EDITED]: { current: 1, upcasts: {} },
+  [TRANSACTION_CREATED]: { current: 2, upcasts: { 1: withoutPayingAccount } },
+  [TRANSACTION_EDITED]: { current: 2, upcasts: { 1: withoutPayingAccount } },
   [TRANSACTION_MARKED_CLEARED]: { current: 1, upcasts: {} },
   [TRANSACTION_MARKED_PENDING]: { current: 1, upcasts: {} },
   [TRANSACTION_REMOVED]: { current: 1, upcasts: {} },
@@ -38,6 +44,11 @@ export interface TransactionDetails {
   accountId: string;
   /** Null for Unassigned. */
   categoryId: string | null;
+  /**
+   * For a card transaction, the card's Paying Account when it was recorded or
+   * moved onto the card; its reservation stays there. Null otherwise.
+   */
+  payingAccountId: string | null;
   description: string;
   notes: string;
 }
@@ -61,6 +72,10 @@ export function isLocalDate(value: unknown): value is string {
   return date.getFullYear() === year && date.getMonth() + 1 === month && date.getDate() === day;
 }
 
+/** Null or missing, or a non-empty ID. */
+const isOptionalId = (value: unknown): value is string | null | undefined =>
+  value == null || (typeof value === "string" && value !== "");
+
 const optionalText = (value: unknown) => (typeof value === "string" ? value.trim() : "");
 
 /**
@@ -69,7 +84,7 @@ const optionalText = (value: unknown) => (typeof value === "string" ? value.trim
  * commands, against what this device holds.
  */
 export function checkTransactionDetails(input: Record<string, unknown>): DetailsCheck {
-  const { date, type, amountCents, accountId, categoryId } = input;
+  const { date, type, amountCents, accountId, categoryId, payingAccountId } = input;
   if (!isLocalDate(date)) return rejected("Choose a date.");
   if (!isTransactionType(type)) return rejected("Choose Expense or Income.");
   if (
@@ -83,9 +98,8 @@ export function checkTransactionDetails(input: Record<string, unknown>): Details
     );
   }
   if (typeof accountId !== "string" || accountId === "") return rejected("Choose an account.");
-  if (categoryId != null && (typeof categoryId !== "string" || categoryId === "")) {
-    return rejected("Choose a category or Unassigned.");
-  }
+  if (!isOptionalId(categoryId)) return rejected("Choose a category or Unassigned.");
+  if (!isOptionalId(payingAccountId)) return rejected("The card's Paying Account is missing.");
   const description = optionalText(input.description);
   if (description.length > DESCRIPTION_MAX_LENGTH) {
     return rejected(`A description can be at most ${DESCRIPTION_MAX_LENGTH} characters.`);
@@ -101,6 +115,7 @@ export function checkTransactionDetails(input: Record<string, unknown>): Details
       amountCents: asCents(amountCents),
       accountId,
       categoryId: categoryId ?? null,
+      payingAccountId: payingAccountId ?? null,
       description,
       notes,
     },

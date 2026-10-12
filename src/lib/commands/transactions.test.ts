@@ -4,7 +4,7 @@ import { parsePHP } from "@/lib/currency";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { listUnpushed } from "@/lib/events/log";
 import { listTransactions } from "@/lib/transactions/projection";
-import { createAccount, retireAccount } from "./accounts";
+import { createAccount, editAccount, retireAccount } from "./accounts";
 import { createCategory, createGroup, retireCategory } from "./categories";
 import {
   addTransaction,
@@ -205,6 +205,71 @@ describe("editTransaction", () => {
     await expect(editTransaction(MEMBER, id, expense({ accountId: old.id }))).rejects.toThrow(
       "Old bank is retired."
     );
+  });
+});
+
+describe("the Paying Account of a card transaction", () => {
+  let walletId: string;
+  let cardId: string;
+
+  beforeEach(async () => {
+    walletId = (
+      await createAccount(MEMBER, { name: "Wallet", type: "cash", startingBalanceCents: peso("0") })
+    ).id;
+    cardId = (
+      await createAccount(MEMBER, {
+        name: "Visa",
+        type: "credit_card",
+        startingBalanceCents: peso("0"),
+        payingAccountId: bankId,
+      })
+    ).id;
+  });
+
+  const payTheCardFromWallet = () =>
+    editAccount(MEMBER, cardId, {
+      name: "Visa",
+      type: "credit_card",
+      startingBalanceCents: peso("0"),
+      payingAccountId: walletId,
+    });
+
+  it("records the card's Paying Account, and keeps it when the card's default changes", async () => {
+    const { id } = await addTransaction(MEMBER, expense({ accountId: cardId }));
+    await payTheCardFromWallet();
+
+    await editTransaction(MEMBER, id, expense({ accountId: cardId, description: "Lunch" }));
+
+    expect(await listTransactions()).toMatchObject([
+      { description: "Lunch", payingAccountId: bankId },
+    ]);
+  });
+
+  it("records none for a transaction on an account that isn't a card", async () => {
+    await addTransaction(MEMBER, expense());
+
+    expect(await listTransactions()).toMatchObject([{ payingAccountId: null }]);
+  });
+
+  it("re-records it when a transaction moves onto a card, and clears it when it moves off", async () => {
+    const { id } = await addTransaction(MEMBER, expense());
+    await payTheCardFromWallet();
+
+    await editTransaction(MEMBER, id, expense({ accountId: cardId }));
+    expect(await listTransactions()).toMatchObject([{ payingAccountId: walletId }]);
+
+    await editTransaction(MEMBER, id, expense({ accountId: walletId }));
+    expect(await listTransactions()).toMatchObject([{ payingAccountId: null }]);
+  });
+
+  it("appends nothing for an unchanged card transaction after the card's default changes", async () => {
+    const { id } = await addTransaction(MEMBER, expense({ accountId: cardId }));
+    await payTheCardFromWallet();
+    const before = await listUnpushed(100);
+
+    await editTransaction(MEMBER, id, expense({ accountId: cardId }));
+
+    expect(await listUnpushed(100)).toHaveLength(before.length);
   });
 });
 
