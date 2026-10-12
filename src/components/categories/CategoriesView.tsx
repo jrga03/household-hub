@@ -1,19 +1,74 @@
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
+import { AllocationList } from "@/components/allocations/AllocationList";
+import { categoryNames } from "@/components/allocations/envelopes";
+import {
+  MoneyAmount,
+  NegativeNote,
+  OVERDRAWN_UNASSIGNED,
+  OVERSPENT_CATEGORY,
+} from "@/components/allocations/MoneyAmount";
+import { MoveMoneyDialog } from "@/components/allocations/MoveMoneyDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { useAccountNames, useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
+import { useAccountMoney } from "@/hooks/useTransactions";
+import { isCreditCard } from "@/lib/accounts/events";
+import type { AllocationRow } from "@/lib/allocations/projection";
 import { DEFAULT_GROUPS } from "@/lib/categories/defaults";
 import type { RecordNoun } from "@/lib/categories/events";
 import type { CategoryList, CategoryRow, GroupRow } from "@/lib/categories/projection";
 import { seedDefaultCategories, unretireCategory, unretireGroup } from "@/lib/commands/categories";
 import type { Actor } from "@/lib/commands/accounts";
-import { errorMessage } from "@/lib/utils";
+import { sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
+import { sumCategoryMoney, type AccountMoney, type CategoryMoney } from "@/lib/transactions/money";
+import { cn, errorMessage } from "@/lib/utils";
 import { AddCategoryForm, AddGroupForm } from "./AddCategoryForms";
 import { EditCategoryDialog, EditGroupDialog } from "./EditCategoryDialogs";
 
 type Editing = { kind: RecordNoun; id: string } | null;
+
+/** Closed, adding an allocation, or editing one. */
+type Moving = { allocation?: AllocationRow } | null;
+
+interface MoneyView {
+  categories: Map<string, CategoryMoney>;
+  accountNames: Map<string, string>;
+}
+
+/** Non-zero amounts by account ID, named and sorted by name. */
+function namedAmounts(
+  byId: Map<string, Cents> | undefined,
+  names: Map<string, string>,
+  unknown: string
+) {
+  return [...(byId ?? [])]
+    .filter(([, cents]) => cents !== 0)
+    .map(([id, cents]) => ({ id, cents, name: names.get(id) ?? unknown }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+const accountsHolding = (moneyView: MoneyView, categoryId: string) =>
+  namedAmounts(
+    moneyView.categories.get(categoryId)?.byAccount,
+    moneyView.accountNames,
+    "An account"
+  );
+
+const totalOf = (moneyView: MoneyView, categories: CategoryRow[]): Cents =>
+  sumCents(
+    categories.map((category) => moneyView.categories.get(category.id)?.total ?? ZERO_CENTS)
+  );
 
 function findEditing(list: CategoryList, editing: Editing) {
   if (!editing) return { group: undefined, category: undefined };
@@ -26,9 +81,17 @@ function findEditing(list: CategoryList, editing: Editing) {
 
 export function CategoriesView({ actor }: { actor: Actor }) {
   const list = useCategoryList();
+  const accountMoney = useAccountMoney();
+  const accountNames = useAccountNames();
+  const categoryMoney = useMemo(
+    () => accountMoney && sumCategoryMoney(accountMoney),
+    [accountMoney]
+  );
   const [editing, setEditing] = useState<Editing>(null);
+  const [moving, setMoving] = useState<Moving>(null);
 
-  if (!list) return null;
+  if (!list || !accountMoney || !accountNames || !categoryMoney) return null;
+  const moneyView: MoneyView = { categories: categoryMoney, accountNames };
 
   const { group: editingGroup, category: editingCategory } = findEditing(list, editing);
   // Another device retired it mid-edit: drop it, so unretiring later doesn't reopen the dialog.
@@ -42,6 +105,12 @@ export function CategoriesView({ actor }: { actor: Actor }) {
   return (
     <>
       {!hasHouseholdGroup && <SuggestedCategories actor={actor} />}
+
+      <UnassignedCard
+        accountMoney={accountMoney}
+        accountNames={accountNames}
+        onMove={() => setMoving({})}
+      />
 
       <Card>
         <CardHeader>
@@ -60,18 +129,25 @@ export function CategoriesView({ actor }: { actor: Actor }) {
                 <li key={group.id} className="rounded-md border">
                   <div className="flex items-center justify-between gap-3 border-b bg-muted/40 px-3 py-2">
                     <RecordName record={group} showRetired />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      aria-label={`Edit group ${group.name}`}
-                      onClick={() => setEditing({ kind: "group", id: group.id })}
-                    >
-                      Edit
-                    </Button>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <MoneyAmount
+                        cents={totalOf(moneyView, group.categories)}
+                        className="font-medium"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Edit group ${group.name}`}
+                        onClick={() => setEditing({ kind: "group", id: group.id })}
+                      >
+                        Edit
+                      </Button>
+                    </div>
                   </div>
                   <CategoryItems
                     label={`${group.name} categories`}
                     categories={group.categories}
+                    moneyView={moneyView}
                     onEdit={(id) => setEditing({ kind: "category", id })}
                   />
                 </li>
@@ -86,13 +162,21 @@ export function CategoriesView({ actor }: { actor: Actor }) {
               <CategoryItems
                 label="Ungrouped categories"
                 categories={list.ungrouped}
+                moneyView={moneyView}
                 onEdit={(id) => setEditing({ kind: "category", id })}
               />
             </div>
           )}
+          <RetiredHoldingMoney categories={list.retiredCategories} moneyView={moneyView} />
           <RetiredCategories actor={actor} list={list} />
         </CardContent>
       </Card>
+
+      <AllocationList
+        categoryNames={categoryNames(list)}
+        accountNames={accountNames}
+        onEdit={(allocation) => setMoving({ allocation })}
+      />
 
       <Card>
         <CardHeader>
@@ -118,7 +202,169 @@ export function CategoriesView({ actor }: { actor: Actor }) {
           onClose={() => setEditing(null)}
         />
       )}
+      {moving && (
+        <MoveMoneyDialog
+          actor={actor}
+          allocation={moving.allocation}
+          onClose={() => setMoving(null)}
+        />
+      )}
     </>
+  );
+}
+
+/**
+ * Each account's Unassigned and Card Payments, where Move money starts. A
+ * retired account still holding money stays listed until it's moved out.
+ */
+function UnassignedCard({
+  accountMoney,
+  accountNames,
+  onMove,
+}: {
+  accountMoney: Map<string, AccountMoney>;
+  accountNames: Map<string, string>;
+  onMove: () => void;
+}) {
+  const accounts = useAccounts();
+  const retiredAccounts = useRetiredAccounts();
+  if (!accounts || !retiredAccounts) return null;
+  const inUse = accounts.filter((account) => !isCreditCard(account));
+  const retiredHoldingMoney = retiredAccounts.filter((account) => {
+    const envelopes = accountMoney.get(account.id)?.envelopes;
+    return (
+      envelopes &&
+      (envelopes.unassigned !== 0 ||
+        [...envelopes.cardPayments.values()].some((cents) => cents !== 0))
+    );
+  });
+  const listed = [...inUse, ...retiredHoldingMoney];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Unassigned</CardTitle>
+        <CardDescription>Money in each account not yet in a category.</CardDescription>
+        <CardAction>
+          <Button onClick={onMove} disabled={inUse.length === 0}>
+            Move money
+          </Button>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        {listed.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Add a bank, cash or e-wallet account on Home first.
+          </p>
+        ) : (
+          <ul aria-label="Unassigned by account" className="divide-y rounded-md border">
+            {listed.map((account) => {
+              const envelopes = accountMoney.get(account.id)?.envelopes;
+              const unassigned = envelopes?.unassigned ?? ZERO_CENTS;
+              const cardPayments = namedAmounts(envelopes?.cardPayments, accountNames, "A card");
+              return (
+                <li key={account.id} className="space-y-1 px-3 py-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="flex min-w-0 items-center gap-2">
+                      <span className="truncate font-medium">{account.name}</span>
+                      {account.retired && <Badge variant="outline">Retired</Badge>}
+                    </p>
+                    <MoneyAmount cents={unassigned} />
+                  </div>
+                  <NegativeNote cents={unassigned} label={OVERDRAWN_UNASSIGNED} />
+                  {cardPayments.map(({ id, cents, name }) => (
+                    <div
+                      key={id}
+                      className="flex items-center justify-between gap-3 text-sm text-muted-foreground"
+                    >
+                      <span className="min-w-0 truncate">Card Payment · {name}</span>
+                      <MoneyAmount cents={cents} />
+                    </div>
+                  ))}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** A category's money, expandable into the accounts holding it. */
+function CategoryMoneyItem({
+  category,
+  moneyView,
+  children,
+}: {
+  category: CategoryRow;
+  moneyView: MoneyView;
+  children?: React.ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const byAccount = accountsHolding(moneyView, category.id);
+  const total = moneyView.categories.get(category.id)?.total ?? ZERO_CENTS;
+
+  return (
+    <li className="px-3 py-2 pl-6">
+      <div className="flex items-center justify-between gap-3">
+        <RecordName record={category} />
+        <div className="flex shrink-0 items-center gap-1">
+          <MoneyAmount cents={total} />
+          {byAccount.length > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-expanded={expanded}
+              aria-label={`${category.name} by account`}
+              onClick={() => setExpanded(!expanded)}
+            >
+              <ChevronDown className={cn("transition-transform", expanded && "rotate-180")} />
+            </Button>
+          )}
+          {children}
+        </div>
+      </div>
+      <NegativeNote cents={total} label={OVERSPENT_CATEGORY} />
+      {expanded && byAccount.length > 0 && (
+        <ul aria-label={`${category.name} by account`} className="mt-1 space-y-1 pl-3">
+          {byAccount.map(({ id, cents, name }) => (
+            <li
+              key={id}
+              className="flex items-center justify-between gap-3 text-sm text-muted-foreground"
+            >
+              <span className="min-w-0 truncate">{name}</span>
+              <MoneyAmount cents={cents} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
+/** Retired categories keep their money until it's moved out, so they stay listed with it. */
+function RetiredHoldingMoney({
+  categories,
+  moneyView,
+}: {
+  categories: CategoryRow[];
+  moneyView: MoneyView;
+}) {
+  const stillHolding = categories.filter(
+    (category) => accountsHolding(moneyView, category.id).length > 0
+  );
+  if (stillHolding.length === 0) return null;
+
+  return (
+    <div className="rounded-md border">
+      <p className="border-b px-3 py-2 text-sm font-medium">Retired, still holding money</p>
+      <ul aria-label="Retired, still holding money" className="divide-y">
+        {stillHolding.map((category) => (
+          <CategoryMoneyItem key={category.id} category={category} moneyView={moneyView} />
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -136,10 +382,12 @@ function RecordName({ record, showRetired }: { record: GroupRow; showRetired?: b
 function CategoryItems({
   label,
   categories,
+  moneyView,
   onEdit,
 }: {
   label: string;
   categories: CategoryRow[];
+  moneyView: MoneyView;
   onEdit: (id: string) => void;
 }) {
   if (categories.length === 0) {
@@ -148,8 +396,7 @@ function CategoryItems({
   return (
     <ul aria-label={label} className="divide-y">
       {categories.map((category) => (
-        <li key={category.id} className="flex items-center justify-between gap-3 px-3 py-2 pl-6">
-          <RecordName record={category} />
+        <CategoryMoneyItem key={category.id} category={category} moneyView={moneyView}>
           <Button
             variant="ghost"
             size="sm"
@@ -158,7 +405,7 @@ function CategoryItems({
           >
             Edit
           </Button>
-        </li>
+        </CategoryMoneyItem>
       ))}
     </ul>
   );

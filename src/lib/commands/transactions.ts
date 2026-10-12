@@ -1,8 +1,6 @@
-import { sameOwnership, VISIBILITY_LABELS } from "@/lib/events/log";
 import { requestSync } from "@/lib/sync/triggers";
 import { isCreditCard } from "@/lib/accounts/events";
-import { getAccount, type AccountRow } from "@/lib/accounts/projection";
-import { canHoldMoneyIn, getCategory } from "@/lib/categories/projection";
+import type { AccountRow } from "@/lib/accounts/projection";
 import type { Cents } from "@/lib/currency";
 import {
   checkTransactionDetails,
@@ -22,6 +20,7 @@ import { getTransaction, type TransactionRow } from "@/lib/transactions/projecti
 import { errorMessage } from "@/lib/utils";
 import type { Actor } from "./accounts";
 import { appenderFor } from "./append";
+import { checkMove, refuseRetired, requireAccount, requireCategoryFor } from "./records";
 
 export interface NewTransactionInput extends TransactionInput {
   /** Cleared unless the member says it's pending. */
@@ -52,26 +51,9 @@ function checkedDetails(input: TransactionInput): TransactionDetails {
 const payingAccountOf = (account: AccountRow) =>
   isCreditCard(account) ? account.payingAccountId : null;
 
-function refuseRetired(record: { name: string; retired: boolean }): void {
-  if (record.retired) throw new Error(`${record.name} is retired. Choose one in use.`);
-}
-
-async function requireAccount(accountId: string): Promise<AccountRow> {
-  const account = await getAccount(accountId);
-  if (!account) throw new Error("That account no longer exists.");
-  return account;
-}
-
 async function checkCategory(categoryId: string | null, account: AccountRow): Promise<void> {
   if (categoryId === null) return;
-  const category = await getCategory(categoryId);
-  if (!category) throw new Error("That category no longer exists.");
-  if (!canHoldMoneyIn(category, account)) {
-    throw new Error(
-      `Choose a ${VISIBILITY_LABELS[account.visibility]} category for ${account.name}.`
-    );
-  }
-  refuseRetired(category);
+  refuseRetired(await requireCategoryFor(categoryId, account));
 }
 
 /** Works offline; the transaction is seen by the same people as its account. */
@@ -140,16 +122,6 @@ const sameDetails = (a: TransactionDetails, b: TransactionDetails) =>
   a.payingAccountId === b.payingAccountId &&
   a.description === b.description &&
   a.notes === b.notes;
-
-function checkMove(account: AccountRow, transaction: TransactionRow): void {
-  if (!sameOwnership(account, transaction)) {
-    const visibility = VISIBILITY_LABELS[transaction.visibility];
-    throw new Error(
-      `Choose a ${visibility} account. To move it to a ${VISIBILITY_LABELS[account.visibility]} one, remove it and add it there.`
-    );
-  }
-  refuseRetired(account);
-}
 
 async function appendChange(
   actor: Actor,

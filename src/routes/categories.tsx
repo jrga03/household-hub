@@ -18,7 +18,7 @@ function CategoriesPage() {
         <div className="container mx-auto max-w-7xl px-4 py-4">
           <h1 className="text-xl font-bold">Categories</h1>
           <p className="text-sm text-muted-foreground">
-            Groups of envelopes your money sits in. Amounts arrive with transactions.
+            The money in each envelope, and where it sits.
           </p>
         </div>
       </div>

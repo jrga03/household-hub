@@ -85,7 +85,7 @@ Spec: #46. Scoped 2026-10-12 (decisions above, dated 2026-10-11 and 2026-10-12).
 - [x] #48 Categories and groups
 - [x] #49 Transactions core
 - [x] #50 Card Payment reservation
-- [ ] #51 Allocations and the Categories screen
+- [x] #51 Allocations and the Categories screen
 - [x] #52 Transaction list: virtualized, filters, totals, search
 - [ ] #53 Transaction list actions: bulk, swipe, detail pane (blocked by #52)
 - [ ] Close #46
@@ -121,6 +121,39 @@ Seams (from #46's Testing Decisions): the bulk commands (Vitest), one Playwright
 - **Review deferral: each bulk item reads its transaction twice** (once to skip unchanged ones, once inside the single command). Revisit: if bulk actions on thousands of rows feel slow.
 - **No layout baseline shows the pane, toolbar or swipe row**, since the seeded user has no transactions; the pane is covered by the 1600 px e2e test instead. Revisit: with #52's empty-state deferral, if the seed gains transactions. Agreed 2026-10-12.
 - **Swipe has no unit seam**; it's checked by hand on Mobile Chrome. Why: the M2 seams were agreed without it, and the ticket runs unattended. Revisit: if swipe regresses.
+
+## Issue #51: allocations and the Categories screen
+
+Seams (from #46's Testing Decisions and the issue's acceptance criteria): the allocation projection and the read-time envelope sums through `receiveEvents` (Vitest; permutations, duplicates, the balance = Unassigned + category money + Card Payments invariant after every permutation), the commands (Vitest). A Playwright demo flow on chromium to see the screen.
+
+- [x] Shared `permutations` test helper (resolves the #49 review deferral)
+- [x] Allocation events, decoder and projection (details and removal resolve apart); registered; Dexie v7 table
+- [x] Read-time sums apply allocations; category money summed across accounts with a per-account breakdown; invariant after every permutation; 10,000-transaction timing guard covers the screen's sums
+- [x] Commands: add, edit, remove, restore; refuse retired accounts, retired destinations, envelopes of another visibility or owner; overspending doesn't block
+- [x] Categories screen: money per group and category (expandable per account), each account's Unassigned and Card Payments, negatives in red with a label, "Retired, still holding money"
+- [x] Move money dialog with an overspend warning; allocations list with edit and remove (Undo)
+- [x] Playwright: the issue's demo (chromium)
+- [x] build, lint, vitest, both tsc, knip
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
+
+### #51 decisions
+
+- **Four event types**: `allocation.created` / `allocation.edited` (details: date, account, from, to, amount) and `allocation.removed` / `allocation.restored`; details and removal resolve by their own latest HLC, like transactions.
+- **From and to are a tagged envelope** (`unassigned`, `category` with an ID, `card_payment` with a card ID); a move between the same envelope is refused by the decoder, so it never projects.
+- **Money can move out of a retired category or card, never into one** (as the destination; an allocation already naming it stays editable). Why: emptying a retired envelope needs a move out of it.
+- **Allocations happen only in accounts with envelopes**: a card account is refused by the command and ignored by the sums. Money goes into a Card Payment only in the card's current Paying Account (the issue's "its cards' Card Payments"); it comes out of any Card Payment of the account's visibility, so a reservation left behind when the card's default changed can be moved out.
+- **A negative category shows red with "Spent more than it holds"**; negative Unassigned uses the agreed "Allocated more than this account has". The label sits on its own line beneath the row, so names don't truncate on phones. Card Payments and group totals show red without a label. The issue's single label didn't fit an overspent category. Agreed 2026-10-12.
+- **The overspend warning is live in the dialog** whenever the source envelope (Unassigned or any other) would go negative, discounting the edited allocation's own earlier move. It never blocks.
+- **"Retired, still holding money" lists retired categories with non-zero money** in any account, beside the existing Retired toggle (which still offers Unretire).
+- **The Unassigned card lists accounts in use, plus retired accounts still holding Unassigned or Card Payment money** (badged Retired), like "Retired, still holding money" for categories.
+- **Allocations are listed in an "Allocations" card** on the Categories screen, all of them, newest first, each editable (Remove with Undo in the dialog). Revisit: paginate if the list grows long.
+- **Account and category checks shared by transactions and allocations** moved to `src/lib/commands/records.ts`; the `permutations`/`orders` test helper to `src/test/permutations.ts` (resolves the #49 deferral).
+- **Review fixes:** the record is called an allocation in every label ("move" is the glossary's avoided word for Transfer; "Move money" stays as the action); an edit can't put more money into a retired destination (only lower the amount); a removed allocation can't be edited; `moneyIn` lives beside `Envelopes` in `lib/transactions/money.ts`; the money permutation test permutes the creates and a restore under the invariant.
+- **Review: restoring an allocation re-checks nothing**, so Undo after its destination was retired puts the money back there. Kept: a restore undoes a removal, like transactions, and "existing ones stay editable and removable" (2026-10-11). Agreed 2026-10-12.
+- **Review: the timing guard measures the sums, not the Dexie reads.** Kept: fake-indexeddb read time doesn't represent a browser, and the agreed guard is on summing at read time (2026-10-12).
+- **Review deferral: `envelope.kind` is switched on in four places** (`moneyIn`, `addToAllocated`, `envelopeLabel`, `envelopeKey`). Revisit: if a fourth envelope kind is added.
+- **The 10,000-transaction timing guard now covers the screen**: 10,000 transactions plus 500 allocations, summed and pivoted by category (about 3 ms locally; one run under parallel load failed the 50 ms limit once and passed on every rerun).
 
 ## Issue #52: transaction list
 
@@ -420,8 +453,12 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - Triaged 2026-10-11: #15 closed as completed; #40 updated (deploy steps done; first-run check 2026-10-13, still-active check on or after 2026-10-17).
 - Next: #40's two dashboard checks (human).
 - Milestone 2 scoped 2026-10-12: spec #46, sub-issues #47-#53 (`ready-for-agent`), ADR 0005.
-- #47 merged (PR #56, ca6bba3). #48 merged (PR #57, 22a23d5). #49 merged (PR #58, 0593a29). #50 merged (PR #60, dcf7044). #52 merged (PR #62, efc7c46). Their worktrees and local branches are removed.
-- Next: #51 (allocations and the Categories screen), in progress in its worktree; #53 (bulk, swipe, detail pane) is unblocked.
+- #47 merged (PR #56, ca6bba3). #48 merged (PR #57, 22a23d5). #49 merged (PR #58, 0593a29). #50 merged (PR #60, dcf7044). #52 merged (PR #62, efc7c46). #51 merged (PR #64, 791b302). Their worktrees and local branches are removed.
+- Next: #53 (bulk, swipe, detail pane), in progress in its worktree; then close #46.
+- Gotchas found in #51:
+  - Sub-issues built in parallel each add a section under Milestone 2 here, so the second PR to merge conflicts in this file; keep both sections, newest first.
+  - Move money's selects name each option with its amount ("Groceries · ₱0.00"), so e2e picks options by that full name.
+  - `sumAccountMoney` takes allocations as a third argument; `sumCategoryMoney` pivots its result per category, and `moneyIn` reads one envelope.
 - Gotchas found in #52:
   - Filters live in the route's search params (`readTransactionFilter`); #53's selection and detail pane can add params the same way.
   - The search box keeps its own text and resyncs only when the URL query is cleared; don't drive it from `useSearch` directly (the URL lags a render).
