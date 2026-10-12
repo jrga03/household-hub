@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Layers, LogOut, Settings, User, X } from "lucide-react";
+import { Layers, LogOut, Receipt, Settings, User, X } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -8,7 +8,7 @@ import { signOutWithToast } from "@/lib/sign-out";
 import { cn } from "@/lib/utils";
 
 /**
- * Mobile navigation drawer: the user profile, Categories, Settings and sign
+ * Mobile navigation drawer: the user profile, Transactions, Categories, Settings and sign
  * out. Primary destinations also live in the fixed BottomTabBar.
  *
  * @see src/components/layout/AppLayout.tsx - Parent layout component
@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
  */
 
 const DRAWER_LINKS = [
+  { to: "/transactions", label: "Transactions", icon: Receipt },
   { to: "/categories", label: "Categories", icon: Layers },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;

@@ -14,6 +14,7 @@ import { reportError } from "@/lib/sentry";
 import type { StoredEvent } from "@/lib/events/log";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { CategoryRow, GroupRow } from "@/lib/categories/projection";
+import type { TransactionRow } from "@/lib/transactions/projection";
 
 const LEGACY_DATABASE_NAME = "HouseholdHubDB";
 const DATABASE_NAME = "household-hub";
@@ -28,6 +29,7 @@ export class HouseholdHubDB extends Dexie {
   accounts!: Table<AccountRow, string>;
   categoryGroups!: Table<GroupRow, string>;
   categories!: Table<CategoryRow, string>;
+  transactions!: Table<TransactionRow, string>;
   meta!: Table<MetaRow, MetaRow["key"]>;
 
   constructor() {
@@ -65,6 +67,7 @@ export class HouseholdHubDB extends Dexie {
           })
       );
     this.version(5).stores({ categoryGroups: "id", categories: "id" });
+    this.version(6).stores({ transactions: "id, [date+recordedHlc]" });
   }
 }
 

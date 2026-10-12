@@ -18,7 +18,7 @@ import {
 } from "@/lib/accounts/events";
 import { payingAccountChoices } from "@/lib/accounts/paying-account";
 import type { AccountDetailsInput } from "@/lib/commands/accounts";
-import { formatPHP, parsePHPSafe, PESO_SIGN } from "@/lib/currency";
+import { formatPHPInput, parsePHPSafe, PESO_SIGN } from "@/lib/currency";
 import { VISIBILITY_LABELS, type Ownership } from "@/lib/events/log";
 
 export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
@@ -100,7 +100,7 @@ export function AccountDetailsFields({
           inputMode="decimal"
           placeholder="0.00"
           autoComplete="off"
-          defaultValue={defaults && formatPHP(defaults.startingBalanceCents).replace(PESO_SIGN, "")}
+          defaultValue={defaults && formatPHPInput(defaults.startingBalanceCents)}
         />
       </div>
       {isCard && (

@@ -1,5 +1,5 @@
 import { db } from "@/lib/dexie/db";
-import type { LoggedEvent, Ownership, Visibility } from "@/lib/events/log";
+import { sameOwnership, type LoggedEvent, type Ownership, type Visibility } from "@/lib/events/log";
 import type { EntityProjection } from "@/lib/events/projector";
 import {
   CATEGORY_CREATED,
@@ -30,9 +30,6 @@ export type GroupRow = CategoryRecord;
 export interface CategoryRow extends CategoryRecord {
   groupId: string;
 }
-
-const sameOwnership = (a: Ownership, b: Ownership) =>
-  a.visibility === b.visibility && a.ownerUserId === b.ownerUserId;
 
 /**
  * The earliest create fixes the record, its visibility and owner (ADR 0005).
@@ -114,6 +111,10 @@ export const listCategoriesInGroup = (groupId: string) =>
 
 /** A group holds only categories seen by exactly the people who see it (ADR 0005). */
 export const canHold = (group: GroupRow, category: Ownership) => sameOwnership(group, category);
+
+/** A category holds money only in accounts seen by exactly the people who see it (ADR 0005). */
+export const canHoldMoneyIn = (category: CategoryRow, account: Ownership) =>
+  sameOwnership(category, account);
 
 export interface GroupListItem extends GroupRow {
   categories: CategoryRow[];

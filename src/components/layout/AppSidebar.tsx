@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, Layers, Settings, ChevronLeft, LogOut, User } from "lucide-react";
+import { Home, Layers, Receipt, Settings, ChevronLeft, LogOut, User } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils";
  */
 
 interface NavItem {
-  to: "/" | "/categories" | "/settings";
+  to: "/" | "/transactions" | "/categories" | "/settings";
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   shortcut: string;
@@ -36,6 +36,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { to: "/", label: "Home", icon: Home, shortcut: "g h" },
+  { to: "/transactions", label: "Transactions", icon: Receipt, shortcut: "g t" },
   { to: "/categories", label: "Categories", icon: Layers, shortcut: "g c" },
   { to: "/settings", label: "Settings", icon: Settings, shortcut: "g s" },
 ];

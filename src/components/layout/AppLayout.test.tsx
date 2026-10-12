@@ -61,6 +61,10 @@ vi.mock("@/components/StorageWarning", () => ({
 vi.mock("@/components/PWAInstallPrompt", () => ({
   PWAInstallPrompt: () => null,
 }));
+vi.mock("@/components/transactions/QuickEntry", () => ({
+  AddTransactionButton: () => null,
+  QuickEntryDialog: () => null,
+}));
 vi.mock("@/hooks/useKeyboardShortcuts", () => ({
   useKeyboardShortcuts: () => undefined,
 }));

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Home, Layers, Settings } from "lucide-react";
+import { Home, Layers, Receipt, Settings } from "lucide-react";
 
 /**
  * Fixed bottom tab bar for the mobile layout branch: one-tap, thumb-reachable
@@ -22,6 +22,7 @@ import { Home, Layers, Settings } from "lucide-react";
 const TABS = [
   // "/" would fuzzy-match every route; it must be exact
   { to: "/", label: "Home", icon: Home, exact: true },
+  { to: "/transactions", label: "Transactions", icon: Receipt, exact: false },
   { to: "/categories", label: "Categories", icon: Layers, exact: false },
   { to: "/settings", label: "Settings", icon: Settings, exact: false },
 ] as const;
