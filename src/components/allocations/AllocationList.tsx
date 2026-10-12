@@ -7,7 +7,7 @@ import { formatPHP } from "@/lib/currency";
 import { parseLocalDate } from "@/lib/utils/dates";
 import { envelopeLabel } from "./envelopes";
 
-/** Every move of money between envelopes, newest first, each editable. */
+/** Every allocation, newest first, each editable. */
 export function AllocationList({
   categoryNames,
   accountNames,
@@ -26,11 +26,11 @@ export function AllocationList({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Moves</CardTitle>
+        <CardTitle>Allocations</CardTitle>
         <CardDescription>Money moved between envelopes, newest first.</CardDescription>
       </CardHeader>
       <CardContent>
-        <ul aria-label="Moves" className="divide-y rounded-md border">
+        <ul aria-label="Allocations" className="divide-y rounded-md border">
           {allocations.map((allocation) => (
             <li key={allocation.id} className="flex items-center justify-between gap-3 px-3 py-2">
               <div className="min-w-0">
@@ -47,7 +47,7 @@ export function AllocationList({
                 <Button
                   variant="ghost"
                   size="sm"
-                  aria-label={`Edit the ${formatPHP(allocation.amountCents)} move to ${label(allocation, "to")}`}
+                  aria-label={`Edit the ${formatPHP(allocation.amountCents)} allocation to ${label(allocation, "to")}`}
                   onClick={() => onEdit(allocation)}
                 >
                   Edit

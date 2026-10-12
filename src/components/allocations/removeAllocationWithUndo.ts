@@ -13,15 +13,15 @@ export async function removeAllocationWithUndo(
   try {
     await removeAllocation(actor, allocation.id);
   } catch (caught) {
-    toast.error(errorMessage(caught, "Couldn't remove the move."));
+    toast.error(errorMessage(caught, "Couldn't remove the allocation."));
     return;
   }
-  toast.success(`Removed the ${formatPHP(allocation.amountCents)} move`, {
+  toast.success(`Removed the ${formatPHP(allocation.amountCents)} allocation`, {
     action: {
       label: "Undo",
       onClick: () =>
         void restoreAllocation(actor, allocation.id).catch((caught: unknown) =>
-          toast.error(errorMessage(caught, "Couldn't restore the move."))
+          toast.error(errorMessage(caught, "Couldn't restore the allocation."))
         ),
     },
   });

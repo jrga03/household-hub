@@ -409,6 +409,13 @@ describe("account money", () => {
       "allocation.removed",
       3500
     );
+    const undoneRestored = event(
+      "m-undone-restored",
+      "allocation",
+      allocationId(3),
+      "allocation.restored",
+      3800
+    );
     const onCard = allocation("m-on-card", allocationId(4), 4000, {
       accountId: CARD,
       to: toGroceries,
@@ -432,9 +439,16 @@ describe("account money", () => {
     });
 
     it.each(
-      orders([intoGroceriesEdited, intoCardPayment, undoneRemoved, onCard, overspent, inWallet])
+      orders([
+        intoGroceries,
+        intoGroceriesEdited,
+        undoneRemoved,
+        undoneRestored,
+        intoCardPayment,
+        overspent,
+      ])
     )("sums the same money from events in the order %j", async (_ids, order) => {
-      await receiveEvents([bank, wallet, card, spent, intoGroceries, undone], 0);
+      await receiveEvents([bank, wallet, card, spent, undone, onCard, inWallet], 0);
       for (const arriving of order) await receiveEvents([arriving], 0);
 
       const money = await readAccountMoney();
@@ -443,9 +457,9 @@ describe("account money", () => {
         cleared: 85000,
         pending: 0,
         envelopes: {
-          unassigned: -140000,
+          unassigned: -145000,
           categories: new Map([
-            [GROCERIES, 15000],
+            [GROCERIES, 20000],
             [RENT, 200000],
           ]),
           cardPayments: new Map([[CARD, 10000]]),
@@ -461,9 +475,9 @@ describe("account money", () => {
           [
             GROCERIES,
             {
-              total: 17000,
+              total: 22000,
               byAccount: new Map([
-                [BANK, 15000],
+                [BANK, 20000],
                 [WALLET, 2000],
               ]),
             },

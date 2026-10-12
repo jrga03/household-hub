@@ -148,6 +148,6 @@ describe("allocation projection", () => {
     await receiveEvents([created], 0);
 
     expect(await describeEvent(created)).toBe("Move money: ₱8,000.00");
-    expect(await describeEvent(removed)).toBe("Remove move: ₱8,000.00");
+    expect(await describeEvent(removed)).toBe("Remove allocation: ₱8,000.00");
   });
 });

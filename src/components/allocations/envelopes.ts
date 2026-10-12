@@ -1,7 +1,5 @@
 import { UNASSIGNED_ENVELOPE, type Envelope } from "@/lib/allocations/events";
 import type { CategoryList } from "@/lib/categories/projection";
-import { ZERO_CENTS, type Cents } from "@/lib/currency";
-import type { Envelopes } from "@/lib/transactions/money";
 
 /** Radix Select holds strings: "unassigned", "category:<id>" or "card_payment:<id>". */
 export const envelopeKey = (envelope: Envelope) =>
@@ -32,11 +30,4 @@ export function envelopeLabel(
   if (envelope.kind === "unassigned") return "Unassigned";
   if (envelope.kind === "category") return categories.get(envelope.id) ?? "A category";
   return `Card Payment · ${accounts.get(envelope.id) ?? "A card"}`;
-}
-
-export function moneyIn(envelopes: Envelopes | null | undefined, envelope: Envelope): Cents {
-  if (!envelopes) return ZERO_CENTS;
-  if (envelope.kind === "unassigned") return envelopes.unassigned;
-  const held = envelope.kind === "category" ? envelopes.categories : envelopes.cardPayments;
-  return held.get(envelope.id) ?? ZERO_CENTS;
 }

@@ -43,9 +43,9 @@ import {
   type Cents,
 } from "@/lib/currency";
 import { sameOwnership } from "@/lib/events/log";
-import type { AccountMoney, Envelopes } from "@/lib/transactions/money";
+import { moneyIn, type AccountMoney, type Envelopes } from "@/lib/transactions/money";
 import { errorMessage } from "@/lib/utils";
-import { envelopeFromKey, envelopeKey, moneyIn } from "./envelopes";
+import { envelopeFromKey, envelopeKey } from "./envelopes";
 import { removeAllocationWithUndo } from "./removeAllocationWithUndo";
 
 interface EnvelopeChoice {
@@ -62,12 +62,14 @@ type Side = "from" | "to";
 
 /**
  * The account's Card Payments and the categories that fit it, by group. Money
- * moves out of a retired category or card but not into one, unless the
- * allocation already names it.
+ * goes into the Card Payment of a card in use paid from this account, and
+ * comes out of any card's Card Payment still holding money here. It moves out
+ * of a retired category but not into one. The allocation's own choice stays.
  */
 function envelopeChoices(
   side: Side,
   account: AccountRow,
+  envelopes: Envelopes | null | undefined,
   categories: CategoryList,
   cards: AccountRow[],
   current: Envelope | undefined
@@ -83,14 +85,20 @@ function envelopeChoices(
     .filter(fits)
     .map(categoryChoice)
     .filter((choice) => side === "from" || isCurrent(choice.envelope));
+  const takesMoney = (card: AccountRow) => card.payingAccountId === account.id && !card.retired;
   const cardChoices = cards
     .filter((card) => sameOwnership(card, account))
     .map((card) => ({
+      card,
       envelope: { kind: "card_payment", id: card.id } satisfies Envelope,
       label: `Card Payment · ${card.name}${card.retired ? " (retired)" : ""}`,
-      retired: card.retired,
     }))
-    .filter((choice) => side === "from" || !choice.retired || isCurrent(choice.envelope));
+    .filter(
+      ({ card, envelope }) =>
+        takesMoney(card) ||
+        isCurrent(envelope) ||
+        (side === "from" && moneyIn(envelopes, envelope) !== 0)
+    );
 
   const groups = [
     { label: "Card Payments", choices: cardChoices },
@@ -134,7 +142,7 @@ export function MoveMoneyDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="@container max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{allocation ? "Edit move" : "Move money"}</DialogTitle>
+          <DialogTitle>{allocation ? "Edit allocation" : "Move money"}</DialogTitle>
           <DialogDescription>
             Moves money between envelopes inside one account. The balance doesn&apos;t change.
           </DialogDescription>
@@ -204,7 +212,7 @@ function MoveMoneyForm({
   const envelopes = money.get(accountId)?.envelopes;
 
   const choicesFor = (side: Side) =>
-    account ? envelopeChoices(side, account, categories, cards, allocation?.[side]) : [];
+    account ? envelopeChoices(side, account, envelopes, categories, cards, allocation?.[side]) : [];
   const fromChoices = choicesFor("from");
   const toChoices = choicesFor("to");
   // A category or card of another visibility can't follow the account change.
@@ -243,7 +251,7 @@ function MoveMoneyForm({
       try {
         if (allocation) {
           await editAllocation(actor, allocation.id, input);
-          toast.success("Move saved");
+          toast.success("Allocation saved");
         } else {
           await addAllocation(actor, input);
           toast.success("Money moved");
@@ -267,7 +275,7 @@ function MoveMoneyForm({
     <form
       action={saveAction}
       className="space-y-4"
-      aria-label={allocation ? "Edit move" : "Move money"}
+      aria-label={allocation ? "Edit allocation" : "Move money"}
     >
       <div className="grid gap-4 @[480px]:grid-cols-2">
         <div className="space-y-2">

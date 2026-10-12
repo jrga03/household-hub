@@ -95,9 +95,9 @@ export function decodeAllocationRemoval(event: LoggedEvent): boolean | null {
 
 const ACTION_LABELS: Record<string, string> = {
   [ALLOCATION_CREATED]: "Move money",
-  [ALLOCATION_EDITED]: "Edit move",
-  [ALLOCATION_REMOVED]: "Remove move",
-  [ALLOCATION_RESTORED]: "Restore move",
+  [ALLOCATION_EDITED]: "Edit allocation",
+  [ALLOCATION_REMOVED]: "Remove allocation",
+  [ALLOCATION_RESTORED]: "Restore allocation",
 };
 
 /**
@@ -108,7 +108,7 @@ export function describeAllocationEvent(
   event: LoggedEvent,
   current: AllocationDetails | undefined
 ): string {
-  const action = ACTION_LABELS[event.eventType] ?? "Change move";
+  const action = ACTION_LABELS[event.eventType] ?? "Change allocation";
   const details = decodeAllocationDetails(event) ?? current;
   return details ? `${action}: ${formatPHP(details.amountCents)}` : action;
 }

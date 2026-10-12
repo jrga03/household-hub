@@ -62,17 +62,19 @@ test("moving money between envelopes, past Unassigned, with an undoable removal"
     "BDO Savings₱8,000.00"
   );
 
-  const moves = page.getByRole("list", { name: "Moves" });
-  await expect(moves.getByRole("listitem")).toHaveCount(2);
-  await moves.getByRole("button", { name: "Edit the ₱15,000.00 move to Forever House" }).click();
+  const allocations = page.getByRole("list", { name: "Allocations" });
+  await expect(allocations.getByRole("listitem")).toHaveCount(2);
+  await allocations
+    .getByRole("button", { name: "Edit the ₱15,000.00 allocation to Forever House" })
+    .click();
   await page
-    .getByRole("dialog", { name: "Edit move" })
+    .getByRole("dialog", { name: "Edit allocation" })
     .getByRole("button", { name: "Remove" })
     .click();
-  await expect(moves.getByRole("listitem")).toHaveCount(1);
+  await expect(allocations.getByRole("listitem")).toHaveCount(1);
   await expect(unassignedItem(page)).toContainText("₱12,000.00");
   await page.getByRole("button", { name: "Undo" }).click();
-  await expect(moves.getByRole("listitem")).toHaveCount(2);
+  await expect(allocations.getByRole("listitem")).toHaveCount(2);
   await expect(unassignedItem(page)).toContainText("-₱3,000.00");
 
   await groceries.getByRole("button", { name: "Edit Groceries" }).click();

@@ -52,15 +52,33 @@ function requireEnvelopeFor(envelope: Envelope, account: AccountRow) {
     : requireCardFor(envelope.id, account);
 }
 
+/** Money goes into a Card Payment only where the card's bill is paid from. */
+async function refusePaidElsewhere(card: AccountRow, account: AccountRow): Promise<void> {
+  if (card.payingAccountId === account.id) return;
+  const paying = card.payingAccountId === null ? undefined : await getAccount(card.payingAccountId);
+  throw new Error(
+    `${card.name} is paid from ${paying?.name ?? "another account"}. Choose a card paid from ${account.name}.`
+  );
+}
+
 /**
- * Money can move out of a retired category or card, never into one. Moving
- * more than an envelope holds is allowed: two offline devices can't be stopped
- * from both spending it, so a negative envelope is shown instead.
+ * Money can move out of a retired category or card, or out of a Card Payment
+ * left behind when the card's Paying Account changed, but never into one.
+ * Moving more than an envelope holds is allowed: two offline devices can't be
+ * stopped from both spending it, so a negative envelope is shown instead.
  */
-async function checkEnvelopes(details: AllocationDetails, account: AccountRow): Promise<void> {
+async function checkEnvelopes(
+  details: AllocationDetails,
+  account: AccountRow,
+  addsToDestination: boolean
+): Promise<void> {
   await requireEnvelopeFor(details.from, account);
   const destination = await requireEnvelopeFor(details.to, account);
-  if (destination) refuseRetired(destination);
+  if (!destination || !addsToDestination) return;
+  refuseRetired(destination);
+  if (details.to.kind === "card_payment" && "payingAccountId" in destination) {
+    await refusePaidElsewhere(destination, account);
+  }
 }
 
 /** Works offline; the allocation is seen by the same people as its account. */
@@ -69,7 +87,7 @@ export async function addAllocation(actor: Actor, input: AllocationInput): Promi
   const account = await requireAccount(details.accountId);
   refuseRetired(account);
   refuseCard(account);
-  await checkEnvelopes(details, account);
+  await checkEnvelopes(details, account, true);
 
   const id = crypto.randomUUID();
   await appendAllocationEvent(actor, { ...account, id }, ALLOCATION_CREATED, { ...details });
@@ -79,7 +97,7 @@ export async function addAllocation(actor: Actor, input: AllocationInput): Promi
 
 async function requireAllocation(allocationId: string): Promise<AllocationRow> {
   const allocation = await getAllocation(allocationId);
-  if (!allocation) throw new Error("That move no longer exists.");
+  if (!allocation) throw new Error("That allocation no longer exists.");
   return allocation;
 }
 
@@ -93,7 +111,7 @@ const sameDetails = (a: AllocationDetails, b: AllocationDetails) =>
 /**
  * Any detail, including the account, within the same visibility (ADR 0002).
  * An allocation on a retired account or into a retired category stays
- * editable; only a move onto a retired one is refused.
+ * editable, but can't move onto a retired one or put more money into it.
  */
 export async function editAllocation(
   actor: Actor,
@@ -102,6 +120,7 @@ export async function editAllocation(
 ): Promise<void> {
   const details = checkedDetails(input);
   const allocation = await requireAllocation(allocationId);
+  if (allocation.removed) throw new Error("That allocation was removed.");
   // A re-sent unchanged edit would carry a later HLC and undo another device's edit.
   if (sameDetails(details, allocation)) return;
   const account = await requireAccount(details.accountId);
@@ -110,11 +129,11 @@ export async function editAllocation(
     checkMove(account, allocation);
     refuseCard(account);
   }
-  await requireEnvelopeFor(details.from, account);
-  const destination = await requireEnvelopeFor(details.to, account);
-  if (destination && (accountChanged || !sameEnvelope(details.to, allocation.to))) {
-    refuseRetired(destination);
-  }
+  const addsToDestination =
+    accountChanged ||
+    !sameEnvelope(details.to, allocation.to) ||
+    details.amountCents > allocation.amountCents;
+  await checkEnvelopes(details, account, addsToDestination);
 
   await appendAllocationEvent(actor, allocation, ALLOCATION_EDITED, { ...details });
   requestSync();

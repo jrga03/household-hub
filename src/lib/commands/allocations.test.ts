@@ -196,6 +196,22 @@ describe("addAllocation", () => {
       ).rejects.toThrow("Choose a Household card for BDO Savings.");
     });
 
+    it("refuses a card paid from another account, but moves its money out", async () => {
+      const cashId = (
+        await createAccount(MEMBER, { name: "Cash", type: "cash", startingBalanceCents: peso("0") })
+      ).id;
+      const cardId = await cardPaidFrom(cashId);
+      const cardPayment: Envelope = { kind: "card_payment", id: cardId };
+
+      await expect(addAllocation(MEMBER, move({ to: cardPayment }))).rejects.toThrow(
+        "Visa is paid from Cash. Choose a card paid from BDO Savings."
+      );
+
+      // A reservation left behind when the card's Paying Account changed.
+      await addAllocation(MEMBER, move({ from: cardPayment, to: UNASSIGNED_ENVELOPE }));
+      expect((await envelopesOf(bankId))?.cardPayments.get(cardId)).toBe(cents(-800000));
+    });
+
     it("refuses a retired card as the destination", async () => {
       const cardId = await cardPaidFrom(bankId);
       await retireAccount(MEMBER, cardId);
@@ -240,6 +256,24 @@ describe("editAllocation", () => {
     await editAllocation(MEMBER, id, move({ amountCents: peso("1000") }));
 
     expect(await getAllocation(id)).toMatchObject({ amountCents: peso("1000") });
+  });
+
+  it("refuses more money into a retired category", async () => {
+    const { id } = await addAllocation(MEMBER, move());
+    await retireCategory(MEMBER, groceriesId);
+
+    await expect(editAllocation(MEMBER, id, move({ amountCents: peso("9000") }))).rejects.toThrow(
+      "Groceries is retired"
+    );
+  });
+
+  it("refuses an edit to a removed allocation", async () => {
+    const { id } = await addAllocation(MEMBER, move());
+    await removeAllocation(MEMBER, id);
+
+    await expect(editAllocation(MEMBER, id, move({ amountCents: peso("1000") }))).rejects.toThrow(
+      "That allocation was removed."
+    );
   });
 
   it("refuses a move onto a retired account or into a retired category", async () => {

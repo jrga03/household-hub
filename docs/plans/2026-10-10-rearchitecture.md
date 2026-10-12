@@ -102,21 +102,25 @@ Seams (from #46's Testing Decisions and the issue's acceptance criteria): the al
 - [x] Move money dialog with an overspend warning; allocations list with edit and remove (Undo)
 - [x] Playwright: the issue's demo (chromium)
 - [x] build, lint, vitest, both tsc, knip
-- [ ] Code review (standards + spec), fixes applied
-- [ ] Commit
+- [x] Code review (standards + spec), fixes applied
+- [x] Commit
 
 ### #51 decisions
 
 - **Four event types**: `allocation.created` / `allocation.edited` (details: date, account, from, to, amount) and `allocation.removed` / `allocation.restored`; details and removal resolve by their own latest HLC, like transactions.
 - **From and to are a tagged envelope** (`unassigned`, `category` with an ID, `card_payment` with a card ID); a move between the same envelope is refused by the decoder, so it never projects.
 - **Money can move out of a retired category or card, never into one** (as the destination; an allocation already naming it stays editable). Why: emptying a retired envelope needs a move out of it.
-- **Allocations happen only in accounts with envelopes**: a card account is refused by the command and ignored by the sums. A Card Payment destination must be a card of the account's visibility and owner; it need not be paid from that account (members allocate into a card's Card Payment themselves, 2026-10-11).
+- **Allocations happen only in accounts with envelopes**: a card account is refused by the command and ignored by the sums. Money goes into a Card Payment only in the card's current Paying Account (the issue's "its cards' Card Payments"); it comes out of any Card Payment of the account's visibility, so a reservation left behind when the card's default changed can be moved out.
 - **A negative category shows red with "Spent more than it holds"**; negative Unassigned uses the agreed "Allocated more than this account has". The label sits on its own line beneath the row, so names don't truncate on phones. Card Payments and group totals show red without a label.
 - **The overspend warning is live in the dialog** whenever the source envelope (Unassigned or any other) would go negative, discounting the edited allocation's own earlier move. It never blocks.
 - **"Retired, still holding money" lists retired categories with non-zero money** in any account, beside the existing Retired toggle (which still offers Unretire).
-- **The Unassigned card lists accounts in use only**; a retired account's envelope money still counts in category totals and per-account breakdowns. Revisit: if retired accounts end up holding money.
-- **Allocations are listed in a "Moves" card** on the Categories screen, all of them, newest first, each editable (Remove with Undo in the dialog). Revisit: paginate if the list grows long.
+- **The Unassigned card lists accounts in use, plus retired accounts still holding Unassigned or Card Payment money** (badged Retired), like "Retired, still holding money" for categories.
+- **Allocations are listed in an "Allocations" card** on the Categories screen, all of them, newest first, each editable (Remove with Undo in the dialog). Revisit: paginate if the list grows long.
 - **Account and category checks shared by transactions and allocations** moved to `src/lib/commands/records.ts`; the `permutations`/`orders` test helper to `src/test/permutations.ts` (resolves the #49 deferral).
+- **Review fixes:** the record is called an allocation in every label ("move" is the glossary's avoided word for Transfer; "Move money" stays as the action); an edit can't put more money into a retired destination (only lower the amount); a removed allocation can't be edited; `moneyIn` lives beside `Envelopes` in `lib/transactions/money.ts`; the money permutation test permutes the creates and a restore under the invariant.
+- **Review: restoring an allocation re-checks nothing**, so Undo after its destination was retired puts the money back there. Kept: a restore undoes a removal, like transactions, and "existing ones stay editable and removable" (2026-10-11).
+- **Review: the timing guard measures the sums, not the Dexie reads.** Kept: fake-indexeddb read time doesn't represent a browser, and the agreed guard is on summing at read time (2026-10-12).
+- **Review deferral: `envelope.kind` is switched on in four places** (`moneyIn`, `addToAllocated`, `envelopeLabel`, `envelopeKey`). Revisit: if a fourth envelope kind is added.
 - **The 10,000-transaction timing guard now covers the screen**: 10,000 transactions plus 500 allocations, summed and pivoted by category (about 3 ms locally; one run under parallel load failed the 50 ms limit once and passed on every rerun).
 
 ## Issue #50: Card Payment reservation

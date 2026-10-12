@@ -23,6 +23,14 @@ export interface Envelopes {
   cardPayments: Map<string, Cents>;
 }
 
+/** What the envelope holds in this account; nothing when the account holds no envelopes. */
+export function moneyIn(envelopes: Envelopes | null | undefined, envelope: Envelope): Cents {
+  if (!envelopes) return ZERO_CENTS;
+  if (envelope.kind === "unassigned") return envelopes.unassigned;
+  const held = envelope.kind === "category" ? envelopes.categories : envelopes.cardPayments;
+  return held.get(envelope.id) ?? ZERO_CENTS;
+}
+
 export interface AccountMoney {
   /** For a credit card, the amount owed. */
   balance: Cents;
