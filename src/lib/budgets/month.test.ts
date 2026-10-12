@@ -8,6 +8,7 @@ import { addAllocation } from "@/lib/commands/allocations";
 import { setBudget } from "@/lib/commands/budgets";
 import { createCategory, createGroup } from "@/lib/commands/categories";
 import { addTransaction, removeTransaction } from "@/lib/commands/transactions";
+import { addTransfer } from "@/lib/commands/transfers";
 import { listAccounts } from "@/lib/accounts/projection";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import { categoryMonth, readMonthView, summarizeMonth, sumMonthFigures } from "./month";
@@ -118,6 +119,50 @@ describe("month figures", () => {
     expect(categoryMonth(await readMonthView("2026-09", "2026-11"), groceriesId).money).toBe(0);
   });
 
+  it("splits the month-end money by account with transfers dated by then, never as spent", async () => {
+    const gcashId = (
+      await createAccount(MEMBER, {
+        name: "GCash",
+        type: "e_wallet",
+        startingBalanceCents: peso("0"),
+      })
+    ).id;
+    await addAllocation(MEMBER, {
+      date: "2026-10-01",
+      accountId: bpiId,
+      from: UNASSIGNED_ENVELOPE,
+      to: { kind: "category", id: groceriesId },
+      amountCents: peso("8000"),
+    });
+    const groceriesTransfer = (date: string, amount: string) =>
+      addTransfer(MEMBER, {
+        date,
+        amountCents: peso(amount),
+        fromAccountId: bpiId,
+        toAccountId: gcashId,
+        envelope: { kind: "category", id: groceriesId },
+      });
+    await groceriesTransfer("2026-10-10", "2000");
+    await groceriesTransfer("2026-11-02", "500");
+
+    const oct = categoryMonth(await october(), groceriesId);
+    expect(oct).toMatchObject({ spent: 0, allocated: 800000, money: 800000 });
+    expect(oct.moneyByAccount).toEqual(
+      new Map([
+        [bpiId, cents(600000)],
+        [gcashId, cents(200000)],
+      ])
+    );
+    expect(
+      categoryMonth(await readMonthView("2026-11", "2026-11"), groceriesId).moneyByAccount
+    ).toEqual(
+      new Map([
+        [bpiId, cents(550000)],
+        [gcashId, cents(250000)],
+      ])
+    );
+  });
+
   it("shows nothing for a month before any budget or activity", async () => {
     await groceries("2026-10-05", "1200");
 
@@ -192,6 +237,7 @@ describe("month figures", () => {
       accounts,
       transactions,
       allocations: [],
+      transfers: [],
       budgets: [],
     });
     const elapsed = performance.now() - started;
