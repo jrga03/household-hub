@@ -21,13 +21,3 @@ export function categoryNames(list: CategoryList): Map<string, string> {
   ];
   return new Map(categories.map((category) => [category.id, category.name]));
 }
-
-export function envelopeLabel(
-  envelope: Envelope,
-  categories: Map<string, string>,
-  accounts: Map<string, string>
-): string {
-  if (envelope.kind === "unassigned") return "Unassigned";
-  if (envelope.kind === "category") return categories.get(envelope.id) ?? "A category";
-  return `Card Payment · ${accounts.get(envelope.id) ?? "A card"}`;
-}

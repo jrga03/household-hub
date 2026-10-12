@@ -156,6 +156,12 @@ export async function listEventsNotPushed(): Promise<StoredEvent[]> {
   return [...waiting, ...stuck];
 }
 
+/** The whole local log as stored, oldest first, for an export. */
+export async function listAllEvents(): Promise<StoredEvent[]> {
+  const events = await db.events.toArray();
+  return events.sort((a, b) => (a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : 0));
+}
+
 export interface StuckEvent {
   id: string;
   description: string;

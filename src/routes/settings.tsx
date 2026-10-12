@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
+import { ExportCard } from "@/components/settings/ExportCard";
 import { SettingsNav } from "@/components/settings/SettingsNav";
 
 export const Route = createFileRoute("/settings")({
@@ -72,6 +73,7 @@ function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+          <ExportCard />
         </PageShell.Main>
       </PageShell>
     </div>

@@ -135,14 +135,20 @@ Seams (from #70's Testing Decisions and the issue's acceptance criteria): step c
 
 Seams: the CSV and JSON builders (Vitest).
 
-- [ ] Transactions CSV: transfers included and marked, removed records left out, values escaped
-- [ ] Event-log JSON of the local log
-- [ ] Settings section with two downloads (no zip library)
-- [ ] build, lint, vitest, both tsc, knip
+- [x] Transactions CSV: transfers included and marked, removed records left out, values escaped
+- [x] Event-log JSON of the local log
+- [x] Settings section with two downloads (no zip library)
+- [x] build, lint, vitest, both tsc, knip
 - [ ] Code review (standards + spec), fixes applied
 - [ ] Commit
 
 ### #76 decisions
+
+- **Seams:** `toCsv` escaping, `readTransactionsCsv`, `readEventLogExport` (Vitest, seeded through commands); one Playwright spec downloads both offline. Agreed 2026-10-12.
+- **Amount is a plain positive decimal** ("1500.50"); the Type column says Expense, Income or Transfer. Why: spreadsheets sum it as a number. Agreed 2026-10-12.
+- **Text that starts like a formula** (`= + - @`, tab, CR) gets a leading apostrophe. Why: another member's description must not run as a formula. Agreed 2026-10-12.
+- **A transfer is one row**: Account is where the money leaves, To account where it goes, Category its envelope. Rows run oldest first (date, then recorded order).
+- **The CSV starts with a UTF-8 byte-order mark** so Excel keeps ₱, ñ and the Card Payment "·".
 
 ## Issue #75: Distribute money
 
