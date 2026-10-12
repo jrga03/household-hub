@@ -6,7 +6,7 @@ import { useHousehold } from "@/hooks/useHousehold";
 import { isLocalDate } from "@/lib/transactions/events";
 import { useAuthStore } from "@/stores/authStore";
 
-export interface DistributeSearch {
+interface DistributeSearch {
   /** The source account; the first one that holds envelopes when left out. */
   account?: string;
   /** The income to split, as typed ("40000.00"); the source's Unassigned when left out. */

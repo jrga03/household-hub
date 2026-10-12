@@ -164,7 +164,7 @@ Seams (from #70's Testing Decisions): the Distribute command and its prefill (Vi
 - [x] Entry points: income toast action (prefilled); opening-allocation mode
 - [x] Playwright (chromium): payroll distribution leaves Unassigned at ₱0
 - [x] build, lint, vitest, both tsc, knip
-- [ ] Code review (standards + spec), fixes applied
+- [x] Code review (standards + spec), fixes applied
 - [x] Commit
 
 ### #75 decisions
@@ -179,6 +179,11 @@ Seams (from #70's Testing Decisions): the Distribute command and its prefill (Vi
 - **The Distribute toast action shows only for income into Unassigned**: a categorized income (a refund) is already in an envelope.
 - **Each transfer is described "Distribute money"**, so it explains itself in the transaction list.
 - **A Distribute button sits in the Categories header**, so a payday is reachable after the toast is gone.
+- **"Allocated this month" is net**: Move money out of a category this month raises its next prefill by that much. It reuses the month view's figure, so Distribute and Categories agree.
+- **The shortfall line adds a hint** ("You can still distribute it; trim a line or Unassigned shows in red") after the spec's "₱X more than this income".
+- **Known limit: two devices distributing the same payday before syncing both fund the budgets.** Every record is new, so nothing is overwritten; the source's Unassigned goes negative and shows red. Revisit: if it happens in practice (a guard would need the server).
+- **Review fixes:** the top card's grid sits inside its `@container` (an element can't query itself); `categoriesHeldBy` shared by the reader and the add-a-category picker; `distributeMoney` is async and throws like the other commands.
+- **Review deferrals:** a `todayLocal()` helper for the repeated `format(new Date(), "yyyy-MM-dd")`, and using `categoriesHeldBy`-style flattening in `CategoriesView` and `envelopes.ts`. Why: they touch files other round-2 branches edit. Revisit: after round 2 merges.
 
 ## Issue #74: category ledger
 

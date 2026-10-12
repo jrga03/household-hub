@@ -37,15 +37,13 @@ function totalsByAccount(lines: DistributeLineInput[]): Map<string, Cents> {
  * whatever isn't distributed stays in Unassigned, and asking for more than it
  * holds is allowed, like Move money.
  */
-export function distributeMoney(
+export async function distributeMoney(
   actor: Actor,
   { sourceAccountId, date, lines }: DistributeInput
 ): Promise<void> {
   const funded = lines.filter((line) => line.amountCents > 0);
-  if (funded.length === 0) {
-    return Promise.reject(new Error("Enter an amount on at least one line."));
-  }
-  return appendTogether(async () => {
+  if (funded.length === 0) throw new Error("Enter an amount on at least one line.");
+  await appendTogether(async () => {
     for (const [accountId, amountCents] of totalsByAccount(funded)) {
       if (accountId === sourceAccountId) continue;
       await addTransfer(actor, {

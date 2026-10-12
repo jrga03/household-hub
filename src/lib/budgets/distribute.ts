@@ -7,7 +7,12 @@
 
 import { isCreditCard } from "@/lib/accounts/events";
 import { getAccount, type AccountRow } from "@/lib/accounts/projection";
-import { canHoldMoneyIn, readCategoryList } from "@/lib/categories/projection";
+import {
+  canHoldMoneyIn,
+  readCategoryList,
+  type CategoryList,
+  type CategoryRow,
+} from "@/lib/categories/projection";
 import { diffCents, ZERO_CENTS, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import { sameOwnership } from "@/lib/events/log";
@@ -35,6 +40,12 @@ export const canReceive = (account: AccountRow | undefined, source: AccountRow) 
   !isCreditCard(account) &&
   sameOwnership(account, source);
 
+/** Categories in use the account can hold, in the Categories screen's order. */
+export const categoriesHeldBy = (list: CategoryList, account: AccountRow): CategoryRow[] =>
+  [...list.groups.flatMap((group) => group.categories), ...list.ungrouped].filter((category) =>
+    canHoldMoneyIn(category, account)
+  );
+
 /**
  * In income mode, a line per budget in force for `month` ("yyyy-MM"),
  * prefilled with what is left of it, floored at zero; in opening mode, a
@@ -54,10 +65,7 @@ export async function readDistributeLines(
     db.accounts.toArray(),
   ]);
   const accountById = new Map(accounts.map((account) => [account.id, account]));
-  const inUse = [
-    ...categories.groups.flatMap((group) => group.categories),
-    ...categories.ungrouped,
-  ].filter((category) => canHoldMoneyIn(category, source));
+  const inUse = categoriesHeldBy(categories, source);
 
   if (mode === "opening") {
     return inUse.map((category) => ({

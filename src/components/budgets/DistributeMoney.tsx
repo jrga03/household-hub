@@ -19,8 +19,13 @@ import { useCategoryList } from "@/hooks/useCategories";
 import { useAccountMoney } from "@/hooks/useTransactions";
 import { isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
-import { canReceive, type DistributeLine, type DistributeMode } from "@/lib/budgets/distribute";
-import { canHoldMoneyIn, type CategoryList, type CategoryRow } from "@/lib/categories/projection";
+import {
+  canReceive,
+  categoriesHeldBy,
+  type DistributeLine,
+  type DistributeMode,
+} from "@/lib/budgets/distribute";
+import type { CategoryList, CategoryRow } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { distributeMoney, type DistributeLineInput } from "@/lib/commands/distribute";
 import {
@@ -105,46 +110,48 @@ function DistributeForm({
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <Card>
-        <CardContent className="@container grid gap-4 @[480px]:grid-cols-3">
-          <div className="space-y-2">
-            <Label htmlFor="distribute-source">From</Label>
-            <Select value={sourceId} onValueChange={setSourceId}>
-              <SelectTrigger id="distribute-source" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {sources.map((account) => (
-                  <SelectItem key={account.id} value={account.id}>
-                    {account.name}
-                    {account.visibility === "personal" && " (Personal)"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">Unassigned: {formatPHP(unassigned)}</p>
-          </div>
-          {mode === "income" && (
+        <CardContent className="@container">
+          <div className="grid gap-4 @[480px]:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="distribute-amount">Income ({PESO_SIGN})</Label>
+              <Label htmlFor="distribute-source">From</Label>
+              <Select value={sourceId} onValueChange={setSourceId}>
+                <SelectTrigger id="distribute-source" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {sources.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.name}
+                      {account.visibility === "personal" && " (Personal)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Unassigned: {formatPHP(unassigned)}</p>
+            </div>
+            {mode === "income" && (
+              <div className="space-y-2">
+                <Label htmlFor="distribute-amount">Income ({PESO_SIGN})</Label>
+                <Input
+                  id="distribute-amount"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  placeholder={formatPHPInput(unassigned) || "0.00"}
+                  value={amountText}
+                  onChange={(event) => setAmountText(event.target.value)}
+                />
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="distribute-date">Date</Label>
               <Input
-                id="distribute-amount"
-                inputMode="decimal"
-                autoComplete="off"
-                placeholder={formatPHPInput(unassigned) || "0.00"}
-                value={amountText}
-                onChange={(event) => setAmountText(event.target.value)}
+                id="distribute-date"
+                type="date"
+                required
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
               />
             </div>
-          )}
-          <div className="space-y-2">
-            <Label htmlFor="distribute-date">Date</Label>
-            <Input
-              id="distribute-date"
-              type="date"
-              required
-              value={date}
-              onChange={(event) => setDate(event.target.value)}
-            />
           </div>
         </CardContent>
       </Card>
@@ -212,27 +219,25 @@ function LinesForm({
   const [lines, setLines] = useState(() => initialLines.map(toDraft));
   const names = categoryNames(categories);
   const destinations = accounts.filter((account) => canReceive(account, source));
-  const unlisted = [
-    ...categories.groups.flatMap((group) => group.categories),
-    ...categories.ungrouped,
-  ]
-    .filter((category) => canHoldMoneyIn(category, source))
-    .filter((category) => !lines.some((line) => line.categoryId === category.id));
+  const unlisted = categoriesHeldBy(categories, source).filter(
+    (category) => !lines.some((line) => line.categoryId === category.id)
+  );
 
   const change = (categoryId: string, update: Partial<LineDraft>) =>
     setLines((current) =>
       current.map((line) => (line.categoryId === categoryId ? { ...line, ...update } : line))
     );
+  // A category added by hand has no budget this month, or it would already be listed.
   const addLine = (category: CategoryRow) =>
     setLines((current) => [
       ...current,
-      {
+      toDraft({
         categoryId: category.id,
         accountId: source.id,
-        amountText: "",
+        amountCents: null,
         budgetCents: null,
         fundingAccountRetired: false,
-      },
+      }),
     ]);
 
   const total = sumCents(lines.map((line) => lineAmount(line) ?? ZERO_CENTS));
