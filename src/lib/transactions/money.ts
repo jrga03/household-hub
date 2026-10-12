@@ -10,10 +10,15 @@ import { db } from "@/lib/dexie/db";
 import type { TransactionRow } from "./projection";
 
 export interface Envelopes {
-  /** Money not yet in any category: the starting balance plus uncategorized transactions. */
+  /**
+   * Money not yet in any category: the starting balance plus uncategorized
+   * transactions, less uncategorized card purchases reserved here.
+   */
   unassigned: Cents;
   /** Each category's money in this account, by category ID. */
   categories: Map<string, Cents>;
+  /** Money reserved for each card paid from this account, by card ID. */
+  cardPayments: Map<string, Cents>;
 }
 
 export interface AccountMoney {
@@ -26,7 +31,19 @@ export interface AccountMoney {
   envelopes: Envelopes | null;
 }
 
-/** Balance = Unassigned + category money holds for every account with envelopes. */
+const addToTotal = (held: Map<string, Cents>, key: string, amount: Cents) =>
+  held.set(key, sumCents([held.get(key) ?? ZERO_CENTS, amount]));
+
+/**
+ * Moves a transaction's amount into its category, or Unassigned when it has none.
+ * A positive amount adds money; a negative one draws it.
+ */
+function addToEnvelope(envelopes: Envelopes, categoryId: string | null, amount: Cents) {
+  if (categoryId === null) envelopes.unassigned = sumCents([envelopes.unassigned, amount]);
+  else addToTotal(envelopes.categories, categoryId, amount);
+}
+
+/** Balance = Unassigned + category money + Card Payments holds for every account with envelopes. */
 export function sumAccountMoney(
   accounts: AccountRow[],
   transactions: TransactionRow[]
@@ -38,7 +55,11 @@ export function sumAccountMoney(
     totals.set(account.id, {
       cleared: account.startingBalanceCents,
       pending: ZERO_CENTS,
-      envelopes: { unassigned: account.startingBalanceCents, categories: new Map() },
+      envelopes: {
+        unassigned: account.startingBalanceCents,
+        categories: new Map(),
+        cardPayments: new Map(),
+      },
     });
   }
 
@@ -49,13 +70,18 @@ export function sumAccountMoney(
     const raises = (transaction.type === "income") !== cards.has(transaction.accountId);
     const amount = raises ? transaction.amountCents : negateCents(transaction.amountCents);
     account[transaction.status] = sumCents([account[transaction.status], amount]);
-    const { envelopes } = account;
-    if (transaction.categoryId === null) {
-      envelopes.unassigned = sumCents([envelopes.unassigned, amount]);
-    } else {
-      const held = envelopes.categories.get(transaction.categoryId) ?? ZERO_CENTS;
-      envelopes.categories.set(transaction.categoryId, sumCents([held, amount]));
+    if (!cards.has(transaction.accountId)) {
+      addToEnvelope(account.envelopes, transaction.categoryId, amount);
+      continue;
     }
+    // What the card owes more moves from its envelope into its Card Payment in the
+    // Paying Account the transaction recorded, so that account's balance doesn't change.
+    const { payingAccountId } = transaction;
+    const paying =
+      payingAccountId && !cards.has(payingAccountId) ? totals.get(payingAccountId) : undefined;
+    if (!paying) continue;
+    addToEnvelope(paying.envelopes, transaction.categoryId, negateCents(amount));
+    addToTotal(paying.envelopes.cardPayments, transaction.accountId, amount);
   }
 
   const money = new Map<string, AccountMoney>();

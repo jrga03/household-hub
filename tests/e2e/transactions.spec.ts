@@ -1,13 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
-import { signUpNewPerson } from "./fixtures/helpers";
+import { chooseOption, signUpNewPerson } from "./fixtures/helpers";
 
 const bankItem = (page: Page) =>
   page.getByRole("list", { name: "Accounts" }).getByRole("listitem").filter({ hasText: "BPI" });
-
-async function chooseOption(page: Page, label: string, option: string) {
-  await page.getByRole("dialog").getByLabel(label).click();
-  await page.getByRole("option", { name: option, exact: true }).click();
-}
 
 test("transactions recorded offline move the balance, and a removal can be undone", async ({
   page,
@@ -33,7 +28,7 @@ test("transactions recorded offline move the balance, and a removal can be undon
   const dialog = page.getByRole("dialog", { name: "Add transaction" });
   await expect(dialog.getByLabel("Amount (₱)")).toBeFocused();
   await dialog.getByLabel("Amount (₱)").fill("250");
-  await chooseOption(page, "Category", "Groceries");
+  await chooseOption(page, dialog.getByLabel("Category"), "Groceries");
   await dialog.getByLabel("Description (optional)").fill("Market");
   await dialog.getByRole("button", { name: "Add transaction" }).click();
   await expect(dialog).toBeHidden();

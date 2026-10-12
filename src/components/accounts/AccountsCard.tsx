@@ -4,12 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
+import { useAccountNames, useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useAccountMoney } from "@/hooks/useTransactions";
 import { ACCOUNT_TYPES, isCreditCard } from "@/lib/accounts/events";
 import type { AccountListItem } from "@/lib/accounts/projection";
 import { createAccount, unretireAccount, type Actor } from "@/lib/commands/accounts";
-import { formatPHP } from "@/lib/currency";
+import { formatPHP, type Cents } from "@/lib/currency";
 import type { AccountMoney } from "@/lib/transactions/money";
 import type { Visibility } from "@/lib/events/log";
 import { VisibilityField } from "@/components/VisibilityField";
@@ -108,21 +108,45 @@ function AccountItem({
   );
 }
 
-/** "Cleared ₱X · Pending ₱Y", and the account's Unassigned (red when negative). */
+const negativeClass = (cents: Cents) => (cents < 0 ? "text-destructive" : undefined);
+
+/**
+ * "Cleared ₱X · Pending ₱Y", the account's Unassigned, and the Card Payment of
+ * each card paid from it (red when negative).
+ */
 function MoneySummary({ money }: { money: AccountMoney }) {
   return (
-    <p className="text-sm text-muted-foreground tabular-nums">
-      Cleared {formatPHP(money.cleared)} · Pending {formatPHP(money.pending)}
-      {money.envelopes && (
-        <>
-          {" · "}
-          <span className={money.envelopes.unassigned < 0 ? "text-destructive" : undefined}>
-            Unassigned {formatPHP(money.envelopes.unassigned)}
-          </span>
-        </>
-      )}
-    </p>
+    <>
+      <p className="text-sm text-muted-foreground tabular-nums">
+        Cleared {formatPHP(money.cleared)} · Pending {formatPHP(money.pending)}
+        {money.envelopes && (
+          <>
+            {" · "}
+            <span className={negativeClass(money.envelopes.unassigned)}>
+              Unassigned {formatPHP(money.envelopes.unassigned)}
+            </span>
+          </>
+        )}
+      </p>
+      {money.envelopes && <CardPayments cardPayments={money.envelopes.cardPayments} />}
+    </>
   );
+}
+
+function CardPayments({ cardPayments }: { cardPayments: Map<string, Cents> }) {
+  const names = useAccountNames();
+  if (!names) return null;
+  const reserved = [...cardPayments]
+    .filter(([, cents]) => cents !== 0)
+    .map(([cardId, cents]) => ({ cardId, cents, name: names.get(cardId) ?? "A card" }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return reserved.map(({ cardId, cents, name }) => (
+    <p key={cardId} className="text-sm text-muted-foreground tabular-nums">
+      <span className={negativeClass(cents)}>
+        Card Payment · {name} {formatPHP(cents)}
+      </span>
+    </p>
+  ));
 }
 
 function RetiredAccounts({ actor }: { actor: Actor }) {

@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { testUsers } from "./test-users";
 
 export async function login(page: Page, userKey: "primary" | "secondary" = "primary") {
@@ -27,4 +27,10 @@ export async function signUpNewPerson(page: Page) {
   await page.fill('[name="confirmPassword"]', person.password);
   await page.click('button[type="submit"]');
   return person;
+}
+
+/** Opens a select field and picks the option with exactly that name. */
+export async function chooseOption(page: Page, field: Locator, option: string) {
+  await field.click();
+  await page.getByRole("option", { name: option, exact: true }).click();
 }

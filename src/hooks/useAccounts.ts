@@ -1,5 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { listAccounts, listRetiredAccounts } from "@/lib/accounts/projection";
+import { listAccounts, listRetiredAccounts, readAccountNames } from "@/lib/accounts/projection";
 
 /** The local accounts projection; updates on local writes and on synced events. Undefined while loading. */
 export function useAccounts() {
@@ -8,4 +8,8 @@ export function useAccounts() {
 
 export function useRetiredAccounts() {
   return useLiveQuery(listRetiredAccounts, []);
+}
+
+export function useAccountNames() {
+  return useLiveQuery(readAccountNames, []);
 }
