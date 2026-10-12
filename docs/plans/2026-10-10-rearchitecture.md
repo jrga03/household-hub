@@ -148,8 +148,10 @@ Seams: the CSV and JSON builders (Vitest).
 - **Amount is a plain positive decimal** ("1500.50"); the Type column says Expense, Income or Transfer. Why: spreadsheets sum it as a number. Agreed 2026-10-12.
 - **Text that starts like a formula** (`= + - @`, tab, CR) gets a leading apostrophe. Why: another member's description must not run as a formula. Agreed 2026-10-12.
 - **A transfer is one row**: Account is where the money leaves, To account where it goes, Category its envelope. Rows run oldest first (date, then recorded order).
-- **The CSV starts with a UTF-8 byte-order mark** so Excel keeps ₱, ñ and the Card Payment "·".
-- **Review follow-ups awaiting a call** (2026-10-12): a Visibility column in the CSV (proposed: defer to #69); moving `envelopeLabel` out of `allocations/events.ts` into its own module; folding `categoryNames(list)` into `readCategoryNames`. Revisit at PR review.
+- **The CSV starts with a UTF-8 byte-order mark** so Excel keeps ₱, ñ and the Card Payment "·". Agreed 2026-10-12.
+- **No Visibility column in the CSV** for now. Why: the issue doesn't ask for one. Revisit with export modes (#69). Agreed 2026-10-12.
+- **Moving `envelopeLabel` out of `allocations/events.ts`** is deferred to #83. Why: a display label doesn't belong with the decoders, but it is a separate refactor. Agreed 2026-10-12.
+- **`categoryNames(list)` and `readCategoryNames()` both stay.** Why: low value. Revisit when either changes. Agreed 2026-10-12.
 
 ## Issue #75: Distribute money
 
