@@ -55,7 +55,6 @@ Always ask: what happens offline, and what happens when two devices edit the sam
 Check here before debugging a test or CLI failure you did not cause. A failure is yours only if it passes on `main` (stash or check out `main` and re-run).
 
 - **E2E has pre-existing failures.** After #16 stripped the app (2026-10-10, chromium and Mobile Chrome), these fail on both projects and predate #16 (they are ✘ in the older per-test baseline `docs/plans/2026-10-02-phase-1b-e2e-baseline.txt`): `keyboard-nav` "navigate main menu" (expects `data-nav` attributes), `performance` "acceptable bundle size", and `pwa` "work offline after caching". Compare per test, not by totals. Only chromium and Mobile Chrome layout baselines are trustworthy; firefox/webkit abort with `NS_BINDING_ABORTED`.
-- **`transactions.spec.ts` fails on Mobile Chrome** (seen 2026-10-12, predates #71): it clicks the row's Remove icon, which #53 hides below `@[600px]` (phones remove by swipe). Chromium passes. Fix: remove through the edit dialog on phones.
 - **`transaction-list.spec.ts` "filters" fails on Mobile Chrome** (seen 2026-10-12 on `main`): it picks a month from the filters, which phones hide behind the "Search and filters" button. Chromium passes. Fix: press that button first on phones.
 - **E2E needs** the local stack running (`supabase start`), `PW_TEST_HTML_REPORT_OPEN=never` for non-interactive runs, and a fresh `dist/` (`npm run test:e2e*` rebuild it; a bare `npx playwright test` does not).
 - **Scripts** must parse `supabase status -o env`, never the human-readable output.
