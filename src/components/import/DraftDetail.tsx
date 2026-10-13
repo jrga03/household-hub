@@ -24,6 +24,7 @@ import { DESCRIPTION_MAX_LENGTH, isTransactionType } from "@/lib/transactions/ev
 import { errorMessage } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
 import { isSuggested, signedAmount, SuggestedBadge } from "./DraftLabels";
+import { needsDescription } from "@/lib/import/review";
 import { useDraftAction } from "./useDraftAction";
 
 const longDate = (date: string) => format(parseLocalDate(date), "MMM d, yyyy");
@@ -94,7 +95,7 @@ export function DraftDetail({
         ) : (
           <Button
             type="button"
-            disabled={busy || blockedAsImported}
+            disabled={busy || blockedAsImported || needsDescription(draft)}
             onClick={() =>
               void act(
                 () => saveDrafts(actor, [draft.id]),

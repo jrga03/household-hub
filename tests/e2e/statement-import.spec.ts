@@ -115,6 +115,7 @@ test("BDO drafts are saved in bulk offline, and a re-import is recognised", asyn
   await description.fill("");
   await description.press("Enter");
   await expect(page.getByText("Needs a description before it can be saved.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save as transaction" })).toBeDisabled();
   await page.keyboard.press("Escape");
   await expect(drafts.getByRole("button", { name: /Needs a description/ })).toBeVisible();
   await expect(
