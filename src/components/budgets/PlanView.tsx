@@ -265,13 +265,20 @@ function ToAssignBar({
       ) : (
         <>
           <Button
-            variant="link"
-            className="h-auto gap-1 p-0"
+            variant="ghost"
+            size="sm"
+            className="-ml-2 self-start"
             aria-expanded={expanded}
             onClick={() => setExpanded(!expanded)}
           >
             By account
-            <ChevronDown className={cn("transition-transform", expanded && "rotate-180")} />
+            <ChevronDown
+              aria-hidden="true"
+              className={cn(
+                "transition-transform motion-reduce:transition-none",
+                expanded && "rotate-180"
+              )}
+            />
           </Button>
           {expanded && (
             <UnassignedByAccount
