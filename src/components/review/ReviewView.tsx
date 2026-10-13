@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { JoinRequestRow } from "@/components/households/JoinRequestsCard";
 import { useHousehold } from "@/hooks/useHousehold";
-import { usePendingJoinRequests, useReviewCounts } from "@/hooks/useReviewCount";
+import { usePendingJoinRequests } from "@/hooks/useJoinRequests";
+import { useReviewCounts } from "@/hooks/useReviewCount";
 import { REVIEW_KINDS, totalReviewItems, type ReviewKind } from "@/lib/review/count";
 
 const NEW_REQUEST_POLL_MS = 30_000;
