@@ -50,11 +50,12 @@ import {
 import type { LedgerRecordId } from "@/lib/budgets/ledger";
 import { DEFAULT_GROUPS } from "@/lib/categories/defaults";
 import type { RecordNoun } from "@/lib/categories/events";
-import type {
-  CategoryList,
-  CategoryRow,
-  GroupListItem,
-  GroupRow,
+import {
+  hasHouseholdGroup,
+  type CategoryList,
+  type CategoryRow,
+  type GroupListItem,
+  type GroupRow,
 } from "@/lib/categories/projection";
 import { seedDefaultCategories, unretireCategory, unretireGroup } from "@/lib/commands/categories";
 import type { Actor } from "@/lib/commands/accounts";
@@ -170,14 +171,11 @@ export function CategoriesView({
   if (budgeting !== null && !budgetingCategory) setBudgeting(null);
 
   const groupsInUse = list.groups.filter((group) => !group.retired);
-  const hasHouseholdGroup = [...list.groups, ...list.retiredGroups].some(
-    (group) => group.visibility === "household"
-  );
 
   return (
     <>
       <PageShell.Main className="space-y-4">
-        {!hasHouseholdGroup && <SuggestedCategories actor={actor} />}
+        {!hasHouseholdGroup(list) && <SuggestedCategories actor={actor} />}
 
         <UnassignedCard
           actor={actor}

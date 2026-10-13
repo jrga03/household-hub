@@ -1,0 +1,162 @@
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from "@tanstack/react-router";
+import { resetLocalDatabase } from "@/lib/dexie/reset";
+import { createAccount } from "@/lib/commands/accounts";
+import { createCategory, createGroup } from "@/lib/commands/categories";
+import type { DistributeMode } from "@/lib/budgets/distribute";
+import { parsePHP } from "@/lib/currency";
+import { DistributeMoney } from "./DistributeMoney";
+
+const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
+const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
+
+function renderDistribute(mode: DistributeMode, accountId: string) {
+  const rootRoute = createRootRoute();
+  const routes = ["/distribute", "/categories"].map((path) =>
+    createRoute({
+      getParentRoute: () => rootRoute,
+      path,
+      component: () => (
+        <DistributeMoney
+          actor={MEMBER}
+          mode={mode}
+          initialAccountId={accountId}
+          initialDate="2026-10-13"
+          onDone={() => {}}
+        />
+      ),
+    })
+  );
+  const router = createRouter({
+    routeTree: rootRoute.addChildren(routes),
+    history: createMemoryHistory({ initialEntries: ["/distribute"] }),
+  });
+  return render(<RouterProvider router={router} />);
+}
+
+const householdAccount = () =>
+  createAccount(MEMBER, { name: "BPI", type: "bank", startingBalanceCents: parsePHP("40000") });
+
+const personalAccount = () =>
+  createAccount(MEMBER, {
+    name: "GCash",
+    type: "e_wallet",
+    visibility: "personal",
+    startingBalanceCents: parsePHP("5000"),
+  });
+
+const householdGroup = () => createGroup(MEMBER, { name: "Monthly bills" });
+
+async function householdCategory(name: string) {
+  const group = await householdGroup();
+  return createCategory(MEMBER, { name, groupId: group.id });
+}
+
+function expectNothingToDistribute() {
+  expect(screen.getByRole("link", { name: "Categories" })).toHaveAttribute("href", "/categories");
+  expect(screen.queryByRole("button", { name: "Distribute" })).not.toBeInTheDocument();
+  expect(screen.queryByText(/stays in Unassigned/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Add a category below/)).not.toBeInTheDocument();
+}
+
+// Radix Select calls these, and jsdom leaves them out.
+const radixStubs = ["scrollIntoView", "hasPointerCapture", "releasePointerCapture"] as const;
+
+beforeAll(() => {
+  for (const name of radixStubs) Element.prototype[name] = () => false;
+});
+
+afterAll(() => {
+  for (const name of radixStubs) delete (Element.prototype as Partial<Element>)[name];
+});
+
+beforeEach(async () => {
+  await resetLocalDatabase();
+});
+
+describe("DistributeMoney", () => {
+  it.each<DistributeMode>(["opening", "income"])(
+    "points a household account in a household with no groups to the suggested set (%s mode)",
+    async (mode) => {
+      const bpi = await householdAccount();
+      renderDistribute(mode, bpi.id);
+
+      expect(await screen.findByText(/BPI has no categories yet/)).toHaveTextContent(
+        'On Categories, "Use suggested categories" sets up a starter set, or add your own.'
+      );
+      expectNothingToDistribute();
+    }
+  );
+
+  it("doesn't offer the suggested set once a household group exists", async () => {
+    await householdGroup();
+    const bpi = await householdAccount();
+    renderDistribute("opening", bpi.id);
+
+    const emptyState = await screen.findByText(/BPI has no categories yet/);
+    expect(emptyState).toHaveTextContent("Add a household category on Categories.");
+    expect(emptyState).not.toHaveTextContent(/suggested/i);
+    expectNothingToDistribute();
+  });
+
+  it.each<DistributeMode>(["opening", "income"])(
+    "tells a personal account with no personal categories to add one (%s mode)",
+    async (mode) => {
+      await householdCategory("Groceries");
+      const gcash = await personalAccount();
+      renderDistribute(mode, gcash.id);
+
+      const emptyState = await screen.findByText(/GCash has no categories yet/);
+      expect(emptyState).toHaveTextContent("Add a personal category on Categories.");
+      expect(emptyState).not.toHaveTextContent(/suggested/i);
+      expectNothingToDistribute();
+    }
+  );
+
+  it("keeps the no-budgets copy, picker, totals and button when the account holds categories", async () => {
+    await householdCategory("Groceries");
+    const bpi = await householdAccount();
+    renderDistribute("income", bpi.id);
+
+    expect(
+      await screen.findByText("No budgets this month for BPI's categories. Add a category below.")
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Add a category")).toBeInTheDocument();
+    expect(screen.getByText(/stays in Unassigned/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Distribute" })).toBeInTheDocument();
+    expect(screen.queryByText(/has no categories yet/)).not.toBeInTheDocument();
+  });
+
+  it("lists a line per category in opening mode when the account holds one", async () => {
+    await householdCategory("Groceries");
+    const bpi = await householdAccount();
+    renderDistribute("opening", bpi.id);
+
+    expect(await screen.findByLabelText("Groceries")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Distribute" })).toBeInTheDocument();
+    expect(screen.queryByText(/has no categories yet/)).not.toBeInTheDocument();
+  });
+
+  it("updates the empty state when the From account changes", async () => {
+    const bpi = await householdAccount();
+    await personalAccount();
+    renderDistribute("opening", bpi.id);
+    await screen.findByText(/BPI has no categories yet/);
+
+    fireEvent.keyDown(screen.getByLabelText("From"), { key: "Enter" });
+    fireEvent.keyDown(await screen.findByRole("option", { name: "GCash (Personal)" }), {
+      key: "Enter",
+    });
+
+    expect(await screen.findByText(/GCash has no categories yet/)).toHaveTextContent(
+      "Add a personal category on Categories."
+    );
+  });
+});

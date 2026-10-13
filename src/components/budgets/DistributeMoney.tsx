@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { useActionState, useState } from "react";
 import { toast } from "sonner";
 import { categoryNames } from "@/components/allocations/envelopes";
@@ -25,7 +26,11 @@ import {
   type DistributeLine,
   type DistributeMode,
 } from "@/lib/budgets/distribute";
-import type { CategoryList, CategoryRow } from "@/lib/categories/projection";
+import {
+  hasHouseholdGroup,
+  type CategoryList,
+  type CategoryRow,
+} from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { distributeMoney, type DistributeLineInput } from "@/lib/commands/distribute";
 import {
@@ -99,6 +104,7 @@ function DistributeForm({
   const source = sources.find((account) => account.id === sourceId);
   const month = isLocalDate(date) ? date.slice(0, 7) : localMonth(new Date());
   const lines = useDistributeLines(sourceId, month, mode);
+  const holdsCategories = source !== undefined && categoriesHeldBy(categories, source).length > 0;
 
   const unassigned = unassignedIn(sourceId);
   const income = parsePHPSafe(amountText);
@@ -156,7 +162,10 @@ function DistributeForm({
         </CardContent>
       </Card>
 
-      {source && lines && (
+      {source && !holdsCategories && (
+        <NoCategories source={source} offerSuggested={!hasHouseholdGroup(categories)} />
+      )}
+      {source && lines && holdsCategories && (
         // Edits reset only when the source or month changes the lines themselves.
         <LinesForm
           key={`${source.id}:${month}`}
@@ -171,6 +180,26 @@ function DistributeForm({
         />
       )}
     </div>
+  );
+}
+
+/** The suggested set is household-only, and Categories offers it only while no household group exists. */
+function NoCategories({ source, offerSuggested }: { source: AccountRow; offerSuggested: boolean }) {
+  const categoriesLink = <Link to="/categories">Categories</Link>;
+  return (
+    <p className="text-sm text-muted-foreground">
+      {source.name} has no categories yet.{" "}
+      {source.visibility === "personal" ? (
+        <>Add a personal category on {categoriesLink}.</>
+      ) : offerSuggested ? (
+        <>
+          On {categoriesLink}, &quot;Use suggested categories&quot; sets up a starter set, or add
+          your own.
+        </>
+      ) : (
+        <>Add a household category on {categoriesLink}.</>
+      )}
+    </p>
   );
 }
 
