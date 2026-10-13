@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useActionState, useState } from "react";
 import { toast } from "sonner";
 import { categoryNames } from "@/components/allocations/envelopes";
-import { Card, CardContent } from "@/components/ui/card";
+import { advanceOnEnter, FormFooter } from "@/components/FormSheet";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -114,53 +114,50 @@ function DistributeForm({
       : { cents: unassigned, label: `${source?.name ?? "the account"}'s Unassigned` };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <Card>
-        <CardContent className="@container">
-          <div className="grid gap-4 @[480px]:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="distribute-source">From</Label>
-              <Select value={sourceId} onValueChange={setSourceId}>
-                <SelectTrigger id="distribute-source" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {sources.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name}
-                      {account.visibility === "personal" && " (Personal)"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">Unassigned: {formatPHP(unassigned)}</p>
-            </div>
-            {mode === "income" && (
-              <div className="space-y-2">
-                <Label htmlFor="distribute-amount">Income ({PESO_SIGN})</Label>
-                <Input
-                  id="distribute-amount"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  placeholder={formatPHPInput(unassigned) || "0.00"}
-                  value={amountText}
-                  onChange={(event) => setAmountText(event.target.value)}
-                />
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="distribute-date">Date</Label>
-              <Input
-                id="distribute-date"
-                type="date"
-                required
-                value={date}
-                onChange={(event) => setDate(event.target.value)}
-              />
-            </div>
+    <div className="space-y-6">
+      <div className="grid gap-4 @[480px]:grid-cols-3">
+        <div className="space-y-2">
+          <Label htmlFor="distribute-source">From</Label>
+          <Select value={sourceId} onValueChange={setSourceId}>
+            <SelectTrigger id="distribute-source" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {sources.map((account) => (
+                <SelectItem key={account.id} value={account.id}>
+                  {account.name}
+                  {account.visibility === "personal" && " (Personal)"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">Unassigned: {formatPHP(unassigned)}</p>
+        </div>
+        {mode === "income" && (
+          <div className="space-y-2">
+            <Label htmlFor="distribute-amount">Income ({PESO_SIGN})</Label>
+            <Input
+              id="distribute-amount"
+              inputMode="decimal"
+              autoComplete="off"
+              placeholder={formatPHPInput(unassigned) || "0.00"}
+              enterKeyHint="done"
+              value={amountText}
+              onChange={(event) => setAmountText(event.target.value)}
+            />
           </div>
-        </CardContent>
-      </Card>
+        )}
+        <div className="space-y-2">
+          <Label htmlFor="distribute-date">Date</Label>
+          <Input
+            id="distribute-date"
+            type="date"
+            required
+            value={date}
+            onChange={(event) => setDate(event.target.value)}
+          />
+        </div>
+      </div>
 
       {source && !holdsCategories && (
         <NoCategories source={source} offerSuggested={!hasHouseholdGroup(categories)} />
@@ -291,7 +288,7 @@ function LinesForm({
   }, null);
 
   return (
-    <form action={submit} aria-label="Distribute money" className="space-y-4">
+    <form ref={advanceOnEnter} action={submit} aria-label="Distribute money" className="space-y-4">
       {lines.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No budgets this month for {source.name}&apos;s categories. Add a category below.
@@ -349,7 +346,9 @@ function LinesForm({
       </div>
 
       <FormError>{error}</FormError>
-      <SubmitButton pendingText="Distributing...">Distribute</SubmitButton>
+      <FormFooter>
+        <SubmitButton pendingText="Distributing...">Distribute</SubmitButton>
+      </FormFooter>
     </form>
   );
 }
@@ -383,6 +382,7 @@ function DistributeLineRow({
           inputMode="decimal"
           autoComplete="off"
           placeholder="0.00"
+          enterKeyHint="next"
           value={line.amountText}
           onChange={(event) => onChange({ amountText: event.target.value })}
         />

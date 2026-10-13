@@ -16,7 +16,7 @@ const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "u
 
 function renderHome() {
   const rootRoute = createRootRoute();
-  const routes = ["/", "/transactions", "/categories"].map((path) =>
+  const routes = ["/", "/transactions", "/budget"].map((path) =>
     createRoute({
       getParentRoute: () => rootRoute,
       path,
@@ -76,7 +76,7 @@ describe("FinancesSection", () => {
       "href",
       `/transactions?account=${bpiId}`
     );
-    expect(screen.getByRole("link", { name: "Categories" })).toHaveAttribute("href", "/categories");
+    expect(screen.getByRole("link", { name: "Budget" })).toHaveAttribute("href", "/budget");
     expect(screen.getByRole("link", { name: "Transactions" })).toHaveAttribute(
       "href",
       expect.stringMatching(/^\/transactions\?month=\d{4}-\d{2}$/)

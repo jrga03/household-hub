@@ -7,13 +7,9 @@ const unassignedItem = (page: Page) =>
     .getByRole("listitem")
     .filter({ hasText: "BDO Savings" });
 
-const categoryItem = (page: Page, group: string, name: string) =>
-  page
-    .getByRole("list", { name: `${group} categories` })
-    .getByRole("listitem")
-    .filter({
-      has: page.getByText(name, { exact: true }),
-    });
+/** What a category or group has left this month, on Budget. */
+const left = (page: Page, name: string) =>
+  page.getByLabel(`${name} allocated, spent and left`).locator("dd").last();
 
 test("moving money between envelopes, past Unassigned, with an undoable removal", async ({
   page,
@@ -29,22 +25,25 @@ test("moving money between envelopes, past Unassigned, with an undoable removal"
 
   await navigateTo(page, "Categories");
   await page.getByRole("button", { name: "Use suggested categories" }).click();
+  await expect(page.getByRole("list", { name: "Food categories" })).toContainText("Groceries");
+
+  await navigateTo(page, "Budget");
+  await page.getByRole("link", { name: "Edit plan" }).click();
+  const bar = page.getByRole("region", { name: "To assign" });
+  await expect(bar).toContainText("₱20,000.00 to assign");
+  await bar.getByRole("button", { name: "By account" }).click();
   await expect(unassignedItem(page)).toContainText("₱20,000.00");
 
   const dialog = page.getByRole("dialog", { name: "Move money" });
-  await page.getByRole("button", { name: "Move money" }).click();
+  await page.getByRole("button", { name: "Groceries actions" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Move money" }).click();
+  await expect(dialog.getByLabel("To")).toHaveText("Groceries · ₱0.00");
   await dialog.getByLabel("Amount (₱)").fill("8000");
-  await chooseOption(page, dialog.getByLabel("To"), "Groceries · ₱0.00");
   await dialog.getByRole("button", { name: "Move money" }).click();
   await expect(dialog).toBeHidden();
   await expect(unassignedItem(page)).toContainText("₱12,000.00");
-  await expect(categoryItem(page, "Food", "Groceries")).toContainText("₱8,000.00");
-  // The group's total sits beside its Edit button.
-  await expect(page.getByRole("button", { name: "Edit group Food" }).locator("..")).toContainText(
-    "₱8,000.00"
-  );
 
-  await page.getByRole("button", { name: "Move money" }).click();
+  await bar.getByRole("button", { name: "Move money" }).click();
   await dialog.getByLabel("Amount (₱)").fill("15000");
   await chooseOption(page, dialog.getByLabel("To"), "Forever House · ₱0.00");
   await expect(dialog).toContainText(
@@ -52,15 +51,9 @@ test("moving money between envelopes, past Unassigned, with an undoable removal"
   );
   await dialog.getByRole("button", { name: "Move money" }).click();
   await expect(dialog).toBeHidden();
+  await expect(bar.getByText("-₱3,000.00").first()).toHaveClass(/text-destructive/);
   await expect(unassignedItem(page)).toContainText("-₱3,000.00");
   await expect(unassignedItem(page)).toContainText("Allocated more than this account has");
-  await expect(unassignedItem(page).getByText("-₱3,000.00")).toHaveClass(/text-destructive/);
-
-  const groceries = categoryItem(page, "Food", "Groceries");
-  await groceries.getByRole("button", { name: "Groceries by account" }).click();
-  await expect(page.getByRole("list", { name: "Groceries by account" })).toContainText(
-    "BDO Savings₱8,000.00"
-  );
 
   const allocations = page.getByRole("list", { name: "Allocations" });
   await expect(allocations.getByRole("listitem")).toHaveCount(2);
@@ -77,13 +70,22 @@ test("moving money between envelopes, past Unassigned, with an undoable removal"
   await expect(allocations.getByRole("listitem")).toHaveCount(2);
   await expect(unassignedItem(page)).toContainText("-₱3,000.00");
 
-  await groceries.getByRole("button", { name: "Edit Groceries" }).click();
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page).toHaveURL(/\/budget$/);
+  await expect(left(page, "Groceries")).toHaveText("₱8,000.00");
+  await expect(left(page, "Food")).toHaveText("₱8,000.00");
+
+  await navigateTo(page, "Categories");
+  await page.getByRole("button", { name: "Edit Groceries" }).click();
   await page.getByRole("button", { name: "Retire category" }).click();
   const retire = page.getByRole("dialog", { name: "Retire Groceries" });
   await expect(retire).toContainText("Groceries holds ₱8,000.00.");
   await chooseOption(page, retire.getByLabel("Move its money into"), "Restaurants");
   await retire.getByRole("button", { name: "Move and retire" }).click();
   await expect(retire).toBeHidden();
-  await expect(categoryItem(page, "Food", "Groceries")).toHaveCount(0);
-  await expect(categoryItem(page, "Food", "Restaurants")).toContainText("₱8,000.00");
+  await expect(page.getByRole("list", { name: "Food categories" })).not.toContainText("Groceries");
+
+  await navigateTo(page, "Budget");
+  await expect(page.getByLabel("Groceries allocated, spent and left")).toHaveCount(0);
+  await expect(left(page, "Restaurants")).toHaveText("₱8,000.00");
 });

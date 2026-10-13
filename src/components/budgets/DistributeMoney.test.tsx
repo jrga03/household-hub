@@ -19,7 +19,7 @@ const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 function renderDistribute(mode: DistributeMode, accountId: string) {
   const rootRoute = createRootRoute();
-  const routes = ["/distribute", "/categories"].map((path) =>
+  const routes = ["/plan", "/categories"].map((path) =>
     createRoute({
       getParentRoute: () => rootRoute,
       path,
@@ -36,7 +36,7 @@ function renderDistribute(mode: DistributeMode, accountId: string) {
   );
   const router = createRouter({
     routeTree: rootRoute.addChildren(routes),
-    history: createMemoryHistory({ initialEntries: ["/distribute"] }),
+    history: createMemoryHistory({ initialEntries: ["/plan"] }),
   });
   return render(<RouterProvider router={router} />);
 }
