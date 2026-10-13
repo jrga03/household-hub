@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { loginAs, signUpNewPerson } from "./fixtures/helpers";
+import { loginAs, signUpNewPerson, navigateTo } from "./fixtures/helpers";
 
 // A fresh person per run: events are append-only, so accounts made by the
 // fixture users would pile up across runs.
@@ -22,11 +22,13 @@ test("an account added offline on one device appears on the member's other devic
   const person = await signUpNewPerson(pageA);
   await pageA.getByLabel("Household name").fill("Sync home");
   await pageA.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(pageA, "Accounts");
   await expect(pageA.getByText("No accounts yet")).toBeVisible();
 
   const deviceB = await browser.newContext();
   const pageB = await deviceB.newPage();
   await loginAs(pageB, person);
+  await navigateTo(pageB, "Accounts");
   await expect(pageB.getByText("No accounts yet")).toBeVisible();
 
   await deviceA.setOffline(true);
@@ -49,6 +51,7 @@ test("an account added offline on one device appears on the member's other devic
   const deviceC = await browser.newContext();
   const pageC = await deviceC.newPage();
   await loginAs(pageC, person);
+  await navigateTo(pageC, "Accounts");
   await expect(accountsList(pageC)).toContainText("GCash");
 
   await Promise.all([deviceA.close(), deviceB.close(), deviceC.close()]);

@@ -4,6 +4,7 @@ import { VIEWPORTS } from "./fixtures/viewports";
 
 const ROUTES = [
   { path: "/", name: "home" },
+  { path: "/accounts", name: "accounts" },
   { path: "/settings", name: "settings" },
   { path: "/transactions", name: "transactions" },
 ];

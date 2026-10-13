@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { loginAs, signUpNewPerson } from "./fixtures/helpers";
+import { loginAs, signUpNewPerson, navigateTo } from "./fixtures/helpers";
 
 const accountsList = (page: Page) => page.getByRole("list", { name: "Accounts" });
 
@@ -31,6 +31,7 @@ test("two devices rename the same account offline and both end on the later edit
   const person = await signUpNewPerson(pageA);
   await pageA.getByLabel("Household name").fill("Edit home");
   await pageA.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(pageA, "Accounts");
   const addForm = pageA.getByRole("form", { name: "Add an account" });
   await addForm.getByLabel("Account name").fill("Cash");
   await addForm.getByRole("button", { name: "Add account" }).click();
@@ -39,6 +40,7 @@ test("two devices rename the same account offline and both end on the later edit
   const deviceB = await browser.newContext();
   const pageB = await deviceB.newPage();
   await loginAs(pageB, person);
+  await navigateTo(pageB, "Accounts");
   await expectAfterSync(pageB, listed(pageB, "Cash"));
 
   await deviceA.setOffline(true);

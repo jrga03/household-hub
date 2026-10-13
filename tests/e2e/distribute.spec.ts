@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { chooseOption, signUpNewPerson } from "./fixtures/helpers";
+import { chooseOption, signUpNewPerson, navigateTo } from "./fixtures/helpers";
 
 const unassignedItem = (page: Page, account: string) =>
   page
@@ -28,6 +28,7 @@ test("a payroll distribution leaves the source account's Unassigned at ₱0", as
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Payday home");
   await page.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(page, "Accounts");
   await addAccount(page, "BPI");
   await addAccount(page, "GCash");
 

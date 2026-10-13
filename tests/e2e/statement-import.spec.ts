@@ -1,5 +1,5 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
-import { chooseOption, signUpNewPerson } from "./fixtures/helpers";
+import { chooseOption, signUpNewPerson, navigateTo } from "./fixtures/helpers";
 
 const SYNTHETIC_BDO = "tests/fixtures/statements/bdo-credit-card.pdf";
 const SYNTHETIC_UNIONBANK = "tests/fixtures/statements/unionbank-credit-card.xlsx";
@@ -10,6 +10,7 @@ async function openImportOffline(page: Page, context: BrowserContext, cardName: 
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Import home");
   await page.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(page, "Accounts");
 
   const addAccount = page.getByRole("form", { name: "Add an account" });
   await addAccount.getByLabel("Account name").fill("Savings");

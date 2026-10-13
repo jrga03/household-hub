@@ -1,11 +1,12 @@
 import { test, expect, type Page } from "@playwright/test";
-import { chooseOption, signUpNewPerson } from "./fixtures/helpers";
+import { chooseOption, signUpNewPerson, navigateTo } from "./fixtures/helpers";
 
 /** A household with ₱8,000 allocated to Groceries and a ₱1,200 Groceries expense, on Categories. */
 async function groceriesThisMonth(page: Page) {
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Ledger home");
   await page.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(page, "Accounts");
 
   const addAccount = page.getByRole("form", { name: "Add an account" });
   await addAccount.getByLabel("Account name").fill("BPI");

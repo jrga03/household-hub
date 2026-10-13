@@ -1,12 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect } from "react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
+import { HouseholdSettings } from "@/components/households/HouseholdSettings";
 import { ExportCard } from "@/components/settings/ExportCard";
 import { SettingsNav } from "@/components/settings/SettingsNav";
+import { useHousehold } from "@/hooks/useHousehold";
+import { useScrollToHash } from "@/hooks/useScrollToHash";
+import { useAuthStore } from "@/stores/authStore";
 
 export const Route = createFileRoute("/settings")({
   staticData: { title: "Settings" },
@@ -15,15 +18,9 @@ export const Route = createFileRoute("/settings")({
 
 function SettingsPage() {
   const { theme, setTheme } = useTheme();
-
-  useEffect(() => {
-    const hash = window.location.hash.slice(1);
-    if (!hash) return;
-    // Wait one frame so layout settles before scrolling.
-    window.requestAnimationFrame(() => {
-      document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  }, []);
+  const { household, isOwner } = useHousehold();
+  const userId = useAuthStore((state) => state.user?.id);
+  useScrollToHash();
 
   return (
     <PageShell variant="nav-content">
@@ -31,6 +28,9 @@ function SettingsPage() {
         <SettingsNav />
       </PageShell.LeftAside>
       <PageShell.Main className="space-y-6 mx-auto w-full max-w-2xl">
+        {household && userId && (
+          <HouseholdSettings household={household} userId={userId} isOwner={isOwner} />
+        )}
         <Card id="appearance" className="scroll-mt-4">
           <CardHeader>
             <CardTitle>Appearance</CardTitle>

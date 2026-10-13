@@ -23,7 +23,7 @@ function StepsLoaded() {
 
 function renderHome() {
   const rootRoute = createRootRoute();
-  const routes = ["/", "/distribute", "/categories"].map((path) =>
+  const routes = ["/", "/distribute", "/categories", "/accounts"].map((path) =>
     createRoute({
       getParentRoute: () => rootRoute,
       path,
@@ -71,6 +71,15 @@ describe("OpeningChecklist", () => {
     expect(await screen.findByRole("link", { name: "Distribute" })).toHaveAttribute(
       "href",
       `/distribute?mode=opening&account=${bpi.id}`
+    );
+  });
+
+  it("sends an empty household to the add-account form on Accounts", async () => {
+    renderHome();
+
+    expect(await screen.findByRole("link", { name: "Add an account" })).toHaveAttribute(
+      "href",
+      "/accounts#add-account"
     );
   });
 
