@@ -45,6 +45,10 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 - **Deferred: rewriting `src/components/layout/README.md`**, which still describes an older nav (Budgets, Analytics, Transfers); #107 fixed only the lines it made false. Revisit: a separate docs cleanup.
 - **The HH badge stays in the desktop sidebar header**, which plays the drawer's role on wide screens (#107). Revisit: never.
 - **Each issue updates the e2e specs and layout baselines it breaks** (for example, the 16 specs that add accounts on Home and the checklist's `/#add-account` link). There is no separate test-migration issue.
+- **`FormSheet` is the form container** (#108, `src/components/FormSheet.tsx`): `<FormSheet title description? onClose>` (mounted means open), `FormFooter` for the pinned buttons, and `advanceOnEnter` as the form's `ref`. #109 and #111 build their forms on it. Revisit: never.
+- **Keyboard handling is ours, not vaul's** (#108): `repositionInputs` is off; `FormSheet` lifts the sheet by the `visualViewport` inset (iOS) and scrolls the focused field into view on any visual-viewport height change. Why: vaul's repositioning resizes the sheet and fights the pinned footer. Revisit: if vaul's handling improves.
+- **Deferred: a real-device keyboard check** (#108). Automated coverage is `tests/e2e/phone-sheets.spec.ts`, which emulates the keyboard (shrunk `visualViewport` for iOS, shrunk viewport for `resizes-content`). Revisit: next time the app is tried on an iPhone and an Android phone.
+- **Non-form sheets stay Radix `Sheet`** (#108): the Categories ledger drill-in and the Import draft detail aren't forms. Revisit: #111 if the ledger sheet should drag like the form sheets.
 
 ## Issues
 
