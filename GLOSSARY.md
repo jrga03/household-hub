@@ -117,6 +117,13 @@ One row read from a bank or credit card statement.
 A statement line held for review. It becomes a transaction only when a member confirms it.
 _Avoid_: Pending transaction, staged import
 
+**Import**:
+The drafts read from one statement file, all belonging to one account. It is kept on the device that read the file until every draft is saved or discarded.
+_Avoid_: Batch, upload
+
+**Import Key**:
+A fingerprint of a statement line, recorded on the transaction it became, so the same line is recognized as already imported on any device.
+
 ## Sync
 
 **Waiting**:
