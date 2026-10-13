@@ -66,6 +66,7 @@ test.describe("Create a household", () => {
     });
 
     const heading = page.getByRole("heading", { name: "Welcome to Household Hub" });
+    await expect(page.getByText(/Everything you record belongs/)).toHaveCount(0);
     const headingBox = await heading.boundingBox();
     expect(headingBox?.y).toBeGreaterThanOrEqual(SAFE_TOP);
 

@@ -48,6 +48,7 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 - **#112 tests the safe area by overriding `--safe-area-top/bottom`** (iPhone 15 Pro insets, 59px/34px) in `household.spec.ts`, since no desktop or emulated browser reports `env(safe-area-inset-*)`. Revisit: if a real-device check (BrowserStack or a physical iPhone) shows a mismatch.
 - **#112 moved the Create / Join choices into `src/components/households/CreateOrJoin.tsx`** so the toggle and request states are unit-tested there; the route keeps only the page frame. Revisit: never.
 - **Deferred: create-or-join opened offline shows no Create / Join choices** (they wait on the Join Request lookup, which pauses offline; same before #112). #112's offline e2e now waits for the form before going offline. Revisit: if someone reports a blank onboarding screen.
+- **#112 onboarding details (confirmed by the user 2026-10-13):** the toggle opens on Create; Create is disabled while a Join Request is pending or declined (the server's `create_household` doesn't check open requests); the h1 "Welcome to Household Hub" stays but the intro paragraph is dropped; the cards under the toggle drop their "Create a household" / "Join a household" titles and keep their descriptions; the footer button keeps the app's "Sign Out" casing. Revisit: never.
 
 ## Issues
 

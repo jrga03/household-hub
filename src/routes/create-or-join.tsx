@@ -18,20 +18,14 @@ function CreateOrJoinPage() {
       className="flex min-h-dvh max-w-md flex-col gap-6 pt-[calc(1.5rem+var(--safe-area-top))] pr-[calc(1rem+var(--safe-area-right))] pb-[calc(0.5rem+var(--safe-area-bottom))] pl-[calc(1rem+var(--safe-area-left))]"
     >
       <PageShell.Main className="flex-1 space-y-6">
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <div
-              aria-hidden="true"
-              className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground"
-            >
-              <span className="text-xs font-bold">HH</span>
-            </div>
-            <h1 className="text-lg font-semibold">Welcome to Household Hub</h1>
+        <div className="flex items-center gap-3">
+          <div
+            aria-hidden="true"
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground"
+          >
+            <span className="text-xs font-bold">HH</span>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Everything you record belongs to a household. Start your own, or join one a member
-            shares with you. Alone? A household of one works the same.
-          </p>
+          <h1 className="text-lg font-semibold">Welcome to Household Hub</h1>
         </div>
 
         {user && <CreateOrJoinChoices userId={user.id} />}

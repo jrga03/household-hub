@@ -56,6 +56,18 @@ describe("CreateOrJoinChoices", () => {
     expect(screen.queryByLabelText("Household name")).not.toBeInTheDocument();
   });
 
+  it("explains each side without repeating the toggle as a card title", async () => {
+    renderChoices(null);
+
+    expect(await screen.findByText(/You become its Owner/)).toBeInTheDocument();
+    expect(screen.queryByText("Create a household")).not.toBeInTheDocument();
+
+    pressTab("Join");
+
+    expect(await screen.findByText(/Ask a member for their Household Code/)).toBeInTheDocument();
+    expect(screen.queryByText("Join a household")).not.toBeInTheDocument();
+  });
+
   it("opens on Join with the pending request and keeps Create closed until it is answered", async () => {
     renderChoices({ id: "request-1", status: "pending" });
 
