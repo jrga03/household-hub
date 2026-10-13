@@ -1,6 +1,6 @@
 # Re-architecture against the vision
 
-Source of truth: `docs/VISION.md`. Vocabulary: `GLOSSARY.md`. Status: Milestone 1 (#15) landed and closed 2026-10-11; production keep-alive check pending in #40. Milestone 2 (#46) landed and closed 2026-10-12. Milestone 3 scoped 2026-10-12 (spec #70). ADRs: `docs/adr/0001`-`0007`.
+Source of truth: `docs/VISION.md`. Vocabulary: `GLOSSARY.md`. Status: Milestone 1 (#15) landed and closed 2026-10-11; production keep-alive check pending in #40. Milestone 2 (#46) landed and closed 2026-10-12. Milestone 3 landed and closed 2026-10-13 (spec #70). Milestone 4 scoped 2026-10-13. ADRs: `docs/adr/0001`-`0008`.
 
 ## Context
 
@@ -102,6 +102,35 @@ Fix commits cluster in `src/lib/{sync,offline,debts}`.
 - **Deferred: export modes**, a size-optimized app-restorable one and a compatibility-optimized Excel/Sheets one (#69, `needs-triage`). Revisit: someday, after the first release, when no higher-value feature is waiting. Agreed 2026-10-12.
 - **The debts UI docs are obsolete** (`docs/plans/2026-10-10-debts-ui-design.md`, `docs/plans/2026-10-10-debts-ui.md`): they describe the old row-outbox design. Each carries a superseded line. Revisit: when debts are rebuilt on the event log (after the first release). Agreed 2026-10-12.
 - **The other envelope helpers stay in `allocations/events.ts`** (`sameEnvelope`, `cardPaymentEnvelope`, the `Envelope` type); #83 moved only `envelopeLabel`, and no follow-up issue was opened. Why: triage scoped #83 to the label. Revisit: if more non-event code lands in `events.ts`. Agreed 2026-10-13.
+- **Milestone 4 = statement import and the home dashboard**, completing the first release. The per-account register stays deferred (the filtered list covers it); the analytics drilldown and debts stay after the first release. Agreed 2026-10-13.
+- **Home is a hub of sections**: the opening checklist (while open), then Finances; later non-finance sections (shared todos) join as more sections. A plain ordered list of section components in the home route, no registry until a second non-finance section exists. Agreed 2026-10-13.
+- **The Finances section is the current month's overview**: money in, money out, left; account balances; budget status counts (close at 80% or more of the budget spent, over above 100%); the last 5 entries; each block links to its full screen. Transfers excluded. No month picker, no charts (those belong to Categories and the later analytics). Agreed 2026-10-13.
+- **Household / Mine toggle on Finances**, remembered per device, never one blended total. Why: an allowance is household spending and what's spent from it is personal spending; blending double-counts. Agreed 2026-10-13.
+- **Import starts with two formats: BDO credit card PDF and UnionBank credit card XLSX.** Each format is a `StatementParser` (`file + password → StatementLine[]`); other banks and e-wallets are later issues, one per format. Agreed 2026-10-13.
+- **Parsing runs in the browser, in a lazy-loaded Web Worker**, precached so it works offline. Dependencies: `pdfjs-dist` and `cfb` only; XLSX decryption by WebCrypto, unzipping by `DecompressionStream`, and a small XML reader (Workers have no `DOMParser`). Rejected: a Cloudflare Worker (statements and passwords leave the device; 10 ms CPU) and importing the skills' CSV (breaks "the format the bank sends"). Catch: the PWA precache glob is `**/*.js`, so pdf.js's `.mjs` worker must be bundled through Vite or the glob must add `mjs`. Agreed 2026-10-13.
+- **The import chunk gets its own size budget**: its first measured size plus 10%, enforced by `npm run size`. Agreed 2026-10-13.
+- **Statement passwords are typed per file and never synced.** A format with a fixed password (BDO) offers an opt-in "Remember password on this device" per card, in device storage, wiped on sign-out and household switch; a per-file format (UnionBank) never offers it. Agreed 2026-10-13.
+- **Drafts are device-local** (ADR 0008): a Dexie table outside the event log, grouped by Import (file name, account, imported-at). Saving creates transactions in one `appendTogether`, single or bulk; saved and discarded drafts are deleted, and an Import disappears once empty. Drafts are wiped with household data on switch; the sign-out warning counts unsaved drafts beside Waiting changes. Agreed 2026-10-13.
+- **One statement is one account**: the card is picked once per file from the cards, preselected from the last one used with that format on this device. Agreed 2026-10-13.
+- **Import keys** (ADR 0008): `transaction.created` v3 carries `importKey` (v1 and v2 upcast to `null`), a hash of format, account, line date, raw description, amount and position among identical lines. Exact match on a non-removed transaction: "Already imported", discarded by default. Against transactions without a key, same account, direction and amount within ±3 days: "Might already be recorded", shown with the match, never auto-discarded. Agreed 2026-10-13.
+- **Card-payment lines** on a card statement are detected, matched against transfers into that card and discarded by default; with no match the draft offers "Record as card payment" (the pay-card flow). Never saved as income. Agreed 2026-10-13.
+- **Draft defaults:** the purchase date (not the posting date), cleared, and a category suggested from the most recent saved transaction with the same normalized description (uppercased, digits and extra spaces stripped); otherwise "Needs a category". Agreed 2026-10-13.
+- **LLM-ready seams:** `StatementParser` and `DraftSuggester` (`(drafts, context) → Promise<Suggestion[]>`, a suggestion being `{draftId, description?, categoryId?, source: "history" | "llm"}`), run async in order and never blocking; the review UI marks suggested values. M4 ships only the history suggester. Deferred: an LLM suggester or parser. Why: needs a provider choice (free tier first, e.g. Cloudflare Workers AI) and a privacy call on sending descriptions off the device. Revisit: after the first release. Agreed 2026-10-13.
+- **Import lives on `/import`**: open Imports and their drafts, detail pane on wide screens and sheet on phones, reached from "Import statement" on Transactions and the nav. Files come from the file picker. Deferred: Web Share Target. Why: iOS PWAs don't support it. Revisit: if Android-only sharing is worth it. Agreed 2026-10-13.
+- **Statement fixtures:** synthetic encrypted fixtures (generated by a committed script) cover the parsers in CI; real statements, supplied by the user during the build, go in git-ignored `tests/fixtures/statements/private/`, with passwords in `.env.local`, and their tests skip when absent. Agreed 2026-10-13.
+- **M4 seams:** Vitest for each parser, import-key generation, the duplicate matcher, card-payment detection, the history suggester, the save-drafts command (all or nothing), `transaction.created` v3 upcasts with a permutation test, and `readFinanceOverview()` for Household and Mine. Playwright chromium: import the synthetic BDO PDF offline, save in bulk, see it in Transactions, re-import shows "Already imported"; home layout baselines refreshed. No server migration, no pgTAP. Agreed 2026-10-13.
+- **M4 splits into four sub-issues**, built in rounds: {home sections and Finances, statement parsing foundation with the BDO parser}, then {drafts and review, UnionBank parser}. Agreed 2026-10-13.
+
+## Milestone 4
+
+Spec: #95. Scoped 2026-10-13 (decisions above). ADR 0008. Build rounds: {#96, #97}, then {#99, #98}. Each sub-issue fills in its own subsection below.
+
+- [x] File the spec issue and the four sub-issues (`ready-for-agent`, blocked-by edges)
+- [ ] #96 Home sections and the Finances overview (Household / Mine)
+- [ ] #97 Statement parsing foundation: Web Worker, `StatementParser`, BDO PDF parser, offline precache, import chunk budget, remembered password
+- [ ] #99 Drafts and review (blocked by #97): drafts table, `/import`, import keys, duplicate and card-payment flags, `DraftSuggester` with history, save and discard, wipe and sign-out warning
+- [ ] #98 UnionBank XLSX parser (blocked by #97)
+- [ ] Close #95
 
 ## Milestone 3
 
@@ -703,7 +732,8 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - Round 2 merged: #74 (PR #85), #76 (PR #84), #72 (PR #86), #75 (PR #87). #77 merged (PR #89, f1eb4c2). Their worktrees and local branches are removed.
 - #70 closed 2026-10-13: Milestone 3 is complete. Follow-ups: #83 (move `envelopeLabel`; merged), #88 (Distribute empty state when the source holds no categories, both modes; #92 folded in and closed; built, PR #94), #69 (export modes, after the first release; `needs-triage`).
 - #83 merged (PR #93, bc59094): `envelopeLabel` now lives in `src/lib/allocations/envelope.ts`.
-- Next: undecided (the user will choose): scope Milestone 4 (statement import and the dashboard), or triage #69. Still owed: #40's dashboard checks (human).
+- Milestone 4 scoped 2026-10-13: spec #95, sub-issues #96-#99 (`ready-for-agent`, native blocked-by edges), ADR 0008, glossary Import and Import Key.
+- Next: build round 1 (#96, #97). Real statements for #97 and #98 come from the user during the build. Still owed: #40's dashboard checks (human).
 - Gotchas found in #71 and #73:
   - `sumAccountMoney(accounts, transactions, allocations, transfers)` takes transfers as a required fourth argument; any month or ledger sum must pass the transfers dated in range.
   - List rows are `ListRow = TransactionRow | TransferRow` (`isTransfer`, `newestFirst`, `transferDirection` in `transactions/filter.ts`); `useTransactionListRows()` replaced `useTransactions()`.
