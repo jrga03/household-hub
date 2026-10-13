@@ -47,6 +47,7 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 - **Each issue updates the e2e specs and layout baselines it breaks** (for example, the 16 specs that add accounts on Home and the checklist's `/#add-account` link). There is no separate test-migration issue.
 - **#112 tests the safe area by overriding `--safe-area-top/bottom`** (iPhone 15 Pro insets, 59px/34px) in `household.spec.ts`, since no desktop or emulated browser reports `env(safe-area-inset-*)`. Revisit: if a real-device check (BrowserStack or a physical iPhone) shows a mismatch.
 - **#112 moved the Create / Join choices into `src/components/households/CreateOrJoin.tsx`** so the toggle and request states are unit-tested there; the route keeps only the page frame. Revisit: never.
+- **Deferred: create-or-join opened offline shows no Create / Join choices** (they wait on the Join Request lookup, which pauses offline; same before #112). #112's offline e2e now waits for the form before going offline. Revisit: if someone reports a blank onboarding screen.
 
 ## Issues
 

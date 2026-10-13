@@ -38,6 +38,8 @@ test.describe("Create a household", () => {
   }) => {
     await signUpNewPerson(page);
     await expect(page).toHaveURL(/\/create-or-join/);
+    // The choices wait for the Join Request lookup; going offline before it answers leaves none.
+    await expect(page.getByLabel("Household name")).toBeVisible();
 
     await context.setOffline(true);
 
