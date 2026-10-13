@@ -19,12 +19,11 @@ import type { Actor } from "@/lib/commands/accounts";
 import { saveDrafts } from "@/lib/commands/drafts";
 import { formatPHP } from "@/lib/currency";
 import { deleteDrafts, editDraft, type DraftChanges } from "@/lib/import/drafts";
-import type { DraftFlag, ReviewedDraft } from "@/lib/import/review";
+import { needsDescription, type DraftFlag, type ReviewedDraft } from "@/lib/import/review";
 import { DESCRIPTION_MAX_LENGTH, isTransactionType } from "@/lib/transactions/events";
 import { errorMessage } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
 import { isSuggested, signedAmount, SuggestedBadge } from "./DraftLabels";
-import { needsDescription } from "@/lib/import/review";
 import { useDraftAction } from "./useDraftAction";
 
 const longDate = (date: string) => format(parseLocalDate(date), "MMM d, yyyy");
