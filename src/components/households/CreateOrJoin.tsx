@@ -6,7 +6,7 @@ import {
   PendingRequest,
   useMyJoinRequest,
 } from "@/components/households/JoinHousehold";
-import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardDescription } from "@/components/ui/card";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -84,10 +84,8 @@ function CreateHouseholdForm({ userId }: { userId: string }) {
 
   return (
     <Card>
-      <CardHeader>
+      <CardContent className="space-y-4">
         <CardDescription>You become its Owner and get a code to share.</CardDescription>
-      </CardHeader>
-      <CardContent>
         <form action={createAction} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="household-name">Household name</Label>
