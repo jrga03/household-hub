@@ -38,6 +38,12 @@ function fakeVisualViewport() {
       viewport.height = 800 - height;
       viewport.dispatchEvent(new Event("resize"));
     },
+    /** Android with interactive-widget=resizes-content: the whole page shrinks. */
+    resizePage(height: number) {
+      vi.stubGlobal("innerHeight", height);
+      viewport.height = height;
+      viewport.dispatchEvent(new Event("resize"));
+    },
   };
 }
 
@@ -95,6 +101,21 @@ describe("FormSheet", () => {
     act(() => keyboard.openKeyboard(0));
 
     expect(sheet.style.bottom).toBe("");
+  });
+
+  it("keeps the focused field in view when the keyboard resizes the page", () => {
+    setPhone(true);
+    const keyboard = fakeVisualViewport();
+    render(<NoteForm />);
+    const field = screen.getByRole("textbox", { name: "Note" });
+    const scrollIntoView = vi.fn();
+    field.scrollIntoView = scrollIntoView;
+    field.focus();
+
+    act(() => keyboard.resizePage(500));
+
+    expect(screen.getByRole("dialog", { name: "Add note" }).style.bottom).toBe("");
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
   });
 });
 

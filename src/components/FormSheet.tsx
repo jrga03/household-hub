@@ -37,16 +37,15 @@ const closeOn = (onClose: () => void) => (open: boolean) => !open && onClose();
 
 function PhoneSheet({ title, description, onClose, children }: FormSheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
-  const keyboard = useKeyboard();
-  const keyboardInset = keyboard?.inset ?? 0;
+  const { inset, viewportHeight } = useVisibleArea();
 
+  // The keyboard opening (or the page shrinking for it) mustn't hide the field being typed in.
   useEffect(() => {
-    if (keyboardInset === 0) return;
     const focused = document.activeElement;
     if (focused instanceof HTMLElement && sheetRef.current?.contains(focused)) {
       focused.scrollIntoView({ block: "nearest" });
     }
-  }, [keyboardInset]);
+  }, [viewportHeight]);
 
   return (
     // vaul's own input repositioning fights the keyboard handling here, so it is off.
@@ -54,9 +53,7 @@ function PhoneSheet({ title, description, onClose, children }: FormSheetProps) {
       <DrawerContent
         ref={sheetRef}
         style={
-          keyboard
-            ? { bottom: keyboard.inset, maxHeight: `calc(${keyboard.viewportHeight}px - 1rem)` }
-            : undefined
+          inset > 0 ? { bottom: inset, maxHeight: `calc(${viewportHeight}px - 1rem)` } : undefined
         }
       >
         <DrawerHeader>
@@ -88,28 +85,35 @@ function WideDialog({ title, description, onClose, children }: FormSheetProps) {
   );
 }
 
-interface Keyboard {
-  /** How much of the page bottom the keyboard covers, in px. */
+interface VisibleArea {
+  /** How much of the page bottom an on-screen keyboard covers, in px. */
   inset: number;
   viewportHeight: number;
 }
 
 /**
- * The on-screen keyboard where it overlays the page (iOS Safari). Where the
- * browser resizes the page for it (`interactive-widget=resizes-content`),
- * nothing is covered and this stays null.
+ * The part of the page the person can see. iOS Safari lays the keyboard over
+ * the page, so `inset` is its height; where the browser shrinks the page for
+ * it instead (`interactive-widget=resizes-content`), `inset` stays 0.
  */
-function useKeyboard(): Keyboard | null {
-  const [keyboard, setKeyboard] = useState<Keyboard | null>(null);
+function useVisibleArea(): VisibleArea {
+  const [area, setArea] = useState<VisibleArea>(() => ({
+    inset: 0,
+    viewportHeight: window.visualViewport?.height ?? window.innerHeight,
+  }));
   useEffect(() => {
     const viewport = window.visualViewport;
     if (!viewport) return;
     const update = () => {
-      const inset = Math.round(window.innerHeight - viewport.height - viewport.offsetTop);
+      const covered = Math.round(window.innerHeight - viewport.height - viewport.offsetTop);
       // A pinch zoom shrinks the visual viewport too; that isn't a keyboard.
       const zoomed = viewport.scale > 1;
-      setKeyboard(
-        inset > 0 && !zoomed ? { inset, viewportHeight: Math.round(viewport.height) } : null
+      const viewportHeight = Math.round(viewport.height);
+      const inset = covered > 0 && !zoomed ? covered : 0;
+      setArea((previous) =>
+        previous.inset === inset && previous.viewportHeight === viewportHeight
+          ? previous
+          : { inset, viewportHeight }
       );
     };
     update();
@@ -120,7 +124,7 @@ function useKeyboard(): Keyboard | null {
       viewport.removeEventListener("scroll", update);
     };
   }, []);
-  return keyboard;
+  return area;
 }
 
 /** The form's buttons, pinned to the bottom of the sheet or dialog while the fields scroll. */
