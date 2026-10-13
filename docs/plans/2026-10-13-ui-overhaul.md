@@ -57,7 +57,7 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 
 - [x] File the spec (#106) and sub-issues (`ready-for-agent`, blocked-by edges); #102 re-scoped as issue 3, #99 blocked by #110
 - [x] 1. #107 (PR #115) Shell: header title and actions slot, drawer regroup with email and sign out at the bottom, Review dot, desktop sidebar groups, in-page titles removed
-- [ ] 2. #108 Phone sheets and keyboard: Drawer component, viewport handling, pinned submit, `enterKeyHint`, all phone forms migrated
+- [x] 2. #108 (merged 9e995ee, PR #116) Phone sheets and keyboard: Drawer component, viewport handling, pinned submit, `enterKeyHint`, all phone forms migrated
 - [ ] 3. #102 Accounts screen and Settings → Household; Home becomes finances-only
 - [ ] 4. #109 Transactions rehaul: rows, date headers, pending style, swipe-reveal, remove confirmation, selection mode, Totals removed, description required
 - [ ] 5. #110 Review screen
