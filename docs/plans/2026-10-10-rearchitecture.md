@@ -701,9 +701,9 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #71 merged (PR #79, 734017b). #73 merged (PR #80, 0becd82); merging it after #71 needed transfers in the month-end money (a type error caught it). Their worktrees and local branches are removed. Follow-up #81 (`transactions.spec.ts` on Mobile Chrome).
 - Pending with the user: whether Unassigned and "Retired, still holding money" should follow the month picker (default: keep current money; see the #73 decisions).
 - Round 2 merged: #74 (PR #85), #76 (PR #84), #72 (PR #86), #75 (PR #87). #77 merged (PR #89, f1eb4c2). Their worktrees and local branches are removed.
-- #70 closed 2026-10-13: Milestone 3 is complete. Follow-ups, all `needs-triage`: #83 (move `envelopeLabel`; its revisit point, round 2 merged, has passed), #88 (Distribute opening mode with no categories), #69 (export modes, after the first release).
-- #83 built 2026-10-13 (PR #93, open): `envelopeLabel` now lives in `src/lib/allocations/envelope.ts`.
-- Next: undecided (the user will choose): triage #83 and #88, or scope Milestone 4 (statement import and the dashboard). Still owed: #40's dashboard checks (human).
+- #70 closed 2026-10-13: Milestone 3 is complete. Follow-ups: #83 (move `envelopeLabel`; merged), #88 (Distribute empty state when the source holds no categories, both modes; #92 folded in and closed; built, PR #94), #69 (export modes, after the first release; `needs-triage`).
+- #83 merged (PR #93, bc59094): `envelopeLabel` now lives in `src/lib/allocations/envelope.ts`.
+- Next: undecided (the user will choose): scope Milestone 4 (statement import and the dashboard), or triage #69. Still owed: #40's dashboard checks (human).
 - Gotchas found in #71 and #73:
   - `sumAccountMoney(accounts, transactions, allocations, transfers)` takes transfers as a required fourth argument; any month or ledger sum must pass the transfers dated in range.
   - List rows are `ListRow = TransactionRow | TransferRow` (`isTransfer`, `newestFirst`, `transferDirection` in `transactions/filter.ts`); `useTransactionListRows()` replaced `useTransactions()`.

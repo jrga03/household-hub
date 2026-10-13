@@ -134,6 +134,10 @@ export interface CategoryList {
   retiredCategories: CategoryListItem[];
 }
 
+/** The suggested categories are offered only until the household has a group, retired or not. */
+export const hasHouseholdGroup = (list: CategoryList) =>
+  [...list.groups, ...list.retiredGroups].some((group) => group.visibility === "household");
+
 const byName = (a: CategoryRecord, b: CategoryRecord) =>
   a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
 
