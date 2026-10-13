@@ -1,14 +1,7 @@
 import { useActionState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { ACCOUNT_TYPES, CREDIT_CARD, isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
@@ -62,36 +55,37 @@ export function EditAccountDialog({
     });
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="@container">
-        <DialogHeader>
-          <DialogTitle>Edit account</DialogTitle>
-          <DialogDescription>
-            Changes reach your household&apos;s other devices when they sync.
-          </DialogDescription>
-        </DialogHeader>
-        <form action={saveAction} className="space-y-4" aria-label="Edit account">
-          <AccountDetailsFields
-            idPrefix="edit-account"
-            types={isCreditCard(account) ? [CREDIT_CARD] : NON_CARD_TYPES}
-            ownership={account}
-            defaults={account}
-          />
-          <div className="space-y-1">
-            <p className="text-sm font-medium">Who sees it</p>
-            <p className="text-sm text-muted-foreground">
-              {VISIBILITY_SUMMARY[account.visibility]} Visibility can&apos;t be changed.
-            </p>
-          </div>
-          <FormError>{error}</FormError>
-          <DialogFooter className="gap-2 @[480px]:justify-between">
-            <Button type="button" variant="outline" onClick={retire} disabled={retiring}>
-              Retire account
-            </Button>
-            <SubmitButton pendingText="Saving...">Save</SubmitButton>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FormSheet
+      title="Edit account"
+      description="Changes reach your household's other devices when they sync."
+      onClose={onClose}
+    >
+      <form
+        ref={advanceOnEnter}
+        action={saveAction}
+        className="space-y-4"
+        aria-label="Edit account"
+      >
+        <AccountDetailsFields
+          idPrefix="edit-account"
+          types={isCreditCard(account) ? [CREDIT_CARD] : NON_CARD_TYPES}
+          ownership={account}
+          defaults={account}
+        />
+        <div className="space-y-1">
+          <p className="text-sm font-medium">Who sees it</p>
+          <p className="text-sm text-muted-foreground">
+            {VISIBILITY_SUMMARY[account.visibility]} Visibility can&apos;t be changed.
+          </p>
+        </div>
+        <FormError>{error}</FormError>
+        <FormFooter className="@[480px]:justify-between">
+          <Button type="button" variant="outline" onClick={retire} disabled={retiring}>
+            Retire account
+          </Button>
+          <SubmitButton pendingText="Saving...">Save</SubmitButton>
+        </FormFooter>
+      </form>
+    </FormSheet>
   );
 }

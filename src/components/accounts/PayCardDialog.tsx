@@ -1,14 +1,7 @@
 import { useActionState, useState } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,33 +61,29 @@ export function PayCardDialog({
   const payers = payingAccountChoices(accounts, card);
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="@container max-h-[90dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Pay {card.name}</DialogTitle>
-          <DialogDescription>
-            A transfer from the Card Payment set aside for {card.name}.
-          </DialogDescription>
-        </DialogHeader>
-        {payers.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Add a bank, cash or e-wallet account seen by the same people as {card.name} first.
-          </p>
-        ) : (
-          <PayCardForm
-            actor={actor}
-            card={card}
-            payers={payers}
-            money={money}
-            prefill={prefill}
-            onPaid={() => {
-              onPaid?.();
-              onClose();
-            }}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
+    <FormSheet
+      title={`Pay ${card.name}`}
+      description={`A transfer from the Card Payment set aside for ${card.name}.`}
+      onClose={onClose}
+    >
+      {payers.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Add a bank, cash or e-wallet account seen by the same people as {card.name} first.
+        </p>
+      ) : (
+        <PayCardForm
+          actor={actor}
+          card={card}
+          payers={payers}
+          money={money}
+          prefill={prefill}
+          onPaid={() => {
+            onPaid?.();
+            onClose();
+          }}
+        />
+      )}
+    </FormSheet>
   );
 }
 
@@ -148,7 +137,12 @@ function PayCardForm({
   );
 
   return (
-    <form action={payAction} className="space-y-4" aria-label={`Pay ${card.name}`}>
+    <form
+      ref={advanceOnEnter}
+      action={payAction}
+      className="space-y-4"
+      aria-label={`Pay ${card.name}`}
+    >
       <div className="grid gap-4 @[480px]:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="pay-amount">Amount ({PESO_SIGN})</Label>
@@ -158,6 +152,7 @@ function PayCardForm({
             inputMode="decimal"
             placeholder="0.00"
             autoComplete="off"
+            enterKeyHint="done"
             required
             value={amountText}
             onChange={(event) => setAmountText(event.target.value)}
@@ -203,9 +198,9 @@ function PayCardForm({
       )}
 
       <FormError>{error}</FormError>
-      <DialogFooter>
+      <FormFooter>
         <SubmitButton pendingText="Paying...">Pay {card.name}</SubmitButton>
-      </DialogFooter>
+      </FormFooter>
     </form>
   );
 }

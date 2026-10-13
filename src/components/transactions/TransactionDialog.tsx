@@ -2,15 +2,8 @@ import { useActionState, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -70,15 +63,13 @@ export function TransactionDialog({
   onClose: () => void;
 }) {
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="@container max-h-[90dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{transaction ? "Edit transaction" : "Add transaction"}</DialogTitle>
-          <DialogDescription>{SAVED_LOCALLY}</DialogDescription>
-        </DialogHeader>
-        <TransactionEditor actor={actor} transaction={transaction} onClose={onClose} />
-      </DialogContent>
-    </Dialog>
+    <FormSheet
+      title={transaction ? "Edit transaction" : "Add transaction"}
+      description={SAVED_LOCALLY}
+      onClose={onClose}
+    >
+      <TransactionEditor actor={actor} transaction={transaction} onClose={onClose} />
+    </FormSheet>
   );
 }
 
@@ -296,6 +287,7 @@ function TransactionForm({
 
   return (
     <form
+      ref={advanceOnEnter}
       action={saveAction}
       className="space-y-4"
       aria-label={transaction ? "Edit transaction" : "Add transaction"}
@@ -310,6 +302,7 @@ function TransactionForm({
             inputMode="decimal"
             placeholder="0.00"
             autoComplete="off"
+            enterKeyHint="next"
             required
             ref={amountRef}
             defaultValue={transaction ? formatPHPInput(transaction.amountCents) : draftAmount}
@@ -374,6 +367,7 @@ function TransactionForm({
           name="description"
           maxLength={DESCRIPTION_MAX_LENGTH}
           autoComplete="off"
+          enterKeyHint="next"
           defaultValue={transaction?.description}
         />
       </div>
@@ -401,7 +395,7 @@ function TransactionForm({
       </fieldset>
 
       <FormError>{error}</FormError>
-      <DialogFooter className="gap-2 @[480px]:justify-between">
+      <FormFooter className="@[480px]:justify-between">
         {transaction ? (
           <Button type="button" variant="outline" onClick={remove}>
             Remove
@@ -412,7 +406,7 @@ function TransactionForm({
         <SubmitButton pendingText="Saving...">
           {transaction ? "Save" : "Add transaction"}
         </SubmitButton>
-      </DialogFooter>
+      </FormFooter>
     </form>
   );
 }
