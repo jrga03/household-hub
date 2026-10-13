@@ -10,6 +10,7 @@ import type { AllocationRow } from "@/lib/allocations/projection";
 import { diffCents, negateCents, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import { sumAccountMoney, sumCategoryMoney } from "@/lib/transactions/money";
+import { monthOfDate } from "@/lib/utils/dates";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import type { TransferRow } from "@/lib/transfers/projection";
 import { budgetsInForce, type Budget } from "./inForce";
@@ -42,8 +43,6 @@ export interface MonthRecords {
 
 /** By category ID; a category with no budget or activity is left out (see `categoryMonth`). */
 export type MonthView = Map<string, CategoryMonth>;
-
-const monthOf = (date: string) => date.slice(0, 7);
 
 const NOTHING_THIS_MONTH: CategoryMonth = {
   budget: null,
@@ -80,7 +79,8 @@ export function summarizeMonth(
 
   for (const transaction of transactions) {
     const { categoryId } = transaction;
-    if (transaction.removed || categoryId === null || monthOf(transaction.date) !== month) continue;
+    if (transaction.removed || categoryId === null || monthOfDate(transaction.date) !== month)
+      continue;
     const entry = entryFor(view, categoryId);
     const { amountCents } = transaction;
     entry.spent =
@@ -90,7 +90,7 @@ export function summarizeMonth(
   }
 
   for (const allocation of allocations) {
-    if (allocation.removed || monthOf(allocation.date) !== month) continue;
+    if (allocation.removed || monthOfDate(allocation.date) !== month) continue;
     if (allocation.to.kind === "category") {
       const entry = entryFor(view, allocation.to.id);
       entry.allocated = sumCents([entry.allocated, allocation.amountCents]);
@@ -102,7 +102,7 @@ export function summarizeMonth(
   }
 
   const byMonthEnd = (record: { date: string }) =>
-    month === currentMonth || monthOf(record.date) <= month;
+    month === currentMonth || monthOfDate(record.date) <= month;
   const money = sumCategoryMoney(
     sumAccountMoney(
       accounts,

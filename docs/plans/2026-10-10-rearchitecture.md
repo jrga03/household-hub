@@ -126,11 +126,23 @@ Fix commits cluster in `src/lib/{sync,offline,debts}`.
 Spec: #95. Scoped 2026-10-13 (decisions above). ADR 0008. Build rounds: {#96, #97}, then {#99, #98}. Each sub-issue fills in its own subsection below.
 
 - [x] File the spec issue and the four sub-issues (`ready-for-agent`, blocked-by edges)
-- [ ] #96 Home sections and the Finances overview (Household / Mine)
+- [x] #96 Home sections and the Finances overview (Household / Mine); PR #101
 - [ ] #97 Statement parsing foundation: Web Worker, `StatementParser`, BDO PDF parser, offline precache, import chunk budget, remembered password
 - [ ] #99 Drafts and review (blocked by #97): drafts table, `/import`, import keys, duplicate and card-payment flags, `DraftSuggester` with history, save and discard, wipe and sign-out warning
 - [ ] #98 UnionBank XLSX parser (blocked by #97), built 2026-10-13
 - [ ] Close #95
+
+### #96 decisions
+
+- **Seams:** `readFinanceOverview()` (`lib/finances/overview.ts`), Vitest seeded through commands; a `FinancesSection` component test for the links, the remembered Household / Mine choice and blocked storage. Home's layout baselines refreshed, with the month label masked so they don't drift monthly.
+- **Home's sections are plain JSX in order:** the opening checklist, Finances, then the household cards (name and code, join requests, members, accounts) as one household section. Why: the plan said no registry until a second non-finance section exists; review found an array of sections was one.
+- **Mine is Personal and owned by the member**, matched on each record's own visibility and owner, so another member's Personal records never count even if this device holds them.
+- **The latest 5 span all months**, newest first, transfers included; in, out and left cover only the current month. Agreed 2026-10-13.
+- **Budget status counts categories in use with a budget this month.** Close is 80% to 100% spent (compared without dividing cents), over is above 100%; a ₱0 budget is over with any spending.
+- **Balances link per account** to Transactions filtered by that account. Why: accounts have no screen of their own; they are managed on home. An Accounts screen and how the nav groups finance pages are filed as #102 (`needs-triage`). Revisit: at #102's triage. Agreed 2026-10-13.
+- **The toggle's name is "view" (`FinanceView`)**, not "scope", and the list reads "Latest transactions", not "entries" (both on GLOSSARY's avoid lists).
+- **Deferred: sharing row display with `TransactionList`.** The latest list repeats a small part of its label and amount logic. Why: that logic is a closure inside `TransactionList`; extracting it is a refactor of a busy component. Revisit: if a third list needs it.
+- **Deferred: the month at midnight.** An open home keeps last month's figures until it re-renders after the 1st. Revisit: if it confuses anyone. Agreed 2026-10-13.
 
 ### #97 Statement parsing foundation
 

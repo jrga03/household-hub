@@ -7,12 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AccountsCard } from "@/components/accounts/AccountsCard";
+import { FinancesSection } from "@/components/finances/FinancesSection";
 import { JoinRequestsCard } from "@/components/households/JoinRequestsCard";
 import { MembersCard } from "@/components/households/MembersCard";
 import { OpeningChecklist } from "@/components/opening/OpeningChecklist";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { confirm } from "@/lib/confirm";
 import { replaceHouseholdCode } from "@/lib/household-members";
+import type { Household } from "@/lib/households";
 import { errorMessage } from "@/lib/utils";
 import { useHousehold } from "@/hooks/useHousehold";
 import { useAuthStore } from "@/stores/authStore";
@@ -35,28 +37,42 @@ function HomePage() {
 
       <PageShell variant="centered">
         <PageShell.Main className="space-y-4">
+          {/* Home's sections, top to bottom. */}
           {household && <OpeningChecklist key={household.id} householdId={household.id} />}
-          {household && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <CardTitle>{household.name}</CardTitle>
-                  <Badge variant="secondary">{isOwner ? "Owner" : "Member"}</Badge>
-                </div>
-              </CardHeader>
-              {isOwner && userId && (
-                <HouseholdCode userId={userId} householdId={household.id} code={household.code} />
-              )}
-            </Card>
-          )}
-          {household && isOwner && <JoinRequestsCard householdId={household.id} />}
+          {household && userId && <FinancesSection userId={userId} />}
           {household && userId && (
-            <MembersCard householdId={household.id} userId={userId} isOwner={isOwner} />
+            <HouseholdSection household={household} userId={userId} isOwner={isOwner} />
           )}
-          {household && userId && <AccountsCard actor={{ householdId: household.id, userId }} />}
         </PageShell.Main>
       </PageShell>
     </div>
+  );
+}
+
+interface HouseholdSectionProps {
+  household: Household;
+  userId: string;
+  isOwner: boolean;
+}
+
+function HouseholdSection({ household, userId, isOwner }: HouseholdSectionProps) {
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <CardTitle>{household.name}</CardTitle>
+            <Badge variant="secondary">{isOwner ? "Owner" : "Member"}</Badge>
+          </div>
+        </CardHeader>
+        {isOwner && (
+          <HouseholdCode userId={userId} householdId={household.id} code={household.code} />
+        )}
+      </Card>
+      {isOwner && <JoinRequestsCard householdId={household.id} />}
+      <MembersCard householdId={household.id} userId={userId} isOwner={isOwner} />
+      <AccountsCard actor={{ householdId: household.id, userId }} />
+    </>
   );
 }
 
