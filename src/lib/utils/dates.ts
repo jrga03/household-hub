@@ -31,6 +31,9 @@ export const isLocalMonth = (value: unknown): value is string =>
 /** The local calendar month of a moment, "yyyy-MM". */
 export const localMonth = (date: Date) => format(date, "yyyy-MM");
 
+/** The calendar month of a "yyyy-MM-dd" date, "yyyy-MM". */
+export const monthOfDate = (date: string) => date.slice(0, 7);
+
 /** The month `by` months after (or before, when negative) a "yyyy-MM" month. */
 export const shiftMonth = (month: string, by: number) =>
   localMonth(addMonths(parseLocalDate(`${month}-01`), by));

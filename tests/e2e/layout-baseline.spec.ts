@@ -25,8 +25,8 @@ for (const [vpName, vp] of Object.entries(VIEWPORTS)) {
         await expect(page).toHaveScreenshot(`${route.name}-${vpName}.png`, {
           fullPage: true,
           maxDiffPixelRatio: 0.02,
-          // The Household Code differs on every database
-          mask: [page.getByTestId("household-code")],
+          // The Household Code differs on every database; the month changes monthly
+          mask: [page.getByTestId("household-code"), page.getByTestId("finances-month")],
         });
       });
     }
