@@ -78,7 +78,9 @@ export function ReadStatement() {
         <div className="grid gap-4 @[480px]:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="statement-format">Format</Label>
-            <Select value={formatId} onValueChange={(value) => setFormatId(value)}>
+            {/* Keyed by value: Radix Select returns to its first value when the form
+                resets, as React does after every read. */}
+            <Select key={formatId} value={formatId} onValueChange={setFormatId}>
               <SelectTrigger id="statement-format" className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -93,7 +95,7 @@ export function ReadStatement() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="statement-card">Card</Label>
-            <Select value={chosenCardId} onValueChange={setCardId}>
+            <Select key={chosenCardId} value={chosenCardId} onValueChange={setCardId}>
               <SelectTrigger id="statement-card" className="w-full">
                 <SelectValue />
               </SelectTrigger>

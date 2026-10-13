@@ -1,9 +1,11 @@
 import { bdoCreditCardPdf } from "./bdo-pdf";
+import { unionBankCreditCardXlsx } from "./unionbank-xlsx";
 import type { ParseRequest, ParseResponse } from "./parse-statement";
 import { StatementParseError, type StatementFormatId, type StatementParser } from "./statement";
 
 const PARSERS: Record<StatementFormatId, StatementParser> = {
   "bdo-credit-card-pdf": bdoCreditCardPdf,
+  "unionbank-credit-card-xlsx": unionBankCreditCardXlsx,
 };
 
 async function parse({ formatId, data, password }: ParseRequest): Promise<ParseResponse> {

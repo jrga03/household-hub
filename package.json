@@ -111,6 +111,7 @@
     "@tanstack/react-router": "^1.170.41",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.14.15",
+    "cfb": "^1.2.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
