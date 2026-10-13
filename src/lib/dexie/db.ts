@@ -23,7 +23,13 @@ const LEGACY_DATABASE_NAME = "HouseholdHubDB";
 const DATABASE_NAME = "household-hub";
 
 export interface MetaRow {
-  key: "deviceId" | "clock" | "pullCursor" | "householdId" | "leftHouseholdIds";
+  key:
+    | "deviceId"
+    | "clock"
+    | "pullCursor"
+    | "householdId"
+    | "leftHouseholdIds"
+    | `statementPassword:${string}`;
   value: string | number | string[] | null;
 }
 

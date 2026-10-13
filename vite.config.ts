@@ -77,6 +77,11 @@ export default defineConfig({
       },
     }),
   ],
+  // The statement import worker (src/lib/import/parse.worker.ts) is an ES
+  // module chunk, so the PWA's **/*.js precache glob picks it up.
+  worker: {
+    format: "es",
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

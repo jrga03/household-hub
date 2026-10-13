@@ -25,6 +25,10 @@ vi.mock("@/lib/dexie/reset", () => ({
   resetLocalDatabase: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/lib/import/remembered-passwords", () => ({
+  forgetAllStatementPasswords: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("sonner", () => ({
   toast: {
     success: vi.fn(),
@@ -51,6 +55,7 @@ vi.mock("@/router", () => ({
 import { useAuthStore } from "../authStore";
 import { supabase } from "@/lib/supabase";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
+import { forgetAllStatementPasswords } from "@/lib/import/remembered-passwords";
 import { toast } from "sonner";
 import { queryClient } from "@/lib/queryClient";
 import { router } from "@/router";
@@ -327,6 +332,15 @@ describe("authStore", () => {
       // Local Dexie data must SURVIVE an unexpected expiry so unsynced
       // changes can sync after re-login (only deliberate sign-out clears it)
       expect(resetLocalDatabase).not.toHaveBeenCalled();
+    });
+
+    it("forgets remembered statement passwords, since the next person may not be the same", async () => {
+      const authCallback = await initializeAndGetAuthCallback();
+      useAuthStore.setState({ user: mockUser, session: mockSession });
+
+      await authCallback("SIGNED_OUT", null);
+
+      expect(forgetAllStatementPasswords).toHaveBeenCalledOnce();
     });
 
     it("does nothing on a boot-time null session (no prior user)", async () => {

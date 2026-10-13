@@ -7,6 +7,7 @@
 
 import Dexie from "dexie";
 import { db, type MetaRow } from "@/lib/dexie/db";
+import { forgetAllStatementPasswords } from "@/lib/import/remembered-passwords";
 import { reportError } from "@/lib/sentry";
 import { formatHlc, initialHlc, isHlc, parseHlc, receiveHlc, tickHlc, type Hlc } from "./hlc";
 import {
@@ -262,6 +263,7 @@ export function switchHousehold(householdId: string | null): Promise<boolean> {
       .filter((event) => isOtherHousehold(event) && event.pushState === "waiting")
       .modify({ pushState: "stuck", stuckReason: LEFT_HOUSEHOLD });
     await wipeProjections(isOtherHousehold);
+    await forgetAllStatementPasswords();
     await db.meta.put({ key: "pullCursor", value: 0 });
     return stored !== undefined;
   });
