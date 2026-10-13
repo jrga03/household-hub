@@ -101,6 +101,7 @@ Fix commits cluster in `src/lib/{sync,offline,debts}`.
 - **Deferred: restoring from a backup.** Revisit: after the first release. Agreed 2026-10-12.
 - **Deferred: export modes**, a size-optimized app-restorable one and a compatibility-optimized Excel/Sheets one (#69, `needs-triage`). Revisit: someday, after the first release, when no higher-value feature is waiting. Agreed 2026-10-12.
 - **The debts UI docs are obsolete** (`docs/plans/2026-10-10-debts-ui-design.md`, `docs/plans/2026-10-10-debts-ui.md`): they describe the old row-outbox design. Each carries a superseded line. Revisit: when debts are rebuilt on the event log (after the first release). Agreed 2026-10-12.
+- **The other envelope helpers stay in `allocations/events.ts`** (`sameEnvelope`, `cardPaymentEnvelope`, the `Envelope` type); #83 moved only `envelopeLabel`, and no follow-up issue was opened. Why: triage scoped #83 to the label. Revisit: if more non-event code lands in `events.ts`. Agreed 2026-10-13.
 
 ## Milestone 3
 
@@ -701,6 +702,7 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - Pending with the user: whether Unassigned and "Retired, still holding money" should follow the month picker (default: keep current money; see the #73 decisions).
 - Round 2 merged: #74 (PR #85), #76 (PR #84), #72 (PR #86), #75 (PR #87). #77 merged (PR #89, f1eb4c2). Their worktrees and local branches are removed.
 - #70 closed 2026-10-13: Milestone 3 is complete. Follow-ups, all `needs-triage`: #83 (move `envelopeLabel`; its revisit point, round 2 merged, has passed), #88 (Distribute opening mode with no categories), #69 (export modes, after the first release).
+- #83 built 2026-10-13 (PR #93, open): `envelopeLabel` now lives in `src/lib/allocations/envelope.ts`.
 - Next: undecided (the user will choose): triage #83 and #88, or scope Milestone 4 (statement import and the dashboard). Still owed: #40's dashboard checks (human).
 - Gotchas found in #71 and #73:
   - `sumAccountMoney(accounts, transactions, allocations, transfers)` takes transfers as a required fourth argument; any month or ledger sum must pass the transfers dated in range.

@@ -27,16 +27,6 @@ export const cardPaymentEnvelope = (cardId: string): Envelope => ({
   id: cardId,
 });
 
-export function envelopeLabel(
-  envelope: Envelope,
-  categories: Map<string, string>,
-  accounts: Map<string, string>
-): string {
-  if (envelope.kind === "unassigned") return "Unassigned";
-  if (envelope.kind === "category") return categories.get(envelope.id) ?? "A category";
-  return `Card Payment · ${accounts.get(envelope.id) ?? "A card"}`;
-}
-
 export const sameEnvelope = (a: Envelope, b: Envelope) =>
   a.kind === b.kind && (a.kind === "unassigned" || (b.kind !== "unassigned" && a.id === b.id));
 
