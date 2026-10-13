@@ -1,16 +1,15 @@
 import { useEffect } from "react";
 import { Outlet, useRouterState } from "@tanstack/react-router";
-import { Menu } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
 import { AppSidebar } from "./AppSidebar";
 import { BottomTabBar } from "./BottomTabBar";
-import { MobileNav } from "./MobileNav";
+import { HeaderSlotProvider } from "./HeaderActions";
+import { MobileNav, NavMenuButton } from "./MobileNav";
+import { PageHeader } from "./PageHeader";
 import { useNavStore } from "@/stores/navStore";
 import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { cn } from "@/lib/utils";
-import { SyncStatusIndicator } from "@/components/sync/SyncStatusIndicator";
 import { StorageWarning } from "@/components/StorageWarning";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { CREATE_OR_JOIN_PATH } from "@/lib/households";
@@ -19,10 +18,13 @@ import { AddTransactionButton, QuickEntryDialog } from "@/components/transaction
 /**
  * Main application layout component
  *
+ * Every branch with navigation shares PageHeader: the route's title, a back
+ * arrow on pushed screens, the route's actions and the sync status.
+ *
  * Handles responsive layout logic:
- * - Mobile: Header with hamburger + drawer navigation + bottom tab bar
- * - Tablet: Collapsible sidebar (default collapsed)
- * - Desktop: Collapsible sidebar (default expanded)
+ * - Mobile: PageHeader with hamburger + drawer navigation + bottom tab bar
+ * - Tablet: PageHeader + collapsible sidebar (default collapsed)
+ * - Desktop: PageHeader + collapsible sidebar (default expanded)
  *
  * Bottom-edge geometry (review R42): everything pinned to the bottom edge
  * derives from the shared `--bottom-chrome` custom property (index.css),
@@ -82,124 +84,100 @@ export function AppLayout() {
   // Mobile layout
   if (isMobile) {
     return (
-      <div className="min-h-dvh bg-background">
-        {/* Skip to main content link for accessibility */}
-        <a
-          href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:shadow-lg focus:ring-2 focus:ring-primary"
-        >
-          Skip to main content
-        </a>
+      <HeaderSlotProvider>
+        <div className="min-h-dvh bg-background">
+          {/* Skip to main content link for accessibility */}
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:shadow-lg focus:ring-2 focus:ring-primary"
+          >
+            Skip to main content
+          </a>
 
-        {/* Mobile Header */}
-        <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pt-[var(--safe-area-top)]">
-          <div className="flex h-14 items-center px-4">
-            {/* Hamburger Menu */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="mr-2"
-              onClick={() => setMobileNavOpen(true)}
-              aria-label="Open navigation menu"
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
+          <PageHeader
+            className="z-40"
+            compactSync
+            menuButton={<NavMenuButton onClick={() => setMobileNavOpen(true)} />}
+          />
 
-            {/* App Title */}
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <span className="text-xs font-bold">HH</span>
-              </div>
-              <span className="truncate font-semibold">Household Hub</span>
-            </div>
-            <SyncStatusIndicator />
-          </div>
-        </header>
+          {/* Mobile Navigation Drawer */}
+          <MobileNav open={mobileNavOpen} onOpenChange={setMobileNavOpen} />
 
-        {/* Mobile Navigation Drawer */}
-        <MobileNav open={mobileNavOpen} onOpenChange={setMobileNavOpen} />
+          {/* Offline + storage banners (shared fixed stack) */}
+          <BannerStack />
 
-        {/* Offline + storage banners (shared fixed stack) */}
-        <BannerStack />
-
-        {/* Main Content: bottom inset keeps the tab bar from covering the
+          {/* Main Content: bottom inset keeps the tab bar from covering the
             last row on every route (reviews R13, R42) */}
-        <main
-          id="main-content"
-          className="flex-1 bg-background pb-[calc(0.5rem+var(--bottom-chrome))]"
-        >
-          <Outlet />
-        </main>
+          <main
+            id="main-content"
+            className="flex-1 bg-background pb-[calc(0.5rem+var(--bottom-chrome))]"
+          >
+            <Outlet />
+          </main>
 
-        {/* Bottom tab bar: one-tap access to the primary destinations
+          {/* Bottom tab bar: one-tap access to the primary destinations
             (review R42) */}
-        <BottomTabBar />
+          <BottomTabBar />
 
-        <AddTransactionButton floating />
-        <QuickEntryDialog />
+          <AddTransactionButton floating />
+          <QuickEntryDialog />
 
-        {/* PWA Installation Prompt */}
-        <PWAInstallPrompt />
-      </div>
+          {/* PWA Installation Prompt */}
+          <PWAInstallPrompt />
+        </div>
+      </HeaderSlotProvider>
     );
   }
 
   // Tablet/Desktop layout with sidebar
   return (
-    <SidebarProvider defaultOpen={!isTablet}>
-      {/* w-full keeps the layout's width tied to the SidebarProvider wrapper
+    <HeaderSlotProvider>
+      <SidebarProvider defaultOpen={!isTablet}>
+        {/* w-full keeps the layout's width tied to the SidebarProvider wrapper
           rather than to descendant min-content widths. Required so that pages
           using container queries (PageShell) don't collapse the flex chain. */}
-      <div className="flex min-h-dvh w-full">
-        {/* Skip to main content link for accessibility */}
-        <a
-          href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:shadow-lg focus:ring-2 focus:ring-primary"
-        >
-          Skip to main content
-        </a>
-
-        {/* Sidebar */}
-        <AppSidebar />
-
-        {/* Main Content Area */}
-        <div className="flex flex-1 flex-col">
-          {/* Header for tablet/desktop: the page title below lg, quick entry at every width */}
-          <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pt-[var(--safe-area-top)]">
-            <div className="flex h-14 items-center px-4">
-              <SidebarTrigger className="mr-2 lg:hidden" />
-              <div className="flex flex-1 items-center lg:hidden">
-                <PageTitle />
-              </div>
-              <div className="ml-auto">
-                <AddTransactionButton />
-              </div>
-            </div>
-          </header>
-
-          {/* Offline + storage banners (shared fixed stack) */}
-          <BannerStack />
-
-          {/* Main Content */}
-          <main
-            id="main-content"
-            className={cn(
-              "flex-1 bg-background",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-              "relative"
-            )}
-            tabIndex={-1}
+        <div className="flex min-h-dvh w-full">
+          {/* Skip to main content link for accessibility */}
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:shadow-lg focus:ring-2 focus:ring-primary"
           >
-            <Outlet />
-          </main>
+            Skip to main content
+          </a>
+
+          {/* Sidebar */}
+          <AppSidebar />
+
+          {/* Main Content Area */}
+          <div className="flex flex-1 flex-col">
+            <PageHeader className="z-30" menuButton={<SidebarTrigger className="lg:hidden" />}>
+              <AddTransactionButton />
+            </PageHeader>
+
+            {/* Offline + storage banners (shared fixed stack) */}
+            <BannerStack />
+
+            {/* Main Content */}
+            <main
+              id="main-content"
+              className={cn(
+                "flex-1 bg-background",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                "relative"
+              )}
+              tabIndex={-1}
+            >
+              <Outlet />
+            </main>
+          </div>
+
+          <QuickEntryDialog />
+
+          {/* PWA Installation Prompt */}
+          <PWAInstallPrompt />
         </div>
-
-        <QuickEntryDialog />
-
-        {/* PWA Installation Prompt */}
-        <PWAInstallPrompt />
-      </div>
-    </SidebarProvider>
+      </SidebarProvider>
+    </HeaderSlotProvider>
   );
 }
 
@@ -217,24 +195,4 @@ function BannerStack() {
       <StorageWarning />
     </div>
   );
-}
-
-/**
- * Page title component for tablet header
- * Shows the current page name based on route
- */
-function PageTitle() {
-  const router = useRouterState();
-  const path = router.location.pathname;
-
-  // Map routes to titles
-  const getTitleFromPath = (pathname: string): string => {
-    if (pathname === "/") return "Home";
-    if (pathname.startsWith("/transactions")) return "Transactions";
-    if (pathname.startsWith("/categories")) return "Categories";
-    if (pathname.startsWith("/settings")) return "Settings";
-    return "Household Hub";
-  };
-
-  return <h1 className="text-lg font-semibold">{getTitleFromPath(path)}</h1>;
 }

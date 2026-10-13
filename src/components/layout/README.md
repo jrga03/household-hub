@@ -32,12 +32,12 @@ Application shell and navigation components providing responsive layouts across 
 
 2. **Tablet** (768px - 1024px):
    - Collapsible sidebar (default: collapsed to icons)
-   - Optional minimal header with page title
+   - PageHeader with page title
    - Sidebar trigger button
 
 3. **Desktop** (>1024px):
    - Collapsible sidebar (default: expanded with labels)
-   - No header (navigation via sidebar)
+   - PageHeader with page title (navigation via sidebar)
    - More horizontal space for content
 
 **Key features:**
@@ -93,7 +93,10 @@ const NO_NAV_ROUTES = ["/login", "/signup"];
 **Helper components** (bottom of file):
 
 - `QuickAddTransactionDialog` - Single consumer of `navStore.quickAddOpen`; renders the shared `TransactionFormDialog` for whichever layout branch is mounted (FAB, sidebar/drawer CTAs, ⌘N, and `/transactions/new` all set the flag)
-- `PageTitle` - Tablet header helper (maps route paths to display titles)
+
+### PageHeader.tsx and HeaderActions.tsx
+
+The shell header on every branch: the active route's `staticData.title` (the household's name on Home), a back arrow instead of the menu button when the route sets `staticData.parent`, the actions slot routes fill with `<HeaderActions>`, and the sync status. The destinations themselves live in `nav.ts`, shared by the drawer, tab bar and sidebar.
 
 ### AppSidebar.tsx
 
@@ -497,9 +500,8 @@ Multiple entry points for adding transactions:
 
 Sync indicator present in all layouts:
 
-- **Mobile:** Header (compact mode)
-- **Tablet/Desktop:** Sidebar header (full mode)
-- **MobileNav:** Full display in drawer
+- **Mobile:** PageHeader (compact mode)
+- **Tablet/Desktop:** PageHeader (full mode)
 
 **User always knows:**
 

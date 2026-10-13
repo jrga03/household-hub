@@ -41,6 +41,11 @@ vi.mock("./AppSidebar", () => ({
 }));
 vi.mock("./MobileNav", () => ({
   MobileNav: () => <div data-testid="mobile-nav" />,
+  NavMenuButton: () => null,
+}));
+// Reads the route's staticData and the household; covered in PageHeader.test.tsx
+vi.mock("./PageHeader", () => ({
+  PageHeader: () => <header />,
 }));
 // The real BottomTabBar needs a RouterProvider (Link active matching); its
 // own semantics are covered in BottomTabBar.test.tsx

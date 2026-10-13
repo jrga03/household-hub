@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { chooseOption, signUpNewPerson } from "./fixtures/helpers";
+import { chooseOption, signUpNewPerson, navigateTo } from "./fixtures/helpers";
 
 const bankItem = (page: Page) =>
   page.getByRole("list", { name: "Accounts" }).getByRole("listitem").filter({ hasText: "BPI" });
@@ -18,7 +18,7 @@ test("transactions recorded offline move the balance, and a removal can be undon
   await addAccount.getByRole("button", { name: "Add account" }).click();
   await expect(bankItem(page)).toContainText("₱1,000.00");
 
-  await page.getByRole("link", { name: "Categories" }).click();
+  await navigateTo(page, "Categories");
   await page.getByRole("button", { name: "Use suggested categories" }).click();
   await expect(page.getByRole("list", { name: "Food categories" })).toContainText("Groceries");
   await page.getByRole("link", { name: "Home" }).click();
@@ -47,7 +47,7 @@ test("transactions recorded offline move the balance, and a removal can be undon
   await expect(bankItem(page)).toContainText("Cleared ₱750.00 · Pending ₱1,000.00");
   await expect(bankItem(page)).toContainText("Unassigned ₱2,000.00");
 
-  await page.getByRole("link", { name: "Transactions" }).click();
+  await navigateTo(page, "Transactions");
   const list = page.getByRole("list", { name: "Transactions" });
   const market = list.getByRole("listitem").filter({ hasText: "Market" });
   if (isMobile) {

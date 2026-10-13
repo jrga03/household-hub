@@ -20,6 +20,7 @@ import { useHousehold } from "@/hooks/useHousehold";
 import { useAuthStore } from "@/stores/authStore";
 
 export const Route = createFileRoute("/")({
+  staticData: { title: "Home" },
   component: HomePage,
 });
 
@@ -28,24 +29,16 @@ function HomePage() {
   const userId = useAuthStore((state) => state.user?.id);
 
   return (
-    <div className="bg-background">
-      <div className="border-b">
-        <div className="container mx-auto max-w-7xl px-4 py-4">
-          <h1 className="text-xl font-bold">Home</h1>
-        </div>
-      </div>
-
-      <PageShell variant="centered">
-        <PageShell.Main className="space-y-4">
-          {/* Home's sections, top to bottom. */}
-          {household && <OpeningChecklist key={household.id} householdId={household.id} />}
-          {household && userId && <FinancesSection userId={userId} />}
-          {household && userId && (
-            <HouseholdSection household={household} userId={userId} isOwner={isOwner} />
-          )}
-        </PageShell.Main>
-      </PageShell>
-    </div>
+    <PageShell variant="centered">
+      <PageShell.Main className="space-y-4">
+        {/* Home's sections, top to bottom. */}
+        {household && <OpeningChecklist key={household.id} householdId={household.id} />}
+        {household && userId && <FinancesSection userId={userId} />}
+        {household && userId && (
+          <HouseholdSection household={household} userId={userId} isOwner={isOwner} />
+        )}
+      </PageShell.Main>
+    </PageShell>
   );
 }
 

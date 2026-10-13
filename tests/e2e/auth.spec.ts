@@ -20,9 +20,8 @@ test.describe("Authentication", () => {
     await page.click('button[type="submit"]');
 
     await expect(page).toHaveURL(isHome);
-    await expect(
-      page.getByRole("main").getByRole("heading", { level: 1, name: "Home" })
-    ).toBeVisible();
+    // Home's header title is the household's name
+    await expect(page.getByRole("banner").getByRole("heading", { level: 1 })).toBeVisible();
   });
 
   test("should sign out", async ({ page, isMobile }) => {

@@ -19,9 +19,8 @@ for (const [vpName, vp] of Object.entries(VIEWPORTS)) {
     for (const route of ROUTES) {
       test(`${route.name} renders`, async ({ page }) => {
         await page.goto(route.path);
-        // Page-content h1 lives inside <main id="main-content">; the layout has
-        // a separate mobile-only h1 in the sidebar that may be hidden.
-        await expect(page.locator("#main-content h1").first()).toBeVisible();
+        // The page title is the shell header's h1
+        await expect(page.getByRole("banner").getByRole("heading", { level: 1 })).toBeVisible();
         await expect(page).toHaveScreenshot(`${route.name}-${vpName}.png`, {
           fullPage: true,
           maxDiffPixelRatio: 0.02,

@@ -1,26 +1,21 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { FileUp, Layers, LogOut, Receipt, Settings, User, X } from "lucide-react";
+import { LogOut, Menu, User, X } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useReviewCount } from "@/hooks/useReviewCount";
 import { useAuthStore } from "@/stores/authStore";
 import { signOutWithToast } from "@/lib/sign-out";
 import { cn } from "@/lib/utils";
+import { DRAWER_NAV, isNavItemActive } from "./nav";
 
 /**
- * Mobile navigation drawer: the user profile, Transactions, Categories, Import, Settings and sign
- * out. Primary destinations also live in the fixed BottomTabBar.
+ * Mobile navigation drawer: every destination off the BottomTabBar, with the
+ * signed-in person and sign out pinned to the bottom.
  *
  * @see src/components/layout/AppLayout.tsx - Parent layout component
- * @see src/components/layout/BottomTabBar.tsx - Primary destinations
+ * @see src/components/layout/nav.ts - The destinations
  */
-
-const DRAWER_LINKS = [
-  { to: "/transactions", label: "Transactions", icon: Receipt },
-  { to: "/categories", label: "Categories", icon: Layers },
-  { to: "/import", label: "Import", icon: FileUp },
-  { to: "/settings", label: "Settings", icon: Settings },
-] as const;
 
 interface MobileNavProps {
   open: boolean;
@@ -30,7 +25,6 @@ interface MobileNavProps {
 export function MobileNav({ open, onOpenChange }: MobileNavProps) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const user = useAuthStore((state) => state.user);
-  const isActive = (path: string) => pathname === path || pathname.startsWith(path + "/");
 
   const handleSignOut = async () => {
     await signOutWithToast();
@@ -46,7 +40,6 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
         <SheetHeader className="border-b px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {/* Logo */}
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <span className="text-sm font-bold">HH</span>
               </div>
@@ -55,7 +48,6 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
                 <span className="text-xs text-muted-foreground">Finance Tracker</span>
               </div>
             </div>
-            {/* Close button */}
             <Button
               variant="ghost"
               size="icon"
@@ -68,54 +60,66 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
           </div>
         </SheetHeader>
 
-        {/* User Profile Section */}
-        <div className="border-b px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-              <User className="h-5 w-5" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">{user?.email?.split("@")[0] || "User"}</span>
-              <span className="text-xs text-muted-foreground">{user?.email}</span>
-            </div>
-          </div>
-        </div>
-
         <ScrollArea className="flex-1 min-h-0">
-          <div className="px-3 py-2">
-            <div className="mb-4 space-y-1">
-              {DRAWER_LINKS.map((link) => (
+          <div className="space-y-1 px-3 py-2">
+            {DRAWER_NAV.map((item) => {
+              const active = isNavItemActive(item.to, pathname);
+              return (
                 <Link
-                  key={link.to}
-                  to={link.to}
+                  key={item.to}
+                  to={item.to}
                   onClick={() => onOpenChange(false)}
                   className={cn(
                     "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
                     "hover:bg-accent hover:text-accent-foreground",
                     "active:bg-accent active:text-accent-foreground",
-                    isActive(link.to) && "bg-accent text-accent-foreground font-medium"
+                    active && "bg-accent text-accent-foreground font-medium"
                   )}
                 >
-                  <link.icon className="h-5 w-5" />
-                  <span className="flex-1">{link.label}</span>
-                  {isActive(link.to) && <div className="h-5 w-1 rounded-full bg-primary" />}
+                  <item.icon className="h-5 w-5" />
+                  <span className="flex-1">{item.label}</span>
+                  {active && <div className="h-5 w-1 rounded-full bg-primary" />}
                 </Link>
-              ))}
-            </div>
-
-            {/* Sign Out */}
-            <div className="mb-4">
-              <button
-                onClick={() => void handleSignOut()}
-                className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground active:bg-accent active:text-accent-foreground"
-              >
-                <LogOut className="h-5 w-5" />
-                <span className="flex-1 text-left">Sign Out</span>
-              </button>
-            </div>
+              );
+            })}
           </div>
         </ScrollArea>
+
+        <div className="space-y-1 border-t px-3 py-2">
+          <div className="flex items-center gap-3 px-3 py-2">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
+              <User className="h-5 w-5" />
+            </div>
+            <span className="min-w-0 truncate text-sm text-muted-foreground">{user?.email}</span>
+          </div>
+          <button
+            onClick={() => void handleSignOut()}
+            className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground active:bg-accent active:text-accent-foreground"
+          >
+            <LogOut className="h-5 w-5" />
+            <span className="flex-1 text-left">Sign Out</span>
+          </button>
+        </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+/** The hamburger, with a dot while anything waits for review. */
+export function NavMenuButton({ onClick }: { onClick: () => void }) {
+  const reviewCount = useReviewCount();
+  const label =
+    reviewCount > 0 ? `Open navigation menu, ${reviewCount} to review` : "Open navigation menu";
+
+  return (
+    <Button variant="ghost" size="icon" className="relative" onClick={onClick} aria-label={label}>
+      <Menu className="h-5 w-5" />
+      {reviewCount > 0 && (
+        <span
+          data-testid="review-dot"
+          className="absolute right-1.5 top-1.5 size-2 rounded-full bg-primary ring-2 ring-background"
+        />
+      )}
+    </Button>
   );
 }

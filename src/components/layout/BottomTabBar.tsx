@@ -1,9 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { Home, Layers, Receipt, Settings } from "lucide-react";
+import { TAB_NAV } from "./nav";
 
 /**
- * Fixed bottom tab bar for the mobile layout branch: one-tap, thumb-reachable
- * primary destinations. Sign out stays in the MobileNav drawer.
+ * Fixed bottom tab bar for the mobile layout branch: Home and Transactions,
+ * beside the floating Add button. Everything else is in the MobileNav drawer.
  *
  * Geometry: the content row is `--tab-bar-height` tall plus the iOS
  * home-indicator safe area. Everything else pinned to the bottom edge
@@ -19,14 +19,6 @@ import { Home, Layers, Receipt, Settings } from "lucide-react";
  * @see src/components/layout/AppLayout.tsx - Mobile branch mount point
  */
 
-const TABS = [
-  // "/" would fuzzy-match every route; it must be exact
-  { to: "/", label: "Home", icon: Home, exact: true },
-  { to: "/transactions", label: "Transactions", icon: Receipt, exact: false },
-  { to: "/categories", label: "Categories", icon: Layers, exact: false },
-  { to: "/settings", label: "Settings", icon: Settings, exact: false },
-] as const;
-
 export function BottomTabBar() {
   return (
     <nav
@@ -34,12 +26,13 @@ export function BottomTabBar() {
       className="fixed inset-x-0 bottom-0 z-40 border-t bg-background pb-[var(--safe-area-bottom)]"
     >
       <div className="grid h-[var(--tab-bar-height)] auto-cols-fr grid-flow-col">
-        {TABS.map((tab) => (
+        {TAB_NAV.map((tab) => (
           <Link
             key={tab.to}
             to={tab.to}
             aria-label={tab.label}
-            activeOptions={{ exact: tab.exact, includeSearch: false }}
+            // "/" would fuzzy-match every route; it must be exact
+            activeOptions={{ exact: tab.to === "/", includeSearch: false }}
             activeProps={{ className: "text-primary" }}
             inactiveProps={{ className: "text-muted-foreground" }}
             className="flex min-h-11 flex-col items-center justify-center gap-1 text-[11px] font-medium leading-none transition-colors hover:text-foreground active:bg-accent"

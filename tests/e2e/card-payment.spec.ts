@@ -1,5 +1,5 @@
 import { test, expect, type BrowserContext, type Locator, type Page } from "@playwright/test";
-import { chooseOption, loginAs, signUpNewPerson } from "./fixtures/helpers";
+import { chooseOption, loginAs, signUpNewPerson, navigateTo } from "./fixtures/helpers";
 
 // Anchored: a card's row also names its Paying Account.
 const accountItem = (page: Page, name: string) =>
@@ -37,7 +37,7 @@ test("a card purchase recorded offline reserves its amount in the Paying Account
   await addAccount.getByRole("button", { name: "Add account" }).click();
   await expect(accountItem(pageA, "Visa")).toContainText("Paid from BDO Savings");
 
-  await pageA.getByRole("link", { name: "Categories" }).click();
+  await navigateTo(pageA, "Categories");
   await pageA.getByRole("button", { name: "Use suggested categories" }).click();
   await expect(pageA.getByRole("list", { name: "Food categories" })).toContainText("Restaurants");
   await pageA.getByRole("link", { name: "Home" }).click();

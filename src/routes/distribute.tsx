@@ -18,6 +18,7 @@ interface DistributeSearch {
 }
 
 export const Route = createFileRoute("/distribute")({
+  staticData: { title: "Distribute money", parent: "/categories" },
   validateSearch: (search: Record<string, unknown>): DistributeSearch => ({
     ...(typeof search.account === "string" && { account: search.account }),
     ...(typeof search.amount === "string" && { amount: search.amount }),
@@ -35,30 +36,17 @@ function DistributePage() {
   const opening = search.mode === "opening";
 
   return (
-    <div className="bg-background">
-      <div className="border-b">
-        <div className="container mx-auto max-w-7xl px-4 py-4">
-          <h1 className="text-xl font-bold">Distribute money</h1>
-          <p className="text-sm text-muted-foreground">
-            {opening
-              ? "Put an account's starting money into envelopes."
-              : "Split money from an account's Unassigned across your budgets in one step."}
-          </p>
-        </div>
-      </div>
-
-      <PageShell variant="centered">
-        {household && userId && (
-          <DistributeMoney
-            actor={{ householdId: household.id, userId }}
-            mode={opening ? "opening" : "income"}
-            initialAccountId={search.account}
-            initialAmount={search.amount}
-            initialDate={search.date ?? format(new Date(), "yyyy-MM-dd")}
-            onDone={() => void navigate({ to: "/categories" })}
-          />
-        )}
-      </PageShell>
-    </div>
+    <PageShell variant="centered">
+      {household && userId && (
+        <DistributeMoney
+          actor={{ householdId: household.id, userId }}
+          mode={opening ? "opening" : "income"}
+          initialAccountId={search.account}
+          initialAmount={search.amount}
+          initialDate={search.date ?? format(new Date(), "yyyy-MM-dd")}
+          onDone={() => void navigate({ to: "/categories" })}
+        />
+      )}
+    </PageShell>
   );
 }

@@ -9,7 +9,7 @@ test.describe("Settings", () => {
 
   test("settings page renders the appearance section", async ({ page }) => {
     await expect(
-      page.getByRole("main").getByRole("heading", { level: 1, name: "Settings" })
+      page.getByRole("banner").getByRole("heading", { level: 1, name: "Settings" })
     ).toBeVisible();
     await expect(page.getByText("Choose how Household Hub looks to you")).toBeVisible();
   });
