@@ -152,6 +152,8 @@ Spec: #95. Scoped 2026-10-13 (decisions above). ADR 0008. Build rounds: {#96, #9
 - **Every card section on a statement goes to the one picked card** (supplementary cards included), per "one statement is one account". Zero-amount lines are skipped.
 - **`/import` has no nav link yet.** Why: #99 adds "Import statement" on Transactions and the nav. Revisit: #99.
 - **The synthetic fixture is regenerated with `node scripts/make-statement-fixtures.mjs`**, which needs `qpdf` (Homebrew); CI reads the committed PDF.
+- **The real-statement result stays in this doc, not on #97 or the PR.** Why: the user's call (2026-10-13). Revisit: never.
+- **A recognised statement with no lines shows "0 lines read" with no explanation.** Why: the review screen that explains it is #99's. Revisit: #99.
 
 ## Milestone 3
 
