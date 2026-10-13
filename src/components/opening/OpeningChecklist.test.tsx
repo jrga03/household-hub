@@ -23,7 +23,7 @@ function StepsLoaded() {
 
 function renderHome() {
   const rootRoute = createRootRoute();
-  const routes = ["/", "/distribute", "/categories", "/accounts"].map((path) =>
+  const routes = ["/", "/plan", "/accounts"].map((path) =>
     createRoute({
       getParentRoute: () => rootRoute,
       path,
@@ -70,7 +70,7 @@ describe("OpeningChecklist", () => {
     ]);
     expect(await screen.findByRole("link", { name: "Distribute" })).toHaveAttribute(
       "href",
-      `/distribute?mode=opening&account=${bpi.id}`
+      `/plan?distribute=opening&account=${bpi.id}`
     );
   });
 

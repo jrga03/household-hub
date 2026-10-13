@@ -71,25 +71,25 @@ async function renderAt(initialEntries: string[], { phone = false } = {}) {
   const home = createRoute({
     getParentRoute: () => rootRoute,
     path: "/",
-    component: () => <Link to="/distribute">Go distribute</Link>,
+    component: () => <Link to="/plan">Go plan</Link>,
   });
-  const categories = createRoute({
+  const budget = createRoute({
     getParentRoute: () => rootRoute,
-    path: "/categories",
-    staticData: { title: "Categories" },
+    path: "/budget",
+    staticData: { title: "Budget" },
     component: () => (
       <HeaderActions>
-        <button type="button">Distribute</button>
+        <button type="button">Edit plan</button>
       </HeaderActions>
     ),
   });
-  const distribute = createRoute({
+  const plan = createRoute({
     getParentRoute: () => rootRoute,
-    path: "/distribute",
-    staticData: { title: "Distribute money", parent: "/categories" },
+    path: "/plan",
+    staticData: { title: "Plan", parent: "/budget" },
   });
   const router = createRouter({
-    routeTree: rootRoute.addChildren([home, categories, distribute, selectable]),
+    routeTree: rootRoute.addChildren([home, budget, plan, selectable]),
     history: createMemoryHistory({ initialEntries }),
   });
   render(<RouterProvider router={router} />);
@@ -107,32 +107,32 @@ describe("PageHeader", () => {
   });
 
   it("titles other routes with their page name and shows the menu button", async () => {
-    await renderAt(["/categories"]);
+    await renderAt(["/budget"]);
 
-    expect(title()).toHaveTextContent("Categories");
+    expect(title()).toHaveTextContent("Budget");
     expect(screen.getByRole("button", { name: "Open navigation menu" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Back" })).not.toBeInTheDocument();
   });
 
   it("puts a route's actions in the header", async () => {
-    await renderAt(["/categories"]);
+    await renderAt(["/budget"]);
 
     const header = screen.getByRole("banner");
-    expect(await screen.findByRole("button", { name: "Distribute" })).toBeInTheDocument();
-    expect(header).toContainElement(screen.getByRole("button", { name: "Distribute" }));
+    expect(await screen.findByRole("button", { name: "Edit plan" })).toBeInTheDocument();
+    expect(header).toContainElement(screen.getByRole("button", { name: "Edit plan" }));
   });
 
   it("replaces the menu button with a back arrow on a pushed screen", async () => {
-    await renderAt(["/distribute"]);
+    await renderAt(["/plan"]);
 
-    expect(title()).toHaveTextContent("Distribute money");
+    expect(title()).toHaveTextContent("Plan");
     expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Open navigation menu" })).not.toBeInTheDocument();
   });
 
   it("goes back to where the person came from", async () => {
     const router = await renderAt(["/"]);
-    fireEvent.click(screen.getByRole("link", { name: "Go distribute" }));
+    fireEvent.click(screen.getByRole("link", { name: "Go plan" }));
     await screen.findByRole("button", { name: "Back" });
 
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
@@ -141,11 +141,11 @@ describe("PageHeader", () => {
   });
 
   it("goes to the parent screen when opened directly", async () => {
-    const router = await renderAt(["/distribute"]);
+    const router = await renderAt(["/plan"]);
 
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
 
-    await vi.waitFor(() => expect(router.state.location.pathname).toBe("/categories"));
+    await vi.waitFor(() => expect(router.state.location.pathname).toBe("/budget"));
   });
 
   describe("a mode such as selecting", () => {

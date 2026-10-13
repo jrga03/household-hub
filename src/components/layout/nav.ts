@@ -1,4 +1,13 @@
-import { FileUp, Home, Layers, Receipt, Settings, Wallet, type LucideIcon } from "lucide-react";
+import {
+  FileUp,
+  Home,
+  Layers,
+  PiggyBank,
+  Receipt,
+  Settings,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
 import type { FileRoutesByTo } from "@/routeTree.gen";
 
 export type RoutePath = keyof FileRoutesByTo;
@@ -16,6 +25,7 @@ export interface NavItem {
 export const DAILY_NAV: NavItem[] = [
   { to: "/", label: "Home", icon: Home, shortcut: "g h", tab: true },
   { to: "/transactions", label: "Transactions", icon: Receipt, shortcut: "g t", tab: true },
+  { to: "/budget", label: "Budget", icon: PiggyBank, shortcut: "g b" },
 ];
 
 export const MANAGE_NAV: NavItem[] = [

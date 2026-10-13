@@ -2,7 +2,6 @@ import { formatPHP, type Cents } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 
 export const OVERDRAWN_UNASSIGNED = "Allocated more than this account has";
-export const OVERSPENT_CATEGORY = "Spent more than it holds";
 
 /** An amount, red when negative. */
 export function MoneyAmount({ cents, className }: { cents: Cents; className?: string }) {

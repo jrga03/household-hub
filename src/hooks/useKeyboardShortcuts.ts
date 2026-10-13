@@ -85,6 +85,9 @@ export function useKeyboardShortcuts() {
           case "t":
             void navigate({ to: "/transactions" });
             break;
+          case "b":
+            void navigate({ to: "/budget" });
+            break;
           case "a":
             void navigate({ to: "/accounts" });
             break;

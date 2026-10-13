@@ -108,8 +108,8 @@ function FinancesBlocks({
       <Block
         title="Budgets"
         link={
-          <Link to="/categories" className={linkClass}>
-            Categories <ChevronRight aria-hidden className="size-4" />
+          <Link to="/budget" className={linkClass}>
+            Budget <ChevronRight aria-hidden className="size-4" />
           </Link>
         }
       >
