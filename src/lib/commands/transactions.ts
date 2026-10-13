@@ -180,17 +180,6 @@ const changeEachTransaction = (
   change: (transaction: TransactionRow) => Promise<void>
 ) => changeEach(transactionIds, requireTransaction, isAlready, change);
 
-export const setTransactionsStatus = (
-  actor: Actor,
-  transactionIds: string[],
-  status: TransactionStatus
-) =>
-  changeEachTransaction(
-    transactionIds,
-    (transaction) => transaction.status === status,
-    (transaction) => setTransactionStatus(actor, transaction.id, status)
-  );
-
 /** Null moves them to Unassigned. */
 export const changeTransactionsCategory = (
   actor: Actor,

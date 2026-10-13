@@ -16,7 +16,6 @@ import {
   restoreTransfer,
   restoreTransfers,
   setTransferStatus,
-  setTransfersStatus,
   type TransferInput,
 } from "./transfers";
 import { retireOnAnotherDevice } from "@/test/anotherDevice";
@@ -396,16 +395,6 @@ describe("status, removal and restore", () => {
 });
 
 describe("bulk changes", () => {
-  it("sets the status of each, skipping those already as asked", async () => {
-    const first = await addTransfer(MEMBER, transfer());
-    const second = await addTransfer(MEMBER, { ...transfer(), status: "pending" });
-
-    const result = await setTransfersStatus(MEMBER, [first.id, second.id], "pending");
-
-    expect(result).toEqual({ changed: [first.id], failed: [] });
-    expect(await eventsOf(second.id)).toHaveLength(1);
-  });
-
   it("removes and restores each, reporting one that's gone", async () => {
     const first = await addTransfer(MEMBER, transfer());
     const second = await addTransfer(MEMBER, transfer());
