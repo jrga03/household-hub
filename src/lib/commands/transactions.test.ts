@@ -220,6 +220,9 @@ describe("editTransaction", () => {
     await expect(editTransaction(MEMBER, id, expense({ description: "" }))).rejects.toThrow(
       DESCRIPTION_REQUIRED
     );
+    await expect(editTransaction(MEMBER, id, expense({ description: "   " }))).rejects.toThrow(
+      DESCRIPTION_REQUIRED
+    );
   });
 
   it("asks for a description when editing an old transaction that has none", async () => {
