@@ -3,6 +3,7 @@ import { Outlet, useRouterState } from "@tanstack/react-router";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { BottomTabBar } from "./BottomTabBar";
+import { PhoneBottomChrome } from "./ContextMode";
 import { HeaderSlotProvider } from "./HeaderActions";
 import { MobileNav, NavMenuButton } from "./MobileNav";
 import { PageHeader } from "./PageHeader";
@@ -116,10 +117,11 @@ export function AppLayout() {
           </main>
 
           {/* Bottom tab bar: one-tap access to the primary destinations
-            (review R42) */}
-          <BottomTabBar />
-
-          <AddTransactionButton floating />
+            (review R42); a mode such as selecting puts its actions there instead */}
+          <PhoneBottomChrome>
+            <BottomTabBar />
+            <AddTransactionButton floating />
+          </PhoneBottomChrome>
           <QuickEntryDialog />
 
           {/* PWA Installation Prompt */}
