@@ -47,6 +47,7 @@ test("a removed Member's next sync drops the household's accounts and keeps thei
   if (!code) throw new Error("The Owner sees no Household Code");
 
   const member = await newPerson(browser);
+  await member.page.getByRole("tab", { name: "Join" }).click();
   await member.page.getByLabel("Household Code").fill(code);
   await member.page.getByRole("button", { name: "Send request" }).click();
   await owner.page.reload();

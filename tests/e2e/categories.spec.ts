@@ -31,6 +31,7 @@ test("suggested categories reach every member; a Personal category reaches only 
   await expect(owner.page.getByRole("button", { name: "Use suggested categories" })).toBeHidden();
 
   const member = await newPerson(browser);
+  await member.page.getByRole("tab", { name: "Join" }).click();
   await member.page.getByLabel("Household Code").fill(code);
   await member.page.getByRole("button", { name: "Send request" }).click();
   await owner.page.goto("/");
