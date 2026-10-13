@@ -18,6 +18,7 @@ import {
   AccountDetailsFields,
   readAccountDetails,
 } from "./AccountDetailsFields";
+import { advanceOnEnter } from "@/components/FormSheet";
 import { EditAccountDialog } from "./EditAccountDialog";
 import { PayCardDialog } from "./PayCardDialog";
 import { FormError } from "@/components/ui/form-error";
@@ -231,6 +232,7 @@ function AddAccountForm({ actor }: { actor: Actor }) {
 
   return (
     <form
+      ref={advanceOnEnter}
       id="add-account"
       action={addAction}
       className="scroll-mt-4 space-y-4"

@@ -1,13 +1,6 @@
 import { useActionState, useState } from "react";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,24 +46,20 @@ export function SetBudgetDialog({
   const fundingChoices = accounts.filter((account) => canFundBudget(account, category));
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="@container max-h-[90dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Budget for {category.name}</DialogTitle>
-          <DialogDescription>
-            A monthly target. It stands from the month you choose until a later month changes it.
-          </DialogDescription>
-        </DialogHeader>
-        <SetBudgetForm
-          actor={actor}
-          category={category}
-          month={month}
-          budgets={budgets}
-          fundingChoices={fundingChoices}
-          onClose={onClose}
-        />
-      </DialogContent>
-    </Dialog>
+    <FormSheet
+      title={`Budget for ${category.name}`}
+      description="A monthly target. It stands from the month you choose until a later month changes it."
+      onClose={onClose}
+    >
+      <SetBudgetForm
+        actor={actor}
+        category={category}
+        month={month}
+        budgets={budgets}
+        fundingChoices={fundingChoices}
+        onClose={onClose}
+      />
+    </FormSheet>
   );
 }
 
@@ -140,7 +129,12 @@ function SetBudgetForm({
   );
 
   return (
-    <form action={saveAction} className="space-y-4" aria-label={`Budget for ${category.name}`}>
+    <form
+      ref={advanceOnEnter}
+      action={saveAction}
+      className="space-y-4"
+      aria-label={`Budget for ${category.name}`}
+    >
       <div className="grid gap-4 @[480px]:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="budget-amount">Amount ({PESO_SIGN})</Label>
@@ -150,6 +144,7 @@ function SetBudgetForm({
             inputMode="decimal"
             placeholder="0.00"
             autoComplete="off"
+            enterKeyHint="done"
             required
             value={amountText}
             onChange={(event) => setAmountText(event.target.value)}
@@ -207,9 +202,9 @@ function SetBudgetForm({
       </div>
 
       <FormError>{error}</FormError>
-      <DialogFooter>
+      <FormFooter>
         <SubmitButton pendingText="Saving...">Save budget</SubmitButton>
-      </DialogFooter>
+      </FormFooter>
     </form>
   );
 }

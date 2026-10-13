@@ -2,14 +2,7 @@ import { useActionState, useState } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -139,31 +132,25 @@ export function MoveMoneyDialog({
   const cards = [...accounts, ...retiredAccounts].filter(isCreditCard);
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="@container max-h-[90dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{allocation ? "Edit allocation" : "Move money"}</DialogTitle>
-          <DialogDescription>
-            Moves money between envelopes inside one account. The balance doesn&apos;t change.
-          </DialogDescription>
-        </DialogHeader>
-        {accountChoices.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Add a bank, cash or e-wallet account first.
-          </p>
-        ) : (
-          <MoveMoneyForm
-            actor={actor}
-            allocation={allocation}
-            accounts={accountChoices}
-            cards={cards}
-            categories={categories}
-            money={money}
-            onClose={onClose}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
+    <FormSheet
+      title={allocation ? "Edit allocation" : "Move money"}
+      description="Moves money between envelopes inside one account. The balance doesn't change."
+      onClose={onClose}
+    >
+      {accountChoices.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Add a bank, cash or e-wallet account first.</p>
+      ) : (
+        <MoveMoneyForm
+          actor={actor}
+          allocation={allocation}
+          accounts={accountChoices}
+          cards={cards}
+          categories={categories}
+          money={money}
+          onClose={onClose}
+        />
+      )}
+    </FormSheet>
   );
 }
 
@@ -273,6 +260,7 @@ function MoveMoneyForm({
 
   return (
     <form
+      ref={advanceOnEnter}
       action={saveAction}
       className="space-y-4"
       aria-label={allocation ? "Edit allocation" : "Move money"}
@@ -286,6 +274,7 @@ function MoveMoneyForm({
             inputMode="decimal"
             placeholder="0.00"
             autoComplete="off"
+            enterKeyHint="done"
             required
             value={amountText}
             onChange={(event) => setAmountText(event.target.value)}
@@ -344,7 +333,7 @@ function MoveMoneyForm({
       )}
 
       <FormError>{error}</FormError>
-      <DialogFooter className="gap-2 @[480px]:justify-between">
+      <FormFooter className="@[480px]:justify-between">
         {allocation ? (
           <Button type="button" variant="outline" onClick={remove}>
             Remove
@@ -353,7 +342,7 @@ function MoveMoneyForm({
           <span />
         )}
         <SubmitButton pendingText="Saving...">{allocation ? "Save" : "Move money"}</SubmitButton>
-      </DialogFooter>
+      </FormFooter>
     </form>
   );
 }

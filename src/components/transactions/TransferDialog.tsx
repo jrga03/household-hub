@@ -2,15 +2,8 @@ import { useActionState, useRef, useState } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { categoryNames, envelopeFromKey, envelopeKey } from "@/components/allocations/envelopes";
+import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -92,15 +85,9 @@ export function TransferDialog({
   onClose: () => void;
 }) {
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="@container max-h-[90dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Edit transfer</DialogTitle>
-          <DialogDescription>{SAVED_LOCALLY}</DialogDescription>
-        </DialogHeader>
-        <TransferEditor actor={actor} transfer={transfer} onClose={onClose} />
-      </DialogContent>
-    </Dialog>
+    <FormSheet title="Edit transfer" description={SAVED_LOCALLY} onClose={onClose}>
+      <TransferEditor actor={actor} transfer={transfer} onClose={onClose} />
+    </FormSheet>
   );
 }
 
@@ -346,6 +333,7 @@ export function TransferForm({
 
   return (
     <form
+      ref={advanceOnEnter}
       action={saveAction}
       className="space-y-4"
       aria-label={transfer ? "Edit transfer" : "Add transfer"}
@@ -359,6 +347,7 @@ export function TransferForm({
             inputMode="decimal"
             placeholder="0.00"
             autoComplete="off"
+            enterKeyHint="next"
             required
             ref={amountRef}
             defaultValue={transfer ? formatPHPInput(transfer.amountCents) : draftAmount}
@@ -434,6 +423,7 @@ export function TransferForm({
           name="description"
           maxLength={DESCRIPTION_MAX_LENGTH}
           autoComplete="off"
+          enterKeyHint="next"
           defaultValue={transfer?.description}
         />
       </div>
@@ -461,7 +451,7 @@ export function TransferForm({
       </fieldset>
 
       <FormError>{error}</FormError>
-      <DialogFooter className="gap-2 @[480px]:justify-between">
+      <FormFooter className="@[480px]:justify-between">
         {transfer ? (
           <Button type="button" variant="outline" onClick={remove}>
             Remove
@@ -470,7 +460,7 @@ export function TransferForm({
           <span />
         )}
         <SubmitButton pendingText="Saving...">{transfer ? "Save" : "Add transfer"}</SubmitButton>
-      </DialogFooter>
+      </FormFooter>
     </form>
   );
 }
