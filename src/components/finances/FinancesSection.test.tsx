@@ -16,7 +16,7 @@ const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "u
 
 function renderHome() {
   const rootRoute = createRootRoute();
-  const routes = ["/", "/transactions", "/budget"].map((path) =>
+  const routes = ["/", "/transactions", "/budget", "/accounts"].map((path) =>
     createRoute({
       getParentRoute: () => rootRoute,
       path,
@@ -74,7 +74,7 @@ describe("FinancesSection", () => {
 
     expect(await screen.findByRole("link", { name: /BPI/ })).toHaveAttribute(
       "href",
-      `/transactions?account=${bpiId}`
+      `/accounts#account-${bpiId}`
     );
     expect(screen.getByRole("link", { name: "Budget" })).toHaveAttribute("href", "/budget");
     expect(screen.getByRole("link", { name: "Transactions" })).toHaveAttribute(

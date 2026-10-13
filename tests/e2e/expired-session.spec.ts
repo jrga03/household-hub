@@ -9,7 +9,9 @@ async function openOfflineWithExpiredToken(page: Page, context: BrowserContext, 
   const person = await signUpNewPerson(page);
   await page.getByLabel("Household name").fill(household);
   await page.getByRole("button", { name: "Create household" }).click();
-  await expect(page.getByRole("main").getByText(household)).toBeVisible();
+  await expect(
+    page.getByRole("banner").getByRole("heading", { level: 1, name: household })
+  ).toBeVisible();
 
   // The service worker serves the app only to pages it controls.
   await page.evaluate(() => navigator.serviceWorker.ready);
@@ -38,7 +40,9 @@ test("offline with an expired access token, a member still reaches home", async 
   await openOfflineWithExpiredToken(page, context, "Expired token home");
 
   // Well under the ~26 s auth-js spends retrying the refresh.
-  await expect(page.getByRole("main").getByText("Expired token home")).toBeVisible({
+  await expect(
+    page.getByRole("banner").getByRole("heading", { level: 1, name: "Expired token home" })
+  ).toBeVisible({
     timeout: 3_000,
   });
   await expect(page).toHaveURL((url) => url.pathname === "/");
@@ -55,7 +59,10 @@ test("back online, the token refreshes and changes made offline sync without sig
   browser,
 }) => {
   const person = await openOfflineWithExpiredToken(page, context, "Reconnect home");
-  await expect(page.getByRole("main").getByText("Reconnect home")).toBeVisible();
+  await expect(
+    page.getByRole("banner").getByRole("heading", { level: 1, name: "Reconnect home" })
+  ).toBeVisible();
+  await navigateTo(page, "Accounts");
 
   const form = page.getByRole("form", { name: "Add an account" });
   await form.getByLabel("Account name").fill("Offline wallet");
@@ -67,7 +74,7 @@ test("back online, the token refreshes and changes made offline sync without sig
     "Sync status: Synced",
     { timeout: 20_000 }
   );
-  await expect(page).toHaveURL((url) => url.pathname === "/");
+  await expect(page).toHaveURL((url) => url.pathname === "/accounts");
   const storedExpiry = () =>
     page.evaluate(
       (key) => JSON.parse(window.localStorage.getItem(key) ?? "{}").expires_at,
@@ -78,6 +85,7 @@ test("back online, the token refreshes and changes made offline sync without sig
   const otherDevice = await browser.newContext();
   const otherPage = await otherDevice.newPage();
   await loginAs(otherPage, person);
+  await navigateTo(otherPage, "Accounts");
   await expect(accountsList(otherPage)).toContainText("Offline wallet");
   await otherDevice.close();
 });

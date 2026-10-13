@@ -17,6 +17,7 @@ test("suggested categories reach every member; a Personal category reaches only 
   const owner = await newPerson(browser);
   await owner.page.getByLabel("Household name").fill("Category home");
   await owner.page.getByRole("button", { name: "Create household" }).click();
+  await owner.page.goto("/settings");
   const code = await owner.page.getByTestId("household-code").textContent();
   if (!code) throw new Error("The Owner sees no Household Code");
 
@@ -31,9 +32,10 @@ test("suggested categories reach every member; a Personal category reaches only 
   await expect(owner.page.getByRole("button", { name: "Use suggested categories" })).toBeHidden();
 
   const member = await newPerson(browser);
+  await member.page.getByRole("tab", { name: "Join" }).click();
   await member.page.getByLabel("Household Code").fill(code);
   await member.page.getByRole("button", { name: "Send request" }).click();
-  await owner.page.goto("/");
+  await owner.page.goto("/settings");
   await owner.page
     .getByRole("region", { name: "Join requests" })
     .getByRole("listitem")

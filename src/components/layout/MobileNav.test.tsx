@@ -53,7 +53,15 @@ async function renderDrawer() {
       </>
     ),
   });
-  const paths = ["/", "/transactions", "/budget", "/import", "/categories", "/settings"];
+  const paths = [
+    "/",
+    "/transactions",
+    "/budget",
+    "/accounts",
+    "/import",
+    "/categories",
+    "/settings",
+  ];
   const router = createRouter({
     routeTree: rootRoute.addChildren(
       paths.map((path) =>
@@ -87,6 +95,7 @@ describe("MobileNav drawer", () => {
     const links = screen.getAllByRole("link");
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/budget",
+      "/accounts",
       "/import",
       "/categories",
       "/settings",

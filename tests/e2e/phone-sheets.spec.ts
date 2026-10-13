@@ -1,5 +1,5 @@
 import { test, expect, type BrowserContext, type Locator, type Page } from "@playwright/test";
-import { signUpNewPerson } from "./fixtures/helpers";
+import { navigateTo, signUpNewPerson } from "./fixtures/helpers";
 
 /** An iPhone keyboard with its suggestion bar, in CSS px. */
 const KEYBOARD_HEIGHT = 336;
@@ -46,6 +46,7 @@ async function openAddTransaction(page: Page, slot = "drawer-content") {
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Sheet home");
   await page.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(page, "Accounts");
   const addAccount = page.getByRole("form", { name: "Add an account" });
   await addAccount.getByLabel("Account name").fill("BPI");
   await addAccount.getByRole("button", { name: "Add account" }).click();

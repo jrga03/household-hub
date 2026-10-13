@@ -1,5 +1,5 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
-import { signUpNewPerson } from "./fixtures/helpers";
+import { navigateTo, signUpNewPerson } from "./fixtures/helpers";
 
 // Fresh people per run: membership is one household per person.
 async function newPerson(browser: Browser) {
@@ -43,10 +43,12 @@ test("a removed Member's next sync drops the household's accounts and keeps thei
   const owner = await newPerson(browser);
   await owner.page.getByLabel("Household name").fill("Lifecycle home");
   await owner.page.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(owner.page, "Settings");
   const code = await owner.page.getByTestId("household-code").textContent();
   if (!code) throw new Error("The Owner sees no Household Code");
 
   const member = await newPerson(browser);
+  await member.page.getByRole("tab", { name: "Join" }).click();
   await member.page.getByLabel("Household Code").fill(code);
   await member.page.getByRole("button", { name: "Send request" }).click();
   await owner.page.reload();
@@ -58,8 +60,10 @@ test("a removed Member's next sync drops the household's accounts and keeps thei
     .click();
   await expect(member.page).toHaveURL((url) => url.pathname === "/", { timeout: 15_000 });
 
+  await navigateTo(member.page, "Accounts");
   await addAccount(member.page, "B wallet", "Personal");
   await addAccount(member.page, "Shared cash", "Household");
+  await navigateTo(owner.page, "Accounts");
   await expect(async () => {
     await owner.page.reload();
     await expect(accountsList(owner.page)).toContainText("Shared cash", { timeout: 2_000 });
@@ -67,6 +71,8 @@ test("a removed Member's next sync drops the household's accounts and keeps thei
   expect(await localAccountNames(member.page)).toEqual(["B wallet", "Shared cash"]);
 
   // Only the Owner sees the controls.
+  await navigateTo(member.page, "Settings");
+  await navigateTo(owner.page, "Settings");
   const membersOnMemberPage = member.page.getByRole("region", { name: "Members" });
   await expect(membersOnMemberPage).toContainText(owner.email);
   await expect(membersOnMemberPage.getByRole("button", { name: /^Remove/ })).toHaveCount(0);
@@ -87,7 +93,7 @@ test("a removed Member's next sync drops the household's accounts and keeps thei
   await expect.poll(() => localAccountNames(member.page)).toEqual(["B wallet"]);
 
   // What the departed Member recorded stays with the household.
-  await owner.page.reload();
+  await navigateTo(owner.page, "Accounts");
   await expect(accountsList(owner.page)).toContainText("Shared cash");
 
   await Promise.all([owner.context.close(), member.context.close()]);

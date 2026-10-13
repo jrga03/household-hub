@@ -49,7 +49,7 @@ export function OpeningChecklist({ householdId }: { householdId: string }) {
             title="Set starting balances"
             description="Add each account with what it holds today."
             action={
-              <Link to="/" hash="add-account">
+              <Link to="/accounts" hash="add-account">
                 Add an account
               </Link>
             }

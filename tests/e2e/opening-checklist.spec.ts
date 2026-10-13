@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { signUpNewPerson } from "./fixtures/helpers";
+import { navigateTo, signUpNewPerson } from "./fixtures/helpers";
 
 test("a new household's opening checklist ticks itself off and stays dismissed", async ({
   page,
@@ -17,11 +17,15 @@ test("a new household's opening checklist ticks itself off and stays dismissed",
   await page.screenshot({ path: test.info().outputPath("checklist-new.png"), fullPage: true });
 
   await checklist.getByRole("link", { name: "Add an account" }).click();
+  await expect(page).toHaveURL(/\/accounts#add-account$/);
   const form = page.getByRole("form", { name: "Add an account" });
   await expect(form).toBeInViewport();
   await form.getByLabel("Account name").fill("BPI");
   await form.getByLabel("Starting balance (₱)").fill("40000");
   await form.getByRole("button", { name: "Add account" }).click();
+  await expect(page.getByRole("list", { name: "Accounts" })).toContainText("BPI");
+
+  await navigateTo(page, "Home");
   await expect(checklist.getByRole("listitem").first()).toHaveText(
     /Set starting balances \(done\)/
   );
@@ -40,6 +44,12 @@ test("a new household's opening checklist ticks itself off and stays dismissed",
   await page.getByRole("button", { name: "Dismiss the opening checklist" }).click();
   await expect(checklist).toBeHidden();
   await page.reload();
-  await expect(page.getByRole("form", { name: "Add an account" })).toBeVisible();
+  await expect(page.getByRole("list", { name: "Balances" })).toContainText("BPI");
   await expect(checklist).toBeHidden();
+
+  await page.getByRole("list", { name: "Balances" }).getByRole("link", { name: /BPI/ }).click();
+  await expect(page).toHaveURL(/\/accounts#account-/);
+  await expect(
+    page.getByRole("list", { name: "Accounts" }).getByRole("listitem").filter({ hasText: "BPI" })
+  ).toBeInViewport();
 });

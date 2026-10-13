@@ -1,7 +1,8 @@
 import { cn } from "@/lib/utils";
-import { Download, Palette } from "lucide-react";
+import { Download, House, Palette } from "lucide-react";
 
 const SECTIONS = [
+  { id: "household", label: "Household", icon: House },
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "export", label: "Export", icon: Download },
 ] as const;
