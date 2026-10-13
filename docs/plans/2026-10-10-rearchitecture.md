@@ -127,9 +127,9 @@ Spec: #95. Scoped 2026-10-13 (decisions above). ADR 0008. Build rounds: {#96, #9
 
 - [x] File the spec issue and the four sub-issues (`ready-for-agent`, blocked-by edges)
 - [x] #96 Home sections and the Finances overview (Household / Mine); PR #101
-- [ ] #97 Statement parsing foundation: Web Worker, `StatementParser`, BDO PDF parser, offline precache, import chunk budget, remembered password
+- [x] #97 Statement parsing foundation: Web Worker, `StatementParser`, BDO PDF parser, offline precache, import chunk budget, remembered password; PR #103
 - [ ] #99 Drafts and review (blocked by #97): drafts table, `/import`, import keys, duplicate and card-payment flags, `DraftSuggester` with history, save and discard, wipe and sign-out warning
-- [ ] #98 UnionBank XLSX parser (blocked by #97), built 2026-10-13
+- [x] #98 UnionBank XLSX parser (blocked by #97); PR #105
 - [ ] Close #95
 
 ### #96 decisions
