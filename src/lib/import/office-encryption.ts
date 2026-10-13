@@ -1,13 +1,12 @@
-import CFB from "cfb";
-import { sha512, type Sha512Variant } from "./sha512";
-import { StatementParseError } from "./statement";
-
 /**
  * Decrypts an Office file protected with a password: an OLE compound file
  * holding the real package under ECMA-376 agile encryption (MS-OFFCRYPTO
  * 2.3.4.10 to 2.3.4.15). Only AES with SHA-384 or SHA-512, the ciphers Excel
  * and UnionBank use.
  */
+import CFB from "cfb";
+import { sha512, type Sha512Variant } from "./sha512";
+import { StatementParseError } from "./statement";
 
 const BLOCK_KEYS = {
   verifierInput: [0xfe, 0xa7, 0xd2, 0x76, 0x3b, 0x4b, 0x9e, 0x79],
@@ -99,23 +98,22 @@ function readEncryptionInfo(info: Uint8Array) {
   return { keyData: cipherParams(keyData), passwordKey };
 }
 
+const importAesKey = (keyBytes: Uint8Array<ArrayBuffer>) =>
+  crypto.subtle.importKey("raw", keyBytes, "AES-CBC", false, ["encrypt", "decrypt"]);
+
 /**
  * AES-CBC without padding. WebCrypto insists on PKCS#7 padding, so one block
  * that decrypts to a full padding block is appended: AES(last block ⊕ 0x10…),
  * which is what encrypting nothing with the last block as IV gives.
  */
 async function decryptAesCbc(
-  keyBytes: Uint8Array<ArrayBuffer>,
+  key: CryptoKey,
   iv: Uint8Array<ArrayBuffer>,
   ciphertext: Uint8Array<ArrayBuffer>
 ): Promise<Uint8Array<ArrayBuffer>> {
   if (ciphertext.length === 0 || ciphertext.length % AES_BLOCK_BYTES !== 0) {
     throw unsupported("ciphertext isn't whole blocks");
   }
-  const key = await crypto.subtle.importKey("raw", keyBytes, "AES-CBC", false, [
-    "encrypt",
-    "decrypt",
-  ]);
   const padding = await crypto.subtle.encrypt(
     { name: "AES-CBC", iv: ciphertext.slice(-AES_BLOCK_BYTES) },
     key,
@@ -146,15 +144,15 @@ async function unlockSecretKey(
     passwordHash = sha512(concat(uint32LE(iteration), passwordHash), hash);
   }
   const keyFor = (blockKey: number[]) =>
-    fitTo(sha512(concat(passwordHash, blockKey), hash), keyBytes);
+    importAesKey(fitTo(sha512(concat(passwordHash, blockKey), hash), keyBytes));
 
   const verifierInput = await decryptAesCbc(
-    keyFor(BLOCK_KEYS.verifierInput),
+    await keyFor(BLOCK_KEYS.verifierInput),
     salt,
     passwordKey.encryptedVerifierHashInput
   );
   const verifierHash = await decryptAesCbc(
-    keyFor(BLOCK_KEYS.verifierHash),
+    await keyFor(BLOCK_KEYS.verifierHash),
     salt,
     passwordKey.encryptedVerifierHashValue
   );
@@ -163,7 +161,7 @@ async function unlockSecretKey(
   if (!matches || expected.length !== hashBytes) return null;
 
   const secretKey = await decryptAesCbc(
-    keyFor(BLOCK_KEYS.secretKey),
+    await keyFor(BLOCK_KEYS.secretKey),
     salt,
     passwordKey.encryptedKeyValue
   );
@@ -181,13 +179,12 @@ async function decryptPackage(
     encryptedPackage.byteLength
   );
   const packageBytes = view.getUint32(0, true) + view.getUint32(4, true) * 2 ** 32;
+  const key = await importAesKey(secretKey);
   const segments: Promise<Uint8Array<ArrayBuffer>>[] = [];
   for (let offset = 8; offset < encryptedPackage.length; offset += SEGMENT_BYTES) {
     const index = (offset - 8) / SEGMENT_BYTES;
     const iv = fitTo(sha512(concat(keyData.salt, uint32LE(index)), keyData.hash), AES_BLOCK_BYTES);
-    segments.push(
-      decryptAesCbc(secretKey, iv, encryptedPackage.slice(offset, offset + SEGMENT_BYTES))
-    );
+    segments.push(decryptAesCbc(key, iv, encryptedPackage.slice(offset, offset + SEGMENT_BYTES)));
   }
   return concat(...(await Promise.all(segments))).slice(0, packageBytes);
 }

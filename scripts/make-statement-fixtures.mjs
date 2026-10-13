@@ -255,14 +255,14 @@ function buildXlsx(sheetName, rows) {
 const UNIONBANK_ROWS = [
   [2, [null, "ACCOUNT NAME", null, "JUANA DELA CRUZ"]],
   [3, [null, "CARD NUMBER", null, "4000-XXXX-XXXX-0001"]],
-  [4, [null, "STATEMENT BALANCE", null, 2650.73]],
+  [4, [null, "STATEMENT BALANCE", null, 1554.04]],
   [5, [null, "MINIMUM AMOUNT DUE", null, 850]],
   [6, [null, "PAYMENT DUE DATE", null, "08/23/2026"]],
   [7, [null, "STATEMENT DATE", null, "08/03/2026"]],
   [8, [null, "PREVIOUS BALANCE", null, 5000]],
   [9, [null, "PURCHASES & ADVANCES", null, 2660.73]],
-  [10, [null, "PAYMENTS & CREDITS", null, -5010]],
-  [11, [null, "TOTAL AMOUNT DUE", null, 2650.73]],
+  [10, [null, "PAYMENTS & CREDITS", null, -6106.69]],
+  [11, [null, "TOTAL AMOUNT DUE", null, 1554.04]],
   [14, ["DATE", "DESCRIPTION", "CURRENCY", "AMOUNT"]],
   [15, [{ inline: "07/05/2026" }, { inline: "SARI SARI STORE QUEZON PH" }, { inline: "PHP" }, 150]],
   [16, [{ inline: "07/05/2026" }, { inline: "SARI SARI STORE QUEZON PH" }, { inline: "PHP" }, 150]],
@@ -283,6 +283,15 @@ const UNIONBANK_ROWS = [
   [20, [{ inline: "" }, { inline: "" }, { inline: "" }, null]],
   [21, [{ inline: "08/01/2026" }, { inline: "LATE PAYMENT FEE" }, { inline: "PHP" }, 1096.69]],
   [22, [{ inline: "08/02/2026" }, { inline: "ZERO AMOUNT ADJUSTMENT" }, { inline: "PHP" }, 0]],
+  [
+    23,
+    [
+      { inline: "08/02/2026" },
+      { inline: "LATE PAYMENT FEE REVERSAL" },
+      { inline: "PHP" },
+      -1096.69,
+    ],
+  ],
   [24, [{ inline: "*** END OF STATEMENT ***" }]],
 ];
 

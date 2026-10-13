@@ -7,6 +7,8 @@ import { readFirstSheet, type Cell } from "./xlsx";
 
 const LONG_DATE = /^(\d{2})\/(\d{2})\/(\d{4})$/;
 const CARD_PAYMENT = /\bPAYMENT\b/;
+// A credit that undoes a fee or charge ("LATE PAYMENT FEE REVERSAL") is a refund, not a payment.
+const FEE_OR_CHARGE = /\b(FEE|CHARGE|REVERSAL)\b/;
 
 /** "07/28/2026" → "2026-07-28"; null when it isn't a real day. */
 function toLocalDate(cell: Cell | undefined): string | null {
@@ -42,7 +44,7 @@ function readTransaction([dateCell, descriptionCell, , amountCell]: Cell[]): Sta
     description,
     amount,
     type: isCredit ? "income" : "expense",
-    isCardPayment: isCredit && CARD_PAYMENT.test(description),
+    isCardPayment: isCredit && CARD_PAYMENT.test(description) && !FEE_OR_CHARGE.test(description),
   };
 }
 

@@ -69,6 +69,14 @@ describe("UnionBank credit card XLSX", () => {
         type: "expense",
         isCardPayment: false,
       },
+      {
+        purchaseDate: "2026-08-02",
+        postingDate: "2026-08-02",
+        description: "LATE PAYMENT FEE REVERSAL",
+        amount: 109669,
+        type: "income",
+        isCardPayment: false,
+      },
     ]);
   });
 

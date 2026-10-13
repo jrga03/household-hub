@@ -1,10 +1,9 @@
-import { openZip } from "./zip";
-
 /**
  * Just enough of SpreadsheetML to read a worksheet's values: shared and inline
  * strings and numbers. Regular expressions stand in for DOMParser, which Web
  * Workers lack; the parts read here never nest an element inside itself.
  */
+import { openZip } from "./zip";
 
 export type Cell = string | number;
 
@@ -61,6 +60,7 @@ function cellValue({ attributes, inner }: XmlElement, sharedStrings: string[]): 
     case "s":
       return value === undefined ? undefined : sharedStrings[parseInt(value, 10)];
     case "str":
+    case "d":
     case "e":
       return value === undefined ? undefined : decodeEntities(value);
     default:

@@ -82,7 +82,7 @@ test("a UnionBank statement is read offline, and its password is never remembere
   await form.getByRole("button", { name: "Read statement" }).click();
 
   const lines = page.getByRole("region", { name: "Statement lines" });
-  await expect(lines).toContainText("6 lines read from unionbank-credit-card.xlsx");
+  await expect(lines).toContainText("7 lines read from unionbank-credit-card.xlsx");
   await expect(lines.getByRole("listitem").filter({ hasText: "BDO BILLS PAYMENT" })).toContainText(
     "Card payment"
   );

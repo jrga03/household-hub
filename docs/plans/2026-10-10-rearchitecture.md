@@ -159,7 +159,8 @@ Spec: #95. Scoped 2026-10-13 (decisions above). ADR 0008. Build rounds: {#96, #9
 
 - [x] Office agile decryption (`office-encryption.ts`): `cfb` opens the container, a synchronous SHA-512/384 (`sha512.ts`) derives the key, WebCrypto AES-CBC decrypts; wrong password caught by the verifier hash
 - [x] Zip reader on `DecompressionStream` (`zip.ts`) and a regex SpreadsheetML reader for shared and inline strings (`xlsx.ts`)
-- [x] UnionBank parser (`unionbank-xlsx.ts`), registered as a per-file-password format; synthetic fixture test, wrong password, no password, a workbook that isn't a statement, a file that isn't a workbook
+- [x] UnionBank parser (`unionbank-xlsx.ts`), registered as a per-file-password format; synthetic fixture test (purchases, a refund, a fee reversal, a card payment), wrong password, no password, a workbook that isn't a statement, a file that isn't a workbook
+- [x] Code review (standards and spec): card-payment rule tightened, date cells read as text, AES key imported once
 - [x] Real-statement test: every line adds up to the statement's PURCHASES & ADVANCES, PAYMENTS & CREDITS and TOTAL AMOUNT DUE; passes on the user's three statements (Jul to Sep 2026: 29, 68 and 92 lines; Jul and Aug match the `unionbank-statement-parser` skill's counts), one card payment each in Aug and Sep
 - [x] e2e: the synthetic UnionBank XLSX reads offline, with no "Remember password" (chromium and Mobile Chrome)
 - [x] Import worker 552.7 KB gz (was 535.9; `cfb` is most of it), inside the 590 budget, unchanged
@@ -168,7 +169,7 @@ Spec: #95. Scoped 2026-10-13 (decisions above). ADR 0008. Build rounds: {#96, #9
 #### #98 decisions
 
 - **The 100,000-round password hash runs in a synchronous SHA-512/384, not `crypto.subtle.digest`.** Why: each round awaits the previous one, so WebCrypto took 4.9 s in Node; in-thread it takes 0.3 s. WebCrypto still does the AES. Only AES-CBC with SHA-384 or SHA-512 is accepted (Excel's default and UnionBank's); anything else is a reported "failed". Revisit: if a bank sends another cipher.
-- **A card payment is a credit whose description has the word PAYMENT.** UnionBank's are "BDO BILLS PAYMENT -CASH"; refunds and reversals (Shopee, GSM) aren't flagged. Revisit: when a payment from another channel shows up unflagged.
+- **A card payment is a credit whose description has the word PAYMENT but not FEE, CHARGE or REVERSAL.** UnionBank's are "BDO BILLS PAYMENT -CASH"; refunds (Shopee, GSM) and fee reversals ("LATE PAYMENT FEE REVERSAL") aren't flagged. Looser than BDO's `^PAYMENT RECEIVED` because UnionBank names the paying channel. Revisit: when a payment shows up unflagged or a refund flagged.
 - **UnionBank prints one date per line; it is both purchase and posting date.**
 - **The CURRENCY column is ignored**: PHP on every line of all three statements. Revisit: if a non-PHP line appears.
 - **The parser doesn't reconcile against the statement's totals; the real-statement test does**, as for BDO. Why: the review screen (#99) is where a mismatch would be shown. Revisit: #99.
