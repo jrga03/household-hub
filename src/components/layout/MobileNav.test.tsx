@@ -96,6 +96,7 @@ async function renderDrawer() {
   const paths = [
     "/",
     "/transactions",
+    "/budget",
     "/review",
     "/accounts",
     "/import",
@@ -135,6 +136,7 @@ describe("MobileNav drawer", () => {
 
     const links = screen.getAllByRole("link");
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/budget",
       "/review",
       "/accounts",
       "/import",

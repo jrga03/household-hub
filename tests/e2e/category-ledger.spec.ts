@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { chooseOption, signUpNewPerson, navigateTo } from "./fixtures/helpers";
 
-/** A household with ₱8,000 allocated to Groceries and a ₱1,200 Groceries expense, on Categories. */
+/** A household with ₱8,000 allocated to Groceries and a ₱1,200 Groceries expense, on Budget. */
 async function groceriesThisMonth(page: Page) {
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Ledger home");
@@ -16,6 +16,9 @@ async function groceriesThisMonth(page: Page) {
 
   await page.goto("/categories");
   await page.getByRole("button", { name: "Use suggested categories" }).click();
+  await expect(page.getByRole("list", { name: "Food categories" })).toContainText("Groceries");
+
+  await page.goto("/plan");
   const move = page.getByRole("dialog", { name: "Move money" });
   await page.getByRole("button", { name: "Move money" }).click();
   await move.getByLabel("Amount (₱)").fill("8000");
@@ -30,6 +33,7 @@ async function groceriesThisMonth(page: Page) {
   await add.getByLabel("Description", { exact: true }).fill("Market");
   await add.getByRole("button", { name: "Add transaction" }).click();
   await expect(add).toBeHidden();
+  await page.goto("/budget");
 }
 
 const groceriesLedger = (page: Page) => page.getByRole("list", { name: /^Groceries in / });

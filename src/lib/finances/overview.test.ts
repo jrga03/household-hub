@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { parsePHP, type Cents } from "@/lib/currency";
+import { db } from "@/lib/dexie/db";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { createAccount, retireAccount } from "@/lib/commands/accounts";
-import { createCategory, createGroup } from "@/lib/commands/categories";
+import { createCategory, createGroup, retireCategory } from "@/lib/commands/categories";
 import { setBudget } from "@/lib/commands/budgets";
 import { addTransaction, removeTransaction } from "@/lib/commands/transactions";
 import { addTransfer } from "@/lib/commands/transfers";
@@ -169,6 +170,15 @@ describe("budget status", () => {
 
     expect((await october("household")).budgets).toEqual({ fine: 1, close: 0, over: 0 });
     expect((await october("mine")).budgets).toEqual({ fine: 0, close: 0, over: 1 });
+  });
+
+  it("still counts a retired category in a month its budget was in force, as Budget shows it", async () => {
+    await budgetedCategory("1000.01");
+    const retiring = (await db.categories.toArray()).find((row) => row.name === "Spent 1000.01");
+    if (!retiring) throw new Error("No category to retire");
+    await retireCategory(MEMBER, retiring.id, { toCategoryId: groceriesId, date: "2026-10-31" });
+
+    expect((await october()).budgets).toEqual({ fine: 0, close: 0, over: 1 });
   });
 });
 

@@ -259,8 +259,9 @@ function TransactionForm({
                   label: "Distribute",
                   onClick: () =>
                     void navigate({
-                      to: "/distribute",
+                      to: "/plan",
                       search: {
+                        distribute: "income",
                         account: input.accountId,
                         amount: formatPHPInput(input.amountCents),
                         date: input.date,

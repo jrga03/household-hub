@@ -32,9 +32,11 @@ test("a new household's opening checklist ticks itself off and stays dismissed",
   await page.screenshot({ path: test.info().outputPath("checklist-balance.png"), fullPage: true });
 
   await checklist.getByRole("link", { name: "Distribute" }).click();
-  await expect(page).toHaveURL(/\/distribute\?mode=opening&account=/);
+  await expect(page).toHaveURL(/\/plan\?distribute=opening&account=/);
+  await expect(page.getByRole("dialog", { name: "Distribute money" })).toBeVisible();
+  // An open phone sheet hides the page behind it from the accessibility tree.
   await expect(
-    page.getByRole("banner").getByRole("heading", { level: 1, name: "Distribute money" })
+    page.getByRole("banner").getByRole("heading", { level: 1, name: "Plan", includeHidden: true })
   ).toBeVisible();
   await page.screenshot({ path: test.info().outputPath("distribute-opening.png") });
 

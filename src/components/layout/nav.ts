@@ -3,6 +3,7 @@ import {
   FileUp,
   Home,
   Layers,
+  PiggyBank,
   Receipt,
   Settings,
   Wallet,
@@ -27,6 +28,7 @@ export interface NavItem {
 export const DAILY_NAV: NavItem[] = [
   { to: "/", label: "Home", icon: Home, shortcut: "g h", tab: true },
   { to: "/transactions", label: "Transactions", icon: Receipt, shortcut: "g t", tab: true },
+  { to: "/budget", label: "Budget", icon: PiggyBank, shortcut: "g b" },
   { to: "/review", label: "Review", icon: ClipboardCheck, shortcut: "g r", reviewCount: true },
 ];
 

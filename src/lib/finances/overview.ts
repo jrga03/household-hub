@@ -5,7 +5,8 @@
  */
 
 import type { AccountRow } from "@/lib/accounts/projection";
-import { summarizeMonth } from "@/lib/budgets/month";
+import { countsInMonth, summarizeMonth } from "@/lib/budgets/month";
+import { budgetStatus, type BudgetStatus } from "@/lib/budgets/progress";
 import { ZERO_CENTS, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import type { Ownership } from "@/lib/events/log";
@@ -15,14 +16,8 @@ import { monthOfDate } from "@/lib/utils/dates";
 
 export type FinanceView = "household" | "mine";
 
-/** Categories with a budget this month, by how much of it is spent. */
-export interface BudgetStatusCounts {
-  fine: number;
-  /** 80% to 100% spent. */
-  close: number;
-  /** Above 100% spent. */
-  over: number;
-}
+/** Categories with a budget this month, by how much of it is spent: close from 80%, over past 100%. */
+export type BudgetStatusCounts = Record<BudgetStatus, number>;
 
 export interface FinanceOverview {
   in: Cents;
@@ -38,21 +33,11 @@ export interface FinanceOverview {
 
 const LATEST_COUNT = 5;
 
-/** A budget is close once this share of it is spent. */
-const CLOSE_PERCENT = 80;
-
 /** Household, or Personal and the member's own. */
 const shownIn = (view: FinanceView, userId: string) => (owned: Ownership) =>
   view === "household"
     ? owned.visibility === "household"
     : owned.visibility === "personal" && owned.ownerUserId === userId;
-
-function budgetStatus(budget: Cents, spent: Cents): keyof BudgetStatusCounts {
-  if (spent > budget) return "over";
-  // Compared without dividing cents.
-  if (budget > 0 && spent * 100 >= budget * CLOSE_PERCENT) return "close";
-  return "fine";
-}
 
 export async function readFinanceOverview(
   view: FinanceView,
@@ -94,7 +79,8 @@ export async function readFinanceOverview(
   const budgetCounts: BudgetStatusCounts = { fine: 0, close: 0, over: 0 };
   for (const category of categories) {
     const figures = monthView.get(category.id);
-    if (category.retired || !isShown(category) || !figures?.budget) continue;
+    // Budget's rows follow the same rule, so the two screens agree.
+    if (!isShown(category) || !figures?.budget || !countsInMonth(category, figures)) continue;
     budgetCounts[budgetStatus(figures.budget.amountCents, figures.spent)] += 1;
   }
 
