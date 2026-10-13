@@ -1,6 +1,6 @@
 # UI overhaul
 
-Status: scoped 2026-10-13 in a grilling session. Runs before #99 (drafts and review), which then builds onto the Review screen. Spec: #106. Folds in #102.
+Status: done 2026-10-14. PR #116 merged to `main` as 6911347, closing #106 and its sub-issues. Next: #99 builds onto the Review screen. Scoped 2026-10-13 in a grilling session. Runs before #99 (drafts and review), which then builds onto the Review screen. Spec: #106. Folds in #102.
 
 ## Context
 
@@ -95,3 +95,4 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 - [x] 5. #110 (merged 948e229, PR #116) Review screen
 - [x] 6. #111 (merged 93f4f41, PR #116) Categories / Budget / Plan split; `/distribute` removed
 - [x] 7. #112 (merged ccdca43, PR #116) Onboarding (no blockers; can jump the queue): safe area, Create / Join toggle
+- [x] 8. Code-review fixes (merged c45f618, PR #116); PR #116 merged to `main` 2026-10-14 (6911347)
