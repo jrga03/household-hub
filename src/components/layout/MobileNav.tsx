@@ -8,7 +8,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { signOutWithToast } from "@/lib/sign-out";
 import { cn } from "@/lib/utils";
 import { DRAWER_NAV, isNavItemActive } from "./nav";
-import { ReviewCountBadge, ReviewDot } from "./ReviewCount";
+import { ReviewCountBadge, ReviewDot, reviewLabel } from "./ReviewCount";
 
 /**
  * Mobile navigation drawer: every destination off the BottomTabBar, with the
@@ -26,6 +26,7 @@ interface MobileNavProps {
 export function MobileNav({ open, onOpenChange }: MobileNavProps) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const user = useAuthStore((state) => state.user);
+  const reviewCount = useReviewCount();
 
   const handleSignOut = async () => {
     await signOutWithToast();
@@ -70,6 +71,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
                   key={item.to}
                   to={item.to}
                   onClick={() => onOpenChange(false)}
+                  aria-label={item.reviewCount ? reviewLabel(item.label, reviewCount) : undefined}
                   className={cn(
                     "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
                     "hover:bg-accent hover:text-accent-foreground",
@@ -79,7 +81,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
                 >
                   <item.icon className="h-5 w-5" />
                   <span className="flex-1">{item.label}</span>
-                  {item.reviewCount && <ReviewCountBadge />}
+                  {item.reviewCount && <ReviewCountBadge count={reviewCount} />}
                   {active && <div className="h-5 w-1 rounded-full bg-primary" />}
                 </Link>
               );

@@ -20,7 +20,8 @@ import { useAuthStore } from "@/stores/authStore";
 import { signOutWithToast } from "@/lib/sign-out";
 import { cn } from "@/lib/utils";
 import { DAILY_NAV, isNavItemActive, MANAGE_NAV, type NavItem } from "./nav";
-import { ReviewCountBadge, ReviewDot } from "./ReviewCount";
+import { ReviewCountBadge, ReviewDot, reviewLabel } from "./ReviewCount";
+import { useReviewCount } from "@/hooks/useReviewCount";
 
 /**
  * Sidebar navigation for desktop and tablet views: the daily and manage
@@ -33,6 +34,7 @@ export function AppSidebar() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const user = useAuthStore((state) => state.user);
   const { open } = useSidebar();
+  const reviewCount = useReviewCount();
 
   const isActiveRoute = (path: string) => isNavItemActive(path, pathname);
 
@@ -40,13 +42,17 @@ export function AppSidebar() {
     items.map((item) => (
       <SidebarMenuItem key={item.to}>
         <SidebarMenuButton asChild isActive={isActiveRoute(item.to)} tooltip={item.label}>
-          <Link to={item.to} className="relative">
+          <Link
+            to={item.to}
+            className="relative"
+            aria-label={item.reviewCount ? reviewLabel(item.label, reviewCount) : undefined}
+          >
             <item.icon className="h-4 w-4" />
             {open ? (
               <>
                 <span>{item.label}</span>
                 <span className="ml-auto flex items-center gap-2">
-                  {item.reviewCount && <ReviewCountBadge />}
+                  {item.reviewCount && <ReviewCountBadge count={reviewCount} />}
                   {item.shortcut && (
                     <span
                       className={cn(
