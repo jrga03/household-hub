@@ -1,5 +1,5 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
-import { signUpNewPerson } from "./fixtures/helpers";
+import { signUpNewPerson, navigateTo } from "./fixtures/helpers";
 
 // Fresh people per run: membership is one household per person, so the
 // fixture users (who already have one) can't request.
@@ -9,6 +9,7 @@ async function newOwner(browser: Browser, householdName: string) {
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill(householdName);
   await page.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(page, "Settings");
   const code = await page.getByTestId("household-code").textContent();
   if (!code) throw new Error("The Owner sees no Household Code");
   return { context, page, code };
@@ -47,6 +48,10 @@ test("an Owner accepts a Join Request and the requester lands in the household",
   await expect(joinRequests(owner.page)).toContainText("No pending requests");
 
   await expect(requester.page).toHaveURL((url) => url.pathname === "/", { timeout: 15_000 });
+  await expect(
+    requester.page.getByRole("banner").getByRole("heading", { name: "Join home" })
+  ).toBeVisible();
+  await navigateTo(requester.page, "Settings");
   const main = requester.page.getByRole("main");
   await expect(main.getByText("Join home")).toBeVisible();
   await expect(main.getByText("Member", { exact: true })).toBeVisible();

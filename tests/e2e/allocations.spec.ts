@@ -21,6 +21,7 @@ test("moving money between envelopes, past Unassigned, with an undoable removal"
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Allocation home");
   await page.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(page, "Accounts");
 
   const addAccount = page.getByRole("form", { name: "Add an account" });
   await addAccount.getByLabel("Account name").fill("BDO Savings");

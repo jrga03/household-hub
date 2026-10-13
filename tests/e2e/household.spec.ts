@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { login, signUpNewPerson } from "./fixtures/helpers";
+import { login, signUpNewPerson, navigateTo } from "./fixtures/helpers";
 
 const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
@@ -22,6 +22,11 @@ test.describe("Create a household", () => {
     await page.getByRole("button", { name: "Create household" }).click();
 
     await expect(page).toHaveURL((url) => url.pathname === "/");
+    await expect(
+      page.getByRole("banner").getByRole("heading", { name: "Acido home" })
+    ).toBeVisible();
+
+    await navigateTo(page, "Settings");
     const main = page.getByRole("main");
     await expect(main.getByText("Acido home")).toBeVisible();
     // The badge beside the household name; the Members list has its own "Owner".

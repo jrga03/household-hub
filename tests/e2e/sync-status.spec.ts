@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { test, expect, type Page } from "@playwright/test";
-import { signUpNewPerson } from "./fixtures/helpers";
+import { signUpNewPerson, navigateTo } from "./fixtures/helpers";
 
 const accountsList = (page: Page) => page.getByRole("list", { name: "Accounts" });
 const syncStatus = (page: Page) => page.getByRole("button", { name: /^Sync status:/ });
@@ -23,6 +23,7 @@ async function startHousehold(page: Page) {
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Status home");
   await page.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(page, "Accounts");
   await expect(page.getByText("No accounts yet")).toBeVisible();
 }
 

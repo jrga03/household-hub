@@ -120,8 +120,8 @@ function FinancesBlocks({
           {overview.balances.map(({ account, balance }) => (
             <li key={account.id}>
               <Link
-                to="/transactions"
-                search={{ account: account.id }}
+                to="/accounts"
+                hash={`account-${account.id}`}
                 className="flex items-center justify-between gap-3 py-1.5 hover:underline"
               >
                 <span className="truncate">{account.name}</span>

@@ -44,7 +44,18 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 - **Deferred: a "Review" glossary term** (GLOSSARY.md uses review only for drafts; #107 counts uncategorized expenses as review items). Revisit: #110.
 - **Deferred: rewriting `src/components/layout/README.md`**, which still describes an older nav (Budgets, Analytics, Transfers); #107 fixed only the lines it made false. Revisit: a separate docs cleanup.
 - **The HH badge stays in the desktop sidebar header**, which plays the drawer's role on wide screens (#107). Revisit: never.
+- **Balances deep-link to the account's row** (#102, confirmed by the user): `/accounts#account-<id>`, scrolled into view once accounts load (`useScrollToHash`, shared with Settings). Revisit: if the per-account register lands.
+- **Settings lists Household first**, before Appearance and Export, and Accounts gets the "g a" shortcut (#102, confirmed by the user). Revisit: never.
+- **`/accounts` drops the card's in-page title and description** (#102, confirmed by the user), keeping the "No accounts yet" empty state; done after merging #108, which rewrote the same card's forms. Revisit: never.
+- **Household settings live in `src/components/households/HouseholdSettings.tsx`** (#102), a new file rather than a `git mv` of `src/routes/index.tsx`, which stays as Home. Revisit: never.
 - **Each issue updates the e2e specs and layout baselines it breaks** (for example, the 16 specs that add accounts on Home and the checklist's `/#add-account` link). There is no separate test-migration issue.
+- **`FormSheet` is the form container** (#108, `src/components/FormSheet.tsx`): `<FormSheet title description? onClose>` (mounted means open), `FormFooter` for the pinned buttons, and `advanceOnEnter` as the form's `ref`. #109 and #111 build their forms on it. Revisit: never.
+- **Keyboard handling is ours, not vaul's** (#108): `repositionInputs` is off; on iOS `FormSheet` pads the sheet's bottom by the `visualViewport` inset (lifting it left a seam at its edge), and it scrolls the focused field into view on any visual-viewport height change. Why: vaul's repositioning resizes the sheet and fights the pinned footer. Revisit: if vaul's handling improves.
+- **Enter keeps each device's usual behaviour** (#108, confirmed by the user 2026-10-13): on phones Enter moves to the next typed field (skipping pickers, a new line in Notes) and submits from the last one; on desktop dialogs and the Transactions edit pane Enter submits the form. `enterKeyHint` is set everywhere. Revisit: never.
+- **`FormFooter` is pinned on desktop too** (#108, confirmed by the user 2026-10-13), in dialogs and the edit pane as well as phone sheets. Revisit: never.
+- **Phone sheets close by X, swipe, tap outside, Escape or Back** (#108, confirmed by the user 2026-10-13). Swipe-down works on the handle and the body; a scrolled body only scrolls, and closes once back at the top (vaul's own rule). Revisit: never.
+- **Deferred: a real-device check** of the keyboard and the swipe (#108). `tests/e2e/phone-sheets.spec.ts` emulates the keyboard (shrunk `visualViewport` for iOS, shrunk viewport for `resizes-content`) and swipes with CDP touches on Chromium but with mouse pointer events on WebKit, which has no touch-drag automation. Revisit: next time the app is tried on an iPhone and an Android phone.
+- **Non-form sheets stay Radix `Sheet`** (#108, confirmed by the user 2026-10-13): the Categories ledger drill-in and the Import draft detail aren't forms. Revisit: #111 if the ledger sheet should drag like the form sheets.
 - **#112 tests the safe area by overriding `--safe-area-top/bottom`** (iPhone 15 Pro insets, 59px/34px) in `household.spec.ts`, since no desktop or emulated browser reports `env(safe-area-inset-*)`. Revisit: if a real-device check (BrowserStack or a physical iPhone) shows a mismatch.
 - **#112 moved the Create / Join choices into `src/components/households/CreateOrJoin.tsx`** so the toggle and request states are unit-tested there; the route keeps only the page frame. Revisit: never.
 - **Deferred: create-or-join opened offline shows no Create / Join choices** (they wait on the Join Request lookup, which pauses offline; same before #112). #112's offline e2e now waits for the form before going offline. Revisit: if someone reports a blank onboarding screen.
@@ -54,8 +65,8 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 
 - [x] File the spec (#106) and sub-issues (`ready-for-agent`, blocked-by edges); #102 re-scoped as issue 3, #99 blocked by #110
 - [x] 1. #107 (PR #115) Shell: header title and actions slot, drawer regroup with email and sign out at the bottom, Review dot, desktop sidebar groups, in-page titles removed
-- [ ] 2. #108 Phone sheets and keyboard: Drawer component, viewport handling, pinned submit, `enterKeyHint`, all phone forms migrated
-- [ ] 3. #102 Accounts screen and Settings → Household; Home becomes finances-only
+- [x] 2. #108 (merged 9e995ee, PR #116) Phone sheets and keyboard: Drawer component, viewport handling, pinned submit, `enterKeyHint`, all phone forms migrated
+- [x] 3. #102 (merged 4728e5c, PR #116) Accounts screen and Settings → Household; Home becomes finances-only
 - [ ] 4. #109 Transactions rehaul: rows, date headers, pending style, swipe-reveal, remove confirmation, selection mode, Totals removed, description required
 - [ ] 5. #110 Review screen
 - [ ] 6. #111 Categories / Budget / Plan split; `/distribute` removed
