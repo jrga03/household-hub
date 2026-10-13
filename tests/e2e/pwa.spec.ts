@@ -57,7 +57,9 @@ test("a member opening the app offline sees their household without waiting on r
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Offline start home");
   await page.getByRole("button", { name: "Create household" }).click();
-  await expect(page.getByRole("main").getByText("Offline start home")).toBeVisible();
+  await expect(
+    page.getByRole("banner").getByRole("heading", { level: 1, name: "Offline start home" })
+  ).toBeVisible();
 
   // The service worker serves the app only to pages it controls.
   await page.evaluate(() => navigator.serviceWorker.ready);
@@ -69,7 +71,9 @@ test("a member opening the app offline sees their household without waiting on r
   await context.setOffline(true);
   await page.reload();
   // Well under the ~7 s that request retries would hold the route gate.
-  await expect(page.getByRole("main").getByText("Offline start home")).toBeVisible({
+  await expect(
+    page.getByRole("banner").getByRole("heading", { level: 1, name: "Offline start home" })
+  ).toBeVisible({
     timeout: 3_000,
   });
 });

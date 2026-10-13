@@ -1,5 +1,5 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
-import { signUpNewPerson } from "./fixtures/helpers";
+import { navigateTo, signUpNewPerson } from "./fixtures/helpers";
 
 // Fresh people per run: membership is one household per person, and events
 // are append-only, so accounts made by the fixture users would pile up.
@@ -26,6 +26,7 @@ test("a member's Personal account never reaches another member; their Household 
   const owner = await newPerson(browser);
   await owner.page.getByLabel("Household name").fill("Visibility home");
   await owner.page.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(owner.page, "Settings");
   const code = await owner.page.getByTestId("household-code").textContent();
   if (!code) throw new Error("The Owner sees no Household Code");
 
@@ -41,6 +42,7 @@ test("a member's Personal account never reaches another member; their Household 
     .click();
   await expect(member.page).toHaveURL((url) => url.pathname === "/", { timeout: 15_000 });
 
+  await navigateTo(member.page, "Accounts");
   const form = member.page.getByRole("form", { name: "Add an account" });
   await expect(form.getByRole("radio", { name: "Household" })).toBeChecked();
 
@@ -53,6 +55,7 @@ test("a member's Personal account never reaches another member; their Household 
   await expect(form.getByRole("radio", { name: "Household" })).toBeChecked();
   await addAccount(member.page, "Shared groceries", "Household");
 
+  await navigateTo(owner.page, "Accounts");
   await expect(async () => {
     await owner.page.reload();
     await expect(accountsList(owner.page)).toContainText("Shared groceries", { timeout: 2_000 });

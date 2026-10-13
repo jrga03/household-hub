@@ -44,6 +44,8 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 - **Deferred: a "Review" glossary term** (GLOSSARY.md uses review only for drafts; #107 counts uncategorized expenses as review items). Revisit: #110.
 - **Deferred: rewriting `src/components/layout/README.md`**, which still describes an older nav (Budgets, Analytics, Transfers); #107 fixed only the lines it made false. Revisit: a separate docs cleanup.
 - **The HH badge stays in the desktop sidebar header**, which plays the drawer's role on wide screens (#107). Revisit: never.
+- **Balances deep-link to the account's row** (#102): `/accounts#account-<id>`, scrolled into view once accounts load (`useScrollToHash`, shared with Settings). Revisit: if the per-account register lands.
+- **Household settings live in `src/components/households/HouseholdSettings.tsx`** (#102), a new file rather than a `git mv` of `src/routes/index.tsx`, which stays as Home. Revisit: never.
 - **Each issue updates the e2e specs and layout baselines it breaks** (for example, the 16 specs that add accounts on Home and the checklist's `/#add-account` link). There is no separate test-migration issue.
 
 ## Issues

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { chooseOption, signUpNewPerson } from "./fixtures/helpers";
+import { chooseOption, navigateTo, signUpNewPerson } from "./fixtures/helpers";
 
 const accountsList = (page: Page) => page.getByRole("list", { name: "Accounts" });
 
@@ -7,6 +7,7 @@ test("a household credit card shows the bank account it is paid from", async ({ 
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Card home");
   await page.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(page, "Accounts");
 
   const addForm = page.getByRole("form", { name: "Add an account" });
   await addForm.getByLabel("Account name").fill("BDO Savings");
