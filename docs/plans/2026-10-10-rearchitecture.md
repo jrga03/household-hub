@@ -176,7 +176,7 @@ Spec: #95. Scoped 2026-10-13 (decisions above). ADR 0008. Build rounds: {#96, #9
 - [x] Real-statement test: every line adds up to the statement's PURCHASES & ADVANCES, PAYMENTS & CREDITS and TOTAL AMOUNT DUE; passes on the user's three statements (Jul to Sep 2026: 29, 68 and 92 lines; Jul and Aug match the `unionbank-statement-parser` skill's counts), one card payment each in Aug and Sep
 - [x] e2e: the synthetic UnionBank XLSX reads offline, with no "Remember password" (chromium and Mobile Chrome)
 - [x] Import worker 552.7 KB gz (was 535.9; `cfb` is most of it), inside the 590 budget, unchanged
-- [ ] PR
+- [x] PR #105
 
 #### #98 decisions
 
