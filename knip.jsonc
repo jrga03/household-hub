@@ -11,7 +11,8 @@
         "workers/keep-alive/src/index.ts",
       ],
       // Installed by supabase/setup-cli in CI and Homebrew locally (pinned 2.119.0 in CI).
-      "ignoreBinaries": ["supabase"],
+      // qpdf encrypts the statement fixtures (scripts/make-statement-fixtures.mjs); Homebrew locally.
+      "ignoreBinaries": ["supabase", "qpdf"],
       // Kept for planned table sorting and filtering. Revisit: when a table adopts it.
       "ignoreDependencies": ["@tanstack/react-table"],
     },

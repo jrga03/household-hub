@@ -132,6 +132,29 @@ Spec: #95. Scoped 2026-10-13 (decisions above). ADR 0008. Build rounds: {#96, #9
 - [ ] #98 UnionBank XLSX parser (blocked by #97)
 - [ ] Close #95
 
+### #97 Statement parsing foundation
+
+- [x] `StatementParser`, `StatementLine` and `StatementParseError` (`src/lib/import/statement.ts`); formats in `formats.ts`
+- [x] BDO PDF parser (`bdo-pdf.ts`) on pdf.js text lines (`pdf-text.ts`); synthetic fixture test, wrong password, no password, not a statement, not a PDF
+- [x] Real-statement test: previous balance plus every line equals the printed TOTAL; passes on the user's four statements (May to Aug 2026: 79, 71, 22 and 9 lines), and counts and nets match the `bdo-statement-parser` skill exactly
+- [x] Web Worker plumbing (`parse.worker.ts`, `parseStatement`), precached; e2e reads the synthetic PDF offline after install
+- [x] Import worker budget in `npm run size` (535.9 KB gz first measured, budget 590); initial budget unchanged at 378
+- [x] Remembered password per card, opt-in, wiped on sign-out (database reset), session expiry and household switch
+- [x] Minimal `/import` entry point (format, card, file, password, parsed lines)
+- [x] PR #103
+
+#### #97 decisions
+
+- **pdf.js legacy build.** Why: the modern pdf.js 6 build calls `Math.sumPrecise`, missing from Node 26 and from Safari before 26. Revisit: when iOS Safari 26 is the oldest a member uses.
+- **pdf.js runs inside our worker, not in a nested one**: `globalThis.pdfjsWorker` makes it use its worker code in-thread, so the whole import is one precached `.js` chunk and the `.mjs` precache catch never arises. pdf.js's worker module starts itself on any worker's global port, so requests carry a `MessagePort` of their own for the reply.
+- **The import budget measures the worker chunk** (`parse.worker-*.js`); the `/import` route chunk is ~2 KB and grows with #99.
+- **Remembered passwords live in the Dexie `meta` table** (`statementPassword:<accountId>`), in plain text like the rest of the local finance data, so sign-out's database reset deletes them and `switchHousehold` forgets them in its transaction. A session expiry keeps the local database (unsynced changes) but forgets them too, since the next person to sign in may be someone else. No Dexie version bump.
+- **Every card section on a statement goes to the one picked card** (supplementary cards included), per "one statement is one account". Zero-amount lines are skipped.
+- **`/import` has no nav link yet.** Why: #99 adds "Import statement" on Transactions and the nav. Revisit: #99.
+- **The synthetic fixture is regenerated with `node scripts/make-statement-fixtures.mjs`**, which needs `qpdf` (Homebrew); CI reads the committed PDF.
+- **The real-statement result stays in this doc, not on #97 or the PR.** Why: the user's call (2026-10-13). Revisit: never.
+- **A recognised statement with no lines shows "0 lines read" with no explanation.** Why: the review screen that explains it is #99's. Revisit: #99.
+
 ## Milestone 3
 
 Spec: #70. Scoped 2026-10-12 (decisions above, agreed 2026-10-12). ADRs 0006 and 0007. Build rounds follow the blocking edges: {#71, #73}, then {#72, #74, #75, #76}, then #77. Each sub-issue fills in its own subsection below (checkboxes and a decisions list), so parallel PRs don't conflict here.

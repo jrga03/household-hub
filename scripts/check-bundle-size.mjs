@@ -20,12 +20,16 @@
  *
  * Run: npm run build && npm run size
  */
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import { join } from "node:path";
 
 const DIST = "dist";
 const BUDGET_KB = 378; // gzip regression ceiling; reset to measured + 3 KB after Dependabot PR #11 (2026-10-08, was 355: react-dom 19.3 and react-hook-form 7.89); aspiration is <200
+// The statement import worker (pdf.js and the parsers): lazy and precached, so
+// outside BUDGET_KB. First measured at 535.9 KB gz (#97); budget is that + 10%.
+const IMPORT_WORKER_BUDGET_KB = 590;
+const IMPORT_WORKER = /^parse\.worker-.*\.js$/;
 const MANIFEST = join(DIST, ".vite", "manifest.json");
 
 if (!existsSync(MANIFEST)) {
@@ -72,8 +76,27 @@ const totalKb = totalGzip / 1024;
 console.log(`  ${"-".repeat(30)}`);
 console.log(`  ${totalKb.toFixed(1).padStart(7)} KB gz  TOTAL (budget: ${BUDGET_KB} KB)`);
 
+const workerFiles = readdirSync(join(DIST, "assets")).filter((file) => IMPORT_WORKER.test(file));
+if (workerFiles.length !== 1) {
+  console.error(
+    `\nExpected one statement import worker in ${DIST}/assets, found ${workerFiles.length}.`
+  );
+  process.exit(1);
+}
+const workerKb = gzipSync(readFileSync(join(DIST, "assets", workerFiles[0]))).length / 1024;
+console.log(`\nStatement import worker (lazy):`);
+console.log(
+  `  ${workerKb.toFixed(1).padStart(7)} KB gz  ${workerFiles[0]} (budget: ${IMPORT_WORKER_BUDGET_KB} KB)`
+);
+
 if (totalKb > BUDGET_KB) {
   console.error(`\n❌ Initial bundle ${totalKb.toFixed(1)}KB exceeds ${BUDGET_KB}KB budget.`);
+  process.exit(1);
+}
+if (workerKb > IMPORT_WORKER_BUDGET_KB) {
+  console.error(
+    `\n❌ Import worker ${workerKb.toFixed(1)}KB exceeds ${IMPORT_WORKER_BUDGET_KB}KB budget.`
+  );
   process.exit(1);
 }
 console.log(`\n✅ Within budget.`);

@@ -6,6 +6,7 @@ import { forgetStoredSession, readStoredSession } from "@/lib/auth-storage";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { queryClient } from "@/lib/queryClient";
 import { forgetLastKnownHousehold } from "@/lib/households";
+import { forgetAllStatementPasswords } from "@/lib/import/remembered-passwords";
 import { stopEventSyncForSignOut } from "@/lib/sync";
 
 interface AuthState {
@@ -135,6 +136,8 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
           // sync after re-login. Deliberate sign-out clears it (below).
           if (event === "SIGNED_OUT" && hadUser && !deliberateSignOut) {
             queryClient.clear();
+            // Statement passwords aren't changes to keep; whoever signs in next may be someone else.
+            void forgetAllStatementPasswords();
             toast.error("Session expired. Please sign in again.");
             void navigateToLogin({ preserveRedirect: true });
           }

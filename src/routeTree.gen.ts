@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as CategoriesRouteImport } from './routes/categories'
 import { Route as CreateOrJoinRouteImport } from './routes/create-or-join'
 import { Route as DistributeRouteImport } from './routes/distribute'
+import { Route as ImportRouteImport } from './routes/import'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SignupRouteImport } from './routes/signup'
@@ -36,6 +37,11 @@ const CreateOrJoinRoute = CreateOrJoinRouteImport.update({
 const DistributeRoute = DistributeRouteImport.update({
   id: '/distribute',
   path: '/distribute',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImportRoute = ImportRouteImport.update({
+  id: '/import',
+  path: '/import',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -64,6 +70,7 @@ export interface FileRoutesByFullPath {
   '/categories': typeof CategoriesRoute
   '/create-or-join': typeof CreateOrJoinRoute
   '/distribute': typeof DistributeRoute
+  '/import': typeof ImportRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
@@ -74,6 +81,7 @@ export interface FileRoutesByTo {
   '/categories': typeof CategoriesRoute
   '/create-or-join': typeof CreateOrJoinRoute
   '/distribute': typeof DistributeRoute
+  '/import': typeof ImportRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
@@ -85,6 +93,7 @@ export interface FileRoutesById {
   '/categories': typeof CategoriesRoute
   '/create-or-join': typeof CreateOrJoinRoute
   '/distribute': typeof DistributeRoute
+  '/import': typeof ImportRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
@@ -97,6 +106,7 @@ export interface FileRouteTypes {
     | '/categories'
     | '/create-or-join'
     | '/distribute'
+    | '/import'
     | '/login'
     | '/settings'
     | '/signup'
@@ -107,6 +117,7 @@ export interface FileRouteTypes {
     | '/categories'
     | '/create-or-join'
     | '/distribute'
+    | '/import'
     | '/login'
     | '/settings'
     | '/signup'
@@ -117,6 +128,7 @@ export interface FileRouteTypes {
     | '/categories'
     | '/create-or-join'
     | '/distribute'
+    | '/import'
     | '/login'
     | '/settings'
     | '/signup'
@@ -128,6 +140,7 @@ export interface RootRouteChildren {
   CategoriesRoute: typeof CategoriesRoute
   CreateOrJoinRoute: typeof CreateOrJoinRoute
   DistributeRoute: typeof DistributeRoute
+  ImportRoute: typeof ImportRoute
   LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
@@ -162,6 +175,13 @@ declare module '@tanstack/react-router' {
       path: '/distribute'
       fullPath: '/distribute'
       preLoaderRoute: typeof DistributeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/import': {
+      id: '/import'
+      path: '/import'
+      fullPath: '/import'
+      preLoaderRoute: typeof ImportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -200,6 +220,7 @@ const rootRouteChildren: RootRouteChildren = {
   CategoriesRoute: CategoriesRoute,
   CreateOrJoinRoute: CreateOrJoinRoute,
   DistributeRoute: DistributeRoute,
+  ImportRoute: ImportRoute,
   LoginRoute: LoginRoute,
   SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,
