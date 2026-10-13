@@ -185,10 +185,11 @@ Spec: #95. Scoped 2026-10-13 (decisions above). ADR 0008. Build rounds: {#96, #9
 - **UnionBank prints one date per line; it is both purchase and posting date.**
 - **The CURRENCY column is ignored**: PHP on every line of all three statements. Revisit: if a non-PHP line appears.
 - **The parser doesn't reconcile against the statement's totals; the real-statement test does**, as for BDO. Why: the review screen (#99) is where a mismatch would be shown. Revisit: #99.
+- **Dates are read only as `MM/DD/YYYY` text**, as on all three statements; date-typed cells and two-digit years aren't. Why: no statement uses them. Revisit: if a statement reads with lines missing.
 - **An unencrypted .xlsx is "not a statement in this format".** Why: UnionBank always encrypts. Revisit: if someone re-saves a statement without its password.
 - **The synthetic XLSX is encrypted by `msoffcrypto-tool`** (via `uvx`), an implementation independent of ours. Its worksheet is stored uncompressed so the package passes 4 KB: msoffcrypto writes smaller packages (the compound file's mini stream) corruptly.
 - **Real UnionBank passwords live in `.env.local` as `UB_STATEMENT_PASSWORD_<yymm>`**, matched to the statement file name's leading `yymm`, since each file has its own.
-- **`/import`'s Format and Card selects are keyed by their value.** Why: Radix Select returns to its first value on form reset, which React 19 does after every action, so a second read silently switched back to BDO (and to the first card). Revisit: other action forms that stay open after an error may have the same bug (see Decisions Needed in #98's PR).
+- **`/import`'s Format and Card selects are keyed by their value.** Why: Radix Select returns to its first value on form reset, which React 19 does after every action, so a second read silently switched back to BDO (and to the first card). Other action forms that stay open after an error may have the same bug: #104.
 
 ## Milestone 3
 
