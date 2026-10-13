@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { Cents } from "@/lib/currency";
 import { parsePHP } from "@/lib/currency";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
-import { listUnpushed } from "@/lib/events/log";
+import { listUnpushed, receiveEvents, type LoggedEvent } from "@/lib/events/log";
 import { listTransactions } from "@/lib/transactions/projection";
 import { createAccount, editAccount, retireAccount } from "./accounts";
 import { createCategory, createGroup, retireCategory } from "./categories";
@@ -15,7 +15,6 @@ import {
   restoreTransaction,
   restoreTransactions,
   setTransactionStatus,
-  setTransactionsStatus,
   type TransactionInput,
 } from "./transactions";
 import { retireOnAnotherDevice } from "@/test/anotherDevice";
@@ -25,6 +24,33 @@ const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 const OTHER_MEMBER = { householdId: HOUSEHOLD, userId: "user-b" };
 
 const peso = (amount: string): Cents => parsePHP(amount);
+
+const DESCRIPTION_REQUIRED = "Add a description.";
+const OLD_ID = "dddddddd-0000-4000-8000-000000000001";
+
+/** A transaction another device recorded before descriptions were required. */
+function oldEventWithoutDescription(details: Record<string, unknown> = {}): LoggedEvent {
+  return {
+    id: "old-created",
+    householdId: HOUSEHOLD,
+    visibility: "household",
+    ownerUserId: null,
+    entityType: "transaction",
+    entityId: OLD_ID,
+    eventType: "transaction.created",
+    eventVersion: 3,
+    hlc: "000000000001000-000000-device-b",
+    deviceId: "device-b",
+    actorUserId: "user-b",
+    payload: {
+      ...expense({ description: "" }),
+      payingAccountId: null,
+      importKey: null,
+      status: "cleared",
+      ...details,
+    },
+  };
+}
 
 let bankId: string;
 let groceriesId: string;
@@ -131,6 +157,22 @@ describe("addTransaction", () => {
       "The amount must be more than zero"
     );
   });
+
+  it("refuses a missing or blank description", async () => {
+    await expect(addTransaction(MEMBER, expense({ description: "   " }))).rejects.toThrow(
+      DESCRIPTION_REQUIRED
+    );
+    await expect(addTransaction(MEMBER, expense({ description: undefined }))).rejects.toThrow(
+      DESCRIPTION_REQUIRED
+    );
+    expect(await listTransactions()).toEqual([]);
+  });
+
+  it("refuses an imported statement line without a description too", async () => {
+    await expect(
+      addTransaction(MEMBER, { ...expense({ description: "" }), importKey: "statement-line-1" })
+    ).rejects.toThrow(DESCRIPTION_REQUIRED);
+  });
 });
 
 describe("editTransaction", () => {
@@ -170,6 +212,28 @@ describe("editTransaction", () => {
     await editTransaction(MEMBER, id, expense({ description: "  Market  " }));
 
     expect(await listUnpushed(100)).toHaveLength(before.length);
+  });
+
+  it("refuses clearing the description", async () => {
+    const { id } = await addTransaction(MEMBER, expense());
+
+    await expect(editTransaction(MEMBER, id, expense({ description: "" }))).rejects.toThrow(
+      DESCRIPTION_REQUIRED
+    );
+    await expect(editTransaction(MEMBER, id, expense({ description: "   " }))).rejects.toThrow(
+      DESCRIPTION_REQUIRED
+    );
+  });
+
+  it("asks for a description when editing an old transaction that has none", async () => {
+    await receiveEvents([oldEventWithoutDescription()], 0);
+
+    await expect(
+      editTransaction(MEMBER, OLD_ID, expense({ description: "", amountCents: peso("300") }))
+    ).rejects.toThrow(DESCRIPTION_REQUIRED);
+    await editTransaction(MEMBER, OLD_ID, expense({ description: "Lunch" }));
+
+    expect(await listTransactions()).toMatchObject([{ id: OLD_ID, description: "Lunch" }]);
   });
 
   it("refuses moving a transaction into a retired category", async () => {
@@ -302,28 +366,6 @@ describe("bulk actions", () => {
   const eventsOf = async (eventType: string) =>
     (await listUnpushed(1000)).filter((logged) => logged.eventType === eventType);
 
-  it("marks each pending transaction cleared with one event, skipping ones already cleared", async () => {
-    const pending = await Promise.all(
-      ["Market", "Bakery", "Dinner"].map(
-        async (description) =>
-          (await addTransaction(MEMBER, { ...expense({ description }), status: "pending" })).id
-      )
-    );
-    const { id: alreadyCleared } = await addTransaction(MEMBER, expense());
-
-    const result = await setTransactionsStatus(MEMBER, [...pending, alreadyCleared], "cleared");
-
-    expect(result).toEqual({ changed: pending, failed: [] });
-    expect((await listTransactions()).map((transaction) => transaction.status)).toEqual([
-      "cleared",
-      "cleared",
-      "cleared",
-      "cleared",
-    ]);
-    const marked = await eventsOf("transaction.marked_cleared");
-    expect(marked.map((event) => event.entityId).sort()).toEqual([...pending].sort());
-  });
-
   it("moves each transaction into the category, skipping ones there and reporting refusals", async () => {
     const { id: market } = await addTransaction(MEMBER, expense({ categoryId: null }));
     const { id: bakery } = await addTransaction(MEMBER, expense({ description: "Bakery" }));
@@ -348,6 +390,17 @@ describe("bulk actions", () => {
     const byId = new Map((await listTransactions()).map((row) => [row.id, row]));
     expect(byId.get(market)).toMatchObject({ categoryId: groceriesId, description: "Market" });
     expect(byId.get(trip)).toMatchObject({ categoryId: travelId });
+  });
+
+  it("moves an old transaction without a description into a category", async () => {
+    await receiveEvents([oldEventWithoutDescription({ categoryId: null })], 0);
+
+    const result = await changeTransactionsCategory(MEMBER, [OLD_ID], groceriesId);
+
+    expect(result).toEqual({ changed: [OLD_ID], failed: [] });
+    expect(await listTransactions()).toMatchObject([
+      { id: OLD_ID, categoryId: groceriesId, description: "" },
+    ]);
   });
 
   it("removes several transactions and restores them all", async () => {

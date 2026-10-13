@@ -53,6 +53,11 @@ export async function navigateTo(page: Page, label: string) {
       .click();
   } else {
     await page.getByRole("button", { name: "Open navigation menu" }).click();
-    await page.getByRole("dialog").getByRole("link", { name: label, exact: true }).click();
+    const drawer = page.getByRole("dialog");
+    // Review's name carries its count ("Review, 2 to review")
+    const name = new RegExp(`^${label}(, \\d+ to review)?$`);
+    await drawer.getByRole("link", { name }).click();
+    // Keys like "n" are ignored while a dialog is open, so wait for the drawer to close.
+    await drawer.waitFor({ state: "hidden" });
   }
 }

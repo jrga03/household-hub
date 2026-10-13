@@ -110,6 +110,30 @@ describe("saveDrafts", () => {
     );
   });
 
+  it("keeps nothing when a draft has no description", async () => {
+    const { importId, drafts } = await importLines([line("A", "1"), line("", "2")]);
+
+    await expect(
+      saveDrafts(
+        MEMBER,
+        drafts.map((draft) => draft.id)
+      )
+    ).rejects.toThrow("Add a description.");
+
+    expect(await listTransactions()).toEqual([]);
+    expect(await listDrafts(importId)).toHaveLength(2);
+  });
+
+  it("saves a blank statement line once the member describes it", async () => {
+    const { drafts } = await importLines([line("", "2")]);
+    const [blank] = drafts;
+    await editDraft(blank!.id, { description: "Parking" });
+
+    await saveDrafts(MEMBER, [blank!.id]);
+
+    expect(await listTransactions()).toMatchObject([{ description: "Parking" }]);
+  });
+
   it("refuses to save a card payment as income", async () => {
     const { importId, drafts } = await importLines([
       line("A", "1"),

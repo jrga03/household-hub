@@ -10,11 +10,14 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccountsRouteImport } from './routes/accounts'
+import { Route as BudgetRouteImport } from './routes/budget'
 import { Route as CategoriesRouteImport } from './routes/categories'
 import { Route as CreateOrJoinRouteImport } from './routes/create-or-join'
-import { Route as DistributeRouteImport } from './routes/distribute'
 import { Route as ImportRouteImport } from './routes/import'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as PlanRouteImport } from './routes/plan'
+import { Route as ReviewRouteImport } from './routes/review'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as TransactionsRouteImport } from './routes/transactions'
@@ -22,6 +25,16 @@ import { Route as TransactionsRouteImport } from './routes/transactions'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountsRoute = AccountsRouteImport.update({
+  id: '/accounts',
+  path: '/accounts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BudgetRoute = BudgetRouteImport.update({
+  id: '/budget',
+  path: '/budget',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CategoriesRoute = CategoriesRouteImport.update({
@@ -34,11 +47,6 @@ const CreateOrJoinRoute = CreateOrJoinRouteImport.update({
   path: '/create-or-join',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DistributeRoute = DistributeRouteImport.update({
-  id: '/distribute',
-  path: '/distribute',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ImportRoute = ImportRouteImport.update({
   id: '/import',
   path: '/import',
@@ -47,6 +55,16 @@ const ImportRoute = ImportRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlanRoute = PlanRouteImport.update({
+  id: '/plan',
+  path: '/plan',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReviewRoute = ReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -67,22 +85,28 @@ const TransactionsRoute = TransactionsRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/accounts': typeof AccountsRoute
+  '/budget': typeof BudgetRoute
   '/categories': typeof CategoriesRoute
   '/create-or-join': typeof CreateOrJoinRoute
-  '/distribute': typeof DistributeRoute
   '/import': typeof ImportRoute
   '/login': typeof LoginRoute
+  '/plan': typeof PlanRoute
+  '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/transactions': typeof TransactionsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/accounts': typeof AccountsRoute
+  '/budget': typeof BudgetRoute
   '/categories': typeof CategoriesRoute
   '/create-or-join': typeof CreateOrJoinRoute
-  '/distribute': typeof DistributeRoute
   '/import': typeof ImportRoute
   '/login': typeof LoginRoute
+  '/plan': typeof PlanRoute
+  '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/transactions': typeof TransactionsRoute
@@ -90,11 +114,14 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/accounts': typeof AccountsRoute
+  '/budget': typeof BudgetRoute
   '/categories': typeof CategoriesRoute
   '/create-or-join': typeof CreateOrJoinRoute
-  '/distribute': typeof DistributeRoute
   '/import': typeof ImportRoute
   '/login': typeof LoginRoute
+  '/plan': typeof PlanRoute
+  '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/transactions': typeof TransactionsRoute
@@ -103,33 +130,42 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/accounts'
+    | '/budget'
     | '/categories'
     | '/create-or-join'
-    | '/distribute'
     | '/import'
     | '/login'
+    | '/plan'
+    | '/review'
     | '/settings'
     | '/signup'
     | '/transactions'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/accounts'
+    | '/budget'
     | '/categories'
     | '/create-or-join'
-    | '/distribute'
     | '/import'
     | '/login'
+    | '/plan'
+    | '/review'
     | '/settings'
     | '/signup'
     | '/transactions'
   id:
     | '__root__'
     | '/'
+    | '/accounts'
+    | '/budget'
     | '/categories'
     | '/create-or-join'
-    | '/distribute'
     | '/import'
     | '/login'
+    | '/plan'
+    | '/review'
     | '/settings'
     | '/signup'
     | '/transactions'
@@ -137,11 +173,14 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccountsRoute: typeof AccountsRoute
+  BudgetRoute: typeof BudgetRoute
   CategoriesRoute: typeof CategoriesRoute
   CreateOrJoinRoute: typeof CreateOrJoinRoute
-  DistributeRoute: typeof DistributeRoute
   ImportRoute: typeof ImportRoute
   LoginRoute: typeof LoginRoute
+  PlanRoute: typeof PlanRoute
+  ReviewRoute: typeof ReviewRoute
   SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
   TransactionsRoute: typeof TransactionsRoute
@@ -154,6 +193,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accounts': {
+      id: '/accounts'
+      path: '/accounts'
+      fullPath: '/accounts'
+      preLoaderRoute: typeof AccountsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/budget': {
+      id: '/budget'
+      path: '/budget'
+      fullPath: '/budget'
+      preLoaderRoute: typeof BudgetRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/categories': {
@@ -170,13 +223,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CreateOrJoinRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/distribute': {
-      id: '/distribute'
-      path: '/distribute'
-      fullPath: '/distribute'
-      preLoaderRoute: typeof DistributeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/import': {
       id: '/import'
       path: '/import'
@@ -189,6 +235,20 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plan': {
+      id: '/plan'
+      path: '/plan'
+      fullPath: '/plan'
+      preLoaderRoute: typeof PlanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/review': {
+      id: '/review'
+      path: '/review'
+      fullPath: '/review'
+      preLoaderRoute: typeof ReviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -217,11 +277,14 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccountsRoute: AccountsRoute,
+  BudgetRoute: BudgetRoute,
   CategoriesRoute: CategoriesRoute,
   CreateOrJoinRoute: CreateOrJoinRoute,
-  DistributeRoute: DistributeRoute,
   ImportRoute: ImportRoute,
   LoginRoute: LoginRoute,
+  PlanRoute: PlanRoute,
+  ReviewRoute: ReviewRoute,
   SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,
   TransactionsRoute: TransactionsRoute,

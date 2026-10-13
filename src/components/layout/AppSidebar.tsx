@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { ChevronLeft, LogOut, User } from "lucide-react";
 import {
   Sidebar,
@@ -19,7 +19,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuthStore } from "@/stores/authStore";
 import { signOutWithToast } from "@/lib/sign-out";
 import { cn } from "@/lib/utils";
-import { DAILY_NAV, isNavItemActive, MANAGE_NAV, type NavItem } from "./nav";
+import { DAILY_NAV, useIsNavItemActive, MANAGE_NAV, type NavItem } from "./nav";
+import { ReviewCountBadge, ReviewDot, reviewLabel } from "./ReviewCount";
+import { useReviewCount } from "@/hooks/useReviewCount";
 
 /**
  * Sidebar navigation for desktop and tablet views: the daily and manage
@@ -29,34 +31,43 @@ import { DAILY_NAV, isNavItemActive, MANAGE_NAV, type NavItem } from "./nav";
  */
 
 export function AppSidebar() {
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const user = useAuthStore((state) => state.user);
   const { open } = useSidebar();
+  const reviewCount = useReviewCount();
 
-  const isActiveRoute = (path: string) => isNavItemActive(path, pathname);
+  const isActiveRoute = useIsNavItemActive();
 
   const renderItems = (items: NavItem[]) =>
     items.map((item) => (
       <SidebarMenuItem key={item.to}>
         <SidebarMenuButton asChild isActive={isActiveRoute(item.to)} tooltip={item.label}>
-          <Link to={item.to}>
+          <Link
+            to={item.to}
+            className="relative"
+            aria-label={item.reviewCount ? reviewLabel(item.label, reviewCount) : undefined}
+          >
             <item.icon className="h-4 w-4" />
-            {open && (
+            {open ? (
               <>
                 <span>{item.label}</span>
-                {item.shortcut && (
-                  <span
-                    className={cn(
-                      "ml-auto text-xs",
-                      isActiveRoute(item.to)
-                        ? "text-sidebar-accent-foreground"
-                        : "text-muted-foreground"
-                    )}
-                  >
-                    {item.shortcut}
-                  </span>
-                )}
+                <span className="ml-auto flex items-center gap-2">
+                  {item.reviewCount && <ReviewCountBadge count={reviewCount} />}
+                  {item.shortcut && (
+                    <span
+                      className={cn(
+                        "text-xs",
+                        isActiveRoute(item.to)
+                          ? "text-sidebar-accent-foreground"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      {item.shortcut}
+                    </span>
+                  )}
+                </span>
               </>
+            ) : (
+              item.reviewCount && <ReviewDot className="right-1 top-1" />
             )}
           </Link>
         </SidebarMenuButton>

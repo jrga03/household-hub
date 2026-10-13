@@ -1,5 +1,5 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
-import { chooseOption, signUpNewPerson } from "./fixtures/helpers";
+import { chooseOption, signUpNewPerson, navigateTo } from "./fixtures/helpers";
 
 const SYNTHETIC_BDO = "tests/fixtures/statements/bdo-credit-card.pdf";
 const SYNTHETIC_UNIONBANK = "tests/fixtures/statements/unionbank-credit-card.xlsx";
@@ -10,6 +10,7 @@ async function openImportOffline(page: Page, context: BrowserContext, cardName: 
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Import home");
   await page.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(page, "Accounts");
 
   const addAccount = page.getByRole("form", { name: "Add an account" });
   await addAccount.getByLabel("Account name").fill("Savings");
@@ -107,6 +108,29 @@ test("BDO drafts are saved in bulk offline, and a re-import is recognised", asyn
   // Every purchase starts selected; the card payment waits for its own decision.
   const drafts = page.getByRole("region", { name: "Import bdo-credit-card.pdf" });
   await expect(drafts.getByRole("listitem")).toHaveCount(7);
+
+  // A draft without a description holds back the save until it gets one.
+  await drafts.getByRole("button", { name: /STREAMING SVC/ }).click();
+  const description = page.getByLabel("Description", { exact: true });
+  await description.fill("");
+  await description.press("Enter");
+  await expect(page.getByText("Needs a description before it can be saved.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save as transaction" })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(drafts.getByRole("button", { name: /Needs a description/ })).toBeVisible();
+  await expect(
+    drafts.getByText("1 selected draft needs a description before saving.")
+  ).toBeVisible();
+  await expect(drafts.getByRole("button", { name: "Save 6 drafts" })).toBeDisabled();
+  // On phones the "lines read" toast can sit over this row at the page's end, and
+  // stays open while the pointer rests on it.
+  await page.mouse.move(0, 0);
+  await expect(page.getByText(/lines read from/)).toBeHidden();
+  await drafts.getByRole("button", { name: /Needs a description/ }).click();
+  await description.fill("Streaming");
+  await description.press("Enter");
+  await page.keyboard.press("Escape");
+  await expect(drafts.getByRole("button", { name: "Save 6 drafts" })).toBeEnabled();
   await drafts.getByRole("button", { name: "Save 6 drafts" }).click();
   await expect(drafts.getByRole("listitem")).toHaveCount(1);
 
@@ -117,7 +141,7 @@ test("BDO drafts are saved in bulk offline, and a re-import is recognised", asyn
   await expect(page.getByText("No open imports.")).toBeVisible();
 
   await page.goto("/transactions");
-  await expect(page.getByText("STREAMING SVC").first()).toBeVisible();
+  await expect(page.getByText("Streaming", { exact: true }).first()).toBeVisible();
 
   await page.goto("/import");
   await readFixture();

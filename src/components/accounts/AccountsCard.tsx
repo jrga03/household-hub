@@ -1,8 +1,9 @@
 import { useActionState, useState, useTransition } from "react";
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useAccountNames, useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useAccountMoney } from "@/hooks/useTransactions";
@@ -18,10 +19,12 @@ import {
   AccountDetailsFields,
   readAccountDetails,
 } from "./AccountDetailsFields";
+import { advanceOnEnter } from "@/components/FormSheet";
 import { EditAccountDialog } from "./EditAccountDialog";
 import { PayCardDialog } from "./PayCardDialog";
 import { FormError } from "@/components/ui/form-error";
 import { errorMessage } from "@/lib/utils";
+import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 
 export function AccountsCard({ actor }: { actor: Actor }) {
   const accounts = useAccounts();
@@ -29,18 +32,11 @@ export function AccountsCard({ actor }: { actor: Actor }) {
   const [payingId, setPayingId] = useState<string | null>(null);
   const editing = accounts?.find((account) => account.id === editingId);
   const paying = accounts?.find((account) => account.id === payingId);
-  // Another device retired it mid-edit: drop it, so unretiring later doesn't reopen the dialog.
-  if (editingId && accounts && !editing) setEditingId(null);
-  if (payingId && accounts && !paying) setPayingId(null);
+  useCloseWhenGone(editingId, accounts && (editing ?? null), () => setEditingId(null));
+  useCloseWhenGone(payingId, accounts && (paying ?? null), () => setPayingId(null));
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Accounts</CardTitle>
-        <CardDescription>
-          Household accounts every member sees, and Personal accounts only you see.
-        </CardDescription>
-      </CardHeader>
       <CardContent className="space-y-6">
         {accounts?.length === 0 && (
           <p className="text-sm text-muted-foreground">No accounts yet. Add the first one below.</p>
@@ -96,10 +92,19 @@ function AccountItem({
 }) {
   const money = useAccountMoney()?.get(account.id);
   return (
-    <li className="flex items-center justify-between gap-3 px-3 py-2">
+    <li
+      id={`account-${account.id}`}
+      className="flex scroll-mt-4 items-center justify-between gap-3 px-3 py-2"
+    >
       <div className="min-w-0">
         <p className="flex items-center gap-2">
-          <span className="truncate font-medium">{account.name}</span>
+          <Link
+            to="/transactions"
+            search={{ account: account.id }}
+            className="truncate font-medium hover:underline"
+          >
+            {account.name}
+          </Link>
           {account.visibility === "personal" && <Badge variant="secondary">Personal</Badge>}
         </p>
         <p className="text-sm text-muted-foreground">
@@ -231,6 +236,7 @@ function AddAccountForm({ actor }: { actor: Actor }) {
 
   return (
     <form
+      ref={advanceOnEnter}
       id="add-account"
       action={addAction}
       className="scroll-mt-4 space-y-4"

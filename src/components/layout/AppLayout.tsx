@@ -1,11 +1,13 @@
 import { useEffect } from "react";
 import { Outlet, useRouterState } from "@tanstack/react-router";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { BottomTabBar } from "./BottomTabBar";
+import { PhoneBottomChrome } from "./ContextMode";
 import { HeaderSlotProvider } from "./HeaderActions";
 import { MobileNav, NavMenuButton } from "./MobileNav";
 import { PageHeader } from "./PageHeader";
+import { SidebarTriggerWithReview } from "./ReviewCount";
 import { useNavStore } from "@/stores/navStore";
 import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -106,20 +108,21 @@ export function AppLayout() {
           {/* Offline + storage banners (shared fixed stack) */}
           <BannerStack />
 
-          {/* Main Content: bottom inset keeps the tab bar from covering the
-            last row on every route (reviews R13, R42) */}
+          {/* Main Content: with PageShell's own 2rem, the bottom inset clears the
+            tab bar and the FAB (4.5rem above it) on every route */}
           <main
             id="main-content"
-            className="flex-1 bg-background pb-[calc(0.5rem+var(--bottom-chrome))]"
+            className="flex-1 bg-background pb-[calc(3.5rem+var(--bottom-chrome))]"
           >
             <Outlet />
           </main>
 
           {/* Bottom tab bar: one-tap access to the primary destinations
-            (review R42) */}
-          <BottomTabBar />
-
-          <AddTransactionButton floating />
+            (review R42); a mode such as selecting puts its actions there instead */}
+          <PhoneBottomChrome>
+            <BottomTabBar />
+            <AddTransactionButton floating />
+          </PhoneBottomChrome>
           <QuickEntryDialog />
 
           {/* PWA Installation Prompt */}
@@ -150,7 +153,10 @@ export function AppLayout() {
 
           {/* Main Content Area */}
           <div className="flex flex-1 flex-col">
-            <PageHeader className="z-30" menuButton={<SidebarTrigger className="lg:hidden" />}>
+            <PageHeader
+              className="z-30"
+              menuButton={<SidebarTriggerWithReview className="lg:hidden" />}
+            >
               <AddTransactionButton />
             </PageHeader>
 

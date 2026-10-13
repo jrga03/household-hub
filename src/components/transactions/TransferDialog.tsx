@@ -1,16 +1,8 @@
 import { useActionState, useRef, useState } from "react";
-import { format } from "date-fns";
 import { toast } from "sonner";
 import { categoryNames, envelopeFromKey, envelopeKey } from "@/components/allocations/envelopes";
+import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,16 +54,27 @@ import {
   SAVED_LOCALLY,
   useFocusNewEntry,
 } from "./EntryFields";
+import { confirmRemoval } from "./confirmRemoval";
+import { transferName } from "./transferName";
+import { todayLocalDate } from "@/lib/utils/dates";
 
-/** Removes the transfer, offering Undo (a restore event) in the toast. */
-export async function removeTransferWithUndo(actor: Actor, transfer: TransferRow): Promise<void> {
+/**
+ * Asks first, then removes the transfer, offering Undo (a restore event) in
+ * the toast. Resolves whether it was removed.
+ */
+export async function removeTransferWithUndo(
+  actor: Actor,
+  transfer: TransferRow,
+  name: string
+): Promise<boolean> {
+  if (!(await confirmRemoval(name, transfer.amountCents))) return false;
   try {
     await removeTransfer(actor, transfer.id);
   } catch (caught) {
     toast.error(errorMessage(caught, "Couldn't remove the transfer."));
-    return;
+    return false;
   }
-  toast.success(`Removed ${transferLabel(transfer)}`, {
+  toast.success(`Removed ${name || transferLabel(transfer)}`, {
     action: {
       label: "Undo",
       onClick: () =>
@@ -80,6 +83,7 @@ export async function removeTransferWithUndo(actor: Actor, transfer: TransferRow
         ),
     },
   });
+  return true;
 }
 
 export function TransferDialog({
@@ -92,15 +96,9 @@ export function TransferDialog({
   onClose: () => void;
 }) {
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="@container max-h-[90dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Edit transfer</DialogTitle>
-          <DialogDescription>{SAVED_LOCALLY}</DialogDescription>
-        </DialogHeader>
-        <TransferEditor actor={actor} transfer={transfer} onClose={onClose} />
-      </DialogContent>
-    </Dialog>
+    <FormSheet title="Edit transfer" description={SAVED_LOCALLY} onClose={onClose}>
+      <TransferEditor actor={actor} transfer={transfer} onClose={onClose} />
+    </FormSheet>
   );
 }
 
@@ -338,14 +336,17 @@ export function TransferForm({
     );
   }
 
-  const remove = () => {
+  const remove = async () => {
     if (!transfer) return;
-    onClose();
-    void removeTransferWithUndo(actor, transfer);
+    const accountNameOf = (id: string) =>
+      allAccounts.find((account) => account.id === id)?.name ?? "";
+    const name = transferName(transfer, accountNameOf, null);
+    if (await removeTransferWithUndo(actor, transfer, name)) onClose();
   };
 
   return (
     <form
+      ref={advanceOnEnter}
       action={saveAction}
       className="space-y-4"
       aria-label={transfer ? "Edit transfer" : "Add transfer"}
@@ -359,6 +360,7 @@ export function TransferForm({
             inputMode="decimal"
             placeholder="0.00"
             autoComplete="off"
+            enterKeyHint="next"
             required
             ref={amountRef}
             defaultValue={transfer ? formatPHPInput(transfer.amountCents) : draftAmount}
@@ -372,7 +374,7 @@ export function TransferForm({
             name="date"
             type="date"
             required
-            defaultValue={transfer?.date ?? format(new Date(), "yyyy-MM-dd")}
+            defaultValue={transfer?.date ?? todayLocalDate()}
           />
         </div>
         <div className="space-y-2">
@@ -434,6 +436,7 @@ export function TransferForm({
           name="description"
           maxLength={DESCRIPTION_MAX_LENGTH}
           autoComplete="off"
+          enterKeyHint="next"
           defaultValue={transfer?.description}
         />
       </div>
@@ -461,16 +464,16 @@ export function TransferForm({
       </fieldset>
 
       <FormError>{error}</FormError>
-      <DialogFooter className="gap-2 @[480px]:justify-between">
+      <FormFooter className="@[480px]:justify-between">
         {transfer ? (
-          <Button type="button" variant="outline" onClick={remove}>
+          <Button type="button" variant="outline" onClick={() => void remove()}>
             Remove
           </Button>
         ) : (
           <span />
         )}
         <SubmitButton pendingText="Saving...">{transfer ? "Save" : "Add transfer"}</SubmitButton>
-      </DialogFooter>
+      </FormFooter>
     </form>
   );
 }

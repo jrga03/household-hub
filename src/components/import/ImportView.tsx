@@ -23,6 +23,7 @@ import { saveDrafts } from "@/lib/commands/drafts";
 import { deleteDrafts } from "@/lib/import/drafts";
 import {
   discardedByDefault,
+  needsDescription,
   selectedByDefault,
   type ReviewedDraft,
   type ReviewedImport,
@@ -35,6 +36,9 @@ import { ReadStatement } from "./ReadStatement";
 import { useDraftAction } from "./useDraftAction";
 
 const draftsLabel = (count: number) => countOf(count, "draft", "drafts");
+
+/** A draft's name in the list, or what it's missing. */
+const draftTitle = (draft: ReviewedDraft) => draft.description || "Needs a description";
 
 /**
  * Read a statement, then review its drafts: each Import lists its lines,
@@ -78,8 +82,7 @@ export function ImportView({ actor }: { actor: Actor }) {
           <CardHeader>
             <CardTitle>Read a statement</CardTitle>
             <CardDescription>
-              The file and its password never leave this device. Its lines wait below as drafts
-              until you save or discard them.
+              Its lines wait below as drafts until you save or discard them.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -115,7 +118,7 @@ export function ImportView({ actor }: { actor: Actor }) {
           {detail && paneShown ? (
             <section aria-label="Draft" className="space-y-4">
               <div className="flex items-start justify-between gap-2">
-                <h2 className="min-w-0 truncate font-semibold">{opened.draft.description}</h2>
+                <h2 className="min-w-0 truncate font-semibold">{draftTitle(opened.draft)}</h2>
                 <Button variant="ghost" size="sm" onClick={() => setOpenId(null)}>
                   Close
                 </Button>
@@ -136,7 +139,7 @@ export function ImportView({ actor }: { actor: Actor }) {
           onOpenAutoFocus={(event) => event.preventDefault()}
         >
           <SheetHeader>
-            <SheetTitle>{opened?.draft.description}</SheetTitle>
+            <SheetTitle>{opened && draftTitle(opened.draft)}</SheetTitle>
             <SheetDescription>{opened && cardLabel(openedCard)}</SheetDescription>
           </SheetHeader>
           <div className="px-4 pb-6">{detail}</div>
@@ -180,6 +183,7 @@ function ImportCard({
   const selected = drafts.filter(isSelected);
   const savable = selected.filter((draft) => draft.flag?.kind !== "card-payment");
   const alreadyRecorded = drafts.filter((draft) => discardedByDefault(draft.flag));
+  const undescribed = savable.filter(needsDescription);
   const allSelected = selected.length === drafts.length;
 
   const choose = (entries: [string, boolean][]) =>
@@ -223,7 +227,11 @@ function ImportCard({
                 Select all
               </label>
             </div>
-            <Button size="sm" disabled={busy || savable.length === 0} onClick={() => void save()}>
+            <Button
+              size="sm"
+              disabled={busy || savable.length === 0 || undescribed.length > 0}
+              onClick={() => void save()}
+            >
               Save {draftsLabel(savable.length)}
             </Button>
             <Button
@@ -245,6 +253,13 @@ function ImportCard({
               </Button>
             )}
           </div>
+
+          {undescribed.length > 0 && (
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              {countOf(undescribed.length, "selected draft needs", "selected drafts need")} a
+              description before saving.
+            </p>
+          )}
 
           <ul aria-label="Drafts" className="divide-y rounded-md border">
             {drafts.map((draft) => (
@@ -286,7 +301,7 @@ function DraftItem({
       <Checkbox
         checked={selected}
         onCheckedChange={(checked) => onSelect(checked === true)}
-        aria-label={`Select ${draft.description}`}
+        aria-label={`Select ${draft.description || signedAmount(draft.type, line.amount)}`}
       />
       <button
         type="button"
@@ -294,7 +309,14 @@ function DraftItem({
         aria-current={open || undefined}
         className="min-w-0 flex-1 text-left"
       >
-        <p className="truncate text-sm">{draft.description}</p>
+        <p
+          className={cn(
+            "truncate text-sm",
+            needsDescription(draft) && "text-amber-700 dark:text-amber-400"
+          )}
+        >
+          {draftTitle(draft)}
+        </p>
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
           <span>{format(parseLocalDate(line.purchaseDate), "MMM d")}</span>
           {flag && <FlagBadge flag={flag} />}

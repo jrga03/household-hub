@@ -22,6 +22,7 @@ test("a transfer recorded offline moves both balances on another device", async 
   const person = await signUpNewPerson(pageA);
   await pageA.getByLabel("Household name").fill("Transfer home");
   await pageA.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(pageA, "Accounts");
 
   const addAccount = pageA.getByRole("form", { name: "Add an account" });
   await addAccount.getByLabel("Account name").fill("BPI");
@@ -36,11 +37,12 @@ test("a transfer recorded offline moves both balances on another device", async 
   await navigateTo(pageA, "Categories");
   await pageA.getByRole("button", { name: "Use suggested categories" }).click();
   await expect(pageA.getByRole("list", { name: "Food categories" })).toContainText("Groceries");
-  await pageA.getByRole("link", { name: "Home" }).click();
+  await navigateTo(pageA, "Accounts");
 
   const deviceB = await browser.newContext();
   const pageB = await deviceB.newPage();
   await loginAs(pageB, person);
+  await navigateTo(pageB, "Accounts");
   await pullUntil(deviceB, accountItem(pageB, "GCash"), "₱0.00");
 
   await deviceA.setOffline(true);
@@ -61,13 +63,12 @@ test("a transfer recorded offline moves both balances on another device", async 
   await expect(accountItem(pageB, "BPI").getByLabel("Balance")).toHaveText("₱8,000.00");
   await expect(accountItem(pageB, "GCash").getByLabel("Balance")).toHaveText("₱2,000.00");
 
-  // One row for both legs, left out of the month's expenses.
+  // One row for both legs, named for where the money went.
   await pageB.getByRole("link", { name: "Transactions" }).first().click();
   const rows = pageB.getByRole("list", { name: "Transactions" });
   await expect(rows.getByRole("listitem")).toHaveCount(1);
-  await expect(rows).toContainText("BPI → GCash");
-  await expect(rows).toContainText("Groceries");
-  await expect(pageB.getByRole("group", { name: "Expenses" })).toContainText("₱0.00");
+  await expect(rows.getByRole("listitem")).toContainText("Transfer to GCash");
+  await expect(rows).toContainText("Groceries · BPI → GCash");
 
   await Promise.all([deviceA.close(), deviceB.close()]);
 });

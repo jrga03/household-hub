@@ -19,7 +19,7 @@ import type { Actor } from "@/lib/commands/accounts";
 import { saveDrafts } from "@/lib/commands/drafts";
 import { formatPHP } from "@/lib/currency";
 import { deleteDrafts, editDraft, type DraftChanges } from "@/lib/import/drafts";
-import type { DraftFlag, ReviewedDraft } from "@/lib/import/review";
+import { needsDescription, type DraftFlag, type ReviewedDraft } from "@/lib/import/review";
 import { DESCRIPTION_MAX_LENGTH, isTransactionType } from "@/lib/transactions/events";
 import { errorMessage } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
@@ -94,7 +94,7 @@ export function DraftDetail({
         ) : (
           <Button
             type="button"
-            disabled={busy || blockedAsImported}
+            disabled={busy || blockedAsImported || needsDescription(draft)}
             onClick={() =>
               void act(
                 () => saveDrafts(actor, [draft.id]),
@@ -197,8 +197,15 @@ function DraftFields({
           // Remounts when a suggestion arrives or another edit lands.
           key={draft.description}
           id="draft-description"
+          required
           maxLength={DESCRIPTION_MAX_LENGTH}
+          aria-invalid={draft.description === "" || undefined}
+          aria-describedby={draft.description === "" ? "draft-description-needed" : undefined}
           defaultValue={draft.description}
+          enterKeyHint="done"
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
+          }}
           onBlur={(event) => {
             if (event.target.value.trim() !== draft.description) {
               edit({ description: event.target.value });
@@ -206,6 +213,14 @@ function DraftFields({
           }}
         />
       </div>
+      {draft.description === "" && (
+        <p
+          id="draft-description-needed"
+          className="-mt-2 text-sm text-amber-700 @[480px]:col-span-2 dark:text-amber-400"
+        >
+          Needs a description before it can be saved.
+        </p>
+      )}
       <DirectionChoice
         value={draft.type}
         withTransfer={false}

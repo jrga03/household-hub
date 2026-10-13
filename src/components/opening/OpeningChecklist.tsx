@@ -49,7 +49,7 @@ export function OpeningChecklist({ householdId }: { householdId: string }) {
             title="Set starting balances"
             description="Add each account with what it holds today."
             action={
-              <Link to="/" hash="add-account">
+              <Link to="/accounts" hash="add-account">
                 Add an account
               </Link>
             }
@@ -60,9 +60,9 @@ export function OpeningChecklist({ householdId }: { householdId: string }) {
             description="Move each account's starting money out of Unassigned."
             action={
               <Link
-                to="/distribute"
+                to="/plan"
                 search={{
-                  mode: "opening",
+                  distribute: "opening",
                   ...(steps.distributeAccountId && { account: steps.distributeAccountId }),
                 }}
               >
@@ -74,7 +74,7 @@ export function OpeningChecklist({ householdId }: { householdId: string }) {
             done={steps.budgets}
             title="Set budgets"
             description="Give each category a monthly target."
-            action={<Link to="/categories">Set budgets</Link>}
+            action={<Link to="/plan">Set budgets</Link>}
           />
         </ol>
       </CardContent>
@@ -108,9 +108,11 @@ function Step({
           </p>
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
-        <Button asChild variant={done ? "ghost" : "outline"} size="sm" className="shrink-0">
-          {action}
-        </Button>
+        {!done && (
+          <Button asChild variant="outline" size="sm" className="shrink-0">
+            {action}
+          </Button>
+        )}
       </div>
     </li>
   );

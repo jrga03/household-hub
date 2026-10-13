@@ -17,6 +17,7 @@ test("exports transactions and the event log offline, from what the device holds
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Export home");
   await page.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(page, "Accounts");
 
   const addAccount = page.getByRole("form", { name: "Add an account" });
   await addAccount.getByLabel("Account name").fill("BPI");
@@ -33,7 +34,7 @@ test("exports transactions and the event log offline, from what the device holds
   const dialog = page.getByRole("dialog", { name: "Add transaction" });
   await dialog.getByLabel("Amount (₱)").fill("250");
   await chooseOption(page, dialog.getByLabel("Category"), "Groceries");
-  await dialog.getByLabel("Description (optional)").fill("Market, Saturday");
+  await dialog.getByLabel("Description", { exact: true }).fill("Market, Saturday");
   await dialog.getByRole("button", { name: "Add transaction" }).click();
   await expect(dialog).toBeHidden();
 

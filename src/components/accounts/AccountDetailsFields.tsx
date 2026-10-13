@@ -59,6 +59,7 @@ export function AccountDetailsFields({
           maxLength={ACCOUNT_NAME_MAX_LENGTH}
           placeholder="e.g. BDO Savings"
           autoComplete="off"
+          enterKeyHint="next"
           defaultValue={defaults?.name}
         />
       </div>
@@ -100,6 +101,7 @@ export function AccountDetailsFields({
           inputMode="decimal"
           placeholder="0.00"
           autoComplete="off"
+          enterKeyHint="done"
           defaultValue={defaults && formatPHPInput(defaults.startingBalanceCents)}
         />
       </div>

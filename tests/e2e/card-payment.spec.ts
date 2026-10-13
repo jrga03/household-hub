@@ -25,6 +25,7 @@ test("a card purchase recorded offline reserves its amount in the Paying Account
   const person = await signUpNewPerson(pageA);
   await pageA.getByLabel("Household name").fill("Card Payment home");
   await pageA.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(pageA, "Accounts");
 
   const addAccount = pageA.getByRole("form", { name: "Add an account" });
   await addAccount.getByLabel("Account name").fill("BDO Savings");
@@ -40,11 +41,12 @@ test("a card purchase recorded offline reserves its amount in the Paying Account
   await navigateTo(pageA, "Categories");
   await pageA.getByRole("button", { name: "Use suggested categories" }).click();
   await expect(pageA.getByRole("list", { name: "Food categories" })).toContainText("Restaurants");
-  await pageA.getByRole("link", { name: "Home" }).click();
+  await navigateTo(pageA, "Accounts");
 
   const deviceB = await browser.newContext();
   const pageB = await deviceB.newPage();
   await loginAs(pageB, person);
+  await navigateTo(pageB, "Accounts");
   await pullUntil(deviceB, accountItem(pageB, "Visa"), "Paid from BDO Savings");
 
   await deviceA.setOffline(true);
@@ -53,6 +55,7 @@ test("a card purchase recorded offline reserves its amount in the Paying Account
   await dialog.getByLabel("Amount (₱)").fill("1200");
   await chooseOption(pageA, dialog.getByLabel("Account"), "Visa");
   await chooseOption(pageA, dialog.getByLabel("Category"), "Restaurants");
+  await dialog.getByLabel("Description", { exact: true }).fill("Dinner");
   await dialog.getByRole("button", { name: "Add transaction" }).click();
   await expect(dialog).toBeHidden();
   await expect(accountItem(pageA, "BDO Savings")).toContainText("Card Payment · Visa ₱1,200.00");

@@ -27,7 +27,7 @@ export function AllocationList({
     <Card>
       <CardHeader>
         <CardTitle>Allocations</CardTitle>
-        <CardDescription>Money moved between envelopes, newest first.</CardDescription>
+        <CardDescription>Money moved between categories, newest first.</CardDescription>
       </CardHeader>
       <CardContent>
         <ul aria-label="Allocations" className="divide-y rounded-md border">

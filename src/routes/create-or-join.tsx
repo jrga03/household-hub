@@ -1,130 +1,47 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useActionState } from "react";
-import {
-  DeclinedRequest,
-  JoinForm,
-  PendingRequest,
-  useMyJoinRequest,
-} from "@/components/households/JoinHousehold";
+import { createFileRoute } from "@tanstack/react-router";
+import { CreateOrJoinChoices } from "@/components/households/CreateOrJoin";
 import { PageShell } from "@/components/layout/PageShell";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { SubmitButton } from "@/components/ui/submit-button";
-import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { createHousehold } from "@/lib/households";
 import { signOutWithToast } from "@/lib/sign-out";
 import { useAuthStore } from "@/stores/authStore";
-import { FormError } from "@/components/ui/form-error";
-import { errorMessage } from "@/lib/utils";
 
 export const Route = createFileRoute("/create-or-join")({
   component: CreateOrJoinPage,
 });
 
-const HOUSEHOLD_NAME_MAX_LENGTH = 60;
-
 function CreateOrJoinPage() {
   const user = useAuthStore((state) => state.user);
 
   return (
-    <PageShell variant="centered" className="min-h-dvh py-10">
-      <PageShell.Main className="mx-auto w-full max-w-md space-y-6">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold">Welcome to Household Hub</h1>
-          <p className="text-sm text-muted-foreground">
-            Everything you record belongs to a household. Start your own, or join one a member
-            shares with you. Alone? A household of one works the same.
-          </p>
+    <PageShell
+      variant="centered"
+      className="flex min-h-dvh max-w-md flex-col gap-6 pt-[calc(1.5rem+var(--safe-area-top))] pr-[calc(1rem+var(--safe-area-right))] pb-[calc(0.5rem+var(--safe-area-bottom))] pl-[calc(1rem+var(--safe-area-left))]"
+    >
+      <PageShell.Main className="flex-1 space-y-6">
+        <div className="flex items-center gap-3">
+          <div
+            aria-hidden="true"
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground"
+          >
+            <span className="text-xs font-bold">HH</span>
+          </div>
+          <h1 className="text-lg font-semibold">Welcome to Household Hub</h1>
         </div>
 
         {user && <CreateOrJoinChoices userId={user.id} />}
-
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span className="truncate">Signed in as {user?.email}</span>
-          <Button variant="ghost" size="sm" onClick={() => void signOutWithToast()}>
-            Sign Out
-          </Button>
-        </div>
       </PageShell.Main>
+
+      <footer className="flex items-center justify-center gap-1 text-sm text-muted-foreground">
+        <span className="min-w-0 truncate">Signed in as {user?.email}</span>
+        <span aria-hidden="true">·</span>
+        <Button
+          variant="link"
+          className="min-h-11 shrink-0 px-1 text-muted-foreground"
+          onClick={() => void signOutWithToast()}
+        >
+          Sign Out
+        </Button>
+      </footer>
     </PageShell>
-  );
-}
-
-// An open Join Request replaces the choices until it is answered or cancelled.
-function CreateOrJoinChoices({ userId }: { userId: string }) {
-  const { request, isLoading } = useMyJoinRequest(userId);
-
-  if (isLoading) return null;
-  if (request?.status === "pending") return <PendingRequest userId={userId} request={request} />;
-  if (request?.status === "declined") return <DeclinedRequest userId={userId} request={request} />;
-  return (
-    <>
-      <CreateHouseholdCard userId={userId} />
-      <JoinForm userId={userId} />
-    </>
-  );
-}
-
-function CreateHouseholdCard({ userId }: { userId: string }) {
-  const isOnline = useOnlineStatus();
-  const navigate = useNavigate();
-
-  const [state, createAction] = useActionState(
-    async (_previous: { error: string | null }, formData: FormData) => {
-      const name = String(formData.get("name") ?? "").trim();
-      if (!name) return { error: "A household needs a name." };
-      try {
-        await createHousehold(userId, name);
-        await navigate({ to: "/" });
-        return { error: null };
-      } catch (error) {
-        return {
-          error: errorMessage(error, "Couldn't create the household."),
-        };
-      }
-    },
-    { error: null }
-  );
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Create a household</CardTitle>
-        <CardDescription>You become its Owner and get a code to share.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form action={createAction} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="household-name">Household name</Label>
-            <Input
-              id="household-name"
-              name="name"
-              required
-              maxLength={HOUSEHOLD_NAME_MAX_LENGTH}
-              placeholder="e.g. Acido home"
-              autoComplete="off"
-            />
-          </div>
-
-          <FormError>{state.error}</FormError>
-
-          <SubmitButton
-            className="w-full"
-            pendingText="Creating..."
-            disabled={!isOnline}
-            aria-describedby={isOnline ? undefined : "create-offline-hint"}
-          >
-            Create household
-          </SubmitButton>
-          {!isOnline && (
-            <p id="create-offline-hint" className="text-sm text-muted-foreground">
-              Creating a household needs a connection. You&apos;re offline right now.
-            </p>
-          )}
-        </form>
-      </CardContent>
-    </Card>
   );
 }

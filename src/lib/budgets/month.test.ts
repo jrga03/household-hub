@@ -29,6 +29,7 @@ const groceries = (date: string, amount: string, type = "expense", accountId = b
     amountCents: peso(amount),
     accountId,
     categoryId: groceriesId,
+    description: "Test",
   });
 
 const october = () => readMonthView("2026-10", "2026-11");
@@ -195,6 +196,7 @@ describe("month figures", () => {
       amountCents: peso("800"),
       accountId: bpiId,
       categoryId: restaurantsId,
+      description: "Test",
     });
 
     const view = await october();

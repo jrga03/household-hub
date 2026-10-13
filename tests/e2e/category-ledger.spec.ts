@@ -1,11 +1,12 @@
 import { test, expect, type Page } from "@playwright/test";
-import { chooseOption, signUpNewPerson } from "./fixtures/helpers";
+import { chooseOption, signUpNewPerson, navigateTo } from "./fixtures/helpers";
 
-/** A household with ₱8,000 allocated to Groceries and a ₱1,200 Groceries expense, on Categories. */
+/** A household with ₱8,000 allocated to Groceries and a ₱1,200 Groceries expense, on Budget. */
 async function groceriesThisMonth(page: Page) {
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Ledger home");
   await page.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(page, "Accounts");
 
   const addAccount = page.getByRole("form", { name: "Add an account" });
   await addAccount.getByLabel("Account name").fill("BPI");
@@ -15,6 +16,9 @@ async function groceriesThisMonth(page: Page) {
 
   await page.goto("/categories");
   await page.getByRole("button", { name: "Use suggested categories" }).click();
+  await expect(page.getByRole("list", { name: "Food categories" })).toContainText("Groceries");
+
+  await page.goto("/plan");
   const move = page.getByRole("dialog", { name: "Move money" });
   await page.getByRole("button", { name: "Move money" }).click();
   await move.getByLabel("Amount (₱)").fill("8000");
@@ -26,9 +30,10 @@ async function groceriesThisMonth(page: Page) {
   const add = page.getByRole("dialog", { name: "Add transaction" });
   await add.getByLabel("Amount (₱)").fill("1200");
   await chooseOption(page, add.getByLabel("Category"), "Groceries");
-  await add.getByLabel("Description (optional)").fill("Market");
+  await add.getByLabel("Description", { exact: true }).fill("Market");
   await add.getByRole("button", { name: "Add transaction" }).click();
   await expect(add).toBeHidden();
+  await page.goto("/budget");
 }
 
 const groceriesLedger = (page: Page) => page.getByRole("list", { name: /^Groceries in / });

@@ -1,15 +1,7 @@
 import { useActionState, useState, useTransition } from "react";
-import { format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,6 +36,7 @@ import { sameOwnership } from "@/lib/events/log";
 import { sumCategoryMoney } from "@/lib/transactions/money";
 import { errorMessage } from "@/lib/utils";
 import { GroupSelect } from "./GroupSelect";
+import { todayLocalDate } from "@/lib/utils/dates";
 
 const VISIBILITY_SUMMARY = {
   household: "Household: every member sees it.",
@@ -101,43 +94,40 @@ function EditDialog({
   children: React.ReactNode;
 }) {
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="@container">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
-            Changes reach your household&apos;s other devices when they sync.
-          </DialogDescription>
-        </DialogHeader>
-        <form action={saveAction} className="space-y-4" aria-label={title}>
-          <div className="space-y-2">
-            <Label htmlFor="edit-category-name">Name</Label>
-            <Input
-              id="edit-category-name"
-              name="name"
-              required
-              maxLength={CATEGORY_NAME_MAX_LENGTH}
-              autoComplete="off"
-              defaultValue={record.name}
-            />
-          </div>
-          {children}
-          <div className="space-y-1">
-            <p className="text-sm font-medium">Who sees it</p>
-            <p className="text-sm text-muted-foreground">
-              {VISIBILITY_SUMMARY[record.visibility]} Visibility can&apos;t be changed.
-            </p>
-          </div>
-          <FormError>{error}</FormError>
-          <DialogFooter className="gap-2 @[480px]:justify-between">
-            <Button type="button" variant="outline" onClick={onRetire} disabled={retiring}>
-              {retireLabel}
-            </Button>
-            <SubmitButton pendingText="Saving...">Save</SubmitButton>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FormSheet
+      title={title}
+      description="Changes reach your household's other devices when they sync."
+      onClose={onClose}
+    >
+      <form ref={advanceOnEnter} action={saveAction} className="space-y-4" aria-label={title}>
+        <div className="space-y-2">
+          <Label htmlFor="edit-category-name">Name</Label>
+          <Input
+            id="edit-category-name"
+            name="name"
+            required
+            maxLength={CATEGORY_NAME_MAX_LENGTH}
+            autoComplete="off"
+            enterKeyHint="done"
+            defaultValue={record.name}
+          />
+        </div>
+        {children}
+        <div className="space-y-1">
+          <p className="text-sm font-medium">Who sees it</p>
+          <p className="text-sm text-muted-foreground">
+            {VISIBILITY_SUMMARY[record.visibility]} Visibility can&apos;t be changed.
+          </p>
+        </div>
+        <FormError>{error}</FormError>
+        <FormFooter className="@[480px]:justify-between">
+          <Button type="button" variant="outline" onClick={onRetire} disabled={retiring}>
+            {retireLabel}
+          </Button>
+          <SubmitButton pendingText="Saving...">Save</SubmitButton>
+        </FormFooter>
+      </form>
+    </FormSheet>
   );
 }
 
@@ -269,7 +259,7 @@ function RetireMovingMoneyDialog({
       try {
         await retireCategory(actor, category.id, {
           toCategoryId: String(formData.get("toCategoryId") ?? ""),
-          date: format(new Date(), "yyyy-MM-dd"),
+          date: todayLocalDate(),
         });
         toast.success(`${category.name} retired`);
         onClose();
@@ -283,52 +273,46 @@ function RetireMovingMoneyDialog({
   const title = `Retire ${category.name}`;
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="@container">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
-            {category.name} holds {formatPHP(held)}. Its money moves into another category first.
-          </DialogDescription>
-        </DialogHeader>
-        <form action={retireAction} className="space-y-4" aria-label={title}>
-          {choices.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Add another category for its money first.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              <Label htmlFor="retire-move-to">Move its money into</Label>
-              <Select name="toCategoryId" required>
-                <SelectTrigger id="retire-move-to" className="w-full">
-                  <SelectValue placeholder="Choose a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {choices.map((group) => (
-                    <SelectGroup key={group.id}>
-                      <SelectLabel>{group.name}</SelectLabel>
-                      {group.categories.map((other) => (
-                        <SelectItem key={other.id} value={other.id}>
-                          {other.name}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          <FormError>{error}</FormError>
-          <DialogFooter className="gap-2 @[480px]:justify-between">
-            <Button type="button" variant="outline" onClick={onBack}>
-              Back
-            </Button>
-            <SubmitButton pendingText="Retiring..." disabled={choices.length === 0}>
-              Move and retire
-            </SubmitButton>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FormSheet
+      title={title}
+      description={`${category.name} holds ${formatPHP(held)}. Its money moves into another category first.`}
+      onClose={onClose}
+    >
+      <form action={retireAction} className="space-y-4" aria-label={title}>
+        {choices.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Add another category for its money first.</p>
+        ) : (
+          <div className="space-y-2">
+            <Label htmlFor="retire-move-to">Move its money into</Label>
+            <Select name="toCategoryId" required>
+              <SelectTrigger id="retire-move-to" className="w-full">
+                <SelectValue placeholder="Choose a category" />
+              </SelectTrigger>
+              <SelectContent>
+                {choices.map((group) => (
+                  <SelectGroup key={group.id}>
+                    <SelectLabel>{group.name}</SelectLabel>
+                    {group.categories.map((other) => (
+                      <SelectItem key={other.id} value={other.id}>
+                        {other.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        <FormError>{error}</FormError>
+        <FormFooter className="@[480px]:justify-between">
+          <Button type="button" variant="outline" onClick={onBack}>
+            Back
+          </Button>
+          <SubmitButton pendingText="Retiring..." disabled={choices.length === 0}>
+            Move and retire
+          </SubmitButton>
+        </FormFooter>
+      </form>
+    </FormSheet>
   );
 }

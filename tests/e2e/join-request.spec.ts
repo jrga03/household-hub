@@ -1,5 +1,5 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
-import { signUpNewPerson } from "./fixtures/helpers";
+import { signUpNewPerson, navigateTo } from "./fixtures/helpers";
 
 // Fresh people per run: membership is one household per person, so the
 // fixture users (who already have one) can't request.
@@ -9,6 +9,7 @@ async function newOwner(browser: Browser, householdName: string) {
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill(householdName);
   await page.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(page, "Settings");
   const code = await page.getByTestId("household-code").textContent();
   if (!code) throw new Error("The Owner sees no Household Code");
   return { context, page, code };
@@ -23,6 +24,7 @@ async function newRequester(browser: Browser) {
 }
 
 async function requestToJoin(page: Page, code: string) {
+  await page.getByRole("tab", { name: "Join" }).click();
   await page.getByLabel("Household Code").fill(code);
   await page.getByRole("button", { name: "Send request" }).click();
 }
@@ -46,6 +48,10 @@ test("an Owner accepts a Join Request and the requester lands in the household",
   await expect(joinRequests(owner.page)).toContainText("No pending requests");
 
   await expect(requester.page).toHaveURL((url) => url.pathname === "/", { timeout: 15_000 });
+  await expect(
+    requester.page.getByRole("banner").getByRole("heading", { name: "Join home" })
+  ).toBeVisible();
+  await navigateTo(requester.page, "Settings");
   const main = requester.page.getByRole("main");
   await expect(main.getByText("Join home")).toBeVisible();
   await expect(main.getByText("Member", { exact: true })).toBeVisible();
@@ -92,7 +98,7 @@ test("a declined requester is told politely and returned to create-or-join", asy
   await expect(requester.page.getByText(/wasn.t accepted/)).toBeVisible({ timeout: 15_000 });
   await requester.page.getByRole("button", { name: "OK" }).click();
   await expect(requester.page.getByLabel("Household Code")).toBeVisible();
-  await expect(requester.page.getByLabel("Household name")).toBeVisible();
+  await expect(requester.page.getByRole("tab", { name: "Create" })).toBeEnabled();
 
   await Promise.all([owner.context.close(), requester.context.close()]);
 });

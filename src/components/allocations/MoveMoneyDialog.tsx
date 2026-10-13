@@ -1,15 +1,7 @@
 import { useActionState, useState } from "react";
-import { format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,6 +39,7 @@ import { moneyIn, type AccountMoney, type Envelopes } from "@/lib/transactions/m
 import { errorMessage } from "@/lib/utils";
 import { envelopeFromKey, envelopeKey } from "./envelopes";
 import { removeAllocationWithUndo } from "./removeAllocationWithUndo";
+import { todayLocalDate } from "@/lib/utils/dates";
 
 interface EnvelopeChoice {
   envelope: Envelope;
@@ -112,14 +105,16 @@ function envelopeChoices(
   return groups.filter((group) => group.choices.length > 0);
 }
 
-/** Add when `allocation` is left out; edit otherwise. */
+/** Add when `allocation` is left out, into `toCategory` when given; edit otherwise. */
 export function MoveMoneyDialog({
   actor,
   allocation,
+  toCategory,
   onClose,
 }: {
   actor: Actor;
   allocation?: AllocationRow;
+  toCategory?: CategoryRow;
   onClose: () => void;
 }) {
   const accounts = useAccounts();
@@ -139,31 +134,26 @@ export function MoveMoneyDialog({
   const cards = [...accounts, ...retiredAccounts].filter(isCreditCard);
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="@container max-h-[90dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{allocation ? "Edit allocation" : "Move money"}</DialogTitle>
-          <DialogDescription>
-            Moves money between envelopes inside one account. The balance doesn&apos;t change.
-          </DialogDescription>
-        </DialogHeader>
-        {accountChoices.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Add a bank, cash or e-wallet account first.
-          </p>
-        ) : (
-          <MoveMoneyForm
-            actor={actor}
-            allocation={allocation}
-            accounts={accountChoices}
-            cards={cards}
-            categories={categories}
-            money={money}
-            onClose={onClose}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
+    <FormSheet
+      title={allocation ? "Edit allocation" : "Move money"}
+      description="Moves money between categories, Card Payments and Unassigned inside one account. The balance doesn't change."
+      onClose={onClose}
+    >
+      {accountChoices.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Add a bank, cash or e-wallet account first.</p>
+      ) : (
+        <MoveMoneyForm
+          actor={actor}
+          allocation={allocation}
+          toCategory={toCategory}
+          accounts={accountChoices}
+          cards={cards}
+          categories={categories}
+          money={money}
+          onClose={onClose}
+        />
+      )}
+    </FormSheet>
   );
 }
 
@@ -188,6 +178,7 @@ function moneyLeft(
 function MoveMoneyForm({
   actor,
   allocation,
+  toCategory,
   accounts,
   cards,
   categories,
@@ -196,15 +187,23 @@ function MoveMoneyForm({
 }: {
   actor: Actor;
   allocation?: AllocationRow;
+  toCategory?: CategoryRow;
   accounts: AccountRow[];
   cards: AccountRow[];
   categories: CategoryList;
   money: Map<string, AccountMoney>;
   onClose: () => void;
 }) {
-  const [accountId, setAccountId] = useState(allocation?.accountId ?? accounts[0]?.id ?? "");
+  const holdsToCategory = (account: AccountRow) =>
+    toCategory !== undefined && canHoldMoneyIn(toCategory, account);
+  const [accountId, setAccountId] = useState(
+    allocation?.accountId ?? (accounts.find(holdsToCategory) ?? accounts[0])?.id ?? ""
+  );
   const [fromKey, setFromKey] = useState(allocation ? envelopeKey(allocation.from) : "unassigned");
-  const [toKey, setToKey] = useState(allocation ? envelopeKey(allocation.to) : UNCHOSEN);
+  const [toKey, setToKey] = useState(() => {
+    if (allocation) return envelopeKey(allocation.to);
+    return toCategory ? envelopeKey({ kind: "category", id: toCategory.id }) : UNCHOSEN;
+  });
   const [amountText, setAmountText] = useState(
     allocation ? formatPHPInput(allocation.amountCents) : ""
   );
@@ -273,6 +272,7 @@ function MoveMoneyForm({
 
   return (
     <form
+      ref={advanceOnEnter}
       action={saveAction}
       className="space-y-4"
       aria-label={allocation ? "Edit allocation" : "Move money"}
@@ -286,6 +286,7 @@ function MoveMoneyForm({
             inputMode="decimal"
             placeholder="0.00"
             autoComplete="off"
+            enterKeyHint="done"
             required
             value={amountText}
             onChange={(event) => setAmountText(event.target.value)}
@@ -298,7 +299,7 @@ function MoveMoneyForm({
             name="date"
             type="date"
             required
-            defaultValue={allocation?.date ?? format(new Date(), "yyyy-MM-dd")}
+            defaultValue={allocation?.date ?? todayLocalDate()}
           />
         </div>
         <div className="space-y-2 @[480px]:col-span-2">
@@ -344,7 +345,7 @@ function MoveMoneyForm({
       )}
 
       <FormError>{error}</FormError>
-      <DialogFooter className="gap-2 @[480px]:justify-between">
+      <FormFooter className="@[480px]:justify-between">
         {allocation ? (
           <Button type="button" variant="outline" onClick={remove}>
             Remove
@@ -353,7 +354,7 @@ function MoveMoneyForm({
           <span />
         )}
         <SubmitButton pendingText="Saving...">{allocation ? "Save" : "Move money"}</SubmitButton>
-      </DialogFooter>
+      </FormFooter>
     </form>
   );
 }

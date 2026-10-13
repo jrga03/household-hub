@@ -69,13 +69,10 @@ export function JoinForm({ userId }: { userId: string }) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Join a household</CardTitle>
+      <CardContent className="space-y-4">
         <CardDescription>
           Ask a member for their Household Code. The Owner approves your request.
         </CardDescription>
-      </CardHeader>
-      <CardContent>
         <form action={joinAction} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="household-code">Household Code</Label>

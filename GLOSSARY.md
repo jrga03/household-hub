@@ -96,6 +96,10 @@ _Avoid_: Home account
 Home's three steps for a new household: set starting balances, distribute them into categories, set budgets. Each ticks itself off from the data; a member can dismiss it on their device.
 _Avoid_: Onboarding, setup wizard
 
+**Review**:
+The list of things waiting for a member's attention: expenses without a category, open drafts on this device, and, for the owner, join requests. Its count is the number of those items, shown on Home and in the navigation.
+_Avoid_: Inbox, notifications, to-do
+
 **Debt**:
 Money owed, tracked for visibility only; it never moves money. **External** debts are owed outside the household (a credit card's balance is not one: the card already shows it); **Internal** debts are borrowing within it, between accounts, categories, or members.
 _Avoid_: Loan (as the general term), liability

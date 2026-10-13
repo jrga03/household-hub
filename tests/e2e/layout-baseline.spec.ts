@@ -4,8 +4,12 @@ import { VIEWPORTS } from "./fixtures/viewports";
 
 const ROUTES = [
   { path: "/", name: "home" },
+  { path: "/accounts", name: "accounts" },
   { path: "/settings", name: "settings" },
   { path: "/transactions", name: "transactions" },
+  { path: "/budget", name: "budget" },
+  { path: "/plan", name: "plan" },
+  { path: "/review", name: "review" },
 ];
 
 for (const [vpName, vp] of Object.entries(VIEWPORTS)) {
@@ -25,7 +29,11 @@ for (const [vpName, vp] of Object.entries(VIEWPORTS)) {
           fullPage: true,
           maxDiffPixelRatio: 0.02,
           // The Household Code differs on every database; the month changes monthly
-          mask: [page.getByTestId("household-code"), page.getByTestId("finances-month")],
+          mask: [
+            page.getByTestId("household-code"),
+            page.getByTestId("finances-month"),
+            page.getByRole("group", { name: "Month" }),
+          ],
         });
       });
     }

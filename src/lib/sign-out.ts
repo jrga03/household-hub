@@ -5,7 +5,6 @@
  * surface as a toast.
  */
 
-import { format } from "date-fns";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
 import { reportError } from "@/lib/sentry";
@@ -15,6 +14,7 @@ import { countDrafts } from "@/lib/import/drafts";
 import { syncBeforeSignOut } from "@/lib/sync";
 import { countChanges, countOf, errorMessage } from "@/lib/utils";
 import { downloadJson } from "@/lib/utils/download";
+import { todayLocalDate } from "@/lib/utils/dates";
 
 const unsavedDrafts = (count: number) => countOf(count, "unsaved draft", "unsaved drafts");
 
@@ -43,7 +43,7 @@ async function offerExportOfUnpushed(): Promise<boolean> {
     cancelLabel: "Cancel",
   });
   if (outcome === "confirm") {
-    downloadJson(`household-hub-unsynced-${format(new Date(), "yyyy-MM-dd")}.json`, {
+    downloadJson(`household-hub-unsynced-${todayLocalDate()}.json`, {
       exportedAt: new Date().toISOString(),
       events: unpushed,
     });

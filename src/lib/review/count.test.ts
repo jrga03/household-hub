@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { receiveEvents, type LoggedEvent } from "@/lib/events/log";
-import { countReviewItems } from "./count";
+import { parsePHP } from "@/lib/currency";
+import { createImport } from "@/lib/import/drafts";
+import { countLocalReviewItems, totalReviewItems } from "./count";
 
 const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const BANK = "aaaaaaaa-0000-4000-8000-000000000001";
@@ -49,9 +51,18 @@ beforeEach(async () => {
   await resetLocalDatabase();
 });
 
-describe("countReviewItems", () => {
+const statementLine = (description: string) => ({
+  purchaseDate: "2026-09-03",
+  postingDate: "2026-09-05",
+  description,
+  amount: parsePHP("3200"),
+  type: "expense" as const,
+  isCardPayment: false,
+});
+
+describe("countLocalReviewItems", () => {
   it("is zero with nothing recorded", async () => {
-    expect(await countReviewItems()).toBe(0);
+    expect(await countLocalReviewItems()).toEqual({ uncategorized: 0, drafts: 0 });
   });
 
   it("counts expenses with no category", async () => {
@@ -65,7 +76,7 @@ describe("countReviewItems", () => {
       0
     );
 
-    expect(await countReviewItems()).toBe(2);
+    expect((await countLocalReviewItems()).uncategorized).toBe(2);
   });
 
   it("leaves out removed expenses", async () => {
@@ -77,6 +88,29 @@ describe("countReviewItems", () => {
       0
     );
 
-    expect(await countReviewItems()).toBe(0);
+    expect((await countLocalReviewItems()).uncategorized).toBe(0);
+  });
+
+  it("counts every open draft, across imports", async () => {
+    await createImport({
+      formatId: "bdo-credit-card-pdf",
+      fileName: "september.pdf",
+      accountId: BANK,
+      lines: [statementLine("MERALCO"), statementLine("GRAB")],
+    });
+    await createImport({
+      formatId: "bdo-credit-card-pdf",
+      fileName: "october.pdf",
+      accountId: BANK,
+      lines: [statementLine("JOLLIBEE")],
+    });
+
+    expect((await countLocalReviewItems()).drafts).toBe(3);
+  });
+});
+
+describe("totalReviewItems", () => {
+  it("adds up every kind", () => {
+    expect(totalReviewItems({ uncategorized: 2, drafts: 3, joinRequests: 1 })).toBe(6);
   });
 });

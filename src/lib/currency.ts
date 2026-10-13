@@ -107,6 +107,11 @@ export const isAmount = (value: unknown): value is number =>
 
 export const AMOUNT_PROBLEM = `The amount must be more than zero and at most ${formatPHP(asCents(MAX_AMOUNT_CENTS))}.`;
 
+/** Money going out in parentheses, "(₱250.00)", whichever sign it is stored with. */
+export function formatTransactionExpense(cents: Cents): string {
+  return `(${formatPHP(absCents(cents))})`;
+}
+
 /** A plain number a spreadsheet can sum: 150050 → "1500.50". */
 export function formatPHPDecimal(cents: Cents): string {
   const sign = cents < 0 ? "-" : "";

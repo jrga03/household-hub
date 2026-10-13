@@ -72,6 +72,10 @@ export function draftFlagger(
 export const discardedByDefault = (flag: DraftFlag | null) =>
   flag?.kind === "already-imported" || (flag?.kind === "card-payment" && flag.transfer !== null);
 
+/** A draft saved as a transaction must be named first; a card payment isn't saved as one. */
+export const needsDescription = (draft: DraftRow) =>
+  !draft.line.isCardPayment && draft.description.trim() === "";
+
 /** Only an unflagged draft starts selected; every flag asks the member to decide. */
 export const selectedByDefault = (flag: DraftFlag | null) => flag === null;
 
