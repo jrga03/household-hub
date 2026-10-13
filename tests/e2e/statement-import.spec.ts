@@ -86,7 +86,7 @@ test("a UnionBank statement is read offline, and its password is never remembere
   await expect(lines.getByRole("listitem").filter({ hasText: "BDO BILLS PAYMENT" })).toContainText(
     "Card payment"
   );
-  await expect(lines.getByRole("listitem").filter({ hasText: "LATE PAYMENT FEE" })).toContainText(
-    "−₱1,096.69"
-  );
+  const reversal = lines.getByRole("listitem").filter({ hasText: "LATE PAYMENT FEE REVERSAL" });
+  await expect(reversal).toContainText("+₱1,096.69");
+  await expect(reversal).not.toContainText("Card payment");
 });
