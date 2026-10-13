@@ -97,7 +97,7 @@ export function TransactionEditor({
     : accounts;
 
   if (accountChoices.length === 0) {
-    return <p className="text-sm text-muted-foreground">Add an account on Home first.</p>;
+    return <p className="text-sm text-muted-foreground">Add an account on Accounts first.</p>;
   }
   if (transaction) {
     return (
