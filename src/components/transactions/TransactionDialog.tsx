@@ -361,10 +361,11 @@ function TransactionForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="transaction-description">Description (optional)</Label>
+        <Label htmlFor="transaction-description">Description</Label>
         <Input
           id="transaction-description"
           name="description"
+          required
           maxLength={DESCRIPTION_MAX_LENGTH}
           autoComplete="off"
           enterKeyHint="next"

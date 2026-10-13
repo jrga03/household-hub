@@ -53,6 +53,11 @@ function checkedDetails(input: TransactionInput): TransactionDetails {
 const payingAccountOf = (account: AccountRow) =>
   isCreditCard(account) ? account.payingAccountId : null;
 
+/** A member names what they record; only an imported statement line may come without one. */
+function requireDescription(details: TransactionDetails): void {
+  if (details.description === "") throw new Error("Add a description.");
+}
+
 async function checkCategory(categoryId: string | null, account: AccountRow): Promise<void> {
   if (categoryId === null) return;
   refuseRetired(await requireCategoryFor(categoryId, account));
@@ -64,6 +69,7 @@ export async function addTransaction(
   input: NewTransactionInput
 ): Promise<{ id: string }> {
   const details = checkedDetails(input);
+  if (input.importKey === undefined) requireDescription(details);
   const status = input.status ?? "cleared";
   if (!isTransactionStatus(status)) throw new Error("Choose Cleared or Pending.");
   const account = await requireAccount(details.accountId);
@@ -98,7 +104,15 @@ export async function editTransaction(
   input: TransactionInput
 ): Promise<void> {
   const entered = checkedDetails(input);
-  const transaction = await requireTransaction(transactionId);
+  requireDescription(entered);
+  await appendEdit(actor, await requireTransaction(transactionId), entered);
+}
+
+async function appendEdit(
+  actor: Actor,
+  transaction: TransactionRow,
+  entered: TransactionDetails
+): Promise<void> {
   const accountChanged = entered.accountId !== transaction.accountId;
   // The reservation stays where it was recorded unless the transaction changes account.
   const details = { ...entered, payingAccountId: transaction.payingAccountId };
@@ -186,7 +200,8 @@ export const changeTransactionsCategory = (
   changeEachTransaction(
     transactionIds,
     (transaction) => transaction.categoryId === categoryId,
-    (transaction) => editTransaction(actor, transaction.id, { ...transaction, categoryId })
+    // Not an edit of the description, so an old transaction without one can still move.
+    (transaction) => appendEdit(actor, transaction, checkedDetails({ ...transaction, categoryId }))
   );
 
 export const removeTransactions = (actor: Actor, transactionIds: string[]) =>

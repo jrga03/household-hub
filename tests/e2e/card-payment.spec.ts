@@ -53,6 +53,7 @@ test("a card purchase recorded offline reserves its amount in the Paying Account
   await dialog.getByLabel("Amount (₱)").fill("1200");
   await chooseOption(pageA, dialog.getByLabel("Account"), "Visa");
   await chooseOption(pageA, dialog.getByLabel("Category"), "Restaurants");
+  await dialog.getByLabel("Description", { exact: true }).fill("Dinner");
   await dialog.getByRole("button", { name: "Add transaction" }).click();
   await expect(dialog).toBeHidden();
   await expect(accountItem(pageA, "BDO Savings")).toContainText("Card Payment · Visa ₱1,200.00");

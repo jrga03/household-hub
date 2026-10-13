@@ -108,7 +108,7 @@ test.describe("phone forms", () => {
 
     await amount.fill("120");
     await amount.press("Enter");
-    await expect(sheet.getByLabel("Description (optional)")).toBeFocused();
+    await expect(sheet.getByLabel("Description", { exact: true })).toBeFocused();
     await page.keyboard.type("Lunch");
     await page.keyboard.press("Enter");
     await expect(sheet.getByLabel("Notes (optional)")).toBeFocused();
@@ -118,7 +118,7 @@ test.describe("phone forms", () => {
   test("the sheet stays above a keyboard laid over the page (iOS)", async ({ page }) => {
     await emulateOverlayKeyboard(page);
     const sheet = await openAddTransaction(page);
-    const description = sheet.getByLabel("Description (optional)");
+    const description = sheet.getByLabel("Description", { exact: true });
     await description.focus();
 
     await setKeyboard(page, KEYBOARD_HEIGHT);
@@ -137,7 +137,7 @@ test.describe("phone forms", () => {
 
   test("the sheet stays above a keyboard that resizes the page (Android)", async ({ page }) => {
     const sheet = await openAddTransaction(page);
-    const description = sheet.getByLabel("Description (optional)");
+    const description = sheet.getByLabel("Description", { exact: true });
     await description.focus();
 
     // interactive-widget=resizes-content: the keyboard shrinks the layout viewport itself.

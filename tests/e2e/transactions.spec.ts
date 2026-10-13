@@ -30,7 +30,7 @@ test("transactions recorded offline move the balance, and a removal can be undon
   await expect(dialog.getByLabel("Amount (₱)")).toBeFocused();
   await dialog.getByLabel("Amount (₱)").fill("250");
   await chooseOption(page, dialog.getByLabel("Category"), "Groceries");
-  await dialog.getByLabel("Description (optional)").fill("Market");
+  await dialog.getByLabel("Description", { exact: true }).fill("Market");
   await dialog.getByRole("button", { name: "Add transaction" }).click();
   await expect(dialog).toBeHidden();
   await expect(bankItem(page)).toContainText("₱750.00");
@@ -42,6 +42,7 @@ test("transactions recorded offline move the balance, and a removal can be undon
   await dialog.getByRole("radio", { name: "Income" }).check();
   await expect(dialog.getByLabel("Category")).toHaveText("Unassigned");
   await dialog.getByRole("radio", { name: "Pending" }).check();
+  await dialog.getByLabel("Description", { exact: true }).fill("Salary");
   await dialog.getByRole("button", { name: "Add transaction" }).click();
   await expect(bankItem(page)).toContainText("₱1,750.00");
   await expect(bankItem(page)).toContainText("Cleared ₱750.00 · Pending ₱1,000.00");

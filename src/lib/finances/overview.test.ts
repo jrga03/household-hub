@@ -29,6 +29,7 @@ const record = (date: string, amount: string, type = "expense", accountId = bpiI
     amountCents: peso(amount),
     accountId,
     categoryId: groceriesId,
+    description: "Test",
   });
 
 const recordPersonal = (actor: typeof MEMBER, accountId: string, amount: string, type: string) =>
@@ -38,6 +39,7 @@ const recordPersonal = (actor: typeof MEMBER, accountId: string, amount: string,
     amountCents: peso(amount),
     accountId,
     categoryId: null,
+    description: "Test",
   });
 
 beforeEach(async () => {
@@ -148,6 +150,7 @@ describe("budget status", () => {
       amountCents: peso(spent),
       accountId: actorAccountId,
       categoryId: id,
+      description: "Test",
     });
   }
 

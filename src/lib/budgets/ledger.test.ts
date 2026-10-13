@@ -33,6 +33,7 @@ const spendOnGroceries = (date: string, amount: string, accountId = bpiId) =>
     amountCents: peso(amount),
     accountId,
     categoryId: groceriesId,
+    description: "Test",
   });
 
 const october = () => readCategoryLedger(groceriesId, "2026-10");
@@ -98,6 +99,7 @@ describe("category ledger", () => {
       amountCents: peso("200"),
       accountId: visaId,
       categoryId: groceriesId,
+      description: "Test",
     });
 
     const ledger = await october();
@@ -143,6 +145,7 @@ describe("category ledger", () => {
       amountCents: peso("250"),
       accountId: bpiId,
       categoryId: null,
+      description: "Test",
     });
 
     const ledger = await october();

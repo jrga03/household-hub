@@ -33,7 +33,7 @@ test("exports transactions and the event log offline, from what the device holds
   const dialog = page.getByRole("dialog", { name: "Add transaction" });
   await dialog.getByLabel("Amount (₱)").fill("250");
   await chooseOption(page, dialog.getByLabel("Category"), "Groceries");
-  await dialog.getByLabel("Description (optional)").fill("Market, Saturday");
+  await dialog.getByLabel("Description", { exact: true }).fill("Market, Saturday");
   await dialog.getByRole("button", { name: "Add transaction" }).click();
   await expect(dialog).toBeHidden();
 

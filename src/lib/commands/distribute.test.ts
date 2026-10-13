@@ -33,6 +33,7 @@ const payroll = (date: string) =>
     amountCents: peso("40000"),
     accountId: bpi,
     categoryId: null,
+    description: "Test",
   });
 
 async function unassignedIn(accountId: string) {

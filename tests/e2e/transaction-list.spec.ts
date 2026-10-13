@@ -16,7 +16,7 @@ async function addTransaction(page: Page, entry: Entry) {
   await dialog.getByLabel("Amount (₱)").fill(entry.amount);
   if (entry.income) await dialog.getByRole("radio", { name: "Income" }).check();
   if (entry.category) await chooseOption(page, dialog.getByLabel("Category"), entry.category);
-  await dialog.getByLabel("Description (optional)").fill(entry.description);
+  await dialog.getByLabel("Description", { exact: true }).fill(entry.description);
   if (entry.pending) await dialog.getByRole("radio", { name: "Pending" }).check();
   await dialog.getByRole("button", { name: "Add transaction" }).click();
   await expect(dialog).toBeHidden();
@@ -127,11 +127,11 @@ test.describe("on a wide screen", () => {
     await row.click();
 
     const pane = page.getByRole("region", { name: "Edit transaction" });
-    await expect(pane.getByLabel("Description (optional)")).toHaveValue("Item 1");
+    await expect(pane.getByLabel("Description", { exact: true })).toHaveValue("Item 1");
     await expect(page.getByRole("dialog")).toBeHidden();
     expect(await page.evaluate(() => window.scrollY)).toBe(scrolledTo);
 
-    await pane.getByLabel("Description (optional)").fill("Item one");
+    await pane.getByLabel("Description", { exact: true }).fill("Item one");
     await pane.getByRole("button", { name: "Save" }).click();
     await expect(list.getByRole("button", { name: "Edit Item one" })).toBeInViewport();
     // Rows are re-measured as they render, which can shift the page by a pixel or two.
