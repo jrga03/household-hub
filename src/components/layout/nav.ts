@@ -1,4 +1,4 @@
-import { FileUp, Home, Layers, Receipt, Settings, type LucideIcon } from "lucide-react";
+import { FileUp, Home, Layers, Receipt, Settings, Wallet, type LucideIcon } from "lucide-react";
 import type { FileRoutesByTo } from "@/routeTree.gen";
 
 export type RoutePath = keyof FileRoutesByTo;
@@ -19,6 +19,7 @@ export const DAILY_NAV: NavItem[] = [
 ];
 
 export const MANAGE_NAV: NavItem[] = [
+  { to: "/accounts", label: "Accounts", icon: Wallet, shortcut: "g a" },
   { to: "/import", label: "Import", icon: FileUp, shortcut: "g i" },
   { to: "/categories", label: "Categories", icon: Layers, shortcut: "g c" },
   { to: "/settings", label: "Settings", icon: Settings, shortcut: "g s" },

@@ -44,6 +44,10 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 - **Deferred: a "Review" glossary term** (GLOSSARY.md uses review only for drafts; #107 counts uncategorized expenses as review items). Revisit: #110.
 - **Deferred: rewriting `src/components/layout/README.md`**, which still describes an older nav (Budgets, Analytics, Transfers); #107 fixed only the lines it made false. Revisit: a separate docs cleanup.
 - **The HH badge stays in the desktop sidebar header**, which plays the drawer's role on wide screens (#107). Revisit: never.
+- **Balances deep-link to the account's row** (#102, confirmed by the user): `/accounts#account-<id>`, scrolled into view once accounts load (`useScrollToHash`, shared with Settings). Revisit: if the per-account register lands.
+- **Settings lists Household first**, before Appearance and Export, and Accounts gets the "g a" shortcut (#102, confirmed by the user). Revisit: never.
+- **`/accounts` drops the card's in-page title and description** (#102, confirmed by the user), keeping the "No accounts yet" empty state; done after merging #108, which rewrote the same card's forms. Revisit: never.
+- **Household settings live in `src/components/households/HouseholdSettings.tsx`** (#102), a new file rather than a `git mv` of `src/routes/index.tsx`, which stays as Home. Revisit: never.
 - **Each issue updates the e2e specs and layout baselines it breaks** (for example, the 16 specs that add accounts on Home and the checklist's `/#add-account` link). There is no separate test-migration issue.
 - **`FormSheet` is the form container** (#108, `src/components/FormSheet.tsx`): `<FormSheet title description? onClose>` (mounted means open), `FormFooter` for the pinned buttons, and `advanceOnEnter` as the form's `ref`. #109 and #111 build their forms on it. Revisit: never.
 - **Keyboard handling is ours, not vaul's** (#108): `repositionInputs` is off; on iOS `FormSheet` pads the sheet's bottom by the `visualViewport` inset (lifting it left a seam at its edge), and it scrolls the focused field into view on any visual-viewport height change. Why: vaul's repositioning resizes the sheet and fights the pinned footer. Revisit: if vaul's handling improves.
@@ -58,14 +62,18 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 - **Row details** (#109): expenses read "−₱250.00" in the normal text colour and income "+₱1,000.00" in green; a transfer without a description reads "Transfer to BPI", or "Transfer from BDO" when the list is filtered to the account it went into; the next date heading slides over the stuck one rather than pushing it. Revisit: if expenses should be red.
 - **Deferred: Back exits selection mode** (#109); only ✕ and Escape do. Revisit: if members reach for Back.
 - **Deferred: a real-device check of swipe and long press** (#109); e2e drives them with CDP touches on Chromium only. Revisit: with #108's real-device check.
+- **#112 tests the safe area by overriding `--safe-area-top/bottom`** (iPhone 15 Pro insets, 59px/34px) in `household.spec.ts`, since no desktop or emulated browser reports `env(safe-area-inset-*)`. Revisit: if a real-device check (BrowserStack or a physical iPhone) shows a mismatch.
+- **#112 moved the Create / Join choices into `src/components/households/CreateOrJoin.tsx`** so the toggle and request states are unit-tested there; the route keeps only the page frame. Revisit: never.
+- **Deferred: create-or-join opened offline shows no Create / Join choices** (they wait on the Join Request lookup, which pauses offline; same before #112). #112's offline e2e now waits for the form before going offline. Revisit: if someone reports a blank onboarding screen.
+- **#112 onboarding details (confirmed by the user 2026-10-13):** the toggle opens on Create; Create is disabled while a Join Request is pending or declined (the server's `create_household` doesn't check open requests); the h1 "Welcome to Household Hub" stays but the intro paragraph is dropped; the cards under the toggle drop their "Create a household" / "Join a household" titles and keep their descriptions; the footer button keeps the app's "Sign Out" casing. Revisit: never.
 
 ## Issues
 
 - [x] File the spec (#106) and sub-issues (`ready-for-agent`, blocked-by edges); #102 re-scoped as issue 3, #99 blocked by #110
 - [x] 1. #107 (PR #115) Shell: header title and actions slot, drawer regroup with email and sign out at the bottom, Review dot, desktop sidebar groups, in-page titles removed
 - [x] 2. #108 (merged 9e995ee, PR #116) Phone sheets and keyboard: Drawer component, viewport handling, pinned submit, `enterKeyHint`, all phone forms migrated
-- [ ] 3. #102 Accounts screen and Settings → Household; Home becomes finances-only
+- [x] 3. #102 (merged 4728e5c, PR #116) Accounts screen and Settings → Household; Home becomes finances-only
 - [ ] 4. #109 Transactions rehaul: rows, date headers, pending style, swipe-reveal, remove confirmation, selection mode, Totals removed, description required
 - [ ] 5. #110 Review screen
 - [ ] 6. #111 Categories / Budget / Plan split; `/distribute` removed
-- [ ] 7. #112 Onboarding (no blockers; can jump the queue): safe area, Create / Join toggle
+- [x] 7. #112 (merged ccdca43, PR #116) Onboarding (no blockers; can jump the queue): safe area, Create / Join toggle

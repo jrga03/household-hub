@@ -22,6 +22,7 @@ test("a transfer recorded offline moves both balances on another device", async 
   const person = await signUpNewPerson(pageA);
   await pageA.getByLabel("Household name").fill("Transfer home");
   await pageA.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(pageA, "Accounts");
 
   const addAccount = pageA.getByRole("form", { name: "Add an account" });
   await addAccount.getByLabel("Account name").fill("BPI");
@@ -36,11 +37,12 @@ test("a transfer recorded offline moves both balances on another device", async 
   await navigateTo(pageA, "Categories");
   await pageA.getByRole("button", { name: "Use suggested categories" }).click();
   await expect(pageA.getByRole("list", { name: "Food categories" })).toContainText("Groceries");
-  await pageA.getByRole("link", { name: "Home" }).click();
+  await navigateTo(pageA, "Accounts");
 
   const deviceB = await browser.newContext();
   const pageB = await deviceB.newPage();
   await loginAs(pageB, person);
+  await navigateTo(pageB, "Accounts");
   await pullUntil(deviceB, accountItem(pageB, "GCash"), "₱0.00");
 
   await deviceA.setOffline(true);

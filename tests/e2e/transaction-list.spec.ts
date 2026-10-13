@@ -26,6 +26,7 @@ async function startHousehold(page: Page) {
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("List home");
   await page.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(page, "Accounts");
 
   const addAccount = page.getByRole("form", { name: "Add an account" });
   await addAccount.getByLabel("Account name").fill("BPI");

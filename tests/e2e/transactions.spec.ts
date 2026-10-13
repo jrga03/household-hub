@@ -10,6 +10,7 @@ test("transactions recorded offline move the balance, and a removal can be undon
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Transaction home");
   await page.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(page, "Accounts");
 
   const addAccount = page.getByRole("form", { name: "Add an account" });
   await addAccount.getByLabel("Account name").fill("BPI");
@@ -20,7 +21,7 @@ test("transactions recorded offline move the balance, and a removal can be undon
   await navigateTo(page, "Categories");
   await page.getByRole("button", { name: "Use suggested categories" }).click();
   await expect(page.getByRole("list", { name: "Food categories" })).toContainText("Groceries");
-  await page.getByRole("link", { name: "Home" }).click();
+  await navigateTo(page, "Accounts");
 
   await page.context().setOffline(true);
 
@@ -47,7 +48,9 @@ test("transactions recorded offline move the balance, and a removal can be undon
   await expect(bankItem(page)).toContainText("Cleared ₱750.00 · Pending ₱1,000.00");
   await expect(bankItem(page)).toContainText("Unassigned ₱2,000.00");
 
-  await navigateTo(page, "Transactions");
+  // Tapping an account opens Transactions filtered to it.
+  await bankItem(page).getByRole("link", { name: "BPI" }).click();
+  await expect(page).toHaveURL(/\/transactions\?account=/);
   const list = page.getByRole("list", { name: "Transactions" });
   const market = list.getByRole("listitem").filter({ hasText: "Market" });
   await market.getByRole("button", { name: "Edit Market" }).click();

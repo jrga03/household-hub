@@ -58,6 +58,7 @@ Check here before debugging a test or CLI failure you did not cause. A failure i
 - **E2E needs** the local stack running (`supabase start`), `PW_TEST_HTML_REPORT_OPEN=never` for non-interactive runs, and a fresh `dist/` (`npm run test:e2e*` rebuild it; a bare `npx playwright test` does not).
 - **Scripts** must parse `supabase status -o env`, never the human-readable output.
 - **Worktrees share the e2e preview port** (seen 2026-10-12): `reuseExistingServer` makes Playwright reuse whatever `vite preview` already holds port 4173, often another worktree's build. Check `lsof -nP -iTCP:4173 -sTCP:LISTEN` before trusting a run; if another checkout owns it, run with a throwaway config on another port.
+- **`money.test.ts` "…in under 50 ms" flakes under CPU load** (seen 2026-10-13, 1 in 4 runs, while parallel worktree agents ran builds and e2e): it times a 10,000-transaction sum against a wall-clock 50 ms bound. A rerun passes; the code is unchanged from `main`.
 - **PWA update handoff** can cause one unexpected reload when a code-split route is tapped during the update window. Known and self-healing; no fix needed.
 - Rules: do not root-cause a listed issue mid-task. Log a new pre-existing failure here in the same commit as any workaround; delete an entry when it is fixed.
 

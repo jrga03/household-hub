@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { login, signUpNewPerson } from "./fixtures/helpers";
+import { login, signUpNewPerson, navigateTo } from "./fixtures/helpers";
 
 const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
@@ -22,6 +22,11 @@ test.describe("Create a household", () => {
     await page.getByRole("button", { name: "Create household" }).click();
 
     await expect(page).toHaveURL((url) => url.pathname === "/");
+    await expect(
+      page.getByRole("banner").getByRole("heading", { name: "Acido home" })
+    ).toBeVisible();
+
+    await navigateTo(page, "Settings");
     const main = page.getByRole("main");
     await expect(main.getByText("Acido home")).toBeVisible();
     // The badge beside the household name; the Members list has its own "Owner".
@@ -38,6 +43,8 @@ test.describe("Create a household", () => {
   }) => {
     await signUpNewPerson(page);
     await expect(page).toHaveURL(/\/create-or-join/);
+    // The choices wait for the Join Request lookup; going offline before it answers leaves none.
+    await expect(page.getByLabel("Household name")).toBeVisible();
 
     await context.setOffline(true);
 
@@ -47,6 +54,34 @@ test.describe("Create a household", () => {
 
     await context.setOffline(false);
     await expect(create).toBeEnabled();
+  });
+
+  test("content clears the status bar and home indicator, with Sign Out pinned at the bottom", async ({
+    page,
+  }) => {
+    // iPhone 15 Pro insets (Dynamic Island, home indicator); browsers outside a notched
+    // device report zero for env(safe-area-inset-*), so the test supplies them.
+    const SAFE_TOP = 59;
+    const SAFE_BOTTOM = 34;
+    await page.setViewportSize({ width: 393, height: 852 });
+    await signUpNewPerson(page);
+    await expect(page).toHaveURL(/\/create-or-join/);
+    await page.addStyleTag({
+      content: `:root { --safe-area-top: ${SAFE_TOP}px; --safe-area-bottom: ${SAFE_BOTTOM}px; }`,
+    });
+
+    const heading = page.getByRole("heading", { name: "Welcome to Household Hub" });
+    await expect(page.getByText(/Everything you record belongs/)).toHaveCount(0);
+    const headingBox = await heading.boundingBox();
+    expect(headingBox?.y).toBeGreaterThanOrEqual(SAFE_TOP);
+
+    const signOut = page.getByRole("button", { name: "Sign Out" });
+    const signOutBox = await signOut.boundingBox();
+    if (!signOutBox) throw new Error("Sign Out is not rendered");
+    const viewportHeight = 852;
+    expect(signOutBox.y + signOutBox.height).toBeLessThanOrEqual(viewportHeight - SAFE_BOTTOM);
+    // Pinned: it sits in the bottom band of the screen, not under the form.
+    expect(signOutBox.y).toBeGreaterThan(viewportHeight - SAFE_BOTTOM - 80);
   });
 
   test("a member reaching create-or-join is sent home", async ({ page }) => {

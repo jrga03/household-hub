@@ -17,6 +17,7 @@ test("exports transactions and the event log offline, from what the device holds
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Export home");
   await page.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(page, "Accounts");
 
   const addAccount = page.getByRole("form", { name: "Add an account" });
   await addAccount.getByLabel("Account name").fill("BPI");
