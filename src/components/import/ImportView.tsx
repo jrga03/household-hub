@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { toast } from "sonner";
 import { categoryNames } from "@/components/allocations/envelopes";
 import { PageShell } from "@/components/layout/PageShell";
 import { BELOW_HEADER, PANE_MAX_HEIGHT } from "@/components/layout/pane";
@@ -21,7 +20,6 @@ import { useLaidOut } from "@/hooks/useLaidOut";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { saveDrafts } from "@/lib/commands/drafts";
-import { formatPHP } from "@/lib/currency";
 import { deleteDrafts } from "@/lib/import/drafts";
 import {
   discardedByDefault,
@@ -29,13 +27,14 @@ import {
   type ReviewedDraft,
   type ReviewedImport,
 } from "@/lib/import/review";
-import { cn, countOf, errorMessage } from "@/lib/utils";
+import { cn, countOf } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
 import { DraftDetail } from "./DraftDetail";
-import { FlagBadge, isSuggested, SuggestedBadge } from "./DraftLabels";
+import { FlagBadge, isSuggested, signedAmount, SuggestedBadge } from "./DraftLabels";
 import { ReadStatement } from "./ReadStatement";
+import { useDraftAction } from "./useDraftAction";
 
-const countDrafts = (count: number) => countOf(count, "draft", "drafts");
+const draftsLabel = (count: number) => countOf(count, "draft", "drafts");
 
 /**
  * Read a statement, then review its drafts: each Import lists its lines,
@@ -96,7 +95,7 @@ export function ImportView({ actor }: { actor: Actor }) {
               key={statement.id}
               actor={actor}
               statement={statement}
-              cardName={accountsById.get(statement.accountId)?.name ?? "A card not on this device"}
+              cardName={cardLabel(accountsById.get(statement.accountId))}
               categoryNames={names}
               openId={openId}
               onOpen={setOpenId}
@@ -174,7 +173,7 @@ function ImportCard({
 }) {
   // Only what the member ticked or unticked; the rest follows each draft's flag as records sync in.
   const [choices, setChoices] = useState<ReadonlyMap<string, boolean>>(new Map());
-  const [busy, setBusy] = useState(false);
+  const { busy, run } = useDraftAction();
   const { drafts } = statement;
   const isSelected = (draft: ReviewedDraft) =>
     choices.get(draft.id) ?? selectedByDefault(draft.flag);
@@ -186,18 +185,6 @@ function ImportCard({
   const choose = (entries: [string, boolean][]) =>
     setChoices((current) => new Map([...current, ...entries]));
 
-  async function run(action: () => Promise<void>, done: string, failed: string) {
-    setBusy(true);
-    try {
-      await action();
-      toast.success(done);
-    } catch (error) {
-      toast.error(errorMessage(error, failed));
-    } finally {
-      setBusy(false);
-    }
-  }
-
   const ids = (list: ReviewedDraft[]) => list.map((draft) => draft.id);
   const save = () =>
     run(
@@ -208,7 +195,7 @@ function ImportCard({
   const discard = (list: ReviewedDraft[]) =>
     run(
       () => deleteDrafts(ids(list)),
-      `Discarded ${countDrafts(list.length)}`,
+      `Discarded ${draftsLabel(list.length)}`,
       "Couldn't discard the drafts."
     );
 
@@ -219,17 +206,17 @@ function ImportCard({
           <CardTitle className="break-words">{statement.fileName}</CardTitle>
           <CardDescription>
             {cardName} · read {format(new Date(statement.importedAt), "MMM d, h:mm a")} ·{" "}
-            {countDrafts(drafts.length)}
+            {draftsLabel(drafts.length)}
           </CardDescription>
         </CardHeader>
-        <CardContent className="@container space-y-3">
+        <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <div className="mr-auto flex items-center gap-2">
               <Checkbox
                 id={`select-all-${statement.id}`}
                 checked={allSelected ? true : selected.length > 0 ? "indeterminate" : false}
                 onCheckedChange={() =>
-                  choose(drafts.map((draft) => [draft.id, !allSelected] as [string, boolean]))
+                  choose(drafts.map((draft): [string, boolean] => [draft.id, !allSelected]))
                 }
               />
               <label htmlFor={`select-all-${statement.id}`} className="text-sm">
@@ -237,7 +224,7 @@ function ImportCard({
               </label>
             </div>
             <Button size="sm" disabled={busy || savable.length === 0} onClick={() => void save()}>
-              Save {countDrafts(savable.length)}
+              Save {draftsLabel(savable.length)}
             </Button>
             <Button
               size="sm"
@@ -245,7 +232,7 @@ function ImportCard({
               disabled={busy || selected.length === 0}
               onClick={() => void discard(selected)}
             >
-              Discard {countDrafts(selected.length)}
+              Discard {draftsLabel(selected.length)}
             </Button>
             {alreadyRecorded.length > 0 && (
               <Button
@@ -316,10 +303,7 @@ function DraftItem({
           )}
         </p>
       </button>
-      <span className="shrink-0 text-sm tabular-nums">
-        {draft.type === "income" ? "+" : "−"}
-        {formatPHP(line.amount)}
-      </span>
+      <span className="shrink-0 text-sm tabular-nums">{signedAmount(draft.type, line.amount)}</span>
     </li>
   );
 }

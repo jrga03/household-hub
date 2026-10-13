@@ -89,7 +89,6 @@ export class HouseholdHubDB extends Dexie {
     this.version(9).stores({ budgets: "id" });
     // Drafts stay on this device, outside the event log (ADR 0008).
     this.version(10).stores({
-      transactions: "id, [date+recordedHlc], importKey",
       imports: "id",
       drafts: "id, importId",
     });

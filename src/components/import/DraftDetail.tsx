@@ -18,12 +18,13 @@ import type { CategoryList } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { saveDrafts } from "@/lib/commands/drafts";
 import { formatPHP } from "@/lib/currency";
-import { deleteDrafts, editDraft } from "@/lib/import/drafts";
+import { deleteDrafts, editDraft, type DraftChanges } from "@/lib/import/drafts";
 import type { DraftFlag, ReviewedDraft } from "@/lib/import/review";
 import { DESCRIPTION_MAX_LENGTH, isTransactionType } from "@/lib/transactions/events";
 import { errorMessage } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
-import { isSuggested, SuggestedBadge } from "./DraftLabels";
+import { isSuggested, signedAmount, SuggestedBadge } from "./DraftLabels";
+import { useDraftAction } from "./useDraftAction";
 
 const longDate = (date: string) => format(parseLocalDate(date), "MMM d, yyyy");
 
@@ -42,23 +43,15 @@ export function DraftDetail({
   onDone: () => void;
 }) {
   const [keepAnyway, setKeepAnyway] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const { busy, run } = useDraftAction();
   const [paying, setPaying] = useState(false);
   const { line, flag } = draft;
   const isCardPayment = flag?.kind === "card-payment";
   const blockedAsImported = flag?.kind === "already-imported" && !keepAnyway;
 
-  async function act(run: () => Promise<void>, done: string, failed: string) {
-    setBusy(true);
-    try {
-      await run();
-      toast.success(done);
-      onDone();
-    } catch (error) {
-      toast.error(errorMessage(error, failed));
-      setBusy(false);
-    }
-  }
+  const act = async (action: () => Promise<void>, done: string, failed: string) => {
+    if (await run(action, done, failed)) onDone();
+  };
 
   return (
     <div className="space-y-5">
@@ -70,10 +63,7 @@ export function DraftDetail({
         <dt className="text-muted-foreground">Posted</dt>
         <dd>{longDate(line.postingDate)}</dd>
         <dt className="text-muted-foreground">Amount</dt>
-        <dd className="tabular-nums">
-          {line.type === "income" ? "+" : "−"}
-          {formatPHP(line.amount)}
-        </dd>
+        <dd className="tabular-nums">{signedAmount(line.type, line.amount)}</dd>
       </dl>
 
       {flag && <FlagNote flag={flag} />}
@@ -191,7 +181,7 @@ function DraftFields({
   const shownCategoryId = isCategoryChoice(choices, draft.categoryId)
     ? (draft.categoryId ?? UNASSIGNED)
     : UNASSIGNED;
-  const edit = (changes: Parameters<typeof editDraft>[1]) =>
+  const edit = (changes: DraftChanges) =>
     void editDraft(draft.id, changes).catch((error: unknown) =>
       toast.error(errorMessage(error, "Couldn't change the draft."))
     );

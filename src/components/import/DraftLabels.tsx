@@ -1,9 +1,14 @@
 import { Badge } from "@/components/ui/badge";
-import type { SuggestionSource } from "@/lib/import/drafts";
+import { formatPHP, type Cents } from "@/lib/currency";
+import { SUGGESTION_SOURCES, type SuggestionSource } from "@/lib/import/drafts";
 import type { DraftFlag } from "@/lib/import/review";
+import type { TransactionType } from "@/lib/transactions/events";
 
 export const isSuggested = (source: string | null): source is SuggestionSource =>
-  source === "history" || source === "llm";
+  SUGGESTION_SOURCES.some((suggested) => suggested === source);
+
+export const signedAmount = (type: TransactionType, amount: Cents) =>
+  `${type === "income" ? "+" : "−"}${formatPHP(amount)}`;
 
 export function SuggestedBadge() {
   return (

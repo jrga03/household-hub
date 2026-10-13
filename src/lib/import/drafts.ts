@@ -8,7 +8,8 @@ import { DESCRIPTION_MAX_LENGTH, type TransactionType } from "@/lib/transactions
 import { withImportKeys } from "./import-key";
 import type { StatementFormatId, StatementLine } from "./statement";
 
-export type SuggestionSource = "history" | "llm";
+export const SUGGESTION_SOURCES = ["history", "llm"] as const;
+export type SuggestionSource = (typeof SUGGESTION_SOURCES)[number];
 
 /** The drafts read from one statement file, all for one account. */
 export interface ImportRow {
