@@ -76,6 +76,8 @@
      offset must apply through 767px, not 600px. Desktop keeps ~sonner's
      32px default. Overridden alongside --bottom-chrome below. */
   --toast-bottom: calc(2rem + var(--bottom-chrome));
+  /* Toasts move to the top while a phone sheet is open (sonner.tsx). */
+  --toast-top: calc(0.5rem + var(--safe-area-top));
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
