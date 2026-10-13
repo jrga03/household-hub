@@ -7,6 +7,7 @@
 
 import Dexie from "dexie";
 import { db, type MetaRow } from "@/lib/dexie/db";
+import { forgetAllDrafts } from "@/lib/import/drafts";
 import { forgetAllStatementPasswords } from "@/lib/import/remembered-passwords";
 import { reportError } from "@/lib/sentry";
 import { formatHlc, initialHlc, isHlc, parseHlc, receiveHlc, tickHlc, type Hlc } from "./hlc";
@@ -65,7 +66,14 @@ export interface StoredEvent extends LoggedEvent {
 
 export type EventDraft = Omit<LoggedEvent, "id" | "hlc" | "deviceId">;
 
-const logTables = () => [db.events.name, db.meta.name, ...projectionTableNames()];
+// Drafts join the log's transactions so saving them and deleting them is one change.
+const logTables = () => [
+  db.events.name,
+  db.meta.name,
+  db.imports.name,
+  db.drafts.name,
+  ...projectionTableNames(),
+];
 
 async function readMeta(key: MetaRow["key"]) {
   return (await db.meta.get(key))?.value;
@@ -264,6 +272,7 @@ export function switchHousehold(householdId: string | null): Promise<boolean> {
       .modify({ pushState: "stuck", stuckReason: LEFT_HOUSEHOLD });
     await wipeProjections(isOtherHousehold);
     await forgetAllStatementPasswords();
+    await forgetAllDrafts();
     await db.meta.put({ key: "pullCursor", value: 0 });
     return stored !== undefined;
   });

@@ -16,6 +16,7 @@ vi.mock("@/lib/sync", () => ({ syncBeforeSignOut: vi.fn().mockResolvedValue(unde
 vi.mock("@/lib/events/log", () => ({ listEventsNotPushed: vi.fn() }));
 vi.mock("@/lib/confirm", () => ({ confirmWithOutcome: vi.fn() }));
 vi.mock("@/lib/utils/download", () => ({ downloadJson: vi.fn() }));
+vi.mock("@/lib/import/drafts", () => ({ countDrafts: vi.fn() }));
 
 import { signOutWithToast } from "../sign-out";
 import { toast } from "sonner";
@@ -23,6 +24,7 @@ import { syncBeforeSignOut } from "@/lib/sync";
 import { listEventsNotPushed, type StoredEvent } from "@/lib/events/log";
 import { confirmWithOutcome } from "@/lib/confirm";
 import { downloadJson } from "@/lib/utils/download";
+import { countDrafts } from "@/lib/import/drafts";
 
 const UNPUSHED = [
   { id: "event-1", pushState: "waiting" },
@@ -33,6 +35,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   signOutMock.mockResolvedValue(undefined);
   vi.mocked(listEventsNotPushed).mockResolvedValue([]);
+  vi.mocked(countDrafts).mockResolvedValue(0);
 });
 
 const withUnpushed = () =>
@@ -94,6 +97,41 @@ describe("signOutWithToast", () => {
     await signOutWithToast();
 
     expect(downloadJson).not.toHaveBeenCalled();
+    expect(signOutMock).toHaveBeenCalledOnce();
+  });
+
+  it("warns about unsaved drafts, which can't be exported", async () => {
+    vi.mocked(countDrafts).mockResolvedValue(3);
+    vi.mocked(confirmWithOutcome).mockResolvedValue("cancel");
+
+    await signOutWithToast();
+
+    expect(confirmWithOutcome).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: expect.stringContaining("3 unsaved drafts"),
+        confirmLabel: "Sign out anyway",
+        cancelLabel: "Cancel",
+      })
+    );
+    expect(confirmWithOutcome).toHaveBeenCalledWith(
+      expect.not.objectContaining({ alternativeLabel: expect.anything() })
+    );
+    expect(signOutMock).not.toHaveBeenCalled();
+  });
+
+  it("counts unsaved drafts beside unsynced changes", async () => {
+    withUnpushed();
+    vi.mocked(countDrafts).mockResolvedValue(1);
+    vi.mocked(confirmWithOutcome).mockResolvedValue("alternative");
+
+    await signOutWithToast();
+
+    expect(confirmWithOutcome).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: expect.stringMatching(/2 changes.*1 unsaved draft\b/s),
+        confirmLabel: "Export and sign out",
+      })
+    );
     expect(signOutMock).toHaveBeenCalledOnce();
   });
 

@@ -15,6 +15,7 @@ import type { StoredEvent } from "@/lib/events/log";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { AllocationRow } from "@/lib/allocations/projection";
 import type { BudgetRow } from "@/lib/budgets/projection";
+import type { DraftRow, ImportRow } from "@/lib/import/drafts";
 import type { CategoryRow, GroupRow } from "@/lib/categories/projection";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import type { TransferRow } from "@/lib/transfers/projection";
@@ -29,7 +30,8 @@ export interface MetaRow {
     | "pullCursor"
     | "householdId"
     | "leftHouseholdIds"
-    | `statementPassword:${string}`;
+    | `statementPassword:${string}`
+    | `importCard:${string}`;
   value: string | number | string[] | null;
 }
 
@@ -42,6 +44,8 @@ export class HouseholdHubDB extends Dexie {
   allocations!: Table<AllocationRow, string>;
   transfers!: Table<TransferRow, string>;
   budgets!: Table<BudgetRow, string>;
+  imports!: Table<ImportRow, string>;
+  drafts!: Table<DraftRow, string>;
   meta!: Table<MetaRow, MetaRow["key"]>;
 
   constructor() {
@@ -83,6 +87,12 @@ export class HouseholdHubDB extends Dexie {
     this.version(7).stores({ allocations: "id, [date+recordedHlc]" });
     this.version(8).stores({ transfers: "id, [date+recordedHlc]" });
     this.version(9).stores({ budgets: "id" });
+    // Drafts stay on this device, outside the event log (ADR 0008).
+    this.version(10).stores({
+      transactions: "id, [date+recordedHlc], importKey",
+      imports: "id",
+      drafts: "id, importId",
+    });
   }
 }
 
