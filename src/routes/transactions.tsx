@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { HeaderActions } from "@/components/layout/HeaderActions";
+import { HeaderActions, useHeaderSlot } from "@/components/layout/HeaderActions";
 import { PageShell } from "@/components/layout/PageShell";
 import { TransactionList } from "@/components/transactions/TransactionList";
 import { useHousehold } from "@/hooks/useHousehold";
@@ -19,14 +19,18 @@ function TransactionsPage() {
   const filter = Route.useSearch();
   const navigate = Route.useNavigate();
   const setFilter = (next: TransactionFilter) => void navigate({ search: next, replace: true });
+  const { mode } = useHeaderSlot();
 
   return (
     <>
-      <HeaderActions>
-        <Button asChild variant="outline" size="sm">
-          <Link to="/import">Import statement</Link>
-        </Button>
-      </HeaderActions>
+      {/* Phones reach Import from the drawer, leaving the header to Select. */}
+      {!mode && (
+        <HeaderActions>
+          <Button asChild variant="outline" size="sm" className="hidden md:inline-flex">
+            <Link to="/import">Import statement</Link>
+          </Button>
+        </HeaderActions>
+      )}
 
       {/* The list fills the main column and the detail pane beside it. */}
       <PageShell variant="rail">
@@ -35,6 +39,7 @@ function TransactionsPage() {
             actor={{ householdId: household.id, userId }}
             filter={filter}
             onFilterChange={setFilter}
+            expenseInParentheses
           />
         )}
       </PageShell>

@@ -43,6 +43,7 @@ test("a payroll distribution leaves the source account's Unassigned at ₱0", as
   await add.getByRole("radio", { name: "Income" }).check();
   await add.getByLabel("Amount (₱)").fill("40000");
   await chooseOption(page, add.getByLabel("Account"), "BPI");
+  await add.getByLabel("Description", { exact: true }).fill("Payday");
   await add.getByRole("button", { name: "Add transaction" }).click();
   await expect(add).toBeHidden();
   await page.getByRole("button", { name: "Distribute" }).click();

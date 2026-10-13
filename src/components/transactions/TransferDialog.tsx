@@ -55,16 +55,26 @@ import {
   SAVED_LOCALLY,
   useFocusNewEntry,
 } from "./EntryFields";
+import { confirmRemoval } from "./confirmRemoval";
+import { transferName } from "./transferName";
 
-/** Removes the transfer, offering Undo (a restore event) in the toast. */
-export async function removeTransferWithUndo(actor: Actor, transfer: TransferRow): Promise<void> {
+/**
+ * Asks first, then removes the transfer, offering Undo (a restore event) in
+ * the toast. Resolves whether it was removed.
+ */
+export async function removeTransferWithUndo(
+  actor: Actor,
+  transfer: TransferRow,
+  name: string
+): Promise<boolean> {
+  if (!(await confirmRemoval(name, transfer.amountCents))) return false;
   try {
     await removeTransfer(actor, transfer.id);
   } catch (caught) {
     toast.error(errorMessage(caught, "Couldn't remove the transfer."));
-    return;
+    return false;
   }
-  toast.success(`Removed ${transferLabel(transfer)}`, {
+  toast.success(`Removed ${name || transferLabel(transfer)}`, {
     action: {
       label: "Undo",
       onClick: () =>
@@ -73,6 +83,7 @@ export async function removeTransferWithUndo(actor: Actor, transfer: TransferRow
         ),
     },
   });
+  return true;
 }
 
 export function TransferDialog({
@@ -325,10 +336,12 @@ export function TransferForm({
     );
   }
 
-  const remove = () => {
+  const remove = async () => {
     if (!transfer) return;
-    onClose();
-    void removeTransferWithUndo(actor, transfer);
+    const accountNameOf = (id: string) =>
+      allAccounts.find((account) => account.id === id)?.name ?? "";
+    const name = transferName(transfer, accountNameOf, null);
+    if (await removeTransferWithUndo(actor, transfer, name)) onClose();
   };
 
   return (
@@ -453,7 +466,7 @@ export function TransferForm({
       <FormError>{error}</FormError>
       <FormFooter className="@[480px]:justify-between">
         {transfer ? (
-          <Button type="button" variant="outline" onClick={remove}>
+          <Button type="button" variant="outline" onClick={() => void remove()}>
             Remove
           </Button>
         ) : (
