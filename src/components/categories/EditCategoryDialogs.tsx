@@ -1,5 +1,4 @@
 import { useActionState, useState, useTransition } from "react";
-import { format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
@@ -37,6 +36,7 @@ import { sameOwnership } from "@/lib/events/log";
 import { sumCategoryMoney } from "@/lib/transactions/money";
 import { errorMessage } from "@/lib/utils";
 import { GroupSelect } from "./GroupSelect";
+import { todayLocalDate } from "@/lib/utils/dates";
 
 const VISIBILITY_SUMMARY = {
   household: "Household: every member sees it.",
@@ -259,7 +259,7 @@ function RetireMovingMoneyDialog({
       try {
         await retireCategory(actor, category.id, {
           toCategoryId: String(formData.get("toCategoryId") ?? ""),
-          date: format(new Date(), "yyyy-MM-dd"),
+          date: todayLocalDate(),
         });
         toast.success(`${category.name} retired`);
         onClose();

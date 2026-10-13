@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
-import { parseLocalDate } from "@/lib/utils/dates";
+import { parseLocalDate, todayLocalDate } from "@/lib/utils/dates";
 
 interface DatePickerProps {
   value?: Date;
@@ -55,7 +55,7 @@ export function DatePicker({ value, onChange, disabled, placeholder }: DatePicke
       type="date"
       value={value ? format(value, "yyyy-MM-dd") : ""}
       onChange={handleDateChange}
-      max={format(new Date(), "yyyy-MM-dd")}
+      max={todayLocalDate()}
       disabled={disabled}
       placeholder={placeholder}
       aria-label="Select transaction date"

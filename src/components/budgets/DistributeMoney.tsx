@@ -45,7 +45,7 @@ import {
 } from "@/lib/currency";
 import { isLocalDate } from "@/lib/transactions/events";
 import { errorMessage } from "@/lib/utils";
-import { localMonth } from "@/lib/utils/dates";
+import { localMonth, monthOfDate } from "@/lib/utils/dates";
 
 interface Props {
   actor: Actor;
@@ -102,7 +102,7 @@ function DistributeForm({
   const [date, setDate] = useState(initialDate);
   const [amountText, setAmountText] = useState(initialAmount ?? "");
   const source = sources.find((account) => account.id === sourceId);
-  const month = isLocalDate(date) ? date.slice(0, 7) : localMonth(new Date());
+  const month = isLocalDate(date) ? monthOfDate(date) : localMonth(new Date());
   const lines = useDistributeLines(sourceId, month, mode);
   const holdsCategories = source !== undefined && categoriesHeldBy(categories, source).length > 0;
 

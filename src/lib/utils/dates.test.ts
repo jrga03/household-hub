@@ -6,7 +6,14 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { isLocalMonth, localMonth, monthLabel, parseLocalDate, shiftMonth } from "./dates";
+import {
+  isLocalMonth,
+  localMonth,
+  monthLabel,
+  parseLocalDate,
+  shiftMonth,
+  todayLocalDate,
+} from "./dates";
 
 beforeAll(() => {
   // Fix a non-UTC timezone so a UTC-midnight parse regression is detectable
@@ -78,5 +85,18 @@ describe("months", () => {
 
   it("gives the local calendar month", () => {
     expect(localMonth(new Date(2026, 9, 31, 23, 59))).toBe("2026-10");
+  });
+});
+
+describe("todayLocalDate", () => {
+  it("gives the local calendar day, not the UTC one", () => {
+    vi.useFakeTimers();
+    // 7:30 on 1 Nov in Manila is still 31 Oct in UTC.
+    vi.setSystemTime(new Date("2026-10-31T23:30:00Z"));
+    try {
+      expect(todayLocalDate()).toBe("2026-11-01");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

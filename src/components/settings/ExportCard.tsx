@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { format } from "date-fns";
 import { toast } from "sonner";
 import { FileJson, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,15 +8,17 @@ import { readTransactionsCsv } from "@/lib/export/transactions-csv";
 import { reportError } from "@/lib/sentry";
 import { errorMessage } from "@/lib/utils";
 import { downloadCsv, downloadJson } from "@/lib/utils/download";
-
-const today = () => format(new Date(), "yyyy-MM-dd");
+import { todayLocalDate } from "@/lib/utils/dates";
 
 async function exportTransactions() {
-  downloadCsv(`household-hub-transactions-${today()}.csv`, await readTransactionsCsv());
+  downloadCsv(`household-hub-transactions-${todayLocalDate()}.csv`, await readTransactionsCsv());
 }
 
 async function exportEventLog() {
-  downloadJson(`household-hub-event-log-${today()}.json`, await readEventLogExport(new Date()));
+  downloadJson(
+    `household-hub-event-log-${todayLocalDate()}.json`,
+    await readEventLogExport(new Date())
+  );
 }
 
 /** Both downloads are built on this device, from what it holds; they work offline. */

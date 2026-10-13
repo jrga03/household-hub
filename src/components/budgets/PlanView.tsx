@@ -37,7 +37,7 @@ import { setBudget } from "@/lib/commands/budgets";
 import { formatPHP, formatPHPInput, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
 import type { AccountMoney } from "@/lib/transactions/money";
 import { cn, errorMessage } from "@/lib/utils";
-import { parseLocalDate, shiftMonth } from "@/lib/utils/dates";
+import { parseLocalDate, shiftMonth, todayLocalDate } from "@/lib/utils/dates";
 import { DistributeMoney } from "./DistributeMoney";
 import { SetBudgetDialog } from "./SetBudgetDialog";
 
@@ -198,7 +198,7 @@ export function PlanView({
             mode={distribute.mode}
             initialAccountId={distribute.accountId}
             initialAmount={distribute.amount}
-            initialDate={distribute.date ?? format(new Date(), "yyyy-MM-dd")}
+            initialDate={distribute.date ?? todayLocalDate()}
             onDone={() => onDistribute(null)}
           />
         </FormSheet>
