@@ -129,7 +129,7 @@ Spec: #95. Scoped 2026-10-13 (decisions above). ADR 0008. Build rounds: {#96, #9
 - [x] #96 Home sections and the Finances overview (Household / Mine); PR #101
 - [ ] #97 Statement parsing foundation: Web Worker, `StatementParser`, BDO PDF parser, offline precache, import chunk budget, remembered password
 - [ ] #99 Drafts and review (blocked by #97): drafts table, `/import`, import keys, duplicate and card-payment flags, `DraftSuggester` with history, save and discard, wipe and sign-out warning
-- [ ] #98 UnionBank XLSX parser (blocked by #97)
+- [ ] #98 UnionBank XLSX parser (blocked by #97), built 2026-10-13
 - [ ] Close #95
 
 ### #96 decisions
@@ -166,6 +166,30 @@ Spec: #95. Scoped 2026-10-13 (decisions above). ADR 0008. Build rounds: {#96, #9
 - **The synthetic fixture is regenerated with `node scripts/make-statement-fixtures.mjs`**, which needs `qpdf` (Homebrew); CI reads the committed PDF.
 - **The real-statement result stays in this doc, not on #97 or the PR.** Why: the user's call (2026-10-13). Revisit: never.
 - **A recognised statement with no lines shows "0 lines read" with no explanation.** Why: the review screen that explains it is #99's. Revisit: #99.
+
+### #98 UnionBank XLSX parser
+
+- [x] Office agile decryption (`office-encryption.ts`): `cfb` opens the container, a synchronous SHA-512/384 (`sha512.ts`) derives the key, WebCrypto AES-CBC decrypts; wrong password caught by the verifier hash
+- [x] Zip reader on `DecompressionStream` (`zip.ts`) and a regex SpreadsheetML reader for shared and inline strings (`xlsx.ts`)
+- [x] UnionBank parser (`unionbank-xlsx.ts`), registered as a per-file-password format; synthetic fixture test (purchases, a refund, a fee reversal, a card payment), wrong password, no password, a workbook that isn't a statement, a file that isn't a workbook
+- [x] Code review (standards and spec): card-payment rule tightened, date cells read as text, AES key imported once
+- [x] Real-statement test: every line adds up to the statement's PURCHASES & ADVANCES, PAYMENTS & CREDITS and TOTAL AMOUNT DUE; passes on the user's three statements (Jul to Sep 2026: 29, 68 and 92 lines; Jul and Aug match the `unionbank-statement-parser` skill's counts), one card payment each in Aug and Sep
+- [x] e2e: the synthetic UnionBank XLSX reads offline, with no "Remember password" (chromium and Mobile Chrome)
+- [x] Import worker 552.7 KB gz (was 535.9; `cfb` is most of it), inside the 590 budget, unchanged
+- [x] PR #105
+
+#### #98 decisions
+
+- **The 100,000-round password hash runs in a synchronous SHA-512/384, not `crypto.subtle.digest`.** Why: each round awaits the previous one, so WebCrypto took 4.9 s in Node; in-thread it takes 0.3 s. WebCrypto still does the AES. Only AES-CBC with SHA-384 or SHA-512 is accepted (Excel's default and UnionBank's); anything else is a reported "failed". Revisit: if a bank sends another cipher.
+- **A card payment is a credit whose description has the word PAYMENT but not FEE, CHARGE or REVERSAL.** UnionBank's are "BDO BILLS PAYMENT -CASH"; refunds (Shopee, GSM) and fee reversals ("LATE PAYMENT FEE REVERSAL") aren't flagged. Looser than BDO's `^PAYMENT RECEIVED` because UnionBank names the paying channel. Revisit: when a payment shows up unflagged or a refund flagged.
+- **UnionBank prints one date per line; it is both purchase and posting date.**
+- **The CURRENCY column is ignored**: PHP on every line of all three statements. Revisit: if a non-PHP line appears.
+- **The parser doesn't reconcile against the statement's totals; the real-statement test does**, as for BDO. Why: the review screen (#99) is where a mismatch would be shown. Revisit: #99.
+- **Dates are read only as `MM/DD/YYYY` text**, as on all three statements; date-typed cells and two-digit years aren't. Why: no statement uses them. Revisit: if a statement reads with lines missing.
+- **An unencrypted .xlsx is "not a statement in this format".** Why: UnionBank always encrypts. Revisit: if someone re-saves a statement without its password.
+- **The synthetic XLSX is encrypted by `msoffcrypto-tool`** (via `uvx`), an implementation independent of ours. Its worksheet is stored uncompressed so the package passes 4 KB: msoffcrypto writes smaller packages (the compound file's mini stream) corruptly.
+- **Real UnionBank passwords live in `.env.local` as `UB_STATEMENT_PASSWORD_<yymm>`**, matched to the statement file name's leading `yymm`, since each file has its own.
+- **`/import`'s Format and Card selects are keyed by their value.** Why: Radix Select returns to its first value on form reset, which React 19 does after every action, so a second read silently switched back to BDO (and to the first card). Other action forms that stay open after an error may have the same bug: #104.
 
 ## Milestone 3
 

@@ -376,6 +376,7 @@ export default [
         alert: "readonly",
         TextEncoder: "readonly",
         TextDecoder: "readonly",
+        atob: "readonly",
         BeforeInstallPromptEvent: "readonly",
         Navigator: "readonly",
       },

@@ -15,7 +15,7 @@ export interface StatementLine {
   isCardPayment: boolean;
 }
 
-export type StatementFormatId = "bdo-credit-card-pdf";
+export type StatementFormatId = "bdo-credit-card-pdf" | "unionbank-credit-card-xlsx";
 
 export interface StatementFormat {
   id: StatementFormatId;
