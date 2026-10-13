@@ -119,7 +119,7 @@ describe("PlanView", () => {
     expect(await budgetIn("2026-09", category.id)).not.toBeNull();
   });
 
-  it("hints what the category spent last month and this month", async () => {
+  it("hints what the category spent last month and this month, and the money it holds", async () => {
     const { bpi, category } = await groceries();
     for (const [date, amount] of [
       ["2026-09-20", "2500"],
@@ -137,7 +137,7 @@ describe("PlanView", () => {
     renderPlan();
 
     expect(await screen.findByRole("textbox", { name: "Groceries" })).toHaveAccessibleDescription(
-      "Spent Sep ₱2,500.00 · Oct ₱1,200.00"
+      "Spent Sep ₱2,500.00 · Oct ₱1,200.00 Holds -₱3,700.00"
     );
   });
 

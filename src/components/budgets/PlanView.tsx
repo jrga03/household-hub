@@ -357,7 +357,7 @@ function UnassignedByAccount({
   );
 }
 
-/** A category's budget for the month, typed in place, with what it spent as hints. */
+/** A category's budget for the month, typed in place, with what it spent and the money it holds as hints. */
 function PlanRow({
   actor,
   category,
@@ -384,6 +384,7 @@ function PlanRow({
   const stored = budget ? formatPHPInput(budget.amountCents) : "";
   const inputId = `plan-${category.id}`;
   const hintId = `${inputId}-hint`;
+  const moneyId = `${inputId}-money`;
   const spentIn = (view: MonthView) => formatPHP(categoryMonth(view, category.id).spent);
 
   const save = async () => {
@@ -419,6 +420,9 @@ function PlanRow({
           Spent {shortMonth(shiftMonth(month, -1))} {spentIn(spent.last)} · {shortMonth(month)}{" "}
           {spentIn(spent.this)}
         </p>
+        <p id={moneyId} className="truncate text-xs text-muted-foreground">
+          Holds <MoneyAmount cents={categoryMonth(spent.this, category.id).money} />
+        </p>
       </div>
       <Input
         id={inputId}
@@ -427,7 +431,7 @@ function PlanRow({
         autoComplete="off"
         placeholder="0.00"
         enterKeyHint={isLast ? "done" : "next"}
-        aria-describedby={hintId}
+        aria-describedby={`${hintId} ${moneyId}`}
         value={draft ?? stored}
         onFocus={() => setDraft((current) => current ?? stored)}
         onChange={(event) => setDraft(event.target.value)}

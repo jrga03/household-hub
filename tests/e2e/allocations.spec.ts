@@ -7,9 +7,12 @@ const unassignedItem = (page: Page) =>
     .getByRole("listitem")
     .filter({ hasText: "BDO Savings" });
 
-/** What a category or group has left this month, on Budget. */
-const left = (page: Page, name: string) =>
-  page.getByLabel(`${name} allocated, spent and left`).locator("dd").last();
+/** The money a category holds, on its Plan row. */
+const holds = (page: Page, name: string) =>
+  page
+    .getByRole("listitem")
+    .filter({ has: page.getByRole("textbox", { name, exact: true }) })
+    .getByText(/^Holds/);
 
 test("moving money between envelopes, past Unassigned, with an undoable removal", async ({
   page,
@@ -71,11 +74,10 @@ test("moving money between envelopes, past Unassigned, with an undoable removal"
   await expect(allocations.getByRole("listitem")).toHaveCount(2);
   await expect(unassignedItem(page)).toContainText("-₱3,000.00");
 
+  await expect(holds(page, "Groceries")).toHaveText("Holds ₱8,000.00");
+
   await page.getByRole("button", { name: "Back" }).click();
   await expect(page).toHaveURL(/\/budget$/);
-  await expect(left(page, "Groceries")).toHaveText("₱8,000.00");
-  await expect(left(page, "Food")).toHaveText("₱8,000.00");
-
   await navigateTo(page, "Categories");
   await page.getByRole("button", { name: "Edit Groceries" }).click();
   await page.getByRole("button", { name: "Retire category" }).click();
@@ -86,7 +88,7 @@ test("moving money between envelopes, past Unassigned, with an undoable removal"
   await expect(retire).toBeHidden();
   await expect(page.getByRole("list", { name: "Food categories" })).not.toContainText("Groceries");
 
-  await navigateTo(page, "Budget");
-  await expect(page.getByLabel("Groceries allocated, spent and left")).toHaveCount(0);
-  await expect(left(page, "Restaurants")).toHaveText("₱8,000.00");
+  await page.goto("/plan");
+  await expect(page.getByRole("textbox", { name: "Groceries", exact: true })).toHaveCount(0);
+  await expect(holds(page, "Restaurants")).toHaveText("Holds ₱8,000.00");
 });

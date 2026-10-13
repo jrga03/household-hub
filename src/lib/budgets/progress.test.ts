@@ -1,37 +1,55 @@
 import { describe, expect, it } from "vitest";
 import { negateCents, parsePHP, ZERO_CENTS } from "@/lib/currency";
-import { budgetProgress } from "./progress";
+import { budgetProgress, budgetStatus } from "./progress";
 
-/** "-" before an amount makes it negative, as an overspent category's money is. */
-const cents = (amount: string) =>
-  amount.startsWith("-") ? negateCents(parsePHP(amount.slice(1))) : parsePHP(amount);
-
-const figures = (spent: string, left: string) => ({ spent: cents(spent), money: cents(left) });
+const peso = (amount: string) => parsePHP(amount);
 
 describe("budgetProgress", () => {
-  it("fills by the share of the category's money already spent", () => {
-    expect(budgetProgress(figures("1200", "6800"))).toEqual({ percent: 15, overspent: false });
+  it("fills by the share of the budget spent, with the rest left", () => {
+    expect(budgetProgress(peso("8000"), peso("1200"))).toEqual({
+      left: peso("6800"),
+      percent: 15,
+      overspent: false,
+    });
   });
 
-  it("is full and overspent once the money left goes negative", () => {
-    expect(budgetProgress(figures("9000", "-1000"))).toEqual({ percent: 100, overspent: true });
+  it("is full and overspent once spending passes the budget, with left negative", () => {
+    expect(budgetProgress(peso("1000"), peso("10500"))).toEqual({
+      left: negateCents(peso("9500")),
+      percent: 100,
+      overspent: true,
+    });
   });
 
-  it("is full but not overspent when everything is spent exactly", () => {
-    expect(budgetProgress(figures("8000", "0"))).toEqual({ percent: 100, overspent: false });
-  });
-
-  it("is empty for a category with no money and no spending", () => {
-    expect(budgetProgress({ spent: ZERO_CENTS, money: ZERO_CENTS })).toEqual({
-      percent: 0,
+  it("is full but not overspent when the budget is spent exactly", () => {
+    expect(budgetProgress(peso("8000"), peso("8000"))).toEqual({
+      left: ZERO_CENTS,
+      percent: 100,
       overspent: false,
     });
   });
 
   it("is empty when refunds outweigh the month's spending", () => {
-    expect(budgetProgress(figures("-500", "1500"))).toEqual({
+    expect(budgetProgress(peso("8000"), negateCents(peso("500")))).toEqual({
+      left: peso("8500"),
       percent: 0,
       overspent: false,
     });
+  });
+
+  it("has nothing to show without a budget", () => {
+    expect(budgetProgress(ZERO_CENTS, peso("300"))).toBeNull();
+  });
+});
+
+describe("budgetStatus", () => {
+  it("is over only once spending passes the budget", () => {
+    expect(budgetStatus(peso("1000"), peso("1000"))).toBe("close");
+    expect(budgetStatus(peso("1000"), peso("1000.01"))).toBe("over");
+  });
+
+  it("is close from 80% spent", () => {
+    expect(budgetStatus(peso("1000"), peso("799.99"))).toBe("fine");
+    expect(budgetStatus(peso("1000"), peso("800"))).toBe("close");
   });
 });

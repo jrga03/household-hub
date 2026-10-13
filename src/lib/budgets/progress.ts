@@ -1,22 +1,31 @@
-import type { MonthFigures } from "./month";
+import { diffCents, type Cents } from "@/lib/currency";
+
+/** Where a month's spending stands against its budget. */
+export type BudgetStatus = "fine" | "close" | "over";
+
+/** A budget is close once this share of it is spent. */
+const CLOSE_PERCENT = 80;
+
+/** Home's Budgets counts and Budget's rows both use this, so they agree. */
+export function budgetStatus(budget: Cents, spent: Cents): BudgetStatus {
+  if (spent > budget) return "over";
+  // Compared without dividing cents.
+  if (budget > 0 && spent * 100 >= budget * CLOSE_PERCENT) return "close";
+  return "fine";
+}
 
 export interface BudgetProgress {
-  /** How much of the month's money is spent, 0 to 100. */
+  /** The budget less what was spent; negative once overspent. */
+  left: Cents;
+  /** Spent as a share of the budget, 0 to 100. */
   percent: number;
-  /** The category spent more than it held, so what's left is negative. */
   overspent: boolean;
 }
 
-/**
- * A Budget row's bar: spent against what the month had to spend, which is
- * what was spent plus what's left. Overspending fills the bar.
- */
-export function budgetProgress({
-  spent,
-  money,
-}: Pick<MonthFigures, "spent" | "money">): BudgetProgress {
-  if (money < 0) return { percent: 100, overspent: true };
-  const available = spent + money;
-  if (spent <= 0 || available <= 0) return { percent: 0, overspent: false };
-  return { percent: Math.min(100, Math.round((spent / available) * 100)), overspent: false };
+/** A Budget row's left and bar; null without a budget, which has nothing to compare against. */
+export function budgetProgress(budget: Cents, spent: Cents): BudgetProgress | null {
+  if (budget <= 0) return null;
+  const overspent = budgetStatus(budget, spent) === "over";
+  const percent = overspent ? 100 : Math.max(0, Math.round((spent / budget) * 100));
+  return { left: diffCents(budget, spent), percent, overspent };
 }

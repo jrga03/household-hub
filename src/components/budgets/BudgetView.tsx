@@ -36,18 +36,26 @@ import { formatPHP } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import { monthLabel } from "@/lib/utils/dates";
 
-/** A group's sums count its retired categories too, so a month's spending doesn't vanish on retiring. */
+/**
+ * A group's sums: its categories' budgets, as Home counts them, against all
+ * its spending, including categories without a budget and retired ones, so a
+ * month's spending doesn't vanish on retiring.
+ */
 function groupFigures(view: MonthView, list: CategoryList, group: GroupListItem): MonthFigures {
-  const retired = list.retiredCategories.filter((category) => category.group?.id === group.id);
-  return sumMonthFigures(
-    [...group.categories, ...retired].map((category) => categoryMonth(view, category.id))
-  );
+  const retired = list.retiredCategories
+    .filter((category) => category.group?.id === group.id)
+    .map((category) => ({ ...categoryMonth(view, category.id), budget: null }));
+  return sumMonthFigures([
+    ...group.categories.map((category) => categoryMonth(view, category.id)),
+    ...retired,
+  ]);
 }
 
 /**
- * The month's allocated, spent and left per category, view-only. Left is the
- * category's money, so it carries over and goes negative when overspent.
- * `month` is "yyyy-MM"; `currentMonth` is this month on this device.
+ * The month's budget, spent and left per category, view-only. Left is the
+ * budget less what was spent, as Home's Budgets counts compare them; the
+ * category's money is on Plan. `month` is "yyyy-MM"; `currentMonth` is this
+ * month on this device.
  */
 export function BudgetView({
   actor,
@@ -192,8 +200,7 @@ function GroupTotals({ group, figures }: { group: GroupListItem; figures: MonthF
   return (
     <div className="space-y-1.5 border-b bg-muted/40 px-3 py-2">
       <RecordName record={group} showRetired />
-      <SpentBar label={`${group.name} spent`} figures={figures} />
-      <Figures label={`${group.name} allocated, spent and left`} figures={figures} />
+      <BudgetFigures name={group.name} figures={figures} />
     </div>
   );
 }
@@ -214,59 +221,67 @@ function CategoryRows({
   }
   return (
     <ul aria-label={label} className="divide-y">
-      {categories.map((category) => {
-        const figures = sumMonthFigures([categoryMonth(view, category.id)]);
-        return (
-          <li key={category.id} className="relative space-y-1.5 px-3 py-2 pl-6 hover:bg-muted/40">
-            {/* Stretched over the row, so the whole row opens the ledger. */}
-            <button
-              type="button"
-              aria-label={`${category.name} ledger`}
-              className="flex max-w-full text-left after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-inset"
-              onClick={() => onOpenLedger(category.id)}
-            >
-              <RecordName record={category} />
-            </button>
-            <SpentBar label={`${category.name} spent`} figures={figures} />
-            <Figures label={`${category.name} allocated, spent and left`} figures={figures} />
-          </li>
-        );
-      })}
+      {categories.map((category) => (
+        <li key={category.id} className="relative space-y-1.5 px-3 py-2 pl-6 hover:bg-muted/40">
+          {/* Stretched over the row, so the whole row opens the ledger. */}
+          <button
+            type="button"
+            aria-label={`${category.name} ledger`}
+            className="flex max-w-full text-left after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-inset"
+            onClick={() => onOpenLedger(category.id)}
+          >
+            <RecordName record={category} />
+          </button>
+          <BudgetFigures
+            name={category.name}
+            figures={sumMonthFigures([categoryMonth(view, category.id)])}
+          />
+        </li>
+      ))}
     </ul>
   );
 }
 
-/** Spent against the month's money; full and red once overspent. */
-function SpentBar({ label, figures }: { label: string; figures: MonthFigures }) {
-  const { percent, overspent } = budgetProgress(figures);
+/**
+ * Budget, spent and left with a bar of spent against the budget, full and red
+ * once overspent. Without a budget there's nothing to compare: spent alone.
+ */
+function BudgetFigures({ name, figures }: { name: string; figures: MonthFigures }) {
+  const progress = budgetProgress(figures.budget, figures.spent);
   return (
-    <Progress
-      aria-label={label}
-      value={percent}
-      data-overspent={overspent || undefined}
-      className={cn("pointer-events-none h-1.5", overspent && "bg-destructive/20")}
-      indicatorClassName={overspent ? "bg-destructive" : undefined}
-    />
-  );
-}
-
-function Figures({ label, figures }: { label: string; figures: MonthFigures }) {
-  return (
-    <dl aria-label={label} className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
-      <div className="min-w-0">
-        <dt>Allocated</dt>
-        <dd className="truncate tabular-nums text-foreground">{formatPHP(figures.allocated)}</dd>
-      </div>
-      <div className="min-w-0">
-        <dt>Spent</dt>
-        <dd className="truncate tabular-nums text-foreground">{formatPHP(figures.spent)}</dd>
-      </div>
-      <div className="min-w-0 text-right">
-        <dt>Left</dt>
-        <dd className="truncate text-sm font-medium text-foreground">
-          <MoneyAmount cents={figures.money} />
-        </dd>
-      </div>
-    </dl>
+    <>
+      {progress && (
+        <Progress
+          aria-label={`${name} spent`}
+          value={progress.percent}
+          data-overspent={progress.overspent || undefined}
+          className={cn("pointer-events-none h-1.5", progress.overspent && "bg-destructive/20")}
+          indicatorClassName={progress.overspent ? "bg-destructive" : undefined}
+        />
+      )}
+      <dl
+        aria-label={`${name} budget, spent and left`}
+        className="grid grid-cols-3 gap-2 text-xs text-muted-foreground"
+      >
+        <div className="min-w-0">
+          <dt>Budget</dt>
+          <dd className="truncate tabular-nums text-foreground">
+            {progress ? formatPHP(figures.budget) : "None"}
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt>Spent</dt>
+          <dd className="truncate tabular-nums text-foreground">{formatPHP(figures.spent)}</dd>
+        </div>
+        {progress && (
+          <div className="min-w-0 text-right">
+            <dt>Left</dt>
+            <dd className="truncate text-sm font-medium text-foreground">
+              <MoneyAmount cents={progress.left} />
+            </dd>
+          </div>
+        )}
+      </dl>
+    </>
   );
 }
