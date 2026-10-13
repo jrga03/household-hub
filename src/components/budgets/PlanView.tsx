@@ -260,7 +260,7 @@ function ToAssignBar({
       </div>
       {listed.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Add a bank, cash or e-wallet account on Home first.
+          Add a bank, cash or e-wallet account on Accounts first.
         </p>
       ) : (
         <>
