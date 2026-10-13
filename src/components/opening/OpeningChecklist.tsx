@@ -108,9 +108,11 @@ function Step({
           </p>
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
-        <Button asChild variant={done ? "ghost" : "outline"} size="sm" className="shrink-0">
-          {action}
-        </Button>
+        {!done && (
+          <Button asChild variant="outline" size="sm" className="shrink-0">
+            {action}
+          </Button>
+        )}
       </div>
     </li>
   );

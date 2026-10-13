@@ -48,7 +48,7 @@ const bothResults = (a: BulkResult, b: BulkResult): BulkResult => ({
 });
 
 /** Runs the transaction and transfer commands on their own part of the selection. */
-async function onEach(
+async function splitByKind(
   rows: ListRow[],
   onTransactions: (ids: string[]) => Promise<BulkResult>,
   onTransfers: (ids: string[]) => Promise<BulkResult>
@@ -144,7 +144,7 @@ export function SelectionActions({
     if (!confirmed) return;
     runBulk(
       () =>
-        onEach(
+        splitByKind(
           selected,
           (some) => removeTransactions(actor, some),
           (some) => removeTransfers(actor, some)
@@ -154,7 +154,7 @@ export function SelectionActions({
           action: {
             label: "Undo",
             onClick: () =>
-              void onEach(
+              void splitByKind(
                 selected.filter((row) => result.changed.includes(row.id)),
                 (some) => restoreTransactions(actor, some),
                 (some) => restoreTransfers(actor, some)

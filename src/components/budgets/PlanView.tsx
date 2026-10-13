@@ -37,9 +37,10 @@ import { setBudget } from "@/lib/commands/budgets";
 import { formatPHP, formatPHPInput, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
 import type { AccountMoney } from "@/lib/transactions/money";
 import { cn, errorMessage } from "@/lib/utils";
-import { parseLocalDate, shiftMonth } from "@/lib/utils/dates";
+import { parseLocalDate, shiftMonth, todayLocalDate } from "@/lib/utils/dates";
 import { DistributeMoney } from "./DistributeMoney";
 import { SetBudgetDialog } from "./SetBudgetDialog";
+import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 
 /** Opened from the route's search, so a payday toast or the checklist can link straight to it. */
 export interface DistributeRequest {
@@ -86,12 +87,11 @@ export function PlanView({
   const lastMonth = useMonthView(shiftMonth(month, -1), currentMonth);
   const [moving, setMoving] = useState<Moving>(null);
   const [detailsId, setDetailsId] = useState<string | null>(null);
+  const inUse = list && [...list.groups.flatMap((group) => group.categories), ...list.ungrouped];
+  const details = inUse?.find((category) => category.id === detailsId);
+  useCloseWhenGone(detailsId, inUse && (details ?? null), () => setDetailsId(null));
 
-  if (!list || !accounts || !accountNames || !thisMonth || !lastMonth) return null;
-  const inUse = [...list.groups.flatMap((group) => group.categories), ...list.ungrouped];
-  const details = inUse.find((category) => category.id === detailsId);
-  // Another device retired it mid-edit: drop it, so unretiring later doesn't reopen the dialog.
-  if (detailsId !== null && !details) setDetailsId(null);
+  if (!list || !inUse || !accounts || !accountNames || !thisMonth || !lastMonth) return null;
   const lastId = inUse.at(-1)?.id;
 
   const rows = (categories: CategoryRow[]) =>
@@ -198,7 +198,7 @@ export function PlanView({
             mode={distribute.mode}
             initialAccountId={distribute.accountId}
             initialAmount={distribute.amount}
-            initialDate={distribute.date ?? format(new Date(), "yyyy-MM-dd")}
+            initialDate={distribute.date ?? todayLocalDate()}
             onDone={() => onDistribute(null)}
           />
         </FormSheet>
@@ -260,18 +260,25 @@ function ToAssignBar({
       </div>
       {listed.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Add a bank, cash or e-wallet account on Home first.
+          Add a bank, cash or e-wallet account on Accounts first.
         </p>
       ) : (
         <>
           <Button
-            variant="link"
-            className="h-auto gap-1 p-0"
+            variant="ghost"
+            size="sm"
+            className="-ml-2 self-start"
             aria-expanded={expanded}
             onClick={() => setExpanded(!expanded)}
           >
             By account
-            <ChevronDown className={cn("transition-transform", expanded && "rotate-180")} />
+            <ChevronDown
+              aria-hidden="true"
+              className={cn(
+                "transition-transform motion-reduce:transition-none",
+                expanded && "rotate-180"
+              )}
+            />
           </Button>
           {expanded && (
             <UnassignedByAccount
@@ -304,8 +311,7 @@ function UnassignedByAccount({
 }) {
   const [payingCardId, setPayingCardId] = useState<string | null>(null);
   const payingCard = accounts.find((account) => account.id === payingCardId);
-  // Another device retired it mid-payment: drop it, so unretiring later doesn't reopen the dialog.
-  if (payingCardId && !payingCard) setPayingCardId(null);
+  useCloseWhenGone(payingCardId, payingCard ?? null, () => setPayingCardId(null));
   const payableFrom = (cardId: string, accountId: string) =>
     accounts.some((card) => card.id === cardId && card.payingAccountId === accountId);
 

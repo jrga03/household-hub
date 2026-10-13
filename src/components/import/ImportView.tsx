@@ -82,8 +82,7 @@ export function ImportView({ actor }: { actor: Actor }) {
           <CardHeader>
             <CardTitle>Read a statement</CardTitle>
             <CardDescription>
-              The file and its password never leave this device. Its lines wait below as drafts
-              until you save or discard them.
+              Its lines wait below as drafts until you save or discard them.
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -12,6 +12,7 @@ import {
   type CategoryRow,
   type GroupListItem,
 } from "@/lib/categories/projection";
+import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 import { seedDefaultCategories, unretireCategory, unretireGroup } from "@/lib/commands/categories";
 import type { Actor } from "@/lib/commands/accounts";
 import { errorMessage } from "@/lib/utils";
@@ -34,11 +35,13 @@ function findEditing(list: CategoryList, editing: Editing) {
 export function CategoriesView({ actor }: { actor: Actor }) {
   const list = useCategoryList();
   const [editing, setEditing] = useState<Editing>(null);
+  const found = list && findEditing(list, editing);
+  useCloseWhenGone(editing, found && (found.group ?? found.category ?? null), () =>
+    setEditing(null)
+  );
 
-  if (!list) return null;
-  const { group: editingGroup, category: editingCategory } = findEditing(list, editing);
-  // Another device retired it mid-edit: drop it, so unretiring later doesn't reopen the dialog.
-  if (editing && !editingGroup && !editingCategory) setEditing(null);
+  if (!list || !found) return null;
+  const { group: editingGroup, category: editingCategory } = found;
   const groupsInUse = list.groups.filter((group) => !group.retired);
   const editCategory = (id: string) => setEditing({ kind: "category", id });
 

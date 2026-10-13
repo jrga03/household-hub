@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { LogOut, Menu, User, X } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { useReviewCount } from "@/hooks/useReviewCount";
 import { useAuthStore } from "@/stores/authStore";
 import { signOutWithToast } from "@/lib/sign-out";
 import { cn } from "@/lib/utils";
-import { DRAWER_NAV, isNavItemActive } from "./nav";
+import { DRAWER_NAV, useIsNavItemActive } from "./nav";
 import { ReviewCountBadge, ReviewDot, reviewLabel } from "./ReviewCount";
 
 /**
@@ -24,9 +24,9 @@ interface MobileNavProps {
 }
 
 export function MobileNav({ open, onOpenChange }: MobileNavProps) {
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const user = useAuthStore((state) => state.user);
   const reviewCount = useReviewCount();
+  const isActive = useIsNavItemActive();
 
   const handleSignOut = async () => {
     await signOutWithToast();
@@ -65,7 +65,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
         <ScrollArea className="flex-1 min-h-0">
           <div className="space-y-1 px-3 py-2">
             {DRAWER_NAV.map((item) => {
-              const active = isNavItemActive(item.to, pathname);
+              const active = isActive(item.to);
               return (
                 <Link
                   key={item.to}

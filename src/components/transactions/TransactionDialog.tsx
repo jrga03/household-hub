@@ -1,6 +1,5 @@
 import { useActionState, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { format } from "date-fns";
 import { toast } from "sonner";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { Button } from "@/components/ui/button";
@@ -51,6 +50,7 @@ import {
 import { categoryChoices, CategorySelect, isCategoryChoice, UNASSIGNED } from "./CategorySelect";
 import { removeWithUndo } from "./removeWithUndo";
 import { TransferForm } from "./TransferDialog";
+import { todayLocalDate } from "@/lib/utils/dates";
 
 /** Add when `transaction` is left out; edit otherwise. */
 export function TransactionDialog({
@@ -97,7 +97,7 @@ export function TransactionEditor({
     : accounts;
 
   if (accountChoices.length === 0) {
-    return <p className="text-sm text-muted-foreground">Add an account on Home first.</p>;
+    return <p className="text-sm text-muted-foreground">Add an account on Accounts first.</p>;
   }
   if (transaction) {
     return (
@@ -327,7 +327,7 @@ function TransactionForm({
             name="date"
             type="date"
             required
-            defaultValue={transaction?.date ?? format(new Date(), "yyyy-MM-dd")}
+            defaultValue={transaction?.date ?? todayLocalDate()}
           />
         </div>
         <div className="space-y-2">

@@ -8,7 +8,8 @@ import type { TransactionStatus } from "@/lib/transactions/events";
 import { isTransfer, type ListRow } from "@/lib/transactions/filter";
 import { cn, errorMessage } from "@/lib/utils";
 import { removeWithUndo } from "./removeWithUndo";
-import { spokenAmount, TransactionAmount, type AmountDirection } from "./TransactionAmount";
+import type { RowDisplay } from "./rowDisplay";
+import { AMOUNT_DIRECTION, spokenAmount, TransactionAmount } from "./TransactionAmount";
 import { removeTransferWithUndo } from "./TransferDialog";
 import { REVEAL_WIDTH, useRowGestures, type RevealedAction } from "./useRowGestures";
 
@@ -16,19 +17,6 @@ const OTHER_STATUS: Record<TransactionStatus, TransactionStatus> = {
   cleared: "pending",
   pending: "cleared",
 };
-
-const AMOUNT_COLOR: Record<AmountDirection, string> = {
-  in: "text-income",
-  out: "",
-  moved: "text-muted-foreground",
-};
-
-/** What a row shows: its name, the muted line beneath it and which way its money went. */
-export interface RowDisplay {
-  label: string;
-  detail: string;
-  direction: AmountDirection;
-}
 
 interface TransactionItemProps {
   actor: Actor;
@@ -42,7 +30,6 @@ interface TransactionItemProps {
   /** A tap: opens the row, or toggles it while selecting. */
   onTap: () => void;
   onLongPress: () => void;
-  /** "(₱250.00)" instead of "−₱250.00"; only the Transactions page asks for it. */
   expenseInParentheses?: boolean;
 }
 
@@ -164,7 +151,7 @@ export function TransactionItem({
             <span
               className={cn(
                 "shrink-0 tabular-nums",
-                pending ? "text-muted-foreground" : AMOUNT_COLOR[direction]
+                pending ? "text-muted-foreground" : AMOUNT_DIRECTION[direction].className
               )}
             >
               <TransactionAmount

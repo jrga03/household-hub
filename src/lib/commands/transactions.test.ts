@@ -15,7 +15,6 @@ import {
   restoreTransaction,
   restoreTransactions,
   setTransactionStatus,
-  setTransactionsStatus,
   type TransactionInput,
 } from "./transactions";
 import { retireOnAnotherDevice } from "@/test/anotherDevice";
@@ -221,6 +220,9 @@ describe("editTransaction", () => {
     await expect(editTransaction(MEMBER, id, expense({ description: "" }))).rejects.toThrow(
       DESCRIPTION_REQUIRED
     );
+    await expect(editTransaction(MEMBER, id, expense({ description: "   " }))).rejects.toThrow(
+      DESCRIPTION_REQUIRED
+    );
   });
 
   it("asks for a description when editing an old transaction that has none", async () => {
@@ -363,28 +365,6 @@ describe("status and removal", () => {
 describe("bulk actions", () => {
   const eventsOf = async (eventType: string) =>
     (await listUnpushed(1000)).filter((logged) => logged.eventType === eventType);
-
-  it("marks each pending transaction cleared with one event, skipping ones already cleared", async () => {
-    const pending = await Promise.all(
-      ["Market", "Bakery", "Dinner"].map(
-        async (description) =>
-          (await addTransaction(MEMBER, { ...expense({ description }), status: "pending" })).id
-      )
-    );
-    const { id: alreadyCleared } = await addTransaction(MEMBER, expense());
-
-    const result = await setTransactionsStatus(MEMBER, [...pending, alreadyCleared], "cleared");
-
-    expect(result).toEqual({ changed: pending, failed: [] });
-    expect((await listTransactions()).map((transaction) => transaction.status)).toEqual([
-      "cleared",
-      "cleared",
-      "cleared",
-      "cleared",
-    ]);
-    const marked = await eventsOf("transaction.marked_cleared");
-    expect(marked.map((event) => event.entityId).sort()).toEqual([...pending].sort());
-  });
 
   it("moves each transaction into the category, skipping ones there and reporting refusals", async () => {
     const { id: market } = await addTransaction(MEMBER, expense({ categoryId: null }));

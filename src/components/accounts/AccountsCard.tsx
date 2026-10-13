@@ -24,6 +24,7 @@ import { EditAccountDialog } from "./EditAccountDialog";
 import { PayCardDialog } from "./PayCardDialog";
 import { FormError } from "@/components/ui/form-error";
 import { errorMessage } from "@/lib/utils";
+import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 
 export function AccountsCard({ actor }: { actor: Actor }) {
   const accounts = useAccounts();
@@ -31,9 +32,8 @@ export function AccountsCard({ actor }: { actor: Actor }) {
   const [payingId, setPayingId] = useState<string | null>(null);
   const editing = accounts?.find((account) => account.id === editingId);
   const paying = accounts?.find((account) => account.id === payingId);
-  // Another device retired it mid-edit: drop it, so unretiring later doesn't reopen the dialog.
-  if (editingId && accounts && !editing) setEditingId(null);
-  if (payingId && accounts && !paying) setPayingId(null);
+  useCloseWhenGone(editingId, accounts && (editing ?? null), () => setEditingId(null));
+  useCloseWhenGone(payingId, accounts && (paying ?? null), () => setPayingId(null));
 
   return (
     <Card>

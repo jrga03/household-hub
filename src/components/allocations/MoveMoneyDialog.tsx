@@ -1,5 +1,4 @@
 import { useActionState, useState } from "react";
-import { format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
@@ -40,6 +39,7 @@ import { moneyIn, type AccountMoney, type Envelopes } from "@/lib/transactions/m
 import { errorMessage } from "@/lib/utils";
 import { envelopeFromKey, envelopeKey } from "./envelopes";
 import { removeAllocationWithUndo } from "./removeAllocationWithUndo";
+import { todayLocalDate } from "@/lib/utils/dates";
 
 interface EnvelopeChoice {
   envelope: Envelope;
@@ -136,7 +136,7 @@ export function MoveMoneyDialog({
   return (
     <FormSheet
       title={allocation ? "Edit allocation" : "Move money"}
-      description="Moves money between envelopes inside one account. The balance doesn't change."
+      description="Moves money between categories, Card Payments and Unassigned inside one account. The balance doesn't change."
       onClose={onClose}
     >
       {accountChoices.length === 0 ? (
@@ -299,7 +299,7 @@ function MoveMoneyForm({
             name="date"
             type="date"
             required
-            defaultValue={allocation?.date ?? format(new Date(), "yyyy-MM-dd")}
+            defaultValue={allocation?.date ?? todayLocalDate()}
           />
         </div>
         <div className="space-y-2 @[480px]:col-span-2">

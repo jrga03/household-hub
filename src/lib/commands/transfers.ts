@@ -178,18 +178,6 @@ export const removeTransfer = (actor: Actor, transferId: string) =>
 export const restoreTransfer = (actor: Actor, transferId: string) =>
   appendChange(actor, transferId, TRANSFER_RESTORED);
 
-export const setTransfersStatus = (
-  actor: Actor,
-  transferIds: string[],
-  status: TransactionStatus
-) =>
-  changeEach(
-    transferIds,
-    requireTransfer,
-    (transfer) => transfer.status === status,
-    (transfer) => setTransferStatus(actor, transfer.id, status)
-  );
-
 export const removeTransfers = (actor: Actor, transferIds: string[]) =>
   changeEach(
     transferIds,

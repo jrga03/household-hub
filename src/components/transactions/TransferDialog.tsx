@@ -1,5 +1,4 @@
 import { useActionState, useRef, useState } from "react";
-import { format } from "date-fns";
 import { toast } from "sonner";
 import { categoryNames, envelopeFromKey, envelopeKey } from "@/components/allocations/envelopes";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
@@ -57,6 +56,7 @@ import {
 } from "./EntryFields";
 import { confirmRemoval } from "./confirmRemoval";
 import { transferName } from "./transferName";
+import { todayLocalDate } from "@/lib/utils/dates";
 
 /**
  * Asks first, then removes the transfer, offering Undo (a restore event) in
@@ -374,7 +374,7 @@ export function TransferForm({
             name="date"
             type="date"
             required
-            defaultValue={transfer?.date ?? format(new Date(), "yyyy-MM-dd")}
+            defaultValue={transfer?.date ?? todayLocalDate()}
           />
         </div>
         <div className="space-y-2">

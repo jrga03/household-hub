@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { ChevronLeft, LogOut, User } from "lucide-react";
 import {
   Sidebar,
@@ -19,7 +19,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuthStore } from "@/stores/authStore";
 import { signOutWithToast } from "@/lib/sign-out";
 import { cn } from "@/lib/utils";
-import { DAILY_NAV, isNavItemActive, MANAGE_NAV, type NavItem } from "./nav";
+import { DAILY_NAV, useIsNavItemActive, MANAGE_NAV, type NavItem } from "./nav";
 import { ReviewCountBadge, ReviewDot, reviewLabel } from "./ReviewCount";
 import { useReviewCount } from "@/hooks/useReviewCount";
 
@@ -31,12 +31,11 @@ import { useReviewCount } from "@/hooks/useReviewCount";
  */
 
 export function AppSidebar() {
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const user = useAuthStore((state) => state.user);
   const { open } = useSidebar();
   const reviewCount = useReviewCount();
 
-  const isActiveRoute = (path: string) => isNavItemActive(path, pathname);
+  const isActiveRoute = useIsNavItemActive();
 
   const renderItems = (items: NavItem[]) =>
     items.map((item) => (

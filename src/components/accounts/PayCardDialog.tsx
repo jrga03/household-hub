@@ -1,5 +1,4 @@
 import { useActionState, useState } from "react";
-import { format } from "date-fns";
 import { toast } from "sonner";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { FormError } from "@/components/ui/form-error";
@@ -31,6 +30,7 @@ import {
 } from "@/lib/currency";
 import { moneyIn, reservationFreed, type AccountMoney } from "@/lib/transactions/money";
 import { errorMessage } from "@/lib/utils";
+import { todayLocalDate } from "@/lib/utils/dates";
 
 /** A payment read from a statement, to record as it was made. */
 export interface PaymentPrefill {
@@ -165,7 +165,7 @@ function PayCardForm({
             name="date"
             type="date"
             required
-            defaultValue={prefill?.date ?? format(new Date(), "yyyy-MM-dd")}
+            defaultValue={prefill?.date ?? todayLocalDate()}
           />
         </div>
         <div className="space-y-2 @[480px]:col-span-2">

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useSyncExternalStore } from "react";
 import {
   CircleCheckIcon,
   InfoIcon,
@@ -8,9 +8,25 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
+import { useIsMobile } from "@/hooks/useMediaQuery";
+
+// Radix dialogs and the vaul sheets built on them mark the body while open.
+const SCROLL_LOCK = "data-scroll-locked";
+
+function subscribeToScrollLock(onChange: () => void) {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.body, { attributes: true, attributeFilter: [SCROLL_LOCK] });
+  return () => observer.disconnect();
+}
+
+const isScrollLocked = () => document.body.hasAttribute(SCROLL_LOCK);
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme();
+  const isPhone = useIsMobile();
+  const overlayOpen = useSyncExternalStore(subscribeToScrollLock, isScrollLocked, () => false);
+  // A phone sheet rises from the bottom, where toasts sit, so they move to the top while one is open.
+  const position = isPhone && overlayOpen ? "top-center" : undefined;
 
   return (
     <Sonner
@@ -29,8 +45,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
       // clearance through 767px (sonner's own mobile breakpoint is only
       // 600px, so the desktop `offset` must carry the 601-767px band), and
       // ~sonner's 32px default on real desktops.
-      mobileOffset={{ bottom: "var(--toast-bottom)" }}
-      offset={{ bottom: "var(--toast-bottom)" }}
+      position={position}
+      mobileOffset={{ bottom: "var(--toast-bottom)", top: "var(--toast-top)" }}
+      offset={{ bottom: "var(--toast-bottom)", top: "var(--toast-top)" }}
       style={
         {
           "--normal-bg": "var(--popover)",
