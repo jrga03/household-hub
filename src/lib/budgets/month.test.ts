@@ -230,6 +230,7 @@ describe("month figures", () => {
       status: "cleared",
       removed: false,
       recordedHlc: String(index),
+      importKey: null,
     }));
 
     const started = performance.now();

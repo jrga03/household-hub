@@ -39,14 +39,27 @@ import {
 import { moneyIn, reservationFreed, type AccountMoney } from "@/lib/transactions/money";
 import { errorMessage } from "@/lib/utils";
 
-/** Prefilled with what the card's Paying Account holds for it, today, and that account. */
+/** A payment read from a statement, to record as it was made. */
+export interface PaymentPrefill {
+  amountCents: Cents;
+  date: string;
+}
+
+/**
+ * Prefilled with what the card's Paying Account holds for it, today, and that
+ * account, or with a statement's payment line.
+ */
 export function PayCardDialog({
   actor,
   card,
+  prefill,
+  onPaid,
   onClose,
 }: {
   actor: Actor;
   card: AccountRow;
+  prefill?: PaymentPrefill;
+  onPaid?: () => void;
   onClose: () => void;
 }) {
   const accounts = useAccounts();
@@ -68,7 +81,17 @@ export function PayCardDialog({
             Add a bank, cash or e-wallet account seen by the same people as {card.name} first.
           </p>
         ) : (
-          <PayCardForm actor={actor} card={card} payers={payers} money={money} onClose={onClose} />
+          <PayCardForm
+            actor={actor}
+            card={card}
+            payers={payers}
+            money={money}
+            prefill={prefill}
+            onPaid={() => {
+              onPaid?.();
+              onClose();
+            }}
+          />
         )}
       </DialogContent>
     </Dialog>
@@ -83,18 +106,23 @@ function PayCardForm({
   card,
   payers,
   money,
-  onClose,
+  prefill,
+  onPaid,
 }: {
   actor: Actor;
   card: AccountRow;
   payers: AccountRow[];
   money: Map<string, AccountMoney>;
-  onClose: () => void;
+  prefill: PaymentPrefill | undefined;
+  onPaid: () => void;
 }) {
   const payingAccount = payers.find((payer) => payer.id === card.payingAccountId);
   const reserved = payingAccount ? cardPaymentIn(money, payingAccount.id, card) : ZERO_CENTS;
   const [payerId, setPayerId] = useState(payingAccount?.id ?? payers[0]?.id ?? "");
-  const [amountText, setAmountText] = useState(reserved > 0 ? formatPHPInput(reserved) : "");
+  const prefilledAmount = prefill?.amountCents ?? reserved;
+  const [amountText, setAmountText] = useState(
+    prefilledAmount > 0 ? formatPHPInput(prefilledAmount) : ""
+  );
   const payer = payers.find((choice) => choice.id === payerId);
   const amount = parsePHPSafe(amountText);
 
@@ -110,7 +138,7 @@ function PayCardForm({
           date: String(formData.get("date") ?? ""),
         });
         toast.success(`Paid ${formatPHP(parsed.value)} to ${card.name}`);
-        onClose();
+        onPaid();
         return null;
       } catch (caught) {
         return errorMessage(caught, `Couldn't pay ${card.name}.`);
@@ -142,7 +170,7 @@ function PayCardForm({
             name="date"
             type="date"
             required
-            defaultValue={format(new Date(), "yyyy-MM-dd")}
+            defaultValue={prefill?.date ?? format(new Date(), "yyyy-MM-dd")}
           />
         </div>
         <div className="space-y-2 @[480px]:col-span-2">

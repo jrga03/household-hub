@@ -78,13 +78,14 @@ describe("MobileNav drawer", () => {
     expect(screen.getByText("test@example.com")).toBeInTheDocument();
   });
 
-  it("links to Transactions, Categories and Settings, and closes on navigation", async () => {
+  it("links to Transactions, Categories, Import and Settings, and closes on navigation", async () => {
     await renderDrawer();
 
     const links = screen.getAllByRole("link");
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/transactions",
       "/categories",
+      "/import",
       "/settings",
     ]);
 

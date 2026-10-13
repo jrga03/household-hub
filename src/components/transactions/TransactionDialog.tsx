@@ -18,9 +18,7 @@ import { RadioGroup } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -29,7 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import type { AccountRow } from "@/lib/accounts/projection";
-import { canHoldMoneyIn, type CategoryList, type CategoryRow } from "@/lib/categories/projection";
+import type { CategoryList } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import {
   addTransaction,
@@ -57,40 +55,9 @@ import {
   SAVED_LOCALLY,
   useFocusNewEntry,
 } from "./EntryFields";
+import { categoryChoices, CategorySelect, isCategoryChoice, UNASSIGNED } from "./CategorySelect";
 import { removeWithUndo } from "./removeWithUndo";
 import { TransferForm } from "./TransferDialog";
-
-// Radix Select can't hold an empty value.
-const UNASSIGNED = "unassigned";
-
-interface CategoryChoiceGroup {
-  label: string;
-  categories: CategoryRow[];
-}
-
-/** Categories in use seen by the account's people, by group, plus a retired one the transaction already has. */
-function categoryChoices(
-  list: CategoryList,
-  account: AccountRow | undefined,
-  currentId: string | null
-): CategoryChoiceGroup[] {
-  if (!account) return [];
-  const fits = (category: CategoryRow) => canHoldMoneyIn(category, account);
-  const groups = [
-    ...list.groups.map((group) => ({
-      label: group.name,
-      categories: group.categories.filter(fits),
-    })),
-    { label: "Ungrouped", categories: list.ungrouped.filter(fits) },
-    {
-      label: "Retired",
-      categories: list.retiredCategories.filter(
-        (category) => category.id === currentId && fits(category)
-      ),
-    },
-  ];
-  return groups.filter((group) => group.categories.length > 0);
-}
 
 /** Add when `transaction` is left out; edit otherwise. */
 export function TransactionDialog({
@@ -266,8 +233,7 @@ function TransactionForm({
   );
   const account = accounts.find((choice) => choice.id === accountId);
   const choices = categoryChoices(categories, account, transaction?.categoryId ?? null);
-  const isChoice = (id: string | null) =>
-    choices.some((group) => group.categories.some((category) => category.id === id));
+  const isChoice = (id: string | null) => isCategoryChoice(choices, id);
   const [categoryId, setCategoryId] = useState(() => {
     // New money lands in Unassigned unless the member names a category.
     const preferred = transaction
@@ -391,24 +357,13 @@ function TransactionForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="transaction-category">Category</Label>
-          <Select name="categoryId" value={shownCategoryId} onValueChange={setCategoryId}>
-            <SelectTrigger id="transaction-category" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-              {choices.map((group) => (
-                <SelectGroup key={group.label}>
-                  <SelectLabel>{group.label}</SelectLabel>
-                  {group.categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              ))}
-            </SelectContent>
-          </Select>
+          <CategorySelect
+            id="transaction-category"
+            name="categoryId"
+            choices={choices}
+            value={shownCategoryId}
+            onValueChange={setCategoryId}
+          />
         </div>
       </div>
 

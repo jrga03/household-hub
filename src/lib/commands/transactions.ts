@@ -25,6 +25,8 @@ import { checkMove, refuseRetired, requireAccount, requireCategoryFor } from "./
 export interface NewTransactionInput extends TransactionInput {
   /** Cleared unless the member says it's pending. */
   status?: string;
+  /** The statement line a saved draft came from (ADR 0008). */
+  importKey?: string;
 }
 
 export interface TransactionInput {
@@ -73,6 +75,7 @@ export async function addTransaction(
     ...details,
     payingAccountId: payingAccountOf(account),
     status,
+    importKey: input.importKey ?? null,
   });
   requestSync();
   return { id };
