@@ -154,3 +154,52 @@ describe("transaction projection", () => {
     ]);
   });
 });
+
+describe("import key", () => {
+  const KEY = "a1b2c3";
+  const importedCreate = {
+    ...transactionEvent("e-imported", "transaction.created", 1000, {
+      ...lunchDetails,
+      payingAccountId: null,
+      status: "cleared",
+      importKey: KEY,
+    }),
+    eventVersion: 3,
+  };
+  const edited = {
+    ...transactionEvent("e-edited", "transaction.edited", 2000, {
+      ...lunchDetails,
+      payingAccountId: null,
+      description: "Renamed",
+    }),
+    eventVersion: 2,
+  };
+  const removed = transactionEvent("e-removed", "transaction.removed", 3000);
+  const restored = transactionEvent("e-restored", "transaction.restored", 4000);
+
+  it.each(orders([importedCreate, edited, removed, restored]))(
+    "keeps the create's key through edits in the order %j",
+    async (_ids, order) => {
+      for (const event of order) await receiveEvents([event], 0);
+
+      expect(await listTransactions()).toMatchObject([{ description: "Renamed", importKey: KEY }]);
+    }
+  );
+
+  it.each([
+    ["v1", 1, {}],
+    ["v2", 2, { payingAccountId: null }],
+  ])("reads a %s create as having no key", async (_name, eventVersion, extra) => {
+    const old = {
+      ...transactionEvent("e-old", "transaction.created", 1000, {
+        ...lunchDetails,
+        ...extra,
+        status: "cleared",
+      }),
+      eventVersion,
+    };
+    await receiveEvents([old], 0);
+
+    expect(await listTransactions()).toMatchObject([{ importKey: null }]);
+  });
+});

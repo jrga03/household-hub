@@ -2,6 +2,7 @@ import { db } from "@/lib/dexie/db";
 import { sameOwnership, type LoggedEvent, type Ownership } from "@/lib/events/log";
 import type { EntityProjection } from "@/lib/events/projector";
 import {
+  decodeImportKey,
   decodeRemoval,
   decodeTransactionDetails,
   decodeTransactionStatus,
@@ -21,6 +22,8 @@ export interface TransactionRow extends TransactionDetails, Ownership {
   removed: boolean;
   /** The create's HLC: the order transactions were recorded in, within a day. */
   recordedHlc: string;
+  /** The statement line it was imported from (ADR 0008); null when typed in. */
+  importKey: string | null;
 }
 
 /**
@@ -45,6 +48,7 @@ function applyTransactionEvent(
       status,
       removed: false,
       recordedHlc: event.hlc,
+      importKey: decodeImportKey(event),
     };
   }
   // Changes carry the transaction's own visibility and owner; anything else isn't a change to it.

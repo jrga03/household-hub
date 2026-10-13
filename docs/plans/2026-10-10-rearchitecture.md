@@ -193,6 +193,40 @@ Spec: #95. Scoped 2026-10-13 (decisions above). ADR 0008. Build rounds: {#96, #9
 - **Real UnionBank passwords live in `.env.local` as `UB_STATEMENT_PASSWORD_<yymm>`**, matched to the statement file name's leading `yymm`, since each file has its own.
 - **`/import`'s Format and Card selects are keyed by their value.** Why: Radix Select returns to its first value on form reset, which React 19 does after every action, so a second read silently switched back to BDO (and to the first card). Other action forms that stay open after an error may have the same bug: #104.
 
+### #99 Drafts and review
+
+- [x] `transaction.created` v3 with `importKey` (v1 and v2 upcast to null), on the row from the create only; permutation test with edits, remove and restore
+- [x] Import keys (`import-key.ts`): SHA-256 of format, account, purchase date, raw description, amount, plus the line's occurrence among identical lines
+- [x] Drafts and Imports in Dexie v10 (`drafts.ts`), with an `importKey` index on transactions; wiped on household switch; counted in the sign-out warning
+- [x] Flags read live (`review.ts`): Already imported, Might already be recorded (±3 days, typed-in only), Card payment matched to a transfer into the card
+- [x] `DraftSuggester` seam, history suggester and the runner (`suggestions.ts`, `suggest-drafts.ts`)
+- [x] `saveDrafts` command: one `appendTogether`, drafts deleted in the same transaction
+- [x] `/import` review: rail layout, draft pane on wide screens and sheet on phones, bulk save and discard, Record as card payment; Import in the sidebar (`g i`), drawer and Transactions
+- [x] e2e (chromium, Mobile Chrome): bulk save offline, payment recorded, Transactions shows it, re-import reads Already imported
+- [x] build, lint, vitest, both tsc, knip, size (initial 302.9 KB gz, import worker 552.7 KB gz, both unchanged)
+- [x] Code review (standards and spec): one action hook for save and discard, one list of suggestion sources, a shared signed amount, the unused `importKey` index dropped
+- [x] PR #113
+
+#### #99 decisions
+
+- **Flags are computed when read, never stored.** Why: another device's import or payment can arrive after the drafts were made.
+- **Only an unflagged draft starts selected.** "Already imported" and a card payment matched to a transfer are discarded by default through a "Discard N already recorded" button; ticking one is the deliberate keep. "Might already be recorded" is unselected but never discarded for the member. A card payment can't be saved, only recorded as a card payment or discarded.
+- **A card payment matches a transfer into the card for the same amount within ±3 days**, the same window as the duplicate hint. Revisit: if a bank posts payments later than that.
+- **The draft tables join the log's transactions** (`logTables`), so saving deletes the drafts in the same Dexie transaction, and a household switch wipes them with the projections.
+- **A household switch wipes every draft, Personal-card ones too**, with the remembered cards per format, like remembered passwords. Why: simplest reading of "wiped with household data". Revisit: if a member loses a Personal import to a switch.
+- **The card is remembered per format in `meta` (`importCard:<formatId>`)**, falling back to the first card when the remembered one is gone.
+- **The history suggester compares the draft's raw description with saved descriptions**, so a line renamed on save ("MERALCO 0912" saved as "Electricity") won't match next month. Revisit: if members rename often (store the raw description, or suggest the description too).
+- **Suggestions never replace what the member set**, and an earlier suggester's value stands over a later one's. Each field records its source (`statement`, `member`, `history`, `llm`).
+- **"Record as card payment" opens the pay-card dialog prefilled with the line's amount and purchase date**; on success the draft is deleted.
+- **A statement with no lines now says so** ("No purchases, refunds or payments were found…") and creates no Import. Resolves #97's "0 lines read" deferral.
+- **Deferred: showing the statement's totals against the drafts.** Why: the parsers don't return the printed totals. Revisit: if a real statement reads with lines missing (from #98).
+- **An income draft with no category reads "Unassigned", not "Needs a category"**, as M2 decided for transactions (income lands in Unassigned).
+- **One deliberate tick keeps an Already imported draft on either path**: its row checkbox in the list, or "Save it anyway" in the detail. No second confirmation.
+- **Several drafts can point at the same typed-in look-alike.** Why: it's a hint, never acted on alone. Revisit: if it confuses anyone.
+- **Import gets a `g i` shortcut** beside the sidebar's other destinations.
+- **Layout baselines weren't refreshed**: the new nav item and Transactions button stay within their 2% tolerance.
+- **Confirmed 2026-10-13**: the history-matching and statement-totals deferrals and the wipe-on-switch default stand.
+
 ## Milestone 3
 
 Spec: #70. Scoped 2026-10-12 (decisions above, agreed 2026-10-12). ADRs 0006 and 0007. Build rounds follow the blocking edges: {#71, #73}, then {#72, #74, #75, #76}, then #77. Each sub-issue fills in its own subsection below (checkboxes and a decisions list), so parallel PRs don't conflict here.

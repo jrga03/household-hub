@@ -30,6 +30,7 @@ function row(overrides: Partial<TransactionRow> = {}): TransactionRow {
     status: "cleared",
     removed: false,
     recordedHlc: `hlc-${nextId}`,
+    importKey: null,
     ...overrides,
   };
 }

@@ -1,4 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
+import { HeaderActions } from "@/components/layout/HeaderActions";
 import { PageShell } from "@/components/layout/PageShell";
 import { TransactionList } from "@/components/transactions/TransactionList";
 import { useHousehold } from "@/hooks/useHousehold";
@@ -19,15 +21,23 @@ function TransactionsPage() {
   const setFilter = (next: TransactionFilter) => void navigate({ search: next, replace: true });
 
   return (
-    // The list fills the main column and the detail pane beside it.
-    <PageShell variant="rail">
-      {household && userId && (
-        <TransactionList
-          actor={{ householdId: household.id, userId }}
-          filter={filter}
-          onFilterChange={setFilter}
-        />
-      )}
-    </PageShell>
+    <>
+      <HeaderActions>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/import">Import statement</Link>
+        </Button>
+      </HeaderActions>
+
+      {/* The list fills the main column and the detail pane beside it. */}
+      <PageShell variant="rail">
+        {household && userId && (
+          <TransactionList
+            actor={{ householdId: household.id, userId }}
+            filter={filter}
+            onFilterChange={setFilter}
+          />
+        )}
+      </PageShell>
+    </>
   );
 }

@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageShell } from "@/components/layout/PageShell";
-import { ReadStatement } from "@/components/import/ReadStatement";
+import { ImportView } from "@/components/import/ImportView";
+import { useHousehold } from "@/hooks/useHousehold";
+import { useAuthStore } from "@/stores/authStore";
 
 export const Route = createFileRoute("/import")({
   staticData: { title: "Import statement" },
@@ -8,9 +10,12 @@ export const Route = createFileRoute("/import")({
 });
 
 function ImportPage() {
+  const { household } = useHousehold();
+  const userId = useAuthStore((state) => state.user?.id);
+
   return (
-    <PageShell variant="centered">
-      <ReadStatement />
+    <PageShell variant="rail">
+      {household && userId && <ImportView actor={{ householdId: household.id, userId }} />}
     </PageShell>
   );
 }

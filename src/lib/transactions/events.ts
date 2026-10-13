@@ -26,8 +26,14 @@ const withoutPayingAccount = (payload: Record<string, unknown>) => ({
   payingAccountId: null,
 });
 
+// v3 records the statement line a transaction was imported from; earlier ones were typed in.
+const withoutImportKey = (payload: Record<string, unknown>) => ({ ...payload, importKey: null });
+
 export const TRANSACTION_VERSIONS = {
-  [TRANSACTION_CREATED]: { current: 2, upcasts: { 1: withoutPayingAccount } },
+  [TRANSACTION_CREATED]: {
+    current: 3,
+    upcasts: { 1: withoutPayingAccount, 2: withoutImportKey },
+  },
   [TRANSACTION_EDITED]: { current: 2, upcasts: { 1: withoutPayingAccount } },
   [TRANSACTION_MARKED_CLEARED]: { current: 1, upcasts: {} },
   [TRANSACTION_MARKED_PENDING]: { current: 1, upcasts: {} },
@@ -136,6 +142,16 @@ export function decodeTransactionStatus(event: LoggedEvent): TransactionStatus |
     default:
       return null;
   }
+}
+
+/**
+ * The import key a create records (ADR 0008), or null for one typed in. Only
+ * the create carries it, so an edit never changes it.
+ */
+export function decodeImportKey(event: LoggedEvent): string | null {
+  if (event.eventType !== TRANSACTION_CREATED) return null;
+  const { importKey } = event.payload;
+  return typeof importKey === "string" && importKey !== "" ? importKey : null;
 }
 
 /** Whether a remove or restore leaves the transaction removed, or null for any other event. */
