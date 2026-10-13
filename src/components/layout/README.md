@@ -32,12 +32,12 @@ Application shell and navigation components providing responsive layouts across 
 
 2. **Tablet** (768px - 1024px):
    - Collapsible sidebar (default: collapsed to icons)
-   - Optional minimal header with page title
+   - PageHeader with page title
    - Sidebar trigger button
 
 3. **Desktop** (>1024px):
    - Collapsible sidebar (default: expanded with labels)
-   - No header (navigation via sidebar)
+   - PageHeader with page title (navigation via sidebar)
    - More horizontal space for content
 
 **Key features:**
@@ -500,9 +500,8 @@ Multiple entry points for adding transactions:
 
 Sync indicator present in all layouts:
 
-- **Mobile:** Header (compact mode)
-- **Tablet/Desktop:** Sidebar header (full mode)
-- **MobileNav:** Full display in drawer
+- **Mobile:** PageHeader (compact mode)
+- **Tablet/Desktop:** PageHeader (full mode)
 
 **User always knows:**
 

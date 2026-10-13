@@ -18,13 +18,13 @@ import { AddTransactionButton, QuickEntryDialog } from "@/components/transaction
 /**
  * Main application layout component
  *
- * Handles responsive layout logic:
  * Every branch with navigation shares PageHeader: the route's title, a back
  * arrow on pushed screens, the route's actions and the sync status.
  *
- * - Mobile: Header with hamburger + drawer navigation + bottom tab bar
- * - Tablet: Collapsible sidebar (default collapsed)
- * - Desktop: Collapsible sidebar (default expanded)
+ * Handles responsive layout logic:
+ * - Mobile: PageHeader with hamburger + drawer navigation + bottom tab bar
+ * - Tablet: PageHeader + collapsible sidebar (default collapsed)
+ * - Desktop: PageHeader + collapsible sidebar (default expanded)
  *
  * Bottom-edge geometry (review R42): everything pinned to the bottom edge
  * derives from the shared `--bottom-chrome` custom property (index.css),

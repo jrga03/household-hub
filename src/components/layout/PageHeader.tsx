@@ -5,10 +5,8 @@ import { Button } from "@/components/ui/button";
 import { SyncStatusIndicator } from "@/components/sync/SyncStatusIndicator";
 import { useHousehold } from "@/hooks/useHousehold";
 import { cn } from "@/lib/utils";
-import type { FileRoutesByTo } from "@/routeTree.gen";
 import { useHeaderSlot } from "./HeaderActions";
-
-type RoutePath = keyof FileRoutesByTo;
+import type { RoutePath } from "./nav";
 
 declare module "@tanstack/react-router" {
   interface StaticDataRouteOption {
@@ -22,8 +20,8 @@ declare module "@tanstack/react-router" {
 function usePageHeading() {
   const { household } = useHousehold();
   const leaf = useRouterState({ select: (state) => state.matches.at(-1) });
-  const title =
-    leaf?.routeId === "/" ? (household?.name ?? "Home") : (leaf?.staticData.title ?? "");
+  const routeTitle = leaf?.staticData.title ?? "";
+  const title = leaf?.routeId === "/" ? (household?.name ?? routeTitle) : routeTitle;
   return { title, parent: leaf?.staticData.parent };
 }
 

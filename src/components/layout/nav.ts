@@ -13,7 +13,6 @@ export interface NavItem {
   tab?: boolean;
 }
 
-// Budget and Review join the daily group, and Accounts leads the manage group, with their issues.
 export const DAILY_NAV: NavItem[] = [
   { to: "/", label: "Home", icon: Home, shortcut: "g h", tab: true },
   { to: "/transactions", label: "Transactions", icon: Receipt, shortcut: "g t", tab: true },
@@ -25,7 +24,7 @@ export const MANAGE_NAV: NavItem[] = [
   { to: "/settings", label: "Settings", icon: Settings, shortcut: "g s" },
 ];
 
-export const TAB_NAV = DAILY_NAV.filter((item) => item.tab);
+export const TAB_NAV = [...DAILY_NAV, ...MANAGE_NAV].filter((item) => item.tab);
 
 /** The drawer holds everything off the tab bar, daily first. */
 export const DRAWER_NAV = [...DAILY_NAV, ...MANAGE_NAV].filter((item) => !item.tab);
