@@ -61,13 +61,12 @@ test("a transfer recorded offline moves both balances on another device", async 
   await expect(accountItem(pageB, "BPI").getByLabel("Balance")).toHaveText("₱8,000.00");
   await expect(accountItem(pageB, "GCash").getByLabel("Balance")).toHaveText("₱2,000.00");
 
-  // One row for both legs, left out of the month's expenses.
+  // One row for both legs, named for where the money went.
   await pageB.getByRole("link", { name: "Transactions" }).first().click();
   const rows = pageB.getByRole("list", { name: "Transactions" });
   await expect(rows.getByRole("listitem")).toHaveCount(1);
-  await expect(rows).toContainText("BPI → GCash");
-  await expect(rows).toContainText("Groceries");
-  await expect(pageB.getByRole("group", { name: "Expenses" })).toContainText("₱0.00");
+  await expect(rows.getByRole("listitem")).toContainText("Transfer to GCash");
+  await expect(rows).toContainText("Groceries · BPI → GCash");
 
   await Promise.all([deviceA.close(), deviceB.close()]);
 });

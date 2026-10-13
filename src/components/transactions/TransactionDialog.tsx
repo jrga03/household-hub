@@ -279,10 +279,8 @@ function TransactionForm({
     null
   );
 
-  const remove = () => {
-    if (!transaction) return;
-    onClose();
-    void removeWithUndo(actor, transaction);
+  const remove = async () => {
+    if (transaction && (await removeWithUndo(actor, transaction))) onClose();
   };
 
   return (
@@ -398,7 +396,7 @@ function TransactionForm({
       <FormError>{error}</FormError>
       <FormFooter className="@[480px]:justify-between">
         {transaction ? (
-          <Button type="button" variant="outline" onClick={remove}>
+          <Button type="button" variant="outline" onClick={() => void remove()}>
             Remove
           </Button>
         ) : (

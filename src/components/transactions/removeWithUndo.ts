@@ -4,14 +4,19 @@ import { removeTransaction, restoreTransaction } from "@/lib/commands/transactio
 import { transactionLabel } from "@/lib/transactions/events";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import { errorMessage } from "@/lib/utils";
+import { confirmRemoval } from "./confirmRemoval";
 
-/** Removes the transaction, offering Undo (a restore event) in the toast. */
-export async function removeWithUndo(actor: Actor, transaction: TransactionRow): Promise<void> {
+/**
+ * Asks first, then removes the transaction, offering Undo (a restore event) in
+ * the toast. Resolves whether it was removed.
+ */
+export async function removeWithUndo(actor: Actor, transaction: TransactionRow): Promise<boolean> {
+  if (!(await confirmRemoval(transaction.description, transaction.amountCents))) return false;
   try {
     await removeTransaction(actor, transaction.id);
   } catch (caught) {
     toast.error(errorMessage(caught, "Couldn't remove the transaction."));
-    return;
+    return false;
   }
   toast.success(`Removed ${transactionLabel(transaction)}`, {
     action: {
@@ -22,4 +27,5 @@ export async function removeWithUndo(actor: Actor, transaction: TransactionRow):
         ),
     },
   });
+  return true;
 }

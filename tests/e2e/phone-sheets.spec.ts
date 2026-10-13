@@ -204,6 +204,11 @@ test.describe("wide-screen forms", () => {
     const dialog = await openAddTransaction(page, "dialog-content");
     await dialog.getByLabel("Amount (₱)").fill("120");
     await dialog.getByLabel("Amount (₱)").press("Enter");
+    // A description is required, so the form waits for one.
+    await expect(dialog.getByLabel("Description", { exact: true })).toBeFocused();
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel("Description", { exact: true }).fill("Lunch");
+    await dialog.getByLabel("Amount (₱)").press("Enter");
     await expect(dialog).toBeHidden();
     await expect(page.getByText("Transaction added")).toBeVisible();
   });
