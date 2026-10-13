@@ -108,11 +108,11 @@ export function AppLayout() {
           {/* Offline + storage banners (shared fixed stack) */}
           <BannerStack />
 
-          {/* Main Content: bottom inset keeps the tab bar from covering the
-            last row on every route (reviews R13, R42) */}
+          {/* Main Content: with PageShell's own 2rem, the bottom inset clears the
+            tab bar and the FAB (4.5rem above it) on every route */}
           <main
             id="main-content"
-            className="flex-1 bg-background pb-[calc(0.5rem+var(--bottom-chrome))]"
+            className="flex-1 bg-background pb-[calc(3.5rem+var(--bottom-chrome))]"
           >
             <Outlet />
           </main>
