@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type ComponentType } from "react";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell } from "@/components/layout/PageShell";
@@ -7,12 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AccountsCard } from "@/components/accounts/AccountsCard";
+import { FinancesSection } from "@/components/finances/FinancesSection";
 import { JoinRequestsCard } from "@/components/households/JoinRequestsCard";
 import { MembersCard } from "@/components/households/MembersCard";
 import { OpeningChecklist } from "@/components/opening/OpeningChecklist";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { confirm } from "@/lib/confirm";
 import { replaceHouseholdCode } from "@/lib/household-members";
+import type { Household } from "@/lib/households";
 import { errorMessage } from "@/lib/utils";
 import { useHousehold } from "@/hooks/useHousehold";
 import { useAuthStore } from "@/stores/authStore";
@@ -20,6 +22,19 @@ import { useAuthStore } from "@/stores/authStore";
 export const Route = createFileRoute("/")({
   component: HomePage,
 });
+
+interface SectionProps {
+  household: Household;
+  userId: string;
+  isOwner: boolean;
+}
+
+/** Home's sections, top to bottom; later non-finance sections join this list. */
+const SECTIONS: { id: string; Section: ComponentType<SectionProps> }[] = [
+  { id: "opening", Section: OpeningSection },
+  { id: "finances", Section: FinancesSection },
+  { id: "household", Section: HouseholdSection },
+];
 
 function HomePage() {
   const { household, isOwner } = useHousehold();
@@ -35,28 +50,39 @@ function HomePage() {
 
       <PageShell variant="centered">
         <PageShell.Main className="space-y-4">
-          {household && <OpeningChecklist key={household.id} householdId={household.id} />}
-          {household && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <CardTitle>{household.name}</CardTitle>
-                  <Badge variant="secondary">{isOwner ? "Owner" : "Member"}</Badge>
-                </div>
-              </CardHeader>
-              {isOwner && userId && (
-                <HouseholdCode userId={userId} householdId={household.id} code={household.code} />
-              )}
-            </Card>
-          )}
-          {household && isOwner && <JoinRequestsCard householdId={household.id} />}
-          {household && userId && (
-            <MembersCard householdId={household.id} userId={userId} isOwner={isOwner} />
-          )}
-          {household && userId && <AccountsCard actor={{ householdId: household.id, userId }} />}
+          {household &&
+            userId &&
+            SECTIONS.map(({ id, Section }) => (
+              <Section key={id} household={household} userId={userId} isOwner={isOwner} />
+            ))}
         </PageShell.Main>
       </PageShell>
     </div>
+  );
+}
+
+function OpeningSection({ household }: SectionProps) {
+  return <OpeningChecklist key={household.id} householdId={household.id} />;
+}
+
+function HouseholdSection({ household, userId, isOwner }: SectionProps) {
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <CardTitle>{household.name}</CardTitle>
+            <Badge variant="secondary">{isOwner ? "Owner" : "Member"}</Badge>
+          </div>
+        </CardHeader>
+        {isOwner && (
+          <HouseholdCode userId={userId} householdId={household.id} code={household.code} />
+        )}
+      </Card>
+      {isOwner && <JoinRequestsCard householdId={household.id} />}
+      <MembersCard householdId={household.id} userId={userId} isOwner={isOwner} />
+      <AccountsCard actor={{ householdId: household.id, userId }} />
+    </>
   );
 }
 
