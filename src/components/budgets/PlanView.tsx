@@ -40,6 +40,7 @@ import { cn, errorMessage } from "@/lib/utils";
 import { parseLocalDate, shiftMonth, todayLocalDate } from "@/lib/utils/dates";
 import { DistributeMoney } from "./DistributeMoney";
 import { SetBudgetDialog } from "./SetBudgetDialog";
+import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 
 /** Opened from the route's search, so a payday toast or the checklist can link straight to it. */
 export interface DistributeRequest {
@@ -86,12 +87,11 @@ export function PlanView({
   const lastMonth = useMonthView(shiftMonth(month, -1), currentMonth);
   const [moving, setMoving] = useState<Moving>(null);
   const [detailsId, setDetailsId] = useState<string | null>(null);
+  const inUse = list && [...list.groups.flatMap((group) => group.categories), ...list.ungrouped];
+  const details = inUse?.find((category) => category.id === detailsId);
+  useCloseWhenGone(detailsId, inUse && (details ?? null), () => setDetailsId(null));
 
-  if (!list || !accounts || !accountNames || !thisMonth || !lastMonth) return null;
-  const inUse = [...list.groups.flatMap((group) => group.categories), ...list.ungrouped];
-  const details = inUse.find((category) => category.id === detailsId);
-  // Another device retired it mid-edit: drop it, so unretiring later doesn't reopen the dialog.
-  if (detailsId !== null && !details) setDetailsId(null);
+  if (!list || !inUse || !accounts || !accountNames || !thisMonth || !lastMonth) return null;
   const lastId = inUse.at(-1)?.id;
 
   const rows = (categories: CategoryRow[]) =>
@@ -304,8 +304,7 @@ function UnassignedByAccount({
 }) {
   const [payingCardId, setPayingCardId] = useState<string | null>(null);
   const payingCard = accounts.find((account) => account.id === payingCardId);
-  // Another device retired it mid-payment: drop it, so unretiring later doesn't reopen the dialog.
-  if (payingCardId && !payingCard) setPayingCardId(null);
+  useCloseWhenGone(payingCardId, payingCard ?? null, () => setPayingCardId(null));
   const payableFrom = (cardId: string, accountId: string) =>
     accounts.some((card) => card.id === cardId && card.payingAccountId === accountId);
 

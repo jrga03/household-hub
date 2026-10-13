@@ -29,6 +29,7 @@ import { TransactionItem } from "./TransactionItem";
 import { TransferDialog, TransferEditor } from "./TransferDialog";
 import { TransactionFilters } from "./TransactionFilters";
 import type { RevealedAction } from "./useRowGestures";
+import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 
 const ROW_HEIGHT_ESTIMATE = 61;
 const HEADING_HEIGHT_ESTIMATE = 29;
@@ -80,6 +81,8 @@ export function TransactionList({
     [shown, selectedIds]
   );
   const months = useMemo(() => monthsOf(rows ?? []), [rows]);
+  const openRow = rows?.find((row) => row.id === openId);
+  useCloseWhenGone(openId, rows && (openRow ?? null), () => setOpenId(null));
 
   if (!rows) return null;
 
@@ -99,9 +102,6 @@ export function TransactionList({
     categories: categories ? categoryNames(categories) : new Map<string, string>(),
     accounts: new Map(allAccounts.map((account) => [account.id, account.name])),
   };
-  const openRow = rows.find((row) => row.id === openId);
-  // Removed on another device mid-edit: drop it, so a restore doesn't reopen it.
-  if (openId && !openRow) setOpenId(null);
   const paneTitle = openRow && isTransfer(openRow) ? "Edit transfer" : "Edit transaction";
 
   const startSelecting = (firstId?: string) => {

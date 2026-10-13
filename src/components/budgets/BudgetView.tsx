@@ -36,6 +36,7 @@ import type { Actor } from "@/lib/commands/accounts";
 import { formatPHP } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import { monthLabel } from "@/lib/utils/dates";
+import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 
 /** A group's totals are the sums of its rows, categories without a budget included. */
 const groupFigures = (view: MonthView, categories: CategoryRow[]): MonthFigures =>
@@ -64,10 +65,9 @@ export function BudgetView({
   const opened = useLedgerRecord(openedId);
   const [pane, setPane] = useState<HTMLElement | null>(null);
   const paneShown = useLaidOut(pane);
+  useCloseWhenGone(openedId, opened, () => setOpenedId(null));
 
   if (!list || !accountNames || !monthView) return null;
-  // Removed on another device mid-edit: close it, as the transaction list does.
-  if (openedId && opened === null) setOpenedId(null);
   const namesOfCategories = categoryNames(list);
   const ledgerName = ledgerId === null ? undefined : namesOfCategories.get(ledgerId);
   if (ledgerId !== null && ledgerName === undefined) setLedgerId(null);
