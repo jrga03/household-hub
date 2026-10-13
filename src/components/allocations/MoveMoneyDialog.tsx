@@ -136,7 +136,7 @@ export function MoveMoneyDialog({
   return (
     <FormSheet
       title={allocation ? "Edit allocation" : "Move money"}
-      description="Moves money between envelopes inside one account. The balance doesn't change."
+      description="Moves money between categories, Card Payments and Unassigned inside one account. The balance doesn't change."
       onClose={onClose}
     >
       {accountChoices.length === 0 ? (
