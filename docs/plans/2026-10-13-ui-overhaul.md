@@ -80,5 +80,5 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 - [x] 3. #102 (merged 4728e5c, PR #116) Accounts screen and Settings → Household; Home becomes finances-only
 - [x] 4. #109 (merged 6235cdb, PR #116) Transactions rehaul: rows, date headers, pending style, swipe-reveal, remove confirmation, selection mode, Totals removed, description required
 - [ ] 5. #110 Review screen
-- [ ] 6. #111 Categories / Budget / Plan split; `/distribute` removed
+- [x] 6. #111 (merged 93f4f41, PR #116) Categories / Budget / Plan split; `/distribute` removed
 - [x] 7. #112 (merged ccdca43, PR #116) Onboarding (no blockers; can jump the queue): safe area, Create / Join toggle
