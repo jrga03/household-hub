@@ -9,6 +9,7 @@
  * - n: Add a transaction
  * - g then h: Go to Home
  * - g then t: Go to Transactions
+ * - g then a: Go to Accounts
  * - g then c: Go to Categories
  * - g then i: Go to Import
  * - g then s: Go to Settings
@@ -83,6 +84,9 @@ export function useKeyboardShortcuts() {
             break;
           case "t":
             void navigate({ to: "/transactions" });
+            break;
+          case "a":
+            void navigate({ to: "/accounts" });
             break;
           case "c":
             void navigate({ to: "/categories" });

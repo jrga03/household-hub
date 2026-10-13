@@ -86,6 +86,7 @@ describe("MobileNav drawer", () => {
 
     const links = screen.getAllByRole("link");
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/accounts",
       "/import",
       "/categories",
       "/settings",
