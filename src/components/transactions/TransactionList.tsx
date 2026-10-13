@@ -14,7 +14,7 @@ import { useCategoryList } from "@/hooks/useCategories";
 import { useLaidOut } from "@/hooks/useLaidOut";
 import { useTransactionListRows } from "@/hooks/useTransactions";
 import { categoryNames } from "@/components/allocations/envelopes";
-import { envelopeLabel } from "@/lib/allocations/events";
+import { envelopeLabel } from "@/lib/allocations/envelope";
 import type { Actor } from "@/lib/commands/accounts";
 import { setTransactionStatus } from "@/lib/commands/transactions";
 import { setTransferStatus } from "@/lib/commands/transfers";

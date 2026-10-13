@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAllocations } from "@/hooks/useAllocations";
-import { envelopeLabel } from "@/lib/allocations/events";
+import { envelopeLabel } from "@/lib/allocations/envelope";
 import type { AllocationRow } from "@/lib/allocations/projection";
 import { formatPHP } from "@/lib/currency";
 import { parseLocalDate } from "@/lib/utils/dates";

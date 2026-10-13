@@ -1,5 +1,6 @@
 import { readAccountNames } from "@/lib/accounts/projection";
-import { envelopeLabel, UNASSIGNED_ENVELOPE, type Envelope } from "@/lib/allocations/events";
+import { envelopeLabel } from "@/lib/allocations/envelope";
+import { UNASSIGNED_ENVELOPE, type Envelope } from "@/lib/allocations/events";
 import { readCategoryNames } from "@/lib/categories/projection";
 import { formatPHPDecimal } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
