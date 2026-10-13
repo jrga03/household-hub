@@ -141,7 +141,7 @@ Spec: #95. Scoped 2026-10-13 (decisions above). ADR 0008. Build rounds: {#96, #9
 - [x] Import worker budget in `npm run size` (535.9 KB gz first measured, budget 590); initial budget unchanged at 378
 - [x] Remembered password per card, opt-in, wiped on sign-out (database reset), session expiry and household switch
 - [x] Minimal `/import` entry point (format, card, file, password, parsed lines)
-- [ ] PR
+- [x] PR #103
 
 #### #97 decisions
 
