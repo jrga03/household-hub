@@ -12,7 +12,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { categoryNames } from "@/components/allocations/envelopes";
-import { TransactionAmount } from "@/components/transactions/TransactionAmount";
+import { rowDisplay } from "@/components/transactions/rowDisplay";
+import { AMOUNT_DIRECTION, TransactionAmount } from "@/components/transactions/TransactionAmount";
 import { useAccountNames } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useFinanceOverview } from "@/hooks/useFinanceOverview";
@@ -211,10 +212,6 @@ function Count({ label, count, className }: { label: string; count: number; clas
   );
 }
 
-const MONEY_IN = { direction: "in", className: "text-green-700 dark:text-green-400" } as const;
-const MONEY_OUT = { direction: "out", className: undefined } as const;
-const MONEY_MOVED = { direction: "moved", className: "text-muted-foreground" } as const;
-
 function LatestTransactions({ rows }: { rows: ListRow[] }) {
   const accountNames = useAccountNames();
   const categories = useCategoryList();
@@ -222,32 +219,19 @@ function LatestTransactions({ rows }: { rows: ListRow[] }) {
     return <p className="text-sm text-muted-foreground">No transactions yet.</p>;
   }
 
-  const namesOfCategories = categories ? categoryNames(categories) : new Map<string, string>();
-  const accountName = (id: string) => accountNames?.get(id) ?? "Account not on this device yet";
-  const display = (row: ListRow) => {
-    if (isTransfer(row)) {
-      const path = `${accountName(row.fromAccountId)} → ${accountName(row.toAccountId)}`;
-      return { label: row.description || path, transfer: true, amount: MONEY_MOVED };
-    }
-    const categoryName =
-      row.categoryId === null
-        ? "Unassigned"
-        : (namesOfCategories.get(row.categoryId) ?? "Category not on this device yet");
-    return {
-      label: row.description || categoryName,
-      transfer: false,
-      amount: row.type === "income" ? MONEY_IN : MONEY_OUT,
-    };
+  const names = {
+    categories: categories ? categoryNames(categories) : new Map<string, string>(),
+    accounts: accountNames ?? new Map<string, string>(),
   };
 
   return (
     <ul aria-label="Latest transactions" className="divide-y text-sm">
       {rows.map((row) => {
-        const { label, transfer, amount } = display(row);
+        const { label, direction } = rowDisplay(row, names);
         return (
           <li key={row.id} className="flex items-center justify-between gap-3 py-1.5">
             <span className="flex min-w-0 items-center gap-1.5">
-              {transfer && (
+              {isTransfer(row) && (
                 <ArrowLeftRight
                   className="size-4 shrink-0 text-muted-foreground"
                   aria-label="Transfer"
@@ -258,9 +242,9 @@ function LatestTransactions({ rows }: { rows: ListRow[] }) {
                 {format(parseLocalDate(row.date), "MMM d")}
               </span>
             </span>
-            <span className={cn("shrink-0 tabular-nums", amount.className)}>
+            <span className={cn("shrink-0 tabular-nums", AMOUNT_DIRECTION[direction].className)}>
               <TransactionAmount
-                direction={amount.direction}
+                direction={direction}
                 cents={row.amountCents}
                 expenseInParentheses
               />

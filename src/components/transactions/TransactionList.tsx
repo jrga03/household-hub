@@ -11,38 +11,35 @@ import { useCategoryList } from "@/hooks/useCategories";
 import { useLaidOut } from "@/hooks/useLaidOut";
 import { useTransactionListRows } from "@/hooks/useTransactions";
 import { categoryNames } from "@/components/allocations/envelopes";
-import { envelopeLabel } from "@/lib/allocations/envelope";
 import type { Actor } from "@/lib/commands/accounts";
-import { transactionLabel } from "@/lib/transactions/events";
 import { dateHeading, groupByDate, type DateGroupItem } from "@/lib/transactions/date-groups";
 import {
   filterTransactions,
   isTransfer,
-  transferDirection,
   type ListRow,
   type TransactionFilter,
 } from "@/lib/transactions/filter";
 import { cn } from "@/lib/utils";
+import { monthOfDate } from "@/lib/utils/dates";
 import { SAVED_LOCALLY } from "./EntryFields";
 import { SelectionActions } from "./SelectionActions";
 import { TransactionDialog, TransactionEditor } from "./TransactionDialog";
-import { TransactionItem, type RowDisplay } from "./TransactionItem";
+import { rowDisplay } from "./rowDisplay";
+import { TransactionItem } from "./TransactionItem";
 import { TransferDialog, TransferEditor } from "./TransferDialog";
 import { TransactionFilters } from "./TransactionFilters";
-import { transferName } from "./transferName";
 import type { RevealedAction } from "./useRowGestures";
 
 const ROW_HEIGHT_ESTIMATE = 61;
 const HEADING_HEIGHT_ESTIMATE = 29;
 
 /** "yyyy-MM" months holding transactions or transfers, newest first (the list is newest first). */
-const monthsOf = (rows: ListRow[]) => [...new Set(rows.map((row) => row.date.slice(0, 7)))];
+const monthsOf = (rows: ListRow[]) => [...new Set(rows.map((row) => monthOfDate(row.date)))];
 
 interface TransactionListProps {
   actor: Actor;
   filter: TransactionFilter;
   onFilterChange: (filter: TransactionFilter) => void;
-  /** "(₱250.00)" instead of "−₱250.00"; only the Transactions page asks for it. */
   expenseInParentheses?: boolean;
 }
 
@@ -98,29 +95,9 @@ export function TransactionList({
 
   const allAccounts = [...(accounts ?? []), ...(retiredAccounts ?? [])];
   const accountsById = new Map(allAccounts.map((account) => [account.id, account]));
-  const namesOfCategories = categories ? categoryNames(categories) : new Map<string, string>();
-  const namesOfAccounts = new Map(allAccounts.map((account) => [account.id, account.name]));
-  const accountNameOf = (accountId: string) =>
-    namesOfAccounts.get(accountId) ?? "Account not on this device yet";
-  const display = (row: ListRow): RowDisplay => {
-    if (isTransfer(row)) {
-      const direction = transferDirection(row, filter.account);
-      const path = `${accountNameOf(row.fromAccountId)} → ${accountNameOf(row.toAccountId)}`;
-      return {
-        label: transferName(row, accountNameOf, direction),
-        detail: `${envelopeLabel(row.envelope, namesOfCategories, namesOfAccounts)} · ${path}`,
-        direction: direction ?? "moved",
-      };
-    }
-    const categoryName =
-      row.categoryId === null
-        ? "Unassigned"
-        : (namesOfCategories.get(row.categoryId) ?? "Category not on this device yet");
-    return {
-      label: transactionLabel(row),
-      detail: `${categoryName} · ${accountNameOf(row.accountId)}`,
-      direction: row.type === "income" ? "in" : "out",
-    };
+  const names = {
+    categories: categories ? categoryNames(categories) : new Map<string, string>(),
+    accounts: new Map(allAccounts.map((account) => [account.id, account.name])),
   };
   const openRow = rows.find((row) => row.id === openId);
   // Removed on another device mid-edit: drop it, so a restore doesn't reopen it.
@@ -207,7 +184,7 @@ export function TransactionList({
               <TransactionItem
                 actor={actor}
                 row={row}
-                display={display(row)}
+                display={rowDisplay(row, names, filter.account)}
                 open={row.id === openId}
                 selecting={selecting}
                 selected={selectedIds.has(row.id)}

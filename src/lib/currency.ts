@@ -107,15 +107,9 @@ export const isAmount = (value: unknown): value is number =>
 
 export const AMOUNT_PROBLEM = `The amount must be more than zero and at most ${formatPHP(asCents(MAX_AMOUNT_CENTS))}.`;
 
-/**
- * A transaction's money going out, for the Transactions page's rows only:
- * `text` shows it in parentheses, "(₱250.00)", and `spoken` is what a screen
- * reader should say, "minus ₱250.00". Every other view keeps the minus sign.
- * The sign the amount is stored with doesn't matter.
- */
-export function formatTransactionExpense(cents: Cents): { text: string; spoken: string } {
-  const amount = formatPHP(absCents(cents));
-  return { text: `(${amount})`, spoken: `minus ${amount}` };
+/** Money going out in parentheses, "(₱250.00)", whichever sign it is stored with. */
+export function formatTransactionExpense(cents: Cents): string {
+  return `(${formatPHP(absCents(cents))})`;
 }
 
 /** A plain number a spreadsheet can sum: 150050 → "1500.50". */

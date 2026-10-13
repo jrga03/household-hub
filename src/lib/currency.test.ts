@@ -466,17 +466,11 @@ describe("parsers return branded cents", () => {
 });
 
 describe("formatTransactionExpense", () => {
-  it("shows money going out in parentheses, and speaks it as minus", () => {
-    expect(formatTransactionExpense(asCents(25000))).toEqual({
-      text: "(₱250.00)",
-      spoken: "minus ₱250.00",
-    });
+  it("shows money going out in parentheses", () => {
+    expect(formatTransactionExpense(asCents(25000))).toBe("(₱250.00)");
   });
 
   it("reads the size of the amount whichever sign it is stored with", () => {
-    expect(formatTransactionExpense(asCents(-150050))).toEqual({
-      text: "(₱1,500.50)",
-      spoken: "minus ₱1,500.50",
-    });
+    expect(formatTransactionExpense(asCents(-150050))).toBe("(₱1,500.50)");
   });
 });
