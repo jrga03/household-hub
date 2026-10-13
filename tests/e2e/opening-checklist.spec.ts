@@ -29,6 +29,7 @@ test("a new household's opening checklist ticks itself off and stays dismissed",
   await expect(checklist.getByRole("listitem").first()).toHaveText(
     /Set starting balances \(done\)/
   );
+  await expect(checklist.getByRole("listitem").first().getByRole("link")).toHaveCount(0);
   await page.screenshot({ path: test.info().outputPath("checklist-balance.png"), fullPage: true });
 
   await checklist.getByRole("link", { name: "Distribute" }).click();

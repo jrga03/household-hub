@@ -68,6 +68,7 @@ describe("OpeningChecklist", () => {
       expect.stringContaining("(to do)"),
       expect.stringContaining("(to do)"),
     ]);
+    expect(within(steps[0]!).queryByRole("link")).toBeNull();
     expect(await screen.findByRole("link", { name: "Distribute" })).toHaveAttribute(
       "href",
       `/plan?distribute=opening&account=${bpi.id}`
