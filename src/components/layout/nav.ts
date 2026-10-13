@@ -1,3 +1,4 @@
+import { useRouterState } from "@tanstack/react-router";
 import {
   ClipboardCheck,
   FileUp,
@@ -44,6 +45,19 @@ export const TAB_NAV = [...DAILY_NAV, ...MANAGE_NAV].filter((item) => item.tab);
 /** The drawer holds everything off the tab bar, daily first. */
 export const DRAWER_NAV = [...DAILY_NAV, ...MANAGE_NAV].filter((item) => !item.tab);
 
-/** "/" matches only itself; every other item also matches its child routes. */
-export const isNavItemActive = (to: string, pathname: string) =>
+const matchesPath = (to: string, pathname: string) =>
   to === "/" ? pathname === to : pathname === to || pathname.startsWith(to + "/");
+
+/**
+ * "/" matches only itself; every other item also matches its child routes. A
+ * pushed screen highlights its `parent` (Plan highlights Budget).
+ */
+export const isNavItemActive = (to: string, pathname: string, parent?: string) =>
+  matchesPath(to, pathname) || to === parent;
+
+/** Whether a nav item matches the current route, its parent included. */
+export function useIsNavItemActive() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const parent = useRouterState({ select: (state) => state.matches.at(-1)?.staticData.parent });
+  return (to: string) => isNavItemActive(to, pathname, parent);
+}
