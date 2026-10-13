@@ -1,6 +1,6 @@
 import { appendTogether } from "@/lib/events/log";
 import { db } from "@/lib/dexie/db";
-import { removeDrafts } from "@/lib/import/drafts";
+import { deleteDrafts } from "@/lib/import/drafts";
 import type { Actor } from "./accounts";
 import { addTransaction } from "./transactions";
 
@@ -32,6 +32,6 @@ export function saveDrafts(actor: Actor, draftIds: string[]): Promise<void> {
         importKey: draft.importKey,
       });
     }
-    await removeDrafts(draftIds);
+    await deleteDrafts(draftIds);
   });
 }

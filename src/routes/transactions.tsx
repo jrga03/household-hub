@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
 import { PageShell } from "@/components/layout/PageShell";
 import { TransactionList } from "@/components/transactions/TransactionList";
 import { useHousehold } from "@/hooks/useHousehold";
@@ -22,11 +23,16 @@ function TransactionsPage() {
       <div className="border-b">
         {/* Aligned with the rail layout below, which drops its max width from 1100px. */}
         <div className="@container">
-          <div className="mx-auto w-full max-w-7xl px-4 py-4 @[1100px]:max-w-none">
-            <h1 className="text-xl font-bold">Transactions</h1>
-            <p className="text-sm text-muted-foreground">
-              Everything recorded, newest first. Recorded offline, it syncs when you&apos;re back.
-            </p>
+          <div className="mx-auto flex w-full max-w-7xl items-start justify-between gap-4 px-4 py-4 @[1100px]:max-w-none">
+            <div>
+              <h1 className="text-xl font-bold">Transactions</h1>
+              <p className="text-sm text-muted-foreground">
+                Everything recorded, newest first. Recorded offline, it syncs when you&apos;re back.
+              </p>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/import">Import statement</Link>
+            </Button>
           </div>
         </div>
       </div>

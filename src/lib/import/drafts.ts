@@ -111,10 +111,10 @@ export async function editDraft(draftId: string, changes: DraftChanges): Promise
 }
 
 /**
- * Deletes drafts, and any import left empty. Saving calls it inside its
- * change, so the drafts go only if the transactions are kept.
+ * Deletes drafts, saved or discarded, and any import left empty. Saving calls
+ * it inside its change, so the drafts go only if the transactions are kept.
  */
-export function removeDrafts(draftIds: string[]): Promise<void> {
+export function deleteDrafts(draftIds: string[]): Promise<void> {
   return db.transaction("rw", [db.imports, db.drafts], async () => {
     const drafts = await db.drafts.bulkGet(draftIds);
     await db.drafts.bulkDelete(draftIds);
@@ -126,8 +126,6 @@ export function removeDrafts(draftIds: string[]): Promise<void> {
     }
   });
 }
-
-export const discardDrafts = removeDrafts;
 
 /** Statement order. */
 export const listDrafts = (importId: string) =>

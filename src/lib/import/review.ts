@@ -1,8 +1,9 @@
 import { differenceInCalendarDays } from "date-fns";
+import { db } from "@/lib/dexie/db";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import type { TransferRow } from "@/lib/transfers/projection";
 import { parseLocalDate } from "@/lib/utils/dates";
-import type { DraftRow } from "./drafts";
+import { listImports, type DraftRow, type ImportRow } from "./drafts";
 
 /** How far apart a statement line and a typed-in record may be dated and still look alike. */
 const MATCH_WINDOW_DAYS = 3;
@@ -73,3 +74,32 @@ export const discardedByDefault = (flag: DraftFlag | null) =>
 
 /** Only an unflagged draft starts selected; every flag asks the member to decide. */
 export const selectedByDefault = (flag: DraftFlag | null) => flag === null;
+
+export interface ReviewedDraft extends DraftRow {
+  flag: DraftFlag | null;
+}
+
+export interface ReviewedImport extends ImportRow {
+  /** Statement order. */
+  drafts: ReviewedDraft[];
+}
+
+/** Every open import, newest first, with its drafts flagged against what this device holds now. */
+export async function readImportReview(): Promise<ReviewedImport[]> {
+  const [imports, drafts, transactions, transfers] = await Promise.all([
+    listImports(),
+    db.drafts.toArray(),
+    db.transactions.toArray(),
+    db.transfers.toArray(),
+  ]);
+  return imports.map((statement) => {
+    const flagOf = draftFlagger(statement.accountId, transactions, transfers);
+    return {
+      ...statement,
+      drafts: drafts
+        .filter((draft) => draft.importId === statement.id)
+        .sort((a, b) => a.position - b.position)
+        .map((draft) => ({ ...draft, flag: flagOf(draft) })),
+    };
+  });
+}
