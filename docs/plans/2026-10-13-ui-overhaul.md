@@ -79,7 +79,9 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 - **Home's Latest uses the Transactions page's row rules** (review fix): one `rowDisplay` (`src/components/transactions/rowDisplay.ts`) names both, so a row without a description shows its amount and a transfer reads "Transfer to …"; colour and sign come from `AMOUNT_DIRECTION` in `TransactionAmount.tsx`. Revisit: never.
 - **The FAB clearance lives on the phone shell's `<main>`** (`AppLayout.tsx`), not in PageShell (review fix). Why: only the phone shell has the FAB and tab bar, and PageShell doesn't know which shell it's in; with PageShell's own 2rem, content ends 1rem above the FAB. Revisit: if a page outside PageShell needs more.
 - **Toasts move to the top while a sheet or dialog is open on phones** (review fix), keyed on Radix's `data-scroll-locked` body attribute; elsewhere they stay at the bottom. Why: phone sheets rise from where toasts sit, and the top stays clear of a sheet's title and buttons (sheets stop at 90dvh). Revisit: if a toast covers a tall sheet's handle on short phones.
-- **A done opening-checklist step keeps its action as a ghost button**, as on `main` (review check). Revisit: if the user wants the action hidden on done steps.
+- **Toasts stay at the bottom except while a phone sheet is open**, not always at the top on phones, so Undo stays near the thumb. Confirmed by the user 2026-10-14. Revisit: if a toast covers a tall sheet's handle on short phones.
+- **Plan's empty state points to Accounts** ("Add a bank, cash or e-wallet account on Accounts first."), since adding accounts left Home. Confirmed by the user 2026-10-14. Revisit: never.
+- **A done opening-checklist step hides its action** (changed from `main`, where it stayed as a ghost button). Confirmed by the user 2026-10-14. Revisit: never.
 - **One `useCloseWhenGone` hook closes editors whose item was removed or retired on another device** (review fix), covering Transactions, Budget, Plan (details and Pay card), Accounts and Categories. Revisit: never.
 - **The shortcut help lists "g b" and "g a"** (review fix); "g a" was missing too. Revisit: never.
 
