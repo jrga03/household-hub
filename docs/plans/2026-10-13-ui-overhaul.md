@@ -52,6 +52,12 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 - **Phone sheets close by X, swipe, tap outside, Escape or Back** (#108, confirmed by the user 2026-10-13). Swipe-down works on the handle and the body; a scrolled body only scrolls, and closes once back at the top (vaul's own rule). Revisit: never.
 - **Deferred: a real-device check** of the keyboard and the swipe (#108). `tests/e2e/phone-sheets.spec.ts` emulates the keyboard (shrunk `visualViewport` for iOS, shrunk viewport for `resizes-content`) and swipes with CDP touches on Chromium but with mouse pointer events on WebKit, which has no touch-drag automation. Revisit: next time the app is tried on an iPhone and an Android phone.
 - **Non-form sheets stay Radix `Sheet`** (#108, confirmed by the user 2026-10-13): the Categories ledger drill-in and the Import draft detail aren't forms. Revisit: #111 if the ledger sheet should drag like the form sheets.
+- **Budget's figures are envelope figures** (#111): allocated is the month's allocations into the category, spent is the month's spending less refunds, and left is the category's money (it carries over), so overspent means left below zero. The bar is spent against spent plus left. Home's Budgets counts still compare spending with the budget target. Revisit: if left should mean budget minus spent instead.
+- **Plan amounts save as you leave the field** (#111), one `setBudget` per changed category from the Plan's month, keeping the funding account in force or taking the first that fits; emptying or 0 clears it. The row's "…" menu has Move money (into that category) and Budget details (the Set budget sheet, for the funding account and start month). Revisit: if a single Save button is wanted.
+- **Distribute is a sheet on Plan** (#111), opened by `/plan?distribute=income|opening` (with `account`, `amount`, `date`), so the payday toast and the opening checklist link straight to it. The checklist's "Set budgets" goes to Plan. Revisit: never.
+- **Plan holds To assign, Move money, Pay card and the Allocations list** (#111); each account's Unassigned folds under "By account". Budget's ledger rows still open their record (an allocation opens Edit allocation). Revisit: if allocation edits should leave the ledger.
+- **Dropped: the per-category "by account" breakdown and the "Spent more than it holds" note** (#111); the ledger names each record's account, and red plus a full bar marks overspending. Revisit: if the breakdown is missed.
+- **Budget gets the "g b" shortcut** (#111). Revisit: never.
 
 ## Issues
 
