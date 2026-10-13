@@ -8,6 +8,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { signOutWithToast } from "@/lib/sign-out";
 import { cn } from "@/lib/utils";
 import { DRAWER_NAV, isNavItemActive } from "./nav";
+import { ReviewCountBadge, ReviewDot } from "./ReviewCount";
 
 /**
  * Mobile navigation drawer: every destination off the BottomTabBar, with the
@@ -78,6 +79,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
                 >
                   <item.icon className="h-5 w-5" />
                   <span className="flex-1">{item.label}</span>
+                  {item.reviewCount && <ReviewCountBadge />}
                   {active && <div className="h-5 w-1 rounded-full bg-primary" />}
                 </Link>
               );
@@ -114,12 +116,7 @@ export function NavMenuButton({ onClick }: { onClick: () => void }) {
   return (
     <Button variant="ghost" size="icon" className="relative" onClick={onClick} aria-label={label}>
       <Menu className="h-5 w-5" />
-      {reviewCount > 0 && (
-        <span
-          data-testid="review-dot"
-          className="absolute right-1.5 top-1.5 size-2 rounded-full bg-primary ring-2 ring-background"
-        />
-      )}
+      <ReviewDot />
     </Button>
   );
 }

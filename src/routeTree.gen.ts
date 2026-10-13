@@ -16,6 +16,7 @@ import { Route as CreateOrJoinRouteImport } from './routes/create-or-join'
 import { Route as DistributeRouteImport } from './routes/distribute'
 import { Route as ImportRouteImport } from './routes/import'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ReviewRouteImport } from './routes/review'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as TransactionsRouteImport } from './routes/transactions'
@@ -55,6 +56,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReviewRoute = ReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/distribute': typeof DistributeRoute
   '/import': typeof ImportRoute
   '/login': typeof LoginRoute
+  '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/transactions': typeof TransactionsRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/distribute': typeof DistributeRoute
   '/import': typeof ImportRoute
   '/login': typeof LoginRoute
+  '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/transactions': typeof TransactionsRoute
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/distribute': typeof DistributeRoute
   '/import': typeof ImportRoute
   '/login': typeof LoginRoute
+  '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/transactions': typeof TransactionsRoute
@@ -118,6 +127,7 @@ export interface FileRouteTypes {
     | '/distribute'
     | '/import'
     | '/login'
+    | '/review'
     | '/settings'
     | '/signup'
     | '/transactions'
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/distribute'
     | '/import'
     | '/login'
+    | '/review'
     | '/settings'
     | '/signup'
     | '/transactions'
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/distribute'
     | '/import'
     | '/login'
+    | '/review'
     | '/settings'
     | '/signup'
     | '/transactions'
@@ -155,6 +167,7 @@ export interface RootRouteChildren {
   DistributeRoute: typeof DistributeRoute
   ImportRoute: typeof ImportRoute
   LoginRoute: typeof LoginRoute
+  ReviewRoute: typeof ReviewRoute
   SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
   TransactionsRoute: typeof TransactionsRoute
@@ -211,6 +224,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/review': {
+      id: '/review'
+      path: '/review'
+      fullPath: '/review'
+      preLoaderRoute: typeof ReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -243,6 +263,7 @@ const rootRouteChildren: RootRouteChildren = {
   DistributeRoute: DistributeRoute,
   ImportRoute: ImportRoute,
   LoginRoute: LoginRoute,
+  ReviewRoute: ReviewRoute,
   SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,
   TransactionsRoute: TransactionsRoute,

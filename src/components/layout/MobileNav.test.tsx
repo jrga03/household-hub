@@ -8,7 +8,8 @@
  */
 
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -20,7 +21,7 @@ import {
 import { MobileNav, NavMenuButton } from "./MobileNav";
 import { signOutWithToast } from "@/lib/sign-out";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
-import { receiveEvents } from "@/lib/events/log";
+import { receiveEvents, type LoggedEvent } from "@/lib/events/log";
 
 // Radix measures via ResizeObserver, which jsdom lacks
 class ResizeObserverStub {
@@ -42,7 +43,46 @@ vi.mock("@/lib/sign-out", () => ({
   signOutWithToast: vi.fn().mockResolvedValue(undefined),
 }));
 
+// A Member: join requests (Owner only, from the server) are left out here
+vi.mock("@/hooks/useHousehold", () => ({
+  useHousehold: () => ({ household: null, isOwner: false, isKnown: true }),
+}));
+
 const onOpenChange = vi.fn();
+
+function withQueryClient(children: React.ReactNode) {
+  return (
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      {children}
+    </QueryClientProvider>
+  );
+}
+
+const uncategorizedExpense: LoggedEvent = {
+  id: "e-1",
+  householdId: "11111111-1111-4111-8111-111111111111",
+  visibility: "household",
+  ownerUserId: null,
+  entityType: "transaction",
+  entityId: "t-1",
+  eventType: "transaction.created",
+  eventVersion: 1,
+  hlc: "000000000001000-000000-device-b",
+  deviceId: "device-b",
+  actorUserId: "user-b",
+  payload: {
+    date: "2026-10-12",
+    type: "expense",
+    amountCents: 25000,
+    accountId: "aaaaaaaa-0000-4000-8000-000000000001",
+    categoryId: null,
+    description: "Lunch",
+    notes: "",
+    status: "cleared",
+  },
+};
 
 async function renderDrawer() {
   const rootRoute = createRootRoute({
@@ -53,7 +93,15 @@ async function renderDrawer() {
       </>
     ),
   });
-  const paths = ["/", "/transactions", "/import", "/categories", "/settings"];
+  const paths = [
+    "/",
+    "/transactions",
+    "/review",
+    "/accounts",
+    "/import",
+    "/categories",
+    "/settings",
+  ];
   const router = createRouter({
     routeTree: rootRoute.addChildren(
       paths.map((path) =>
@@ -66,13 +114,14 @@ async function renderDrawer() {
     ),
     history: createMemoryHistory({ initialEntries: ["/"] }),
   });
-  render(<RouterProvider router={router} />);
+  render(withQueryClient(<RouterProvider router={router} />));
   await screen.findByText("Household Hub");
 }
 
 describe("MobileNav drawer", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     onOpenChange.mockClear();
+    await resetLocalDatabase();
   });
 
   it("shows the signed-in user", async () => {
@@ -86,6 +135,7 @@ describe("MobileNav drawer", () => {
 
     const links = screen.getAllByRole("link");
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/review",
       "/accounts",
       "/import",
       "/categories",
@@ -94,6 +144,21 @@ describe("MobileNav drawer", () => {
 
     fireEvent.click(links[0]!);
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("shows the review count on the Review entry", async () => {
+    await receiveEvents([uncategorizedExpense], 0);
+    await renderDrawer();
+
+    const review = screen.getByRole("link", { name: /Review/ });
+    expect(await within(review).findByText("1")).toBeInTheDocument();
+    expect(review).toHaveAccessibleName("Review, 1 to review");
+  });
+
+  it("shows no count on the Review entry when nothing needs review", async () => {
+    await renderDrawer();
+
+    expect(screen.getByRole("link", { name: "Review" })).toBeInTheDocument();
   });
 
   it("puts the profile and sign out after the links", async () => {
@@ -122,43 +187,16 @@ describe("NavMenuButton", () => {
   });
 
   it("has no review dot when nothing needs review", async () => {
-    render(<NavMenuButton onClick={() => {}} />);
+    render(withQueryClient(<NavMenuButton onClick={() => {}} />));
 
     await screen.findByRole("button", { name: "Open navigation menu" });
     expect(screen.queryByTestId("review-dot")).not.toBeInTheDocument();
   });
 
   it("shows a review dot while an expense has no category", async () => {
-    await receiveEvents(
-      [
-        {
-          id: "e-1",
-          householdId: "11111111-1111-4111-8111-111111111111",
-          visibility: "household",
-          ownerUserId: null,
-          entityType: "transaction",
-          entityId: "t-1",
-          eventType: "transaction.created",
-          eventVersion: 1,
-          hlc: "000000000001000-000000-device-b",
-          deviceId: "device-b",
-          actorUserId: "user-b",
-          payload: {
-            date: "2026-10-12",
-            type: "expense",
-            amountCents: 25000,
-            accountId: "aaaaaaaa-0000-4000-8000-000000000001",
-            categoryId: null,
-            description: "Lunch",
-            notes: "",
-            status: "cleared",
-          },
-        },
-      ],
-      0
-    );
+    await receiveEvents([uncategorizedExpense], 0);
 
-    render(<NavMenuButton onClick={() => {}} />);
+    render(withQueryClient(<NavMenuButton onClick={() => {}} />));
 
     expect(
       await screen.findByRole("button", { name: "Open navigation menu, 1 to review" })

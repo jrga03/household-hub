@@ -1,4 +1,13 @@
-import { FileUp, Home, Layers, Receipt, Settings, Wallet, type LucideIcon } from "lucide-react";
+import {
+  ClipboardCheck,
+  FileUp,
+  Home,
+  Layers,
+  Receipt,
+  Settings,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
 import type { FileRoutesByTo } from "@/routeTree.gen";
 
 export type RoutePath = keyof FileRoutesByTo;
@@ -11,11 +20,14 @@ export interface NavItem {
   shortcut?: string;
   /** On the phone's bottom tab bar instead of in the drawer. */
   tab?: boolean;
+  /** Shows how many items wait for review. */
+  reviewCount?: boolean;
 }
 
 export const DAILY_NAV: NavItem[] = [
   { to: "/", label: "Home", icon: Home, shortcut: "g h", tab: true },
   { to: "/transactions", label: "Transactions", icon: Receipt, shortcut: "g t", tab: true },
+  { to: "/review", label: "Review", icon: ClipboardCheck, shortcut: "g r", reviewCount: true },
 ];
 
 export const MANAGE_NAV: NavItem[] = [
