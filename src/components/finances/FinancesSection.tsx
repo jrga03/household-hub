@@ -17,25 +17,25 @@ import { useCategoryList } from "@/hooks/useCategories";
 import { useFinanceOverview } from "@/hooks/useFinanceOverview";
 import { isCreditCard } from "@/lib/accounts/events";
 import { formatPHP, type Cents } from "@/lib/currency";
-import type { BudgetStatusCounts, FinanceOverview, FinanceScope } from "@/lib/finances/overview";
-import { readFinanceScope, rememberFinanceScope } from "@/lib/finances/scope";
+import type { BudgetStatusCounts, FinanceOverview, FinanceView } from "@/lib/finances/overview";
+import { readFinanceView, rememberFinanceView } from "@/lib/finances/view";
 import { isTransfer, type ListRow } from "@/lib/transactions/filter";
 import { localMonth, monthLabel, parseLocalDate } from "@/lib/utils/dates";
 import { cn } from "@/lib/utils";
 
-const SCOPE_LABELS: Record<FinanceScope, string> = { household: "Household", mine: "Mine" };
+const VIEW_LABELS: Record<FinanceView, string> = { household: "Household", mine: "Mine" };
 
 const linkClass = "inline-flex items-center gap-1 text-sm font-medium hover:underline";
 
 /** The current month at a glance, for Household accounts or the member's Personal ones. */
 export function FinancesSection({ userId }: { userId: string }) {
-  const [scope, setScope] = useState(readFinanceScope);
+  const [view, setView] = useState(readFinanceView);
   const currentMonth = localMonth(new Date());
-  const overview = useFinanceOverview(scope, userId, currentMonth);
+  const overview = useFinanceOverview(view, userId, currentMonth);
 
-  function choose(next: FinanceScope) {
-    rememberFinanceScope(next);
-    setScope(next);
+  function choose(next: FinanceView) {
+    rememberFinanceView(next);
+    setView(next);
   }
 
   return (
@@ -48,12 +48,12 @@ export function FinancesSection({ userId }: { userId: string }) {
             {(["household", "mine"] as const).map((option) => (
               <Button
                 key={option}
-                variant={scope === option ? "secondary" : "ghost"}
+                variant={view === option ? "secondary" : "ghost"}
                 size="sm"
-                aria-pressed={scope === option}
+                aria-pressed={view === option}
                 onClick={() => choose(option)}
               >
-                {SCOPE_LABELS[option]}
+                {VIEW_LABELS[option]}
               </Button>
             ))}
           </div>
@@ -61,7 +61,7 @@ export function FinancesSection({ userId }: { userId: string }) {
       </CardHeader>
       {overview && (
         <CardContent className="@container">
-          <FinancesBlocks overview={overview} scope={scope} currentMonth={currentMonth} />
+          <FinancesBlocks overview={overview} view={view} currentMonth={currentMonth} />
         </CardContent>
       )}
     </Card>
@@ -70,17 +70,17 @@ export function FinancesSection({ userId }: { userId: string }) {
 
 function FinancesBlocks({
   overview,
-  scope,
+  view,
   currentMonth,
 }: {
   overview: FinanceOverview;
-  scope: FinanceScope;
+  view: FinanceView;
   currentMonth: string;
 }) {
   if (overview.balances.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        {scope === "mine"
+        {view === "mine"
           ? "No Personal accounts yet. Add one under Accounts to see your own money here."
           : "No Household accounts yet. Add one under Accounts to see the household's money here."}
       </p>
@@ -143,7 +143,7 @@ function FinancesBlocks({
           </Link>
         }
       >
-        <LatestEntries rows={overview.latest} />
+        <LatestTransactions rows={overview.latest} />
       </Block>
     </div>
   );
@@ -210,50 +210,60 @@ function Count({ label, count, className }: { label: string; count: number; clas
   );
 }
 
-function LatestEntries({ rows }: { rows: ListRow[] }) {
+const MONEY_IN = { sign: "+", className: "text-green-700 dark:text-green-400" };
+const MONEY_OUT = { sign: "−", className: undefined };
+const MONEY_MOVED = { sign: "", className: "text-muted-foreground" };
+
+function LatestTransactions({ rows }: { rows: ListRow[] }) {
   const accountNames = useAccountNames();
   const categories = useCategoryList();
-  if (rows.length === 0) return <p className="text-sm text-muted-foreground">Nothing yet.</p>;
+  if (rows.length === 0) {
+    return <p className="text-sm text-muted-foreground">No transactions yet.</p>;
+  }
 
   const namesOfCategories = categories ? categoryNames(categories) : new Map<string, string>();
   const accountName = (id: string) => accountNames?.get(id) ?? "Account not on this device yet";
-  const label = (row: ListRow) => {
-    if (row.description) return row.description;
-    if (isTransfer(row))
-      return `${accountName(row.fromAccountId)} → ${accountName(row.toAccountId)}`;
-    if (row.categoryId === null) return "Unassigned";
-    return namesOfCategories.get(row.categoryId) ?? "Category not on this device yet";
+  const display = (row: ListRow) => {
+    if (isTransfer(row)) {
+      const path = `${accountName(row.fromAccountId)} → ${accountName(row.toAccountId)}`;
+      return { label: row.description || path, transfer: true, amount: MONEY_MOVED };
+    }
+    const categoryName =
+      row.categoryId === null
+        ? "Unassigned"
+        : (namesOfCategories.get(row.categoryId) ?? "Category not on this device yet");
+    return {
+      label: row.description || categoryName,
+      transfer: false,
+      amount: row.type === "income" ? MONEY_IN : MONEY_OUT,
+    };
   };
-  const sign = (row: ListRow) => (isTransfer(row) ? "" : row.type === "income" ? "+" : "−");
 
   return (
-    <ul aria-label="Latest entries" className="divide-y text-sm">
-      {rows.map((row) => (
-        <li key={row.id} className="flex items-center justify-between gap-3 py-1.5">
-          <span className="flex min-w-0 items-center gap-1.5">
-            {isTransfer(row) && (
-              <ArrowLeftRight
-                className="size-4 shrink-0 text-muted-foreground"
-                aria-label="Transfer"
-              />
-            )}
-            <span className="truncate">{label(row)}</span>
-            <span className="shrink-0 text-muted-foreground">
-              {format(parseLocalDate(row.date), "MMM d")}
+    <ul aria-label="Latest transactions" className="divide-y text-sm">
+      {rows.map((row) => {
+        const { label, transfer, amount } = display(row);
+        return (
+          <li key={row.id} className="flex items-center justify-between gap-3 py-1.5">
+            <span className="flex min-w-0 items-center gap-1.5">
+              {transfer && (
+                <ArrowLeftRight
+                  className="size-4 shrink-0 text-muted-foreground"
+                  aria-label="Transfer"
+                />
+              )}
+              <span className="truncate">{label}</span>
+              <span className="shrink-0 text-muted-foreground">
+                {format(parseLocalDate(row.date), "MMM d")}
+              </span>
             </span>
-          </span>
-          <span
-            className={cn(
-              "shrink-0 tabular-nums",
-              !isTransfer(row) && row.type === "income" && "text-green-700 dark:text-green-400",
-              isTransfer(row) && "text-muted-foreground"
-            )}
-          >
-            {sign(row)}
-            {formatPHP(row.amountCents)}
-          </span>
-        </li>
-      ))}
+            <span className={cn("shrink-0 tabular-nums", amount.className)}>
+              {amount.sign}
+              {formatPHP(row.amountCents)}
+            </span>
+          </li>
+        );
+      })}
     </ul>
   );
 }

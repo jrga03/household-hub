@@ -6,15 +6,15 @@ import { createCategory, createGroup } from "@/lib/commands/categories";
 import { setBudget } from "@/lib/commands/budgets";
 import { addTransaction, removeTransaction } from "@/lib/commands/transactions";
 import { addTransfer } from "@/lib/commands/transfers";
-import { readFinanceOverview } from "./overview";
+import { readFinanceOverview, type FinanceView } from "./overview";
 
 const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
 const OTHER_MEMBER = { ...MEMBER, userId: "user-b" };
 
 const peso = (amount: string): Cents => parsePHP(amount);
 
-const october = (scope: "household" | "mine" = "household") =>
-  readFinanceOverview(scope, MEMBER.userId, "2026-10");
+const october = (view: FinanceView = "household") =>
+  readFinanceOverview(view, MEMBER.userId, "2026-10");
 
 let bpiId: string;
 let gcashId: string;
@@ -109,8 +109,8 @@ describe("Household and Mine", () => {
 });
 
 describe("balances", () => {
-  const balancesOf = async (scope: "household" | "mine") =>
-    (await october(scope)).balances.map(({ account, balance }) => [account.name, balance]);
+  const balancesOf = async (view: FinanceView) =>
+    (await october(view)).balances.map(({ account, balance }) => [account.name, balance]);
 
   it("shows each account in use with its balance, Household and Mine apart", async () => {
     await record("2026-10-05", "1200");
@@ -169,8 +169,8 @@ describe("budget status", () => {
   });
 });
 
-describe("latest entries", () => {
-  it("lists the 5 newest in scope, transfers included, removed ones left out", async () => {
+describe("latest transactions", () => {
+  it("lists the 5 newest shown, transfers included, removed ones left out", async () => {
     for (const day of ["01", "02", "03", "04"]) await record(`2026-10-${day}`, day);
     await addTransfer(MEMBER, {
       date: "2026-10-05",

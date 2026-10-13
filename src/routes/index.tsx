@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, type ComponentType } from "react";
+import { useState } from "react";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell } from "@/components/layout/PageShell";
@@ -23,19 +23,6 @@ export const Route = createFileRoute("/")({
   component: HomePage,
 });
 
-interface SectionProps {
-  household: Household;
-  userId: string;
-  isOwner: boolean;
-}
-
-/** Home's sections, top to bottom; later non-finance sections join this list. */
-const SECTIONS: { id: string; Section: ComponentType<SectionProps> }[] = [
-  { id: "opening", Section: OpeningSection },
-  { id: "finances", Section: FinancesSection },
-  { id: "household", Section: HouseholdSection },
-];
-
 function HomePage() {
   const { household, isOwner } = useHousehold();
   const userId = useAuthStore((state) => state.user?.id);
@@ -50,22 +37,25 @@ function HomePage() {
 
       <PageShell variant="centered">
         <PageShell.Main className="space-y-4">
-          {household &&
-            userId &&
-            SECTIONS.map(({ id, Section }) => (
-              <Section key={id} household={household} userId={userId} isOwner={isOwner} />
-            ))}
+          {/* Home's sections, top to bottom. */}
+          {household && <OpeningChecklist key={household.id} householdId={household.id} />}
+          {household && userId && <FinancesSection userId={userId} />}
+          {household && userId && (
+            <HouseholdSection household={household} userId={userId} isOwner={isOwner} />
+          )}
         </PageShell.Main>
       </PageShell>
     </div>
   );
 }
 
-function OpeningSection({ household }: SectionProps) {
-  return <OpeningChecklist key={household.id} householdId={household.id} />;
+interface HouseholdSectionProps {
+  household: Household;
+  userId: string;
+  isOwner: boolean;
 }
 
-function HouseholdSection({ household, userId, isOwner }: SectionProps) {
+function HouseholdSection({ household, userId, isOwner }: HouseholdSectionProps) {
   return (
     <>
       <Card>

@@ -11,8 +11,9 @@ import { db } from "@/lib/dexie/db";
 import type { Ownership } from "@/lib/events/log";
 import { newestFirst, totalTransactions, type ListRow } from "@/lib/transactions/filter";
 import { sumAccountMoney } from "@/lib/transactions/money";
+import { monthOfDate } from "@/lib/utils/dates";
 
-export type FinanceScope = "household" | "mine";
+export type FinanceView = "household" | "mine";
 
 /** Categories with a budget this month, by how much of it is spent. */
 export interface BudgetStatusCounts {
@@ -31,29 +32,30 @@ export interface FinanceOverview {
   /** Accounts in use, by name; for a credit card, the amount owed. */
   balances: { account: AccountRow; balance: Cents }[];
   budgets: BudgetStatusCounts;
-  /** The newest entries, transfers included, in any month. */
+  /** The newest transactions and transfers, in any month. */
   latest: ListRow[];
 }
 
 const LATEST_COUNT = 5;
 
-const monthOf = (date: string) => date.slice(0, 7);
+/** A budget is close once this share of it is spent. */
+const CLOSE_PERCENT = 80;
 
-/** Household records, or the member's own Personal ones. */
-const inScope = (scope: FinanceScope, userId: string) => (record: Ownership) =>
-  scope === "household"
-    ? record.visibility === "household"
-    : record.visibility === "personal" && record.ownerUserId === userId;
+/** Household, or Personal and the member's own. */
+const shownIn = (view: FinanceView, userId: string) => (owned: Ownership) =>
+  view === "household"
+    ? owned.visibility === "household"
+    : owned.visibility === "personal" && owned.ownerUserId === userId;
 
 function budgetStatus(budget: Cents, spent: Cents): keyof BudgetStatusCounts {
   if (spent > budget) return "over";
-  // 80% or more, without dividing cents.
-  if (budget > 0 && spent * 5 >= budget * 4) return "close";
+  // Compared without dividing cents.
+  if (budget > 0 && spent * 100 >= budget * CLOSE_PERCENT) return "close";
   return "fine";
 }
 
 export async function readFinanceOverview(
-  scope: FinanceScope,
+  view: FinanceView,
   userId: string,
   currentMonth: string
 ): Promise<FinanceOverview> {
@@ -65,14 +67,14 @@ export async function readFinanceOverview(
     db.budgets.toArray(),
     db.categories.toArray(),
   ]);
-  const isShown = inScope(scope, userId);
+  const isShown = shownIn(view, userId);
 
   const shownTransactions = transactions.filter(
     (transaction) => !transaction.removed && isShown(transaction)
   );
   const shownTransfers = transfers.filter((transfer) => !transfer.removed && isShown(transfer));
   const thisMonth = shownTransactions.filter(
-    (transaction) => monthOf(transaction.date) === currentMonth
+    (transaction) => monthOfDate(transaction.date) === currentMonth
   );
   const totals = totalTransactions(thisMonth);
 
