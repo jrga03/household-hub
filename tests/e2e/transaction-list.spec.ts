@@ -108,11 +108,16 @@ test("rows sit under their date, and a pending one is marked by an icon", async 
   const list = page.getByRole("list", { name: "Transactions" });
   await expect(list.getByRole("heading", { name: "Today" })).toBeVisible();
   const lunch = list.getByRole("listitem").filter({ hasText: "Lunch" });
-  await expect(lunch).toContainText("−₱250.00");
+  // An expense reads in parentheses and is announced as minus.
+  await expect(lunch).toContainText("(₱250.00)");
+  await expect(
+    lunch.getByRole("button", { name: "Edit Lunch, minus ₱250.00, pending", exact: true })
+  ).toBeVisible();
   await expect(lunch).toContainText("Unassigned · BPI");
   await expect(lunch.getByRole("img", { name: "Pending" })).toBeVisible();
   const salary = list.getByRole("listitem").filter({ hasText: "Salary" });
   await expect(salary).toContainText("+₱1,000.00");
+  await expect(salary).not.toContainText("−");
   await expect(salary.getByRole("img", { name: "Pending" })).toHaveCount(0);
   await expect(list.getByRole("checkbox")).toHaveCount(0);
   await expect(list.getByRole("button", { name: /^Mark/ })).toHaveCount(0);
@@ -173,6 +178,26 @@ test("selecting rows changes their category or removes them, with undo", async (
   await expect(toolbar).toBeHidden();
   await expect(header.getByRole("heading", { name: "Transactions" })).toBeVisible();
   if (isMobile) await expect(tabBar).toBeVisible();
+});
+
+test("Back and Escape leave selecting without leaving the page", async ({ page }) => {
+  await startHousehold(page);
+  await navigateTo(page, "Transactions");
+  await addTransaction(page, { amount: "100", description: "Water" });
+
+  const header = page.getByRole("banner");
+  const selected = header.getByRole("heading", { name: "0 selected" });
+  await header.getByRole("button", { name: "Select", exact: true }).click();
+  await expect(selected).toBeVisible();
+  await page.goBack();
+  await expect(header.getByRole("heading", { name: "Transactions" })).toBeVisible();
+  await expect(page).toHaveURL(/\/transactions/);
+
+  await header.getByRole("button", { name: "Select", exact: true }).click();
+  await expect(selected).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(header.getByRole("heading", { name: "Transactions" })).toBeVisible();
+  await expect(page.getByRole("toolbar", { name: "Selected transactions" })).toBeHidden();
 });
 
 test.describe("on a phone", () => {
@@ -245,7 +270,10 @@ test.describe("on a wide screen", () => {
     const list = page.getByRole("list", { name: "Transactions" });
     // The oldest row renders only once the page scrolls down to it.
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    const row = list.getByRole("button", { name: "Edit Item 1", exact: true });
+    const row = list.getByRole("button", {
+      name: "Edit Item 1, minus ₱100.00",
+      exact: true,
+    });
     await expect(row).toBeInViewport();
     const scrolledTo = await page.evaluate(() => window.scrollY);
     expect(scrolledTo).toBeGreaterThan(0);

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useHistoryBackClose } from "@/hooks/useHistoryBackClose";
 import { useHeaderSlot } from "./HeaderActions";
 
 interface ContextModeProps {
@@ -16,7 +17,7 @@ interface ContextModeProps {
 
 /**
  * While mounted, the header shows `title` with a ✕ that calls `onExit`
- * (Escape does too), and the actions take the tab bar's place on phones.
+ * (Escape and Back do too), and the actions take the tab bar's place on phones.
  * On wide screens they render where the mode is placed.
  */
 export function ContextMode({
@@ -37,6 +38,8 @@ export function ContextMode({
     setMode({ title, exitLabel, exit: () => exitRef.current() });
   }, [setMode, title, exitLabel]);
   useLayoutEffect(() => () => setMode(null), [setMode]);
+  // Back leaves the mode, the way it closes a sheet, instead of leaving the page.
+  useHistoryBackClose(true, () => exitRef.current());
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

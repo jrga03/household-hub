@@ -48,6 +48,11 @@ test("transactions recorded offline move the balance, and a removal can be undon
   await expect(bankItem(page)).toContainText("Cleared ₱750.00 · Pending ₱1,000.00");
   await expect(bankItem(page)).toContainText("Unassigned ₱2,000.00");
 
+  // Home's Latest shows an expense in parentheses, as the Transactions page does.
+  await navigateTo(page, "Home");
+  await expect(page.getByRole("list", { name: "Latest transactions" })).toContainText("(₱250.00)");
+  await navigateTo(page, "Accounts");
+
   // Tapping an account opens Transactions filtered to it.
   await bankItem(page).getByRole("link", { name: "BPI" }).click();
   await expect(page).toHaveURL(/\/transactions\?account=/);

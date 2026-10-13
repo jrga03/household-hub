@@ -4,7 +4,7 @@ import { cardPaymentEnvelope } from "@/lib/allocations/events";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import type { TransferRow } from "@/lib/transfers/projection";
 import type { DraftRow } from "./drafts";
-import { discardedByDefault, draftFlagger, selectedByDefault } from "./review";
+import { discardedByDefault, draftFlagger, needsDescription, selectedByDefault } from "./review";
 
 const CARD = "card";
 const BANK = "bank";
@@ -205,5 +205,17 @@ describe("discardedByDefault", () => {
       false
     );
     expect(discardedByDefault(null)).toBe(false);
+  });
+});
+
+describe("needsDescription", () => {
+  it("flags a draft whose description is blank", () => {
+    expect(needsDescription(draft({ description: "" }))).toBe(true);
+    expect(needsDescription(draft({ description: "   " }))).toBe(true);
+  });
+
+  it("passes a described draft, and a card payment, which isn't saved as a transaction", () => {
+    expect(needsDescription(draft())).toBe(false);
+    expect(needsDescription(draft({ description: "" }, { isCardPayment: true }))).toBe(false);
   });
 });

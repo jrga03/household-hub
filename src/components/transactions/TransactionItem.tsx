@@ -4,11 +4,11 @@ import { toast } from "sonner";
 import type { Actor } from "@/lib/commands/accounts";
 import { setTransactionStatus } from "@/lib/commands/transactions";
 import { setTransferStatus } from "@/lib/commands/transfers";
-import { formatPHP } from "@/lib/currency";
 import type { TransactionStatus } from "@/lib/transactions/events";
 import { isTransfer, type ListRow } from "@/lib/transactions/filter";
 import { cn, errorMessage } from "@/lib/utils";
 import { removeWithUndo } from "./removeWithUndo";
+import { spokenAmount, TransactionAmount, type AmountDirection } from "./TransactionAmount";
 import { removeTransferWithUndo } from "./TransferDialog";
 import { REVEAL_WIDTH, useRowGestures, type RevealedAction } from "./useRowGestures";
 
@@ -17,9 +17,6 @@ const OTHER_STATUS: Record<TransactionStatus, TransactionStatus> = {
   pending: "cleared",
 };
 
-export type AmountDirection = "in" | "out" | "moved";
-
-const AMOUNT_SIGN: Record<AmountDirection, string> = { in: "+", out: "−", moved: "" };
 const AMOUNT_COLOR: Record<AmountDirection, string> = {
   in: "text-income",
   out: "",
@@ -45,6 +42,8 @@ interface TransactionItemProps {
   /** A tap: opens the row, or toggles it while selecting. */
   onTap: () => void;
   onLongPress: () => void;
+  /** "(₱250.00)" instead of "−₱250.00"; only the Transactions page asks for it. */
+  expenseInParentheses?: boolean;
 }
 
 /**
@@ -63,12 +62,14 @@ export function TransactionItem({
   onRevealChange,
   onTap,
   onLongPress,
+  expenseInParentheses = false,
 }: TransactionItemProps) {
   const rowRef = useRef<HTMLDivElement>(null);
   const [changing, startChanging] = useTransition();
   const toggleTo = OTHER_STATUS[row.status];
   const pending = row.status === "pending";
   const { label, detail, direction } = display;
+  const spoken = spokenAmount(direction, row.amountCents);
   const { offset, dragging, handlers } = useRowGestures({
     rowRef,
     revealed,
@@ -132,7 +133,7 @@ export function TransactionItem({
         <button
           type="button"
           className="min-w-0 flex-1 text-left"
-          aria-label={`${selecting ? "Select" : "Edit"} ${label}${pending ? ", pending" : ""}`}
+          aria-label={`${selecting ? "Select" : "Edit"} ${label}, ${spoken}${pending ? ", pending" : ""}`}
           aria-pressed={selecting ? selected : undefined}
           aria-current={(open && !selecting) || undefined}
           onClick={onTap}
@@ -166,8 +167,11 @@ export function TransactionItem({
                 pending ? "text-muted-foreground" : AMOUNT_COLOR[direction]
               )}
             >
-              {AMOUNT_SIGN[direction]}
-              {formatPHP(row.amountCents)}
+              <TransactionAmount
+                direction={direction}
+                cents={row.amountCents}
+                expenseInParentheses={expenseInParentheses}
+              />
             </span>
           </span>
           <span className="block truncate text-sm text-muted-foreground">{detail}</span>

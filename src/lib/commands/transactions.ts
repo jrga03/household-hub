@@ -53,7 +53,7 @@ function checkedDetails(input: TransactionInput): TransactionDetails {
 const payingAccountOf = (account: AccountRow) =>
   isCreditCard(account) ? account.payingAccountId : null;
 
-/** A member names what they record; only an imported statement line may come without one. */
+/** Every transaction is named, an imported statement line included; old ones without a name still decode. */
 function requireDescription(details: TransactionDetails): void {
   if (details.description === "") throw new Error("Add a description.");
 }
@@ -69,7 +69,7 @@ export async function addTransaction(
   input: NewTransactionInput
 ): Promise<{ id: string }> {
   const details = checkedDetails(input);
-  if (input.importKey === undefined) requireDescription(details);
+  requireDescription(details);
   const status = input.status ?? "cleared";
   if (!isTransactionStatus(status)) throw new Error("Choose Cleared or Pending.");
   const account = await requireAccount(details.accountId);

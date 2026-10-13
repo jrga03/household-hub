@@ -39,6 +39,7 @@ function TransactionsPage() {
             actor={{ householdId: household.id, userId }}
             filter={filter}
             onFilterChange={setFilter}
+            expenseInParentheses
           />
         )}
       </PageShell>

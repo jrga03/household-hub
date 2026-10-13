@@ -169,13 +169,10 @@ describe("addTransaction", () => {
     expect(await listTransactions()).toEqual([]);
   });
 
-  it("keeps an imported statement line's blank description", async () => {
-    const { id } = await addTransaction(MEMBER, {
-      ...expense({ description: "" }),
-      importKey: "statement-line-1",
-    });
-
-    expect(await listTransactions()).toMatchObject([{ id, description: "" }]);
+  it("refuses an imported statement line without a description too", async () => {
+    await expect(
+      addTransaction(MEMBER, { ...expense({ description: "" }), importKey: "statement-line-1" })
+    ).rejects.toThrow(DESCRIPTION_REQUIRED);
   });
 });
 
