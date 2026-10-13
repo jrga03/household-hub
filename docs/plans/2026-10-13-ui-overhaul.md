@@ -70,4 +70,4 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 - [ ] 4. #109 Transactions rehaul: rows, date headers, pending style, swipe-reveal, remove confirmation, selection mode, Totals removed, description required
 - [ ] 5. #110 Review screen
 - [ ] 6. #111 Categories / Budget / Plan split; `/distribute` removed
-- [ ] 7. #112 Onboarding (no blockers; can jump the queue): safe area, Create / Join toggle
+- [x] 7. #112 (merged ccdca43, PR #116) Onboarding (no blockers; can jump the queue): safe area, Create / Join toggle
