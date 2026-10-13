@@ -5,7 +5,7 @@
  */
 
 import type { AccountRow } from "@/lib/accounts/projection";
-import { summarizeMonth } from "@/lib/budgets/month";
+import { countsInMonth, summarizeMonth } from "@/lib/budgets/month";
 import { budgetStatus, type BudgetStatus } from "@/lib/budgets/progress";
 import { ZERO_CENTS, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
@@ -79,7 +79,8 @@ export async function readFinanceOverview(
   const budgetCounts: BudgetStatusCounts = { fine: 0, close: 0, over: 0 };
   for (const category of categories) {
     const figures = monthView.get(category.id);
-    if (category.retired || !isShown(category) || !figures?.budget) continue;
+    // Budget's rows follow the same rule, so the two screens agree.
+    if (!isShown(category) || !figures?.budget || !countsInMonth(category, figures)) continue;
     budgetCounts[budgetStatus(figures.budget.amountCents, figures.spent)] += 1;
   }
 

@@ -10,7 +10,13 @@ import {
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { createAccount } from "@/lib/commands/accounts";
 import { setBudget } from "@/lib/commands/budgets";
-import { createCategory, createGroup } from "@/lib/commands/categories";
+import {
+  createCategory,
+  createGroup,
+  retireCategory,
+  retireGroup,
+} from "@/lib/commands/categories";
+import { db } from "@/lib/dexie/db";
 import { addTransaction } from "@/lib/commands/transactions";
 import { readFinanceOverview } from "@/lib/finances/overview";
 import { parsePHP } from "@/lib/currency";
@@ -28,13 +34,13 @@ class ResizeObserverStub {
 }
 globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof globalThis.ResizeObserver;
 
-function renderBudget() {
+function renderBudget(month = MONTH) {
   const rootRoute = createRootRoute();
   const routes = ["/budget", "/categories"].map((path) =>
     createRoute({
       getParentRoute: () => rootRoute,
       path,
-      component: () => <BudgetView actor={MEMBER} month={MONTH} currentMonth={MONTH} />,
+      component: () => <BudgetView actor={MEMBER} month={month} currentMonth={MONTH} />,
     })
   );
   const router = createRouter({
@@ -156,6 +162,64 @@ describe("BudgetView", () => {
     const { budgets } = await readFinanceOverview("household", MEMBER.userId, MONTH);
     expect(overspent).toEqual(["Restaurants"]);
     expect(budgets.over).toBe(overspent.length);
+  });
+
+  it("keeps a retired category's row and totals in a month it had spending, and drops it in one with none", async () => {
+    const { delivery, groceries } = await foodThisMonth();
+    const bpi = (await db.accounts.toArray())[0];
+    if (!bpi) throw new Error("No account");
+    await addTransaction(MEMBER, {
+      date: "2026-09-12",
+      type: "expense",
+      amountCents: parsePHP("450"),
+      accountId: bpi.id,
+      categoryId: delivery.id,
+      description: "Pizza",
+    });
+    await retireCategory(MEMBER, delivery.id, { toCategoryId: groceries.id, date: "2026-09-30" });
+
+    const september = renderBudget("2026-09");
+    expect(await figures("Delivery")).toHaveTextContent("BudgetNoneSpent₱450.00");
+    expect(screen.getByRole("button", { name: "Delivery ledger" })).toHaveTextContent("Retired");
+    expect(await figures("Food")).toHaveTextContent("Spent₱450.00");
+    september.unmount();
+
+    renderBudget();
+    await figures("Groceries");
+    expect(screen.queryByLabelText("Delivery budget, spent and left")).not.toBeInTheDocument();
+    expect(await figures("Food")).toHaveTextContent("Spent₱0.00");
+  });
+
+  it("shows a retired group in a month one of its categories shows", async () => {
+    const bpi = await createAccount(MEMBER, {
+      name: "BPI",
+      type: "bank",
+      startingBalanceCents: parsePHP("1000"),
+    });
+    const fun = await createGroup(MEMBER, { name: "Fun" });
+    const movies = await createCategory(MEMBER, { name: "Movies", groupId: fun.id });
+    await setBudget(MEMBER, {
+      categoryId: movies.id,
+      fromMonth: "2026-09",
+      amountCents: parsePHP("500"),
+      accountId: bpi.id,
+    });
+    await setBudget(MEMBER, {
+      categoryId: movies.id,
+      fromMonth: MONTH,
+      amountCents: parsePHP("0"),
+      accountId: null,
+    });
+    await retireCategory(MEMBER, movies.id);
+    await retireGroup(MEMBER, fun.id);
+
+    const september = renderBudget("2026-09");
+    expect(await figures("Fun")).toHaveTextContent("Budget₱500.00Spent₱0.00Left₱500.00");
+    expect(await figures("Movies")).toHaveTextContent("Budget₱500.00");
+    september.unmount();
+
+    renderBudget();
+    expect(await screen.findByText(/No categories yet/)).toBeInTheDocument();
   });
 
   it("points to Categories when there are none", async () => {

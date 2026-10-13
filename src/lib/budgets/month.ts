@@ -150,3 +150,11 @@ export async function readMonthView(month: string, currentMonth: string): Promis
     budgets,
   });
 }
+
+/**
+ * Whether a category counts in a month's budget figures: one in use always
+ * does; a retired one keeps its history, so it does in any month it had a
+ * budget in force or spending.
+ */
+export const countsInMonth = (category: { retired: boolean }, figures: CategoryMonth) =>
+  !category.retired || figures.budget !== null || figures.spent !== 0;

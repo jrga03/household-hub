@@ -30,26 +30,16 @@ import {
   type MonthView,
 } from "@/lib/budgets/month";
 import { budgetProgress } from "@/lib/budgets/progress";
-import type { CategoryList, CategoryRow, GroupListItem } from "@/lib/categories/projection";
+import { budgetRows } from "@/lib/budgets/rows";
+import type { CategoryRow, GroupRow } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { formatPHP } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import { monthLabel } from "@/lib/utils/dates";
 
-/**
- * A group's sums: its categories' budgets, as Home counts them, against all
- * its spending, including categories without a budget and retired ones, so a
- * month's spending doesn't vanish on retiring.
- */
-function groupFigures(view: MonthView, list: CategoryList, group: GroupListItem): MonthFigures {
-  const retired = list.retiredCategories
-    .filter((category) => category.group?.id === group.id)
-    .map((category) => ({ ...categoryMonth(view, category.id), budget: null }));
-  return sumMonthFigures([
-    ...group.categories.map((category) => categoryMonth(view, category.id)),
-    ...retired,
-  ]);
-}
+/** A group's totals are the sums of its rows, categories without a budget included. */
+const groupFigures = (view: MonthView, categories: CategoryRow[]): MonthFigures =>
+  sumMonthFigures(categories.map((category) => categoryMonth(view, category.id)));
 
 /**
  * The month's budget, spent and left per category, view-only. Left is the
@@ -93,7 +83,8 @@ export function BudgetView({
     />
   );
 
-  const empty = list.groups.length === 0 && list.ungrouped.length === 0;
+  const rows = budgetRows(list, monthView);
+  const empty = rows.groups.length === 0 && rows.ungrouped.length === 0;
 
   return (
     <>
@@ -105,25 +96,25 @@ export function BudgetView({
           </p>
         ) : (
           <ul aria-label="Budget by group" className="space-y-4">
-            {list.groups.map((group) => (
+            {rows.groups.map(({ group, categories }) => (
               <li key={group.id} className="rounded-md border">
-                <GroupTotals group={group} figures={groupFigures(monthView, list, group)} />
+                <GroupTotals group={group} figures={groupFigures(monthView, categories)} />
                 <CategoryRows
                   label={`${group.name} budget`}
-                  categories={group.categories}
+                  categories={categories}
                   view={monthView}
                   onOpenLedger={setLedgerId}
                 />
               </li>
             ))}
-            {list.ungrouped.length > 0 && (
+            {rows.ungrouped.length > 0 && (
               <li className="rounded-md border">
                 <p className="border-b px-3 py-2 text-sm text-muted-foreground">
                   Waiting for their group to reach this device
                 </p>
                 <CategoryRows
                   label="Ungrouped budget"
-                  categories={list.ungrouped}
+                  categories={rows.ungrouped}
                   view={monthView}
                   onOpenLedger={setLedgerId}
                 />
@@ -196,7 +187,7 @@ export function BudgetView({
   );
 }
 
-function GroupTotals({ group, figures }: { group: GroupListItem; figures: MonthFigures }) {
+function GroupTotals({ group, figures }: { group: GroupRow; figures: MonthFigures }) {
   return (
     <div className="space-y-1.5 border-b bg-muted/40 px-3 py-2">
       <RecordName record={group} showRetired />
@@ -230,7 +221,7 @@ function CategoryRows({
             className="flex max-w-full text-left after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-inset"
             onClick={() => onOpenLedger(category.id)}
           >
-            <RecordName record={category} />
+            <RecordName record={category} showRetired />
           </button>
           <BudgetFigures
             name={category.name}
