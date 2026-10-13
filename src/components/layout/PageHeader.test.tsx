@@ -14,6 +14,8 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
+import { useState } from "react";
+import { ContextMode, PhoneBottomChrome } from "./ContextMode";
 import { HeaderActions, HeaderSlotProvider } from "./HeaderActions";
 import { PageHeader } from "./PageHeader";
 
@@ -26,13 +28,44 @@ vi.mock("@/components/sync/SyncStatusIndicator", () => ({
   SyncStatusIndicator: () => null,
 }));
 
-async function renderAt(initialEntries: string[]) {
+function Selecting() {
+  const [selecting, setSelecting] = useState(false);
+  if (!selecting) {
+    return (
+      <button type="button" onClick={() => setSelecting(true)}>
+        Select
+      </button>
+    );
+  }
+  return (
+    <ContextMode title="2 selected" exitLabel="Cancel selection" onExit={() => setSelecting(false)}>
+      <button type="button">Remove</button>
+    </ContextMode>
+  );
+}
+
+async function renderAt(initialEntries: string[], { phone = false } = {}) {
   const rootRoute = createRootRoute({
     component: () => (
       <HeaderSlotProvider>
         <PageHeader menuButton={<button type="button">Open navigation menu</button>} />
         <Outlet />
+        {phone && (
+          <PhoneBottomChrome>
+            <nav aria-label="Primary navigation" />
+          </PhoneBottomChrome>
+        )}
       </HeaderSlotProvider>
+    ),
+  });
+  const selectable = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/transactions",
+    staticData: { title: "Transactions" },
+    component: () => (
+      <main>
+        <Selecting />
+      </main>
     ),
   });
   const home = createRoute({
@@ -56,7 +89,7 @@ async function renderAt(initialEntries: string[]) {
     staticData: { title: "Plan", parent: "/budget" },
   });
   const router = createRouter({
-    routeTree: rootRoute.addChildren([home, budget, plan]),
+    routeTree: rootRoute.addChildren([home, budget, plan, selectable]),
     history: createMemoryHistory({ initialEntries }),
   });
   render(<RouterProvider router={router} />);
@@ -113,5 +146,45 @@ describe("PageHeader", () => {
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
 
     await vi.waitFor(() => expect(router.state.location.pathname).toBe("/budget"));
+  });
+
+  describe("a mode such as selecting", () => {
+    it("takes over the title and swaps the menu button for an exit", async () => {
+      await renderAt(["/transactions"]);
+      fireEvent.click(screen.getByRole("button", { name: "Select" }));
+
+      expect(title()).toHaveTextContent("2 selected");
+      expect(screen.queryByRole("button", { name: "Open navigation menu" })).toBeNull();
+
+      fireEvent.click(screen.getByRole("button", { name: "Cancel selection" }));
+
+      expect(title()).toHaveTextContent("Transactions");
+      expect(screen.getByRole("button", { name: "Open navigation menu" })).toBeInTheDocument();
+    });
+
+    it("shows its actions where it is placed on wide screens", async () => {
+      await renderAt(["/transactions"]);
+      fireEvent.click(screen.getByRole("button", { name: "Select" }));
+
+      expect(screen.getByRole("main")).toContainElement(
+        screen.getByRole("button", { name: "Remove" })
+      );
+    });
+
+    it("puts its actions in place of the tab bar on phones", async () => {
+      await renderAt(["/transactions"], { phone: true });
+      expect(screen.getByRole("navigation", { name: "Primary navigation" })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Select" }));
+
+      expect(screen.queryByRole("navigation", { name: "Primary navigation" })).toBeNull();
+      expect(screen.getByRole("main")).not.toContainElement(
+        screen.getByRole("button", { name: "Remove" })
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Cancel selection" }));
+
+      expect(screen.getByRole("navigation", { name: "Primary navigation" })).toBeInTheDocument();
+    });
   });
 });

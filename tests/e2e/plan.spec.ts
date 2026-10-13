@@ -59,6 +59,7 @@ test("a payroll distribution from Plan leaves the source account's Unassigned at
   await add.getByRole("radio", { name: "Income" }).check();
   await add.getByLabel("Amount (₱)").fill("40000");
   await chooseOption(page, add.getByLabel("Account"), "BPI");
+  await add.getByLabel("Description", { exact: true }).fill("Payday");
   await add.getByRole("button", { name: "Add transaction" }).click();
   await expect(add).toBeHidden();
   await page.locator("[data-sonner-toast]").getByRole("button", { name: "Distribute" }).click();
@@ -92,7 +93,7 @@ test("a payroll distribution from Plan leaves the source account's Unassigned at
   await expense.getByLabel("Amount (₱)").fill("9000");
   await chooseOption(page, expense.getByLabel("Account"), "BPI");
   await chooseOption(page, expense.getByLabel("Category"), "Groceries");
-  await expense.getByLabel(/^Description/).fill("Party supplies");
+  await expense.getByLabel("Description", { exact: true }).fill("Party supplies");
   await expense.getByRole("button", { name: "Add transaction" }).click();
   await expect(expense).toBeHidden();
   for (const name of ["Groceries", "Food"]) {
@@ -104,6 +105,30 @@ test("a payroll distribution from Plan leaves the source account's Unassigned at
       "true"
     );
   }
+  // A category retired this month keeps its row and its spending in the group.
+  await page.keyboard.press("n");
+  await expense.getByLabel("Amount (₱)").fill("500");
+  await chooseOption(page, expense.getByLabel("Account"), "BPI");
+  await chooseOption(page, expense.getByLabel("Category"), "Restaurants");
+  await expense.getByLabel("Description", { exact: true }).fill("Lunch");
+  await expense.getByRole("button", { name: "Add transaction" }).click();
+  await expect(expense).toBeHidden();
+  await page.goto("/categories");
+  await page.getByRole("button", { name: "Edit Restaurants" }).click();
+  await page.getByRole("button", { name: "Retire category" }).click();
+  const retire = page.getByRole("dialog", { name: "Retire Restaurants" });
+  await chooseOption(page, retire.getByLabel("Move its money into"), "Delivery");
+  await retire.getByRole("button", { name: "Move and retire" }).click();
+  await expect(retire).toBeHidden();
+  await page.goto("/budget");
+  await expect(page.getByRole("button", { name: "Restaurants ledger" })).toContainText("Retired");
+  await expect(page.getByLabel("Restaurants budget, spent and left")).toHaveText(
+    "BudgetNoneSpent₱500.00"
+  );
+  await expect(page.getByLabel("Food budget, spent and left")).toHaveText(
+    "Budget₱8,000.00Spent₱9,500.00Left-₱1,500.00"
+  );
+
   // The bar slides to full; wait for it before the screenshot.
   const groceriesBar = page.getByRole("progressbar", { name: "Groceries spent" });
   await expect

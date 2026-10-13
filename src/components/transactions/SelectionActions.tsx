@@ -1,5 +1,4 @@
 import { useTransition } from "react";
-import { X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,13 +17,12 @@ import {
   changeTransactionsCategory,
   removeTransactions,
   restoreTransactions,
-  setTransactionsStatus,
 } from "@/lib/commands/transactions";
 import type { BulkResult } from "@/lib/commands/bulk";
-import { removeTransfers, restoreTransfers, setTransfersStatus } from "@/lib/commands/transfers";
+import { removeTransfers, restoreTransfers } from "@/lib/commands/transfers";
+import { confirm } from "@/lib/confirm";
 import { isTransfer, type ListRow } from "@/lib/transactions/filter";
 import type { TransactionRow } from "@/lib/transactions/projection";
-import type { TransactionStatus } from "@/lib/transactions/events";
 import { countOf, errorMessage } from "@/lib/utils";
 
 // Radix Select can't hold an empty value.
@@ -85,7 +83,7 @@ function reportFailures(result: BulkResult, rows: ListRow[]) {
   toast.error(`${rowsCount(failedIds, rows)} unchanged: ${first.reason}`);
 }
 
-interface BulkActionsProps {
+interface SelectionActionsProps {
   actor: Actor;
   /** The selected transactions and transfers still shown. */
   selected: ListRow[];
@@ -94,13 +92,14 @@ interface BulkActionsProps {
   onDone: () => void;
 }
 
-export function BulkActions({
+/** What can be done to the selected rows: change their category, or remove them. */
+export function SelectionActions({
   actor,
   selected,
   accountsById,
   categories,
   onDone,
-}: BulkActionsProps) {
+}: SelectionActionsProps) {
   const [acting, startActing] = useTransition();
   const ids = selected.map((row) => row.id);
   // Transfers carry an envelope on both sides; Change category skips them.
@@ -125,18 +124,6 @@ export function BulkActions({
       }
     });
 
-  const markAs = (status: TransactionStatus) =>
-    runBulk(
-      () =>
-        onEach(
-          selected,
-          (some) => setTransactionsStatus(actor, some, status),
-          (some) => setTransfersStatus(actor, some, status)
-        ),
-      (result) => toast.success(`Marked ${rowsCount(result.changed, selected)} ${status}`),
-      `They're already ${status}.`
-    );
-
   const changeCategory = (value: string) =>
     runBulk(
       () => changeTransactionsCategory(actor, transactionIds, value === UNASSIGNED ? null : value),
@@ -147,7 +134,14 @@ export function BulkActions({
       "They're already in that category."
     );
 
-  const remove = () =>
+  const remove = async () => {
+    const confirmed = await confirm({
+      title: `Remove ${rowsCount(ids, selected)}?`,
+      description: "You can undo it right after.",
+      confirmLabel: "Remove",
+      destructive: true,
+    });
+    if (!confirmed) return;
     runBulk(
       () =>
         onEach(
@@ -173,6 +167,7 @@ export function BulkActions({
         }),
       "They're already removed."
     );
+  };
 
   const choices = categories ? categoriesFittingAll(categories, transactions, accountsById) : [];
 
@@ -180,25 +175,16 @@ export function BulkActions({
     <div
       role="toolbar"
       aria-label="Selected transactions"
-      className="flex flex-wrap items-center gap-2"
+      className="flex h-[var(--tab-bar-height)] items-center gap-2 px-4"
     >
-      <p className="mr-auto text-sm font-medium" aria-live="polite">
-        {selected.length.toLocaleString("en-PH")} selected
-      </p>
-      <Button size="sm" variant="outline" disabled={acting} onClick={() => markAs("cleared")}>
-        Mark cleared
-      </Button>
-      <Button size="sm" variant="outline" disabled={acting} onClick={() => markAs("pending")}>
-        Mark pending
-      </Button>
       {/* Keyed by the selection, so it shows its placeholder again after each change. */}
       <Select
         key={ids.join()}
         disabled={acting || transactions.length === 0}
         onValueChange={changeCategory}
       >
-        <SelectTrigger size="sm" aria-label="Change category" className="w-40">
-          <SelectValue placeholder="Change category" />
+        <SelectTrigger aria-label="Change category" className="min-w-0 flex-1">
+          <SelectValue placeholder="Category" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
@@ -214,11 +200,12 @@ export function BulkActions({
           ))}
         </SelectContent>
       </Select>
-      <Button size="sm" variant="outline" disabled={acting} onClick={remove}>
+      <Button
+        variant="destructive"
+        disabled={acting || selected.length === 0}
+        onClick={() => void remove()}
+      >
         Remove
-      </Button>
-      <Button size="icon" variant="ghost" aria-label="Clear selection" onClick={onDone}>
-        <X className="size-4" aria-hidden="true" />
       </Button>
     </div>
   );

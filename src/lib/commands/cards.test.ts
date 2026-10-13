@@ -58,6 +58,7 @@ beforeEach(async () => {
     amountCents: peso("5000"),
     accountId: visaId,
     categoryId: null,
+    description: "Test",
     date: "2026-10-10",
   });
 });

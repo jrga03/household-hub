@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { categoryNames } from "@/components/allocations/envelopes";
+import { TransactionAmount } from "@/components/transactions/TransactionAmount";
 import { useAccountNames } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useFinanceOverview } from "@/hooks/useFinanceOverview";
@@ -210,9 +211,9 @@ function Count({ label, count, className }: { label: string; count: number; clas
   );
 }
 
-const MONEY_IN = { sign: "+", className: "text-green-700 dark:text-green-400" };
-const MONEY_OUT = { sign: "−", className: undefined };
-const MONEY_MOVED = { sign: "", className: "text-muted-foreground" };
+const MONEY_IN = { direction: "in", className: "text-green-700 dark:text-green-400" } as const;
+const MONEY_OUT = { direction: "out", className: undefined } as const;
+const MONEY_MOVED = { direction: "moved", className: "text-muted-foreground" } as const;
 
 function LatestTransactions({ rows }: { rows: ListRow[] }) {
   const accountNames = useAccountNames();
@@ -258,8 +259,11 @@ function LatestTransactions({ rows }: { rows: ListRow[] }) {
               </span>
             </span>
             <span className={cn("shrink-0 tabular-nums", amount.className)}>
-              {amount.sign}
-              {formatPHP(row.amountCents)}
+              <TransactionAmount
+                direction={amount.direction}
+                cents={row.amountCents}
+                expenseInParentheses
+              />
             </span>
           </li>
         );

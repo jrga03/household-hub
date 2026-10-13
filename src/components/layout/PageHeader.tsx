@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useCanGoBack, useRouter, useRouterState } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SyncStatusIndicator } from "@/components/sync/SyncStatusIndicator";
 import { useHousehold } from "@/hooks/useHousehold";
@@ -38,7 +38,7 @@ interface PageHeaderProps {
 /** The page title, a back arrow on pushed screens, the route's actions and the sync status. */
 export function PageHeader({ menuButton, compactSync, className, children }: PageHeaderProps) {
   const { title, parent } = usePageHeading();
-  const { setSlot } = useHeaderSlot();
+  const { setSlot, mode } = useHeaderSlot();
 
   return (
     <header
@@ -48,8 +48,16 @@ export function PageHeader({ menuButton, compactSync, className, children }: Pag
       )}
     >
       <div className="flex h-14 items-center gap-2 px-4">
-        {parent ? <BackButton parent={parent} /> : menuButton}
-        <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">{title}</h1>
+        {mode ? (
+          <Button variant="ghost" size="icon" aria-label={mode.exitLabel} onClick={mode.exit}>
+            <X className="h-5 w-5" />
+          </Button>
+        ) : parent ? (
+          <BackButton parent={parent} />
+        ) : (
+          menuButton
+        )}
+        <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">{mode?.title ?? title}</h1>
         <div ref={setSlot} className="flex items-center gap-2 empty:hidden" />
         <SyncStatusIndicator compact={compactSync} />
         {children}

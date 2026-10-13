@@ -302,6 +302,7 @@ describe("retiring a category that holds money", () => {
       amountCents: parsePHP("500"),
       accountId: gcashId,
       categoryId: groceriesId,
+      description: "Test",
     });
 
     await retireCategory(MEMBER, groceriesId, { toCategoryId: restaurantsId, date: TODAY });

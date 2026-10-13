@@ -30,7 +30,7 @@ async function groceriesThisMonth(page: Page) {
   const add = page.getByRole("dialog", { name: "Add transaction" });
   await add.getByLabel("Amount (₱)").fill("1200");
   await chooseOption(page, add.getByLabel("Category"), "Groceries");
-  await add.getByLabel("Description (optional)").fill("Market");
+  await add.getByLabel("Description", { exact: true }).fill("Market");
   await add.getByRole("button", { name: "Add transaction" }).click();
   await expect(add).toBeHidden();
   await page.goto("/budget");

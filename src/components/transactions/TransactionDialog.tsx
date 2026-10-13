@@ -280,10 +280,8 @@ function TransactionForm({
     null
   );
 
-  const remove = () => {
-    if (!transaction) return;
-    onClose();
-    void removeWithUndo(actor, transaction);
+  const remove = async () => {
+    if (transaction && (await removeWithUndo(actor, transaction))) onClose();
   };
 
   return (
@@ -362,10 +360,11 @@ function TransactionForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="transaction-description">Description (optional)</Label>
+        <Label htmlFor="transaction-description">Description</Label>
         <Input
           id="transaction-description"
           name="description"
+          required
           maxLength={DESCRIPTION_MAX_LENGTH}
           autoComplete="off"
           enterKeyHint="next"
@@ -398,7 +397,7 @@ function TransactionForm({
       <FormError>{error}</FormError>
       <FormFooter className="@[480px]:justify-between">
         {transaction ? (
-          <Button type="button" variant="outline" onClick={remove}>
+          <Button type="button" variant="outline" onClick={() => void remove()}>
             Remove
           </Button>
         ) : (

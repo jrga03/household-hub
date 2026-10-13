@@ -108,6 +108,25 @@ test("BDO drafts are saved in bulk offline, and a re-import is recognised", asyn
   // Every purchase starts selected; the card payment waits for its own decision.
   const drafts = page.getByRole("region", { name: "Import bdo-credit-card.pdf" });
   await expect(drafts.getByRole("listitem")).toHaveCount(7);
+
+  // A draft without a description holds back the save until it gets one.
+  await drafts.getByRole("button", { name: /STREAMING SVC/ }).click();
+  const description = page.getByLabel("Description", { exact: true });
+  await description.fill("");
+  await description.press("Enter");
+  await expect(page.getByText("Needs a description before it can be saved.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save as transaction" })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(drafts.getByRole("button", { name: /Needs a description/ })).toBeVisible();
+  await expect(
+    drafts.getByText("1 selected draft needs a description before saving.")
+  ).toBeVisible();
+  await expect(drafts.getByRole("button", { name: "Save 6 drafts" })).toBeDisabled();
+  await drafts.getByRole("button", { name: /Needs a description/ }).click();
+  await description.fill("Streaming");
+  await description.press("Enter");
+  await page.keyboard.press("Escape");
+  await expect(drafts.getByRole("button", { name: "Save 6 drafts" })).toBeEnabled();
   await drafts.getByRole("button", { name: "Save 6 drafts" }).click();
   await expect(drafts.getByRole("listitem")).toHaveCount(1);
 
@@ -118,7 +137,7 @@ test("BDO drafts are saved in bulk offline, and a re-import is recognised", asyn
   await expect(page.getByText("No open imports.")).toBeVisible();
 
   await page.goto("/transactions");
-  await expect(page.getByText("STREAMING SVC").first()).toBeVisible();
+  await expect(page.getByText("Streaming", { exact: true }).first()).toBeVisible();
 
   await page.goto("/import");
   await readFixture();
