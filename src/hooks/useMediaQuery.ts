@@ -68,8 +68,11 @@ export function useMediaQuery(query: string): boolean {
  * Based on Tailwind CSS default breakpoints
  */
 
+/** Phone widths; src/index.css mirrors it for the bottom tab bar. */
+export const PHONE_QUERY = "(max-width: 767px)";
+
 export function useIsMobile(): boolean {
-  return useMediaQuery("(max-width: 767px)");
+  return useMediaQuery(PHONE_QUERY);
 }
 
 export function useIsTablet(): boolean {

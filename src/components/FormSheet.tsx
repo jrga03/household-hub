@@ -13,7 +13,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import { useIsMobile } from "@/hooks/useMediaQuery";
+import { PHONE_QUERY, useIsMobile } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
 
 interface FormSheetProps {
@@ -32,6 +32,13 @@ export function FormSheet(props: FormSheetProps) {
   const isPhone = useIsMobile();
   return isPhone ? <PhoneSheet {...props} /> : <WideDialog {...props} />;
 }
+
+/**
+ * The pinned footer reaches the container's edges, so the fields scrolling
+ * under it can't show their borders past its sides.
+ */
+const FOOTER_TO_EDGES_PX_4 = "[&_[data-slot=form-footer]]:-mx-4 [&_[data-slot=form-footer]]:px-4";
+const FOOTER_TO_EDGES_PX_6 = "[&_[data-slot=form-footer]]:-mx-6 [&_[data-slot=form-footer]]:px-6";
 
 const closeOn = (onClose: () => void) => (open: boolean) => !open && onClose();
 
@@ -52,15 +59,23 @@ function PhoneSheet({ title, description, onClose, children }: FormSheetProps) {
     <Drawer open onOpenChange={closeOn(onClose)} repositionInputs={false}>
       <DrawerContent
         ref={sheetRef}
+        // The sheet runs on under the keyboard, its content padded above it: moving the sheet up instead leaves a seam at its edge.
         style={
-          inset > 0 ? { bottom: inset, maxHeight: `calc(${viewportHeight}px - 1rem)` } : undefined
+          inset > 0
+            ? { paddingBottom: inset, maxHeight: `calc(${viewportHeight + inset}px - 1rem)` }
+            : undefined
         }
       >
         <DrawerHeader>
           <DrawerTitle>{title}</DrawerTitle>
           {description && <DrawerDescription>{description}</DrawerDescription>}
         </DrawerHeader>
-        <div className="@container overflow-y-auto overscroll-contain px-4 scroll-pb-24">
+        <div
+          className={cn(
+            "@container overflow-y-auto overscroll-contain px-4 scroll-pb-24",
+            FOOTER_TO_EDGES_PX_4
+          )}
+        >
           {children}
         </div>
       </DrawerContent>
@@ -72,7 +87,10 @@ function WideDialog({ title, description, onClose, children }: FormSheetProps) {
   return (
     <Dialog open onOpenChange={closeOn(onClose)}>
       <DialogContent
-        className="@container max-h-[90dvh] overflow-y-auto scroll-pb-24"
+        className={cn(
+          "@container max-h-[90dvh] overflow-y-auto scroll-pb-24",
+          FOOTER_TO_EDGES_PX_6
+        )}
         {...(!description && { "aria-describedby": undefined })}
       >
         <DialogHeader>
@@ -133,7 +151,7 @@ export function FormFooter({ className, children }: { className?: string; childr
     <div
       data-slot="form-footer"
       className={cn(
-        "bg-background sticky bottom-0 flex flex-col-reverse gap-2 pt-2 pb-[max(1rem,var(--safe-area-bottom))] @[480px]:flex-row @[480px]:justify-end",
+        "bg-background sticky -bottom-px flex flex-col-reverse gap-2 pt-2 pb-[max(1rem,var(--safe-area-bottom))] @[480px]:flex-row @[480px]:justify-end",
         className
       )}
     >
@@ -153,8 +171,9 @@ function isTypedField(element: Element): element is HTMLInputElement | HTMLTextA
 }
 
 /**
- * A form's `ref`: Enter in a field moves to the next typed field, and from
- * the last one submits. Enter in a text area stays a new line. Pair it with
+ * A form's `ref`. On phones, Enter in a field moves to the next typed field,
+ * and from the last one submits; Enter in a text area stays a new line. On
+ * wider screens Enter keeps submitting the form. Pair it with
  * `enterKeyHint="next"` or `"done"` on the inputs.
  */
 export function advanceOnEnter(form: HTMLFormElement | null) {
@@ -163,6 +182,7 @@ export function advanceOnEnter(form: HTMLFormElement | null) {
     const field = event.target;
     const modified = event.shiftKey || event.altKey || event.ctrlKey || event.metaKey;
     if (event.key !== "Enter" || modified || event.isComposing) return;
+    if (!window.matchMedia(PHONE_QUERY).matches) return;
     if (!(field instanceof HTMLInputElement) || !isTypedField(field)) return;
 
     event.preventDefault();

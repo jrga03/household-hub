@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { advanceOnEnter, FormFooter, FormSheet } from "./FormSheet";
 
@@ -63,6 +63,16 @@ describe("FormSheet", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
   });
 
+  it("closes a phone sheet from its Close button", () => {
+    setPhone(true);
+    const onClose = vi.fn();
+    render(<NoteForm onClose={onClose} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(onClose).toHaveBeenCalled();
+  });
+
   it("opens as a centered dialog on wider screens", () => {
     setPhone(false);
     render(<NoteForm />);
@@ -94,13 +104,13 @@ describe("FormSheet", () => {
     act(() => keyboard.openKeyboard(300));
 
     const sheet = screen.getByRole("dialog", { name: "Add note" });
-    expect(sheet.style.bottom).toBe("300px");
-    expect(sheet.style.maxHeight).toBe("calc(500px - 1rem)");
+    expect(sheet.style.paddingBottom).toBe("300px");
+    expect(sheet.style.maxHeight).toBe("calc(800px - 1rem)");
     expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
 
     act(() => keyboard.openKeyboard(0));
 
-    expect(sheet.style.bottom).toBe("");
+    expect(sheet.style.paddingBottom).toBe("");
   });
 
   it("keeps the focused field in view when the keyboard resizes the page", () => {
@@ -114,7 +124,7 @@ describe("FormSheet", () => {
 
     act(() => keyboard.resizePage(500));
 
-    expect(screen.getByRole("dialog", { name: "Add note" }).style.bottom).toBe("");
+    expect(screen.getByRole("dialog", { name: "Add note" }).style.paddingBottom).toBe("");
     expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
   });
 });
@@ -143,35 +153,51 @@ describe("advanceOnEnter", () => {
   const pressEnter = (element: HTMLElement) =>
     fireEvent.keyDown(element, { key: "Enter", code: "Enter" });
 
-  it("moves Enter to the next text field, skipping pickers", () => {
+  describe("on phones", () => {
+    beforeEach(() => setPhone(true));
+
+    it("moves Enter to the next text field, skipping pickers", () => {
+      render(<ExpenseForm onSubmit={vi.fn()} />);
+      const amount = screen.getByRole("textbox", { name: "Amount" });
+      amount.focus();
+
+      pressEnter(amount);
+
+      expect(screen.getByRole("textbox", { name: "Description" })).toHaveFocus();
+    });
+
+    it("leaves Enter in a text area as a new line", () => {
+      render(<ExpenseForm onSubmit={vi.fn()} />);
+      const notes = screen.getByRole("textbox", { name: "Notes" });
+      notes.focus();
+
+      const handled = !pressEnter(notes);
+
+      expect(handled).toBe(false);
+      expect(notes).toHaveFocus();
+    });
+
+    it("submits from the last field", () => {
+      const onSubmit = vi.fn();
+      render(<ExpenseForm onSubmit={onSubmit} />);
+      const payee = screen.getByRole("textbox", { name: "Payee" });
+      payee.focus();
+
+      pressEnter(payee);
+
+      expect(onSubmit).toHaveBeenCalledOnce();
+    });
+  });
+
+  it("leaves Enter to the browser on wider screens, so it submits as before", () => {
+    setPhone(false);
     render(<ExpenseForm onSubmit={vi.fn()} />);
     const amount = screen.getByRole("textbox", { name: "Amount" });
     amount.focus();
 
-    pressEnter(amount);
+    const notPrevented = pressEnter(amount);
 
-    expect(screen.getByRole("textbox", { name: "Description" })).toHaveFocus();
-  });
-
-  it("leaves Enter in a text area as a new line", () => {
-    render(<ExpenseForm onSubmit={vi.fn()} />);
-    const notes = screen.getByRole("textbox", { name: "Notes" });
-    notes.focus();
-
-    const handled = !pressEnter(notes);
-
-    expect(handled).toBe(false);
-    expect(notes).toHaveFocus();
-  });
-
-  it("submits from the last field", () => {
-    const onSubmit = vi.fn();
-    render(<ExpenseForm onSubmit={onSubmit} />);
-    const payee = screen.getByRole("textbox", { name: "Payee" });
-    payee.focus();
-
-    pressEnter(payee);
-
-    expect(onSubmit).toHaveBeenCalledOnce();
+    expect(notPrevented).toBe(true);
+    expect(amount).toHaveFocus();
   });
 });

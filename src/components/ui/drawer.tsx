@@ -1,4 +1,5 @@
 import * as React from "react";
+import { XIcon } from "lucide-react";
 import { Drawer as DrawerPrimitive } from "vaul";
 
 import { cn } from "@/lib/utils";
@@ -49,10 +50,18 @@ function DrawerContent({
         {...props}
       >
         <div
+          data-slot="drawer-handle"
           aria-hidden="true"
           className="bg-muted mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full"
         />
         {children}
+        <DrawerPrimitive.Close
+          data-slot="drawer-close"
+          className="ring-offset-background focus:ring-ring absolute top-2 right-2 flex size-11 items-center justify-center rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden"
+        >
+          <XIcon className="size-4" />
+          <span className="sr-only">Close</span>
+        </DrawerPrimitive.Close>
       </DrawerPrimitive.Content>
     </DrawerPortal>
   );
@@ -62,7 +71,7 @@ function DrawerHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="drawer-header"
-      className={cn("flex flex-col gap-1 px-4 pt-3 pb-2 text-left", className)}
+      className={cn("flex flex-col gap-1 px-4 pt-3 pr-12 pb-2 text-left", className)}
       {...props}
     />
   );

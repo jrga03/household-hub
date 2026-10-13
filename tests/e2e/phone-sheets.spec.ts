@@ -1,4 +1,4 @@
-import { test, expect, type Locator, type Page } from "@playwright/test";
+import { test, expect, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { signUpNewPerson } from "./fixtures/helpers";
 
 /** An iPhone keyboard with its suggestion bar, in CSS px. */
@@ -42,7 +42,7 @@ async function expectAboveKeyboard(element: Locator, visibleHeight: number) {
   expect(box.y + box.height).toBeLessThanOrEqual(visibleHeight + 0.5);
 }
 
-async function openAddTransaction(page: Page) {
+async function openAddTransaction(page: Page, slot = "drawer-content") {
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Sheet home");
   await page.getByRole("button", { name: "Create household" }).click();
@@ -53,9 +53,50 @@ async function openAddTransaction(page: Page) {
 
   await page.getByRole("button", { name: "Add transaction" }).click();
   const sheet = page.getByRole("dialog", { name: "Add transaction" });
-  await expect(sheet).toHaveAttribute("data-slot", "drawer-content");
+  await expect(sheet).toHaveAttribute("data-slot", slot);
   return sheet;
 }
+
+/**
+ * Drags down from the element's center. Chromium gets real touches through
+ * CDP, so the browser's own touch-action and scroll handling run; WebKit has
+ * no touch-drag automation, so it gets real mouse pointer events instead.
+ */
+async function swipeDown(
+  page: Page,
+  context: BrowserContext,
+  browserName: string,
+  from: Locator,
+  distance: number
+) {
+  const box = await from.boundingBox();
+  if (!box) throw new Error("nothing to swipe");
+  const x = box.x + box.width / 2;
+  const startY = box.y + box.height / 2;
+  const steps = 12;
+  if (browserName === "chromium") {
+    const cdp = await context.newCDPSession(page);
+    const touch = (type: "touchStart" | "touchMove" | "touchEnd", y: number) =>
+      cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: type === "touchEnd" ? [] : [{ x, y }],
+      });
+    await touch("touchStart", startY);
+    for (let step = 1; step <= steps; step++) {
+      await touch("touchMove", startY + (distance * step) / steps);
+    }
+    await touch("touchEnd", startY + distance);
+    await cdp.detach();
+    return;
+  }
+  await page.mouse.move(x, startY);
+  await page.mouse.down();
+  await page.mouse.move(x, startY + distance, { steps });
+  await page.mouse.up();
+}
+
+/** vaul ignores drags for half a second after opening. */
+const settle = (page: Page) => page.waitForTimeout(600);
 
 test.describe("phone forms", () => {
   test.skip(({ isMobile }) => !isMobile, "bottom sheets are for phones");
@@ -111,5 +152,59 @@ test.describe("phone forms", () => {
       await expectAboveKeyboard(description, visibleHeight);
     }).toPass({ timeout: 5_000 });
     await page.screenshot({ path: test.info().outputPath("resized-keyboard.png") });
+  });
+
+  test("the Close button closes a bottom sheet", async ({ page }) => {
+    const sheet = await openAddTransaction(page);
+    await sheet.getByRole("button", { name: "Close" }).click();
+    await expect(sheet).toBeHidden();
+  });
+
+  test("swiping the handle down closes the sheet", async ({ page, context, browserName }) => {
+    const sheet = await openAddTransaction(page);
+    await settle(page);
+
+    await swipeDown(page, context, browserName, sheet.locator("[data-slot=drawer-handle]"), 300);
+
+    await expect(sheet).toBeHidden();
+  });
+
+  test("swiping a scrolled sheet body scrolls it; from the top it closes the sheet", async ({
+    page,
+    context,
+    browserName,
+  }) => {
+    const sheet = await openAddTransaction(page);
+    const body = sheet.locator("form").locator("..");
+    const scrollTop = () => body.evaluate((element) => element.scrollTop);
+    await body.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    expect(await scrollTop()).toBeGreaterThan(0);
+    await settle(page);
+
+    await swipeDown(page, context, browserName, sheet.getByText("Status", { exact: true }), 150);
+    await page.waitForTimeout(300);
+    await expect(sheet).toBeVisible();
+
+    await body.evaluate((element) => {
+      element.scrollTop = 0;
+    });
+    await page.waitForTimeout(300);
+    await swipeDown(page, context, browserName, sheet.getByText("Amount (₱)"), 300);
+
+    await expect(sheet).toBeHidden();
+  });
+});
+
+test.describe("wide-screen forms", () => {
+  test.skip(({ isMobile }) => isMobile, "phones advance with Enter instead");
+
+  test("Enter in a dialog field submits the form", async ({ page }) => {
+    const dialog = await openAddTransaction(page, "dialog-content");
+    await dialog.getByLabel("Amount (₱)").fill("120");
+    await dialog.getByLabel("Amount (₱)").press("Enter");
+    await expect(dialog).toBeHidden();
+    await expect(page.getByText("Transaction added")).toBeVisible();
   });
 });
