@@ -39,6 +39,9 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 - **Nav slots for routes that don't exist yet** (#107): `src/components/layout/nav.ts` holds Import, Categories, Settings today; Budget and Review join the daily group (#111, #110) and Accounts leads the manage group (#102). Revisit: as each route lands.
 - **Deferred: the review dot on the tablet sidebar trigger** (#107 shows it on the phone hamburger only). Revisit: #110, when Review gets its sidebar entry and count badge.
 - **Deferred: an index for the review count** (`countReviewItems` scans `db.transactions`). Revisit: #110, when drafts and join requests join the count, or if it shows up against the performance budget.
+- **Dropped: the Import page's privacy line** ("the file and its password never leave it"), removed with the in-page descriptions (#107). Why: not needed as a field hint either. Revisit: never.
+- **Deferred: a "Review" glossary term** (GLOSSARY.md uses review only for drafts; #107 counts uncategorized expenses as review items). Revisit: #110.
+- **Deferred: rewriting `src/components/layout/README.md`**, which still describes an older nav (Budgets, Analytics, Transfers); #107 fixed only the lines it made false. Revisit: a separate docs cleanup.
 - **The HH badge stays in the desktop sidebar header**, which plays the drawer's role on wide screens (#107). Revisit: never.
 - **Each issue updates the e2e specs and layout baselines it breaks** (for example, the 16 specs that add accounts on Home and the checklist's `/#add-account` link). There is no separate test-migration issue.
 
