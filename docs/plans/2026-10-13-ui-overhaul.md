@@ -72,7 +72,7 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 - [x] 1. #107 (PR #115) Shell: header title and actions slot, drawer regroup with email and sign out at the bottom, Review dot, desktop sidebar groups, in-page titles removed
 - [x] 2. #108 (merged 9e995ee, PR #116) Phone sheets and keyboard: Drawer component, viewport handling, pinned submit, `enterKeyHint`, all phone forms migrated
 - [x] 3. #102 (merged 4728e5c, PR #116) Accounts screen and Settings → Household; Home becomes finances-only
-- [ ] 4. #109 Transactions rehaul: rows, date headers, pending style, swipe-reveal, remove confirmation, selection mode, Totals removed, description required
+- [x] 4. #109 (merged 6235cdb, PR #116) Transactions rehaul: rows, date headers, pending style, swipe-reveal, remove confirmation, selection mode, Totals removed, description required
 - [ ] 5. #110 Review screen
 - [ ] 6. #111 Categories / Budget / Plan split; `/distribute` removed
 - [x] 7. #112 (merged ccdca43, PR #116) Onboarding (no blockers; can jump the queue): safe area, Create / Join toggle
