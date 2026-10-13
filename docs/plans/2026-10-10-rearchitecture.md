@@ -203,7 +203,7 @@ Spec: #95. Scoped 2026-10-13 (decisions above). ADR 0008. Build rounds: {#96, #9
 - [x] e2e (chromium, Mobile Chrome): bulk save offline, payment recorded, Transactions shows it, re-import reads Already imported
 - [x] build, lint, vitest, both tsc, knip, size (initial 302.9 KB gz, import worker 552.7 KB gz, both unchanged)
 - [x] Code review (standards and spec): one action hook for save and discard, one list of suggestion sources, a shared signed amount, the unused `importKey` index dropped
-- [ ] PR
+- [x] PR #113
 
 #### #99 decisions
 
@@ -223,6 +223,7 @@ Spec: #95. Scoped 2026-10-13 (decisions above). ADR 0008. Build rounds: {#96, #9
 - **Several drafts can point at the same typed-in look-alike.** Why: it's a hint, never acted on alone. Revisit: if it confuses anyone.
 - **Import gets a `g i` shortcut** beside the sidebar's other destinations.
 - **Layout baselines weren't refreshed**: the new nav item and Transactions button stay within their 2% tolerance.
+- **Confirmed 2026-10-13**: the history-matching and statement-totals deferrals and the wipe-on-switch default stand.
 
 ## Milestone 3
 
