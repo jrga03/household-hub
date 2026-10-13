@@ -46,7 +46,7 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 - **The HH badge stays in the desktop sidebar header**, which plays the drawer's role on wide screens (#107). Revisit: never.
 - **Balances deep-link to the account's row** (#102, confirmed by the user): `/accounts#account-<id>`, scrolled into view once accounts load (`useScrollToHash`, shared with Settings). Revisit: if the per-account register lands.
 - **Settings lists Household first**, before Appearance and Export, and Accounts gets the "g a" shortcut (#102, confirmed by the user). Revisit: never.
-- **`/accounts` drops the card's in-page title and description** (#102, confirmed by the user), keeping the "No accounts yet" empty state. Done after #108 lands, since #108 rewrites the same card's forms. Revisit: never.
+- **`/accounts` drops the card's in-page title and description** (#102, confirmed by the user), keeping the "No accounts yet" empty state; done after merging #108, which rewrote the same card's forms. Revisit: never.
 - **Household settings live in `src/components/households/HouseholdSettings.tsx`** (#102), a new file rather than a `git mv` of `src/routes/index.tsx`, which stays as Home. Revisit: never.
 - **Each issue updates the e2e specs and layout baselines it breaks** (for example, the 16 specs that add accounts on Home and the checklist's `/#add-account` link). There is no separate test-migration issue.
 - **`FormSheet` is the form container** (#108, `src/components/FormSheet.tsx`): `<FormSheet title description? onClose>` (mounted means open), `FormFooter` for the pinned buttons, and `advanceOnEnter` as the form's `ref`. #109 and #111 build their forms on it. Revisit: never.

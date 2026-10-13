@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useAccountNames, useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useAccountMoney } from "@/hooks/useTransactions";
@@ -37,12 +37,6 @@ export function AccountsCard({ actor }: { actor: Actor }) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Accounts</CardTitle>
-        <CardDescription>
-          Household accounts every member sees, and Personal accounts only you see.
-        </CardDescription>
-      </CardHeader>
       <CardContent className="space-y-6">
         {accounts?.length === 0 && (
           <p className="text-sm text-muted-foreground">No accounts yet. Add the first one below.</p>
