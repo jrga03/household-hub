@@ -29,7 +29,9 @@ test("a new household's opening checklist ticks itself off and stays dismissed",
 
   await checklist.getByRole("link", { name: "Distribute" }).click();
   await expect(page).toHaveURL(/\/distribute\?mode=opening&account=/);
-  await expect(page.getByText("Put an account's starting money into envelopes.")).toBeVisible();
+  await expect(
+    page.getByRole("banner").getByRole("heading", { level: 1, name: "Distribute money" })
+  ).toBeVisible();
   await page.screenshot({ path: test.info().outputPath("distribute-opening.png") });
 
   await page.goto("/");

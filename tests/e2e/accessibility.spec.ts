@@ -17,7 +17,7 @@ test.describe("Accessibility", () => {
     test(`should not have accessibility violations on ${path} when signed in`, async ({ page }) => {
       await login(page);
       await page.goto(path);
-      await expect(page.locator("#main-content h1").first()).toBeVisible();
+      await expect(page.getByRole("banner").getByRole("heading", { level: 1 })).toBeVisible();
 
       const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
 

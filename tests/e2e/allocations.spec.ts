@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { chooseOption, signUpNewPerson } from "./fixtures/helpers";
+import { chooseOption, signUpNewPerson, navigateTo } from "./fixtures/helpers";
 
 const unassignedItem = (page: Page) =>
   page
@@ -27,7 +27,7 @@ test("moving money between envelopes, past Unassigned, with an undoable removal"
   await addAccount.getByLabel("Starting balance (₱)").fill("20000");
   await addAccount.getByRole("button", { name: "Add account" }).click();
 
-  await page.getByRole("link", { name: "Categories" }).click();
+  await navigateTo(page, "Categories");
   await page.getByRole("button", { name: "Use suggested categories" }).click();
   await expect(unassignedItem(page)).toContainText("₱20,000.00");
 

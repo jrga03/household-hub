@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { format } from "date-fns";
-import { chooseOption, signUpNewPerson } from "./fixtures/helpers";
+import { chooseOption, signUpNewPerson, navigateTo } from "./fixtures/helpers";
 
 interface Entry {
   amount: string;
@@ -36,7 +36,7 @@ async function startHousehold(page: Page) {
 test("filters combine, and the totals and search follow them", async ({ page }) => {
   await startHousehold(page);
 
-  await page.getByRole("link", { name: "Categories" }).click();
+  await navigateTo(page, "Categories");
   await page.getByRole("button", { name: "Use suggested categories" }).click();
   await expect(page.getByRole("list", { name: "Food categories" })).toContainText("Groceries");
 

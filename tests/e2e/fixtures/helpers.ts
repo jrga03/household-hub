@@ -34,3 +34,25 @@ export async function chooseOption(page: Page, field: Locator, option: string) {
   await field.click();
   await page.getByRole("option", { name: option, exact: true }).click();
 }
+
+const TAB_LABELS = ["Home", "Transactions"];
+
+/**
+ * Follows a navigation link: the tab bar or drawer at phone widths, the sidebar
+ * otherwise. The sidebar comes first in the DOM, ahead of same-named page links.
+ */
+export async function navigateTo(page: Page, label: string) {
+  const isPhoneWidth = (page.viewportSize()?.width ?? Infinity) < 768;
+  if (!isPhoneWidth) {
+    // A sidebar link's name ends with its shortcut ("Settings g s")
+    await page.getByRole("link", { name: label }).first().click();
+  } else if (TAB_LABELS.includes(label)) {
+    await page
+      .getByRole("navigation", { name: "Primary navigation" })
+      .getByRole("link", { name: label })
+      .click();
+  } else {
+    await page.getByRole("button", { name: "Open navigation menu" }).click();
+    await page.getByRole("dialog").getByRole("link", { name: label, exact: true }).click();
+  }
+}

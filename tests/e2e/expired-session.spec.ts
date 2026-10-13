@@ -1,5 +1,5 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
-import { loginAs, signUpNewPerson } from "./fixtures/helpers";
+import { loginAs, signUpNewPerson, navigateTo } from "./fixtures/helpers";
 import { AUTH_STORAGE_KEY } from "../../src/lib/auth-storage";
 
 const accountsList = (page: Page) => page.getByRole("list", { name: "Accounts" });
@@ -45,7 +45,7 @@ test("offline with an expired access token, a member still reaches home", async 
 
   // auth-js gives up on the refresh after about 26 s; the member stays signed in.
   await page.waitForTimeout(30_000);
-  await page.getByRole("link", { name: "Settings" }).click();
+  await navigateTo(page, "Settings");
   await expect(page).toHaveURL((url) => url.pathname === "/settings");
 });
 

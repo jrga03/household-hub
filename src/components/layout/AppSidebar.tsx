@@ -1,11 +1,12 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, Layers, Receipt, Settings, ChevronLeft, LogOut, User } from "lucide-react";
+import { ChevronLeft, LogOut, User } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -17,37 +18,50 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuthStore } from "@/stores/authStore";
 import { signOutWithToast } from "@/lib/sign-out";
-import { SyncStatusIndicator } from "@/components/sync/SyncStatusIndicator";
 import { cn } from "@/lib/utils";
+import { DAILY_NAV, isNavItemActive, MANAGE_NAV, type NavItem } from "./nav";
 
 /**
- * Sidebar navigation for desktop and tablet views: collapsible to icon-only
- * mode, active route highlighting, user profile and sign out.
+ * Sidebar navigation for desktop and tablet views: the daily and manage
+ * groups, collapsible to icon-only mode, with the user profile and sign out.
  *
  * @see src/components/layout/AppLayout.tsx - Parent layout component
  */
-
-interface NavItem {
-  to: "/" | "/transactions" | "/categories" | "/settings";
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  shortcut: string;
-}
-
-const navItems: NavItem[] = [
-  { to: "/", label: "Home", icon: Home, shortcut: "g h" },
-  { to: "/transactions", label: "Transactions", icon: Receipt, shortcut: "g t" },
-  { to: "/categories", label: "Categories", icon: Layers, shortcut: "g c" },
-  { to: "/settings", label: "Settings", icon: Settings, shortcut: "g s" },
-];
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const user = useAuthStore((state) => state.user);
   const { open } = useSidebar();
 
-  const isActiveRoute = (path: string) =>
-    path === "/" ? pathname === path : pathname === path || pathname.startsWith(path + "/");
+  const isActiveRoute = (path: string) => isNavItemActive(path, pathname);
+
+  const renderItems = (items: NavItem[]) =>
+    items.map((item) => (
+      <SidebarMenuItem key={item.to}>
+        <SidebarMenuButton asChild isActive={isActiveRoute(item.to)} tooltip={item.label}>
+          <Link to={item.to}>
+            <item.icon className="h-4 w-4" />
+            {open && (
+              <>
+                <span>{item.label}</span>
+                {item.shortcut && (
+                  <span
+                    className={cn(
+                      "ml-auto text-xs",
+                      isActiveRoute(item.to)
+                        ? "text-sidebar-accent-foreground"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {item.shortcut}
+                  </span>
+                )}
+              </>
+            )}
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    ));
 
   return (
     <Sidebar collapsible="icon">
@@ -77,36 +91,13 @@ export function AppSidebar() {
         <ScrollArea className="h-full">
           <SidebarGroup>
             <SidebarGroupContent>
-              <SidebarMenu>
-                {navItems.map((item) => (
-                  <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActiveRoute(item.to)}
-                      tooltip={item.label}
-                    >
-                      <Link to={item.to}>
-                        <item.icon className="h-4 w-4" />
-                        {open && (
-                          <>
-                            <span>{item.label}</span>
-                            <span
-                              className={cn(
-                                "ml-auto text-xs",
-                                isActiveRoute(item.to)
-                                  ? "text-sidebar-accent-foreground"
-                                  : "text-muted-foreground"
-                              )}
-                            >
-                              {item.shortcut}
-                            </span>
-                          </>
-                        )}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
+              <SidebarMenu>{renderItems(DAILY_NAV)}</SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+          <SidebarGroup>
+            <SidebarGroupLabel>Manage</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>{renderItems(MANAGE_NAV)}</SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         </ScrollArea>
@@ -114,9 +105,6 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t">
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SyncStatusIndicator compact={!open} />
-          </SidebarMenuItem>
           <SidebarMenuItem>
             <div className="flex items-center gap-3 px-2 py-2">
               {/* User Avatar */}

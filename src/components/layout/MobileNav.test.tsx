@@ -1,6 +1,7 @@
 /**
- * MobileNav drawer tests. Primary destinations live in the BottomTabBar; the
- * drawer holds the profile, Transactions, Categories, Settings and sign out.
+ * MobileNav drawer tests. Home and Transactions live in the BottomTabBar; the
+ * drawer holds every other destination, with the profile and sign out at the
+ * bottom. The menu button carries a dot while anything waits for review.
  *
  * Rendered inside a real memory-history RouterProvider because the
  * controlled Sheet wrapper engages the history-back-close hook (review R37).
@@ -16,8 +17,10 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { MobileNav } from "./MobileNav";
+import { MobileNav, NavMenuButton } from "./MobileNav";
 import { signOutWithToast } from "@/lib/sign-out";
+import { resetLocalDatabase } from "@/lib/dexie/reset";
+import { receiveEvents } from "@/lib/events/log";
 
 // Radix measures via ResizeObserver, which jsdom lacks
 class ResizeObserverStub {
@@ -50,7 +53,7 @@ async function renderDrawer() {
       </>
     ),
   });
-  const paths = ["/", "/transactions", "/categories", "/settings"];
+  const paths = ["/", "/transactions", "/import", "/categories", "/settings"];
   const router = createRouter({
     routeTree: rootRoute.addChildren(
       paths.map((path) =>
@@ -78,18 +81,28 @@ describe("MobileNav drawer", () => {
     expect(screen.getByText("test@example.com")).toBeInTheDocument();
   });
 
-  it("links to Transactions, Categories and Settings, and closes on navigation", async () => {
+  it("links to the destinations off the tab bar, and closes on navigation", async () => {
     await renderDrawer();
 
     const links = screen.getAllByRole("link");
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
-      "/transactions",
+      "/import",
       "/categories",
       "/settings",
     ]);
 
     fireEvent.click(links[0]!);
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("puts the profile and sign out after the links", async () => {
+    await renderDrawer();
+
+    const lastLink = screen.getAllByRole("link").at(-1);
+    const email = screen.getByText("test@example.com");
+    const signOut = screen.getByRole("button", { name: "Sign Out" });
+    expect(lastLink?.compareDocumentPosition(email)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(email.compareDocumentPosition(signOut)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it("signs out and closes the drawer", async () => {
@@ -99,5 +112,56 @@ describe("MobileNav drawer", () => {
 
     await vi.waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
     expect(signOutWithToast).toHaveBeenCalledOnce();
+  });
+});
+
+describe("NavMenuButton", () => {
+  beforeEach(async () => {
+    await resetLocalDatabase();
+  });
+
+  it("has no review dot when nothing needs review", async () => {
+    render(<NavMenuButton onClick={() => {}} />);
+
+    await screen.findByRole("button", { name: "Open navigation menu" });
+    expect(screen.queryByTestId("review-dot")).not.toBeInTheDocument();
+  });
+
+  it("shows a review dot while an expense has no category", async () => {
+    await receiveEvents(
+      [
+        {
+          id: "e-1",
+          householdId: "11111111-1111-4111-8111-111111111111",
+          visibility: "household",
+          ownerUserId: null,
+          entityType: "transaction",
+          entityId: "t-1",
+          eventType: "transaction.created",
+          eventVersion: 1,
+          hlc: "000000000001000-000000-device-b",
+          deviceId: "device-b",
+          actorUserId: "user-b",
+          payload: {
+            date: "2026-10-12",
+            type: "expense",
+            amountCents: 25000,
+            accountId: "aaaaaaaa-0000-4000-8000-000000000001",
+            categoryId: null,
+            description: "Lunch",
+            notes: "",
+            status: "cleared",
+          },
+        },
+      ],
+      0
+    );
+
+    render(<NavMenuButton onClick={() => {}} />);
+
+    expect(
+      await screen.findByRole("button", { name: "Open navigation menu, 1 to review" })
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("review-dot")).toBeInTheDocument();
   });
 });

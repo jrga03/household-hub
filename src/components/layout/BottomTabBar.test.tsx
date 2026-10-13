@@ -25,13 +25,12 @@ async function renderAt(initialPath: string) {
       </>
     ),
   });
-  const routes = ["/", "/transactions", "/categories", "/settings", "/settings/$section"].map(
-    (path) =>
-      createRoute({
-        getParentRoute: () => rootRoute,
-        path,
-        component: () => <div data-testid={`route-${path}`} />,
-      })
+  const routes = ["/", "/transactions", "/transactions/$id", "/settings"].map((path) =>
+    createRoute({
+      getParentRoute: () => rootRoute,
+      path,
+      component: () => <div data-testid={`route-${path}`} />,
+    })
   );
   const router = createRouter({
     routeTree: rootRoute.addChildren(routes),
@@ -41,7 +40,7 @@ async function renderAt(initialPath: string) {
   await screen.findByRole("navigation", { name: "Primary navigation" });
 }
 
-const TAB_NAMES = ["Home", "Transactions", "Categories", "Settings"] as const;
+const TAB_NAMES = ["Home", "Transactions"] as const;
 
 function activeTabNames(): string[] {
   return TAB_NAMES.filter(
@@ -50,16 +49,15 @@ function activeTabNames(): string[] {
 }
 
 describe("BottomTabBar (review R42)", () => {
-  it("renders the primary destinations as links", async () => {
+  it("renders Home and Transactions as links", async () => {
     await renderAt("/");
 
-    expect(screen.getByRole("link", { name: "Home" })).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: "Transactions" })).toHaveAttribute(
-      "href",
-      "/transactions"
-    );
-    expect(screen.getByRole("link", { name: "Categories" })).toHaveAttribute("href", "/categories");
-    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
+    expect(
+      screen.getAllByRole("link").map((link) => [link.textContent, link.getAttribute("href")])
+    ).toEqual([
+      ["Home", "/"],
+      ["Transactions", "/transactions"],
+    ]);
   });
 
   it("lights only Home at / (exact match; fuzzy '/' would match everything)", async () => {
@@ -68,9 +66,15 @@ describe("BottomTabBar (review R42)", () => {
     expect(activeTabNames()).toEqual(["Home"]);
   });
 
-  it("keeps Settings lit on a child route via prefix matching", async () => {
-    await renderAt("/settings/appearance");
+  it("keeps Transactions lit on a child route via prefix matching", async () => {
+    await renderAt("/transactions/abc");
 
-    expect(activeTabNames()).toEqual(["Settings"]);
+    expect(activeTabNames()).toEqual(["Transactions"]);
+  });
+
+  it("lights no tab on a drawer destination", async () => {
+    await renderAt("/settings");
+
+    expect(activeTabNames()).toEqual([]);
   });
 });

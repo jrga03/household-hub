@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { test, expect, type Page } from "@playwright/test";
-import { chooseOption, signUpNewPerson } from "./fixtures/helpers";
+import { chooseOption, signUpNewPerson, navigateTo } from "./fixtures/helpers";
 
 async function downloadText(page: Page, buttonName: string) {
   const [download] = await Promise.all([
@@ -24,7 +24,7 @@ test("exports transactions and the event log offline, from what the device holds
   await addAccount.getByRole("button", { name: "Add account" }).click();
   await expect(page.getByRole("list", { name: "Accounts" })).toContainText("BPI");
 
-  await page.getByRole("link", { name: "Categories" }).click();
+  await navigateTo(page, "Categories");
   await page.getByRole("button", { name: "Use suggested categories" }).click();
   await expect(page.getByRole("list", { name: "Food categories" })).toContainText("Groceries");
   await page.getByRole("link", { name: "Home" }).click();
@@ -38,7 +38,7 @@ test("exports transactions and the event log offline, from what the device holds
   await expect(dialog).toBeHidden();
 
   await page.context().setOffline(true);
-  await page.getByRole("link", { name: "Settings" }).first().click();
+  await navigateTo(page, "Settings");
   await expect(page.getByRole("button", { name: "Transactions (CSV)" })).toBeVisible();
 
   const csv = await downloadText(page, "Transactions (CSV)");
