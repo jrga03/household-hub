@@ -88,6 +88,9 @@ export function useKeyboardShortcuts() {
           case "b":
             void navigate({ to: "/budget" });
             break;
+          case "r":
+            void navigate({ to: "/review" });
+            break;
           case "a":
             void navigate({ to: "/accounts" });
             break;
@@ -140,6 +143,7 @@ function showKeyboardShortcutsHelp() {
     { keys: "n", description: "Add a transaction" },
     { keys: "g then h", description: "Go to Home" },
     { keys: "g then t", description: "Go to Transactions" },
+    { keys: "g then r", description: "Go to Review" },
     { keys: "g then c", description: "Go to Categories" },
     { keys: "g then i", description: "Go to Import" },
     { keys: "g then s", description: "Go to Settings" },

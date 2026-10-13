@@ -122,6 +122,10 @@ test("BDO drafts are saved in bulk offline, and a re-import is recognised", asyn
     drafts.getByText("1 selected draft needs a description before saving.")
   ).toBeVisible();
   await expect(drafts.getByRole("button", { name: "Save 6 drafts" })).toBeDisabled();
+  // On phones the "lines read" toast can sit over this row at the page's end, and
+  // stays open while the pointer rests on it.
+  await page.mouse.move(0, 0);
+  await expect(page.getByText(/lines read from/)).toBeHidden();
   await drafts.getByRole("button", { name: /Needs a description/ }).click();
   await description.fill("Streaming");
   await description.press("Enter");

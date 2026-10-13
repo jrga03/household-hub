@@ -39,6 +39,14 @@ vi.mock("@tanstack/react-router", () => ({
 vi.mock("./AppSidebar", () => ({
   AppSidebar: () => <div data-testid="app-sidebar" />,
 }));
+// Reads the review count (Dexie and the server); covered in MobileNav.test.tsx
+vi.mock("./ReviewCount", () => ({
+  SidebarTriggerWithReview: (props: { className?: string }) => (
+    <button type="button" className={props.className}>
+      toggle sidebar
+    </button>
+  ),
+}));
 vi.mock("./MobileNav", () => ({
   MobileNav: () => <div data-testid="mobile-nav" />,
   NavMenuButton: () => null,
@@ -54,11 +62,6 @@ vi.mock("./BottomTabBar", () => ({
 }));
 vi.mock("@/components/ui/sidebar", () => ({
   SidebarProvider: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
-  SidebarTrigger: (props: { className?: string }) => (
-    <button type="button" className={props.className}>
-      toggle sidebar
-    </button>
-  ),
 }));
 vi.mock("@/components/StorageWarning", () => ({
   StorageWarning: () => null,

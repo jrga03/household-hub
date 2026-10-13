@@ -1,12 +1,13 @@
 import { useEffect } from "react";
 import { Outlet, useRouterState } from "@tanstack/react-router";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { BottomTabBar } from "./BottomTabBar";
 import { PhoneBottomChrome } from "./ContextMode";
 import { HeaderSlotProvider } from "./HeaderActions";
 import { MobileNav, NavMenuButton } from "./MobileNav";
 import { PageHeader } from "./PageHeader";
+import { SidebarTriggerWithReview } from "./ReviewCount";
 import { useNavStore } from "@/stores/navStore";
 import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -152,7 +153,10 @@ export function AppLayout() {
 
           {/* Main Content Area */}
           <div className="flex flex-1 flex-col">
-            <PageHeader className="z-30" menuButton={<SidebarTrigger className="lg:hidden" />}>
+            <PageHeader
+              className="z-30"
+              menuButton={<SidebarTriggerWithReview className="lg:hidden" />}
+            >
               <AddTransactionButton />
             </PageHeader>
 

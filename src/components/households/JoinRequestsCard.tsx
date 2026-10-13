@@ -55,7 +55,7 @@ interface JoinRequestRowProps {
   request: PendingJoinRequest;
 }
 
-function JoinRequestRow({ householdId, request }: JoinRequestRowProps) {
+export function JoinRequestRow({ householdId, request }: JoinRequestRowProps) {
   const isOnline = useOnlineStatus();
   const [isAnswering, setIsAnswering] = useState(false);
 

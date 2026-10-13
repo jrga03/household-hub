@@ -38,10 +38,10 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 - **Onboarding**: safe-area padding, a compact brand mark, a Create / Join segmented toggle showing one form at a time, and "Signed in as … · Sign out" pinned at the bottom.
 - **Desktop gets the same flows in wider layouts.** Revisit: if a separate desktop layout is needed.
 - **Nav slots for routes that don't exist yet** (#107): `src/components/layout/nav.ts` holds Import, Categories, Settings today; Budget and Review join the daily group (#111, #110) and Accounts leads the manage group (#102). Revisit: as each route lands.
-- **Deferred: the review dot on the tablet sidebar trigger** (#107 shows it on the phone hamburger only). Revisit: #110, when Review gets its sidebar entry and count badge.
-- **Deferred: an index for the review count** (`countReviewItems` scans `db.transactions`). Revisit: #110, when drafts and join requests join the count, or if it shows up against the performance budget.
+- **Done: the review dot on the tablet sidebar trigger** (#110): the tablet header's sidebar toggle carries the dot and names the count; the collapsed sidebar shows a dot on the Review icon, the expanded one a count badge. Revisit: never.
+- **Re-deferred: an index for the review count** (#110). `countLocalReviewItems` still scans `db.transactions` for uncategorized expenses; drafts use `db.drafts.count()` and join requests come from the server. IndexedDB doesn't index null keys, so an index needs a projected "needs category" field and a Dexie version bump. Revisit: if it shows up against the performance budget.
 - **Dropped: the Import page's privacy line** ("the file and its password never leave it"), removed with the in-page descriptions (#107). Why: not needed as a field hint either. Revisit: never.
-- **Deferred: a "Review" glossary term** (GLOSSARY.md uses review only for drafts; #107 counts uncategorized expenses as review items). Revisit: #110.
+- **Done: the "Review" glossary term** (#110): the list of uncategorized expenses, open drafts and (owner only) join requests, and its count. Revisit: never.
 - **Deferred: rewriting `src/components/layout/README.md`**, which still describes an older nav (Budgets, Analytics, Transfers); #107 fixed only the lines it made false. Revisit: a separate docs cleanup.
 - **The HH badge stays in the desktop sidebar header**, which plays the drawer's role on wide screens (#107). Revisit: never.
 - **Balances deep-link to the account's row** (#102, confirmed by the user): `/accounts#account-<id>`, scrolled into view once accounts load (`useScrollToHash`, shared with Settings). Revisit: if the per-account register lands.
@@ -71,6 +71,10 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 - **Plan holds To assign, Move money, Pay card and the Allocations list** (#111, confirmed by the user 2026-10-13); each account's Unassigned folds under "By account". Budget's ledger rows still open their record (an allocation opens Edit allocation). Revisit: if allocation edits should leave the ledger.
 - **Dropped: the per-category "by account" breakdown and the "Spent more than it holds" note** (#111, confirmed by the user 2026-10-13); the ledger names each record's account, and red plus a full bar marks overspending. Revisit: if the breakdown is missed.
 - **Budget gets the "g b" shortcut** (#111). Revisit: never.
+- **One review count, per kind** (#110): `REVIEW_KINDS` in `src/lib/review/count.ts` lists the kinds in section order; `useReviewCounts` (`src/hooks/useReviewCount.ts`) returns a count per kind and `useReviewCount` their sum, which the drawer badge, the hamburger dot, the tablet sidebar trigger, the sidebar entry and the Home banner read. A new kind adds to `REVIEW_KINDS`, `useReviewCounts` and the page's `SECTIONS` map (TypeScript asks for each); the consumers don't change. Revisit: never.
+- **Join requests in the count offline** (#110, [DECIDE]): they count as the last list fetched this session, and as none after a reload while offline; the Review page then says "Join requests show when you're online" to the Owner. Uncategorized expenses and drafts are local and always counted. Why: requests are server-only and the query cache isn't persisted. Revisit: if owners miss requests while offline.
+- **Review answers join requests in place** (#110, [DECIDE]): the section lists them with Accept and Decline (the same row as Settings → Household, which keeps its card), polling every 30 seconds while open. Revisit: if the owner would rather go to Settings.
+- **Review sections link out, except join requests** (#110): uncategorized expenses show their count and "Categorize" to `/transactions?needsCategory=true`; imported drafts show their count and "Review drafts" to `/import`. Review gets "g r". Revisit: if listing the expenses inline is wanted.
 
 ## Issues
 
