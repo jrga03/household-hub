@@ -70,7 +70,6 @@ export function JoinForm({ userId }: { userId: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Join a household</CardTitle>
         <CardDescription>
           Ask a member for their Household Code. The Owner approves your request.
         </CardDescription>

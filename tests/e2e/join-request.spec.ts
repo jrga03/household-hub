@@ -24,6 +24,7 @@ async function newRequester(browser: Browser) {
 }
 
 async function requestToJoin(page: Page, code: string) {
+  await page.getByRole("tab", { name: "Join" }).click();
   await page.getByLabel("Household Code").fill(code);
   await page.getByRole("button", { name: "Send request" }).click();
 }
@@ -97,7 +98,7 @@ test("a declined requester is told politely and returned to create-or-join", asy
   await expect(requester.page.getByText(/wasn.t accepted/)).toBeVisible({ timeout: 15_000 });
   await requester.page.getByRole("button", { name: "OK" }).click();
   await expect(requester.page.getByLabel("Household Code")).toBeVisible();
-  await expect(requester.page.getByLabel("Household name")).toBeVisible();
+  await expect(requester.page.getByRole("tab", { name: "Create" })).toBeEnabled();
 
   await Promise.all([owner.context.close(), requester.context.close()]);
 });
