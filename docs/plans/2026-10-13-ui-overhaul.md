@@ -49,6 +49,13 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 - **`/accounts` drops the card's in-page title and description** (#102, confirmed by the user), keeping the "No accounts yet" empty state. Done after #108 lands, since #108 rewrites the same card's forms. Revisit: never.
 - **Household settings live in `src/components/households/HouseholdSettings.tsx`** (#102), a new file rather than a `git mv` of `src/routes/index.tsx`, which stays as Home. Revisit: never.
 - **Each issue updates the e2e specs and layout baselines it breaks** (for example, the 16 specs that add accounts on Home and the checklist's `/#add-account` link). There is no separate test-migration issue.
+- **`FormSheet` is the form container** (#108, `src/components/FormSheet.tsx`): `<FormSheet title description? onClose>` (mounted means open), `FormFooter` for the pinned buttons, and `advanceOnEnter` as the form's `ref`. #109 and #111 build their forms on it. Revisit: never.
+- **Keyboard handling is ours, not vaul's** (#108): `repositionInputs` is off; on iOS `FormSheet` pads the sheet's bottom by the `visualViewport` inset (lifting it left a seam at its edge), and it scrolls the focused field into view on any visual-viewport height change. Why: vaul's repositioning resizes the sheet and fights the pinned footer. Revisit: if vaul's handling improves.
+- **Enter keeps each device's usual behaviour** (#108, confirmed by the user 2026-10-13): on phones Enter moves to the next typed field (skipping pickers, a new line in Notes) and submits from the last one; on desktop dialogs and the Transactions edit pane Enter submits the form. `enterKeyHint` is set everywhere. Revisit: never.
+- **`FormFooter` is pinned on desktop too** (#108, confirmed by the user 2026-10-13), in dialogs and the edit pane as well as phone sheets. Revisit: never.
+- **Phone sheets close by X, swipe, tap outside, Escape or Back** (#108, confirmed by the user 2026-10-13). Swipe-down works on the handle and the body; a scrolled body only scrolls, and closes once back at the top (vaul's own rule). Revisit: never.
+- **Deferred: a real-device check** of the keyboard and the swipe (#108). `tests/e2e/phone-sheets.spec.ts` emulates the keyboard (shrunk `visualViewport` for iOS, shrunk viewport for `resizes-content`) and swipes with CDP touches on Chromium but with mouse pointer events on WebKit, which has no touch-drag automation. Revisit: next time the app is tried on an iPhone and an Android phone.
+- **Non-form sheets stay Radix `Sheet`** (#108, confirmed by the user 2026-10-13): the Categories ledger drill-in and the Import draft detail aren't forms. Revisit: #111 if the ledger sheet should drag like the form sheets.
 
 ## Issues
 
