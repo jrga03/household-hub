@@ -46,3 +46,6 @@ test-results
 *.temp
 tmp/*
 temp/*
+
+# Real bank statements for the parser tests; never committed
+tests/fixtures/statements/private/
