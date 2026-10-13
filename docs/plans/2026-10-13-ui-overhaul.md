@@ -16,7 +16,8 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 
 ## Decisions & Deferrals
 
-- **One plan, seven issues, one per session**, in the order below. Why: the shell changes every page, so it goes first. Revisit: never.
+- **One plan, seven issues.** #107 shipped on its own (PR #115). Changed 2026-10-13: the remaining six are built together with `/implement-spec` on the integration branch `feat/106-ui-overhaul` (parallel worktree agents along the blocked-by graph, one PR closing all of them), not one per session. Why: the user chose it. Revisit: never.
+- **#99 shipped before the overhaul** (PR #113, drafts reviewed on `/import`). So #110's Review screen gets an "Imported drafts" section that shows the draft count and links to `/import`; it doesn't move the draft review UI. Revisit: if reviewing drafts inline on `/review` is wanted.
 - **#102 is folded in** as the Accounts + Household issue. Accounts get `/accounts` (the current card, moved); tapping an account opens Transactions filtered to it. Revisit: never.
 - **Deferred: the per-account register.** Revisit: unchanged from the re-architecture plan.
 - **Phone nav: bottom tabs are Home and Transactions, plus the existing FAB.** The drawer holds Budget, Review, Accounts, Import, Categories, Settings, with email and sign out pinned at the very bottom. The desktop sidebar uses the same items as a daily group and a manage group. Why: keep the tab bar small for now. Revisit: if Budget or Review proves to be a daily destination.
@@ -48,7 +49,7 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 ## Issues
 
 - [x] File the spec (#106) and sub-issues (`ready-for-agent`, blocked-by edges); #102 re-scoped as issue 3, #99 blocked by #110
-- [ ] 1. #107 Shell: header title and actions slot, drawer regroup with email and sign out at the bottom, Review dot, desktop sidebar groups, in-page titles removed
+- [x] 1. #107 (PR #115) Shell: header title and actions slot, drawer regroup with email and sign out at the bottom, Review dot, desktop sidebar groups, in-page titles removed
 - [ ] 2. #108 Phone sheets and keyboard: Drawer component, viewport handling, pinned submit, `enterKeyHint`, all phone forms migrated
 - [ ] 3. #102 Accounts screen and Settings → Household; Home becomes finances-only
 - [ ] 4. #109 Transactions rehaul: rows, date headers, pending style, swipe-reveal, remove confirmation, selection mode, Totals removed, description required
