@@ -7,7 +7,6 @@ export interface StatementLine {
   purchaseDate: string;
   /** "yyyy-MM-dd", the day the bank posted it. */
   postingDate: string;
-  /** As printed on the statement. */
   description: string;
   amount: Cents;
   /** From the account holder's side: a charge is an expense, a refund or payment is income. */
@@ -21,7 +20,6 @@ export type StatementFormatId = "bdo-credit-card-pdf";
 export interface StatementFormat {
   id: StatementFormatId;
   label: string;
-  /** For the file picker's `accept`. */
   accept: string;
   /** "fixed": the bank uses the same password for every statement, so it may be remembered. */
   password: "fixed" | "per-file";
