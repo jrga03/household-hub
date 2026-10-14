@@ -1,5 +1,6 @@
 import { useActionState, useTransition } from "react";
 import { toast } from "sonner";
+import { ActionForm } from "@/components/ui/action-form";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { ACCOUNT_TYPES, CREDIT_CARD, isCreditCard } from "@/lib/accounts/events";
@@ -59,7 +60,7 @@ export function EditAccountDialog({
       description="Changes reach your household's other devices when they sync."
       onClose={onClose}
     >
-      <form
+      <ActionForm
         ref={advanceOnEnter}
         action={saveAction}
         className="space-y-4"
@@ -81,7 +82,7 @@ export function EditAccountDialog({
         <FormFooter destructive={{ label: "Retire account", onClick: retire, disabled: retiring }}>
           <SubmitButton pendingText="Saving...">Save</SubmitButton>
         </FormFooter>
-      </form>
+      </ActionForm>
     </FormSheet>
   );
 }

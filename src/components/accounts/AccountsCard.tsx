@@ -1,6 +1,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { ActionForm } from "@/components/ui/action-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -235,7 +236,7 @@ function AddAccountForm({ actor }: { actor: Actor }) {
   );
 
   return (
-    <form
+    <ActionForm
       ref={advanceOnEnter}
       id="add-account"
       action={addAction}
@@ -248,7 +249,7 @@ function AddAccountForm({ actor }: { actor: Actor }) {
       <FormError>{state.error}</FormError>
 
       <SubmitButton pendingText="Adding...">Add account</SubmitButton>
-    </form>
+    </ActionForm>
   );
 }
 

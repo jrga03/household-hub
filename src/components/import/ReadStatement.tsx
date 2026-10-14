@@ -1,6 +1,7 @@
 import { useActionState, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
+import { ActionForm } from "@/components/ui/action-form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
@@ -28,7 +29,10 @@ import type { StatementFormatId } from "@/lib/import/statement";
 import { suggestDrafts } from "@/lib/import/suggest-drafts";
 import { countOf, errorMessage } from "@/lib/utils";
 
-type ReadResult = { error: string } | null;
+interface ReadState {
+  error: string | null;
+  readCount: number;
+}
 
 /**
  * Pick a statement, the card it belongs to and its password; its lines are
@@ -50,12 +54,13 @@ export function ReadStatement() {
     [rememberable, chosenCardId]
   );
 
-  const [result, readAction] = useActionState(
-    async (_previous: ReadResult, formData: FormData): Promise<ReadResult> => {
+  const [state, readAction] = useActionState(
+    async (previous: ReadState, formData: FormData): Promise<ReadState> => {
+      const failed = (error: string) => ({ error, readCount: previous.readCount });
       const file = formData.get("file");
-      if (!format) return { error: "Choose the statement's format." };
-      if (!(file instanceof File) || file.size === 0) return { error: "Choose a statement file." };
-      if (!chosenCardId) return { error: "Choose the card this statement is for." };
+      if (!format) return failed("Choose the statement's format.");
+      if (!(file instanceof File) || file.size === 0) return failed("Choose a statement file.");
+      if (!chosenCardId) return failed("Choose the card this statement is for.");
       const password = String(formData.get("password") ?? "");
       try {
         const lines = await parseStatement(format.id, file, password);
@@ -64,9 +69,9 @@ export function ReadStatement() {
           else await forgetStatementPassword(chosenCardId);
         }
         if (lines.length === 0) {
-          return {
-            error: `No purchases, refunds or payments were found in ${file.name}, so there's nothing to import.`,
-          };
+          return failed(
+            `No purchases, refunds or payments were found in ${file.name}, so there's nothing to import.`
+          );
         }
         const importId = await createImport({
           formatId: format.id,
@@ -76,12 +81,12 @@ export function ReadStatement() {
         });
         void suggestDrafts(importId);
         toast.success(`${countOf(lines.length, "line", "lines")} read from ${file.name}`);
-        return null;
+        return { error: null, readCount: previous.readCount + 1 };
       } catch (caught) {
-        return { error: errorMessage(caught, "The statement couldn't be read.") };
+        return failed(errorMessage(caught, "The statement couldn't be read."));
       }
     },
-    null
+    { error: null, readCount: 0 }
   );
 
   if (!accounts) return null;
@@ -94,14 +99,11 @@ export function ReadStatement() {
   }
 
   return (
-    <form action={readAction} className="@container space-y-4" aria-label="Read a statement">
+    <ActionForm action={readAction} className="@container space-y-4" aria-label="Read a statement">
       <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="statement-format">Format</Label>
-          {/* Keyed by value: Radix Select returns to its first value when the form
-                resets, as React does after every read. */}
           <Select
-            key={formatId}
             value={formatId}
             onValueChange={(next) => {
               const chosen = STATEMENT_FORMATS.find((choice) => choice.id === next);
@@ -125,7 +127,7 @@ export function ReadStatement() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="statement-card">Card</Label>
-          <Select key={chosenCardId} value={chosenCardId} onValueChange={setCardId}>
+          <Select value={chosenCardId} onValueChange={setCardId}>
             <SelectTrigger id="statement-card" className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -140,13 +142,20 @@ export function ReadStatement() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="statement-file">Statement file</Label>
-          <Input id="statement-file" name="file" type="file" accept={format?.accept} required />
+          <Input
+            key={state.readCount}
+            id="statement-file"
+            name="file"
+            type="file"
+            accept={format?.accept}
+            required
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="statement-password">Password</Label>
           <Input
-            // Remounts with the chosen card's remembered password once it loads.
-            key={`${chosenCardId}:${remembered ?? ""}`}
+            // Remounts with the chosen card's remembered password once it loads, and after each read.
+            key={`${chosenCardId}:${remembered ?? ""}:${state.readCount}`}
             id="statement-password"
             name="password"
             type="password"
@@ -158,7 +167,7 @@ export function ReadStatement() {
       {rememberable && (
         <div className="flex items-center gap-2">
           <Checkbox
-            key={`${chosenCardId}:${remembered !== undefined}`}
+            key={`${chosenCardId}:${remembered !== undefined}:${state.readCount}`}
             id="statement-remember"
             name="remember"
             defaultChecked={remembered !== undefined}
@@ -168,8 +177,8 @@ export function ReadStatement() {
           </Label>
         </div>
       )}
-      {result && "error" in result && <FormError>{result.error}</FormError>}
+      <FormError>{state.error}</FormError>
       <SubmitButton pendingText="Reading...">Read statement</SubmitButton>
-    </form>
+    </ActionForm>
   );
 }

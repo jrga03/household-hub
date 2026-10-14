@@ -64,3 +64,14 @@ afterEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
 });
+
+// Radix measures with ResizeObserver and drives Select with these, all of which jsdom lacks.
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof globalThis.ResizeObserver;
+Element.prototype.scrollIntoView = () => {};
+Element.prototype.hasPointerCapture = () => false;
+Element.prototype.releasePointerCapture = () => {};

@@ -6,6 +6,7 @@ import {
   PendingRequest,
   useMyJoinRequest,
 } from "@/components/households/JoinHousehold";
+import { ActionForm } from "@/components/ui/action-form";
 import { Card, CardContent, CardDescription } from "@/components/ui/card";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
@@ -86,7 +87,7 @@ function CreateHouseholdForm({ userId }: { userId: string }) {
     <Card>
       <CardContent className="space-y-4">
         <CardDescription>You become its Owner and get a code to share.</CardDescription>
-        <form action={createAction} className="space-y-4">
+        <ActionForm action={createAction} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="household-name">Household name</Label>
             <Input
@@ -114,7 +115,7 @@ function CreateHouseholdForm({ userId }: { userId: string }) {
               Creating a household needs a connection. You&apos;re offline right now.
             </p>
           )}
-        </form>
+        </ActionForm>
       </CardContent>
     </Card>
   );

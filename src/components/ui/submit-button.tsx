@@ -1,7 +1,7 @@
-import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import * as React from "react";
+import { useActionFormPending } from "@/components/ui/action-form";
 
 interface SubmitButtonProps extends Omit<React.ComponentProps<typeof Button>, "type"> {
   /**
@@ -21,9 +21,9 @@ interface SubmitButtonProps extends Omit<React.ComponentProps<typeof Button>, "t
 }
 
 /**
- * A submit button that automatically reflects form submission state using React 19's useFormStatus().
+ * A submit button that reflects its `ActionForm`'s pending action.
  *
- * MUST be used as a child of a <form> element to work correctly.
+ * MUST be used inside an <ActionForm> to show the pending state.
  *
  * Features:
  * - Automatically disables during form submission
@@ -32,18 +32,18 @@ interface SubmitButtonProps extends Omit<React.ComponentProps<typeof Button>, "t
  * - Combines with any other Button props
  *
  * @example
- * <form action={submitAction}>
+ * <ActionForm action={submitAction}>
  *   <input name="email" type="email" />
  *   <SubmitButton>Sign In</SubmitButton>
- * </form>
+ * </ActionForm>
  *
  * @example
- * <form action={submitAction}>
+ * <ActionForm action={submitAction}>
  *   <input name="username" />
  *   <SubmitButton pendingText="Creating account..." showSpinner={false}>
  *     Sign Up
  *   </SubmitButton>
- * </form>
+ * </ActionForm>
  */
 export function SubmitButton({
   children,
@@ -53,7 +53,7 @@ export function SubmitButton({
   className,
   ...props
 }: SubmitButtonProps) {
-  const { pending } = useFormStatus();
+  const pending = useActionFormPending();
 
   return (
     <Button

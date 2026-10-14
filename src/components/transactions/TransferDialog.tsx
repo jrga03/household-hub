@@ -1,5 +1,6 @@
 import { useActionState, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ActionForm } from "@/components/ui/action-form";
 import { categoryNames, envelopeFromKey, envelopeKey } from "@/components/allocations/envelopes";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { FormError } from "@/components/ui/form-error";
@@ -338,7 +339,7 @@ export function TransferForm({
   };
 
   return (
-    <form
+    <ActionForm
       ref={advanceOnEnter}
       action={saveAction}
       className="space-y-4"
@@ -460,6 +461,6 @@ export function TransferForm({
       <FormFooter destructive={transfer && { label: "Remove", onClick: () => void remove() }}>
         <SubmitButton pendingText="Saving...">{transfer ? "Save" : "Add transfer"}</SubmitButton>
       </FormFooter>
-    </form>
+    </ActionForm>
   );
 }

@@ -1,5 +1,6 @@
 import { useActionState, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { ActionForm } from "@/components/ui/action-form";
 import { Button } from "@/components/ui/button";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { FormError } from "@/components/ui/form-error";
@@ -99,7 +100,7 @@ function EditDialog({
       description="Changes reach your household's other devices when they sync."
       onClose={onClose}
     >
-      <form ref={advanceOnEnter} action={saveAction} className="space-y-4" aria-label={title}>
+      <ActionForm ref={advanceOnEnter} action={saveAction} className="space-y-4" aria-label={title}>
         <div className="space-y-2">
           <Label htmlFor="edit-category-name">Name</Label>
           <Input
@@ -123,7 +124,7 @@ function EditDialog({
         <FormFooter destructive={{ label: retireLabel, onClick: onRetire, disabled: retiring }}>
           <SubmitButton pendingText="Saving...">Save</SubmitButton>
         </FormFooter>
-      </form>
+      </ActionForm>
     </FormSheet>
   );
 }
@@ -275,7 +276,7 @@ function RetireMovingMoneyDialog({
       description={`${category.name} holds ${formatPHP(held)}. Its money moves into another category first.`}
       onClose={onClose}
     >
-      <form action={retireAction} className="space-y-4" aria-label={title}>
+      <ActionForm action={retireAction} className="space-y-4" aria-label={title}>
         {choices.length === 0 ? (
           <p className="text-sm text-muted-foreground">Add another category for its money first.</p>
         ) : (
@@ -309,7 +310,7 @@ function RetireMovingMoneyDialog({
             Move and retire
           </SubmitButton>
         </FormFooter>
-      </form>
+      </ActionForm>
     </FormSheet>
   );
 }

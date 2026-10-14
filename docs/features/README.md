@@ -61,7 +61,7 @@ Implementation of React 19's modern APIs including useFormStatus(), Suspense bou
 
 **Key features:**
 
-- useFormStatus() for automatic form submission states
+- useFormStatus() for automatic form submission states (superseded by `ActionForm`, #104)
 - Suspense boundaries for smooth loading transitions
 - use() hook for cleaner context consumption
 - Optimistic updates for instant UI feedback

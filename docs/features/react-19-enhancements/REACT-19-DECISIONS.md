@@ -4,7 +4,7 @@
 
 ### Decision 1: Adopt useFormStatus() for Auth Forms
 
-**Status:** ✅ Accepted
+**Status:** Superseded by `ActionForm` (#104, 2026-10-14). React 19 resets a `<form action>` after every submission, so a failed save lost its fields and Radix Selects snapped back. Forms now submit through `ActionForm` (`src/components/ui/action-form.tsx`), and `SubmitButton` reads its pending state from it instead of `useFormStatus()`.
 
 **Date:** 2024-11-22
 
@@ -419,7 +419,7 @@ useMutation({
 
 ### Decision 5: Create Reusable SubmitButton Component
 
-**Status:** ✅ Accepted
+**Status:** Superseded by `ActionForm` (#104, 2026-10-14). React 19 resets a `<form action>` after every submission, so a failed save lost its fields and Radix Selects snapped back. Forms now submit through `ActionForm` (`src/components/ui/action-form.tsx`), and `SubmitButton` reads its pending state from it instead of `useFormStatus()`.
 
 **Date:** 2024-11-22
 

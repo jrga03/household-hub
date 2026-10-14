@@ -37,14 +37,6 @@ import { useHistoryBackClose } from "./useHistoryBackClose";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
-// Radix measures via ResizeObserver, which jsdom lacks
-class ResizeObserverStub {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
-globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof globalThis.ResizeObserver;
-
 // Per-host external controls, registered on render
 type HostId = "a" | "b" | "c" | "sheet" | "dialog";
 const setOpenControls = {} as Record<HostId, (open: boolean) => void>;
