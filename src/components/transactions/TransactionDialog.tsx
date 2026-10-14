@@ -2,7 +2,6 @@ import { useActionState, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
-import { Button } from "@/components/ui/button";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -395,14 +394,7 @@ function TransactionForm({
       </fieldset>
 
       <FormError>{error}</FormError>
-      <FormFooter className="@[480px]:justify-between">
-        {transaction ? (
-          <Button type="button" variant="outline" onClick={() => void remove()}>
-            Remove
-          </Button>
-        ) : (
-          <span />
-        )}
+      <FormFooter destructive={transaction && { label: "Remove", onClick: () => void remove() }}>
         <SubmitButton pendingText="Saving...">
           {transaction ? "Save" : "Add transaction"}
         </SubmitButton>

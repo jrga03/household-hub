@@ -1,6 +1,5 @@
 import { useActionState, useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
@@ -345,14 +344,7 @@ function MoveMoneyForm({
       )}
 
       <FormError>{error}</FormError>
-      <FormFooter className="@[480px]:justify-between">
-        {allocation ? (
-          <Button type="button" variant="outline" onClick={remove}>
-            Remove
-          </Button>
-        ) : (
-          <span />
-        )}
+      <FormFooter destructive={allocation && { label: "Remove", onClick: remove }}>
         <SubmitButton pendingText="Saving...">{allocation ? "Save" : "Move money"}</SubmitButton>
       </FormFooter>
     </form>

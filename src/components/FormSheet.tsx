@@ -13,6 +13,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
+import { Button } from "@/components/ui/button";
 import { PHONE_QUERY, useIsMobile } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
 
@@ -26,19 +27,12 @@ interface FormSheetProps {
 /**
  * The container every form opens in: a bottom sheet on phones, a centered
  * dialog on wider screens. Mount it to open it; it calls `onClose` on
- * dismiss. Put the form's buttons in a `FormFooter` so they stay in view.
+ * dismiss. Put the form's buttons in a `FormFooter` after its last field.
  */
 export function FormSheet(props: FormSheetProps) {
   const isPhone = useIsMobile();
   return isPhone ? <PhoneSheet {...props} /> : <WideDialog {...props} />;
 }
-
-/**
- * The pinned footer reaches the container's edges, so the fields scrolling
- * under it can't show their borders past its sides.
- */
-const FOOTER_TO_EDGES_PX_4 = "[&_[data-slot=form-footer]]:-mx-4 [&_[data-slot=form-footer]]:px-4";
-const FOOTER_TO_EDGES_PX_6 = "[&_[data-slot=form-footer]]:-mx-6 [&_[data-slot=form-footer]]:px-6";
 
 const closeOn = (onClose: () => void) => (open: boolean) => !open && onClose();
 
@@ -71,14 +65,7 @@ function PhoneSheet({ title, description, onClose, children }: FormSheetProps) {
           <DrawerTitle>{title}</DrawerTitle>
           {description && <DrawerDescription>{description}</DrawerDescription>}
         </DrawerHeader>
-        <div
-          className={cn(
-            "@container overflow-y-auto overscroll-contain px-4 scroll-pb-24",
-            FOOTER_TO_EDGES_PX_4
-          )}
-        >
-          {children}
-        </div>
+        <div className="@container overflow-y-auto overscroll-contain px-4">{children}</div>
       </DrawerContent>
     </Drawer>
   );
@@ -88,10 +75,7 @@ function WideDialog({ title, description, onClose, children }: FormSheetProps) {
   return (
     <Dialog open onOpenChange={closeOn(onClose)}>
       <DialogContent
-        className={cn(
-          "@container max-h-[90dvh] overflow-y-auto scroll-pb-24",
-          FOOTER_TO_EDGES_PX_6
-        )}
+        className="@container max-h-[90dvh] overflow-y-auto"
         {...(!description && { "aria-describedby": undefined })}
       >
         <DialogHeader>
@@ -154,17 +138,46 @@ function useVisibleArea(): VisibleArea {
   return area;
 }
 
-/** The form's buttons, pinned to the bottom of the sheet or dialog while the fields scroll. */
-export function FormFooter({ className, children }: { className?: string; children: ReactNode }) {
+interface DestructiveAction {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+/**
+ * The form's buttons, after its last field; they scroll with the form. A
+ * destructive action (Remove, Retire) sits apart below them as a text button.
+ */
+export function FormFooter({
+  className,
+  destructive,
+  children,
+}: {
+  className?: string;
+  destructive?: DestructiveAction;
+  children: ReactNode;
+}) {
   return (
-    <div
-      data-slot="form-footer"
-      className={cn(
-        "bg-background sticky -bottom-px flex flex-col-reverse gap-2 pt-2 pb-[max(1rem,var(--safe-area-bottom))] @[480px]:flex-row @[480px]:justify-end",
-        className
+    <div data-slot="form-footer" className="pt-2 pb-[max(1rem,var(--safe-area-bottom))]">
+      <div
+        className={cn(
+          "flex flex-col-reverse gap-2 @[480px]:flex-row @[480px]:justify-end",
+          className
+        )}
+      >
+        {children}
+      </div>
+      {destructive && (
+        <Button
+          type="button"
+          variant="ghost"
+          className="text-destructive hover:text-destructive active:text-destructive mt-6 w-full @[480px]:w-auto"
+          onClick={destructive.onClick}
+          disabled={destructive.disabled}
+        >
+          {destructive.label}
+        </Button>
       )}
-    >
-      {children}
     </div>
   );
 }

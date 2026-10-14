@@ -1,6 +1,5 @@
 import { useActionState, useTransition } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { ACCOUNT_TYPES, CREDIT_CARD, isCreditCard } from "@/lib/accounts/events";
@@ -79,10 +78,7 @@ export function EditAccountDialog({
           </p>
         </div>
         <FormError>{error}</FormError>
-        <FormFooter className="@[480px]:justify-between">
-          <Button type="button" variant="outline" onClick={retire} disabled={retiring}>
-            Retire account
-          </Button>
+        <FormFooter destructive={{ label: "Retire account", onClick: retire, disabled: retiring }}>
           <SubmitButton pendingText="Saving...">Save</SubmitButton>
         </FormFooter>
       </form>
