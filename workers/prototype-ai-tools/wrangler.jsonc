@@ -1,0 +1,8 @@
+// PROTOTYPE, throwaway: answers whether gpt-oss-120b takes tools through the AI binding, and its CPU cost.
+{
+  "name": "household-hub-prototype-ai-tools",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-02-19",
+  "ai": { "binding": "AI" },
+  "observability": { "enabled": true },
+}
