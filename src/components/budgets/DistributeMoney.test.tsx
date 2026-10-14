@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import {
   createMemoryHistory,
@@ -65,17 +65,6 @@ function expectNothingToDistribute() {
   expect(screen.queryByText(/stays in Unassigned/)).not.toBeInTheDocument();
   expect(screen.queryByText(/Add a category below/)).not.toBeInTheDocument();
 }
-
-// Radix Select calls these, and jsdom leaves them out.
-const radixStubs = ["scrollIntoView", "hasPointerCapture", "releasePointerCapture"] as const;
-
-beforeAll(() => {
-  for (const name of radixStubs) Element.prototype[name] = () => false;
-});
-
-afterAll(() => {
-  for (const name of radixStubs) delete (Element.prototype as Partial<Element>)[name];
-});
 
 beforeEach(async () => {
   await resetLocalDatabase();

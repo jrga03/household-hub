@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { useActionState, useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { Input } from "@/components/ui/input";
@@ -12,17 +12,6 @@ import {
 import { SubmitButton } from "@/components/ui/submit-button";
 import { FormError } from "@/components/ui/form-error";
 import { ActionForm } from "./action-form";
-
-// Radix Select calls these, and jsdom leaves them out.
-const radixStubs = ["scrollIntoView", "hasPointerCapture", "releasePointerCapture"] as const;
-
-beforeAll(() => {
-  for (const name of radixStubs) Element.prototype[name] = () => false;
-});
-
-afterAll(() => {
-  for (const name of radixStubs) delete (Element.prototype as Partial<Element>)[name];
-});
 
 function FruitForm({ save }: { save: (formData: FormData) => Promise<string | null> }) {
   const [fruit, setFruit] = useState("apple");

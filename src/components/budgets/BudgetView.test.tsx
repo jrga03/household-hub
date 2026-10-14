@@ -26,14 +26,6 @@ const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 const MONTH = "2026-10";
 
-// The ledger pane measures itself with ResizeObserver, which jsdom lacks.
-class ResizeObserverStub {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
-globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof globalThis.ResizeObserver;
-
 function renderBudget(month = MONTH) {
   const rootRoute = createRootRoute();
   const routes = ["/budget", "/categories"].map((path) =>

@@ -23,14 +23,6 @@ import { signOutWithToast } from "@/lib/sign-out";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { receiveEvents, type LoggedEvent } from "@/lib/events/log";
 
-// Radix measures via ResizeObserver, which jsdom lacks
-class ResizeObserverStub {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
-globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof globalThis.ResizeObserver;
-
 // authStore pulls the Supabase client (env-dependent); the drawer only reads
 // the user for the profile header
 vi.mock("@/stores/authStore", () => ({

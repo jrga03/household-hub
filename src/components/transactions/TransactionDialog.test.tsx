@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
   createMemoryHistory,
@@ -29,25 +29,6 @@ function renderEditor(onClose: () => void) {
   });
   return render(<RouterProvider router={router} />);
 }
-
-// Radix measures via ResizeObserver, which jsdom lacks
-class ResizeObserverStub {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
-globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof globalThis.ResizeObserver;
-
-// Radix Select calls these, and jsdom leaves them out.
-const radixStubs = ["scrollIntoView", "hasPointerCapture", "releasePointerCapture"] as const;
-
-beforeAll(() => {
-  for (const name of radixStubs) Element.prototype[name] = () => false;
-});
-
-afterAll(() => {
-  for (const name of radixStubs) delete (Element.prototype as Partial<Element>)[name];
-});
 
 beforeEach(async () => {
   await resetLocalDatabase();
