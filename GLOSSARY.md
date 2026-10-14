@@ -132,6 +132,16 @@ _Avoid_: Batch, upload
 **Import Key**:
 A fingerprint of a statement line, recorded on the transaction it became, so the same line is recognized as already imported on any device.
 
+## Assistant
+
+**Assistant**:
+A chat in which a member asks about the household's money or describes something that happened to it in plain words. It reads what the member can already see and never records anything until the member confirms. It needs a connection, and its conversations are forgotten when the app closes.
+_Avoid_: Bot, chatbot, AI, copilot
+
+**Proposal**:
+A transaction the assistant has filled in from what a member said, shown for the member to check and change. It becomes a transaction only when the member confirms it; until then it is nothing.
+_Avoid_: Draft (that comes from an import), suggestion, pending transaction
+
 ## Sync
 
 **Waiting**:
