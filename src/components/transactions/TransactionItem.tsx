@@ -1,12 +1,13 @@
 import { useRef, useTransition } from "react";
-import { ArrowLeftRight, Circle, CircleCheck, Info } from "lucide-react";
+import { ArrowLeftRight, Circle, CircleCheck, Info, Scale } from "lucide-react";
 import { toast } from "sonner";
 import type { Actor } from "@/lib/commands/accounts";
 import { setTransactionStatus } from "@/lib/commands/transactions";
 import { setTransferStatus } from "@/lib/commands/transfers";
 import type { TransactionStatus } from "@/lib/transactions/events";
-import { isTransfer, type ListRow } from "@/lib/transactions/filter";
+import { isCorrection, isTransfer, statusOf, type ListRow } from "@/lib/transactions/filter";
 import { cn, errorMessage } from "@/lib/utils";
+import { removeCorrectionWithUndo } from "@/components/corrections/CorrectionDialog";
 import { removeWithUndo } from "./removeWithUndo";
 import type { RowDisplay } from "./rowDisplay";
 import { AMOUNT_DIRECTION, spokenAmount, TransactionAmount } from "./TransactionAmount";
@@ -36,7 +37,8 @@ interface TransactionItemProps {
 /**
  * A swipe right reveals the status change and a swipe left reveals Remove;
  * neither happens until its button is tapped. The edit form does both by
- * keyboard or screen reader, and a long press starts selecting.
+ * keyboard or screen reader, and a long press starts selecting. A balance
+ * correction is always cleared, so it only swipes to Remove.
  */
 export function TransactionItem({
   actor,
@@ -53,21 +55,27 @@ export function TransactionItem({
 }: TransactionItemProps) {
   const rowRef = useRef<HTMLDivElement>(null);
   const [changing, startChanging] = useTransition();
-  const toggleTo = OTHER_STATUS[row.status];
-  const pending = row.status === "pending";
+  const status = statusOf(row);
+  const toggleTo = OTHER_STATUS[status];
+  const pending = status === "pending";
+  const hasStatusAction = !isCorrection(row);
   const { label, detail, direction } = display;
   const spoken = spokenAmount(direction, row.amountCents);
-  const { offset, dragging, handlers } = useRowGestures({
+  const gestures = useRowGestures({
     rowRef,
     revealed,
-    onRevealChange,
+    onRevealChange: (action) =>
+      onRevealChange(action === "status" && !hasStatusAction ? null : action),
     canSwipe: !selecting,
     onLongPress,
   });
+  const { dragging, handlers } = gestures;
+  const offset = hasStatusAction ? gestures.offset : Math.min(gestures.offset, 0);
 
   const toggleStatus = () =>
     startChanging(async () => {
       try {
+        if (isCorrection(row)) return;
         if (isTransfer(row)) await setTransferStatus(actor, row.id, toggleTo);
         else await setTransactionStatus(actor, row.id, toggleTo);
         onRevealChange(null);
@@ -75,8 +83,11 @@ export function TransactionItem({
         toast.error(errorMessage(caught, "Couldn't change the status."));
       }
     });
-  const remove = () =>
-    void (isTransfer(row) ? removeTransferWithUndo(actor, row, label) : removeWithUndo(actor, row));
+  const remove = () => {
+    if (isCorrection(row)) void removeCorrectionWithUndo(actor, row);
+    else if (isTransfer(row)) void removeTransferWithUndo(actor, row, label);
+    else void removeWithUndo(actor, row);
+  };
 
   return (
     <div ref={rowRef} className="relative overflow-hidden">
@@ -120,7 +131,7 @@ export function TransactionItem({
         <button
           type="button"
           className="min-w-0 flex-1 text-left"
-          aria-label={`${selecting ? "Select" : "Edit"} ${label}, ${spoken}${pending ? ", pending" : ""}`}
+          aria-label={`${selecting ? "Select" : isCorrection(row) ? "Open" : "Edit"} ${label}, ${spoken}${pending ? ", pending" : ""}`}
           aria-pressed={selecting ? selected : undefined}
           aria-current={(open && !selecting) || undefined}
           onClick={onTap}
@@ -131,6 +142,13 @@ export function TransactionItem({
                 className="size-4 shrink-0 text-muted-foreground"
                 role="img"
                 aria-label="Transfer"
+              />
+            )}
+            {isCorrection(row) && (
+              <Scale
+                className="size-4 shrink-0 text-muted-foreground"
+                role="img"
+                aria-label="Balance correction"
               />
             )}
             <span

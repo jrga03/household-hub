@@ -1,18 +1,19 @@
 /**
  * A month's figures per category, summed at read time from the budget,
- * transaction, allocation and transfer projections, so they are
- * order-independent by construction. Transfers never count as spent; they only
- * move a category's money between accounts.
+ * transaction, allocation, transfer and balance correction projections, so
+ * they are order-independent by construction. Transfers and corrections never
+ * count as spent; they only move a category's money.
  */
 
-import type { AccountRow } from "@/lib/accounts/projection";
-import type { AllocationRow } from "@/lib/allocations/projection";
 import { diffCents, negateCents, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
-import { sumAccountMoney, sumCategoryMoney } from "@/lib/transactions/money";
+import {
+  readMoneyRecords,
+  sumAccountMoney,
+  sumCategoryMoney,
+  type MoneyRecords,
+} from "@/lib/transactions/money";
 import { monthOfDate } from "@/lib/utils/dates";
-import type { TransactionRow } from "@/lib/transactions/projection";
-import type { TransferRow } from "@/lib/transfers/projection";
 import { budgetsInForce, type Budget } from "./inForce";
 import type { BudgetRow } from "./projection";
 
@@ -33,11 +34,7 @@ export interface CategoryMonth extends Omit<MonthFigures, "budget"> {
   moneyByAccount: Map<string, Cents>;
 }
 
-export interface MonthRecords {
-  accounts: AccountRow[];
-  transactions: TransactionRow[];
-  allocations: AllocationRow[];
-  transfers: TransferRow[];
+export interface MonthRecords extends MoneyRecords {
   budgets: BudgetRow[];
 }
 
@@ -69,7 +66,7 @@ function entryFor(view: MonthView, categoryId: string): CategoryMonth {
 export function summarizeMonth(
   month: string,
   currentMonth: string,
-  { accounts, transactions, allocations, transfers, budgets }: MonthRecords
+  { accounts, transactions, allocations, transfers, corrections, budgets }: MonthRecords
 ): MonthView {
   const view: MonthView = new Map();
 
@@ -104,12 +101,13 @@ export function summarizeMonth(
   const byMonthEnd = (record: { date: string }) =>
     month === currentMonth || monthOfDate(record.date) <= month;
   const money = sumCategoryMoney(
-    sumAccountMoney(
+    sumAccountMoney({
       accounts,
-      transactions.filter(byMonthEnd),
-      allocations.filter(byMonthEnd),
-      transfers.filter(byMonthEnd)
-    )
+      transactions: transactions.filter(byMonthEnd),
+      allocations: allocations.filter(byMonthEnd),
+      transfers: transfers.filter(byMonthEnd),
+      corrections: corrections.filter(byMonthEnd),
+    })
   );
   for (const [categoryId, { total, byAccount }] of money) {
     const entry = entryFor(view, categoryId);
@@ -135,20 +133,8 @@ export function sumMonthFigures(categories: CategoryMonth[]): MonthFigures {
 }
 
 export async function readMonthView(month: string, currentMonth: string): Promise<MonthView> {
-  const [accounts, transactions, allocations, transfers, budgets] = await Promise.all([
-    db.accounts.toArray(),
-    db.transactions.toArray(),
-    db.allocations.toArray(),
-    db.transfers.toArray(),
-    db.budgets.toArray(),
-  ]);
-  return summarizeMonth(month, currentMonth, {
-    accounts,
-    transactions,
-    allocations,
-    transfers,
-    budgets,
-  });
+  const [records, budgets] = await Promise.all([readMoneyRecords(), db.budgets.toArray()]);
+  return summarizeMonth(month, currentMonth, { ...records, budgets });
 }
 
 /**

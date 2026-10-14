@@ -22,4 +22,8 @@ describe("toCsv", () => {
       "'=SUM(A1),'+1,'-1,'@cmd,'\tx\r\n"
     );
   });
+
+  it("keeps a negative amount a number a spreadsheet can sum", () => {
+    expect(toCsv([["-20.00", "-20.00+A1"]])).toBe("-20.00,'-20.00+A1\r\n");
+  });
 });

@@ -23,6 +23,7 @@ import {
 import { advanceOnEnter } from "@/components/FormSheet";
 import { EditAccountDialog } from "./EditAccountDialog";
 import { PayCardDialog } from "./PayCardDialog";
+import { CorrectBalanceDialog } from "@/components/corrections/CorrectBalanceDialog";
 import { FormError } from "@/components/ui/form-error";
 import { errorMessage } from "@/lib/utils";
 import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
@@ -31,10 +32,14 @@ export function AccountsCard({ actor }: { actor: Actor }) {
   const accounts = useAccounts();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [payingId, setPayingId] = useState<string | null>(null);
+  const [correctingId, setCorrectingId] = useState<string | null>(null);
   const editing = accounts?.find((account) => account.id === editingId);
   const paying = accounts?.find((account) => account.id === payingId);
+  // Only accounts in use are listed here, so a retired one can't be corrected.
+  const correcting = accounts?.find((account) => account.id === correctingId);
   useCloseWhenGone(editingId, accounts && (editing ?? null), () => setEditingId(null));
   useCloseWhenGone(payingId, accounts && (paying ?? null), () => setPayingId(null));
+  useCloseWhenGone(correctingId, accounts && (correcting ?? null), () => setCorrectingId(null));
 
   return (
     <Card>
@@ -59,6 +64,14 @@ export function AccountsCard({ actor }: { actor: Actor }) {
                 <Button
                   variant="ghost"
                   size="sm"
+                  aria-label={`Correct the balance of ${account.name}`}
+                  onClick={() => setCorrectingId(account.id)}
+                >
+                  Correct
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   aria-label={`Edit ${account.name}`}
                   onClick={() => setEditingId(account.id)}
                 >
@@ -69,7 +82,22 @@ export function AccountsCard({ actor }: { actor: Actor }) {
           </ul>
         )}
         {editing && (
-          <EditAccountDialog actor={actor} account={editing} onClose={() => setEditingId(null)} />
+          <EditAccountDialog
+            actor={actor}
+            account={editing}
+            onCorrectBalance={() => {
+              setEditingId(null);
+              setCorrectingId(editing.id);
+            }}
+            onClose={() => setEditingId(null)}
+          />
+        )}
+        {correcting && (
+          <CorrectBalanceDialog
+            actor={actor}
+            account={correcting}
+            onClose={() => setCorrectingId(null)}
+          />
         )}
         {paying && <PayCardDialog actor={actor} card={paying} onClose={() => setPayingId(null)} />}
         <RetiredAccounts actor={actor} />

@@ -6,6 +6,7 @@ import { budgetHistory } from "@/lib/budgets/inForce";
 import type { LedgerRecord, LedgerRow } from "@/lib/budgets/ledger";
 import { absCents, formatPHP, type Cents } from "@/lib/currency";
 import { cn } from "@/lib/utils";
+import { CORRECTION_LABEL } from "@/components/transactions/rowDisplay";
 import { monthLabel, parseLocalDate } from "@/lib/utils/dates";
 
 interface Names {
@@ -30,6 +31,12 @@ function describe({ kind, record }: LedgerRecord, names: Names) {
     return {
       label: record.description || path,
       detail: [dateOf(record.date), record.description && path].filter(Boolean).join(" · "),
+    };
+  }
+  if (kind === "correction") {
+    return {
+      label: CORRECTION_LABEL,
+      detail: [dateOf(record.date), accountName(names, record.accountId)].join(" · "),
     };
   }
   const side = (envelope: typeof record.from) =>
@@ -76,7 +83,7 @@ function Balance({ label, cents }: { label: string; cents: Cents }) {
 }
 
 /**
- * The month's transactions, transfers and allocations touching the category,
+ * The month's transactions, transfers, allocations and balance corrections touching the category,
  * with its money before, after each and at the end, then its budget history.
  */
 export function CategoryLedger({

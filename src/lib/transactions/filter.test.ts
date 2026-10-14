@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { asCents } from "@/lib/currency";
+import type { BalanceCorrectionRow } from "@/lib/corrections/projection";
 import type { TransferRow } from "@/lib/transfers/projection";
 import {
   filterTransactions,
@@ -50,6 +51,25 @@ function transferRow(overrides: Partial<TransferRow> = {}): TransferRow {
     description: "",
     notes: "",
     status: "cleared",
+    removed: false,
+    recordedHlc: `hlc-${nextId}`,
+    ...overrides,
+  };
+}
+
+function correctionRow(overrides: Partial<BalanceCorrectionRow> = {}): BalanceCorrectionRow {
+  nextId += 1;
+  return {
+    id: `c${nextId}`,
+    householdId: "h1",
+    visibility: "household",
+    ownerUserId: null,
+    accountId: "bpi",
+    date: "2026-10-12",
+    amountCents: asCents(35000),
+    direction: "lower",
+    envelope: { kind: "category", id: "groceries" },
+    payingAccountId: null,
     removed: false,
     recordedHlc: `hlc-${nextId}`,
     ...overrides,
@@ -281,7 +301,61 @@ describe("transfers in the list", () => {
   });
 });
 
+describe("balance corrections in the list", () => {
+  const shortfall = correctionRow();
+  const surplus = correctionRow({
+    accountId: "gcash",
+    direction: "raise",
+    envelope: { kind: "unassigned" },
+  });
+  const expense = row({ accountId: "bpi" });
+  const rows = [shortfall, surplus, expense];
+
+  it("keeps a correction under its account, its envelope and the Balance correction type", () => {
+    expect(ids(filterTransactions(rows, { account: "gcash" }))).toEqual([surplus.id]);
+    expect(ids(filterTransactions(rows, { category: "groceries" }))).toEqual([
+      shortfall.id,
+      expense.id,
+    ]);
+    expect(ids(filterTransactions(rows, { category: "unassigned" }))).toEqual([surplus.id]);
+    expect(ids(filterTransactions(rows, { type: "correction" }))).toEqual([
+      shortfall.id,
+      surplus.id,
+    ]);
+    expect(ids(filterTransactions(rows, { type: "expense" }))).toEqual([expense.id]);
+  });
+
+  it("counts a correction as cleared and never as needing a category", () => {
+    expect(ids(filterTransactions(rows, { status: "cleared" }))).toEqual(ids(rows));
+    expect(filterTransactions(rows, { status: "pending" })).toEqual([]);
+    expect(filterTransactions([surplus], { needsCategory: true })).toEqual([]);
+  });
+
+  it("finds a correction by its amount", () => {
+    expect(ids(filterTransactions(rows, { query: "350" }))).toEqual([shortfall.id, surplus.id]);
+  });
+
+  it("leaves corrections out of the income and expense totals", () => {
+    expect(totalTransactions(rows)).toEqual({
+      incomeCents: 0,
+      expenseCents: 25000,
+      netCents: -25000,
+    });
+  });
+
+  it("merges corrections with transactions and transfers, newest first", () => {
+    const newest = correctionRow({ date: "2026-10-13" });
+    const older = row({ date: "2026-10-11" });
+
+    expect(ids(newestFirst([older], [], [newest]))).toEqual([newest.id, older.id]);
+  });
+});
+
 describe("readTransactionFilter", () => {
+  it("reads the Balance correction type", () => {
+    expect(readTransactionFilter({ type: "correction" })).toEqual({ type: "correction" });
+  });
+
   it("reads the Transfer type", () => {
     expect(readTransactionFilter({ type: "transfer" })).toEqual({ type: "transfer" });
   });

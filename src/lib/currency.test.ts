@@ -16,6 +16,7 @@ import {
   parsePHPUnbounded,
   validateAmount,
   parsePHPSafe,
+  parseSignedPHPSafe,
   formatPHPAxisTick,
   MAX_AMOUNT_CENTS,
   CurrencyError,
@@ -472,5 +473,22 @@ describe("formatTransactionExpense", () => {
 
   it("reads the size of the amount whichever sign it is stored with", () => {
     expect(formatTransactionExpense(asCents(-150050))).toBe("(₱1,500.50)");
+  });
+});
+
+describe("parseSignedPHPSafe", () => {
+  it("reads a balance below zero, with either minus sign", () => {
+    expect(parseSignedPHPSafe("-1,250.50")).toEqual({ success: true, value: -125050 });
+    expect(parseSignedPHPSafe("−₱20")).toEqual({ success: true, value: -2000 });
+  });
+
+  it("reads a balance of zero or more like parsePHPSafe", () => {
+    expect(parseSignedPHPSafe("9,650")).toEqual({ success: true, value: 965000 });
+    expect(parseSignedPHPSafe("0")).toEqual({ success: true, value: 0 });
+  });
+
+  it("refuses what parsePHPSafe refuses", () => {
+    expect(parseSignedPHPSafe("abc").success).toBe(false);
+    expect(parseSignedPHPSafe("--5").success).toBe(false);
   });
 });

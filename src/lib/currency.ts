@@ -291,6 +291,17 @@ export function parsePHPSafe(
   }
 }
 
+const LEADING_MINUS = /^\s*[-−]/;
+
+/** Like `parsePHPSafe`, also reading a leading minus: a balance can be below zero, an amount can't. */
+export function parseSignedPHPSafe(
+  input: string
+): { success: true; value: Cents } | { success: false; error: CurrencyError } {
+  if (!LEADING_MINUS.test(input)) return parsePHPSafe(input);
+  const parsed = parsePHPSafe(input.replace(LEADING_MINUS, ""));
+  return parsed.success ? { success: true, value: negateCents(parsed.value) } : parsed;
+}
+
 /**
  * Formats integer cents as a compact axis tick label for charts.
  *

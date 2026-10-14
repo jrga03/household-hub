@@ -19,6 +19,7 @@ import type { CategoryList } from "@/lib/categories/projection";
 import {
   isListType,
   TRANSFER_TYPE,
+  CORRECTION_TYPE,
   UNASSIGNED_FILTER,
   type TransactionFilter,
 } from "@/lib/transactions/filter";
@@ -159,6 +160,7 @@ export function TransactionFilters({
                 { value: "expense", label: "Expense" },
                 { value: "income", label: "Income" },
                 { value: TRANSFER_TYPE, label: "Transfer" },
+                { value: CORRECTION_TYPE, label: "Balance correction" },
               ],
             },
           ]}

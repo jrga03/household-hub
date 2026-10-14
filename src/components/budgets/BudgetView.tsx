@@ -4,6 +4,7 @@ import { MoneyAmount } from "@/components/allocations/MoneyAmount";
 import { categoryNames } from "@/components/allocations/envelopes";
 import { MoveMoneyDialog } from "@/components/allocations/MoveMoneyDialog";
 import { CategoryLedger } from "@/components/categories/CategoryLedger";
+import { CorrectionDialog } from "@/components/corrections/CorrectionDialog";
 import { RecordName } from "@/components/categories/RecordName";
 import { PageShell } from "@/components/layout/PageShell";
 import { BELOW_HEADER, PANE_MAX_HEIGHT } from "@/components/layout/pane";
@@ -180,6 +181,13 @@ export function BudgetView({
         <MoveMoneyDialog
           actor={actor}
           allocation={opened.record}
+          onClose={() => setOpenedId(null)}
+        />
+      )}
+      {opened?.kind === "correction" && (
+        <CorrectionDialog
+          actor={actor}
+          correction={opened.record}
           onClose={() => setOpenedId(null)}
         />
       )}

@@ -42,7 +42,7 @@ import {
   NOTES_MAX_LENGTH,
   type TransactionStatus,
 } from "@/lib/transactions/events";
-import { TRANSFER_TYPE, type ListType } from "@/lib/transactions/filter";
+import { TRANSFER_TYPE, type EntryDirection } from "@/lib/transactions/filter";
 import { transferLabel } from "@/lib/transfers/events";
 import type { TransferRow } from "@/lib/transfers/projection";
 import { cn, errorMessage } from "@/lib/utils";
@@ -230,7 +230,7 @@ export function TransferForm({
   categories: CategoryList;
   draftAmount?: string;
   /** Offered for a new entry, so it can become an expense or income, carrying the amount typed. */
-  onDirectionChange?: (direction: ListType, amount: string) => void;
+  onDirectionChange?: (direction: EntryDirection, amount: string) => void;
   onClose: () => void;
 }) {
   const lastUsedAccountId = useQuickEntryStore((state) => state.lastUsed.accountId);
