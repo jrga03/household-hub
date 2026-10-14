@@ -62,7 +62,6 @@ if (typeof globalThis.performance === "undefined") {
 // Clean up after each test
 afterEach(() => {
   localStorage.clear();
-  vi.clearAllMocks();
 });
 
 // Radix measures with ResizeObserver and drives Select with these, all of which jsdom lacks.

@@ -72,7 +72,6 @@ describe("authStore", () => {
       loading: false,
       initialized: false,
     });
-    vi.clearAllMocks();
   });
 
   describe("initial state", () => {

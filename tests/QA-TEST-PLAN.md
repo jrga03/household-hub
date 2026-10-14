@@ -94,7 +94,7 @@ This document serves as the master QA test plan for the Household Hub applicatio
 
 ### Unit Tests
 
-- `afterEach`: `localStorage.clear()` + `vi.clearAllMocks()` (handled by `src/test/setup.ts`)
+- `afterEach`: `localStorage.clear()` (handled by `src/test/setup.ts`); mock call history is cleared by vitest 5's default `clearMocks: true`
 - Zustand stores: Reset via `store.setState()` in `beforeEach`
 
 ### E2E Tests
