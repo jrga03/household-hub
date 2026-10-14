@@ -64,7 +64,7 @@ export function AccountsCard({ actor }: { actor: Actor }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  aria-label={`Correct the balance of ${account.name}`}
+                  aria-label={`Correct ${account.name}`}
                   onClick={() => setCorrectingId(account.id)}
                 >
                   Correct
