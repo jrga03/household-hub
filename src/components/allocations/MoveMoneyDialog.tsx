@@ -1,5 +1,6 @@
 import { useActionState, useState } from "react";
 import { toast } from "sonner";
+import { ActionForm } from "@/components/ActionForm";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
@@ -270,7 +271,7 @@ function MoveMoneyForm({
   };
 
   return (
-    <form
+    <ActionForm
       ref={advanceOnEnter}
       action={saveAction}
       className="space-y-4"
@@ -347,7 +348,7 @@ function MoveMoneyForm({
       <FormFooter destructive={allocation && { label: "Remove", onClick: remove }}>
         <SubmitButton pendingText="Saving...">{allocation ? "Save" : "Move money"}</SubmitButton>
       </FormFooter>
-    </form>
+    </ActionForm>
   );
 }
 

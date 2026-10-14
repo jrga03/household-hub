@@ -2,6 +2,7 @@ import { useActionState } from "react";
 import { AuthError } from "@supabase/supabase-js";
 import { Link } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
+import { ActionForm } from "@/components/ActionForm";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Input } from "@/components/ui/input";
@@ -65,7 +66,7 @@ export function SignupForm() {
         <CardTitle>Create Account</CardTitle>
       </CardHeader>
       <CardContent>
-        <form action={submitAction} className="space-y-4">
+        <ActionForm action={submitAction} className="space-y-4">
           <div>
             <label htmlFor="email" className="text-sm font-medium">
               Email
@@ -126,7 +127,7 @@ export function SignupForm() {
               Log in
             </Link>
           </div>
-        </form>
+        </ActionForm>
       </CardContent>
     </Card>
   );

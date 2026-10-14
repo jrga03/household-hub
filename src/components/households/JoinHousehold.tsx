@@ -1,6 +1,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import { ActionForm } from "@/components/ActionForm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -73,7 +74,7 @@ export function JoinForm({ userId }: { userId: string }) {
         <CardDescription>
           Ask a member for their Household Code. The Owner approves your request.
         </CardDescription>
-        <form action={joinAction} className="space-y-4">
+        <ActionForm action={joinAction} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="household-code">Household Code</Label>
             <Input
@@ -105,7 +106,7 @@ export function JoinForm({ userId }: { userId: string }) {
               Joining a household needs a connection. You&apos;re offline right now.
             </p>
           )}
-        </form>
+        </ActionForm>
       </CardContent>
     </Card>
   );

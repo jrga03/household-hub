@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useActionState, useState } from "react";
 import { toast } from "sonner";
+import { ActionForm } from "@/components/ActionForm";
 import { categoryNames } from "@/components/allocations/envelopes";
 import { advanceOnEnter, FormFooter } from "@/components/FormSheet";
 import { FormError } from "@/components/ui/form-error";
@@ -288,7 +289,12 @@ function LinesForm({
   }, null);
 
   return (
-    <form ref={advanceOnEnter} action={submit} aria-label="Distribute money" className="space-y-4">
+    <ActionForm
+      ref={advanceOnEnter}
+      action={submit}
+      aria-label="Distribute money"
+      className="space-y-4"
+    >
       {lines.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No budgets this month for {source.name}&apos;s categories. Add a category below.
@@ -349,7 +355,7 @@ function LinesForm({
       <FormFooter>
         <SubmitButton pendingText="Distributing...">Distribute</SubmitButton>
       </FormFooter>
-    </form>
+    </ActionForm>
   );
 }
 

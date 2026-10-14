@@ -1,5 +1,6 @@
 import { useActionState, useState } from "react";
 import { toast } from "sonner";
+import { ActionForm } from "@/components/ActionForm";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
@@ -129,7 +130,7 @@ function SetBudgetForm({
   );
 
   return (
-    <form
+    <ActionForm
       ref={advanceOnEnter}
       action={saveAction}
       className="space-y-4"
@@ -205,6 +206,6 @@ function SetBudgetForm({
       <FormFooter>
         <SubmitButton pendingText="Saving...">Save budget</SubmitButton>
       </FormFooter>
-    </form>
+    </ActionForm>
   );
 }

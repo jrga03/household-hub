@@ -1,5 +1,6 @@
 import { useActionState, useState } from "react";
 import { toast } from "sonner";
+import { ActionForm } from "@/components/ActionForm";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,14 +59,14 @@ export function AddCategoryForm({ actor, groups }: { actor: Actor; groups: Group
   }, "Couldn't add the category.");
 
   return (
-    <form action={addAction} className="@container space-y-4" aria-label="Add a category">
+    <ActionForm action={addAction} className="@container space-y-4" aria-label="Add a category">
       <div key={state.added} className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
         <NameField id="category-name" placeholder="e.g. Groceries" />
         <GroupSelect id="category-group" groups={groups} />
       </div>
       <FormError>{state.error}</FormError>
       <SubmitButton pendingText="Adding...">Add category</SubmitButton>
-    </form>
+    </ActionForm>
   );
 }
 
@@ -79,12 +80,12 @@ export function AddGroupForm({ actor }: { actor: Actor }) {
   }, "Couldn't add the group.");
 
   return (
-    <form action={addAction} className="space-y-4" aria-label="Add a group">
+    <ActionForm action={addAction} className="space-y-4" aria-label="Add a group">
       {/* Keyed so each new group starts as Household again; Personal is a deliberate choice. */}
       <NewGroupFields key={state.added} />
       <FormError>{state.error}</FormError>
       <SubmitButton pendingText="Adding...">Add group</SubmitButton>
-    </form>
+    </ActionForm>
   );
 }
 
