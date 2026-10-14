@@ -65,6 +65,21 @@ describe("FormSheet", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
   });
 
+  it("opens a phone sheet with a title alone, without a missing-description warning", () => {
+    setPhone(true);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    render(
+      <FormSheet title="Add note" onClose={vi.fn()}>
+        <p>Fields</p>
+      </FormSheet>
+    );
+
+    expect(screen.getByRole("dialog", { name: "Add note" })).not.toHaveAttribute(
+      "aria-describedby"
+    );
+    expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("Description"));
+  });
+
   it("closes a phone sheet from its Close button", () => {
     setPhone(true);
     const onClose = vi.fn();

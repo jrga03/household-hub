@@ -1,5 +1,5 @@
 import { test, expect, type BrowserContext, type Locator, type Page } from "@playwright/test";
-import { navigateTo, signUpNewPerson } from "./fixtures/helpers";
+import { chooseOption, navigateTo, signUpNewPerson } from "./fixtures/helpers";
 
 /** An iPhone keyboard with its suggestion bar, in CSS px. */
 const KEYBOARD_HEIGHT = 336;
@@ -260,6 +260,47 @@ test.describe("phone forms", () => {
     }));
     expect(widths.scroll).toBeLessThanOrEqual(widths.client);
     await shoot(page, sheet, "320-wide-date");
+  });
+
+  // iOS keeps a natively drawn date field at its own minimum width, whatever its CSS width; only
+  // `appearance: none` makes it honour the column. Emulators don't draw it that way, so check the cause.
+  test("date fields drop the native look so iOS sizes them to the form", async ({ page }) => {
+    const sheet = await openAddTransaction(page);
+    const date = sheet.locator('input[type="date"]');
+    await expect(date).toHaveCSS("appearance", "none");
+  });
+
+  test("the transaction sheet's header is its title alone", async ({ page }) => {
+    const sheet = await openAddTransaction(page);
+    await expect(sheet).not.toContainText("Saved on this device");
+  });
+
+  test("the transfer sheet's header is its title alone", async ({ page }) => {
+    const sheet = await openAddTransaction(page);
+    await sheet.getByRole("button", { name: "Close" }).click();
+    const addAccount = page.getByRole("form", { name: "Add an account" });
+    await addAccount.getByLabel("Account name").fill("GCash");
+    await addAccount.getByRole("button", { name: "Add account" }).click();
+    await expect(page.getByRole("list", { name: "Accounts" })).toContainText("GCash");
+
+    await page.getByRole("button", { name: "Add transaction" }).click();
+    const add = page.getByRole("dialog", { name: "Add transaction" });
+    await add.getByLabel("Amount (₱)").fill("500");
+    await add.getByRole("radio", { name: "Transfer" }).click();
+    await chooseOption(page, add.getByLabel("From"), "BPI");
+    await chooseOption(page, add.getByLabel("To"), "GCash");
+    await add.getByLabel("Description (optional)").fill("Top up");
+    await add.getByRole("button", { name: "Add transfer" }).click();
+    await expect(add).toBeHidden();
+
+    await navigateTo(page, "Transactions");
+    await page
+      .getByRole("button", { name: /^Edit Top up/ })
+      .first()
+      .click();
+    const edit = page.getByRole("dialog", { name: "Edit transfer" });
+    await expect(edit).toBeVisible();
+    await expect(edit).not.toContainText("Saved on this device");
   });
 
   test("Remove sits below Save as a plain destructive text button", async ({ page }) => {
