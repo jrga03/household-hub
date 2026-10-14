@@ -187,7 +187,7 @@ function DraftFields({
     );
 
   return (
-    <div className="grid gap-4 @[480px]:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
       <div className="space-y-2 @[480px]:col-span-2">
         <Label htmlFor="draft-description" className="flex items-center gap-2">
           Description

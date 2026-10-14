@@ -49,7 +49,7 @@ export function AccountDetailsFields({
   const isCard = type === CREDIT_CARD;
 
   return (
-    <div className="grid gap-4 @[480px]:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
       <div className="space-y-2">
         <Label htmlFor={`${idPrefix}-name`}>Account name</Label>
         <Input

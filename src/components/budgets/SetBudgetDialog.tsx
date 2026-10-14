@@ -135,7 +135,7 @@ function SetBudgetForm({
       className="space-y-4"
       aria-label={`Budget for ${category.name}`}
     >
-      <div className="grid gap-4 @[480px]:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="budget-amount">Amount ({PESO_SIGN})</Label>
           <Input

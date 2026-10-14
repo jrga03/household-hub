@@ -115,7 +115,7 @@ function DistributeForm({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 @[480px]:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-3">
         <div className="space-y-2">
           <Label htmlFor="distribute-source">From</Label>
           <Select value={sourceId} onValueChange={setSourceId}>
@@ -367,7 +367,7 @@ function DistributeLineRow({
   const amountId = `distribute-${line.categoryId}-amount`;
   return (
     <li className="@container px-4 py-3">
-      <div className="grid gap-2 @[560px]:grid-cols-[1fr_9rem_11rem] @[560px]:items-center">
+      <div className="grid grid-cols-1 gap-2 @[560px]:grid-cols-[minmax(0,1fr)_9rem_11rem] @[560px]:items-center">
         <div>
           <Label htmlFor={amountId} className="font-medium">
             {name}

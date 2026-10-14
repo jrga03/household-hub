@@ -292,7 +292,7 @@ function TransactionForm({
       aria-label={transaction ? "Edit transaction" : "Add transaction"}
     >
       {/* The amount comes first, so the dialog opens with it focused. */}
-      <div className="grid gap-4 @[480px]:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
         <div className={cn("space-y-2", onDirectionChange && FULL_ROW)}>
           <Label htmlFor="transaction-amount">Amount ({PESO_SIGN})</Label>
           <Input
