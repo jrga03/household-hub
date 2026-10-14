@@ -92,7 +92,7 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 - **Deferred (#118): the top toast can cover a phone sheet's title while the keyboard is up**, since the sheet now reaches 1rem below the visible top. Revisit: with the toast-position decision above.
 - **#118 merged with its defaults** (PR #119, ea38c64, 2026-10-14): the user merged without answering the four [DECIDE] items, so Retire as destructive, one footer layout, no `appearance-none`, and both deferrals above stand. The real-iPhone checklist in PR #119 wasn't run; the user reports issues as they find them. Revisit: on the next phone-sheet report.
 - **Follow-up #118: date fields drop the native look** (`appearance: none` in `Input`), reversing the no-`appearance-none` default above: a real iPhone still scrolled the transaction sheet sideways after the grid fix, because iOS keeps a natively drawn date field at its own minimum width whatever its CSS width. Reported by the user 2026-10-14. Revisit: if the iPhone date field loses its tap-to-pick behaviour.
-- **The transaction sheet's header is its title alone** (Add / Edit transaction), without the "Saved on this device…" line. Asked by the user 2026-10-14. The Edit transfer sheet keeps it. Revisit: if the user wants it gone there too.
+- **The transaction sheet's header is its title alone** (Add / Edit transaction), without the "Saved on this device…" line. Asked by the user 2026-10-14. The Edit transfer sheet drops it too (user-confirmed 2026-10-14). Revisit: never.
 
 ## Issues
 

@@ -46,13 +46,7 @@ import { transferLabel } from "@/lib/transfers/events";
 import type { TransferRow } from "@/lib/transfers/projection";
 import { cn, errorMessage } from "@/lib/utils";
 import { useQuickEntryStore } from "@/stores/quickEntryStore";
-import {
-  ChoiceItem,
-  DirectionChoice,
-  FULL_ROW,
-  SAVED_LOCALLY,
-  useFocusNewEntry,
-} from "./EntryFields";
+import { ChoiceItem, DirectionChoice, FULL_ROW, useFocusNewEntry } from "./EntryFields";
 import { confirmRemoval } from "./confirmRemoval";
 import { transferName } from "./transferName";
 import { todayLocalDate } from "@/lib/utils/dates";
@@ -95,7 +89,7 @@ export function TransferDialog({
   onClose: () => void;
 }) {
   return (
-    <FormSheet title="Edit transfer" description={SAVED_LOCALLY} onClose={onClose}>
+    <FormSheet title="Edit transfer" onClose={onClose}>
       <TransferEditor actor={actor} transfer={transfer} onClose={onClose} />
     </FormSheet>
   );
