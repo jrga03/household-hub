@@ -21,7 +21,7 @@
  * browser: location unchanged until the queued pop lands.
  */
 
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, type Mock } from "vitest";
 import { StrictMode, useEffect, useState } from "react";
 import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import {
@@ -40,7 +40,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 // Per-host external controls, registered on render
 type HostId = "a" | "b" | "c" | "sheet" | "dialog";
 const setOpenControls = {} as Record<HostId, (open: boolean) => void>;
-const closeSpies = {} as Record<HostId, ReturnType<typeof vi.fn>>;
+const closeSpies = {} as Record<HostId, Mock<() => void>>;
 
 function HookHost({ id, initialOpen = false }: { id: HostId; initialOpen?: boolean }) {
   const [open, setOpen] = useState(initialOpen);
