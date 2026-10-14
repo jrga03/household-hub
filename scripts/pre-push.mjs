@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Git pre-push: runs CI's lint, unit-test, and type-check gates in parallel.
-// Pushes that change only Markdown files or docs/ skip the checks.
+// Pushes that change only Markdown files or docs/, or only delete remote refs, skip the checks.
 import { execFileSync, spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
@@ -43,22 +43,21 @@ export function readPushInput(stdin) {
   }
 }
 
-export function shouldSkipChecks(refs, listFiles) {
-  if (refs.length === 0) return false;
-  for (const ref of refs) {
-    let files;
+export function skipReason(refs, listFiles) {
+  if (refs.length === 0) return null;
+  const pushedRefs = refs.filter((ref) => !ZERO_SHA.test(ref.localSha));
+  if (pushedRefs.length === 0) return "delete-only";
+  for (const ref of pushedRefs) {
     try {
-      files = listFiles(ref);
+      if (!isDocsOnly(listFiles(ref))) return null;
     } catch {
-      return false;
+      return null;
     }
-    if (!files || !isDocsOnly(files)) return false;
   }
-  return true;
+  return "docs-only";
 }
 
 function changedFiles({ localSha, remoteSha }) {
-  if (ZERO_SHA.test(localSha)) return null; // deleting a remote ref
   const base = ZERO_SHA.test(remoteSha)
     ? execFileSync("git", ["merge-base", "origin/main", localSha], { encoding: "utf8" }).trim()
     : remoteSha;
@@ -83,8 +82,9 @@ function runCheck({ name, command, args }) {
 
 async function main() {
   const refs = parsePushedRefs(readPushInput(process.stdin));
-  if (shouldSkipChecks(refs, changedFiles)) {
-    console.log("pre-push: docs-only push, checks skipped");
+  const reason = skipReason(refs, changedFiles);
+  if (reason) {
+    console.log(`pre-push: ${reason} push, checks skipped`);
     return 0;
   }
   const results = await Promise.all(CHECKS.map(runCheck));

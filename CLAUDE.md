@@ -46,7 +46,7 @@ Always ask: what happens offline, and what happens when two devices edit the sam
 ## Git hooks
 
 - **pre-commit:** lint-staged runs `eslint --fix` and Prettier on staged files.
-- **pre-push:** `scripts/pre-push.mjs` runs lint (`--max-warnings=0`), `vitest run --allowOnly=false --silent`, the two tsc programs, and Knip in parallel. Pushes that change only `*.md` or `docs/**` skip it. Run it by hand with `node scripts/pre-push.mjs`.
+- **pre-push:** `scripts/pre-push.mjs` runs lint (`--max-warnings=0`), `vitest run --allowOnly=false --silent`, the two tsc programs, and Knip in parallel. Pushes that change only `*.md` or `docs/**`, or only delete remote branches, skip it. Run it by hand with `node scripts/pre-push.mjs`.
 - **Claude Code hooks** (`.claude/settings.json`): a SessionStart hook hands the agent `git status`, recent commits, and the latest plan docs; a Bash guard blocks force pushes, `supabase db push`, and recursive deletes outside the repo; a per-edit hook reports only architecture-boundary lint (`arch/*`, `no-restricted-imports`) in the edited file; a Stop hook lints and type-checks changed files with `--max-warnings=0`.
 - Push with `GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=10" git push`: it works when the key agent is loaded and fails fast instead of hanging on a passphrase prompt when it isn't. Only then ask the user to run it with `!`.
 

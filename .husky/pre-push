@@ -1,3 +1,3 @@
 # Pre-push VERIFIES; it does not mutate (review INFRA-07). It mirrors CI's
-# lint, unit-test, and type-check gates in parallel and skips docs-only pushes.
+# lint, unit-test, and type-check gates in parallel and skips docs-only and delete-only pushes.
 node scripts/pre-push.mjs
