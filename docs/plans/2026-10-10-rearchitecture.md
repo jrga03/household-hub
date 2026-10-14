@@ -1,6 +1,6 @@
 # Re-architecture against the vision
 
-Source of truth: `docs/VISION.md`. Vocabulary: `GLOSSARY.md`. Status: Milestone 1 (#15) landed and closed 2026-10-11; production keep-alive check pending in #40. Milestone 2 (#46) landed and closed 2026-10-12. Milestone 3 landed and closed 2026-10-13 (spec #70). Milestone 4 scoped 2026-10-13, landed and closed 2026-10-14 (spec #95). #104 (dropdown snap-back bug) landed 2026-10-14 (PR #121). #126 (vitest 5) landed 2026-10-14 (PR #135); follow-ups in #134. ADRs: `docs/adr/0001`-`0008`.
+Source of truth: `docs/VISION.md`. Vocabulary: `GLOSSARY.md`. Status: Milestone 1 (#15) landed and closed 2026-10-11; production keep-alive check pending in #40. Milestone 2 (#46) landed and closed 2026-10-12. Milestone 3 landed and closed 2026-10-13 (spec #70). Milestone 4 scoped 2026-10-13, landed and closed 2026-10-14 (spec #95). #104 (dropdown snap-back bug) landed 2026-10-14 (PR #121). #126 (vitest 5) landed 2026-10-14 (PR #135); follow-ups in #134. #114 (pre-push skips delete-only pushes) landed 2026-10-14 (PR #136). ADRs: `docs/adr/0001`-`0008`.
 
 ## Context
 
