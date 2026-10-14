@@ -32,7 +32,6 @@ const UNPUSHED = [
 ];
 
 beforeEach(() => {
-  vi.clearAllMocks();
   signOutMock.mockResolvedValue(undefined);
   vi.mocked(listEventsNotPushed).mockResolvedValue([]);
   vi.mocked(countDrafts).mockResolvedValue(0);
