@@ -46,6 +46,10 @@ _Avoid_: Entry, record, line item, event
 One record of money moving between two accounts of the same visibility, shown as two legs: out of one account, into the other. It carries one envelope (a category, Unassigned, or a Card Payment), the same on both sides. It doesn't count as income, spending, or against a budget. Money crossing between a personal and a household account is not a transfer: it is household income or spending.
 _Avoid_: Internal transaction, move
 
+**Balance Correction**:
+One record of the difference between an account's cleared balance at the end of a date and the balance a member saw at the bank that day, so the logged balance matches the real one without rewriting the past. It carries one envelope (a category or Unassigned) that takes the difference; on a credit card, the difference moves between that envelope and the card's Card Payment in its Paying Account, as a purchase or refund would. It is never edited, only removed and recorded again. It doesn't count as income, spending, or against a budget.
+_Avoid_: Adjustment, reconciliation, starting balance edit
+
 **Credit Card**:
 An account whose balance is an amount owed. It holds no category money.
 _Avoid_: Card account, liability account
