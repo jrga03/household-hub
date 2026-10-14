@@ -52,8 +52,9 @@ describe("skipReason", () => {
     remoteRef: "refs/heads/x",
     remoteSha: SHA_B,
   };
-  const listingNothing = () => {
-    throw new Error("a delete has no files to list");
+  const listPushedFiles = (files) => (listedRef) => {
+    if (listedRef === deleteRef) throw new Error("a delete has no files to list");
+    return files;
   };
 
   it("skips when every ref changes only docs", () => {
@@ -78,15 +79,15 @@ describe("skipReason", () => {
   });
 
   it("skips a push that only deletes remote refs", () => {
-    expect(skipReason([deleteRef, deleteRef], listingNothing)).toBe("delete-only");
+    expect(skipReason([deleteRef, deleteRef], listPushedFiles([]))).toBe("delete-only");
   });
 
   it("runs when deletes are pushed with code", () => {
-    expect(skipReason([deleteRef, ref], () => ["src/a.ts"])).toBeNull();
+    expect(skipReason([deleteRef, ref], listPushedFiles(["src/a.ts"]))).toBeNull();
   });
 
   it("skips when deletes are pushed with docs only", () => {
-    expect(skipReason([deleteRef, ref], () => ["docs/a.md"])).toBe("docs-only");
+    expect(skipReason([deleteRef, ref], listPushedFiles(["docs/a.md"]))).toBe("docs-only");
   });
 });
 
