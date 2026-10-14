@@ -20,42 +20,51 @@ import {
 } from "@/lib/commands/transactions";
 import type { BulkResult } from "@/lib/commands/bulk";
 import { removeTransfers, restoreTransfers } from "@/lib/commands/transfers";
+import { removeBalanceCorrections, restoreBalanceCorrections } from "@/lib/commands/corrections";
 import { confirm } from "@/lib/confirm";
-import { isTransfer, type ListRow } from "@/lib/transactions/filter";
+import { isCorrection, isTransaction, isTransfer, type ListRow } from "@/lib/transactions/filter";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import { countOf, errorMessage } from "@/lib/utils";
 
 // Radix Select can't hold an empty value.
 const UNASSIGNED = "unassigned";
 
-/** "5 transactions", "1 transfer" or "2 transactions and 1 transfer". */
+const conjunction = new Intl.ListFormat("en", { type: "conjunction" });
+
+/** "5 transactions", "1 transfer" or "2 transactions, 1 transfer and 1 correction". */
 function rowsCount(ids: string[], rows: ListRow[]): string {
   const counted = rows.filter((row) => ids.includes(row.id));
   const transfers = counted.filter(isTransfer).length;
-  const transactions = ids.length - transfers;
+  const corrections = counted.filter(isCorrection).length;
+  const transactions = ids.length - transfers - corrections;
   const parts = [
-    transactions > 0 || transfers === 0
+    transactions > 0 || transfers + corrections === 0
       ? countOf(transactions, "transaction", "transactions")
       : null,
     transfers > 0 ? countOf(transfers, "transfer", "transfers") : null,
+    corrections > 0 ? countOf(corrections, "correction", "corrections") : null,
   ];
-  return parts.filter((part) => part !== null).join(" and ");
+  return conjunction.format(parts.filter((part) => part !== null));
 }
 
-const bothResults = (a: BulkResult, b: BulkResult): BulkResult => ({
-  changed: [...a.changed, ...b.changed],
-  failed: [...a.failed, ...b.failed],
-});
+interface ByKind {
+  transactions: (ids: string[]) => Promise<BulkResult>;
+  transfers: (ids: string[]) => Promise<BulkResult>;
+  corrections: (ids: string[]) => Promise<BulkResult>;
+}
 
-/** Runs the transaction and transfer commands on their own part of the selection. */
-async function splitByKind(
-  rows: ListRow[],
-  onTransactions: (ids: string[]) => Promise<BulkResult>,
-  onTransfers: (ids: string[]) => Promise<BulkResult>
-): Promise<BulkResult> {
-  const transactionIds = rows.filter((row) => !isTransfer(row)).map((row) => row.id);
-  const transferIds = rows.filter(isTransfer).map((row) => row.id);
-  return bothResults(await onTransactions(transactionIds), await onTransfers(transferIds));
+/** Runs each kind's command on its own part of the selection. */
+async function splitByKind(rows: ListRow[], commands: ByKind): Promise<BulkResult> {
+  const idsOf = (matches: (row: ListRow) => boolean) => rows.filter(matches).map((row) => row.id);
+  const results = [
+    await commands.transactions(idsOf(isTransaction)),
+    await commands.transfers(idsOf(isTransfer)),
+    await commands.corrections(idsOf(isCorrection)),
+  ];
+  return {
+    changed: results.flatMap((result) => result.changed),
+    failed: results.flatMap((result) => result.failed),
+  };
 }
 
 /** Categories in use that every selected transaction's account can hold money in, by group. */
@@ -102,8 +111,8 @@ export function SelectionActions({
 }: SelectionActionsProps) {
   const [acting, startActing] = useTransition();
   const ids = selected.map((row) => row.id);
-  // Transfers carry an envelope on both sides; Change category skips them.
-  const transactions = selected.filter((row): row is TransactionRow => !isTransfer(row));
+  // Transfers and corrections carry an envelope, not a category; Change category skips them.
+  const transactions = selected.filter(isTransaction);
   const transactionIds = transactions.map((transaction) => transaction.id);
 
   const runBulk = (
@@ -144,11 +153,11 @@ export function SelectionActions({
     if (!confirmed) return;
     runBulk(
       () =>
-        splitByKind(
-          selected,
-          (some) => removeTransactions(actor, some),
-          (some) => removeTransfers(actor, some)
-        ),
+        splitByKind(selected, {
+          transactions: (some) => removeTransactions(actor, some),
+          transfers: (some) => removeTransfers(actor, some),
+          corrections: (some) => removeBalanceCorrections(actor, some),
+        }),
       (result) =>
         toast.success(`Removed ${rowsCount(result.changed, selected)}`, {
           action: {
@@ -156,8 +165,11 @@ export function SelectionActions({
             onClick: () =>
               void splitByKind(
                 selected.filter((row) => result.changed.includes(row.id)),
-                (some) => restoreTransactions(actor, some),
-                (some) => restoreTransfers(actor, some)
+                {
+                  transactions: (some) => restoreTransactions(actor, some),
+                  transfers: (some) => restoreTransfers(actor, some),
+                  corrections: (some) => restoreBalanceCorrections(actor, some),
+                }
               ).then(
                 (restored) => reportFailures(restored, selected),
                 (caught: unknown) =>

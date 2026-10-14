@@ -7,6 +7,7 @@ import { addAllocation } from "@/lib/commands/allocations";
 import { createCategory, createGroup } from "@/lib/commands/categories";
 import { addTransaction, removeTransaction } from "@/lib/commands/transactions";
 import { addTransfer } from "@/lib/commands/transfers";
+import { recordBalanceCorrection, removeBalanceCorrection } from "@/lib/commands/corrections";
 import { readCategoryLedger, readLedgerRecord } from "./ledger";
 
 const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
@@ -171,5 +172,29 @@ describe("category ledger", () => {
     await removeTransaction(MEMBER, id);
 
     expect(await readLedgerRecord({ kind: "transaction", id })).toBeNull();
+  });
+
+  it("shows a balance correction drawing from the category", async () => {
+    await allocateToGroceries("2026-10-01", "1000");
+    const correction = await recordBalanceCorrection(MEMBER, {
+      accountId: bpiId,
+      date: "2026-10-08",
+      actualBalanceCents: peso("49700"),
+      envelope: { kind: "category", id: groceriesId },
+    });
+    const id = correction?.id ?? "";
+
+    expect(steps(await october())).toEqual([
+      { kind: "allocation", change: 100000, balance: 100000 },
+      { kind: "correction", change: -30000, balance: 70000 },
+    ]);
+    expect(await readLedgerRecord({ kind: "correction", id })).toMatchObject({
+      kind: "correction",
+      record: { id, amountCents: 30000 },
+    });
+
+    await removeBalanceCorrection(MEMBER, id);
+
+    expect(await readLedgerRecord({ kind: "correction", id })).toBeNull();
   });
 });

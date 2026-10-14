@@ -11,7 +11,7 @@ import { ZERO_CENTS, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import type { Ownership } from "@/lib/events/log";
 import { newestFirst, totalTransactions, type ListRow } from "@/lib/transactions/filter";
-import { sumAccountMoney } from "@/lib/transactions/money";
+import { readMoneyRecords, sumAccountMoney } from "@/lib/transactions/money";
 import { monthOfDate } from "@/lib/utils/dates";
 
 export type FinanceView = "household" | "mine";
@@ -44,14 +44,12 @@ export async function readFinanceOverview(
   userId: string,
   currentMonth: string
 ): Promise<FinanceOverview> {
-  const [accounts, transactions, allocations, transfers, budgets, categories] = await Promise.all([
-    db.accounts.toArray(),
-    db.transactions.toArray(),
-    db.allocations.toArray(),
-    db.transfers.toArray(),
+  const [records, budgets, categories] = await Promise.all([
+    readMoneyRecords(),
     db.budgets.toArray(),
     db.categories.toArray(),
   ]);
+  const { accounts, transactions, transfers } = records;
   const isShown = shownIn(view, userId);
 
   const shownTransactions = transactions.filter(
@@ -63,19 +61,13 @@ export async function readFinanceOverview(
   );
   const totals = totalTransactions(thisMonth);
 
-  const money = sumAccountMoney(accounts, transactions, allocations, transfers);
+  const money = sumAccountMoney(records);
   const balances = accounts
     .filter((account) => !account.retired && isShown(account))
     .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
     .map((account) => ({ account, balance: money.get(account.id)?.balance ?? ZERO_CENTS }));
 
-  const monthView = summarizeMonth(currentMonth, currentMonth, {
-    accounts,
-    transactions,
-    allocations,
-    transfers,
-    budgets,
-  });
+  const monthView = summarizeMonth(currentMonth, currentMonth, { ...records, budgets });
   const budgetCounts: BudgetStatusCounts = { fine: 0, close: 0, over: 0 };
   for (const category of categories) {
     const figures = monthView.get(category.id);

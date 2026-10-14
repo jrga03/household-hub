@@ -6,17 +6,23 @@
 
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { AllocationRow } from "@/lib/allocations/projection";
+import type { BalanceCorrectionRow } from "@/lib/corrections/projection";
 import { diffCents, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
-import { sumAccountMoney, sumCategoryMoney } from "@/lib/transactions/money";
+import {
+  readMoneyRecords,
+  sumAccountMoney,
+  sumCategoryMoney,
+  type MoneyRecords,
+} from "@/lib/transactions/money";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import type { TransferRow } from "@/lib/transfers/projection";
-import type { MonthRecords } from "./month";
 
 export type LedgerRecord =
   | { kind: "transaction"; record: TransactionRow }
   | { kind: "transfer"; record: TransferRow }
-  | { kind: "allocation"; record: AllocationRow };
+  | { kind: "allocation"; record: AllocationRow }
+  | { kind: "correction"; record: BalanceCorrectionRow };
 
 export type LedgerRow = LedgerRecord & {
   /** What the record adds to the category's money; zero for a transfer between two accounts. */
@@ -36,14 +42,8 @@ export interface CategoryLedger {
   datedLater: Cents;
 }
 
-type MoneyRecords = Omit<MonthRecords, "budgets">;
-
-function categoryMoney(
-  categoryId: string,
-  { accounts, transactions, allocations, transfers }: MoneyRecords
-): Cents {
-  const money = sumCategoryMoney(sumAccountMoney(accounts, transactions, allocations, transfers));
-  return money.get(categoryId)?.total ?? ZERO_CENTS;
+function categoryMoney(categoryId: string, records: MoneyRecords): Cents {
+  return sumCategoryMoney(sumAccountMoney(records)).get(categoryId)?.total ?? ZERO_CENTS;
 }
 
 function changeFrom(categoryId: string, accounts: AccountRow[], entry: LedgerRecord): Cents {
@@ -52,6 +52,7 @@ function changeFrom(categoryId: string, accounts: AccountRow[], entry: LedgerRec
     transactions: entry.kind === "transaction" ? [entry.record] : [],
     allocations: entry.kind === "allocation" ? [entry.record] : [],
     transfers: entry.kind === "transfer" ? [entry.record] : [],
+    corrections: entry.kind === "correction" ? [entry.record] : [],
   });
 }
 
@@ -59,7 +60,9 @@ function touches(categoryId: string, entry: LedgerRecord): boolean {
   const isCategory = (envelope: AllocationRow["from"]) =>
     envelope.kind === "category" && envelope.id === categoryId;
   if (entry.kind === "transaction") return entry.record.categoryId === categoryId;
-  if (entry.kind === "transfer") return isCategory(entry.record.envelope);
+  if (entry.kind === "transfer" || entry.kind === "correction") {
+    return isCategory(entry.record.envelope);
+  }
   return isCategory(entry.record.from) || isCategory(entry.record.to);
 }
 
@@ -73,19 +76,21 @@ export function categoryLedger(
   month: string,
   records: MoneyRecords
 ): CategoryLedger {
-  const { accounts, transactions, allocations, transfers } = records;
+  const { accounts, transactions, allocations, transfers, corrections } = records;
   const isBefore = (record: { date: string }) => record.date < `${month}-01`;
   const opening = categoryMoney(categoryId, {
     accounts,
     transactions: transactions.filter(isBefore),
     allocations: allocations.filter(isBefore),
     transfers: transfers.filter(isBefore),
+    corrections: corrections.filter(isBefore),
   });
 
   const entries: LedgerRecord[] = [
     ...transactions.map((record) => ({ kind: "transaction" as const, record })),
     ...transfers.map((record) => ({ kind: "transfer" as const, record })),
     ...allocations.map((record) => ({ kind: "allocation" as const, record })),
+    ...corrections.map((record) => ({ kind: "correction" as const, record })),
   ];
   let balance = opening;
   const rows = entries
@@ -106,15 +111,8 @@ export function categoryLedger(
   return { opening, rows, closing: balance, datedLater: diffCents(now, balance) };
 }
 
-export async function readCategoryLedger(categoryId: string, month: string) {
-  const [accounts, transactions, allocations, transfers] = await Promise.all([
-    db.accounts.toArray(),
-    db.transactions.toArray(),
-    db.allocations.toArray(),
-    db.transfers.toArray(),
-  ]);
-  return categoryLedger(categoryId, month, { accounts, transactions, allocations, transfers });
-}
+export const readCategoryLedger = async (categoryId: string, month: string) =>
+  categoryLedger(categoryId, month, await readMoneyRecords());
 
 export interface LedgerRecordId {
   kind: LedgerRecord["kind"];
@@ -129,6 +127,10 @@ export async function readLedgerRecord({ kind, id }: LedgerRecordId): Promise<Le
   }
   if (kind === "transfer") {
     const record = await db.transfers.get(id);
+    return record && !record.removed ? { kind, record } : null;
+  }
+  if (kind === "correction") {
+    const record = await db.balanceCorrections.get(id);
     return record && !record.removed ? { kind, record } : null;
   }
   const record = await db.allocations.get(id);

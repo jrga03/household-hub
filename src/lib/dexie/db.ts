@@ -15,6 +15,7 @@ import type { StoredEvent } from "@/lib/events/log";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { AllocationRow } from "@/lib/allocations/projection";
 import type { BudgetRow } from "@/lib/budgets/projection";
+import type { BalanceCorrectionRow } from "@/lib/corrections/projection";
 import type { DraftRow, ImportRow } from "@/lib/import/drafts";
 import type { CategoryRow, GroupRow } from "@/lib/categories/projection";
 import type { TransactionRow } from "@/lib/transactions/projection";
@@ -44,6 +45,7 @@ export class HouseholdHubDB extends Dexie {
   allocations!: Table<AllocationRow, string>;
   transfers!: Table<TransferRow, string>;
   budgets!: Table<BudgetRow, string>;
+  balanceCorrections!: Table<BalanceCorrectionRow, string>;
   imports!: Table<ImportRow, string>;
   drafts!: Table<DraftRow, string>;
   meta!: Table<MetaRow, MetaRow["key"]>;
@@ -92,6 +94,7 @@ export class HouseholdHubDB extends Dexie {
       imports: "id",
       drafts: "id, importId",
     });
+    this.version(11).stores({ balanceCorrections: "id, [date+recordedHlc]" });
   }
 }
 

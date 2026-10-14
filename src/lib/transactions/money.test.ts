@@ -687,7 +687,13 @@ describe("account money", () => {
     ]);
     expect(transferRows).toHaveLength(500);
     const started = performance.now();
-    const money = sumAccountMoney(accounts, transactions, allocations, transferRows);
+    const money = sumAccountMoney({
+      accounts,
+      transactions,
+      allocations,
+      transfers: transferRows,
+      corrections: [],
+    });
     const categoryMoney = sumCategoryMoney(money);
     const elapsed = performance.now() - started;
 

@@ -1,7 +1,7 @@
 import { useEffect, type RefObject } from "react";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { isListType, TRANSFER_TYPE, type ListType } from "@/lib/transactions/filter";
+import { isEntryDirection, TRANSFER_TYPE, type EntryDirection } from "@/lib/transactions/filter";
 import { cn } from "@/lib/utils";
 
 export const SAVED_LOCALLY = "Saved on this device at once; it reaches others when they sync.";
@@ -25,15 +25,15 @@ export function DirectionChoice({
   onChange,
   withTransfer,
 }: {
-  value: ListType;
-  onChange: (direction: ListType) => void;
+  value: EntryDirection;
+  onChange: (direction: EntryDirection) => void;
   withTransfer: boolean;
 }) {
   return (
     <RadioGroup
       name="type"
       value={value}
-      onValueChange={(next) => isListType(next) && onChange(next)}
+      onValueChange={(next) => isEntryDirection(next) && onChange(next)}
       // Three choices need a row of their own.
       className={cn(
         "grid gap-2 self-end",

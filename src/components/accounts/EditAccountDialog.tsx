@@ -2,6 +2,7 @@ import { useActionState, useTransition } from "react";
 import { toast } from "sonner";
 import { ActionForm } from "@/components/ui/action-form";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
+import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { ACCOUNT_TYPES, CREDIT_CARD, isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
@@ -20,10 +21,12 @@ const VISIBILITY_SUMMARY = {
 export function EditAccountDialog({
   actor,
   account,
+  onCorrectBalance,
   onClose,
 }: {
   actor: Actor;
   account: AccountRow;
+  onCorrectBalance: () => void;
   onClose: () => void;
 }) {
   const [error, saveAction] = useActionState(
@@ -72,6 +75,13 @@ export function EditAccountDialog({
           ownership={account}
           defaults={account}
         />
+        <p className="text-sm text-muted-foreground">
+          Balance drifted from the bank&apos;s? Use{" "}
+          <Button type="button" variant="link" className="h-auto p-0" onClick={onCorrectBalance}>
+            Correct balance
+          </Button>{" "}
+          instead of changing the starting balance.
+        </p>
         <div className="space-y-1">
           <p className="text-sm font-medium">Who sees it</p>
           <p className="text-sm text-muted-foreground">

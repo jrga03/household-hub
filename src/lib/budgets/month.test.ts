@@ -9,6 +9,7 @@ import { setBudget } from "@/lib/commands/budgets";
 import { createCategory, createGroup } from "@/lib/commands/categories";
 import { addTransaction, removeTransaction } from "@/lib/commands/transactions";
 import { addTransfer } from "@/lib/commands/transfers";
+import { recordBalanceCorrection } from "@/lib/commands/corrections";
 import { listAccounts } from "@/lib/accounts/projection";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import { categoryMonth, readMonthView, summarizeMonth, sumMonthFigures } from "./month";
@@ -164,6 +165,21 @@ describe("month figures", () => {
     );
   });
 
+  it("moves the category's money by a balance correction, never as spent", async () => {
+    await recordBalanceCorrection(MEMBER, {
+      accountId: bpiId,
+      date: "2026-10-08",
+      actualBalanceCents: peso("49700"),
+      envelope: { kind: "category", id: groceriesId },
+    });
+
+    expect(categoryMonth(await october(), groceriesId)).toMatchObject({
+      spent: 0,
+      allocated: 0,
+      money: -30000,
+    });
+  });
+
   it("shows nothing for a month before any budget or activity", async () => {
     await groceries("2026-10-05", "1200");
 
@@ -241,6 +257,7 @@ describe("month figures", () => {
       transactions,
       allocations: [],
       transfers: [],
+      corrections: [],
       budgets: [],
     });
     const elapsed = performance.now() - started;

@@ -5,6 +5,7 @@ import { createAccount } from "@/lib/commands/accounts";
 import { createCategory, createGroup } from "@/lib/commands/categories";
 import { addTransaction, removeTransaction, restoreTransaction } from "@/lib/commands/transactions";
 import { addTransfer, removeTransfer } from "@/lib/commands/transfers";
+import { recordBalanceCorrection } from "@/lib/commands/corrections";
 import { readTransactionsCsv } from "./transactions-csv";
 
 const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
@@ -75,6 +76,53 @@ describe("transactions CSV", () => {
         "2026-10-03,Transfer,2000.00,BDO,Wallet,Groceries,Cleared,Cash for the market,",
         "",
       ].join("\r\n")
+    );
+  });
+
+  it("lists balance corrections with a signed amount and their envelope", async () => {
+    const bankId = await account("BDO");
+    const { id: groupId } = await createGroup(MEMBER, { name: "Needs" });
+    const { id: groceriesId } = await createCategory(MEMBER, { name: "Groceries", groupId });
+    await recordBalanceCorrection(MEMBER, {
+      accountId: bankId,
+      date: "2026-10-05",
+      actualBalanceCents: parsePHP("120"),
+      envelope: { kind: "unassigned" },
+    });
+    await recordBalanceCorrection(MEMBER, {
+      accountId: bankId,
+      date: "2026-10-06",
+      actualBalanceCents: parsePHP("100"),
+      envelope: { kind: "category", id: groceriesId },
+    });
+
+    expect(await readTransactionsCsv()).toBe(
+      [
+        "Date,Type,Amount,Account,To account,Category,Status,Description,Notes",
+        "2026-10-05,Balance correction,120.00,BDO,,Unassigned,Cleared,,",
+        "2026-10-06,Balance correction,-20.00,BDO,,Groceries,Cleared,,",
+        "",
+      ].join("\r\n")
+    );
+  });
+
+  it("signs a card's correction like the list: owing more is money out", async () => {
+    const bankId = await account("BDO");
+    const { id: cardId } = await createAccount(MEMBER, {
+      name: "Visa",
+      type: "credit_card",
+      startingBalanceCents: parsePHP("0"),
+      payingAccountId: bankId,
+    });
+    await recordBalanceCorrection(MEMBER, {
+      accountId: cardId,
+      date: "2026-10-05",
+      actualBalanceCents: parsePHP("300"),
+      envelope: { kind: "unassigned" },
+    });
+
+    expect(await readTransactionsCsv()).toContain(
+      "2026-10-05,Balance correction,-300.00,Visa,,Unassigned,Cleared,,"
     );
   });
 

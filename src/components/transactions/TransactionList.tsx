@@ -15,10 +15,13 @@ import type { Actor } from "@/lib/commands/accounts";
 import { dateHeading, groupByDate, type DateGroupItem } from "@/lib/transactions/date-groups";
 import {
   filterTransactions,
+  isCorrection,
   isTransfer,
   type ListRow,
   type TransactionFilter,
 } from "@/lib/transactions/filter";
+import { CorrectionDetails, CorrectionDialog } from "@/components/corrections/CorrectionDialog";
+import { CORRECTION_LABEL } from "@/lib/corrections/events";
 import { cn } from "@/lib/utils";
 import { monthOfDate } from "@/lib/utils/dates";
 import { SAVED_LOCALLY } from "./EntryFields";
@@ -45,8 +48,9 @@ interface TransactionListProps {
 }
 
 /**
- * Transactions and transfers under their dates, newest first, filtered. A
- * transfer is one row for both legs, signed when an account is filtered. A row
+ * Transactions, transfers and balance corrections under their dates, newest
+ * first, filtered. A transfer is one row for both legs, signed when an account
+ * is filtered. A row
  * opens in the detail pane on wide screens and in a sheet otherwise. A long
  * press or the header's Select starts selecting.
  */
@@ -102,7 +106,13 @@ export function TransactionList({
     categories: categories ? categoryNames(categories) : new Map<string, string>(),
     accounts: new Map(allAccounts.map((account) => [account.id, account.name])),
   };
-  const paneTitle = openRow && isTransfer(openRow) ? "Edit transfer" : "Edit transaction";
+  const paneTitle = !openRow
+    ? "Edit transaction"
+    : isCorrection(openRow)
+      ? CORRECTION_LABEL
+      : isTransfer(openRow)
+        ? "Edit transfer"
+        : "Edit transaction";
 
   const startSelecting = (firstId?: string) => {
     setSelecting(true);
@@ -236,7 +246,14 @@ export function TransactionList({
                 </Button>
               </div>
               {/* Keyed, so the form's defaults follow the row picked. */}
-              {isTransfer(openRow) ? (
+              {isCorrection(openRow) ? (
+                <CorrectionDetails
+                  key={openRow.id}
+                  actor={actor}
+                  correction={openRow}
+                  onClose={() => setOpenId(null)}
+                />
+              ) : isTransfer(openRow) ? (
                 <TransferEditor
                   key={openRow.id}
                   actor={actor}
@@ -262,7 +279,9 @@ export function TransactionList({
 
       {openRow &&
         !paneShown &&
-        (isTransfer(openRow) ? (
+        (isCorrection(openRow) ? (
+          <CorrectionDialog actor={actor} correction={openRow} onClose={() => setOpenId(null)} />
+        ) : isTransfer(openRow) ? (
           <TransferDialog actor={actor} transfer={openRow} onClose={() => setOpenId(null)} />
         ) : (
           <TransactionDialog actor={actor} transaction={openRow} onClose={() => setOpenId(null)} />

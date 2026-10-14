@@ -37,7 +37,7 @@ import {
   type TransactionType,
 } from "@/lib/transactions/events";
 import type { TransactionRow } from "@/lib/transactions/projection";
-import { TRANSFER_TYPE, type ListType } from "@/lib/transactions/filter";
+import { TRANSFER_TYPE, type EntryDirection } from "@/lib/transactions/filter";
 import { cn, errorMessage } from "@/lib/utils";
 import { useQuickEntryStore } from "@/stores/quickEntryStore";
 import { ChoiceItem, DirectionChoice, FULL_ROW, useFocusNewEntry } from "./EntryFields";
@@ -126,11 +126,11 @@ function NewEntryForm({
   onClose: () => void;
 }) {
   // The amount typed so far follows a switch between forms.
-  const [draft, setDraft] = useState<{ direction: ListType; amount: string }>({
+  const [draft, setDraft] = useState<{ direction: EntryDirection; amount: string }>({
     direction: "expense",
     amount: "",
   });
-  const switchTo = (direction: ListType, amount: string) => setDraft({ direction, amount });
+  const switchTo = (direction: EntryDirection, amount: string) => setDraft({ direction, amount });
   const { direction } = draft;
   if (direction === TRANSFER_TYPE) {
     return (
@@ -200,7 +200,7 @@ function TransactionForm({
   accounts: AccountRow[];
   categories: CategoryList;
   /** Offered for a new entry, so it can become a transfer, carrying the amount typed. */
-  onDirectionChange?: (direction: ListType, amount: string) => void;
+  onDirectionChange?: (direction: EntryDirection, amount: string) => void;
   onClose: () => void;
 }) {
   const { lastUsed, setLastUsed } = useQuickEntryStore();

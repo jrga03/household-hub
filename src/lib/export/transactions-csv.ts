@@ -2,6 +2,7 @@ import { readAccountNames } from "@/lib/accounts/projection";
 import { envelopeLabel } from "@/lib/allocations/envelope";
 import { UNASSIGNED_ENVELOPE, type Envelope } from "@/lib/allocations/events";
 import { readCategoryNames } from "@/lib/categories/projection";
+import { cashFlow, CORRECTION_LABEL } from "@/lib/corrections/events";
 import { formatPHPDecimal } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import type { TransactionStatus, TransactionType } from "@/lib/transactions/events";
@@ -46,13 +47,16 @@ const byWhenRecorded = (a: ExportRow, b: ExportRow) => {
 };
 
 /**
- * Every transaction and transfer this device holds, oldest first, which is
- * what the member can see. Removed records are left out.
+ * Every transaction, transfer and balance correction this device holds,
+ * oldest first, which is what the member can see. Removed records are left
+ * out. A correction's amount is signed as its row shows it, positive for money
+ * into the account, so a spreadsheet total matches the app (ADR 0009).
  */
 export async function readTransactionsCsv(): Promise<string> {
-  const [transactions, transfers, accountNames, categoryNames] = await Promise.all([
+  const [transactions, transfers, corrections, accountNames, categoryNames] = await Promise.all([
     db.transactions.toArray(),
     db.transfers.toArray(),
+    db.balanceCorrections.toArray(),
     readAccountNames(),
     readCategoryNames(),
   ]);
@@ -93,6 +97,24 @@ export async function readTransactionsCsv(): Promise<string> {
       ],
     }));
 
-  const rows = [...transactionRows, ...transferRows].sort(byWhenRecorded);
+  const correctionRows = corrections
+    .filter((correction) => !correction.removed)
+    .map((correction) => ({
+      date: correction.date,
+      recordedHlc: correction.recordedHlc,
+      values: [
+        correction.date,
+        CORRECTION_LABEL,
+        formatPHPDecimal(cashFlow(correction)),
+        accountName(correction.accountId),
+        "",
+        envelopeLabel(correction.envelope, categoryNames, accountNames),
+        STATUS_LABELS.cleared,
+        "",
+        "",
+      ],
+    }));
+
+  const rows = [...transactionRows, ...transferRows, ...correctionRows].sort(byWhenRecorded);
   return toCsv([HEADER, ...rows.map((row) => row.values)]);
 }

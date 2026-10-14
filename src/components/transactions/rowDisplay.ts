@@ -1,6 +1,12 @@
 import { envelopeLabel } from "@/lib/allocations/envelope";
+import { CORRECTION_LABEL, isMoneyIn } from "@/lib/corrections/events";
 import { transactionLabel } from "@/lib/transactions/events";
-import { isTransfer, transferDirection, type ListRow } from "@/lib/transactions/filter";
+import {
+  isCorrection,
+  isTransfer,
+  transferDirection,
+  type ListRow,
+} from "@/lib/transactions/filter";
 import type { AmountDirection } from "./TransactionAmount";
 import { transferName } from "./transferName";
 
@@ -27,6 +33,13 @@ export function rowDisplay(row: ListRow, names: RowNames, filteredAccount?: stri
       label: transferName(row, accountNameOf, direction),
       detail: `${envelopeLabel(row.envelope, names.categories, names.accounts)} · ${path}`,
       direction: direction ?? "moved",
+    };
+  }
+  if (isCorrection(row)) {
+    return {
+      label: CORRECTION_LABEL,
+      detail: `${envelopeLabel(row.envelope, names.categories, names.accounts)} · ${accountNameOf(row.accountId)}`,
+      direction: isMoneyIn(row) ? "in" : "out",
     };
   }
   const categoryName =
