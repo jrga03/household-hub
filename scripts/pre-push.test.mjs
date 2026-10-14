@@ -1,13 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import {
-  CHECKS,
-  isDocsOnly,
-  parsePushedRefs,
-  readPushInput,
-  shouldSkipChecks,
-} from "./pre-push.mjs";
+import { CHECKS, isDocsOnly, parsePushedRefs, readPushInput, skipReason } from "./pre-push.mjs";
 
 const SHA_A = "a".repeat(40);
 const SHA_B = "b".repeat(40);
@@ -45,34 +39,54 @@ describe("parsePushedRefs", () => {
   });
 });
 
-describe("shouldSkipChecks", () => {
+describe("skipReason", () => {
   const ref = {
     localRef: "refs/heads/x",
     localSha: SHA_A,
     remoteRef: "refs/heads/x",
     remoteSha: SHA_B,
   };
+  const deleteRef = {
+    localRef: "(delete)",
+    localSha: ZERO,
+    remoteRef: "refs/heads/x",
+    remoteSha: SHA_B,
+  };
+  const listingNothing = () => {
+    throw new Error("a delete has no files to list");
+  };
 
   it("skips when every ref changes only docs", () => {
-    expect(shouldSkipChecks([ref, ref], () => ["docs/a.md"])).toBe(true);
+    expect(skipReason([ref, ref], () => ["docs/a.md"])).toBe("docs-only");
   });
 
   it("runs when any ref changes code", () => {
     const files = [["docs/a.md"], ["src/a.ts"]];
-    expect(shouldSkipChecks([ref, ref], () => files.shift())).toBe(false);
+    expect(skipReason([ref, ref], () => files.shift())).toBeNull();
   });
 
   it("runs when there are no refs", () => {
-    expect(shouldSkipChecks([], () => ["docs/a.md"])).toBe(false);
+    expect(skipReason([], () => ["docs/a.md"])).toBeNull();
   });
 
   it("runs when a ref cannot be classified", () => {
-    expect(shouldSkipChecks([{ ...ref, localSha: ZERO }], () => null)).toBe(false);
     expect(
-      shouldSkipChecks([ref], () => {
+      skipReason([ref], () => {
         throw new Error("unknown sha");
       })
-    ).toBe(false);
+    ).toBeNull();
+  });
+
+  it("skips a push that only deletes remote refs", () => {
+    expect(skipReason([deleteRef, deleteRef], listingNothing)).toBe("delete-only");
+  });
+
+  it("runs when deletes are pushed with code", () => {
+    expect(skipReason([deleteRef, ref], () => ["src/a.ts"])).toBeNull();
+  });
+
+  it("skips when deletes are pushed with docs only", () => {
+    expect(skipReason([deleteRef, ref], () => ["docs/a.md"])).toBe("docs-only");
   });
 });
 
