@@ -1,6 +1,6 @@
 # Re-architecture against the vision
 
-Source of truth: `docs/VISION.md`. Vocabulary: `GLOSSARY.md`. Status: Milestone 1 (#15) landed and closed 2026-10-11; production keep-alive check pending in #40. Milestone 2 (#46) landed and closed 2026-10-12. Milestone 3 landed and closed 2026-10-13 (spec #70). Milestone 4 scoped 2026-10-13, landed and closed 2026-10-14 (spec #95). #104 (dropdown snap-back bug) landed 2026-10-14 (PR #121). #126 (vitest 5) landed 2026-10-14 (PR #135); its follow-ups (#134) landed 2026-10-14 (PR #137). #114 (pre-push skips delete-only pushes) landed 2026-10-14 (PR #136). #125 (dev-only audit advisories) landed 2026-10-14 (PR #140); blocking full audit deferred to #139. Going live on a fresh start; next: #138 (balance correction), then the assistant (#128). ADRs: `docs/adr/0001`-`0009`.
+Source of truth: `docs/VISION.md`. Vocabulary: `GLOSSARY.md`. Status: Milestone 1 (#15) landed and closed 2026-10-11; production keep-alive check pending in #40. Milestone 2 (#46) landed and closed 2026-10-12. Milestone 3 landed and closed 2026-10-13 (spec #70). Milestone 4 scoped 2026-10-13, landed and closed 2026-10-14 (spec #95). #104 (dropdown snap-back bug) landed 2026-10-14 (PR #121). #126 (vitest 5) landed 2026-10-14 (PR #135); its follow-ups (#134) landed 2026-10-14 (PR #137). #114 (pre-push skips delete-only pushes) landed 2026-10-14 (PR #136). #125 (dev-only audit advisories) landed 2026-10-14 (PR #140); blocking full audit deferred to #139. #138 (balance correction) landed 2026-10-14 (PR #142). Going live on a fresh start; next: the assistant (#128). ADRs: `docs/adr/0001`-`0009`.
 
 ## Context
 
@@ -847,7 +847,7 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #83 merged (PR #93, bc59094): `envelopeLabel` now lives in `src/lib/allocations/envelope.ts`.
 - Milestone 4 scoped 2026-10-13: spec #95, sub-issues #96-#99 (`ready-for-agent`, native blocked-by edges), ADR 0008, glossary Import and Import Key.
 - Next: build round 1 (#96, #97). Real statements for #97 and #98 come from the user during the build. Still owed: #40's dashboard checks (human).
-- Decided 2026-10-14: go live on a fresh start. Next: scope #138 (balance correction), then build the assistant (#128: #129, #130 and #132, then #133). M5 planning waits for its trigger.
+- Decided 2026-10-14: go live on a fresh start. #138 landed 2026-10-14 (PR #142). Next: build the assistant (#128: #129, #130 and #132, then #133). M5 planning waits for its trigger.
 - Gotchas found in #71 and #73:
   - `sumAccountMoney(accounts, transactions, allocations, transfers)` takes transfers as a required fourth argument; any month or ledger sum must pass the transfers dated in range.
   - List rows are `ListRow = TransactionRow | TransferRow` (`isTransfer`, `newestFirst`, `transferDirection` in `transactions/filter.ts`); `useTransactionListRows()` replaced `useTransactions()`.
