@@ -1,5 +1,5 @@
 import { envelopeLabel } from "@/lib/allocations/envelope";
-import { isMoneyIn } from "@/lib/corrections/events";
+import { CORRECTION_LABEL, isMoneyIn } from "@/lib/corrections/events";
 import { transactionLabel } from "@/lib/transactions/events";
 import {
   isCorrection,
@@ -21,8 +21,6 @@ export interface RowNames {
   categories: Map<string, string>;
   accounts: Map<string, string>;
 }
-
-export const CORRECTION_LABEL = "Balance correction";
 
 /** A transfer is signed in or out of `filteredAccount`; without one, it only moved. */
 export function rowDisplay(row: ListRow, names: RowNames, filteredAccount?: string): RowDisplay {

@@ -6,7 +6,7 @@ import { budgetHistory } from "@/lib/budgets/inForce";
 import type { LedgerRecord, LedgerRow } from "@/lib/budgets/ledger";
 import { absCents, formatPHP, type Cents } from "@/lib/currency";
 import { cn } from "@/lib/utils";
-import { CORRECTION_LABEL } from "@/components/transactions/rowDisplay";
+import { CORRECTION_LABEL } from "@/lib/corrections/events";
 import { monthLabel, parseLocalDate } from "@/lib/utils/dates";
 
 interface Names {

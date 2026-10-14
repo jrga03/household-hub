@@ -106,6 +106,26 @@ describe("transactions CSV", () => {
     );
   });
 
+  it("signs a card's correction like the list: owing more is money out", async () => {
+    const bankId = await account("BDO");
+    const { id: cardId } = await createAccount(MEMBER, {
+      name: "Visa",
+      type: "credit_card",
+      startingBalanceCents: parsePHP("0"),
+      payingAccountId: bankId,
+    });
+    await recordBalanceCorrection(MEMBER, {
+      accountId: cardId,
+      date: "2026-10-05",
+      actualBalanceCents: parsePHP("300"),
+      envelope: { kind: "unassigned" },
+    });
+
+    expect(await readTransactionsCsv()).toContain(
+      "2026-10-05,Balance correction,-300.00,Visa,,Unassigned,Cleared,,"
+    );
+  });
+
   it("brings back a transaction that was removed and then restored", async () => {
     const bankId = await account("BDO");
     const { id } = await addTransaction(MEMBER, {

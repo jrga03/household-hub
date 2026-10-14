@@ -21,6 +21,7 @@ import {
   type TransactionFilter,
 } from "@/lib/transactions/filter";
 import { CorrectionDetails, CorrectionDialog } from "@/components/corrections/CorrectionDialog";
+import { CORRECTION_LABEL } from "@/lib/corrections/events";
 import { cn } from "@/lib/utils";
 import { monthOfDate } from "@/lib/utils/dates";
 import { SAVED_LOCALLY } from "./EntryFields";
@@ -108,7 +109,7 @@ export function TransactionList({
   const paneTitle = !openRow
     ? "Edit transaction"
     : isCorrection(openRow)
-      ? "Balance correction"
+      ? CORRECTION_LABEL
       : isTransfer(openRow)
         ? "Edit transfer"
         : "Edit transaction";

@@ -1,8 +1,11 @@
-import { asCents, isAmount, type Cents } from "@/lib/currency";
+import { asCents, isAmount, negateCents, type Cents } from "@/lib/currency";
 import { decodeEnvelope, type Envelope } from "@/lib/allocations/events";
 import type { LoggedEvent } from "@/lib/events/log";
 import type { EventVersions } from "@/lib/events/versions";
 import { isLocalDate } from "@/lib/transactions/events";
+
+/** How a correction is named wherever it shows. */
+export const CORRECTION_LABEL = "Balance correction";
 
 export const BALANCE_CORRECTION_ENTITY = "balance_correction";
 export const BALANCE_CORRECTION_CREATED = "balance_correction.created";
@@ -88,3 +91,11 @@ export function describeCorrectionEvent(event: LoggedEvent, accountName: string 
  */
 export const isMoneyIn = (details: CorrectionDetails) =>
   (details.direction === "raise") === (details.payingAccountId === null);
+
+/** What the correction adds to its account's balance; on a card, to the amount owed. */
+export const balanceChange = (details: CorrectionDetails): Cents =>
+  details.direction === "raise" ? details.amountCents : negateCents(details.amountCents);
+
+/** Signed as its row shows it: positive when money came into the account. */
+export const cashFlow = (details: CorrectionDetails): Cents =>
+  isMoneyIn(details) ? details.amountCents : negateCents(details.amountCents);

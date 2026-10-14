@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import type { Actor } from "@/lib/commands/accounts";
 import { setTransactionStatus } from "@/lib/commands/transactions";
 import { setTransferStatus } from "@/lib/commands/transfers";
+import { CORRECTION_LABEL } from "@/lib/corrections/events";
 import type { TransactionStatus } from "@/lib/transactions/events";
 import { isCorrection, isTransfer, statusOf, type ListRow } from "@/lib/transactions/filter";
 import { cn, errorMessage } from "@/lib/utils";
@@ -148,7 +149,7 @@ export function TransactionItem({
               <Scale
                 className="size-4 shrink-0 text-muted-foreground"
                 role="img"
-                aria-label="Balance correction"
+                aria-label={CORRECTION_LABEL}
               />
             )}
             <span

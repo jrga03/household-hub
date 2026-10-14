@@ -9,6 +9,7 @@ import type { AccountRow } from "@/lib/accounts/projection";
 import { UNASSIGNED_ENVELOPE, type Envelope } from "@/lib/allocations/events";
 import type { AllocationRow } from "@/lib/allocations/projection";
 import { negateCents, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
+import { balanceChange } from "@/lib/corrections/events";
 import type { BalanceCorrectionRow } from "@/lib/corrections/projection";
 import { db } from "@/lib/dexie/db";
 import type { TransferRow } from "@/lib/transfers/projection";
@@ -154,11 +155,7 @@ export function sumAccountMoney({
   // A correction counts as cleared and moves its envelope as a transaction would (ADR 0009).
   for (const correction of corrections) {
     if (correction.removed) continue;
-    const amount =
-      correction.direction === "raise"
-        ? correction.amountCents
-        : negateCents(correction.amountCents);
-    addRecorded(totals, cards, { ...correction, status: "cleared" }, amount);
+    addRecorded(totals, cards, { ...correction, status: "cleared" }, balanceChange(correction));
   }
 
   // An allocation moves money between two envelopes of one account; its balance doesn't change.

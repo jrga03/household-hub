@@ -7,12 +7,11 @@ import { useCategoryList } from "@/hooks/useCategories";
 import { envelopeLabel } from "@/lib/allocations/envelope";
 import type { Actor } from "@/lib/commands/accounts";
 import { removeBalanceCorrection, restoreBalanceCorrection } from "@/lib/commands/corrections";
-import { isMoneyIn } from "@/lib/corrections/events";
+import { CORRECTION_LABEL, isMoneyIn } from "@/lib/corrections/events";
 import type { BalanceCorrectionRow } from "@/lib/corrections/projection";
 import { errorMessage } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
 import { confirmRemoval } from "@/components/transactions/confirmRemoval";
-import { CORRECTION_LABEL } from "@/components/transactions/rowDisplay";
 import { TransactionAmount } from "@/components/transactions/TransactionAmount";
 
 /** Asks first, then removes the correction, offering Undo in the toast. Resolves whether it was removed. */

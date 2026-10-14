@@ -2,7 +2,8 @@ import { readAccountNames } from "@/lib/accounts/projection";
 import { envelopeLabel } from "@/lib/allocations/envelope";
 import { UNASSIGNED_ENVELOPE, type Envelope } from "@/lib/allocations/events";
 import { readCategoryNames } from "@/lib/categories/projection";
-import { formatPHPDecimal, negateCents } from "@/lib/currency";
+import { cashFlow, CORRECTION_LABEL } from "@/lib/corrections/events";
+import { formatPHPDecimal } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import type { TransactionStatus, TransactionType } from "@/lib/transactions/events";
 import { toCsv } from "./csv";
@@ -48,8 +49,8 @@ const byWhenRecorded = (a: ExportRow, b: ExportRow) => {
 /**
  * Every transaction, transfer and balance correction this device holds,
  * oldest first, which is what the member can see. Removed records are left
- * out. A correction's amount is signed by how it moved its account's balance,
- * so a spreadsheet total matches the app (ADR 0009).
+ * out. A correction's amount is signed as its row shows it, positive for money
+ * into the account, so a spreadsheet total matches the app (ADR 0009).
  */
 export async function readTransactionsCsv(): Promise<string> {
   const [transactions, transfers, corrections, accountNames, categoryNames] = await Promise.all([
@@ -103,12 +104,8 @@ export async function readTransactionsCsv(): Promise<string> {
       recordedHlc: correction.recordedHlc,
       values: [
         correction.date,
-        "Balance correction",
-        formatPHPDecimal(
-          correction.direction === "raise"
-            ? correction.amountCents
-            : negateCents(correction.amountCents)
-        ),
+        CORRECTION_LABEL,
+        formatPHPDecimal(cashFlow(correction)),
         accountName(correction.accountId),
         "",
         envelopeLabel(correction.envelope, categoryNames, accountNames),
