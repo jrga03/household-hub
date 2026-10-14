@@ -98,8 +98,8 @@ Fix commits cluster in `src/lib/{sync,offline,debts}`.
 - **Deferred: category priority order for shortfalls.** Why: Distribute warns and the member trims by hand. Revisit: if trimming gets tedious. Agreed 2026-10-12.
 - **Dropped: a home account per category.** Why: superseded by the budget's funding account (ADR 0007). Revisit: never. Agreed 2026-10-12.
 - **Deferred: transfers out of a card.** A cash advance is a card expense plus income. Revisit: if they come up often. Agreed 2026-10-12.
-- **Deferred: restoring from a backup.** Revisit: after the first release. Agreed 2026-10-12.
-- **Deferred: export modes**, a size-optimized app-restorable one and a compatibility-optimized Excel/Sheets one (#69, `needs-triage`). Revisit: someday, after the first release, when no higher-value feature is waiting. Agreed 2026-10-12.
+- **Deferred: restoring from a backup** (#123, `needs-triage`), with a compact (minified, maybe gzipped) event-log export. Revisit: after the first release, when no higher-value feature is waiting. Agreed 2026-10-12; issue opened 2026-10-14.
+- **Export modes dropped** (#69 closed `wontfix` 2026-10-14). Why: #76's CSV already is the spreadsheet-friendly mode, and the event-log JSON already is the restorable format; what's left is restore (#123). The CSV Visibility column is dropped until someone asks. Agreed 2026-10-14.
 - **The debts UI docs are obsolete** (`docs/plans/2026-10-10-debts-ui-design.md`, `docs/plans/2026-10-10-debts-ui.md`): they describe the old row-outbox design. Each carries a superseded line. Revisit: when debts are rebuilt on the event log (after the first release). Agreed 2026-10-12.
 - **The other envelope helpers stay in `allocations/events.ts`** (`sameEnvelope`, `cardPaymentEnvelope`, the `Envelope` type); #83 moved only `envelopeLabel`, and no follow-up issue was opened. Why: triage scoped #83 to the label. Revisit: if more non-event code lands in `events.ts`. Agreed 2026-10-13.
 - **Milestone 4 = statement import and the home dashboard**, completing the first release. The per-account register stays deferred (the filtered list covers it); the analytics drilldown and debts stay after the first release. Agreed 2026-10-13.
@@ -283,7 +283,7 @@ Seams: the CSV and JSON builders (Vitest).
 - **Text that starts like a formula** (`= + - @`, tab, CR) gets a leading apostrophe. Why: another member's description must not run as a formula. Agreed 2026-10-12.
 - **A transfer is one row**: Account is where the money leaves, To account where it goes, Category its envelope. Rows run oldest first (date, then recorded order).
 - **The CSV starts with a UTF-8 byte-order mark** so Excel keeps ₱, ñ and the Card Payment "·". Agreed 2026-10-12.
-- **No Visibility column in the CSV** for now. Why: the issue doesn't ask for one. Revisit with export modes (#69). Agreed 2026-10-12.
+- **No Visibility column in the CSV** for now. Why: the issue doesn't ask for one. Revisit: if someone asks (#69 closed 2026-10-14). Agreed 2026-10-12.
 - **Moving `envelopeLabel` out of `allocations/events.ts`** is deferred to #83. Why: a display label doesn't belong with the decoders, but it is a separate refactor. Agreed 2026-10-12.
 - **`categoryNames(list)` and `readCategoryNames()` both stay.** Why: low value. Revisit when either changes. Agreed 2026-10-12.
 
