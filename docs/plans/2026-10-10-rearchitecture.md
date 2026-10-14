@@ -1,6 +1,6 @@
 # Re-architecture against the vision
 
-Source of truth: `docs/VISION.md`. Vocabulary: `GLOSSARY.md`. Status: Milestone 1 (#15) landed and closed 2026-10-11; production keep-alive check pending in #40. Milestone 2 (#46) landed and closed 2026-10-12. Milestone 3 landed and closed 2026-10-13 (spec #70). Milestone 4 scoped 2026-10-13. ADRs: `docs/adr/0001`-`0008`.
+Source of truth: `docs/VISION.md`. Vocabulary: `GLOSSARY.md`. Status: Milestone 1 (#15) landed and closed 2026-10-11; production keep-alive check pending in #40. Milestone 2 (#46) landed and closed 2026-10-12. Milestone 3 landed and closed 2026-10-13 (spec #70). Milestone 4 scoped 2026-10-13, landed and closed 2026-10-14 (spec #95). Next: #104 (dropdown snap-back bug), in its own session. ADRs: `docs/adr/0001`-`0008`.
 
 ## Context
 
@@ -130,9 +130,9 @@ Spec: #95. Scoped 2026-10-13 (decisions above). ADR 0008. Build rounds: {#96, #9
 - [x] File the spec issue and the four sub-issues (`ready-for-agent`, blocked-by edges)
 - [x] #96 Home sections and the Finances overview (Household / Mine); PR #101
 - [x] #97 Statement parsing foundation: Web Worker, `StatementParser`, BDO PDF parser, offline precache, import chunk budget, remembered password; PR #103
-- [ ] #99 Drafts and review (blocked by #97): drafts table, `/import`, import keys, duplicate and card-payment flags, `DraftSuggester` with history, save and discard, wipe and sign-out warning
+- [x] #99 Drafts and review (blocked by #97): drafts table, `/import`, import keys, duplicate and card-payment flags, `DraftSuggester` with history, save and discard, wipe and sign-out warning; PR #113
 - [x] #98 UnionBank XLSX parser (blocked by #97); PR #105
-- [ ] Close #95
+- [x] Close #95 (2026-10-14)
 
 ### #96 decisions
 
