@@ -59,7 +59,7 @@ export function AddCategoryForm({ actor, groups }: { actor: Actor; groups: Group
 
   return (
     <form action={addAction} className="@container space-y-4" aria-label="Add a category">
-      <div key={state.added} className="grid gap-4 @[480px]:grid-cols-2">
+      <div key={state.added} className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
         <NameField id="category-name" placeholder="e.g. Groceries" />
         <GroupSelect id="category-group" groups={groups} />
       </div>

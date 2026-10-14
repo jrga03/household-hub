@@ -120,10 +120,7 @@ function EditDialog({
           </p>
         </div>
         <FormError>{error}</FormError>
-        <FormFooter className="@[480px]:justify-between">
-          <Button type="button" variant="outline" onClick={onRetire} disabled={retiring}>
-            {retireLabel}
-          </Button>
+        <FormFooter destructive={{ label: retireLabel, onClick: onRetire, disabled: retiring }}>
           <SubmitButton pendingText="Saving...">Save</SubmitButton>
         </FormFooter>
       </form>

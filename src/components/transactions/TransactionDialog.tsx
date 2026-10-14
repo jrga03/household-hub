@@ -2,7 +2,6 @@ import { useActionState, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
-import { Button } from "@/components/ui/button";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -292,7 +291,7 @@ function TransactionForm({
       aria-label={transaction ? "Edit transaction" : "Add transaction"}
     >
       {/* The amount comes first, so the dialog opens with it focused. */}
-      <div className="grid gap-4 @[480px]:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
         <div className={cn("space-y-2", onDirectionChange && FULL_ROW)}>
           <Label htmlFor="transaction-amount">Amount ({PESO_SIGN})</Label>
           <Input
@@ -395,14 +394,7 @@ function TransactionForm({
       </fieldset>
 
       <FormError>{error}</FormError>
-      <FormFooter className="@[480px]:justify-between">
-        {transaction ? (
-          <Button type="button" variant="outline" onClick={() => void remove()}>
-            Remove
-          </Button>
-        ) : (
-          <span />
-        )}
+      <FormFooter destructive={transaction && { label: "Remove", onClick: () => void remove() }}>
         <SubmitButton pendingText="Saving...">
           {transaction ? "Save" : "Add transaction"}
         </SubmitButton>

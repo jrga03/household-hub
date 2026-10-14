@@ -13,6 +13,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
+import { Button } from "@/components/ui/button";
 import { PHONE_QUERY, useIsMobile } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
 
@@ -26,25 +27,18 @@ interface FormSheetProps {
 /**
  * The container every form opens in: a bottom sheet on phones, a centered
  * dialog on wider screens. Mount it to open it; it calls `onClose` on
- * dismiss. Put the form's buttons in a `FormFooter` so they stay in view.
+ * dismiss. Put the form's buttons in a `FormFooter` after its last field.
  */
 export function FormSheet(props: FormSheetProps) {
   const isPhone = useIsMobile();
   return isPhone ? <PhoneSheet {...props} /> : <WideDialog {...props} />;
 }
 
-/**
- * The pinned footer reaches the container's edges, so the fields scrolling
- * under it can't show their borders past its sides.
- */
-const FOOTER_TO_EDGES_PX_4 = "[&_[data-slot=form-footer]]:-mx-4 [&_[data-slot=form-footer]]:px-4";
-const FOOTER_TO_EDGES_PX_6 = "[&_[data-slot=form-footer]]:-mx-6 [&_[data-slot=form-footer]]:px-6";
-
 const closeOn = (onClose: () => void) => (open: boolean) => !open && onClose();
 
 function PhoneSheet({ title, description, onClose, children }: FormSheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
-  const { inset, viewportHeight } = useVisibleArea();
+  const { top, inset, viewportHeight } = useVisibleArea();
 
   // The keyboard opening (or the page shrinking for it) mustn't hide the field being typed in.
   useEffect(() => {
@@ -60,8 +54,9 @@ function PhoneSheet({ title, description, onClose, children }: FormSheetProps) {
       <DrawerContent
         ref={sheetRef}
         // The sheet runs on under the keyboard, its content padded above it: moving the sheet up instead leaves a seam at its edge.
+        // Its top stays in the visible area, which iOS may have panned down the page.
         style={
-          inset > 0
+          inset > 0 || top > 0
             ? { paddingBottom: inset, maxHeight: `calc(${viewportHeight + inset}px - 1rem)` }
             : undefined
         }
@@ -70,14 +65,7 @@ function PhoneSheet({ title, description, onClose, children }: FormSheetProps) {
           <DrawerTitle>{title}</DrawerTitle>
           {description && <DrawerDescription>{description}</DrawerDescription>}
         </DrawerHeader>
-        <div
-          className={cn(
-            "@container overflow-y-auto overscroll-contain px-4 scroll-pb-24",
-            FOOTER_TO_EDGES_PX_4
-          )}
-        >
-          {children}
-        </div>
+        <div className="@container overflow-y-auto overscroll-contain px-4">{children}</div>
       </DrawerContent>
     </Drawer>
   );
@@ -87,10 +75,7 @@ function WideDialog({ title, description, onClose, children }: FormSheetProps) {
   return (
     <Dialog open onOpenChange={closeOn(onClose)}>
       <DialogContent
-        className={cn(
-          "@container max-h-[90dvh] overflow-y-auto scroll-pb-24",
-          FOOTER_TO_EDGES_PX_6
-        )}
+        className="@container max-h-[90dvh] overflow-y-auto"
         {...(!description && { "aria-describedby": undefined })}
       >
         <DialogHeader>
@@ -104,6 +89,8 @@ function WideDialog({ title, description, onClose, children }: FormSheetProps) {
 }
 
 interface VisibleArea {
+  /** How far down the page the visible area starts, in px. */
+  top: number;
   /** How much of the page bottom an on-screen keyboard covers, in px. */
   inset: number;
   viewportHeight: number;
@@ -111,11 +98,14 @@ interface VisibleArea {
 
 /**
  * The part of the page the person can see. iOS Safari lays the keyboard over
- * the page, so `inset` is its height; where the browser shrinks the page for
- * it instead (`interactive-widget=resizes-content`), `inset` stays 0.
+ * the page, so `inset` is its height, and it may pan the visible area down
+ * the page to show the focused field, which moves `top` and shrinks `inset`
+ * by as much. Where the browser shrinks the page for the keyboard instead
+ * (`interactive-widget=resizes-content`), both stay 0.
  */
 function useVisibleArea(): VisibleArea {
   const [area, setArea] = useState<VisibleArea>(() => ({
+    top: 0,
     inset: 0,
     viewportHeight: window.visualViewport?.height ?? window.innerHeight,
   }));
@@ -124,14 +114,17 @@ function useVisibleArea(): VisibleArea {
     if (!viewport) return;
     const update = () => {
       const covered = Math.round(window.innerHeight - viewport.height - viewport.offsetTop);
-      // A pinch zoom shrinks the visual viewport too; that isn't a keyboard.
+      // A pinch zoom shrinks and moves the visual viewport too; that isn't a keyboard.
       const zoomed = viewport.scale > 1;
       const viewportHeight = Math.round(viewport.height);
       const inset = covered > 0 && !zoomed ? covered : 0;
+      const top = zoomed ? 0 : Math.max(0, Math.round(viewport.offsetTop));
       setArea((previous) =>
-        previous.inset === inset && previous.viewportHeight === viewportHeight
+        previous.top === top &&
+        previous.inset === inset &&
+        previous.viewportHeight === viewportHeight
           ? previous
-          : { inset, viewportHeight }
+          : { top, inset, viewportHeight }
       );
     };
     update();
@@ -145,17 +138,46 @@ function useVisibleArea(): VisibleArea {
   return area;
 }
 
-/** The form's buttons, pinned to the bottom of the sheet or dialog while the fields scroll. */
-export function FormFooter({ className, children }: { className?: string; children: ReactNode }) {
+interface DestructiveAction {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+/**
+ * The form's buttons, after its last field; they scroll with the form. A
+ * destructive action (Remove, Retire) sits apart below them as a text button.
+ */
+export function FormFooter({
+  className,
+  destructive,
+  children,
+}: {
+  className?: string;
+  destructive?: DestructiveAction;
+  children: ReactNode;
+}) {
   return (
-    <div
-      data-slot="form-footer"
-      className={cn(
-        "bg-background sticky -bottom-px flex flex-col-reverse gap-2 pt-2 pb-[max(1rem,var(--safe-area-bottom))] @[480px]:flex-row @[480px]:justify-end",
-        className
+    <div data-slot="form-footer" className="pt-2 pb-[max(1rem,var(--safe-area-bottom))]">
+      <div
+        className={cn(
+          "flex flex-col-reverse gap-2 @[480px]:flex-row @[480px]:justify-end",
+          className
+        )}
+      >
+        {children}
+      </div>
+      {destructive && (
+        <Button
+          type="button"
+          variant="ghost"
+          className="text-destructive hover:text-destructive active:text-destructive mt-6 w-full @[480px]:w-auto"
+          onClick={destructive.onClick}
+          disabled={destructive.disabled}
+        >
+          {destructive.label}
+        </Button>
       )}
-    >
-      {children}
     </div>
   );
 }

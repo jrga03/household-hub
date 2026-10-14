@@ -34,8 +34,10 @@ function fakeVisualViewport() {
   vi.stubGlobal("innerHeight", 800);
   vi.stubGlobal("visualViewport", viewport);
   return {
-    openKeyboard(height: number) {
+    /** `pan`: how far iOS scrolls the visible area down the page to show the focused field. */
+    openKeyboard(height: number, pan = 0) {
       viewport.height = 800 - height;
+      viewport.offsetTop = pan;
       viewport.dispatchEvent(new Event("resize"));
     },
     /** Android with interactive-widget=resizes-content: the whole page shrinks. */
@@ -111,6 +113,25 @@ describe("FormSheet", () => {
     act(() => keyboard.openKeyboard(0));
 
     expect(sheet.style.paddingBottom).toBe("");
+  });
+
+  it("fits into the visible area when iOS pans the page up for the keyboard", () => {
+    setPhone(true);
+    const keyboard = fakeVisualViewport();
+    render(<NoteForm />);
+    const field = screen.getByRole("textbox", { name: "Note" });
+    field.scrollIntoView = vi.fn();
+    field.focus();
+
+    act(() => keyboard.openKeyboard(300, 300));
+
+    const sheet = screen.getByRole("dialog", { name: "Add note" });
+    expect(sheet.style.maxHeight).toBe("calc(500px - 1rem)");
+    expect(sheet.style.paddingBottom).toBe("0px");
+
+    act(() => keyboard.openKeyboard(0));
+
+    expect(sheet.style.maxHeight).toBe("");
   });
 
   it("keeps the focused field in view when the keyboard resizes the page", () => {

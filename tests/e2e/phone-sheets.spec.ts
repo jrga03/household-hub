@@ -6,51 +6,86 @@ const KEYBOARD_HEIGHT = 336;
 
 /**
  * iOS Safari lays the keyboard over the page: only the visual viewport
- * shrinks. Browsers can't show a soft keyboard under automation, so this
- * shrinks `visualViewport.height` the same way.
+ * shrinks. It may also pan the visual viewport down the page (`offsetTop`)
+ * to bring the focused field above the keyboard. Browsers can't show a soft
+ * keyboard under automation, so this fakes both numbers the same way.
  */
 async function emulateOverlayKeyboard(page: Page) {
   await page.addInitScript(() => {
     const viewport = window.visualViewport;
     if (!viewport) return;
-    const heightOf = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(viewport), "height");
+    const prototype = Object.getPrototypeOf(viewport) as object;
+    const heightOf = Object.getOwnPropertyDescriptor(prototype, "height");
+    const offsetTopOf = Object.getOwnPropertyDescriptor(prototype, "offsetTop");
     let covered = 0;
+    let panned = 0;
     Object.defineProperty(viewport, "height", {
       configurable: true,
       get: () => (heightOf?.get?.call(viewport) as number) - covered,
     });
+    Object.defineProperty(viewport, "offsetTop", {
+      configurable: true,
+      get: () => (offsetTopOf?.get?.call(viewport) as number) + panned,
+    });
     Object.assign(window, {
-      setKeyboard: (height: number) => {
+      setKeyboard: (height: number, pan: number) => {
         covered = height;
+        panned = pan;
         viewport.dispatchEvent(new window.Event("resize"));
+        viewport.dispatchEvent(new window.Event("scroll"));
       },
     });
   });
 }
 
-const setKeyboard = (page: Page, height: number) =>
+/** `pan`: how far iOS scrolled the visible area down the page to show the focused field. */
+const setKeyboard = (page: Page, height: number, pan = 0) =>
   page.evaluate(
-    (h) => (window as unknown as { setKeyboard: (h: number) => void }).setKeyboard(h),
-    height
+    ([h, p]) =>
+      (window as unknown as { setKeyboard: (h: number, p: number) => void }).setKeyboard(h, p),
+    [height, pan] as const
   );
 
-async function expectAboveKeyboard(element: Locator, visibleHeight: number) {
+interface Band {
+  top: number;
+  bottom: number;
+}
+
+/** The part of the page the person sees, in page coordinates. */
+const visibleBand = (page: Page): Promise<Band> =>
+  page.evaluate(() => {
+    const viewport = window.visualViewport;
+    const top = viewport?.offsetTop ?? 0;
+    return { top, bottom: top + (viewport?.height ?? window.innerHeight) };
+  });
+
+async function expectInBand(element: Locator, band: Band) {
   const box = await element.boundingBox();
   expect(box).not.toBeNull();
   if (!box) return;
-  expect(box.y).toBeGreaterThanOrEqual(0);
-  expect(box.y + box.height).toBeLessThanOrEqual(visibleHeight + 0.5);
+  expect(box.y).toBeGreaterThanOrEqual(band.top - 0.5);
+  expect(box.y + box.height).toBeLessThanOrEqual(band.bottom + 0.5);
 }
 
-async function openAddTransaction(page: Page, slot = "drawer-content") {
+const expectAboveKeyboard = (element: Locator, visibleHeight: number) =>
+  expectInBand(element, { top: 0, bottom: visibleHeight });
+
+const sheetBody = (sheet: Locator) => sheet.locator("form").locator("..");
+
+const scrollBodyTo = (sheet: Locator, edge: "top" | "bottom") =>
+  sheetBody(sheet).evaluate((element, to) => {
+    element.scrollTop = to === "top" ? 0 : element.scrollHeight;
+  }, edge);
+
+async function openAddTransaction(page: Page, slot = "drawer-content", accountName = "BPI") {
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Sheet home");
   await page.getByRole("button", { name: "Create household" }).click();
   await navigateTo(page, "Accounts");
   const addAccount = page.getByRole("form", { name: "Add an account" });
-  await addAccount.getByLabel("Account name").fill("BPI");
+  await addAccount.getByLabel("Account name").fill(accountName);
   await addAccount.getByRole("button", { name: "Add account" }).click();
-  await expect(page.getByRole("list", { name: "Accounts" })).toContainText("BPI");
+  await expect(page.getByRole("list", { name: "Accounts" })).toContainText(accountName);
 
   await page.getByRole("button", { name: "Add transaction" }).click();
   const sheet = page.getByRole("dialog", { name: "Add transaction" });
@@ -96,6 +131,43 @@ async function swipeDown(
   await page.mouse.up();
 }
 
+/**
+ * Saves a screenshot to the test's output folder. With a band, the parts of
+ * the page outside it (under the keyboard, or panned off the top) are shaded.
+ */
+async function shoot(page: Page, sheet: Locator, name: string, band?: Band) {
+  await expect(sheet).toBeVisible();
+  await settle(page);
+  if (band) {
+    await page.evaluate(({ top, bottom }) => {
+      const shaded: [number, number][] = [
+        [0, top],
+        [bottom, window.innerHeight],
+      ];
+      for (const [from, to] of shaded) {
+        if (to <= from) continue;
+        const shade = document.createElement("div");
+        shade.dataset.testShade = "";
+        Object.assign(shade.style, {
+          position: "fixed",
+          left: "0",
+          right: "0",
+          top: `${from}px`,
+          height: `${to - from}px`,
+          background: "rgba(255, 0, 128, 0.35)",
+          zIndex: "2147483647",
+          pointerEvents: "none",
+        });
+        document.body.append(shade);
+      }
+    }, band);
+  }
+  await page.screenshot({ path: test.info().outputPath(`${name}.png`) });
+  await page.evaluate(() =>
+    document.querySelectorAll("[data-test-shade]").forEach((shade) => shade.remove())
+  );
+}
+
 /** vaul ignores drags for half a second after opening. */
 const settle = (page: Page) => page.waitForTimeout(600);
 
@@ -116,24 +188,123 @@ test.describe("phone forms", () => {
     await expect(sheet).toBeVisible();
   });
 
-  test("the sheet stays above a keyboard laid over the page (iOS)", async ({ page }) => {
+  // iOS either lays the keyboard over the sheet, or pans the page up so the sheet's bottom shows.
+  for (const { name, pan } of [
+    { name: "laid over the page", pan: 0 },
+    { name: "with the page panned up", pan: KEYBOARD_HEIGHT },
+  ]) {
+    test(`every field scrolls into view above an iOS keyboard ${name}`, async ({ page }) => {
+      await emulateOverlayKeyboard(page);
+      const sheet = await openAddTransaction(page);
+      const amount = sheet.getByLabel("Amount (₱)");
+      await expect(amount).toBeFocused();
+      await shoot(page, sheet, "no-keyboard");
+
+      await setKeyboard(page, KEYBOARD_HEIGHT, pan);
+      const band = await visibleBand(page);
+
+      await scrollBodyTo(sheet, "top");
+      // Soft, so the screenshots still show where each edge ended up.
+      await expect.soft(() => expectInBand(amount, band)).toPass({ timeout: 3_000 });
+      await shoot(page, sheet, `keyboard-${pan ? "panned" : "overlay"}-top`, band);
+
+      await scrollBodyTo(sheet, "bottom");
+      await expect
+        .soft(async () => {
+          await expectInBand(sheet.getByRole("radio", { name: "Pending" }), band);
+          await expectInBand(sheet.getByRole("button", { name: "Add transaction" }), band);
+        })
+        .toPass({ timeout: 3_000 });
+      await shoot(page, sheet, `keyboard-${pan ? "panned" : "overlay"}-bottom`, band);
+    });
+  }
+
+  test("the buttons follow the last field instead of staying pinned", async ({ page }) => {
     await emulateOverlayKeyboard(page);
     const sheet = await openAddTransaction(page);
-    const description = sheet.getByLabel("Description", { exact: true });
-    await description.focus();
-
     await setKeyboard(page, KEYBOARD_HEIGHT);
+    const band = await visibleBand(page);
 
-    const visibleHeight = (page.viewportSize()?.height ?? 0) - KEYBOARD_HEIGHT;
-    const submit = sheet.getByRole("button", { name: "Add transaction" });
+    await scrollBodyTo(sheet, "top");
+
     await expect(async () => {
-      await expectAboveKeyboard(submit, visibleHeight);
-      await expectAboveKeyboard(description, visibleHeight);
-      const footer = await sheet.locator("[data-slot=form-footer]").boundingBox();
-      const field = await description.boundingBox();
-      expect(field && footer && field.y + field.height <= footer.y).toBe(true);
+      const submit = await sheet.getByRole("button", { name: "Add transaction" }).boundingBox();
+      const status = await sheet.getByRole("radio", { name: "Pending" }).boundingBox();
+      expect(submit && status && submit.y > status.y + status.height).toBe(true);
+      expect(submit && submit.y >= band.bottom).toBe(true);
     }).toPass({ timeout: 5_000 });
-    await page.screenshot({ path: test.info().outputPath("overlay-keyboard.png") });
+  });
+
+  test("no sideways scroll at 320 px, even with a date field as wide as iOS draws it", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    const sheet = await openAddTransaction(
+      page,
+      "drawer-content",
+      "BPI Family Savings for the Household"
+    );
+    // WebKit draws a date field as a flex box around its value; iOS makes that value wide.
+    await page.addStyleTag({
+      content: `
+        :where(input[type="date"]) { display: inline-flex; }
+        :where(input[type="date"])::-webkit-datetime-edit { flex: none; min-width: 400px; }
+        :where(input[type="date"])::-webkit-date-and-time-value { flex: none; min-width: 400px; }
+      `,
+    });
+
+    const body = sheetBody(sheet);
+    const widths = await body.evaluate((element) => ({
+      scroll: element.scrollWidth,
+      client: element.clientWidth,
+    }));
+    expect(widths.scroll).toBeLessThanOrEqual(widths.client);
+    await shoot(page, sheet, "320-wide-date");
+  });
+
+  test("Remove sits below Save as a plain destructive text button", async ({ page }) => {
+    const sheet = await openAddTransaction(page);
+    await sheet.getByLabel("Amount (₱)").fill("250");
+    await sheet.getByLabel("Description", { exact: true }).fill("Market");
+    await sheet.getByRole("button", { name: "Add transaction" }).click();
+    await expect(sheet).toBeHidden();
+
+    await navigateTo(page, "Transactions");
+    await page.getByRole("button", { name: "Edit Market" }).click();
+    const edit = page.getByRole("dialog", { name: "Edit transaction" });
+    await scrollBodyTo(edit, "bottom");
+    const remove = edit.getByRole("button", { name: "Remove" });
+
+    // Measured together, so the sheet sliding in can't skew the gap.
+    await expect(async () => {
+      const gap = await edit.evaluate((sheet) => {
+        const [saveTop, removeTop] = ["Save", "Remove"].map((name) =>
+          [...sheet.querySelectorAll("button")]
+            .find((button) => button.textContent?.trim() === name)
+            ?.getBoundingClientRect()
+        );
+        return saveTop && removeTop ? removeTop.top - saveTop.bottom : null;
+      });
+      expect(gap).toBeGreaterThanOrEqual(16);
+    }).toPass({ timeout: 5_000 });
+    const look = await remove.evaluate((button) => {
+      const probe = document.createElement("span");
+      probe.style.color = "var(--destructive)";
+      document.body.append(probe);
+      const destructive = window.getComputedStyle(probe).color;
+      probe.remove();
+      const style = window.getComputedStyle(button);
+      return {
+        color: style.color,
+        destructive,
+        background: style.backgroundColor,
+        border: style.borderTopWidth,
+      };
+    });
+    expect(look.color).toBe(look.destructive);
+    expect(look.background).toBe("rgba(0, 0, 0, 0)");
+    expect(look.border).toBe("0px");
+    await shoot(page, edit, "edit-remove");
   });
 
   test("the sheet stays above a keyboard that resizes the page (Android)", async ({ page }) => {
@@ -147,11 +318,14 @@ test.describe("phone forms", () => {
     const visibleHeight = size.height - KEYBOARD_HEIGHT;
     await page.setViewportSize({ width: size.width, height: visibleHeight });
 
+    await expect(() => expectAboveKeyboard(description, visibleHeight)).toPass({ timeout: 5_000 });
+    await scrollBodyTo(sheet, "top");
+    await expect(() => expectAboveKeyboard(sheet.getByLabel("Amount (₱)"), visibleHeight)).toPass({
+      timeout: 5_000,
+    });
+    await scrollBodyTo(sheet, "bottom");
     const submit = sheet.getByRole("button", { name: "Add transaction" });
-    await expect(async () => {
-      await expectAboveKeyboard(submit, visibleHeight);
-      await expectAboveKeyboard(description, visibleHeight);
-    }).toPass({ timeout: 5_000 });
+    await expect(() => expectAboveKeyboard(submit, visibleHeight)).toPass({ timeout: 5_000 });
     await page.screenshot({ path: test.info().outputPath("resized-keyboard.png") });
   });
 
@@ -176,7 +350,7 @@ test.describe("phone forms", () => {
     browserName,
   }) => {
     const sheet = await openAddTransaction(page);
-    const body = sheet.locator("form").locator("..");
+    const body = sheetBody(sheet);
     const scrollTop = () => body.evaluate((element) => element.scrollTop);
     await body.evaluate((element) => {
       element.scrollTop = element.scrollHeight;

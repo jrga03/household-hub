@@ -95,7 +95,7 @@ export function ReadStatement() {
 
   return (
     <form action={readAction} className="@container space-y-4" aria-label="Read a statement">
-      <div className="grid gap-4 @[480px]:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="statement-format">Format</Label>
           {/* Keyed by value: Radix Select returns to its first value when the form
