@@ -5,7 +5,7 @@
 
 import { afterEach, vi } from "vitest";
 import "fake-indexeddb/auto";
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 
 // Mock matchMedia for PWA platform detection
 Object.defineProperty(window, "matchMedia", {

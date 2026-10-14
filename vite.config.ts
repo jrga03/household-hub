@@ -132,9 +132,7 @@ export default defineConfig({
     setupFiles: "./src/test/setup.ts",
     // Node 25+ defines its own localStorage global (undefined without
     // --localstorage-file), which shadows jsdom's in the test environment.
-    poolOptions: {
-      forks: { execArgv: ["--no-experimental-webstorage"] },
-    },
+    execArgv: ["--no-experimental-webstorage"],
     exclude: [
       "**/node_modules/**",
       "**/dist/**",
