@@ -39,13 +39,7 @@ import type { TransactionRow } from "@/lib/transactions/projection";
 import { TRANSFER_TYPE, type ListType } from "@/lib/transactions/filter";
 import { cn, errorMessage } from "@/lib/utils";
 import { useQuickEntryStore } from "@/stores/quickEntryStore";
-import {
-  ChoiceItem,
-  DirectionChoice,
-  FULL_ROW,
-  SAVED_LOCALLY,
-  useFocusNewEntry,
-} from "./EntryFields";
+import { ChoiceItem, DirectionChoice, FULL_ROW, useFocusNewEntry } from "./EntryFields";
 import { categoryChoices, CategorySelect, isCategoryChoice, UNASSIGNED } from "./CategorySelect";
 import { removeWithUndo } from "./removeWithUndo";
 import { TransferForm } from "./TransferDialog";
@@ -62,11 +56,7 @@ export function TransactionDialog({
   onClose: () => void;
 }) {
   return (
-    <FormSheet
-      title={transaction ? "Edit transaction" : "Add transaction"}
-      description={SAVED_LOCALLY}
-      onClose={onClose}
-    >
+    <FormSheet title={transaction ? "Edit transaction" : "Add transaction"} onClose={onClose}>
       <TransactionEditor actor={actor} transaction={transaction} onClose={onClose} />
     </FormSheet>
   );

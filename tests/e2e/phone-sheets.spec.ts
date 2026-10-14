@@ -262,6 +262,19 @@ test.describe("phone forms", () => {
     await shoot(page, sheet, "320-wide-date");
   });
 
+  // iOS keeps a natively drawn date field at its own minimum width, whatever its CSS width; only
+  // `appearance: none` makes it honour the column. Emulators don't draw it that way, so check the cause.
+  test("date fields drop the native look so iOS sizes them to the form", async ({ page }) => {
+    const sheet = await openAddTransaction(page);
+    const date = sheet.locator('input[type="date"]');
+    await expect(date).toHaveCSS("appearance", "none");
+  });
+
+  test("the transaction sheet's header is its title alone", async ({ page }) => {
+    const sheet = await openAddTransaction(page);
+    await expect(sheet).not.toContainText("Saved on this device");
+  });
+
   test("Remove sits below Save as a plain destructive text button", async ({ page }) => {
     const sheet = await openAddTransaction(page);
     await sheet.getByLabel("Amount (₱)").fill("250");
