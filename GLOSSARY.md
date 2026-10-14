@@ -135,7 +135,7 @@ A fingerprint of a statement line, recorded on the transaction it became, so the
 ## Assistant
 
 **Assistant**:
-A chat in which a member asks about the household's money or describes something that happened to it in plain words. It reads what the member can already see and never records anything until the member confirms. It needs a connection, and its conversations are forgotten when the app closes.
+A chat in which a member asks about the household's money or describes something that happened to it in plain words. It reads what the member can already see and never records anything until the member confirms.
 _Avoid_: Bot, chatbot, AI, copilot
 
 **Proposal**:
