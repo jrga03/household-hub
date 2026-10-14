@@ -90,6 +90,7 @@ The app is used mostly on phones; desktop must stay good but gets no separate la
 - **Follow-up #118: destructive actions go through `FormFooter`'s `destructive` prop**, a full-width (auto on wide containers) ghost button in the destructive colour, 1.5rem below the button row. Remove (transaction, transfer, allocation), Retire account and Retire category or group count as destructive; Back in the retire flow stays in the row. Revisit: never.
 - **Deferred (#118): the three-up Expense / Income / Transfer choice is tight at 320 px**; labels touch their borders but don't overflow the sheet. Revisit: if 320 px phones matter.
 - **Deferred (#118): the top toast can cover a phone sheet's title while the keyboard is up**, since the sheet now reaches 1rem below the visible top. Revisit: with the toast-position decision above.
+- **#118 merged with its defaults** (PR #119, ea38c64, 2026-10-14): the user merged without answering the four [DECIDE] items, so Retire as destructive, one footer layout, no `appearance-none`, and both deferrals above stand. The real-iPhone checklist in PR #119 wasn't run; the user reports issues as they find them. Revisit: on the next phone-sheet report.
 
 ## Issues
 
