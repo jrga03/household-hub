@@ -1,6 +1,6 @@
 # Re-architecture against the vision
 
-Source of truth: `docs/VISION.md`. Vocabulary: `GLOSSARY.md`. Status: Milestone 1 (#15) landed and closed 2026-10-11; production keep-alive check pending in #40. Milestone 2 (#46) landed and closed 2026-10-12. Milestone 3 landed and closed 2026-10-13 (spec #70). Milestone 4 scoped 2026-10-13, landed and closed 2026-10-14 (spec #95). #104 (dropdown snap-back bug) landed 2026-10-14 (PR #121). #126 (vitest 5) landed 2026-10-14 (PR #135); its follow-ups (#134) landed 2026-10-14 (PR #137). #114 (pre-push skips delete-only pushes) landed 2026-10-14 (PR #136). ADRs: `docs/adr/0001`-`0008`.
+Source of truth: `docs/VISION.md`. Vocabulary: `GLOSSARY.md`. Status: Milestone 1 (#15) landed and closed 2026-10-11; production keep-alive check pending in #40. Milestone 2 (#46) landed and closed 2026-10-12. Milestone 3 landed and closed 2026-10-13 (spec #70). Milestone 4 scoped 2026-10-13, landed and closed 2026-10-14 (spec #95). #104 (dropdown snap-back bug) landed 2026-10-14 (PR #121). #126 (vitest 5) landed 2026-10-14 (PR #135); its follow-ups (#134) landed 2026-10-14 (PR #137). #114 (pre-push skips delete-only pushes) landed 2026-10-14 (PR #136). Going live on a fresh start; next: #138 (balance correction), then the assistant (#128). ADRs: `docs/adr/0001`-`0008`.
 
 ## Context
 
@@ -123,6 +123,19 @@ Fix commits cluster in `src/lib/{sync,offline,debts}`.
 - **Failed saves keep what was entered (#104, `ready-for-agent`)**: action forms that stay open on an error stop React's automatic form reset through one shared pattern, rather than keying each Select by its value; this also keeps typed text. Why: the reset snaps controlled Radix Selects back to their first value and clears `defaultValue` inputs. Agreed 2026-10-13. Landed 2026-10-14 (PR #121): every `useActionState` form submits through `ActionForm` (`src/components/ui/action-form.tsx`), and `SubmitButton` reads its pending state from it. Deferred: `SubmitButton` outside an `ActionForm` never shows pending, with no warning. Revisit: if a plain `<form>` ever needs one.
 - **M4 splits into four sub-issues**, built in rounds: {home sections and Finances, statement parsing foundation with the BDO parser}, then {drafts and review, UnionBank parser}. Agreed 2026-10-13.
 - **Vitest 5 upgrade (#126) stayed migration-only**; landed 2026-10-14 (PR #135). Deferred to #134: drop the now-redundant `vi.clearAllMocks()` in setup, ignore `.vitest/`, and check whether `--no-experimental-webstorage` is still needed (the suite passed on vitest 5 while the flag wasn't reaching workers). Why: #126 ruled out refactoring beyond the migration. Landed 2026-10-14 (PR #137): the flag is gone (vitest 5 gives workers jsdom's `localStorage`, and `Storage.prototype` spies reach it), `.vitest` is git-ignored, and every redundant `vi.clearAllMocks()` is removed.
+- **Go live on a fresh start**: each account's starting balance is its real balance today (cards: the full outstanding amount including unbilled charges). The stale spreadsheet (about 2 months behind) stays as an archive and is not backfilled or reconciled first. Why: the starting balance already includes the unlogged transactions, and nothing on screen reads history before it. Revisit: if analytics that look back need the gap. Agreed 2026-10-14.
+- **Drift between logged and actual balances is fixed by a deterministic correction (#138, `needs-triage`)**, not the assistant and not by editing a starting balance. Why: a visible correction beats a silent overwrite, and it needs no network or quota. Revisit: when #138 is scoped. Agreed 2026-10-14.
+- **Build the assistant (#128) next; plan Milestone 5 later.** Order: #138 first (own session), then #129, #130 and #132, then #133; #131 is human-only. The assistant is an epic outside the milestone numbering; M5 means the next VISION features. Why: the assistant's design is done and useful whatever M5 holds, while M5's input (real-use friction) doesn't exist yet. Agreed 2026-10-14.
+- **M5 planning triggers on whichever comes first**: #128 closes, or five or more go-live friction issues are open. Either starts a grilling session that triages them into M5. Agreed 2026-10-14.
+
+## Go-live
+
+Started: when the starting balances are confirmed (pending). Anything that sends us back to the spreadsheet becomes a `needs-triage` issue right away, listed here. Five or more open ones trigger M5 planning (see Decisions & Deferrals).
+
+- [ ] Confirm today's balance for every account and enter it as the starting balance
+- [ ] Finish the opening checklist (distribute, budgets)
+
+Friction issues: none yet.
 
 ## Milestone 4
 
@@ -830,6 +843,7 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - #83 merged (PR #93, bc59094): `envelopeLabel` now lives in `src/lib/allocations/envelope.ts`.
 - Milestone 4 scoped 2026-10-13: spec #95, sub-issues #96-#99 (`ready-for-agent`, native blocked-by edges), ADR 0008, glossary Import and Import Key.
 - Next: build round 1 (#96, #97). Real statements for #97 and #98 come from the user during the build. Still owed: #40's dashboard checks (human).
+- Decided 2026-10-14: go live on a fresh start. Next: scope #138 (balance correction), then build the assistant (#128: #129, #130 and #132, then #133). M5 planning waits for its trigger.
 - Gotchas found in #71 and #73:
   - `sumAccountMoney(accounts, transactions, allocations, transfers)` takes transfers as a required fourth argument; any month or ledger sum must pass the transfers dated in range.
   - List rows are `ListRow = TransactionRow | TransferRow` (`isTransfer`, `newestFirst`, `transferDirection` in `transactions/filter.ts`); `useTransactionListRows()` replaced `useTransactions()`.
