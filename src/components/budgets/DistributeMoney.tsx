@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useActionState, useState } from "react";
 import { toast } from "sonner";
-import { ActionForm } from "@/components/ActionForm";
+import { ActionForm } from "@/components/ui/action-form";
 import { categoryNames } from "@/components/allocations/envelopes";
 import { advanceOnEnter, FormFooter } from "@/components/FormSheet";
 import { FormError } from "@/components/ui/form-error";

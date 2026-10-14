@@ -1,7 +1,7 @@
 import { useActionState, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { ActionForm } from "@/components/ActionForm";
+import { ActionForm } from "@/components/ui/action-form";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";

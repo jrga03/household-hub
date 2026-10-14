@@ -2,7 +2,7 @@ import { useActionState } from "react";
 import { AuthError } from "@supabase/supabase-js";
 import { Link } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
-import { ActionForm } from "@/components/ActionForm";
+import { ActionForm } from "@/components/ui/action-form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";

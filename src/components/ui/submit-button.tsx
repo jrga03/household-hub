@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import * as React from "react";
-import { useActionFormPending } from "@/components/ActionForm";
+import { useActionFormPending } from "@/components/ui/action-form";
 
 interface SubmitButtonProps extends Omit<React.ComponentProps<typeof Button>, "type"> {
   /**

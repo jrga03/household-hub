@@ -1,7 +1,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { ActionForm } from "@/components/ActionForm";
+import { ActionForm } from "@/components/ui/action-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";

@@ -1,7 +1,7 @@
 import { useActionState, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
-import { ActionForm } from "@/components/ActionForm";
+import { ActionForm } from "@/components/ui/action-form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
@@ -31,8 +31,7 @@ import { countOf, errorMessage } from "@/lib/utils";
 
 interface ReadState {
   error: string | null;
-  /** Counts reads, so the file and password fields clear after each one. */
-  read: number;
+  readCount: number;
 }
 
 /**
@@ -57,7 +56,7 @@ export function ReadStatement() {
 
   const [state, readAction] = useActionState(
     async (previous: ReadState, formData: FormData): Promise<ReadState> => {
-      const failed = (error: string) => ({ error, read: previous.read });
+      const failed = (error: string) => ({ error, readCount: previous.readCount });
       const file = formData.get("file");
       if (!format) return failed("Choose the statement's format.");
       if (!(file instanceof File) || file.size === 0) return failed("Choose a statement file.");
@@ -82,12 +81,12 @@ export function ReadStatement() {
         });
         void suggestDrafts(importId);
         toast.success(`${countOf(lines.length, "line", "lines")} read from ${file.name}`);
-        return { error: null, read: previous.read + 1 };
+        return { error: null, readCount: previous.readCount + 1 };
       } catch (caught) {
         return failed(errorMessage(caught, "The statement couldn't be read."));
       }
     },
-    { error: null, read: 0 }
+    { error: null, readCount: 0 }
   );
 
   if (!accounts) return null;
@@ -144,7 +143,7 @@ export function ReadStatement() {
         <div className="space-y-2">
           <Label htmlFor="statement-file">Statement file</Label>
           <Input
-            key={state.read}
+            key={state.readCount}
             id="statement-file"
             name="file"
             type="file"
@@ -156,7 +155,7 @@ export function ReadStatement() {
           <Label htmlFor="statement-password">Password</Label>
           <Input
             // Remounts with the chosen card's remembered password once it loads, and after each read.
-            key={`${chosenCardId}:${remembered ?? ""}:${state.read}`}
+            key={`${chosenCardId}:${remembered ?? ""}:${state.readCount}`}
             id="statement-password"
             name="password"
             type="password"
@@ -168,7 +167,7 @@ export function ReadStatement() {
       {rememberable && (
         <div className="flex items-center gap-2">
           <Checkbox
-            key={`${chosenCardId}:${remembered !== undefined}:${state.read}`}
+            key={`${chosenCardId}:${remembered !== undefined}:${state.readCount}`}
             id="statement-remember"
             name="remember"
             defaultChecked={remembered !== undefined}

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { FormError } from "@/components/ui/form-error";
-import { ActionForm } from "./ActionForm";
+import { ActionForm } from "./action-form";
 
 // Radix Select calls these, and jsdom leaves them out.
 const radixStubs = ["scrollIntoView", "hasPointerCapture", "releasePointerCapture"] as const;

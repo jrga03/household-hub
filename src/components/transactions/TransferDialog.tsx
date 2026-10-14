@@ -1,6 +1,6 @@
 import { useActionState, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ActionForm } from "@/components/ActionForm";
+import { ActionForm } from "@/components/ui/action-form";
 import { categoryNames, envelopeFromKey, envelopeKey } from "@/components/allocations/envelopes";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { FormError } from "@/components/ui/form-error";

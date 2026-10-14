@@ -1,6 +1,6 @@
 import { useActionState, useTransition } from "react";
 import { toast } from "sonner";
-import { ActionForm } from "@/components/ActionForm";
+import { ActionForm } from "@/components/ui/action-form";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/FormSheet";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { ACCOUNT_TYPES, CREDIT_CARD, isCreditCard } from "@/lib/accounts/events";

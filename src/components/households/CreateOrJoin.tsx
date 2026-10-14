@@ -6,7 +6,7 @@ import {
   PendingRequest,
   useMyJoinRequest,
 } from "@/components/households/JoinHousehold";
-import { ActionForm } from "@/components/ActionForm";
+import { ActionForm } from "@/components/ui/action-form";
 import { Card, CardContent, CardDescription } from "@/components/ui/card";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
