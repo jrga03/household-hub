@@ -44,7 +44,7 @@ const closeOn = (onClose: () => void) => (open: boolean) => !open && onClose();
 
 function PhoneSheet({ title, description, onClose, children }: FormSheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
-  const { inset, viewportHeight } = useVisibleArea();
+  const { top, inset, viewportHeight } = useVisibleArea();
 
   // The keyboard opening (or the page shrinking for it) mustn't hide the field being typed in.
   useEffect(() => {
@@ -60,8 +60,9 @@ function PhoneSheet({ title, description, onClose, children }: FormSheetProps) {
       <DrawerContent
         ref={sheetRef}
         // The sheet runs on under the keyboard, its content padded above it: moving the sheet up instead leaves a seam at its edge.
+        // Its top stays in the visible area, which iOS may have panned down the page.
         style={
-          inset > 0
+          inset > 0 || top > 0
             ? { paddingBottom: inset, maxHeight: `calc(${viewportHeight + inset}px - 1rem)` }
             : undefined
         }
@@ -104,6 +105,8 @@ function WideDialog({ title, description, onClose, children }: FormSheetProps) {
 }
 
 interface VisibleArea {
+  /** How far down the page the visible area starts, in px. */
+  top: number;
   /** How much of the page bottom an on-screen keyboard covers, in px. */
   inset: number;
   viewportHeight: number;
@@ -111,11 +114,14 @@ interface VisibleArea {
 
 /**
  * The part of the page the person can see. iOS Safari lays the keyboard over
- * the page, so `inset` is its height; where the browser shrinks the page for
- * it instead (`interactive-widget=resizes-content`), `inset` stays 0.
+ * the page, so `inset` is its height, and it may pan the visible area down
+ * the page to show the focused field, which moves `top` and shrinks `inset`
+ * by as much. Where the browser shrinks the page for the keyboard instead
+ * (`interactive-widget=resizes-content`), both stay 0.
  */
 function useVisibleArea(): VisibleArea {
   const [area, setArea] = useState<VisibleArea>(() => ({
+    top: 0,
     inset: 0,
     viewportHeight: window.visualViewport?.height ?? window.innerHeight,
   }));
@@ -124,14 +130,17 @@ function useVisibleArea(): VisibleArea {
     if (!viewport) return;
     const update = () => {
       const covered = Math.round(window.innerHeight - viewport.height - viewport.offsetTop);
-      // A pinch zoom shrinks the visual viewport too; that isn't a keyboard.
+      // A pinch zoom shrinks and moves the visual viewport too; that isn't a keyboard.
       const zoomed = viewport.scale > 1;
       const viewportHeight = Math.round(viewport.height);
       const inset = covered > 0 && !zoomed ? covered : 0;
+      const top = zoomed ? 0 : Math.max(0, Math.round(viewport.offsetTop));
       setArea((previous) =>
-        previous.inset === inset && previous.viewportHeight === viewportHeight
+        previous.top === top &&
+        previous.inset === inset &&
+        previous.viewportHeight === viewportHeight
           ? previous
-          : { inset, viewportHeight }
+          : { top, inset, viewportHeight }
       );
     };
     update();
