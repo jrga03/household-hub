@@ -1,6 +1,8 @@
 // The AI binding validates input against its own schema and rejects unknown fields (AiError 5006),
 // so every message and tool is rebuilt from the fields that schema accepts.
 
+import { isObject } from "./guards";
+
 interface ToolCall {
   id: string;
   type: "function";
@@ -15,10 +17,6 @@ export type ChatMessage =
 export interface Tool {
   type: "function";
   function: { name: string; description?: string; parameters?: Record<string, unknown> };
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function rebuildToolCall(call: unknown): ToolCall | undefined {

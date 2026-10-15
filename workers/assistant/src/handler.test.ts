@@ -13,6 +13,9 @@ const sseStream = () =>
     },
   });
 
+// Shaped like the binding's own errors (seen under wrangler dev): name AiError, code first in the message.
+const aiError = (message: string) => Object.assign(new Error(message), { name: "AiError" });
+
 function setup(
   run: AiBinding["run"] = vi.fn<AiBinding["run"]>().mockImplementation(async () => sseStream())
 ) {
@@ -171,9 +174,7 @@ describe("handleRequest", () => {
   it("retries once after about a second when Workers AI is out of capacity", async () => {
     const run = vi
       .fn<AiBinding["run"]>()
-      .mockRejectedValueOnce(
-        new Error("AiError: 3040: Capacity temporarily exceeded, please try again.")
-      )
+      .mockRejectedValueOnce(aiError("3040: Capacity temporarily exceeded, please try again."))
       .mockResolvedValueOnce(sseStream());
     const { ai, sleep, send } = setup(run);
 
@@ -187,7 +188,7 @@ describe("handleRequest", () => {
   it("reports busy when Workers AI is still out of capacity after the retry", async () => {
     const run = vi
       .fn<AiBinding["run"]>()
-      .mockRejectedValue(new Error("3040: Capacity temporarily exceeded"));
+      .mockRejectedValue(aiError("3040: Capacity temporarily exceeded, please try again."));
     const { ai, send } = setup(run);
 
     const response = await send(chatRequest());
@@ -201,7 +202,7 @@ describe("handleRequest", () => {
     const run = vi
       .fn<AiBinding["run"]>()
       .mockRejectedValue(
-        new Error("AiError: 3036: You have used up your daily free allocation of 10,000 neurons.")
+        aiError("3036: You have used up your daily free allocation of 10,000 neurons.")
       );
     const { ai, send } = setup(run);
 
@@ -216,10 +217,23 @@ describe("handleRequest", () => {
     expect(ai.run).toHaveBeenCalledTimes(1);
   });
 
+  it("does not mistake a number inside another failure for a limit code", async () => {
+    const run = vi
+      .fn<AiBinding["run"]>()
+      .mockRejectedValue(aiError("3006: Request too large: 3036 tokens"));
+    const { ai, send } = setup(run);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const response = await send(chatRequest());
+
+    expect(response.status).toBe(502);
+    expect(ai.run).toHaveBeenCalledTimes(1);
+  });
+
   it("reports any other model failure without retrying", async () => {
     const run = vi
       .fn<AiBinding["run"]>()
-      .mockRejectedValue(new Error("AiError: 5006: invalid input"));
+      .mockRejectedValue(aiError("5006: Error: oneOf at '/' not met"));
     const { ai, send } = setup(run);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 

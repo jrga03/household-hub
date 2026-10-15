@@ -1,3 +1,5 @@
+import { isObject } from "./guards";
+
 export type KeyLookup = (kid: string) => Promise<JsonWebKey | undefined>;
 
 interface VerifyOptions {
@@ -32,6 +34,7 @@ export function createKeyLookup(
 ): KeyLookup {
   let keysById = new Map<string, JsonWebKey>();
   let lastFetchMs: number | undefined;
+  let inFlight: Promise<void> | undefined;
 
   async function refresh() {
     lastFetchMs = nowMs();
@@ -56,7 +59,12 @@ export function createKeyLookup(
   return async (kid) => {
     const canRefetch =
       lastFetchMs === undefined || nowMs() - lastFetchMs >= MIN_REFETCH_INTERVAL_MS;
-    if (!keysById.has(kid) && canRefetch) await refresh();
+    if (!keysById.has(kid) && (inFlight || canRefetch)) {
+      inFlight ??= refresh().finally(() => {
+        inFlight = undefined;
+      });
+      await inFlight;
+    }
     return keysById.get(kid);
   };
 }
@@ -69,10 +77,6 @@ function base64urlToBytes(value: string): Uint8Array<ArrayBuffer> {
 
 function decodeJson(segment: string): unknown {
   return JSON.parse(new TextDecoder().decode(base64urlToBytes(segment)));
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }
 
 export async function verifyAccessToken(token: string, options: VerifyOptions): Promise<boolean> {

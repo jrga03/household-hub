@@ -138,6 +138,17 @@ describe("createKeyLookup", () => {
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
+  it("answers lookups that arrive while the first fetch is in flight", async () => {
+    const fetchFn = vi.fn<typeof fetch>().mockImplementation(async () => jwksResponse(["key-1"]));
+    const lookupKey = createKeyLookup(jwksUrl, { fetchFn, nowMs: () => 0 });
+
+    const [first, second] = await Promise.all([lookupKey("key-1"), lookupKey("key-1")]);
+
+    expect(first).toMatchObject({ kid: "key-1" });
+    expect(second).toMatchObject({ kid: "key-1" });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
   it("finds no key when the key set cannot be fetched", async () => {
     const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(new Response("down", { status: 503 }));
     const lookupKey = createKeyLookup(jwksUrl, { fetchFn, nowMs: () => 0 });

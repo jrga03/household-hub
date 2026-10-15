@@ -178,7 +178,7 @@ The Wrangler log prints `Supabase keep-alive succeeded`. A failed query logs `Su
 `workers/assistant` is the in-app assistant's only server part. It accepts `POST` with `Authorization: Bearer <Supabase access token>` and `{ messages, tools }` in the OpenAI chat shape, verifies the token, and streams `@cf/openai/gpt-oss-120b` back as server-sent events through the `AI` binding. The app defines the tools; the Worker only forwards them. It keeps no conversation and never logs message content.
 
 - **Token check:** ES256 against `<SUPABASE_URL>/auth/v1/.well-known/jwks.json` (held in memory, refetched for an unknown key id at most once a minute), with `exp`, `aud: "authenticated"` and `iss: <SUPABASE_URL>/auth/v1`. Anything else gets `401`.
-- **CORS:** only the origins in `ALLOWED_ORIGINS` get CORS headers; a request from any other origin gets `403`.
+- **CORS:** only the origins in `ALLOWED_ORIGINS` get CORS headers, and a request from any other origin gets `403`. A request with no `Origin` header (curl, a script) still needs a valid token; browsers always send `Origin` on the app's cross-origin calls.
 - **Limits:** on AiError 3040 (out of capacity) it retries once after 1 s, then answers `503 { "error": "busy" }`. On 3036 (daily neurons used up) it answers `429 { "error": "daily_limit", "resetsAt": "<next 00:00 UTC>" }`. Other model failures answer `502 { "error": "upstream" }` and log only the error code.
 
 ### Settings

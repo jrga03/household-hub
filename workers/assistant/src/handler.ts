@@ -1,8 +1,11 @@
+import { isObject } from "./guards";
 import { rebuildMessages, rebuildTools, type ChatMessage, type Tool } from "./messages";
 
 export const MODEL = "@cf/openai/gpt-oss-120b";
 const MAX_TOKENS = 2048;
 const CAPACITY_RETRY_DELAY_MS = 1000;
+const OUT_OF_CAPACITY = "3040";
+const DAILY_NEURONS_USED_UP = "3036";
 
 export interface AiBinding {
   run(
@@ -38,17 +41,18 @@ function nextUtcMidnight(nowMs: number) {
   ).toISOString();
 }
 
-/** Workers AI internal error code, e.g. 3040 from "AiError: 3040: Capacity temporarily exceeded". */
+/** The binding throws an AiError whose message starts with the code: "3040: Capacity temporarily exceeded…". */
 function aiErrorCode(error: unknown): string | undefined {
-  return /\b(\d{4})\b/.exec(error instanceof Error ? error.message : String(error))?.[1];
+  const message = error instanceof Error ? error.message : String(error);
+  return /^(\d{4}):/.exec(message)?.[1];
 }
 
 async function readBody(request: Request) {
   try {
     const body: unknown = await request.json();
-    if (typeof body !== "object" || body === null) return undefined;
-    const messages = rebuildMessages("messages" in body ? body.messages : undefined);
-    const tools = rebuildTools("tools" in body ? body.tools : undefined);
+    if (!isObject(body)) return undefined;
+    const messages = rebuildMessages(body.messages);
+    const tools = rebuildTools(body.tools);
     return messages && tools ? { messages, tools } : undefined;
   } catch {
     return undefined;
@@ -93,20 +97,20 @@ export async function handleRequest(
   let stream: unknown;
   try {
     stream = await env.AI.run(MODEL, input).catch(async (error: unknown) => {
-      if (aiErrorCode(error) !== "3040") throw error;
+      if (aiErrorCode(error) !== OUT_OF_CAPACITY) throw error;
       await deps.sleep(CAPACITY_RETRY_DELAY_MS);
       return env.AI.run(MODEL, input);
     });
   } catch (error) {
     const code = aiErrorCode(error);
-    if (code === "3036") {
+    if (code === DAILY_NEURONS_USED_UP) {
       return jsonResponse(
         429,
         { error: "daily_limit", resetsAt: nextUtcMidnight(deps.nowMs()) },
         requestOrigin
       );
     }
-    if (code === "3040") return jsonResponse(503, { error: "busy" }, requestOrigin);
+    if (code === OUT_OF_CAPACITY) return jsonResponse(503, { error: "busy" }, requestOrigin);
     // Only the code: the message can echo the conversation, which the Worker must not keep.
     console.error(`Workers AI failed: ${code ?? "unknown error"}`);
     return jsonResponse(502, { error: "upstream" }, requestOrigin);
