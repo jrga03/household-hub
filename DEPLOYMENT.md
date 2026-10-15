@@ -18,6 +18,7 @@ Custom domain (if configured): `https://yourdomain.com`
 - **SSL**: Automatic HTTPS with Cloudflare
 - **Error Tracking**: Sentry (free tier, 5K errors/month)
 - **Keep-alive**: a Cloudflare Worker cron (free tier), see [Keep-alive Worker](#keep-alive-worker)
+- **Assistant**: a Cloudflare Worker in front of Workers AI (free tier), see [Assistant Worker](#assistant-worker)
 
 ---
 
@@ -169,6 +170,52 @@ curl "http://localhost:8787/__scheduled?cron=0+0+*/3+*+*"
 ```
 
 The Wrangler log prints `Supabase keep-alive succeeded`. A failed query logs `Supabase keep-alive failed: <status> <body>` as an error and fails the run, which shows up under the Worker's Observability tab in Cloudflare (enabled in `wrangler.jsonc`).
+
+---
+
+## Assistant Worker
+
+`workers/assistant` is the in-app assistant's only server part. It accepts `POST` with `Authorization: Bearer <Supabase access token>` and `{ messages, tools }` in the OpenAI chat shape, verifies the token, and streams `@cf/openai/gpt-oss-120b` back as server-sent events through the `AI` binding. The app defines the tools; the Worker only forwards them. It keeps no conversation and never logs message content.
+
+- **Token check:** ES256 against `<SUPABASE_URL>/auth/v1/.well-known/jwks.json` (held in memory, refetched for an unknown key id at most once a minute), with `exp`, `aud: "authenticated"` and `iss: <SUPABASE_URL>/auth/v1`. Anything else gets `401`.
+- **CORS:** only the origins in `ALLOWED_ORIGINS` get CORS headers; a request from any other origin gets `403`.
+- **Limits:** on AiError 3040 (out of capacity) it retries once after 1 s, then answers `503 { "error": "busy" }`. On 3036 (daily neurons used up) it answers `429 { "error": "daily_limit", "resetsAt": "<next 00:00 UTC>" }`. Other model failures answer `502 { "error": "upstream" }` and log only the error code.
+
+### Settings
+
+| Setting           | Kind    | Value                                                                 |
+| ----------------- | ------- | --------------------------------------------------------------------- |
+| `AI`              | Binding | Workers AI, declared in `wrangler.jsonc`                              |
+| `SUPABASE_URL`    | Secret  | Production Supabase project URL, no trailing slash                    |
+| `ALLOWED_ORIGINS` | Secret  | Comma-separated app origins, e.g. the Pages URL and any custom domain |
+
+```bash
+cd workers/assistant
+npx wrangler@4.149.0 secret put SUPABASE_URL
+npx wrangler@4.149.0 secret put ALLOWED_ORIGINS
+npx wrangler@4.149.0 deploy
+```
+
+Deploy again only when `workers/assistant` changes; pushes to `main` don't deploy it. Workers AI on the Free plan gives 10,000 neurons a day, reset at 00:00 UTC; a three-call turn with two small tools cost about 50 in the prototype.
+
+### Run it locally
+
+With `supabase start` running. The `AI` binding always calls Cloudflare, so `wrangler dev` needs `npx wrangler@4.149.0 login` and spends the account's daily neurons.
+
+```bash
+cd workers/assistant
+cp .dev.vars.example .dev.vars
+npx wrangler@4.149.0 dev
+```
+
+Get a local access token by signing in to the app (or `POST $API_URL/auth/v1/token?grant_type=password` with the anon key), then:
+
+```bash
+curl -N http://localhost:8787 -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"How much is in BPI?"}],"tools":[{"type":"function","function":{"name":"get_account_balances","parameters":{"type":"object","properties":{}}}}]}'
+```
+
+The reply streams `data:` chunks carrying `delta.tool_calls` and ends with `data: [DONE]`.
 
 ---
 
