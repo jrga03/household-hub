@@ -189,6 +189,24 @@ The Wrangler log prints `Supabase keep-alive succeeded`. A failed query logs `Su
 | `SUPABASE_URL`    | Secret  | Production Supabase project URL, no trailing slash                    |
 | `ALLOWED_ORIGINS` | Secret  | Comma-separated app origins, e.g. the Pages URL and any custom domain |
 
+Set the secrets in the Worker's **Settings → Variables and Secrets** as type **Secret**: a plain variable set in the dashboard is replaced by the next deploy, a secret is kept.
+
+### Deploy
+
+The Worker is connected to this repository with Workers Builds (**Workers & Pages → Create → Import a repository**):
+
+| Field             | Value                                                   |
+| ----------------- | ------------------------------------------------------- |
+| Project name      | `household-hub-assistant` (must match `wrangler.jsonc`) |
+| Root directory    | `workers/assistant`                                     |
+| Build command     | empty                                                   |
+| Deploy command    | `npx wrangler@4.149.0 deploy`                           |
+| Build watch paths | include `workers/assistant/*`                           |
+
+So a push to `main` that changes `workers/assistant` deploys it, and other pushes don't. Without the watch path, every push to `main` redeploys it.
+
+To deploy from a terminal instead (check the account with `npx wrangler@4.149.0 whoami` first):
+
 ```bash
 cd workers/assistant
 npx wrangler@4.149.0 secret put SUPABASE_URL
@@ -196,7 +214,7 @@ npx wrangler@4.149.0 secret put ALLOWED_ORIGINS
 npx wrangler@4.149.0 deploy
 ```
 
-Deploy again only when `workers/assistant` changes; pushes to `main` don't deploy it. Workers AI on the Free plan gives 10,000 neurons a day, reset at 00:00 UTC; a three-call turn with two small tools cost about 50 in the prototype.
+Workers AI on the Free plan gives 10,000 neurons a day, reset at 00:00 UTC; a three-call turn with two small tools cost about 50 in the prototype.
 
 ### Run it locally
 
