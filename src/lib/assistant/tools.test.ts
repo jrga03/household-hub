@@ -16,10 +16,10 @@ const OTHER_MEMBER = { householdId: HOUSEHOLD, userId: "user-b" };
 const UNKNOWN_ID = "99999999-9999-4999-8999-999999999999";
 
 const NOW = new Date(2026, 9, 15, 9, 0);
-const scope = { userId: MEMBER.userId, now: NOW };
+const session = { userId: MEMBER.userId, now: NOW };
 
 const run = async (name: string, args: Record<string, unknown> = {}) => {
-  const outcome = await runAssistantTool(name, JSON.stringify(args), scope);
+  const outcome = await runAssistantTool(name, JSON.stringify(args), session);
   return { ...outcome, result: JSON.parse(outcome.content) as Record<string, unknown> };
 };
 
@@ -76,7 +76,7 @@ describe("runAssistantTool", () => {
   it.each(["{not json", "null", "[]", '"text"'])(
     "answers arguments that aren't a JSON object (%s) with an error",
     async (raw) => {
-      const outcome = await runAssistantTool("get_account_balances", raw, scope);
+      const outcome = await runAssistantTool("get_account_balances", raw, session);
 
       expect(JSON.parse(outcome.content)).toEqual({
         error: "The arguments must be a JSON object.",
@@ -94,7 +94,7 @@ describe("runAssistantTool", () => {
   );
 
   it("takes empty arguments as none", async () => {
-    const outcome = await runAssistantTool("get_account_balances", "", scope);
+    const outcome = await runAssistantTool("get_account_balances", "", session);
 
     expect(JSON.parse(outcome.content)).toHaveProperty("accounts");
   });
@@ -129,6 +129,34 @@ describe("get_account_balances", () => {
       accounts: [{ id: gcashId, name: "GCash", type: "e_wallet", balance: "₱749.50" }],
     });
     expect(proposal).toBeNull();
+  });
+});
+
+describe("get_account_balances on a credit card", () => {
+  it("gives what the card owes as a positive balance", async () => {
+    const card = await createAccount(MEMBER, {
+      name: "Visa",
+      type: "credit_card",
+      startingBalanceCents: parsePHP("0"),
+      payingAccountId: gcashId,
+    });
+    await addTransaction(MEMBER, {
+      date: "2026-10-14",
+      type: "expense",
+      amountCents: parsePHP("300"),
+      accountId: card.id,
+      categoryId: groceriesId,
+      description: "Grab",
+    });
+
+    const { result } = await run("get_account_balances");
+
+    expect(result.accounts).toContainEqual({
+      id: card.id,
+      name: "Visa",
+      type: "credit_card",
+      balance: "₱300.00",
+    });
   });
 });
 

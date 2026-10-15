@@ -1,8 +1,8 @@
-import { format } from "date-fns";
 import { readMonthView } from "@/lib/budgets/month";
 import { budgetStatus } from "@/lib/budgets/progress";
 import { diffCents, formatPHP, ZERO_CENTS } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
+import { localMonth } from "@/lib/utils/dates";
 import { readAccountNames } from "@/lib/accounts/projection";
 import { readCategoryNames } from "@/lib/categories/projection";
 import { readAccountMoney } from "@/lib/transactions/money";
@@ -18,7 +18,7 @@ import {
   type ToolArguments,
 } from "./arguments";
 import { proposeTransaction, type TransactionProposal } from "./proposal";
-import { canSee, listUsableAccounts, listUsableCategories, type AssistantScope } from "./scope";
+import { canSee, listUsableAccounts, listUsableCategories, type AssistantSession } from "./session";
 
 /** A tool's reply to the model, as JSON, and the transaction the member is asked to confirm, if any. */
 export interface ToolOutcome {
@@ -26,14 +26,14 @@ export interface ToolOutcome {
   proposal: TransactionProposal | null;
 }
 
-type ToolRun = (args: ToolArguments, scope: AssistantScope) => Promise<ToolOutcome>;
+type ToolRun = (args: ToolArguments, session: AssistantSession) => Promise<ToolOutcome>;
 
 const reply = (result: unknown): ToolOutcome => ({
   content: JSON.stringify(result),
   proposal: null,
 });
 
-async function getAccountBalances(_args: ToolArguments, { userId }: AssistantScope) {
+async function getAccountBalances(_args: ToolArguments, { userId }: AssistantSession) {
   const [accounts, money] = await Promise.all([listUsableAccounts(userId), readAccountMoney()]);
   return reply({
     accounts: accounts.map(({ id, name, type }) => ({
@@ -45,7 +45,7 @@ async function getAccountBalances(_args: ToolArguments, { userId }: AssistantSco
   });
 }
 
-async function listCategories(_args: ToolArguments, { userId }: AssistantScope) {
+async function listCategories(_args: ToolArguments, { userId }: AssistantSession) {
   const [categories, groups] = await Promise.all([
     listUsableCategories(userId),
     db.categoryGroups.toArray(),
@@ -63,7 +63,7 @@ async function listCategories(_args: ToolArguments, { userId }: AssistantScope) 
 const DEFAULT_ROWS = 20;
 const MAX_ROWS = 50;
 
-async function listTransactions(args: ToolArguments, { userId }: AssistantScope) {
+async function listTransactions(args: ToolArguments, { userId }: AssistantSession) {
   const accountId = optionalString(args, "account_id");
   const categoryId = optionalString(args, "category_id");
   const from = optionalDate(args, "from");
@@ -100,8 +100,8 @@ async function listTransactions(args: ToolArguments, { userId }: AssistantScope)
   });
 }
 
-async function getBudgetStatus(args: ToolArguments, { userId, now }: AssistantScope) {
-  const currentMonth = format(now, "yyyy-MM");
+async function getBudgetStatus(args: ToolArguments, { userId, now }: AssistantSession) {
+  const currentMonth = localMonth(now);
   const month = optionalMonth(args, "month") ?? currentMonth;
   const [view, categories] = await Promise.all([
     readMonthView(month, currentMonth),
@@ -113,7 +113,7 @@ async function getBudgetStatus(args: ToolArguments, { userId, now }: AssistantSc
     .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
     .flatMap((category) => {
       const figures = view.get(category.id);
-      // Transfers and corrections never count as spent (see summarizeMonth).
+      // Only what had a budget or spending; transfers and corrections never count as spent.
       if (!figures || (figures.budget === null && figures.spent === 0)) return [];
       const { budget, spent } = figures;
       return {
@@ -127,11 +127,14 @@ async function getBudgetStatus(args: ToolArguments, { userId, now }: AssistantSc
   return reply({ month, categories: rows });
 }
 
-async function addTransaction(args: ToolArguments, scope: AssistantScope): Promise<ToolOutcome> {
-  const { proposal, proposed } = await proposeTransaction(args, scope);
+async function addTransaction(
+  args: ToolArguments,
+  session: AssistantSession
+): Promise<ToolOutcome> {
+  const { proposal, summary } = await proposeTransaction(args, session);
   return {
     content: JSON.stringify({
-      proposed,
+      proposed: summary,
       status: "Shown to the member to confirm. Not recorded yet.",
     }),
     proposal,
@@ -165,14 +168,14 @@ function parseArguments(raw: string): ToolArguments | null {
 export async function runAssistantTool(
   name: string,
   rawArguments: string,
-  scope: AssistantScope
+  session: AssistantSession
 ): Promise<ToolOutcome> {
   const run = RUNS.get(name);
   if (!run) return reply({ error: `There is no tool named ${name}.` });
   const args = parseArguments(rawArguments);
   if (!args) return reply({ error: "The arguments must be a JSON object." });
   try {
-    return await run(args, scope);
+    return await run(args, session);
   } catch (error) {
     if (error instanceof ToolError) return reply({ error: error.message });
     throw error;

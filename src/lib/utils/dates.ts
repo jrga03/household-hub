@@ -24,8 +24,11 @@ export function parseLocalDate(dateString: string): Date {
   return new Date(year, month - 1, day);
 }
 
+/** The local calendar date of a moment, "yyyy-MM-dd". */
+export const localDate = (date: Date) => format(date, "yyyy-MM-dd");
+
 /** Today's local calendar date, "yyyy-MM-dd". */
-export const todayLocalDate = () => format(new Date(), "yyyy-MM-dd");
+export const todayLocalDate = () => localDate(new Date());
 
 /** Whether the value names a calendar month, "yyyy-MM". */
 export const isLocalMonth = (value: unknown): value is string =>

@@ -7,7 +7,7 @@ import { getAccount, type AccountRow } from "@/lib/accounts/projection";
 import { getCategory, type CategoryRow } from "@/lib/categories/projection";
 import { isLocalDate } from "@/lib/transactions/events";
 import { isLocalMonth } from "@/lib/utils/dates";
-import { canSee } from "./scope";
+import { canSee } from "./session";
 
 export type ToolArguments = Record<string, unknown>;
 

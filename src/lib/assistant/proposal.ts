@@ -1,15 +1,15 @@
 /**
- * add_transaction never records: it checks the model's line the way the form
+ * add_transaction never records: it checks the model's arguments the way the form
  * would and returns a Proposal. Only the member's Confirm calls addTransaction
  * (ADR 0010).
  */
 
-import { format } from "date-fns";
 import type { AccountRow } from "@/lib/accounts/projection";
 import { canHoldMoneyIn, type CategoryRow } from "@/lib/categories/projection";
 import type { TransactionInput } from "@/lib/commands/transactions";
 import { formatPHP, parsePHPSafe } from "@/lib/currency";
 import { VISIBILITY_LABELS } from "@/lib/events/log";
+import { localDate } from "@/lib/utils/dates";
 import {
   checkTransactionDetails,
   isTransactionType,
@@ -22,7 +22,7 @@ import {
   ToolError,
   type ToolArguments,
 } from "./arguments";
-import { listUsableAccounts, type AssistantScope } from "./scope";
+import { listUsableAccounts, onlyAccount, type AssistantSession } from "./session";
 
 export type TransactionProposal = Required<TransactionInput>;
 
@@ -43,9 +43,8 @@ function readAmount(args: ToolArguments) {
 async function readAccount(args: ToolArguments, userId: string): Promise<AccountRow> {
   const accountId = optionalString(args, "account_id");
   if (accountId !== undefined) return requireUsableAccount(userId, accountId);
-  const accounts = await listUsableAccounts(userId);
-  const [onlyAccount] = accounts;
-  if (accounts.length === 1 && onlyAccount) return onlyAccount;
+  const defaultAccount = onlyAccount(await listUsableAccounts(userId));
+  if (defaultAccount) return defaultAccount;
   throw new ToolError("No account given. Ask the member which account.");
 }
 
@@ -72,14 +71,14 @@ async function readCategory(
   return category;
 }
 
-export async function proposeTransaction(args: ToolArguments, { userId, now }: AssistantScope) {
+export async function proposeTransaction(args: ToolArguments, { userId, now }: AssistantSession) {
   const type = optionalString(args, "type") ?? "expense";
   if (!isTransactionType(type)) throw new ToolError("type must be expense or income.");
   const amountCents = readAmount(args);
   const account = await readAccount(args, userId);
   const category = await readCategory(args, userId, account, type);
   const { details, problem } = checkTransactionDetails({
-    date: optionalString(args, "date") ?? format(now, "yyyy-MM-dd"),
+    date: optionalString(args, "date") ?? localDate(now),
     type,
     amountCents,
     accountId: account.id,
@@ -103,7 +102,7 @@ export async function proposeTransaction(args: ToolArguments, { userId, now }: A
   };
   return {
     proposal,
-    proposed: {
+    summary: {
       date: proposal.date,
       type: proposal.type,
       amount: formatPHP(proposal.amountCents),
