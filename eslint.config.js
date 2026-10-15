@@ -181,17 +181,14 @@ export default [
         ecmaVersion: "latest",
         sourceType: "module",
       },
-      globals: {
-        Response: "readonly",
-        console: "readonly",
-        fetch: "readonly",
-      },
     },
     plugins: {
       "@typescript-eslint": typescript,
     },
     rules: {
       ...typescript.configs.recommended.rules,
+      // tsc (tsconfig.tests.json) resolves the runtime globals; a hand-kept list here only drifts.
+      "no-undef": "off",
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },

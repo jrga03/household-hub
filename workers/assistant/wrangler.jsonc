@@ -1,0 +1,10 @@
+// Proxies the in-app assistant to Workers AI for signed-in members. Keeps no data. See DEPLOYMENT.md.
+// Secrets: SUPABASE_URL and ALLOWED_ORIGINS (`npx wrangler@4.149.0 secret put <name>`); `.dev.vars` locally.
+{
+  "name": "household-hub-assistant",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-02-19",
+  // The AI binding always calls Cloudflare, even under `wrangler dev`, and spends the daily neurons.
+  "ai": { "binding": "AI", "remote": true },
+  "observability": { "enabled": true },
+}
