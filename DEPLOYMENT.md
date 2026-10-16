@@ -35,11 +35,11 @@ Configure these in **Cloudflare Pages** → Settings → Environment variables:
 
 ### Optional Variables
 
-| Variable             | Description                                                                                                                                                         | Example                                           |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| `VITE_SENTRY_DSN`    | Sentry project DSN for error tracking                                                                                                                               | `https://xxx@sentry.io/xxx`                       |
-| `VITE_APP_VERSION`   | App version for release tracking                                                                                                                                    | `0.0.1` (from package.json)                       |
-| `VITE_ASSISTANT_URL` | The [Assistant Worker](#assistant-worker)'s URL. Unset, the app has no Assistant screen or nav entry. Its origin must also be in `connect-src` in `public/_headers` | `https://household-hub-assistant.xxx.workers.dev` |
+| Variable             | Description                                                                                                                                                                   | Example                                           |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `VITE_SENTRY_DSN`    | Sentry project DSN for error tracking                                                                                                                                         | `https://xxx@sentry.io/xxx`                       |
+| `VITE_APP_VERSION`   | App version for release tracking                                                                                                                                              | `0.0.1` (from package.json)                       |
+| `VITE_ASSISTANT_URL` | The [Assistant Worker](#assistant-worker)'s URL. Unset, the app has no Assistant screen or nav entry. The build adds its origin to the CSP's `connect-src` in `dist/_headers` | `https://household-hub-assistant.xxx.workers.dev` |
 
 ### How to Get Variables
 
