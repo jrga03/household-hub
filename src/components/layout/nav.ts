@@ -7,9 +7,11 @@ import {
   PiggyBank,
   Receipt,
   Settings,
+  Sparkles,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+import { ASSISTANT_URL } from "@/lib/assistant/config";
 import type { FileRoutesByTo } from "@/routeTree.gen";
 
 export type RoutePath = keyof FileRoutesByTo;
@@ -31,6 +33,7 @@ export const DAILY_NAV: NavItem[] = [
   { to: "/transactions", label: "Transactions", icon: Receipt, shortcut: "g t", tab: true },
   { to: "/budget", label: "Budget", icon: PiggyBank, shortcut: "g b" },
   { to: "/review", label: "Review", icon: ClipboardCheck, shortcut: "g r", reviewCount: true },
+  ...(ASSISTANT_URL ? [{ to: "/assistant", label: "Assistant", icon: Sparkles } as const] : []),
 ];
 
 export const MANAGE_NAV: NavItem[] = [

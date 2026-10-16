@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountsRouteImport } from './routes/accounts'
+import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as BudgetRouteImport } from './routes/budget'
 import { Route as CategoriesRouteImport } from './routes/categories'
 import { Route as CreateOrJoinRouteImport } from './routes/create-or-join'
@@ -30,6 +31,11 @@ const IndexRoute = IndexRouteImport.update({
 const AccountsRoute = AccountsRouteImport.update({
   id: '/accounts',
   path: '/accounts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AssistantRoute = AssistantRouteImport.update({
+  id: '/assistant',
+  path: '/assistant',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BudgetRoute = BudgetRouteImport.update({
@@ -86,6 +92,7 @@ const TransactionsRoute = TransactionsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
+  '/assistant': typeof AssistantRoute
   '/budget': typeof BudgetRoute
   '/categories': typeof CategoriesRoute
   '/create-or-join': typeof CreateOrJoinRoute
@@ -100,6 +107,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
+  '/assistant': typeof AssistantRoute
   '/budget': typeof BudgetRoute
   '/categories': typeof CategoriesRoute
   '/create-or-join': typeof CreateOrJoinRoute
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
+  '/assistant': typeof AssistantRoute
   '/budget': typeof BudgetRoute
   '/categories': typeof CategoriesRoute
   '/create-or-join': typeof CreateOrJoinRoute
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/accounts'
+    | '/assistant'
     | '/budget'
     | '/categories'
     | '/create-or-join'
@@ -145,6 +155,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/accounts'
+    | '/assistant'
     | '/budget'
     | '/categories'
     | '/create-or-join'
@@ -159,6 +170,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/accounts'
+    | '/assistant'
     | '/budget'
     | '/categories'
     | '/create-or-join'
@@ -174,6 +186,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountsRoute: typeof AccountsRoute
+  AssistantRoute: typeof AssistantRoute
   BudgetRoute: typeof BudgetRoute
   CategoriesRoute: typeof CategoriesRoute
   CreateOrJoinRoute: typeof CreateOrJoinRoute
@@ -200,6 +213,13 @@ declare module '@tanstack/react-router' {
       path: '/accounts'
       fullPath: '/accounts'
       preLoaderRoute: typeof AccountsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/assistant': {
+      id: '/assistant'
+      path: '/assistant'
+      fullPath: '/assistant'
+      preLoaderRoute: typeof AssistantRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/budget': {
@@ -278,6 +298,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountsRoute: AccountsRoute,
+  AssistantRoute: AssistantRoute,
   BudgetRoute: BudgetRoute,
   CategoriesRoute: CategoriesRoute,
   CreateOrJoinRoute: CreateOrJoinRoute,
