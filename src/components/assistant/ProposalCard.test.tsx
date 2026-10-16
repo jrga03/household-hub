@@ -5,7 +5,7 @@ import { createCategory, createGroup } from "@/lib/commands/categories";
 import { parsePHP } from "@/lib/currency";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { listTransactions } from "@/lib/transactions/projection";
-import type { ProposalEntry } from "@/lib/assistant/conversation";
+import type { ProposalItem } from "@/lib/assistant/conversation";
 import { ProposalCard } from "./ProposalCard";
 
 const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
@@ -40,7 +40,7 @@ async function setUp() {
   return { gcash, bpi, wallet, dining, groceries };
 }
 
-function proposalOn(accountId: string, categoryId: string): ProposalEntry {
+function proposalOn(accountId: string, categoryId: string): ProposalItem {
   return {
     kind: "proposal",
     callId: "call-1",
@@ -65,7 +65,7 @@ describe("ProposalCard", () => {
   it("shows what will be recorded", async () => {
     const { gcash, dining } = await setUp();
     render(
-      <ProposalCard entry={proposalOn(gcash.id, dining.id)} actor={MEMBER} onDecide={vi.fn()} />
+      <ProposalCard item={proposalOn(gcash.id, dining.id)} actor={MEMBER} onDecide={vi.fn()} />
     );
 
     const card = await screen.findByRole("form", { name: "Confirm transaction" });
@@ -82,7 +82,7 @@ describe("ProposalCard", () => {
     const { gcash, bpi, dining, groceries } = await setUp();
     const onDecide = vi.fn();
     render(
-      <ProposalCard entry={proposalOn(gcash.id, dining.id)} actor={MEMBER} onDecide={onDecide} />
+      <ProposalCard item={proposalOn(gcash.id, dining.id)} actor={MEMBER} onDecide={onDecide} />
     );
 
     await screen.findByLabelText("Account");
@@ -117,7 +117,7 @@ describe("ProposalCard", () => {
   it("drops a category that can't hold money in the newly chosen account", async () => {
     const { gcash, dining } = await setUp();
     render(
-      <ProposalCard entry={proposalOn(gcash.id, dining.id)} actor={MEMBER} onDecide={vi.fn()} />
+      <ProposalCard item={proposalOn(gcash.id, dining.id)} actor={MEMBER} onDecide={vi.fn()} />
     );
 
     await screen.findByLabelText("Account");
@@ -129,7 +129,7 @@ describe("ProposalCard", () => {
     const { gcash, dining } = await setUp();
     const onDecide = vi.fn();
     render(
-      <ProposalCard entry={proposalOn(gcash.id, dining.id)} actor={MEMBER} onDecide={onDecide} />
+      <ProposalCard item={proposalOn(gcash.id, dining.id)} actor={MEMBER} onDecide={onDecide} />
     );
 
     fireEvent.click(await screen.findByRole("button", { name: "Dismiss" }));
@@ -140,15 +140,19 @@ describe("ProposalCard", () => {
     expect(await listTransactions()).toEqual([]);
   });
 
-  it("shows the decision once made, without the buttons", async () => {
-    const { gcash, dining } = await setUp();
-    const entry = {
-      ...proposalOn(gcash.id, dining.id),
-      decision: { outcome: "recorded" as const, content: "{}" },
+  it("shows what was recorded once decided, without the buttons", async () => {
+    const { gcash, bpi, dining } = await setUp();
+    const proposed = proposalOn(gcash.id, dining.id);
+    const recorded = { ...proposed.proposal, accountId: bpi.id, date: "2026-10-15" };
+    const item = {
+      ...proposed,
+      decision: { outcome: "recorded" as const, recorded, content: "{}" },
     };
-    render(<ProposalCard entry={entry} actor={MEMBER} onDecide={vi.fn()} />);
+    render(<ProposalCard item={item} actor={MEMBER} onDecide={vi.fn()} />);
 
     expect(await screen.findByText("Recorded")).toBeInTheDocument();
+    expect(screen.getByLabelText("Account")).toHaveTextContent("BPI");
+    expect(screen.getByLabelText("Date")).toHaveValue("2026-10-15");
     expect(screen.queryByRole("button", { name: "Confirm" })).not.toBeInTheDocument();
   });
 });

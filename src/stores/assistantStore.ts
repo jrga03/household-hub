@@ -6,7 +6,7 @@ import {
   addMemberMessage,
   continueConversation,
   decideProposal,
-  type Entry,
+  type ChatItem,
   type ProposalDecision,
 } from "@/lib/assistant/conversation";
 import { runAssistantTool } from "@/lib/assistant/tools";
@@ -21,8 +21,8 @@ const client =
   });
 
 interface AssistantStore {
-  entries: Entry[];
-  /** The reply streaming in, until it joins `entries`. */
+  items: ChatItem[];
+  /** The reply streaming in, until it joins `items`. */
   replyText: string;
   busy: boolean;
   error: string | null;
@@ -32,7 +32,7 @@ interface AssistantStore {
 }
 
 const EMPTY = {
-  entries: [],
+  items: [],
   replyText: "",
   busy: false,
   error: null,
@@ -59,27 +59,27 @@ export const useAssistantStore = create<AssistantStore>()((set, get) => {
 
     send: async (text, userId) => {
       if (!client || get().busy) return;
-      const number = conversationNumber;
+      const startedIn = conversationNumber;
       const update = (state: Partial<AssistantStore>) => {
-        if (number === conversationNumber) set(state);
+        if (startedIn === conversationNumber) set(state);
       };
-      const entries = addMemberMessage(get().entries, text);
-      update({ entries, busy: true, error: null, replyText: "" });
+      const items = addMemberMessage(get().items, text);
+      update({ items, busy: true, error: null, replyText: "" });
       try {
         // Rebuilt for each message, so "today" and new accounts stay current in a long-open app.
         const session = { userId, now: new Date() };
         const context = await buildSessionContext(session);
         const settled = await continueConversation({
           context,
-          entries,
+          items,
           client,
           runTool: (name, rawArguments) => runAssistantTool(name, rawArguments, session),
-          onProgress: (progress) => update({ entries: progress, replyText: "" }),
+          onProgress: (progress) => update({ items: progress, replyText: "" }),
           onText: (replyText) => update({ replyText }),
         });
-        update({ entries: settled });
+        update({ items: settled });
       } catch (error) {
-        if (number !== conversationNumber) return;
+        if (startedIn !== conversationNumber) return;
         if (error instanceof LimitReachedError) reachLimit(error.resetsAt);
         else if (error instanceof AssistantError) set({ error: error.message });
         else {
@@ -91,7 +91,7 @@ export const useAssistantStore = create<AssistantStore>()((set, get) => {
       }
     },
 
-    decide: (callId, decision) => set({ entries: decideProposal(get().entries, callId, decision) }),
+    decide: (callId, decision) => set({ items: decideProposal(get().items, callId, decision) }),
   };
 });
 

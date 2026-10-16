@@ -6,7 +6,7 @@ import {
   continueConversation,
   decideProposal,
   toMessages,
-  type Entry,
+  type ChatItem,
 } from "./conversation";
 import type { AssistantReply } from "./stream";
 import type { ToolOutcome } from "./tools";
@@ -52,11 +52,11 @@ async function ask(
   text: string,
   client: AssistantClient,
   runTool = readTool,
-  entries: Entry[] = []
+  items: ChatItem[] = []
 ) {
   return continueConversation({
     context: CONTEXT,
-    entries: addMemberMessage(entries, text),
+    items: addMemberMessage(items, text),
     client,
     runTool,
     onProgress: () => {},
@@ -67,14 +67,14 @@ async function ask(
 describe("continueConversation", () => {
   it("opens with the session context and ends on a reply without tool calls", async () => {
     const { client, sent } = scriptedClient(say("Hello! How can I help?"));
-    const entries = await ask("hi", client);
+    const items = await ask("hi", client);
     expect(sent).toEqual([
       [
         { role: "system", content: CONTEXT },
         { role: "user", content: "hi" },
       ],
     ]);
-    expect(entries.at(-1)).toEqual({
+    expect(items.at(-1)).toEqual({
       kind: "assistant",
       text: "Hello! How can I help?",
       toolCalls: [],
@@ -86,7 +86,7 @@ describe("continueConversation", () => {
       call("call-1", "get_account_balances"),
       say("GCash has ₱750.00.")
     );
-    const entries = await ask("how much in gcash?", client);
+    const items = await ask("how much in gcash?", client);
     expect(readTool).toHaveBeenCalledWith("get_account_balances", "{}");
     expect(sent[1]?.slice(2)).toEqual([
       {
@@ -102,7 +102,7 @@ describe("continueConversation", () => {
       },
       { role: "tool", tool_call_id: "call-1", content: '{"accounts":[]}' },
     ]);
-    expect(entries.at(-1)).toMatchObject({ kind: "assistant", text: "GCash has ₱750.00." });
+    expect(items.at(-1)).toMatchObject({ kind: "assistant", text: "GCash has ₱750.00." });
   });
 
   it("stops at a proposal and waits for the member", async () => {
@@ -110,9 +110,9 @@ describe("continueConversation", () => {
     const runTool = vi.fn(() =>
       Promise.resolve({ content: '{"status":"Shown to the member"}', proposal })
     );
-    const entries = await ask("jollibee 250 gcash", client, runTool);
+    const items = await ask("jollibee 250 gcash", client, runTool);
     expect(sent).toHaveLength(1);
-    expect(entries.at(-1)).toEqual({
+    expect(items.at(-1)).toEqual({
       kind: "proposal",
       callId: "call-1",
       proposal,
@@ -131,7 +131,7 @@ describe("continueConversation", () => {
 });
 
 describe("the member's decision on a proposal", () => {
-  const waiting: Entry[] = [
+  const waiting: ChatItem[] = [
     { kind: "user", text: "jollibee 250 gcash" },
     {
       kind: "assistant",
@@ -144,6 +144,7 @@ describe("the member's decision on a proposal", () => {
   it("goes back to the model as the tool's result with the next message", () => {
     const decided = decideProposal(waiting, "call-1", {
       outcome: "recorded",
+      recorded: proposal,
       content: '{"recorded":{}}',
     });
     expect(toMessages(CONTEXT, addMemberMessage(decided, "thanks")).slice(-2)).toEqual([
@@ -153,9 +154,9 @@ describe("the member's decision on a proposal", () => {
   });
 
   it("is a decline when the member writes instead of tapping", () => {
-    const entries = addMemberMessage(waiting, "make it 300");
-    expect(entries[2]).toMatchObject({ kind: "proposal", decision: { outcome: "dismissed" } });
-    expect(toMessages(CONTEXT, entries).at(-2)).toMatchObject({
+    const items = addMemberMessage(waiting, "make it 300");
+    expect(items[2]).toMatchObject({ kind: "proposal", decision: { outcome: "dismissed" } });
+    expect(toMessages(CONTEXT, items).at(-2)).toMatchObject({
       role: "tool",
       tool_call_id: "call-1",
       content: expect.stringContaining("Nothing was recorded") as unknown,

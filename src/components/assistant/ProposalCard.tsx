@@ -22,7 +22,12 @@ import {
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import type { AccountRow } from "@/lib/accounts/projection";
-import { DISMISSED, type ProposalDecision, type ProposalEntry } from "@/lib/assistant/conversation";
+import {
+  DISMISSED,
+  recordedDecision,
+  type ProposalDecision,
+  type ProposalItem,
+} from "@/lib/assistant/conversation";
 import { canSee } from "@/lib/assistant/session";
 import type { CategoryList } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
@@ -34,11 +39,11 @@ type Decide = (callId: string, decision: ProposalDecision) => void;
 
 /** add_transaction's proposal: nothing is written until the member taps Confirm (ADR 0010). */
 export function ProposalCard({
-  entry,
+  item,
   actor,
   onDecide,
 }: {
-  entry: ProposalEntry;
+  item: ProposalItem;
   actor: Actor;
   onDecide: Decide;
 }) {
@@ -47,7 +52,7 @@ export function ProposalCard({
   if (!accounts || !categories) return null;
   return (
     <ProposalForm
-      entry={entry}
+      item={item}
       actor={actor}
       accounts={accounts.filter(canSee(actor.userId))}
       categories={categories}
@@ -57,23 +62,25 @@ export function ProposalCard({
 }
 
 function ProposalForm({
-  entry,
+  item,
   actor,
   accounts,
   categories,
   onDecide,
 }: {
-  entry: ProposalEntry;
+  item: ProposalItem;
   actor: Actor;
   accounts: AccountRow[];
   categories: CategoryList;
   onDecide: Decide;
 }) {
-  const { callId, proposal, decision } = entry;
-  const [accountId, setAccountId] = useState(proposal.accountId);
+  const { callId, proposal, decision } = item;
+  // Once confirmed, the card shows what was recorded, also after leaving the screen and coming back.
+  const shown = decision?.outcome === "recorded" ? decision.recorded : proposal;
+  const [accountId, setAccountId] = useState(shown.accountId);
   const account = accounts.find((choice) => choice.id === accountId);
   const choices = categoryChoices(categories, account, null);
-  const [categoryId, setCategoryId] = useState(proposal.categoryId ?? UNASSIGNED);
+  const [categoryId, setCategoryId] = useState(shown.categoryId ?? UNASSIGNED);
   // As on the transaction form, a category that can't hold money in the chosen account falls back to Unassigned.
   const shownCategoryId = isCategoryChoice(choices, categoryId) ? categoryId : UNASSIGNED;
   const categoryName =
@@ -95,19 +102,10 @@ function ProposalForm({
         return errorMessage(caught, "Couldn't record the transaction.");
       }
       toast.success("Transaction added");
-      onDecide(callId, {
-        outcome: "recorded",
-        content: JSON.stringify({
-          recorded: {
-            date,
-            type: recorded.type,
-            amount: formatPHP(recorded.amountCents),
-            account: account?.name,
-            category: categoryName,
-            description: recorded.description,
-          },
-        }),
-      });
+      onDecide(
+        callId,
+        recordedDecision(recorded, { account: account?.name ?? "", category: categoryName })
+      );
       return null;
     },
     null
@@ -156,13 +154,7 @@ function ProposalForm({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={`${callId}-date`}>Date</Label>
-          <Input
-            id={`${callId}-date`}
-            name="date"
-            type="date"
-            required
-            defaultValue={proposal.date}
-          />
+          <Input id={`${callId}-date`} name="date" type="date" required defaultValue={shown.date} />
         </div>
       </fieldset>
       <FormError>{error}</FormError>
