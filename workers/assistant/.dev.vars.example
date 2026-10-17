@@ -1,3 +1,5 @@
 # Copy to .dev.vars for `npx wrangler@4.149.0 dev`. SUPABASE_URL is API_URL from `supabase status -o env`.
 SUPABASE_URL=http://127.0.0.1:54331
 ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+# Optional: a Groq key (Zero Data Retention on) for the fallback. Unset, a 3036 answers the daily limit.
+GROQ_API_KEY=

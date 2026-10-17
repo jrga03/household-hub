@@ -1,3 +1,4 @@
+import { streamFromGroq, type GroqReply } from "./groq";
 import { isObject } from "./guards";
 import { rebuildMessages, rebuildTools, type ChatMessage, type Tool } from "./messages";
 
@@ -18,13 +19,20 @@ export interface HandlerEnv {
   AI: AiBinding;
   /** Comma-separated origins the app is served from. */
   ALLOWED_ORIGINS: string;
+  /** Unset, there is no fallback once the Workers AI daily allocation is spent. */
+  GROQ_API_KEY?: string;
 }
 
 export interface HandlerDeps {
   authorize: (token: string) => Promise<boolean>;
   sleep: (ms: number) => Promise<void>;
   nowMs: () => number;
+  fetch: typeof fetch;
+  /** Outlives a request: after a 3036, Workers AI is skipped until its 00:00 UTC reset. */
+  workersAi: { spentUntilMs: number };
 }
+
+type ModelReply = GroqReply | { kind: "spent" } | { kind: "busy" };
 
 function corsHeaders(origin: string | null): HeadersInit {
   return origin ? { "access-control-allow-origin": origin, vary: "Origin" } : {};
@@ -34,11 +42,9 @@ function jsonResponse(status: number, body: unknown, origin: string | null) {
   return Response.json(body, { status, headers: corsHeaders(origin) });
 }
 
-function nextUtcMidnight(nowMs: number) {
+function nextUtcMidnightMs(nowMs: number) {
   const now = new Date(nowMs);
-  return new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
-  ).toISOString();
+  return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
 }
 
 /** The binding throws an AiError whose message starts with the code: "3040: Capacity temporarily exceeded…". */
@@ -93,38 +99,78 @@ export async function handleRequest(
   const body = await readBody(request);
   if (!body) return jsonResponse(400, { error: "invalid_request" }, requestOrigin);
 
-  const input = { ...body, stream: true as const, max_tokens: MAX_TOKENS };
-  let stream: unknown;
-  try {
-    stream = await env.AI.run(MODEL, input).catch(async (error: unknown) => {
-      if (aiErrorCode(error) !== OUT_OF_CAPACITY) throw error;
-      await deps.sleep(CAPACITY_RETRY_DELAY_MS);
-      return env.AI.run(MODEL, input);
+  const nowMs = deps.nowMs();
+  const workersAiResetMs = nextUtcMidnightMs(nowMs);
+  let reply: ModelReply = { kind: "spent" };
+  if (nowMs >= deps.workersAi.spentUntilMs) {
+    reply = await streamFromWorkersAi(env.AI, body, deps.sleep);
+    if (reply.kind === "spent") deps.workersAi.spentUntilMs = workersAiResetMs;
+  }
+  if (reply.kind === "spent" && env.GROQ_API_KEY) {
+    reply = await streamFromGroq({
+      apiKey: env.GROQ_API_KEY,
+      fetch: deps.fetch,
+      ...body,
+      maxTokens: MAX_TOKENS,
     });
-  } catch (error) {
-    const code = aiErrorCode(error);
-    if (code === DAILY_NEURONS_USED_UP) {
+  }
+
+  switch (reply.kind) {
+    case "stream":
+      return new Response(reply.stream, {
+        headers: {
+          ...corsHeaders(requestOrigin),
+          "content-type": "text/event-stream",
+          "cache-control": "no-store",
+        },
+      });
+    case "spent":
       return jsonResponse(
         429,
-        { error: "daily_limit", resetsAt: nextUtcMidnight(deps.nowMs()) },
+        { error: "daily_limit", resetsAt: new Date(workersAiResetMs).toISOString() },
+        requestOrigin
+      );
+    case "limited": {
+      // Whichever provider frees up first can take the next message.
+      const resetsAtMs = Math.min(nowMs + reply.retryAfterMs, workersAiResetMs);
+      return jsonResponse(
+        429,
+        { error: "daily_limit", resetsAt: new Date(resetsAtMs).toISOString() },
         requestOrigin
       );
     }
-    if (code === OUT_OF_CAPACITY) return jsonResponse(503, { error: "busy" }, requestOrigin);
+    case "busy":
+      return jsonResponse(503, { error: "busy" }, requestOrigin);
+    case "upstream":
+      return jsonResponse(502, { error: "upstream" }, requestOrigin);
+  }
+}
+
+async function streamFromWorkersAi(
+  ai: AiBinding,
+  body: { messages: ChatMessage[]; tools: Tool[] },
+  sleep: HandlerDeps["sleep"]
+): Promise<ModelReply> {
+  const input = { ...body, stream: true as const, max_tokens: MAX_TOKENS };
+  let stream: unknown;
+  try {
+    stream = await ai.run(MODEL, input).catch(async (error: unknown) => {
+      if (aiErrorCode(error) !== OUT_OF_CAPACITY) throw error;
+      await sleep(CAPACITY_RETRY_DELAY_MS);
+      return ai.run(MODEL, input);
+    });
+  } catch (error) {
+    const code = aiErrorCode(error);
+    if (code === DAILY_NEURONS_USED_UP) return { kind: "spent" };
+    if (code === OUT_OF_CAPACITY) return { kind: "busy" };
     // Only the code: the message can echo the conversation, which the Worker must not keep.
     console.error(`Workers AI failed: ${code ?? "unknown error"}`);
-    return jsonResponse(502, { error: "upstream" }, requestOrigin);
+    return { kind: "upstream" };
   }
 
   if (!(stream instanceof ReadableStream)) {
     console.error("Workers AI did not return a stream");
-    return jsonResponse(502, { error: "upstream" }, requestOrigin);
+    return { kind: "upstream" };
   }
-  return new Response(stream, {
-    headers: {
-      ...corsHeaders(requestOrigin),
-      "content-type": "text/event-stream",
-      "cache-control": "no-store",
-    },
-  });
+  return { kind: "stream", stream };
 }

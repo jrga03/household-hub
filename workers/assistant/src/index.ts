@@ -13,6 +13,9 @@ function lookupFor(jwksUrl: string) {
   return keyLookup.lookup;
 }
 
+// Each isolate learns of a spent allocation from its own first 3036, then goes straight to Groq.
+const workersAi = { spentUntilMs: 0 };
+
 export default {
   fetch(request: Request, env: AssistantEnv) {
     const issuer = `${env.SUPABASE_URL}/auth/v1`;
@@ -22,6 +25,8 @@ export default {
         verifyAccessToken(token, { lookupKey, issuer, nowSeconds: Math.floor(Date.now() / 1000) }),
       sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
       nowMs: Date.now,
+      fetch: (input, init) => fetch(input, init),
+      workersAi,
     });
   },
 };

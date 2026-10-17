@@ -180,17 +180,19 @@ The Wrangler log prints `Supabase keep-alive succeeded`. A failed query logs `Su
 
 - **Token check:** ES256 against `<SUPABASE_URL>/auth/v1/.well-known/jwks.json` (held in memory, refetched for an unknown key id at most once a minute), with `exp`, `aud: "authenticated"` and `iss: <SUPABASE_URL>/auth/v1`. Anything else gets `401`.
 - **CORS:** only the origins in `ALLOWED_ORIGINS` get CORS headers, and a request from any other origin gets `403`. A request with no `Origin` header (curl, a script) still needs a valid token; browsers always send `Origin` on the app's cross-origin calls.
-- **Limits:** on AiError 3040 (out of capacity) it retries once after 1 s, then answers `503 { "error": "busy" }`. On 3036 (daily neurons used up) it answers `429 { "error": "daily_limit", "resetsAt": "<next 00:00 UTC>" }`. Other model failures answer `502 { "error": "upstream" }` and log only the error code.
+- **Limits:** on AiError 3040 (out of capacity) it retries once after 1 s, then answers `503 { "error": "busy" }`. On 3036 (daily neurons used up) it sends the same request to Groq `openai/gpt-oss-120b` and keeps doing so until 00:00 UTC (each isolate remembers this in memory). When Groq answers 429 too, or `GROQ_API_KEY` is unset, it answers `429 { "error": "daily_limit", "resetsAt": "…" }`: the next 00:00 UTC, or sooner if Groq's `retry-after` (a minute when it sends none) ends first. Other model failures answer `502 { "error": "upstream" }` and log only the error code or HTTP status.
+- **Groq:** used only with Zero Data Retention on (Groq console → Data Controls), per ADR 0010. Its free plan allows 8K tokens a minute and 200K a day for this model, so two members asking in the same minute can hit the per-minute limit.
 
 ### Settings
 
-| Setting           | Kind    | Value                                                                 |
-| ----------------- | ------- | --------------------------------------------------------------------- |
-| `AI`              | Binding | Workers AI, declared in `wrangler.jsonc`                              |
-| `SUPABASE_URL`    | Secret  | Production Supabase project URL, no trailing slash                    |
-| `ALLOWED_ORIGINS` | Secret  | Comma-separated app origins, e.g. the Pages URL and any custom domain |
+| Setting           | Kind    | Value                                                                     |
+| ----------------- | ------- | ------------------------------------------------------------------------- |
+| `AI`              | Binding | Workers AI, declared in `wrangler.jsonc`                                  |
+| `SUPABASE_URL`    | Secret  | Production Supabase project URL, no trailing slash                        |
+| `ALLOWED_ORIGINS` | Secret  | Comma-separated app origins, e.g. the Pages URL and any custom domain     |
+| `GROQ_API_KEY`    | Secret  | Groq API key for the fallback, from an organisation with ZDR on. Optional |
 
-Set the secrets in the Worker's **Settings → Variables and Secrets** as type **Secret**: a plain variable set in the dashboard is replaced by the next deploy, a secret is kept.
+Set the secrets in the assistant Worker's **Settings → Variables and Secrets** (not the Pages project, whose `VITE_*` variables end up in the public bundle, and not GitHub) as type **Secret**: a plain variable set in the dashboard is replaced by the next deploy, a secret is kept.
 
 ### Deploy
 

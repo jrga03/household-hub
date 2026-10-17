@@ -1,5 +1,6 @@
-// Proxies the in-app assistant to Workers AI for signed-in members. Keeps no data. See DEPLOYMENT.md.
-// Secrets: SUPABASE_URL and ALLOWED_ORIGINS (`npx wrangler@4.149.0 secret put <name>`); `.dev.vars` locally.
+// Proxies the in-app assistant to Workers AI, then Groq once the daily neurons run out, for signed-in members.
+// Keeps no data. See DEPLOYMENT.md.
+// Secrets: SUPABASE_URL, ALLOWED_ORIGINS and GROQ_API_KEY (`npx wrangler@4.149.0 secret put <name>`); `.dev.vars` locally.
 {
   "name": "household-hub-assistant",
   "main": "src/index.ts",
