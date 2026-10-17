@@ -1,6 +1,6 @@
 /**
- * The chat as a list of items, held in memory only (ADR 0010). Read tools run as
- * their calls arrive; add_transaction waits on a card until the member decides.
+ * The chat as a list of items, saved on the device per member (ADR 0010). Read tools
+ * run as their calls arrive; add_transaction waits on a card until the member decides.
  */
 
 import { formatPHP } from "@/lib/currency";
@@ -93,11 +93,28 @@ function toMessage(item: ChatItem): ChatMessage | null {
   }
 }
 
-/** What the model is sent: the session context first, then the chat. */
+// Each turn resends the history, so a long chat would spend more of the daily allocation every time.
+const HISTORY_LIMIT = 20;
+
+/**
+ * The last items up to the limit, starting at a member message so a tool call is never sent
+ * without its result. When the latest member message is further back, it starts there.
+ */
+function recentHistory(items: ChatItem[]): ChatItem[] {
+  const isMember = (item: ChatItem) => item.kind === "user";
+  const tailStart = Math.max(0, items.length - HISTORY_LIMIT);
+  const inTail = items.findIndex((item, index) => index >= tailStart && isMember(item));
+  const start = inTail >= 0 ? inTail : items.findLastIndex(isMember);
+  return items.slice(Math.max(0, start));
+}
+
+/** What the model is sent: the session context first, then the recent chat. */
 export function toMessages(context: string, items: ChatItem[]): ChatMessage[] {
   return [
     { role: "system", content: context },
-    ...items.map(toMessage).filter((message) => message !== null),
+    ...recentHistory(items)
+      .map(toMessage)
+      .filter((message) => message !== null),
   ];
 }
 

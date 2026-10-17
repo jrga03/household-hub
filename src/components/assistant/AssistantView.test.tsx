@@ -1,8 +1,14 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { HeaderSlotProvider, useHeaderSlot } from "@/components/layout/HeaderActions";
+import type { ChatItem } from "@/lib/assistant/conversation";
 import "@/lib/commands/accounts";
+import { confirm } from "@/lib/confirm";
+import { asCents } from "@/lib/currency";
 import { useAssistantStore } from "@/stores/assistantStore";
 import { AssistantView } from "./AssistantView";
+
+vi.mock("@/lib/confirm", () => ({ confirm: vi.fn() }));
 
 const actor = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
 
@@ -10,8 +16,10 @@ const showReply = (text: string) =>
   useAssistantStore.setState({ items: [{ kind: "assistant", text, toolCalls: [] }] });
 
 beforeEach(() => {
+  vi.mocked(confirm).mockReset();
   useAssistantStore.setState({
     items: [],
+    updatedAt: null,
     replyText: "",
     busy: false,
     error: null,
@@ -79,5 +87,82 @@ describe("AssistantView empty state", () => {
     render(<AssistantView actor={actor} />);
 
     expect(screen.queryByRole("button", { name: "jollibee 250 gcash" })).not.toBeInTheDocument();
+  });
+});
+
+describe("AssistantView New chat", () => {
+  function HeaderSlot() {
+    const { setSlot } = useHeaderSlot();
+    return <div ref={setSlot} />;
+  }
+
+  const renderWithHeader = () =>
+    render(
+      <HeaderSlotProvider>
+        <HeaderSlot />
+        <AssistantView actor={actor} />
+      </HeaderSlotProvider>
+    );
+
+  const chat: ChatItem[] = [
+    { kind: "user", text: "hi" },
+    { kind: "assistant", text: "Hello!", toolCalls: [] },
+  ];
+
+  const waitingCard: ChatItem = {
+    kind: "proposal",
+    callId: "call-1",
+    proposal: {
+      date: "2026-10-17",
+      type: "expense",
+      amountCents: asCents(25_000),
+      accountId: "acc-gcash",
+      categoryId: "cat-food",
+      description: "Jollibee",
+      notes: "",
+    },
+    decision: null,
+  };
+
+  it("is hidden while the chat is empty", () => {
+    renderWithHeader();
+
+    expect(screen.queryByRole("button", { name: "New chat" })).not.toBeInTheDocument();
+  });
+
+  it("starts fresh without asking when no card waits", async () => {
+    useAssistantStore.setState({ items: chat });
+    renderWithHeader();
+
+    fireEvent.click(await screen.findByRole("button", { name: "New chat" }));
+
+    await waitFor(() => expect(useAssistantStore.getState().items).toEqual([]));
+    expect(confirm).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "jollibee 250 gcash" })).toBeInTheDocument();
+  });
+
+  it("asks before discarding a waiting card, and keeps it on cancel", async () => {
+    vi.mocked(confirm).mockResolvedValue(false);
+    useAssistantStore.setState({ items: [...chat, waitingCard] });
+    renderWithHeader();
+
+    fireEvent.click(await screen.findByRole("button", { name: "New chat" }));
+
+    await waitFor(() =>
+      expect(confirm).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Discard the waiting transaction?" })
+      )
+    );
+    expect(useAssistantStore.getState().items).toHaveLength(3);
+  });
+
+  it("discards a waiting card once confirmed", async () => {
+    vi.mocked(confirm).mockResolvedValue(true);
+    useAssistantStore.setState({ items: [...chat, waitingCard] });
+    renderWithHeader();
+
+    fireEvent.click(await screen.findByRole("button", { name: "New chat" }));
+
+    await waitFor(() => expect(useAssistantStore.getState().items).toEqual([]));
   });
 });

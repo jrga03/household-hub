@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
+import { MessageSquarePlus } from "lucide-react";
+import { HeaderActions } from "@/components/layout/HeaderActions";
 import { Button } from "@/components/ui/button";
 import { FormError } from "@/components/ui/form-error";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import type { ChatItem } from "@/lib/assistant/conversation";
+import { isWaiting, type ChatItem } from "@/lib/assistant/conversation";
 import type { Actor } from "@/lib/commands/accounts";
+import { confirm } from "@/lib/confirm";
 import { useAssistantStore } from "@/stores/assistantStore";
 import { ChatComposer } from "./ChatComposer";
 import { ProposalCard } from "./ProposalCard";
@@ -45,6 +48,35 @@ function ChatItemView({ item, actor }: { item: ChatItem; actor: Actor }) {
   }
 }
 
+function NewChatButton({ userId }: { userId: string }) {
+  const { items, busy, startNewChat } = useAssistantStore();
+
+  const startFresh = async () => {
+    const keepsCard =
+      items.some(isWaiting) &&
+      !(await confirm({
+        title: "Discard the waiting transaction?",
+        description: "It hasn't been recorded. A new chat starts without it.",
+        confirmLabel: "Discard",
+        destructive: true,
+      }));
+    if (keepsCard) return;
+    await startNewChat(userId);
+  };
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label="New chat"
+      disabled={busy}
+      onClick={() => void startFresh()}
+    >
+      <MessageSquarePlus className="h-5 w-5" />
+    </Button>
+  );
+}
+
 export function AssistantView({ actor }: { actor: Actor }) {
   const { items, replyText, busy, error, limitResetsAt, send } = useAssistantStore();
   const online = useOnlineStatus();
@@ -56,6 +88,11 @@ export function AssistantView({ actor }: { actor: Actor }) {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4">
+      {items.length > 0 && (
+        <HeaderActions>
+          <NewChatButton userId={actor.userId} />
+        </HeaderActions>
+      )}
       {items.length === 0 && (
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">Try asking</p>
