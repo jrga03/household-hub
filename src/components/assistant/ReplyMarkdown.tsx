@@ -3,6 +3,11 @@ import remarkGfm from "remark-gfm";
 
 const components: Components = {
   p: ({ children }) => <p className="[&:not(:first-child)]:mt-2">{children}</p>,
+  a: ({ href, children }) => (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="underline">
+      {children}
+    </a>
+  ),
   ul: ({ children }) => <ul className="mt-2 list-disc space-y-1 pl-5">{children}</ul>,
   ol: ({ children }) => <ol className="mt-2 list-decimal space-y-1 pl-5">{children}</ol>,
   table: ({ children }) => (

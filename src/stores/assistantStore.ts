@@ -39,7 +39,8 @@ interface AssistantStore {
   limitResetsAt: Date | null;
   /** Resolves false when the message failed and was taken back out of the chat. */
   send: (text: string, userId: string) => Promise<boolean>;
-  decide: (callId: string, decision: ProposalDecision) => void;
+  /** Resolves once the decision is saved on the device. */
+  decide: (callId: string, decision: ProposalDecision) => Promise<void>;
   /** Brings back the member's saved chat when the screen opens, unless it has gone idle. */
   open: (userId: string) => Promise<void>;
   startNewChat: (userId: string) => Promise<void>;
@@ -65,6 +66,11 @@ const saveQuietly = (userId: string, items: ChatItem[], updatedAt: Date) =>
     reportError(error, { subsystem: "assistant", operation: "save-chat" });
   });
 
+const forgetQuietly = (userId: string) =>
+  forgetChat(userId).catch((error: unknown) => {
+    reportError(error, { subsystem: "assistant", operation: "forget-chat" });
+  });
+
 const currentChat = ({ items, updatedAt }: AssistantStore): SavedChat | null =>
   updatedAt && { items, updatedAt };
 
@@ -88,7 +94,7 @@ export const useAssistantStore = create<AssistantStore>()((set, get) => {
       const update = (state: Partial<AssistantStore>) => {
         if (startedIn === conversationNumber) set(state);
       };
-      const keep = (items: ChatItem[]) => {
+      const commitItems = (items: ChatItem[]) => {
         if (startedIn !== conversationNumber) return;
         const updatedAt = new Date();
         set({ items, updatedAt });
@@ -109,18 +115,20 @@ export const useAssistantStore = create<AssistantStore>()((set, get) => {
           client,
           runTool: (name, rawArguments) => runAssistantTool(name, rawArguments, session),
           onProgress: (progress) => {
-            keep(progress);
+            commitItems(progress);
             update({ replyText: "" });
           },
           onText: (replyText) => update({ replyText }),
         });
-        keep(settled);
+        commitItems(settled);
         return true;
       } catch (error) {
         // A new member's chat starts empty, so there's nothing to take back.
         if (startedIn !== conversationNumber) return true;
         // Back to before the message, so resending doesn't repeat it and a waiting card stays open.
-        set({ items: before, updatedAt: chat?.updatedAt ?? null });
+        const restoredAt = chat?.updatedAt ?? null;
+        set({ items: before, updatedAt: restoredAt });
+        await (restoredAt ? saveQuietly(userId, before, restoredAt) : forgetQuietly(userId));
         if (error instanceof LimitReachedError) reachLimit(error.resetsAt);
         else if (error instanceof AssistantError) set({ error: error.message });
         else {
@@ -133,11 +141,11 @@ export const useAssistantStore = create<AssistantStore>()((set, get) => {
       }
     },
 
-    decide: (callId, decision) => {
+    decide: async (callId, decision) => {
       const items = decideProposal(get().items, callId, decision);
       const updatedAt = new Date();
       set({ items, updatedAt });
-      if (owner) void saveQuietly(owner, items, updatedAt);
+      if (owner) await saveQuietly(owner, items, updatedAt);
     },
 
     open: async (userId) => {
@@ -158,7 +166,7 @@ export const useAssistantStore = create<AssistantStore>()((set, get) => {
     startNewChat: async (userId) => {
       owner = userId;
       set({ items: [], updatedAt: null, error: null });
-      await forgetChat(userId);
+      await forgetQuietly(userId);
     },
   };
 });

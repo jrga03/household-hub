@@ -1,21 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { HeaderSlotProvider, useHeaderSlot } from "@/components/layout/HeaderActions";
 import type { ChatItem } from "@/lib/assistant/conversation";
-import "@/lib/commands/accounts";
+import { createAccount } from "@/lib/commands/accounts"; // load-order cycle, see #159
+import { loadChat, saveChat } from "@/lib/assistant/savedChat";
 import { confirm } from "@/lib/confirm";
 import { asCents } from "@/lib/currency";
+import { resetLocalDatabase } from "@/lib/dexie/reset";
+import { listTransactions } from "@/lib/transactions/projection";
+import { toast } from "sonner";
 import { useAssistantStore } from "@/stores/assistantStore";
 import { AssistantView } from "./AssistantView";
 
 vi.mock("@/lib/confirm", () => ({ confirm: vi.fn() }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const actor = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
 
 const showReply = (text: string) =>
   useAssistantStore.setState({ items: [{ kind: "assistant", text, toolCalls: [] }] });
 
-beforeEach(() => {
+beforeEach(async () => {
+  await resetLocalDatabase();
   vi.mocked(confirm).mockReset();
   useAssistantStore.setState({
     items: [],
@@ -52,6 +58,17 @@ describe("AssistantView replies", () => {
 
     expect(container.querySelector("script")).toBeNull();
     expect(screen.getByText(/<script>window.hacked = true<\/script>/)).toBeInTheDocument();
+  });
+
+  it("opens links in a new tab and drops an unsafe href", () => {
+    showReply("[docs](https://example.com) and [bad](javascript:alert(1))");
+    render(<AssistantView actor={actor} />);
+
+    const link = screen.getByRole("link", { name: "docs" });
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    expect(screen.queryByRole("link", { name: "bad" })).toBeNull();
+    expect(document.querySelector('a[href^="javascript:"]')).toBeNull();
   });
 
   it("keeps the member's own message as plain text", () => {
@@ -150,7 +167,7 @@ describe("AssistantView New chat", () => {
 
     await waitFor(() =>
       expect(confirm).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Discard the waiting transaction?" })
+        expect.objectContaining({ title: "Discard this proposal?" })
       )
     );
     expect(useAssistantStore.getState().items).toHaveLength(3);
@@ -164,5 +181,57 @@ describe("AssistantView New chat", () => {
     fireEvent.click(await screen.findByRole("button", { name: "New chat" }));
 
     await waitFor(() => expect(useAssistantStore.getState().items).toEqual([]));
+  });
+});
+
+describe("AssistantView waiting card after a reload", () => {
+  // A member the other tests never opened, so the store holds nothing in memory for them.
+  const member = { ...actor, userId: "user-reloaded" };
+
+  it("records once, saves the decision before the toast, and can't be confirmed again", async () => {
+    const gcash = await createAccount(member, {
+      name: "GCash",
+      type: "e_wallet",
+      startingBalanceCents: asCents(0),
+    });
+    const card: ChatItem = {
+      kind: "proposal",
+      callId: "call-1",
+      decision: null,
+      proposal: {
+        date: "2026-10-17",
+        type: "expense",
+        amountCents: asCents(25_000),
+        accountId: gcash.id,
+        categoryId: null,
+        description: "Jollibee",
+        notes: "",
+      },
+    };
+    await saveChat(member.userId, [card], new Date());
+    await useAssistantStore.getState().open(member.userId);
+
+    let savedWhenToasted: Promise<unknown> | undefined;
+    vi.mocked(toast.success).mockImplementation(() => {
+      savedWhenToasted = loadChat(member.userId);
+      return 1;
+    });
+    render(<AssistantView actor={member} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm" }));
+
+    expect(await screen.findByText("Recorded")).toBeInTheDocument();
+    expect(await listTransactions()).toHaveLength(1);
+    expect(await savedWhenToasted).toMatchObject({
+      items: [{ kind: "proposal", decision: { outcome: "recorded" } }],
+    });
+
+    const reloaded = await loadChat(member.userId);
+    useAssistantStore.setState({ items: reloaded?.items ?? [], updatedAt: reloaded?.updatedAt });
+    cleanup();
+    render(<AssistantView actor={member} />);
+
+    expect(await screen.findByText("Recorded")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Confirm" })).not.toBeInTheDocument();
+    expect(await listTransactions()).toHaveLength(1);
   });
 });

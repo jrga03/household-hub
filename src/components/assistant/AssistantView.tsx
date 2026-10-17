@@ -55,7 +55,7 @@ function NewChatButton({ userId }: { userId: string }) {
     const keepsCard =
       items.some(isWaiting) &&
       !(await confirm({
-        title: "Discard the waiting transaction?",
+        title: "Discard this proposal?",
         description: "It hasn't been recorded. A new chat starts without it.",
         confirmLabel: "Discard",
         destructive: true,
@@ -80,7 +80,7 @@ function NewChatButton({ userId }: { userId: string }) {
 export function AssistantView({ actor }: { actor: Actor }) {
   const { items, replyText, busy, error, limitResetsAt, send } = useAssistantStore();
   const online = useOnlineStatus();
-  const [prompt, setPrompt] = useState({ text: "", pick: 0 });
+  const [prompt, setPrompt] = useState({ text: "", composerKey: 0 });
   useEffect(() => {
     // Main's bottom padding, not the composer, meets the screen edge, so the phone's Add button doesn't cover Send.
     document.getElementById("main-content")?.scrollIntoView?.({ block: "end" });
@@ -102,7 +102,9 @@ export function AssistantView({ actor }: { actor: Actor }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPrompt((previous) => ({ text, pick: previous.pick + 1 }))}
+                  onClick={() =>
+                    setPrompt((previous) => ({ text, composerKey: previous.composerKey + 1 }))
+                  }
                 >
                   {text}
                 </Button>
@@ -124,7 +126,7 @@ export function AssistantView({ actor }: { actor: Actor }) {
       </ol>
       <FormError>{error}</FormError>
       <ChatComposer
-        key={prompt.pick}
+        key={prompt.composerKey}
         initialText={prompt.text}
         online={online}
         limitResetsAt={limitResetsAt}

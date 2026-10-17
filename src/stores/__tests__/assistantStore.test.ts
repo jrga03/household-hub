@@ -27,19 +27,23 @@ vi.mock("@/lib/assistant/context", () => ({
   buildSessionContext: () => Promise.resolve("context"),
 }));
 vi.mock("@/lib/assistant/tools", () => ({
-  runAssistantTool: () =>
-    Promise.resolve({
-      content: '{"status":"Shown to the member"}',
-      proposal: {
-        date: "2026-10-17",
-        type: "expense",
-        amountCents: asCents(25_000),
-        accountId: "acc-gcash",
-        categoryId: "cat-food",
-        description: "Jollibee",
-        notes: "",
-      },
-    }),
+  runAssistantTool: (name: string) =>
+    Promise.resolve(
+      name !== "add_transaction"
+        ? { content: "[]" }
+        : {
+            content: '{"status":"Shown to the member"}',
+            proposal: {
+              date: "2026-10-17",
+              type: "expense",
+              amountCents: asCents(25_000),
+              accountId: "acc-gcash",
+              categoryId: "cat-food",
+              description: "Jollibee",
+              notes: "",
+            },
+          }
+    ),
 }));
 
 const USER = "user-a";
@@ -47,6 +51,10 @@ const HOUR = 60 * 60 * 1000;
 const START = new Date("2026-10-17T01:00:00Z");
 
 const say = (content: string): AssistantReply => ({ content, toolCalls: [] });
+const lookUp = (): AssistantReply => ({
+  content: "",
+  toolCalls: [{ id: "call-2", name: "list_accounts", arguments: "{}" }],
+});
 const propose = (): AssistantReply => ({
   content: "",
   toolCalls: [{ id: "call-1", name: "add_transaction", arguments: "{}" }],
@@ -93,7 +101,7 @@ describe("a saved assistant chat", () => {
     await before.getState().open(USER);
     replies.push(propose());
     await before.getState().send("jollibee 250 gcash", USER);
-    before.getState().decide("call-1", { outcome: "dismissed", content: "{}" });
+    await before.getState().decide("call-1", { outcome: "dismissed", content: "{}" });
 
     const after = await loadStore();
     await after.getState().open(USER);
@@ -167,6 +175,34 @@ describe("a saved assistant chat", () => {
 
     await store.getState().startNewChat(USER);
     expect(store.getState().items).toEqual([]);
+
+    const after = await loadStore();
+    await after.getState().open(USER);
+    expect(after.getState().items).toEqual([]);
+  });
+
+  it("does not bring back a failed send after a reload", async () => {
+    const before = await loadStore();
+    await before.getState().open(USER);
+    replies.push(propose());
+    await before.getState().send("jollibee 250 gcash", USER);
+    const settled = before.getState().items;
+
+    replies.push(lookUp());
+    const sentOk = await before.getState().send("and my balances?", USER);
+    expect(sentOk).toBe(false);
+
+    const after = await loadStore();
+    await after.getState().open(USER);
+    expect(after.getState().items).toEqual(settled);
+    expect(after.getState().items.at(-1)).toMatchObject({ kind: "proposal", decision: null });
+  });
+
+  it("forgets the saved row when the first send of a chat fails", async () => {
+    const before = await loadStore();
+    await before.getState().open(USER);
+    replies.push(lookUp());
+    expect(await before.getState().send("my balances?", USER)).toBe(false);
 
     const after = await loadStore();
     await after.getState().open(USER);
