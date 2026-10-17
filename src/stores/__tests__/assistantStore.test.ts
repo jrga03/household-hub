@@ -96,6 +96,20 @@ describe("a saved assistant chat", () => {
     expect(items.at(-1)).toMatchObject({ kind: "proposal", callId: "call-1", decision: null });
   });
 
+  it("keeps a card's transaction id across a reload, so Confirm records it once", async () => {
+    const before = await loadStore();
+    await before.getState().open(USER);
+    replies.push(propose());
+    await before.getState().send("jollibee 250 gcash", USER);
+    const proposed = before.getState().items.at(-1);
+
+    const after = await loadStore();
+    await after.getState().open(USER);
+
+    expect(proposed).toMatchObject({ transactionId: expect.any(String) as unknown });
+    expect(after.getState().items.at(-1)).toEqual(proposed);
+  });
+
   it("keeps a member's decision on a card", async () => {
     const before = await loadStore();
     await before.getState().open(USER);

@@ -129,6 +129,7 @@ describe("AssistantView New chat", () => {
   const waitingCard: ChatItem = {
     kind: "proposal",
     callId: "call-1",
+    transactionId: "eeeeeeee-0000-4000-8000-000000000001",
     proposal: {
       date: "2026-10-17",
       type: "expense",
@@ -197,6 +198,7 @@ describe("AssistantView waiting card after a reload", () => {
     const card: ChatItem = {
       kind: "proposal",
       callId: "call-1",
+      transactionId: "eeeeeeee-0000-4000-8000-000000000001",
       decision: null,
       proposal: {
         date: "2026-10-17",

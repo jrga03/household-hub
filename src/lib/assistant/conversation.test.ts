@@ -12,6 +12,7 @@ import type { AssistantReply } from "./stream";
 import type { ToolOutcome } from "./tools";
 
 const CONTEXT = "Today is 2026-10-16 (Friday).";
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 const proposal = {
   date: "2026-10-16",
@@ -115,6 +116,7 @@ describe("continueConversation", () => {
     expect(items.at(-1)).toEqual({
       kind: "proposal",
       callId: "call-1",
+      transactionId: expect.stringMatching(UUID) as unknown,
       proposal,
       decision: null,
     });
@@ -138,7 +140,7 @@ describe("the member's decision on a proposal", () => {
       text: "",
       toolCalls: [{ id: "call-1", name: "add_transaction", arguments: "{}" }],
     },
-    { kind: "proposal", callId: "call-1", proposal, decision: null },
+    { kind: "proposal", callId: "call-1", transactionId: "txn-1", proposal, decision: null },
   ];
 
   it("goes back to the model as the tool's result with the next message", () => {

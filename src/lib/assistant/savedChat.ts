@@ -4,11 +4,14 @@
  */
 
 import { db } from "@/lib/dexie/db";
-import { isWaiting, type ChatItem } from "./conversation";
+import { isWaiting, type ChatItem, type ProposalItem } from "./conversation";
+
+/** A card saved before cards carried their transaction's id (#156). */
+type CardWithoutId = Omit<ProposalItem, "transactionId"> & { transactionId?: undefined };
 
 export interface SavedChatRow {
   userId: string;
-  items: ChatItem[];
+  items: (ChatItem | CardWithoutId)[];
   /** When the chat last changed, as an ISO timestamp. */
   updatedAt: string;
 }
@@ -20,7 +23,17 @@ export interface SavedChat {
 
 export async function loadChat(userId: string): Promise<SavedChat | null> {
   const row = await db.assistantChats.get(userId);
-  return row ? { items: row.items, updatedAt: new Date(row.updatedAt) } : null;
+  if (!row) return null;
+  const items = row.items.map((item): ChatItem =>
+    item.kind === "proposal" && item.transactionId === undefined
+      ? { ...item, transactionId: crypto.randomUUID() }
+      : item
+  );
+  // Saved before the card can be confirmed, so a reload gives it the same id again.
+  if (row.items.some((item, index) => item !== items[index])) {
+    await db.assistantChats.put({ ...row, items });
+  }
+  return { items, updatedAt: new Date(row.updatedAt) };
 }
 
 export async function saveChat(userId: string, items: ChatItem[], updatedAt: Date): Promise<void> {

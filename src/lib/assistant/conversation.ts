@@ -21,6 +21,8 @@ export type ChatItem =
   | {
       kind: "proposal";
       callId: string;
+      /** Chosen when the card appears and saved with the chat, so a second Confirm records nothing. */
+      transactionId: string;
       proposal: TransactionProposal;
       decision: ProposalDecision | null;
     };
@@ -161,7 +163,13 @@ export async function continueConversation({
       current = [
         ...current,
         outcome.proposal
-          ? { kind: "proposal", callId: call.id, proposal: outcome.proposal, decision: null }
+          ? {
+              kind: "proposal",
+              callId: call.id,
+              transactionId: crypto.randomUUID(),
+              proposal: outcome.proposal,
+              decision: null,
+            }
           : { kind: "tool", callId: call.id, content: outcome.content },
       ];
     }

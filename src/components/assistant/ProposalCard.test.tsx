@@ -3,13 +3,16 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { createAccount } from "@/lib/commands/accounts";
 import { createCategory, createGroup } from "@/lib/commands/categories";
 import { parsePHP } from "@/lib/currency";
+import { db } from "@/lib/dexie/db";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { listTransactions } from "@/lib/transactions/projection";
 import type { ProposalItem } from "@/lib/assistant/conversation";
+import { loadChat } from "@/lib/assistant/savedChat";
 import { ProposalCard } from "./ProposalCard";
 
 const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
+const TRANSACTION_ID = "eeeeeeee-0000-4000-8000-000000000001";
 
 async function chooseOption(label: string, option: string) {
   fireEvent.keyDown(screen.getByLabelText(label), { key: "Enter" });
@@ -44,6 +47,7 @@ function proposalOn(accountId: string, categoryId: string): ProposalItem {
   return {
     kind: "proposal",
     callId: "call-1",
+    transactionId: TRANSACTION_ID,
     decision: null,
     proposal: {
       date: "2026-10-16",
@@ -112,6 +116,59 @@ describe("ProposalCard", () => {
     expect(JSON.parse(decision.content)).toMatchObject({
       recorded: { account: "BPI", category: "Groceries", date: "2026-10-15", amount: "₱250.00" },
     });
+  });
+
+  it("records once when confirmed again after a reload lost the decision", async () => {
+    const { gcash, dining } = await setUp();
+    const item = proposalOn(gcash.id, dining.id);
+    // The page is evicted before the decision is saved, so the card comes back waiting.
+    const lostDecision = vi.fn();
+    const first = render(<ProposalCard item={item} actor={MEMBER} onDecide={lostDecision} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm" }));
+    await waitFor(() => expect(lostDecision).toHaveBeenCalled());
+    first.unmount();
+
+    const onDecide = vi.fn();
+    render(<ProposalCard item={item} actor={MEMBER} onDecide={onDecide} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm" }));
+
+    await waitFor(() =>
+      expect(onDecide).toHaveBeenCalledWith(
+        "call-1",
+        expect.objectContaining({ outcome: "recorded" })
+      )
+    );
+    expect(await listTransactions()).toMatchObject([{ id: TRANSACTION_ID }]);
+  });
+
+  it("records a chat saved before cards had an id once, across a reload", async () => {
+    const { gcash, dining } = await setUp();
+    const { transactionId: _none, ...legacy } = proposalOn(gcash.id, dining.id);
+    await db.assistantChats.put({
+      userId: MEMBER.userId,
+      items: [legacy],
+      updatedAt: "2026-10-17T01:00:00.000Z",
+    });
+    const savedCard = async () => {
+      const [card] = (await loadChat(MEMBER.userId))?.items ?? [];
+      if (card?.kind !== "proposal") throw new Error("The saved card is missing.");
+      return card;
+    };
+
+    const lostDecision = vi.fn();
+    const first = render(
+      <ProposalCard item={await savedCard()} actor={MEMBER} onDecide={lostDecision} />
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm" }));
+    await waitFor(() => expect(lostDecision).toHaveBeenCalled());
+    first.unmount();
+
+    const onDecide = vi.fn();
+    render(<ProposalCard item={await savedCard()} actor={MEMBER} onDecide={onDecide} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm" }));
+
+    await waitFor(() => expect(onDecide).toHaveBeenCalled());
+    expect(await listTransactions()).toHaveLength(1);
   });
 
   it("drops a category that can't hold money in the newly chosen account", async () => {
