@@ -15,15 +15,18 @@ export function ChatComposer({
   online,
   limitResetsAt,
   busy,
+  initialText = "",
   onSend,
 }: {
   online: boolean;
   limitResetsAt: Date | null;
   busy: boolean;
+  /** Fills the input on mount; remount to fill it again. */
+  initialText?: string;
   /** Resolves false when the message didn't go through. */
   onSend: (text: string) => Promise<boolean>;
 }) {
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText);
   const blockedBecause = !online
     ? "The assistant needs a connection. Everything else works offline."
     : limitResetsAt

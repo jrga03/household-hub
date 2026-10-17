@@ -80,4 +80,13 @@ describe("buildSessionContext", () => {
 
     expect(await buildSessionContext(session)).toContain("No account: ask the member which one.");
   });
+
+  it("tells the model how to write its answers", async () => {
+    const context = await buildSessionContext(session);
+
+    expect(context).toContain("Reply in a few sentences.");
+    expect(context).toContain("Never show ids to the member");
+    expect(context).toContain("Prefer a list to a table");
+    expect(context).toContain("what you can do");
+  });
 });
