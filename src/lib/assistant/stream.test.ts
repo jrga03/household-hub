@@ -84,6 +84,17 @@ describe("readReply", () => {
     expect(reply.content).toBe("Hello!");
   });
 
+  it("fails when the provider reports an error partway through the reply", async () => {
+    const reply = readReply(
+      bodyOf(
+        chunk({ content: "Your balance" }),
+        'data: {"error":{"message":"Service unavailable","type":"internal_server_error"}}\n\n'
+      ),
+      () => {}
+    );
+    await expect(reply).rejects.toThrow();
+  });
+
   it("refuses a stream that isn't the chat shape", async () => {
     await expect(readReply(bodyOf("data: not json\n\n"), () => {})).rejects.toThrow();
   });

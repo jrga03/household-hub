@@ -12,7 +12,7 @@ A stateless Cloudflare Worker sits between the browser and the model. It verifie
 
 Workers AI `@cf/openai/gpt-oss-120b` through the Worker's `env.AI` binding is the primary provider: Cloudflare doesn't train on customer content or store it unless asked to, and the binding needs no outbound key. Groq `openai/gpt-oss-120b` is the fallback, used only with Zero Data Retention turned on; it serves the same model, so one tool schema and prompt work on both.
 
-On a limit, the Worker retries once on a capacity error, switches to Groq when the Workers AI daily allocation runs out, and when both are spent the chat disables its input and shows the reset time in local time (Workers AI resets at 00:00 UTC, 08:00 in Manila). Nothing is queued.
+On a limit, the Worker retries once on a capacity error, switches to Groq when the Workers AI daily allocation runs out, and when both are spent the chat disables its input and shows the reset time in local time (Workers AI resets at 00:00 UTC, 08:00 in Manila). A Groq per-minute limit counts as spent too, with its `retry-after` as the reset, so the input can be disabled for about a minute. Nothing is queued.
 
 ## Recording a transaction in one line
 
