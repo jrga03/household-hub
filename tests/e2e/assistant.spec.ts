@@ -4,6 +4,9 @@ import { chooseOption, navigateTo, signUpNewPerson } from "./fixtures/helpers";
 // Set by the pretest:e2e scripts; nothing answers there except the stub below.
 const ASSISTANT_URL = "https://assistant.e2e.test/";
 
+// page.route misses requests that pass through the PWA's service worker once it takes control.
+test.use({ serviceWorkers: "block" });
+
 interface StubRequest {
   messages: { role: string; content: string }[];
 }
@@ -110,4 +113,43 @@ test("a line typed to the assistant is recorded after Confirm", async ({ page })
     .filter({ hasText: "Jollibee" });
   await expect(row).toContainText("₱250.00");
   await expect(row).toContainText("Groceries");
+});
+
+test("a message that fails to send goes back in the input and is sent once", async ({ page }) => {
+  await signUpNewPerson(page);
+  await page.getByLabel("Household name").fill("Assistant retry home");
+  await page.getByRole("button", { name: "Create household" }).click();
+
+  const requests: StubRequest[] = [];
+  await page.route(ASSISTANT_URL, async (route: Route) => {
+    if (route.request().method() === "OPTIONS") {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+    requests.push(route.request().postDataJSON() as StubRequest);
+    await route.fulfill(
+      requests.length === 1
+        ? { status: 502, headers: corsHeaders, json: { error: "upstream" } }
+        : {
+            status: 200,
+            headers: { ...corsHeaders, "content-type": "text/event-stream" },
+            body: sse({ content: "Hello!" }),
+          }
+    );
+  });
+
+  await navigateTo(page, "Assistant");
+  const input = page.getByRole("textbox", { name: "Message the assistant" });
+  await input.fill("hi");
+  await page.getByRole("button", { name: "Send" }).click();
+
+  await expect(page.getByText("Couldn't reach the assistant. Try again.")).toBeVisible();
+  await expect(input).toHaveValue("hi");
+  await expect(page.getByRole("list", { name: "Conversation" })).not.toContainText("hi");
+
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByRole("list", { name: "Conversation" })).toContainText("Hello!");
+  expect(requests[1]?.messages.filter((message) => message.role === "user")).toEqual([
+    { role: "user", content: "hi" },
+  ]);
 });

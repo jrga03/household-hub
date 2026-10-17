@@ -27,7 +27,8 @@ interface AssistantStore {
   busy: boolean;
   error: string | null;
   limitResetsAt: Date | null;
-  send: (text: string, userId: string) => Promise<void>;
+  /** Resolves false when the message failed and was taken back out of the chat. */
+  send: (text: string, userId: string) => Promise<boolean>;
   decide: (callId: string, decision: ProposalDecision) => void;
 }
 
@@ -58,12 +59,13 @@ export const useAssistantStore = create<AssistantStore>()((set, get) => {
     ...EMPTY,
 
     send: async (text, userId) => {
-      if (!client || get().busy) return;
+      if (!client || get().busy) return false;
       const startedIn = conversationNumber;
       const update = (state: Partial<AssistantStore>) => {
         if (startedIn === conversationNumber) set(state);
       };
-      const items = addMemberMessage(get().items, text);
+      const before = get().items;
+      const items = addMemberMessage(before, text);
       update({ items, busy: true, error: null, replyText: "" });
       try {
         // Rebuilt for each message, so "today" and new accounts stay current in a long-open app.
@@ -78,14 +80,19 @@ export const useAssistantStore = create<AssistantStore>()((set, get) => {
           onText: (replyText) => update({ replyText }),
         });
         update({ items: settled });
+        return true;
       } catch (error) {
-        if (startedIn !== conversationNumber) return;
+        // A new member's chat starts empty, so there's nothing to take back.
+        if (startedIn !== conversationNumber) return true;
+        // Back to before the message, so resending doesn't repeat it and a waiting card stays open.
+        set({ items: before });
         if (error instanceof LimitReachedError) reachLimit(error.resetsAt);
         else if (error instanceof AssistantError) set({ error: error.message });
         else {
           console.error("Assistant failed:", error);
           set({ error: "Something went wrong. Try again." });
         }
+        return false;
       } finally {
         update({ busy: false, replyText: "" });
       }

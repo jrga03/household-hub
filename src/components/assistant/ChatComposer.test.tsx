@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ChatComposer } from "./ChatComposer";
 
 const input = () => screen.getByRole("textbox", { name: "Message the assistant" });
@@ -15,7 +15,7 @@ afterEach(() => {
 
 describe("ChatComposer", () => {
   it("sends the typed message and clears the input", () => {
-    const onSend = vi.fn();
+    const onSend = vi.fn(() => Promise.resolve(true));
     render(<ChatComposer online limitResetsAt={null} busy={false} onSend={onSend} />);
 
     fireEvent.change(input(), { target: { value: "jollibee 250 gcash" } });
@@ -60,5 +60,40 @@ describe("ChatComposer", () => {
 
     fireEvent.change(input(), { target: { value: "hello" } });
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+  });
+
+  it("puts a message that failed to send back in the input", async () => {
+    render(
+      <ChatComposer
+        online
+        limitResetsAt={null}
+        busy={false}
+        onSend={() => Promise.resolve(false)}
+      />
+    );
+
+    fireEvent.change(input(), { target: { value: "jollibee 250 gcash" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    await waitFor(() => expect(input()).toHaveValue("jollibee 250 gcash"));
+  });
+
+  it("keeps what the member typed meanwhile over a message that failed", async () => {
+    let fail = (_sent: boolean) => {};
+    render(
+      <ChatComposer
+        online
+        limitResetsAt={null}
+        busy={false}
+        onSend={() => new Promise((resolve) => (fail = resolve))}
+      />
+    );
+
+    fireEvent.change(input(), { target: { value: "hi" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    fireEvent.change(input(), { target: { value: "how much in gcash?" } });
+    await act(async () => fail(false));
+
+    expect(input()).toHaveValue("how much in gcash?");
   });
 });
