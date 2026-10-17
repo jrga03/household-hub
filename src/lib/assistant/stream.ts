@@ -28,6 +28,8 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 function readDelta(data: string): ChunkDelta {
   const parsed: unknown = JSON.parse(data);
   if (!isObject(parsed)) throw new Error("The assistant sent a reply this app can't read.");
+  // Groq ends a stream that fails partway with an OpenAI-style error event.
+  if ("error" in parsed) throw new Error("The assistant's provider failed partway through.");
   // Workers AI ends with a usage summary that has no choices.
   if (!Array.isArray(parsed.choices)) return {};
   const [choice]: unknown[] = parsed.choices;
