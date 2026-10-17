@@ -1,13 +1,46 @@
-import { defineConfig } from "vite";
+import { readFile, writeFile } from "node:fs/promises";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import { TanStackRouterVite } from "@tanstack/router-vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 import path from "path";
 
+/**
+ * Cloudflare Pages serves public/_headers as is, so the assistant Worker's origin
+ * is added to the built copy's connect-src from VITE_ASSISTANT_URL, the variable
+ * that turns the assistant on. Unset, the CSP stays as written.
+ */
+function allowAssistantOrigin(): Plugin {
+  let assistantUrl: string | undefined;
+  let headersPath = "";
+  return {
+    name: "allow-assistant-origin",
+    apply: "build",
+    configResolved(config) {
+      assistantUrl = config.env.VITE_ASSISTANT_URL || undefined;
+      headersPath = path.resolve(config.root, config.build.outDir, "_headers");
+    },
+    async closeBundle() {
+      if (!assistantUrl) return;
+      const origin = new URL(assistantUrl).origin;
+      const headers = await readFile(headersPath, "utf8");
+      if (headers.includes(`connect-src 'self' ${origin}`)) return;
+      if (!headers.includes("connect-src 'self'")) {
+        throw new Error("_headers has no connect-src 'self' to add the assistant's origin to.");
+      }
+      await writeFile(
+        headersPath,
+        headers.replace("connect-src 'self'", `connect-src 'self' ${origin}`)
+      );
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
+    allowAssistantOrigin(),
     tailwindcss(),
     // autoCodeSplitting: each route's component graph becomes its own chunk,
     // so heavy per-route dependencies (recharts, analytics dashboards, CSV
