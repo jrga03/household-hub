@@ -72,6 +72,18 @@ describe("readReply", () => {
     expect(reply.content).toBe("Done.");
   });
 
+  it("skips the usage summary Workers AI sends before [DONE]", async () => {
+    const reply = await readReply(
+      bodyOf(
+        chunk({ content: "Hello!" }),
+        'data: {"response":"","usage":{"prompt_tokens":117,"completion_tokens":27}}\n\n',
+        "data: [DONE]\n\n"
+      ),
+      () => {}
+    );
+    expect(reply.content).toBe("Hello!");
+  });
+
   it("refuses a stream that isn't the chat shape", async () => {
     await expect(readReply(bodyOf("data: not json\n\n"), () => {})).rejects.toThrow();
   });

@@ -17,6 +17,8 @@ const corsHeaders = {
 const sse = (...deltas: unknown[]) =>
   [
     ...deltas.map((delta) => `data: ${JSON.stringify({ choices: [{ delta }] })}\n\n`),
+    // Workers AI's closing usage summary, which has no choices.
+    'data: {"response":"","usage":{"prompt_tokens":117,"completion_tokens":27}}\n\n',
     "data: [DONE]\n\n",
   ].join("");
 

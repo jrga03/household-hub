@@ -27,9 +27,9 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 
 function readDelta(data: string): ChunkDelta {
   const parsed: unknown = JSON.parse(data);
-  if (!isObject(parsed) || !Array.isArray(parsed.choices)) {
-    throw new Error("The assistant sent a reply this app can't read.");
-  }
+  if (!isObject(parsed)) throw new Error("The assistant sent a reply this app can't read.");
+  // Workers AI ends with a usage summary that has no choices.
+  if (!Array.isArray(parsed.choices)) return {};
   const [choice]: unknown[] = parsed.choices;
   return isObject(choice) && isObject(choice.delta) ? choice.delta : {};
 }
