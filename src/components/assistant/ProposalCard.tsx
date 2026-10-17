@@ -35,7 +35,7 @@ import { addTransaction } from "@/lib/commands/transactions";
 import { formatPHP } from "@/lib/currency";
 import { errorMessage } from "@/lib/utils";
 
-type Decide = (callId: string, decision: ProposalDecision) => void;
+type Decide = (callId: string, decision: ProposalDecision) => void | Promise<void>;
 
 /** add_transaction's proposal: nothing is written until the member taps Confirm (ADR 0010). */
 export function ProposalCard({
@@ -74,7 +74,7 @@ function ProposalForm({
   categories: CategoryList;
   onDecide: Decide;
 }) {
-  const { callId, proposal, decision } = item;
+  const { callId, transactionId, proposal, decision } = item;
   // Once confirmed, the card shows what was recorded, also after leaving the screen and coming back.
   const shown = decision?.outcome === "recorded" ? decision.recorded : proposal;
   const [accountId, setAccountId] = useState(shown.accountId);
@@ -97,15 +97,16 @@ function ProposalForm({
         categoryId: shownCategoryId === UNASSIGNED ? null : shownCategoryId,
       };
       try {
-        await addTransaction(actor, { ...recorded, status: "cleared" });
+        // The card's own id, so confirming again after a lost decision records nothing new.
+        await addTransaction(actor, { ...recorded, id: transactionId, status: "cleared" });
       } catch (caught) {
         return errorMessage(caught, "Couldn't record the transaction.");
       }
-      toast.success("Transaction added");
-      onDecide(
+      await onDecide(
         callId,
         recordedDecision(recorded, { account: account?.name ?? "", category: categoryName })
       );
+      toast.success("Transaction added");
       return null;
     },
     null
@@ -164,7 +165,7 @@ function ProposalForm({
         </p>
       ) : (
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={() => onDecide(callId, DISMISSED)}>
+          <Button type="button" variant="ghost" onClick={() => void onDecide(callId, DISMISSED)}>
             Dismiss
           </Button>
           <SubmitButton pendingText="Recording...">Confirm</SubmitButton>

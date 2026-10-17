@@ -12,6 +12,7 @@ import type { AssistantReply } from "./stream";
 import type { ToolOutcome } from "./tools";
 
 const CONTEXT = "Today is 2026-10-16 (Friday).";
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 const proposal = {
   date: "2026-10-16",
@@ -115,6 +116,7 @@ describe("continueConversation", () => {
     expect(items.at(-1)).toEqual({
       kind: "proposal",
       callId: "call-1",
+      transactionId: expect.stringMatching(UUID) as unknown,
       proposal,
       decision: null,
     });
@@ -138,7 +140,7 @@ describe("the member's decision on a proposal", () => {
       text: "",
       toolCalls: [{ id: "call-1", name: "add_transaction", arguments: "{}" }],
     },
-    { kind: "proposal", callId: "call-1", proposal, decision: null },
+    { kind: "proposal", callId: "call-1", transactionId: "txn-1", proposal, decision: null },
   ];
 
   it("goes back to the model as the tool's result with the next message", () => {
@@ -161,5 +163,51 @@ describe("the member's decision on a proposal", () => {
       tool_call_id: "call-1",
       content: expect.stringContaining("Nothing was recorded") as unknown,
     });
+  });
+});
+
+describe("the history the model is sent", () => {
+  /** A member message, then a read call, its result and a reply: four items a turn. */
+  const turn = (n: number): ChatItem[] => [
+    { kind: "user", text: `question ${n}` },
+    {
+      kind: "assistant",
+      text: "",
+      toolCalls: [{ id: `call-${n}`, name: "get_account_balances", arguments: "{}" }],
+    },
+    { kind: "tool", callId: `call-${n}`, content: "{}" },
+    { kind: "assistant", text: `answer ${n}`, toolCalls: [] },
+  ];
+
+  it("sends the whole chat while it is short", () => {
+    const items = [...turn(1), ...turn(2)];
+    expect(toMessages(CONTEXT, items)).toHaveLength(9);
+  });
+
+  it("sends only the tail of a long chat, starting at a member message", () => {
+    // 7 turns are 28 items; with the last 3 items of turn 2 cut, turn 3 starts the history.
+    const items = Array.from({ length: 7 }, (_, n) => turn(n + 1)).flat();
+    const messages = toMessages(CONTEXT, items);
+
+    expect(messages[0]).toEqual({ role: "system", content: CONTEXT });
+    expect(messages[1]).toEqual({ role: "user", content: "question 3" });
+    expect(messages).toHaveLength(1 + 20);
+    expect(messages.at(-1)).toEqual({ role: "assistant", content: "answer 7" });
+  });
+
+  it("keeps the latest member message and what follows even past the cap", () => {
+    const calls: ChatItem[] = Array.from({ length: 12 }, (_, n): ChatItem[] => [
+      {
+        kind: "assistant",
+        text: "",
+        toolCalls: [{ id: `read-${n}`, name: "list_categories", arguments: "{}" }],
+      },
+      { kind: "tool", callId: `read-${n}`, content: "{}" },
+    ]).flat();
+    const items: ChatItem[] = [...turn(1), { kind: "user", text: "latest" }, ...calls];
+    const messages = toMessages(CONTEXT, items);
+
+    expect(messages[1]).toEqual({ role: "user", content: "latest" });
+    expect(messages).toHaveLength(1 + 1 + 24);
   });
 });

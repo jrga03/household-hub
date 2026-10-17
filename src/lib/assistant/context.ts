@@ -39,5 +39,12 @@ export async function buildSessionContext({ userId, now }: AssistantSession): Pr
       "- A Personal category goes only with a Personal account, a Household one with a Household account.",
       "- Use only the ids above.",
     ].join("\n"),
+    [
+      "How to answer:",
+      "- Reply in a few sentences.",
+      "- Never show ids to the member. Use names.",
+      "- Prefer a list to a table, unless you are comparing numbers.",
+      `- When asked what you can do, answer in two or three lines with examples such as "jollibee 250 gcash" or "How's my Groceries budget?".`,
+    ].join("\n"),
   ].join("\n\n");
 }

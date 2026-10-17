@@ -175,6 +175,55 @@ describe("addTransaction", () => {
   });
 });
 
+describe("addTransaction with an id the caller chose", () => {
+  const CHOSEN_ID = "cccccccc-0000-4000-8000-000000000001";
+
+  it("records it under that id, and only once when added again", async () => {
+    expect(await addTransaction(MEMBER, { ...expense(), id: CHOSEN_ID })).toEqual({
+      id: CHOSEN_ID,
+    });
+    const before = await listUnpushed(100);
+
+    expect(await addTransaction(MEMBER, { ...expense(), id: CHOSEN_ID })).toEqual({
+      id: CHOSEN_ID,
+    });
+
+    expect(await listUnpushed(100)).toHaveLength(before.length);
+    expect(await listTransactions()).toMatchObject([{ id: CHOSEN_ID }]);
+  });
+
+  it("appends nothing for an id since removed, so it stays removed", async () => {
+    await addTransaction(MEMBER, { ...expense(), id: CHOSEN_ID });
+    await removeTransaction(MEMBER, CHOSEN_ID);
+    const before = await listUnpushed(100);
+
+    expect(await addTransaction(MEMBER, { ...expense(), id: CHOSEN_ID })).toEqual({
+      id: CHOSEN_ID,
+    });
+
+    expect(await listUnpushed(100)).toHaveLength(before.length);
+    expect(await listTransactions()).toEqual([]);
+  });
+
+  it("leaves a later edit as it is", async () => {
+    await addTransaction(MEMBER, { ...expense(), id: CHOSEN_ID });
+    await editTransaction(MEMBER, CHOSEN_ID, expense({ amountCents: peso("300") }));
+
+    await addTransaction(MEMBER, { ...expense(), id: CHOSEN_ID });
+
+    expect(await listTransactions()).toMatchObject([{ id: CHOSEN_ID, amountCents: 30000 }]);
+  });
+
+  it("returns the id even when the account was retired since", async () => {
+    await addTransaction(MEMBER, { ...expense(), id: CHOSEN_ID });
+    await retireAccount(MEMBER, bankId);
+
+    expect(await addTransaction(MEMBER, { ...expense(), id: CHOSEN_ID })).toEqual({
+      id: CHOSEN_ID,
+    });
+  });
+});
+
 describe("editTransaction", () => {
   it("moves a transaction to another account of the same visibility", async () => {
     const { id } = await addTransaction(MEMBER, expense());

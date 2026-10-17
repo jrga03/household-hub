@@ -6,7 +6,11 @@ We kept execution in the browser because the server has nothing to execute again
 
 ## The proxy
 
-A stateless Cloudflare Worker sits between the browser and the model. It verifies the member's Supabase access token against the project's JWKS (ES256, checking `exp`, `iss` and `aud`), calls the model, and streams the reply back. It stores nothing: no conversations, no records, no keys beyond its own provider secrets. The browser sends the conversation with each request, and conversations live in memory only, gone on reload.
+A stateless Cloudflare Worker sits between the browser and the model. It verifies the member's Supabase access token against the project's JWKS (ES256, checking `exp`, `iss` and `aud`), calls the model, and streams the reply back. It stores nothing: no conversations, no records, no keys beyond its own provider secrets. The browser sends the conversation with each request.
+
+## Saved chats
+
+Amended 2026-10-17 (#156): chats were first held in memory only, so a reload, an evicted page or a PWA update lost them, waiting cards included. Each member's current chat is now saved on the device in its own Dexie table, one row per member with its items and when it last changed. It is local scratch data outside the event log (ADR 0001): not an event, never synced, and wiped with the rest of the local database on sign-out. A chat idle 12 hours or more starts fresh when the screen opens or before the next message, without a notice, unless a card still waits; a New chat button in the header starts fresh on demand and asks first only when a card waits. Every message resends the history, so the model gets at most the last 20 chat items, cut at a member message so a tool call is never sent without its result; the screen still shows the whole chat. A list of past chats was rejected: confirmed transactions already live in the app.
 
 ## Provider
 
@@ -31,7 +35,7 @@ Most use is a single line such as "jollibee 250 gcash". To turn one into a propo
 
 - No assistant offline. Everything it would do still works by hand, and writes already confirmed are ordinary local events.
 - The free daily allocation limits how much the household can use it; heavy days end early until the reset.
-- A proposal not yet confirmed is lost with the conversation on reload.
+- A proposal not yet confirmed survives a reload on the same device, but not a sign-out or a switch to another device.
 - Edit, remove and transfer tools are deferred until the first tool set ships, so the assistant can add transactions but not change them.
 
 ## Evidence
