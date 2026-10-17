@@ -16,8 +16,7 @@ const sseStream = () =>
 // Shaped like the binding's own errors (seen under wrangler dev): name AiError, code first in the message.
 const aiError = (message: string) => Object.assign(new Error(message), { name: "AiError" });
 
-const DAILY_NEURONS_USED_UP =
-  "3036: You have used up your daily free allocation of 10,000 neurons.";
+const DAILY_LIMIT_MESSAGE = "3036: You have used up your daily free allocation of 10,000 neurons.";
 
 const groqReply = () =>
   new Response(sseStream(), { headers: { "content-type": "text/event-stream" } });
@@ -213,7 +212,7 @@ describe("handleRequest", () => {
   });
 
   it("reports the daily limit with the next 00:00 UTC reset", async () => {
-    const run = vi.fn<AiBinding["run"]>().mockRejectedValue(aiError(DAILY_NEURONS_USED_UP));
+    const run = vi.fn<AiBinding["run"]>().mockRejectedValue(aiError(DAILY_LIMIT_MESSAGE));
     const { ai, send, groq } = setup(run);
 
     const response = await send(chatRequest());
@@ -256,7 +255,7 @@ describe("handleRequest", () => {
   });
 
   describe("when the Workers AI daily allocation is spent", () => {
-    const spent = () => vi.fn<AiBinding["run"]>().mockRejectedValue(aiError(DAILY_NEURONS_USED_UP));
+    const spent = () => vi.fn<AiBinding["run"]>().mockRejectedValue(aiError(DAILY_LIMIT_MESSAGE));
 
     it("sends the same request to Groq and streams its reply", async () => {
       const { send, groq } = setup(spent(), { groqApiKey: "groq-key" });
@@ -282,7 +281,7 @@ describe("handleRequest", () => {
     it("stays on Groq for the rest of the UTC day, then tries Workers AI again", async () => {
       const run = vi
         .fn<AiBinding["run"]>()
-        .mockRejectedValueOnce(aiError(DAILY_NEURONS_USED_UP))
+        .mockRejectedValueOnce(aiError(DAILY_LIMIT_MESSAGE))
         .mockImplementation(async () => sseStream());
       const { ai, send, groq, clock } = setup(run, { groqApiKey: "groq-key" });
 

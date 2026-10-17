@@ -1,6 +1,6 @@
-import { streamFromGroq, type GroqReply } from "./groq";
+import { streamFromGroq } from "./groq";
 import { isObject } from "./guards";
-import { rebuildMessages, rebuildTools, type ChatMessage, type Tool } from "./messages";
+import { rebuildMessages, rebuildTools, type ChatRequest, type ProviderReply } from "./messages";
 
 export const MODEL = "@cf/openai/gpt-oss-120b";
 const MAX_TOKENS = 2048;
@@ -9,10 +9,7 @@ const OUT_OF_CAPACITY = "3040";
 const DAILY_NEURONS_USED_UP = "3036";
 
 export interface AiBinding {
-  run(
-    model: string,
-    input: { messages: ChatMessage[]; tools: Tool[]; stream: true; max_tokens: number }
-  ): Promise<unknown>;
+  run(model: string, input: ChatRequest & { stream: true; max_tokens: number }): Promise<unknown>;
 }
 
 export interface HandlerEnv {
@@ -32,7 +29,7 @@ export interface HandlerDeps {
   workersAi: { spentUntilMs: number };
 }
 
-type ModelReply = GroqReply | { kind: "spent" } | { kind: "busy" };
+type ModelReply = ProviderReply | { kind: "spent" } | { kind: "busy" };
 
 function corsHeaders(origin: string | null): HeadersInit {
   return origin ? { "access-control-allow-origin": origin, vary: "Origin" } : {};
@@ -148,7 +145,7 @@ export async function handleRequest(
 
 async function streamFromWorkersAi(
   ai: AiBinding,
-  body: { messages: ChatMessage[]; tools: Tool[] },
+  body: ChatRequest,
   sleep: HandlerDeps["sleep"]
 ): Promise<ModelReply> {
   const input = { ...body, stream: true as const, max_tokens: MAX_TOKENS };

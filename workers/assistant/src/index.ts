@@ -25,7 +25,7 @@ export default {
         verifyAccessToken(token, { lookupKey, issuer, nowSeconds: Math.floor(Date.now() / 1000) }),
       sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
       nowMs: Date.now,
-      fetch: (input, init) => fetch(input, init),
+      fetch: (input, init) => fetch(input, init), // Workers throws "Illegal invocation" on a detached fetch.
       workersAi,
     });
   },

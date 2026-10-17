@@ -1,13 +1,8 @@
-import type { ChatMessage, Tool } from "./messages";
+import type { ChatRequest, ProviderReply } from "./messages";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "openai/gpt-oss-120b";
 const DEFAULT_RETRY_AFTER_MS = 60_000;
-
-export type GroqReply =
-  | { kind: "stream"; stream: ReadableStream }
-  | { kind: "limited"; retryAfterMs: number }
-  | { kind: "upstream" };
 
 /** Groq sends `retry-after` in seconds on a 429. */
 function retryAfterMs(response: Response) {
@@ -24,10 +19,8 @@ export async function streamFromGroq({
 }: {
   apiKey: string;
   fetch: typeof globalThis.fetch;
-  messages: ChatMessage[];
-  tools: Tool[];
   maxTokens: number;
-}): Promise<GroqReply> {
+} & ChatRequest): Promise<ProviderReply> {
   let response: Response;
   try {
     response = await fetch(GROQ_URL, {

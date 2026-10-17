@@ -14,6 +14,14 @@ export type ChatMessage =
   | { role: "assistant"; content: string; tool_calls?: ToolCall[] }
   | { role: "tool"; tool_call_id: string; content: string };
 
+export type ChatRequest = { messages: ChatMessage[]; tools: Tool[] };
+
+/** What a provider call ends in, before it becomes an HTTP response. */
+export type ProviderReply =
+  | { kind: "stream"; stream: ReadableStream }
+  | { kind: "limited"; retryAfterMs: number }
+  | { kind: "upstream" };
+
 export interface Tool {
   type: "function";
   function: { name: string; description?: string; parameters?: Record<string, unknown> };
