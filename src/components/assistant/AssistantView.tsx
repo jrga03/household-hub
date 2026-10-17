@@ -71,7 +71,7 @@ export function AssistantView({ actor }: { actor: Actor }) {
         online={online}
         limitResetsAt={limitResetsAt}
         busy={busy}
-        onSend={(text) => void send(text, actor.userId)}
+        onSend={(text) => send(text, actor.userId)}
       />
     </div>
   );

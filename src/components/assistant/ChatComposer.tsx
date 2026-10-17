@@ -20,7 +20,8 @@ export function ChatComposer({
   online: boolean;
   limitResetsAt: Date | null;
   busy: boolean;
-  onSend: (text: string) => void;
+  /** Resolves false when the message didn't go through. */
+  onSend: (text: string) => Promise<boolean>;
 }) {
   const [text, setText] = useState("");
   const blockedBecause = !online
@@ -33,8 +34,10 @@ export function ChatComposer({
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (blockedBecause || busy || message === "") return;
-    onSend(message);
     setText("");
+    void onSend(message).then((sent) => {
+      if (!sent) setText((typed) => (typed === "" ? message : typed));
+    });
   };
 
   return (
