@@ -87,7 +87,7 @@ export function TransactionEditor({
     : accounts;
 
   if (accountChoices.length === 0) {
-    return <p className="text-sm text-muted-foreground">Add an account on Accounts first.</p>;
+    return <p className="text-body text-muted-foreground">Add an account on Accounts first.</p>;
   }
   if (transaction) {
     return (
@@ -373,7 +373,7 @@ function TransactionForm({
       </div>
 
       <fieldset className="space-y-2">
-        <legend className="text-sm font-medium">Status</legend>
+        <legend className="text-label">Status</legend>
         <RadioGroup
           name="status"
           defaultValue={transaction?.status ?? "cleared"}

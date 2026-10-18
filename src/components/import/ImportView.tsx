@@ -91,7 +91,7 @@ export function ImportView({ actor }: { actor: Actor }) {
         </Card>
 
         {imports.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No open imports.</p>
+          <p className="text-body text-muted-foreground">No open imports.</p>
         ) : (
           imports.map((statement) => (
             <ImportCard
@@ -126,7 +126,7 @@ export function ImportView({ actor }: { actor: Actor }) {
               {detail}
             </section>
           ) : (
-            <p className="text-sm text-muted-foreground">Choose a draft to review it here.</p>
+            <p className="text-body text-muted-foreground">Choose a draft to review it here.</p>
           )}
         </div>
       </PageShell.RightAside>
@@ -223,7 +223,7 @@ function ImportCard({
                   choose(drafts.map((draft): [string, boolean] => [draft.id, !allSelected]))
                 }
               />
-              <label htmlFor={`select-all-${statement.id}`} className="text-sm">
+              <label htmlFor={`select-all-${statement.id}`} className="text-body">
                 Select all
               </label>
             </div>
@@ -255,7 +255,7 @@ function ImportCard({
           </div>
 
           {undescribed.length > 0 && (
-            <p className="text-sm text-amber-700 dark:text-amber-400">
+            <p className="text-body text-amber-700 dark:text-amber-400">
               {countOf(undescribed.length, "selected draft needs", "selected drafts need")} a
               description before saving.
             </p>
@@ -311,13 +311,13 @@ function DraftItem({
       >
         <p
           className={cn(
-            "truncate text-sm",
+            "truncate text-body",
             needsDescription(draft) && "text-amber-700 dark:text-amber-400"
           )}
         >
           {draftTitle(draft)}
         </p>
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-muted-foreground">
           <span>{format(parseLocalDate(line.purchaseDate), "MMM d")}</span>
           {flag && <FlagBadge flag={flag} />}
           {flag?.kind !== "card-payment" && (
@@ -325,7 +325,9 @@ function DraftItem({
           )}
         </p>
       </button>
-      <span className="shrink-0 text-sm tabular-nums">{signedAmount(draft.type, line.amount)}</span>
+      <span className="shrink-0 text-body tabular-nums">
+        {signedAmount(draft.type, line.amount)}
+      </span>
     </li>
   );
 }

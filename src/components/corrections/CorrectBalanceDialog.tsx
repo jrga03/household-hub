@@ -153,7 +153,7 @@ function CorrectBalanceForm({
       </div>
 
       {cleared !== undefined && cleared !== null && (
-        <div className="space-y-1 text-sm" aria-live="polite">
+        <div className="space-y-1 text-body" aria-live="polite">
           <p className="text-muted-foreground">
             {card ? "Cleared amount owed" : "Cleared balance"} at the end of that day:{" "}
             <span className="tabular-nums">{formatPHP(cleared)}</span>

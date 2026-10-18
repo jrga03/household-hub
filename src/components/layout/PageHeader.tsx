@@ -57,7 +57,7 @@ export function PageHeader({ menuButton, compactSync, className, children }: Pag
         ) : (
           menuButton
         )}
-        <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">{mode?.title ?? title}</h1>
+        <h1 className="min-w-0 flex-1 truncate text-title">{mode?.title ?? title}</h1>
         <div ref={setSlot} className="flex items-center gap-2 empty:hidden" />
         <SyncStatusIndicator compact={compactSync} />
         {children}

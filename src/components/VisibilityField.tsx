@@ -14,7 +14,7 @@ export function VisibilityField({
 }) {
   return (
     <fieldset className="space-y-2">
-      <legend className="text-sm font-medium">Who sees it</legend>
+      <legend className="text-label">Who sees it</legend>
       <RadioGroup
         name="visibility"
         value={value}
@@ -27,7 +27,7 @@ export function VisibilityField({
           Only you see it, and it stays yours if you leave the household.
         </VisibilityOption>
       </RadioGroup>
-      <p className="text-sm text-muted-foreground">Visibility can&apos;t be changed later.</p>
+      <p className="text-body text-muted-foreground">Visibility can&apos;t be changed later.</p>
     </fieldset>
   );
 }
@@ -49,7 +49,7 @@ function VisibilityOption({
       <RadioGroupItem id={id} value={value} aria-describedby={`${id}-hint`} className="mt-0.5" />
       <div className="space-y-0.5">
         <Label htmlFor={id}>{label}</Label>
-        <p id={`${id}-hint`} className="text-sm text-muted-foreground">
+        <p id={`${id}-hint`} className="text-body text-muted-foreground">
           {children}
         </p>
       </div>

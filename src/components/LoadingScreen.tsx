@@ -17,11 +17,11 @@ export function LoadingScreen() {
       <div className="flex flex-col items-center gap-4">
         {/* App Logo */}
         <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <span className="text-2xl font-bold">HH</span>
+          <span className="text-title font-bold">HH</span>
         </div>
 
         {/* App Name */}
-        <h1 className="text-xl font-semibold">Household Hub</h1>
+        <h1 className="text-title">Household Hub</h1>
 
         {/* Loading Spinner (carries the role="status" announcement) */}
         <LoadingSpinner
@@ -32,7 +32,7 @@ export function LoadingScreen() {
 
         {/* Visible loading text; hidden from screen readers so the spinner's
             status announcement isn't duplicated */}
-        <p className="text-sm text-muted-foreground" aria-hidden="true">
+        <p className="text-body text-muted-foreground" aria-hidden="true">
           Loading...
         </p>
       </div>

@@ -151,7 +151,7 @@ function SetBudgetForm({
             onChange={(event) => setAmountText(event.target.value)}
             aria-describedby="budget-amount-hint"
           />
-          <p id="budget-amount-hint" className="text-xs text-muted-foreground">
+          <p id="budget-amount-hint" className="text-caption text-muted-foreground">
             0 clears it from that month.
           </p>
         </div>
@@ -173,7 +173,7 @@ function SetBudgetForm({
         <div className="space-y-2 @[480px]:col-span-2">
           <Label htmlFor="budget-account">Funding account</Label>
           {fundingChoices.length === 0 ? (
-            <p id="budget-account" className="text-sm text-muted-foreground">
+            <p id="budget-account" className="text-body text-muted-foreground">
               Add a {VISIBILITY_LABELS[category.visibility]} bank, cash or e-wallet account on Home
               first.
             </p>
@@ -192,11 +192,11 @@ function SetBudgetForm({
             </Select>
           )}
           {fundingGone && (
-            <p className="text-xs text-destructive">
+            <p className="text-caption text-destructive">
               Its funding account is retired or no longer fits. Choose another.
             </p>
           )}
-          <p className="text-xs text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             Where this budget&apos;s money goes when you distribute a payday.
           </p>
         </div>

@@ -79,12 +79,9 @@ function HouseholdCode({ userId, householdId, code }: HouseholdCodeProps) {
 
   return (
     <CardContent className="space-y-2">
-      <p className="text-sm font-medium">Household Code</p>
+      <p className="text-label">Household Code</p>
       <div className="flex items-center gap-3">
-        <span
-          data-testid="household-code"
-          className="font-mono text-2xl font-semibold tracking-[0.3em]"
-        >
+        <span data-testid="household-code" className="font-mono text-title tracking-[0.3em]">
           {code}
         </span>
         <Button
@@ -104,7 +101,7 @@ function HouseholdCode({ userId, householdId, code }: HouseholdCodeProps) {
           Replace code
         </Button>
       </div>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-body text-muted-foreground">
         Share it so others can ask to join. You approve each request; the code alone grants no
         access.
       </p>

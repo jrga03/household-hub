@@ -49,7 +49,7 @@ export function SignupForm() {
           <CardTitle>Check Your Email</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             We&apos;ve sent you a confirmation email. Click the link to verify your account.
           </p>
           <Link to="/login" className="mt-4 block">
@@ -68,7 +68,7 @@ export function SignupForm() {
       <CardContent>
         <ActionForm action={submitAction} className="space-y-4">
           <div>
-            <label htmlFor="email" className="text-sm font-medium">
+            <label htmlFor="email" className="text-label">
               Email
             </label>
             <Input
@@ -82,7 +82,7 @@ export function SignupForm() {
           </div>
 
           <div>
-            <label htmlFor="password" className="text-sm font-medium">
+            <label htmlFor="password" className="text-label">
               Password
             </label>
             <Input
@@ -97,7 +97,7 @@ export function SignupForm() {
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="text-sm font-medium">
+            <label htmlFor="confirmPassword" className="text-label">
               Confirm Password
             </label>
             <Input
@@ -112,7 +112,7 @@ export function SignupForm() {
           </div>
 
           {state.error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            <div className="rounded-md bg-destructive/10 p-3 text-body text-destructive">
               {state.error}
             </div>
           )}
@@ -121,7 +121,7 @@ export function SignupForm() {
             Sign Up
           </SubmitButton>
 
-          <div className="text-center text-sm text-muted-foreground">
+          <div className="text-center text-body text-muted-foreground">
             Already have an account?{" "}
             <Link to="/login" className="text-primary hover:underline">
               Log in

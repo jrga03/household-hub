@@ -31,12 +31,12 @@ export function JoinRequestsCard({ householdId }: { householdId: string }) {
       </CardHeader>
       <CardContent>
         {isError && !requests && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             Join requests show when you&apos;re online.
           </p>
         )}
         {requests?.length === 0 && (
-          <p className="text-sm text-muted-foreground">No pending requests.</p>
+          <p className="text-body text-muted-foreground">No pending requests.</p>
         )}
         {requests && requests.length > 0 && (
           <ul className="divide-y rounded-md border">
