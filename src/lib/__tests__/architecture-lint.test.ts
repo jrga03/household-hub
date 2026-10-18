@@ -82,6 +82,18 @@ const cases = [
     flagged: "src/lib/commands/probe.ts",
     allowed: "src/lib/events/probe.ts",
   },
+  {
+    rule: "arch/no-direct-primitive-import",
+    code: 'import { Button } from "@/components/ui/button";\nexport { Button };\n',
+    flagged: "src/routes/probe.tsx",
+    allowed: "src/components/app/probe.tsx",
+  },
+  {
+    rule: "arch/no-direct-primitive-import",
+    code: 'import { Button } from "@/components/ui/button";\nexport { Button };\n',
+    flagged: "src/components/accounts/probe.tsx",
+    allowed: "src/App.tsx",
+  },
 ];
 
 describe.each(cases)("$rule", ({ rule, code, flagged, allowed }) => {
@@ -172,4 +184,29 @@ it.each([
 ])("no-restricted-imports bans nanoid in %s", async (filePath) => {
   const code = 'import { nanoid } from "nanoid";\nexport const id = nanoid();\n';
   expect(await ruleIds(code, filePath)).toContain("no-restricted-imports");
+});
+
+it.each([
+  ["src/components/accounts/probe.tsx", "../ui/button"],
+  ["src/components/probe.tsx", "./ui/button"],
+  ["src/routes/probe.tsx", "../components/ui/button"],
+  ["src/hooks/probe.ts", "@/components/ui/sonner"],
+])("arch/no-direct-primitive-import fires in %s for %s", async (filePath, source) => {
+  const code = `import * as primitive from "${source}";\nexport { primitive };\n`;
+  expect(await ruleIds(code, filePath)).toContain("arch/no-direct-primitive-import");
+});
+
+it("primitives may import each other", async () => {
+  const code =
+    'import { Button } from "./button";\nimport { Label } from "@/components/ui/label";\nexport { Button, Label };\n';
+  expect(await ruleIds(code, "src/components/ui/probe.tsx")).not.toContain(
+    "arch/no-direct-primitive-import"
+  );
+});
+
+it("the primitive ban leaves the routes and components import bans in place", async () => {
+  const code = 'import { supabase } from "@/lib/supabase";\nexport { supabase };\n';
+  expect(await ruleIds(code, "src/components/accounts/AccountList.tsx")).toContain(
+    "no-restricted-imports"
+  );
 });
