@@ -157,7 +157,7 @@ function AccountItem({
   );
 }
 
-const negativeClass = (cents: Cents) => (cents < 0 ? "text-destructive" : undefined);
+const negativeClass = (cents: Cents) => (cents < 0 ? "text-shortfall" : undefined);
 
 /**
  * "Cleared ₱X · Pending ₱Y", the account's Unassigned, and the Card Payment of

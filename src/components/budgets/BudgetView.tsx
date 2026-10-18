@@ -254,8 +254,8 @@ function BudgetFigures({ name, figures }: { name: string; figures: MonthFigures 
           aria-label={`${name} spent`}
           value={progress.percent}
           data-overspent={progress.overspent || undefined}
-          className={cn("pointer-events-none h-1.5", progress.overspent && "bg-destructive/20")}
-          indicatorClassName={progress.overspent ? "bg-destructive" : undefined}
+          className={cn("pointer-events-none h-1.5", progress.overspent && "bg-shortfall/20")}
+          indicatorClassName={progress.overspent ? "bg-shortfall" : undefined}
         />
       )}
       <dl

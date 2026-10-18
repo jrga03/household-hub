@@ -255,7 +255,7 @@ function ImportCard({
           </div>
 
           {undescribed.length > 0 && (
-            <p className="text-sm text-amber-700 dark:text-amber-400">
+            <p className="text-sm text-warning">
               {countOf(undescribed.length, "selected draft needs", "selected drafts need")} a
               description before saving.
             </p>
@@ -309,12 +309,7 @@ function DraftItem({
         aria-current={open || undefined}
         className="min-w-0 flex-1 text-left"
       >
-        <p
-          className={cn(
-            "truncate text-sm",
-            needsDescription(draft) && "text-amber-700 dark:text-amber-400"
-          )}
-        >
+        <p className={cn("truncate text-sm", needsDescription(draft) && "text-warning")}>
           {draftTitle(draft)}
         </p>
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
@@ -346,7 +341,7 @@ function CategoryLabel({
     );
   }
   return draft.type === "expense" ? (
-    <span className="text-amber-700 dark:text-amber-400">Needs a category</span>
+    <span className="text-warning">Needs a category</span>
   ) : (
     <span>Unassigned</span>
   );

@@ -175,7 +175,7 @@ function Figure({ label, cents }: { label: string; cents: Cents }) {
   return (
     <div className="min-w-0">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className={cn("truncate font-medium tabular-nums", cents < 0 && "text-destructive")}>
+      <dd className={cn("truncate font-medium tabular-nums", cents < 0 && "text-shortfall")}>
         {formatPHP(cents)}
       </dd>
     </div>
@@ -192,12 +192,12 @@ function BudgetCounts({ counts }: { counts: BudgetStatusCounts }) {
       <Count
         label="Close"
         count={counts.close}
-        className={counts.close > 0 ? "text-amber-700 dark:text-amber-400" : undefined}
+        className={counts.close > 0 ? "text-warning" : undefined}
       />
       <Count
         label="Over"
         count={counts.over}
-        className={counts.over > 0 ? "text-destructive" : undefined}
+        className={counts.over > 0 ? "text-shortfall" : undefined}
       />
     </dl>
   );

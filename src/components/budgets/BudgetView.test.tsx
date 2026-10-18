@@ -124,18 +124,18 @@ describe("BudgetView", () => {
     renderBudget();
 
     expect(await left("Restaurants")).toHaveTextContent("-₱9,500.00");
-    expect(await left("Restaurants")).toHaveClass("text-destructive");
+    expect(await left("Restaurants")).toHaveClass("text-shortfall");
     const bar = screen.getByRole("progressbar", { name: "Restaurants spent" });
     expect(bar).toHaveAttribute("aria-valuenow", "100");
     expect(bar).toHaveAttribute("data-overspent", "true");
 
     expect(await left("Food")).toHaveTextContent("-₱2,700.00");
-    expect(await left("Food")).toHaveClass("text-destructive");
+    expect(await left("Food")).toHaveClass("text-shortfall");
     expect(screen.getByRole("progressbar", { name: "Food spent" })).toHaveAttribute(
       "data-overspent",
       "true"
     );
-    expect(await left("Groceries")).not.toHaveClass("text-destructive");
+    expect(await left("Groceries")).not.toHaveClass("text-shortfall");
     expect(screen.getByRole("progressbar", { name: "Groceries spent" })).not.toHaveAttribute(
       "data-overspent"
     );

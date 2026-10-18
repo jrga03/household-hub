@@ -20,7 +20,7 @@ const TONE_ICONS: Record<SyncTone, LucideIcon> = {
 const TONE_COLORS: Record<SyncTone, string> = {
   synced: "text-muted-foreground",
   waiting: "text-muted-foreground",
-  offline: "text-amber-700 dark:text-amber-400",
+  offline: "text-warning",
   attention: "text-destructive",
 };
 
