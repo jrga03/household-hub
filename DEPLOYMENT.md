@@ -119,21 +119,7 @@ git push origin main
 
 ### Preview Deployments
 
-Every branch and PR automatically gets a preview deployment:
-
-**Automatic**:
-
-- Push to any branch (not main) → Preview deployment created
-- URL: `https://<commit-hash>.household-hub.pages.dev`
-- Uses **production** environment variables (same Supabase)
-- Deleted automatically when branch is deleted
-
-**Testing previews**:
-
-1. Create feature branch: `git checkout -b feature/new-feature`
-2. Make changes and push: `git push origin feature/new-feature`
-3. Check Cloudflare Pages dashboard for preview URL
-4. Test changes before merging to main
+None. Only `main` deploys; branches and PRs get no preview build. A preview would also need its origin in the Assistant Worker's `ALLOWED_ORIGINS` and `VITE_ASSISTANT_URL` set for the Preview environment.
 
 ---
 
