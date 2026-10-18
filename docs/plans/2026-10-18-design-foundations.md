@@ -55,11 +55,18 @@ Status: grilling done 2026-10-18, ready to implement (start at the Rollout check
 
 ### Rollout checklist
 
-- [ ] 1. Tailwind bump, `eslint-plugin-better-tailwindcss` in report mode
-- [ ] 2. `src/index.css` rewrite and font self-hosting
-- [ ] 3. Codemod: sizes, colors, weights, shadows, money red
-- [ ] 4. Rules to error, `ui/` import ratchet
-- [ ] 5. DESIGN.md, CLAUDE.md, designer agent, stale README (ADR 0011 already written)
+Ticketed 2026-10-18 as sub-issues of #162, expand → migrate → contract. Each lint rule switches on at error in the ticket that clears its last violation (pre-push has no report mode). Frontier at start: #163, #164, #165, #166.
+
+- [ ] #163 Class lint plugin, with color literals banned (blocked by: none)
+- [ ] #164 Ink and paper color tokens, with a contrast test (none)
+- [ ] #165 Type roles and Source Sans 3 (none)
+- [ ] #166 Primitives private: import boundary (none)
+- [ ] #167 Money and status colors onto roles (#164)
+- [ ] #168 Text sizes and weights onto roles (#165)
+- [ ] #169 Shadows, motion and spacing onto the system (#163, #164)
+- [ ] #170 Remove Tailwind's defaults (#163, #167, #168, #169)
+- [ ] #171 DESIGN.md and agent guidance (#166, #170)
+- [ ] #172 Integrate and verify design foundations (#170, #171)
 - **Deferred: adaptive layout** (more columns on the laptop, M3 window size classes). Revisit: the adaptive-layout session.
 - **Parked:** component patterns, adaptive layouts (M3 window size classes), migration of existing pages.
 
