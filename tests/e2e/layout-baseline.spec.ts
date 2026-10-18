@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type ViewportSize } from "@playwright/test";
 import { login } from "./fixtures/helpers";
 import { DARK_VIEWPORTS, VIEWPORTS } from "./fixtures/viewports";
 
@@ -12,23 +12,15 @@ const ROUTES = [
   { path: "/review", name: "review" },
 ];
 
-const RUNS = [
-  ...Object.entries(VIEWPORTS).map(([vpName, vp]) => ({
-    vpName,
-    vp,
-    colorScheme: "light" as const,
-  })),
-  ...Object.entries(DARK_VIEWPORTS).map(([vpName, vp]) => ({
-    vpName,
-    vp,
-    colorScheme: "dark" as const,
-  })),
-];
+const withScheme = (viewports: Record<string, ViewportSize>, colorScheme: "light" | "dark") =>
+  Object.entries(viewports).map(([vpName, vp]) => ({ vpName, vp, colorScheme }));
+
+const RUNS = [...withScheme(VIEWPORTS, "light"), ...withScheme(DARK_VIEWPORTS, "dark")];
 
 for (const { vpName, vp, colorScheme } of RUNS) {
-  const suffix = colorScheme === "dark" ? `${vpName}-dark` : vpName;
+  const variantName = colorScheme === "dark" ? `${vpName}-dark` : vpName;
 
-  test.describe(`Layout baselines — ${suffix} (${vp.width}x${vp.height})`, () => {
+  test.describe(`Layout baselines — ${variantName} (${vp.width}x${vp.height})`, () => {
     test.use({ viewport: vp, colorScheme });
 
     test.beforeEach(async ({ page }) => {
@@ -49,7 +41,7 @@ for (const { vpName, vp, colorScheme } of RUNS) {
           const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
           await page.setViewportSize({ width: vp.width, height: Math.max(vp.height, pageHeight) });
         }
-        await expect(page).toHaveScreenshot(`${route.name}-${suffix}.png`, {
+        await expect(page).toHaveScreenshot(`${route.name}-${variantName}.png`, {
           fullPage: !isPhone,
           maxDiffPixelRatio: 0.02,
           // The Household Code differs on every database; the month changes monthly
