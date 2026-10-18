@@ -1,3 +1,4 @@
+import { appendTogether } from "@/lib/events/log";
 import { requestSync } from "@/lib/sync/triggers";
 import { isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
@@ -23,6 +24,11 @@ import { changeEach } from "./bulk";
 import { checkMove, refuseRetired, requireAccount, requireCategoryFor } from "./records";
 
 export interface NewTransactionInput extends TransactionInput {
+  /**
+   * Chosen by the caller so a retry records nothing new: a transaction already
+   * recorded under it, even one since removed or edited, is left as it is.
+   */
+  id?: string;
   /** Cleared unless the member says it's pending. */
   status?: string;
   /** The statement line a saved draft came from (ADR 0008). */
@@ -68,6 +74,18 @@ export async function addTransaction(
   actor: Actor,
   input: NewTransactionInput
 ): Promise<{ id: string }> {
+  const id = input.id ?? crypto.randomUUID();
+  // Checked in the same Dexie transaction as the append, so two Confirms can't both record.
+  const recorded = await appendTogether(async () => {
+    if (await getTransaction(id)) return false;
+    await appendCreated(actor, id, input);
+    return true;
+  });
+  if (recorded) requestSync();
+  return { id };
+}
+
+async function appendCreated(actor: Actor, id: string, input: NewTransactionInput) {
   const details = checkedDetails(input);
   requireDescription(details);
   const status = input.status ?? "cleared";
@@ -76,15 +94,12 @@ export async function addTransaction(
   refuseRetired(account);
   await checkCategory(details.categoryId, account);
 
-  const id = crypto.randomUUID();
   await appendTransactionEvent(actor, { ...account, id }, TRANSACTION_CREATED, {
     ...details,
     payingAccountId: payingAccountOf(account),
     status,
     importKey: input.importKey ?? null,
   });
-  requestSync();
-  return { id };
 }
 
 async function requireTransaction(transactionId: string): Promise<TransactionRow> {

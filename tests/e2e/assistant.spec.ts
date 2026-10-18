@@ -67,9 +67,9 @@ async function stubAssistant(page: Page) {
   return requests;
 }
 
-test("a line typed to the assistant is recorded after Confirm", async ({ page }) => {
+async function setUpHousehold(page: Page, householdName: string) {
   await signUpNewPerson(page);
-  await page.getByLabel("Household name").fill("Assistant home");
+  await page.getByLabel("Household name").fill(householdName);
   await page.getByRole("button", { name: "Create household" }).click();
 
   await navigateTo(page, "Accounts");
@@ -82,6 +82,10 @@ test("a line typed to the assistant is recorded after Confirm", async ({ page })
   await navigateTo(page, "Categories");
   await page.getByRole("button", { name: "Use suggested categories" }).click();
   await expect(page.getByRole("list", { name: "Food categories" })).toContainText("Groceries");
+}
+
+test("a line typed to the assistant is recorded after Confirm", async ({ page }) => {
+  await setUpHousehold(page, "Assistant home");
 
   const requests = await stubAssistant(page);
   await navigateTo(page, "Assistant");
@@ -152,4 +156,35 @@ test("a message that fails to send goes back in the input and is sent once", asy
   expect(requests[1]?.messages.filter((message) => message.role === "user")).toEqual([
     { role: "user", content: "hi" },
   ]);
+});
+
+test("a waiting proposal survives a reload and records once after Confirm", async ({ page }) => {
+  await setUpHousehold(page, "Assistant reload home");
+  await stubAssistant(page);
+  await navigateTo(page, "Assistant");
+  await page.getByRole("textbox", { name: "Message the assistant" }).fill("jollibee 250 gcash");
+  await page.getByRole("button", { name: "Send" }).click();
+  const card = page.getByRole("form", { name: "Confirm transaction" });
+  await expect(card).toContainText("₱250.00");
+
+  await page.reload();
+
+  await expect(page.getByRole("list", { name: "Conversation" })).toContainText(
+    "jollibee 250 gcash"
+  );
+  await expect(card).toContainText("₱250.00");
+  await card.getByRole("button", { name: "Confirm" }).click();
+  await expect(card).toContainText("Recorded");
+
+  await page.reload();
+  await expect(card).toContainText("Recorded");
+  await expect(card.getByRole("button", { name: "Confirm" })).toHaveCount(0);
+
+  await navigateTo(page, "Transactions");
+  await expect(
+    page
+      .getByRole("list", { name: "Transactions" })
+      .getByRole("listitem")
+      .filter({ hasText: "Jollibee" })
+  ).toHaveCount(1);
 });

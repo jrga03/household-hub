@@ -12,6 +12,7 @@
 import Dexie, { type Table } from "dexie";
 import { reportError } from "@/lib/sentry";
 import type { StoredEvent } from "@/lib/events/log";
+import type { SavedChatRow } from "@/lib/assistant/savedChat";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { AllocationRow } from "@/lib/allocations/projection";
 import type { BudgetRow } from "@/lib/budgets/projection";
@@ -49,6 +50,7 @@ export class HouseholdHubDB extends Dexie {
   imports!: Table<ImportRow, string>;
   drafts!: Table<DraftRow, string>;
   meta!: Table<MetaRow, MetaRow["key"]>;
+  assistantChats!: Table<SavedChatRow, string>;
 
   constructor() {
     super(DATABASE_NAME);
@@ -95,6 +97,8 @@ export class HouseholdHubDB extends Dexie {
       drafts: "id, importId",
     });
     this.version(11).stores({ balanceCorrections: "id, [date+recordedHlc]" });
+    // One chat per member, kept on this device outside the event log (ADR 0010).
+    this.version(12).stores({ assistantChats: "userId" });
   }
 }
 
