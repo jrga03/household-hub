@@ -55,6 +55,9 @@ Status: grilling done 2026-10-18, ready to implement (start at the Rollout check
 - **DESIGN.md outline:** 1 how to use this doc; 2 principles; 3 color roles; 4 money; 5 type roles; 6 spacing and density; 7 shape and elevation; 8 motion; 9 interaction and accessibility; 10 writing in the UI (glossary terms, never their _Avoid_ words, sentence case); 11 components (two layers, import boundary, `shadcn add` lands in layer 1, patterns TBD); 12 layout (`PageShell`, container queries, adaptive TBD); 13 enforcement table. Revisit: never.
 - **Discovery:** CLAUDE.md gets a Code conventions line ("Any UI change follows `DESIGN.md`; read it in full first") and a Load-on-demand row; not added to SessionStart. Why: lint catches tokens, the line catches judgment; SessionStart would load it into non-UI sessions. Revisit: if UI work keeps skipping it.
 - **Rollout: one PR, five steps.** (1) Tailwind ≥4.1.17 and the lint plugin, rules in report mode; (2) `index.css` rewrite: tokens, palette/type/shadow/weight resets, Source Sans 3 self-hosted (already precached by the `woff2` glob in `vite.config.ts`); (3) mechanical codemod: 224 `text-*` sizes to roles, 28 raw colors to roles, weights and shadows mapped, `text-destructive` on money to `shortfall`; (4) rules to error, plus the `ui/` import ratchet with 61 allowlisted files; (5) DESIGN.md, CLAUDE.md, designer-agent rewrite, stale README deleted, ADR 0011. Layout-baseline e2e snapshots get regenerated in that PR. Page redesign stays in the migration session. Why: the resets would silently un-style 224 places without step 3. Revisit: never.
+- **#164 contrast scope:** `input` must reach 3:1 on `muted` and `popover` as well as background and card (fields sit in popovers and muted panels), so both themes' `input` darkened/lightened slightly; dark `shortfall` chroma dropped to 0.12 because the specimen value was outside sRGB and lightening it at 0.16 clipped. Revisit: never.
+- **#164 radius:** `rounded-md` is the 6px base, `rounded-sm` 3px, `rounded-lg` and `rounded-xl` both 10px (xl kept as an alias so today's cards keep the large step); bare `rounded` stays Tailwind's 4px until #170 resets it. Revisit: #170.
+- **#164 motion:** durations are Tailwind's `--transition-duration-*` namespace (`duration-quick`, `duration-move`); the curve redefines `ease-out`. The default transition duration and timing function are unchanged; moving primitives onto them is #169. Revisit: #169.
 - **The app-component layer lives in `src/components/app/`** (#166), held open by a `.gitkeep` until the component-patterns session fills it. The boundary is `arch/no-direct-primitive-import` (its own rule ID so it stacks with the existing `no-restricted-imports` blocks) over all of `src/**` except `ui/`, `app/` and tests; its allowlist is `directPrimitiveImporters` in `eslint.config.js` (61 files, including `src/App.tsx`). Why: "app" matches ADR 0011's "app-component layer" and sits beside `ui/`. Revisit: the component-patterns session.
 
 ### Rollout checklist
@@ -76,7 +79,9 @@ Ticketed 2026-10-18 as sub-issues of #162, expand → migrate → contract. Each
 
 ## Appendix: specimen token values (delete once in `src/index.css`)
 
-From the specimen, 2026-10-18. Additions decided after it are not yet valued: `text-input` (16/24), `shadow-float`, `--duration-quick`, `--duration-move`, and the APCA nudge to dark `muted-foreground` and `shortfall`.
+From the specimen, 2026-10-18. Additions decided after it are not yet valued: `text-input` (16/24).
+
+Color, radius, shadow and motion landed in `src/index.css` in #164 (2026-10-18); the values below are the final ones, and `src/theme-contrast.test.ts` checks them. Changed from the specimen: light `input` 0.65 → 0.62 and dark `input` 0.52 → 0.55 (3:1 on `muted` and `popover` too, not only background and card); dark `muted-foreground` 0.7 → 0.78 and dark `shortfall` `0.72 0.16 25` → `0.79 0.12 25` (APCA Lc 60 on background, card and muted; chroma lowered to stay inside sRGB); `success-foreground` added for filled success badges. Motion: `duration-quick` 150ms, `duration-move` 250ms, `ease-out` `cubic-bezier(0.2, 0, 0, 1)`. `shadow-float` reads `--elevation-float`, set per theme below.
 
 Type roles (size/line-height, weight): display 30/36 650, title 22/28 600, heading 17/24 600, body 15/22 400, label 13/18 550, caption 12/16 400, figure 34/40 600 tabular.
 
@@ -103,14 +108,16 @@ Radius: `--radius: 6px`; `--radius-sm` = radius − 3px; `--radius-lg` = radius 
 --destructive: oklch(0.52 0.18 27);
 --destructive-foreground: oklch(0.985 0.005 80);
 --border: oklch(0.3 0.03 70 / 0.14);
---input: oklch(0.65 0.012 75);
+--input: oklch(0.62 0.012 75);
 --ring: oklch(0.52 0.13 262);
 --income: oklch(0.5 0.12 150);
 --shortfall: oklch(0.52 0.18 27);
 --warning: oklch(0.52 0.11 70);
 --warning-surface: oklch(0.955 0.04 85);
 --success: oklch(0.5 0.12 150);
+--success-foreground: oklch(0.985 0.005 80);
 --scrim: oklch(0.2 0.02 262 / 0.42);
+--elevation-float: 0 1px 2px oklch(0.2 0.02 262 / 0.06), 0 6px 16px -2px oklch(0.2 0.02 262 / 0.12);
 
 /* dark */
 --background: oklch(0.19 0.006 70);
@@ -124,18 +131,20 @@ Radius: `--radius: 6px`; `--radius-sm` = radius − 3px; `--radius-lg` = radius 
 --secondary: oklch(0.29 0.008 70);
 --secondary-foreground: oklch(0.93 0.01 85);
 --muted: oklch(0.26 0.007 70);
---muted-foreground: oklch(0.7 0.012 80);
+--muted-foreground: oklch(0.78 0.012 80);
 --accent: oklch(0.29 0.008 70);
 --accent-foreground: oklch(0.93 0.01 85);
 --destructive: oklch(0.68 0.18 27);
 --destructive-foreground: oklch(0.18 0.02 25);
 --border: oklch(0.95 0.01 85 / 0.1);
---input: oklch(0.52 0.008 75);
+--input: oklch(0.55 0.008 75);
 --ring: oklch(0.7 0.1 262);
 --income: oklch(0.78 0.13 152);
---shortfall: oklch(0.72 0.16 25);
+--shortfall: oklch(0.79 0.12 25);
 --warning: oklch(0.82 0.13 80);
 --warning-surface: oklch(0.27 0.035 75);
 --success: oklch(0.78 0.13 152);
+--success-foreground: oklch(0.19 0.03 150);
 --scrim: oklch(0.05 0 0 / 0.62);
+--elevation-float: 0 1px 2px oklch(0 0 0 / 0.3), 0 8px 24px -4px oklch(0 0 0 / 0.45);
 ```
