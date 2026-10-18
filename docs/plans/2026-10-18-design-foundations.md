@@ -60,14 +60,18 @@ Status: grilling done 2026-10-18, ready to implement (start at the Rollout check
 - **#164 motion:** durations are Tailwind's `--transition-duration-*` namespace (`duration-quick`, `duration-move`); the curve redefines `ease-out`. The default transition duration and timing function are unchanged; moving primitives onto them is #169. Revisit: #169.
 - **The app-component layer lives in `src/components/app/`** (#166), held open by a `.gitkeep` until the component-patterns session fills it. The boundary is `arch/no-direct-primitive-import` (its own rule ID so it stacks with the existing `no-restricted-imports` blocks) over all of `src/**` except `ui/`, `app/` and tests; its allowlist is `directPrimitiveImporters` in `eslint.config.js` (61 files, including `src/App.tsx`). Why: "app" matches ADR 0011's "app-component layer" and sits beside `ui/`. Revisit: the component-patterns session.
 
+- **Theme-color meta carries the computed `oklch(...)` value** (#163), not hex. Why: it reads the token directly; Chromium accepts it. Revisit: #172, if a phone's status bar ignores it (then convert to hex at runtime).
+- **Color-literal ban covers TSX only** (#163), as the spec says. Why: `.ts` holds data-layer code with no styling. Revisit: if a color literal shows up in a `.ts` file.
+- **`success-foreground` added** (#164) beyond the spec's role list, for the filled success badge's label. Revisit: never.
+
 ### Rollout checklist
 
 Ticketed 2026-10-18 as sub-issues of #162, expand → migrate → contract. Each lint rule switches on at error in the ticket that clears its last violation (pre-push has no report mode). Frontier at start: #163, #164, #165, #166.
 
-- [ ] #163 Class lint plugin, with color literals banned (blocked by: none)
-- [ ] #164 Ink and paper color tokens, with a contrast test (none)
-- [ ] #165 Type roles and Source Sans 3 (none)
-- [ ] #166 Primitives private: import boundary (none)
+- [x] #163 Class lint plugin, with color literals banned (blocked by: none)
+- [x] #164 Ink and paper color tokens, with a contrast test (none)
+- [x] #165 Type roles and Source Sans 3 (none)
+- [x] #166 Primitives private: import boundary (none)
 - [ ] #167 Money and status colors onto roles (#164)
 - [ ] #168 Text sizes and weights onto roles (#165)
 - [ ] #169 Shadows, motion and spacing onto the system (#163, #164)
