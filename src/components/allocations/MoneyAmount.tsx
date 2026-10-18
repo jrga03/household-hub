@@ -11,20 +11,10 @@ export function shortfallClass(cents: Cents, { owed = false }: { owed?: boolean 
   return !owed && cents < 0 ? "text-shortfall" : undefined;
 }
 
-/** An amount, red when negative unless it is `owed` on a credit card. */
-export function MoneyAmount({
-  cents,
-  owed = false,
-  className,
-}: {
-  cents: Cents;
-  owed?: boolean;
-  className?: string;
-}) {
+/** An amount, red when negative. */
+export function MoneyAmount({ cents, className }: { cents: Cents; className?: string }) {
   return (
-    <span
-      className={cn("whitespace-nowrap tabular-nums", shortfallClass(cents, { owed }), className)}
-    >
+    <span className={cn("whitespace-nowrap tabular-nums", shortfallClass(cents), className)}>
       {formatPHP(cents)}
     </span>
   );

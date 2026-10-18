@@ -13,11 +13,6 @@ describe("MoneyAmount", () => {
     render(<MoneyAmount cents={asCents(150)} />);
     expect(screen.getByText("₱1.50")).not.toHaveClass("text-shortfall");
   });
-
-  it("leaves a negative amount owed on a credit card uncolored", () => {
-    render(<MoneyAmount cents={asCents(-150)} owed />);
-    expect(screen.getByText("-₱1.50")).not.toHaveClass("text-shortfall");
-  });
 });
 
 describe("shortfallClass", () => {
