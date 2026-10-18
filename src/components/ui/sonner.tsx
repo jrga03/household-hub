@@ -46,6 +46,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
       // 600px, so the desktop `offset` must carry the 601-767px band), and
       // ~sonner's 32px default on real desktops.
       position={position}
+      // Sonner's own toast shadow is unlayered CSS, so the token needs !important.
+      toastOptions={{ classNames: { toast: "shadow-float!" } }}
       mobileOffset={{ bottom: "var(--toast-bottom)", top: "var(--toast-top)" }}
       offset={{ bottom: "var(--toast-bottom)", top: "var(--toast-top)" }}
       style={

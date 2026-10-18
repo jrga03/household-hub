@@ -143,7 +143,7 @@ export function PWAInstallPrompt() {
   if (isIOS) {
     return (
       <div className="fixed bottom-[calc(1rem+var(--bottom-chrome))] left-[calc(1rem+var(--safe-area-left))] right-[calc(1rem+var(--safe-area-right))] z-50 md:left-auto md:w-96">
-        <Card className="border-2 border-primary shadow-lg">
+        <Card className="border-2 border-primary shadow-float">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2">
@@ -217,7 +217,7 @@ export function PWAInstallPrompt() {
   // Chromium/Edge installation prompt
   return (
     <div className="fixed bottom-[calc(1rem+var(--bottom-chrome))] left-[calc(1rem+var(--safe-area-left))] right-[calc(1rem+var(--safe-area-right))] z-50 md:left-auto md:w-96">
-      <Card className="border-2 border-primary shadow-lg">
+      <Card className="border-2 border-primary shadow-float">
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">

@@ -8,8 +8,8 @@ const components: Components = {
       {children}
     </a>
   ),
-  ul: ({ children }) => <ul className="mt-2 list-disc space-y-1 pl-5">{children}</ul>,
-  ol: ({ children }) => <ol className="mt-2 list-decimal space-y-1 pl-5">{children}</ol>,
+  ul: ({ children }) => <ul className="mt-2 list-disc space-y-1 pl-6">{children}</ul>,
+  ol: ({ children }) => <ol className="mt-2 list-decimal space-y-1 pl-6">{children}</ol>,
   table: ({ children }) => (
     <div className="mt-2 overflow-x-auto">
       <table className="w-full border-collapse text-left">{children}</table>

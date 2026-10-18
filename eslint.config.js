@@ -102,6 +102,36 @@ const arbitraryColorClasses = [
   },
 ];
 
+// Motion names the properties it animates (spec #162): transform, opacity, or
+// color for a state change.
+const transitionAllClass = {
+  pattern: "(?:^|:)!?transition-all!?$",
+  message:
+    "List the properties that animate: transition-transform, transition-opacity or transition-colors.",
+};
+
+// Padding, margin, gap, space and inset (top/right/bottom/left/start/end
+// included) stay on the step set in app code; primitives in ui/ are exempt.
+// calc() and var() arbitrary values (safe areas, chrome heights) stay allowed.
+const SPACING_UTILITY =
+  "-?(?:p(?:[xytrblse]|b[se])?|m(?:[xytrblse]|b[se])?|gap(?:-[xy])?|space-[xy]|inset(?:-(?:[xyse]|b[se]))?|top|right|bottom|left|start|end)";
+const SPACING_STEP = "(?:0|0\\.5|1|2|3|4|6|8|12|16)";
+
+const offSetSpacingClasses = [
+  {
+    pattern: `(?:^|:)!?${SPACING_UTILITY}-(?!${SPACING_STEP}!?$)(?:[0-9.]+|px)!?$`,
+    message: "Spacing steps are 0, 0.5, 1, 2, 3, 4, 6, 8, 12 and 16. Use the nearest step.",
+  },
+  {
+    pattern: `(?:^|:)!?${SPACING_UTILITY}-\\[-?[0-9.]+(?:px|rem|em)?\\]!?$`,
+    message:
+      "Arbitrary spacing lengths bypass the step set (0, 0.5, 1, 2, 3, 4, 6, 8, 12, 16). Use a step, or calc()/var() for safe areas.",
+  },
+];
+
+const primitiveRestrictedClasses = [...arbitraryColorClasses, transitionAllClass];
+const appRestrictedClasses = [...primitiveRestrictedClasses, ...offSetSpacingClasses];
+
 const restrictNanoid = {
   name: "nanoid",
   message: "Use crypto.randomUUID(): local ids are server ids and the columns are uuid.",
@@ -594,9 +624,19 @@ export default [
   },
   {
     files: ["src/**/*.{ts,tsx}"],
+    ignores: [...srcTestFiles, "src/components/ui/**"],
+    rules: {
+      "better-tailwindcss/no-restricted-classes": ["error", { restrict: appRestrictedClasses }],
+    },
+  },
+  {
+    files: ["src/components/ui/**/*.{ts,tsx}"],
     ignores: srcTestFiles,
     rules: {
-      "better-tailwindcss/no-restricted-classes": ["error", { restrict: arbitraryColorClasses }],
+      "better-tailwindcss/no-restricted-classes": [
+        "error",
+        { restrict: primitiveRestrictedClasses },
+      ],
     },
   },
   {

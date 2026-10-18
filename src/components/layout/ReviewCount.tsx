@@ -10,7 +10,7 @@ export function ReviewCountBadge({ count, className }: { count: number; classNam
       aria-hidden
       data-testid="review-count"
       className={cn(
-        "min-w-5 rounded-full bg-primary px-1.5 text-center text-label leading-5 text-primary-foreground",
+        "min-w-5 rounded-full bg-primary px-1 text-center text-label leading-5 text-primary-foreground",
         className
       )}
     >
@@ -31,7 +31,7 @@ export function ReviewDot({ className }: { className?: string }) {
     <span
       data-testid="review-dot"
       className={cn(
-        "pointer-events-none absolute right-1.5 top-1.5 size-2 rounded-full bg-primary ring-2 ring-background",
+        "pointer-events-none absolute right-2 top-2 size-2 rounded-full bg-primary ring-2 ring-background",
         className
       )}
     />

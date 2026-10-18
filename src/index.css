@@ -11,6 +11,10 @@
   --transition-duration-quick: 150ms;
   --transition-duration-move: 250ms;
   --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  /* A bare transition-colors or transition-opacity runs quick and eases out;
+     movement names duration-move. */
+  --default-transition-duration: var(--transition-duration-quick);
+  --default-transition-timing-function: var(--ease-out);
 }
 
 /* Source Sans 3 variable (OFL-1.1, see assets/fonts/OFL.txt), subset to

@@ -69,6 +69,12 @@ Status: grilling done 2026-10-18, ready to implement (start at the Rollout check
 - **Theme-color meta carries the computed `oklch(...)` value** (#163), not hex. Why: it reads the token directly; Chromium accepts it. Revisit: #172, if a phone's status bar ignores it (then convert to hex at runtime).
 - **Color-literal ban covers TSX only** (#163), as the spec says. Why: `.ts` holds data-layer code with no styling. Revisit: if a color literal shows up in a `.ts` file.
 - **`success-foreground` added** (#164) beyond the spec's role list, for the filled success badge's label. Revisit: never.
+- **#169 spacing lint counts `top/right/bottom/left/start/end` as inset**, and `p-px` as off-set. Why: `inset-*` is their shorthand, so leaving them free would let `top-1.5` bypass the set. Revisit: if a layout needs an off-set offset (use calc()).
+- **#169 arbitrary spacing:** plain lengths (`p-[3px]`, `mt-[0.4rem]`) fail in app code; `calc()` and `var()` (safe areas, chrome heights) pass. Why: a literal is just an off-set step in disguise. Revisit: never.
+- **#169 spacing fixes rounded to context, not always down:** 1.5 → 2 for rows, stacks and gaps, 2.5 → 3 on 44px nav rows, `px-1.5` → `px-1` on the review count pill, `pl-5` → `pl-6` for reply lists, `space-y-5` → `space-y-6`. Revisit: never.
+- **#169 motion defaults:** Tailwind's default transition duration and curve now read `--transition-duration-quick` and `ease-out`, so a bare `transition-colors` is quick. Movement names `duration-move`; dialogs and sheets enter on `duration-move` and leave on `duration-quick`. tw-animate's 150ms default already matches quick, so overlays were left as they are. Revisit: never.
+- **#169 shadows:** `shadow-float` on popover, select, toast (sonner's own shadow is unlayered, so `shadow-float!`), the floating FAB, the install prompt, the storage warning, the sticky selection bar and the skip link; inputs, buttons, cards, tabs, dialogs and sheets lost theirs. The sidebar's broken `hsl()` outline shadows became `inset-ring` in the sidebar tokens. The arbitrary-shadow lint ban stays with #170. Revisit: never.
+- **#169 `cn` knows `shadow-float` and `duration-quick/move`** (tailwind-merge theme and class group), so `shadow-none` overrides `shadow-float` and a later duration replaces an earlier one. Revisit: when a token is added to those scales.
 
 ### Rollout checklist
 

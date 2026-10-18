@@ -117,7 +117,7 @@ export function TransactionItem({
         {...handlers}
         className={cn(
           "relative flex touch-pan-y select-none items-center gap-3 bg-background px-3 py-2 [-webkit-touch-callout:none]",
-          !dragging && "transition-transform duration-200 motion-reduce:transition-none",
+          !dragging && "transition-transform duration-move motion-reduce:transition-none",
           selected && "bg-accent",
           open && !selecting && "bg-accent ring-2 ring-inset ring-ring"
         )}

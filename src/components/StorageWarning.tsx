@@ -29,7 +29,7 @@ export function StorageWarning() {
     <div className="mx-auto w-full max-w-7xl px-4">
       <Alert
         variant={quota.percentage > 95 ? "destructive" : "default"}
-        className="pointer-events-auto shadow-lg"
+        className="pointer-events-auto shadow-float"
       >
         <HardDrive className="h-4 w-4" />
         <AlertTitle>Storage {quota.percentage > 95 ? "Critical" : "Warning"}</AlertTitle>

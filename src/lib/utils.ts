@@ -3,7 +3,11 @@ import { extendTailwindMerge } from "tailwind-merge";
 
 const twMerge = extendTailwindMerge({
   extend: {
+    theme: {
+      shadow: ["float"],
+    },
     classGroups: {
+      duration: [{ duration: ["quick", "move"] }],
       "font-size": [
         { text: ["display", "title", "heading", "body", "label", "caption", "figure", "control"] },
       ],
