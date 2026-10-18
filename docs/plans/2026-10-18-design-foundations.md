@@ -55,6 +55,7 @@ Status: grilling done 2026-10-18, ready to implement (start at the Rollout check
 - **#164 contrast scope:** `input` must reach 3:1 on `muted` and `popover` as well as background and card (fields sit in popovers and muted panels), so both themes' `input` darkened/lightened slightly; dark `shortfall` chroma dropped to 0.12 because the specimen value was outside sRGB and lightening it at 0.16 clipped. Revisit: never.
 - **#164 radius:** `rounded-md` is the 6px base, `rounded-sm` 3px, `rounded-lg` and `rounded-xl` both 10px (xl kept as an alias so today's cards keep the large step); bare `rounded` stays Tailwind's 4px until #170 resets it. Revisit: #170.
 - **#164 motion:** durations are Tailwind's `--transition-duration-*` namespace (`duration-quick`, `duration-move`); the curve redefines `ease-out`. The default transition duration and timing function are unchanged; moving primitives onto them is #169. Revisit: #169.
+- **The app-component layer lives in `src/components/app/`** (#166), held open by a `.gitkeep` until the component-patterns session fills it. The boundary is `arch/no-direct-primitive-import` (its own rule ID so it stacks with the existing `no-restricted-imports` blocks) over all of `src/**` except `ui/`, `app/` and tests; its allowlist is `directPrimitiveImporters` in `eslint.config.js` (61 files, including `src/App.tsx`). Why: "app" matches ADR 0011's "app-component layer" and sits beside `ui/`. Revisit: the component-patterns session.
 
 ### Rollout checklist
 
