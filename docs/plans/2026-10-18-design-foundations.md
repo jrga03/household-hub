@@ -96,7 +96,7 @@ Ticketed 2026-10-18 as sub-issues of #162, expand → migrate → contract. Each
 - [x] #168 Text sizes and weights onto roles (#165)
 - [x] #169 Shadows, motion and spacing onto the system (#163, #164)
 - [x] #170 Remove Tailwind's defaults (#163, #167, #168, #169)
-- [ ] #171 DESIGN.md and agent guidance (#166, #170)
+- [x] #171 DESIGN.md and agent guidance (#166, #170)
 - [ ] #172 Integrate and verify design foundations (#170, #171)
 - **Deferred: adaptive layout** (more columns on the laptop, M3 window size classes). Revisit: the adaptive-layout session.
 - **Parked:** component patterns, adaptive layouts (M3 window size classes), migration of existing pages.
