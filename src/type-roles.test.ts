@@ -1,11 +1,7 @@
-import { beforeAll, describe, expect, it } from "vitest";
-import { compileTheme, declarationsIn } from "@/test/tailwind-theme";
+import { describe, expect, it } from "vitest";
+import { compiledThemeForSuite, declarationsIn } from "@/test/tailwind-theme";
 
-let buildClasses: (classNames: string[]) => string;
-
-beforeAll(async () => {
-  buildClasses = await compileTheme();
-});
+const buildClasses = compiledThemeForSuite();
 
 function declarationsOf(className: string) {
   return declarationsIn(buildClasses([className]), `\\.${className}`);
