@@ -14,12 +14,8 @@ function syncThemeColor() {
 }
 
 /**
- * Keeps the browser/PWA chrome color (`<meta name="theme-color">`) on the
- * resolved `--background` token (review R31).
- *
- * index.html ships paired media-attributed metas for the pre-hydration window.
- * Once mounted, both metas follow the token whenever next-themes swaps the
- * theme class on <html>, so the in-app toggle wins over the system preference.
+ * Sets every `<meta name="theme-color">` to the resolved `--background` token on
+ * mount and whenever the class on `<html>` changes.
  */
 export function ThemeColorSync() {
   useEffect(() => {
