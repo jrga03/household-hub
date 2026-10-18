@@ -35,7 +35,7 @@ import type { RevealedAction } from "./useRowGestures";
 import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 
 const ROW_HEIGHT_ESTIMATE = 61;
-const HEADING_HEIGHT_ESTIMATE = 29;
+const HEADING_HEIGHT_ESTIMATE = 31;
 
 /** "yyyy-MM" months holding transactions or transfers, newest first (the list is newest first). */
 const monthsOf = (rows: ListRow[]) => [...new Set(rows.map((row) => monthOfDate(row.date)))];
