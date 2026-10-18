@@ -40,7 +40,7 @@ export function SyncStatusIndicator({ compact = false }: { compact?: boolean }) 
         <Button
           variant="ghost"
           size={compact ? "icon" : "sm"}
-          className={cn("gap-1.5", TONE_COLORS[tone])}
+          className={cn("gap-2", TONE_COLORS[tone])}
           aria-label={`Sync status: ${label}`}
         >
           <Icon className="h-4 w-4" aria-hidden="true" />

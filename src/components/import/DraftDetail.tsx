@@ -54,7 +54,7 @@ export function DraftDetail({
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
         <dt className="text-muted-foreground">On the statement</dt>
         <dd className="min-w-0 break-words">{line.description}</dd>

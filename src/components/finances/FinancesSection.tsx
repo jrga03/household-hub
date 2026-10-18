@@ -124,7 +124,7 @@ function FinancesBlocks({
               <Link
                 to="/accounts"
                 hash={`account-${account.id}`}
-                className="flex items-center justify-between gap-3 py-1.5 hover:underline"
+                className="flex items-center justify-between gap-3 py-2 hover:underline"
               >
                 <span className="truncate">{account.name}</span>
                 <span className="shrink-0 tabular-nums">
@@ -229,8 +229,8 @@ function LatestTransactions({ rows }: { rows: ListRow[] }) {
       {rows.map((row) => {
         const { label, direction } = rowDisplay(row, names);
         return (
-          <li key={row.id} className="flex items-center justify-between gap-3 py-1.5">
-            <span className="flex min-w-0 items-center gap-1.5">
+          <li key={row.id} className="flex items-center justify-between gap-3 py-2">
+            <span className="flex min-w-0 items-center gap-2">
               {isTransfer(row) && (
                 <ArrowLeftRight
                   className="size-4 shrink-0 text-muted-foreground"

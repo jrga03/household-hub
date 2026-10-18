@@ -68,7 +68,7 @@ export function AccountDetailsFields({
         {types.length === 1 ? (
           <>
             <input type="hidden" name="type" value={type ?? ""} />
-            <p id={`${idPrefix}-type`} className="py-1.5 text-sm">
+            <p id={`${idPrefix}-type`} className="py-2 text-sm">
               {types[0] && ACCOUNT_TYPE_LABELS[types[0]]}
             </p>
           </>

@@ -213,7 +213,7 @@ export function TransactionList({
             title={`${selected.length.toLocaleString("en-PH")} selected`}
             exitLabel="Cancel selection"
             onExit={stopSelecting}
-            inlineClassName="sticky bottom-4 z-20 rounded-md border bg-background shadow-sm"
+            inlineClassName="sticky bottom-4 z-20 rounded-md border bg-background shadow-float"
           >
             <SelectionActions
               actor={actor}
@@ -384,7 +384,7 @@ function VirtualTransactionRows({ items, renderRow }: VirtualTransactionRowsProp
               role="none"
               data-index={virtualItem.index}
               className={cn(
-                "left-0 z-10 w-full border-b bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground",
+                "left-0 z-10 w-full border-b bg-muted px-3 py-2 text-xs font-medium text-muted-foreground",
                 stuck ? cn("sticky", BELOW_HEADER) : "absolute top-0"
               )}
               style={stuck ? undefined : placed}

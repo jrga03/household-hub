@@ -197,7 +197,7 @@ export function BudgetView({
 
 function GroupTotals({ group, figures }: { group: GroupRow; figures: MonthFigures }) {
   return (
-    <div className="space-y-1.5 border-b bg-muted/40 px-3 py-2">
+    <div className="space-y-2 border-b bg-muted/40 px-3 py-2">
       <RecordName record={group} showRetired />
       <BudgetFigures name={group.name} figures={figures} />
     </div>
@@ -221,7 +221,7 @@ function CategoryRows({
   return (
     <ul aria-label={label} className="divide-y">
       {categories.map((category) => (
-        <li key={category.id} className="relative space-y-1.5 px-3 py-2 pl-6 hover:bg-muted/40">
+        <li key={category.id} className="relative space-y-2 px-3 py-2 pl-6 hover:bg-muted/40">
           {/* Stretched over the row, so the whole row opens the ledger. */}
           <button
             type="button"
