@@ -1,16 +1,19 @@
 import { clsx, type ClassValue } from "clsx";
 import { extendTailwindMerge } from "tailwind-merge";
 
+// Mirrors the reset theme in src/index.css: only the design system's steps exist.
 const twMerge = extendTailwindMerge({
-  extend: {
+  override: {
     theme: {
+      text: ["display", "title", "heading", "body", "label", "caption", "figure", "control"],
+      "font-weight": ["normal", "medium", "semibold", "bold"],
+      radius: ["sm", "md", "lg"],
       shadow: ["float"],
     },
+  },
+  extend: {
     classGroups: {
       duration: [{ duration: ["quick", "move"] }],
-      "font-size": [
-        { text: ["display", "title", "heading", "body", "label", "caption", "figure", "control"] },
-      ],
     },
   },
 });
