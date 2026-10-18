@@ -130,20 +130,17 @@ test("the last row stays inside the list's bottom border", async ({ page }) => {
   await addTransaction(page, { amount: "80", description: "Parking" });
 
   const list = page.getByRole("list", { name: "Transactions" });
+  // Newest first, so the first one added is the last row.
   const lastRow = list.getByRole("listitem").filter({ hasText: "Lunch" });
   await expect(lastRow).toBeVisible();
-  const { lastRowBottom, borderTop } = await list.evaluate((element) => {
-    const rows = element.querySelectorAll(":scope > li");
-    const lastItem = rows[rows.length - 1];
-    if (!lastItem) throw new Error("no rows");
-    const listBox = element.getBoundingClientRect();
-    const bottomBorder = parseFloat(window.getComputedStyle(element).borderBottomWidth);
-    return {
-      lastRowBottom: lastItem.getBoundingClientRect().bottom,
-      borderTop: listBox.bottom - bottomBorder,
-    };
-  });
-  expect(lastRowBottom).toBeLessThanOrEqual(borderTop);
+  const rowBox = await lastRow.boundingBox();
+  const bottomBorderInnerEdge = await list.evaluate(
+    (element) =>
+      element.getBoundingClientRect().bottom -
+      parseFloat(window.getComputedStyle(element).borderBottomWidth)
+  );
+  if (!rowBox) throw new Error("the last row has no box");
+  expect(rowBox.y + rowBox.height).toBeLessThanOrEqual(bottomBorderInnerEdge);
 });
 
 test("selecting rows changes their category or removes them, with undo", async ({
