@@ -127,7 +127,12 @@ function FinancesBlocks({
                 className="flex items-center justify-between gap-3 py-1.5 hover:underline"
               >
                 <span className="truncate">{account.name}</span>
-                <span className="shrink-0 tabular-nums">
+                <span
+                  className={cn(
+                    "shrink-0 tabular-nums",
+                    !isCreditCard(account) && balance < 0 && "text-shortfall"
+                  )}
+                >
                   {isCreditCard(account) && <span className="text-muted-foreground">Owed </span>}
                   {formatPHP(balance)}
                 </span>
