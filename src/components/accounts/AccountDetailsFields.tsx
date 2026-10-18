@@ -68,7 +68,7 @@ export function AccountDetailsFields({
         {types.length === 1 ? (
           <>
             <input type="hidden" name="type" value={type ?? ""} />
-            <p id={`${idPrefix}-type`} className="py-1.5 text-sm">
+            <p id={`${idPrefix}-type`} className="py-1.5 text-body">
               {types[0] && ACCOUNT_TYPE_LABELS[types[0]]}
             </p>
           </>
@@ -134,7 +134,7 @@ function PayingAccountField({
     <div className="space-y-2">
       <Label htmlFor={id}>Paid from</Label>
       {choices.length === 0 ? (
-        <p id={id} className="text-sm text-muted-foreground">
+        <p id={id} className="text-body text-muted-foreground">
           Add a {visibility} account other than a credit card first.
         </p>
       ) : (

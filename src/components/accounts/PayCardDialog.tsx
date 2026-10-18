@@ -68,7 +68,7 @@ export function PayCardDialog({
       onClose={onClose}
     >
       {payers.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           Add a bank, cash or e-wallet account seen by the same people as {card.name} first.
         </p>
       ) : (
@@ -226,7 +226,7 @@ function PaymentNote({
     const left = diffCents(reserved, amount);
     if (left >= 0) return null;
     return (
-      <p className="text-sm text-destructive" aria-live="polite">
+      <p className="text-body text-destructive" aria-live="polite">
         This leaves Card Payment · {card.name} in {payer.name} at {formatPHP(left)}. You can still
         pay; it shows in red until money comes in.
       </p>
@@ -235,7 +235,7 @@ function PaymentNote({
   const freed = reservationFreed(reserved, amount);
   const left = diffCents(moneyIn(money.get(payer.id)?.envelopes, UNASSIGNED_ENVELOPE), amount);
   return (
-    <div className="space-y-1 text-sm" aria-live="polite">
+    <div className="space-y-1 text-body" aria-live="polite">
       {payingAccount && freed > 0 && (
         <p className="text-muted-foreground">
           {formatPHP(freed)} set aside in {payingAccount.name} goes back to its Unassigned.

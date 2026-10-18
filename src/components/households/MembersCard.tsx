@@ -48,7 +48,7 @@ export function MembersCard({ householdId, userId, isOwner }: MembersCardProps) 
       </CardHeader>
       <CardContent className="space-y-4">
         {isError && !members && (
-          <p className="text-sm text-muted-foreground">Members show when you&apos;re online.</p>
+          <p className="text-body text-muted-foreground">Members show when you&apos;re online.</p>
         )}
         {members && (
           <ul aria-label="Members" className="divide-y rounded-md border">
@@ -76,7 +76,7 @@ export function MembersCard({ householdId, userId, isOwner }: MembersCardProps) 
           </ul>
         )}
         {!isOnline && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             Membership changes need a connection. You&apos;re offline right now.
           </p>
         )}
@@ -218,7 +218,7 @@ function LeaveHousehold({ userId, isOwner, isLastMember, disabled, onLeave }: Le
         Leave household
       </Button>
       {mustHandOver && (
-        <p id="leave-hand-over-hint" className="text-sm text-muted-foreground">
+        <p id="leave-hand-over-hint" className="text-body text-muted-foreground">
           Make another Member the Owner before you leave.
         </p>
       )}

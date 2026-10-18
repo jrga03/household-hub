@@ -23,15 +23,15 @@ function CreateOrJoinPage() {
             aria-hidden="true"
             className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground"
           >
-            <span className="text-xs font-bold">HH</span>
+            <span className="text-caption font-bold">HH</span>
           </div>
-          <h1 className="text-lg font-semibold">Welcome to Household Hub</h1>
+          <h1 className="text-title">Welcome to Household Hub</h1>
         </div>
 
         {user && <CreateOrJoinChoices userId={user.id} />}
       </PageShell.Main>
 
-      <footer className="flex items-center justify-center gap-1 text-sm text-muted-foreground">
+      <footer className="flex items-center justify-center gap-1 text-body text-muted-foreground">
         <span className="min-w-0 truncate">Signed in as {user?.email}</span>
         <span aria-hidden="true">·</span>
         <Button

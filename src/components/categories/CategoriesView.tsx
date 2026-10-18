@@ -52,7 +52,7 @@ export function CategoriesView({ actor }: { actor: Actor }) {
       <Card>
         <CardContent className="space-y-6">
           {list.groups.length === 0 && list.ungrouped.length === 0 && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-body text-muted-foreground">
               No groups yet. Household categories every member sees, and Personal ones only you see.
               Add the first group below.
             </p>
@@ -76,7 +76,7 @@ export function CategoriesView({ actor }: { actor: Actor }) {
           )}
           {list.ungrouped.length > 0 && (
             <div className="space-y-2 rounded-md border">
-              <p className="border-b px-3 py-2 text-sm text-muted-foreground">
+              <p className="border-b px-3 py-2 text-body text-muted-foreground">
                 Waiting for their group to reach this device
               </p>
               <CategoryItems
@@ -139,7 +139,7 @@ function CategoryItems({
   onEdit: (id: string) => void;
 }) {
   if (categories.length === 0) {
-    return <p className="px-3 py-2 text-sm text-muted-foreground">No categories in use.</p>;
+    return <p className="px-3 py-2 text-body text-muted-foreground">No categories in use.</p>;
   }
   return (
     <ul aria-label={label} className="divide-y">
@@ -219,7 +219,7 @@ function RetiredCategories({ actor, list }: { actor: Actor; list: CategoryList }
             <li key={group.id} className="flex items-center justify-between gap-3 px-3 py-2">
               <div className="min-w-0">
                 <RecordName record={group} />
-                <p className="text-sm text-muted-foreground">Group</p>
+                <p className="text-body text-muted-foreground">Group</p>
               </div>
               <Button
                 variant="outline"
@@ -236,7 +236,7 @@ function RetiredCategories({ actor, list }: { actor: Actor; list: CategoryList }
             <li key={category.id} className="flex items-center justify-between gap-3 px-3 py-2">
               <div className="min-w-0">
                 <RecordName record={category} />
-                <p className="text-sm text-muted-foreground">
+                <p className="text-body text-muted-foreground">
                   {category.group ? `In ${category.group.name}` : "Group not on this device yet"}
                 </p>
               </div>

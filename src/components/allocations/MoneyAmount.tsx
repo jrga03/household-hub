@@ -17,5 +17,5 @@ export function MoneyAmount({ cents, className }: { cents: Cents; className?: st
 /** The reason a negative amount is red, on its own line beneath the row. */
 export function NegativeNote({ cents, label }: { cents: Cents; label: string }) {
   if (cents >= 0) return null;
-  return <p className="text-right text-xs text-destructive">{label}</p>;
+  return <p className="text-right text-caption text-destructive">{label}</p>;
 }

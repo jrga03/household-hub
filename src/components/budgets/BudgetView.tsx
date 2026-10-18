@@ -91,7 +91,7 @@ export function BudgetView({
     <>
       <PageShell.Main className="space-y-4">
         {empty ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             No categories yet. Set them up on <Link to="/categories">Categories</Link>, then give
             each one a budget on the plan.
           </p>
@@ -110,7 +110,7 @@ export function BudgetView({
             ))}
             {rows.ungrouped.length > 0 && (
               <li className="rounded-md border">
-                <p className="border-b px-3 py-2 text-sm text-muted-foreground">
+                <p className="border-b px-3 py-2 text-body text-muted-foreground">
                   Waiting for their group to reach this device
                 </p>
                 <CategoryRows
@@ -138,7 +138,7 @@ export function BudgetView({
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <h2 className="truncate font-semibold">{ledgerName}</h2>
-                  <p className="text-sm text-muted-foreground">{monthLabel(month)}</p>
+                  <p className="text-body text-muted-foreground">{monthLabel(month)}</p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => setLedgerId(null)}>
                   Close
@@ -147,7 +147,7 @@ export function BudgetView({
               {ledger}
             </section>
           ) : (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-body text-muted-foreground">
               Choose a category to see its month here.
             </p>
           )}
@@ -216,7 +216,7 @@ function CategoryRows({
   onOpenLedger: (categoryId: string) => void;
 }) {
   if (categories.length === 0) {
-    return <p className="px-3 py-2 text-sm text-muted-foreground">No categories in use.</p>;
+    return <p className="px-3 py-2 text-body text-muted-foreground">No categories in use.</p>;
   }
   return (
     <ul aria-label={label} className="divide-y">
@@ -260,7 +260,7 @@ function BudgetFigures({ name, figures }: { name: string; figures: MonthFigures 
       )}
       <dl
         aria-label={`${name} budget, spent and left`}
-        className="grid grid-cols-3 gap-2 text-xs text-muted-foreground"
+        className="grid grid-cols-3 gap-2 text-caption text-muted-foreground"
       >
         <div className="min-w-0">
           <dt>Budget</dt>
@@ -275,7 +275,7 @@ function BudgetFigures({ name, figures }: { name: string; figures: MonthFigures 
         {progress && (
           <div className="min-w-0 text-right">
             <dt>Left</dt>
-            <dd className="truncate text-sm font-medium text-foreground">
+            <dd className="truncate text-body font-medium text-foreground">
               <MoneyAmount cents={progress.left} />
             </dd>
           </div>
