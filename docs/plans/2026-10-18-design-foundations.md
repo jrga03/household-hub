@@ -84,7 +84,8 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#171 stale READMEs:** `src/components/README.md`, `src/components/ui/README.md` and `src/components/layout/README.md` deleted (they described removed folders, nav and classes); their links in `src/README.md` and `docs/features/README.md` point at DESIGN.md. Revisit: never.
 - **#171 transfers in money:** DESIGN.md lets a transfer amount stay muted with no sign, as the transaction list renders it, inside the "expenses and transfers stay neutral" rule. Revisit: the component-patterns session.
 
-- **Layout baselines cover light at laptop and wider only** (#172). Dark and phone-width were checked by hand-taken screenshots, not committed baselines. The baseline user also has no transactions, so `transactions-*` shows the empty state and never draws the list (#175). Revisit: a later ticket adding dark and phone-width baselines, with the baseline user seeded with transactions.
+- **Phone layout baselines grow the viewport to the page height instead of using `fullPage`** (#174). Why: on Mobile Chrome, Playwright's full-page capture renders without touch emulation, so the 44px coarse-pointer targets vanish and masks land about 30px off (the month showed through on home). Laptop and wider still use `fullPage`. Revisit: when a Playwright upgrade keeps touch emulation through full-page capture.
+- **`transactions-*` baselines show the empty state** (#175): the baseline user has no transactions, so no baseline draws the list; the e2e test "the last row stays inside the list's bottom border" guards its border instead. Revisit: when the baseline user is seeded with transactions.
 - **webkit and Mobile Safari layout snapshots were not regenerated** (#172); neither project is trusted per CLAUDE.md. Revisit: when those projects are fixed.
 - **Theme-color meta still needs a real-phone status-bar check** (#172); Chromium renders the oklch value. Revisit: next time the PWA is opened on a phone.
 
@@ -102,5 +103,6 @@ Ticketed 2026-10-18 as sub-issues of #162, expand → migrate → contract. Each
 - [x] #170 Remove Tailwind's defaults (#163, #167, #168, #169)
 - [x] #171 DESIGN.md and agent guidance (#166, #170)
 - [x] #172 Integrate and verify design foundations (#170, #171)
+- [x] #174 Dark and phone-width layout baselines (#172)
 - **Deferred: adaptive layout** (more columns on the laptop, M3 window size classes). Revisit: the adaptive-layout session.
 - **Parked:** component patterns, adaptive layouts (M3 window size classes), migration of existing pages.
