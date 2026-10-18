@@ -123,6 +123,26 @@ test("rows sit under their date, and a pending one is marked by an icon", async 
   await expect(list.getByRole("button", { name: /^Mark/ })).toHaveCount(0);
 });
 
+test("the last row stays inside the list's bottom border", async ({ page }) => {
+  await startHousehold(page);
+  await navigateTo(page, "Transactions");
+  await addTransaction(page, { amount: "250", description: "Lunch" });
+  await addTransaction(page, { amount: "80", description: "Parking" });
+
+  const list = page.getByRole("list", { name: "Transactions" });
+  // Newest first, so the first one added is the last row.
+  const lastRow = list.getByRole("listitem").filter({ hasText: "Lunch" });
+  await expect(lastRow).toBeVisible();
+  const rowBox = await lastRow.boundingBox();
+  const bottomBorderInnerEdge = await list.evaluate(
+    (element) =>
+      element.getBoundingClientRect().bottom -
+      parseFloat(window.getComputedStyle(element).borderBottomWidth)
+  );
+  if (!rowBox) throw new Error("the last row has no box");
+  expect(rowBox.y + rowBox.height).toBeLessThanOrEqual(bottomBorderInnerEdge);
+});
+
 test("selecting rows changes their category or removes them, with undo", async ({
   page,
   isMobile,

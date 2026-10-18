@@ -85,7 +85,7 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#171 transfers in money:** DESIGN.md lets a transfer amount stay muted with no sign, as the transaction list renders it, inside the "expenses and transfers stay neutral" rule. Revisit: the component-patterns session.
 
 - **Phone layout baselines grow the viewport to the page height instead of using `fullPage`** (#174). Why: on Mobile Chrome, Playwright's full-page capture renders without touch emulation, so the 44px coarse-pointer targets vanish and masks land about 30px off (the month showed through on home). Laptop and wider still use `fullPage`. Revisit: when a Playwright upgrade keeps touch emulation through full-page capture.
-- **Transaction list's last row overlaps the bottom border by 1px**, pre-existing on `main` (#172). Revisit: its own small bug fix.
+- **`transactions-*` baselines show the empty state** (#175): the baseline user has no transactions, so no baseline draws the list; the e2e test "the last row stays inside the list's bottom border" guards its border instead. Revisit: when the baseline user is seeded with transactions.
 - **webkit and Mobile Safari layout snapshots were not regenerated** (#172); neither project is trusted per CLAUDE.md. Revisit: when those projects are fixed.
 - **Theme-color meta still needs a real-phone status-bar check** (#172); Chromium renders the oklch value. Revisit: next time the PWA is opened on a phone.
 
