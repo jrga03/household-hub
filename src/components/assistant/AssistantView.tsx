@@ -21,11 +21,11 @@ const EXAMPLE_PROMPTS = [
 
 function Bubble({ from, children }: { from: "member" | "assistant"; children: string }) {
   return from === "member" ? (
-    <li className="max-w-[85%] self-end whitespace-pre-wrap rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground">
+    <li className="max-w-[85%] self-end whitespace-pre-wrap rounded-lg bg-primary px-3 py-2 text-body text-primary-foreground">
       {children}
     </li>
   ) : (
-    <li className="min-w-0 max-w-[85%] self-start rounded-lg bg-muted px-3 py-2 text-sm has-[table]:w-full has-[table]:max-w-full">
+    <li className="min-w-0 max-w-[85%] self-start rounded-lg bg-muted px-3 py-2 text-body has-[table]:w-full has-[table]:max-w-full">
       <ReplyMarkdown>{children}</ReplyMarkdown>
     </li>
   );
@@ -95,7 +95,7 @@ export function AssistantView({ actor }: { actor: Actor }) {
       )}
       {items.length === 0 && (
         <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">Try asking</p>
+          <p className="text-body text-muted-foreground">Try asking</p>
           <ul className="flex flex-wrap gap-2">
             {EXAMPLE_PROMPTS.map((text) => (
               <li key={text}>
@@ -121,7 +121,7 @@ export function AssistantView({ actor }: { actor: Actor }) {
           (replyText ? (
             <Bubble from="assistant">{replyText}</Bubble>
           ) : (
-            <li className="self-start text-sm text-muted-foreground">Thinking…</li>
+            <li className="self-start text-body text-muted-foreground">Thinking…</li>
           ))}
       </ol>
       <FormError>{error}</FormError>

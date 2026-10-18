@@ -32,7 +32,7 @@ export function ReviewView() {
         })
       )}
       {joinRequestsUnread && (
-        <p className="text-center text-sm text-muted-foreground">
+        <p className="text-center text-body text-muted-foreground">
           Join requests show when you&apos;re online.
         </p>
       )}
@@ -130,8 +130,8 @@ function AllClear() {
   return (
     <div className="flex flex-col items-center gap-2 py-16 text-center">
       <CircleCheck aria-hidden className="size-10 text-income" />
-      <h2 className="text-lg font-semibold">All clear</h2>
-      <p className="text-sm text-muted-foreground">Nothing needs a look right now.</p>
+      <h2 className="text-heading">All clear</h2>
+      <p className="text-body text-muted-foreground">Nothing needs a look right now.</p>
     </div>
   );
 }

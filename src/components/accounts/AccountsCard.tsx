@@ -45,7 +45,9 @@ export function AccountsCard({ actor }: { actor: Actor }) {
     <Card>
       <CardContent className="space-y-6">
         {accounts?.length === 0 && (
-          <p className="text-sm text-muted-foreground">No accounts yet. Add the first one below.</p>
+          <p className="text-body text-muted-foreground">
+            No accounts yet. Add the first one below.
+          </p>
         )}
         {accounts && accounts.length > 0 && (
           <ul aria-label="Accounts" className="divide-y rounded-md border">
@@ -136,7 +138,7 @@ function AccountItem({
           </Link>
           {account.visibility === "personal" && <Badge variant="secondary">Personal</Badge>}
         </p>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           {ACCOUNT_TYPE_LABELS[account.type]}
           {isCreditCard(account) && ` · ${payingAccountSummary(account)}`}
         </p>
@@ -166,7 +168,7 @@ const negativeClass = (cents: Cents) => (cents < 0 ? "text-shortfall" : undefine
 function MoneySummary({ money }: { money: AccountMoney }) {
   return (
     <>
-      <p className="text-sm text-muted-foreground tabular-nums">
+      <p className="text-body text-muted-foreground tabular-nums">
         Cleared {formatPHP(money.cleared)} · Pending {formatPHP(money.pending)}
         {money.envelopes && (
           <>
@@ -190,7 +192,7 @@ function CardPayments({ cardPayments }: { cardPayments: Map<string, Cents> }) {
     .map(([cardId, cents]) => ({ cardId, cents, name: names.get(cardId) ?? "A card" }))
     .sort((a, b) => a.name.localeCompare(b.name));
   return reserved.map(({ cardId, cents, name }) => (
-    <p key={cardId} className="text-sm text-muted-foreground tabular-nums">
+    <p key={cardId} className="text-body text-muted-foreground tabular-nums">
       <span className={negativeClass(cents)}>
         Card Payment · {name} {formatPHP(cents)}
       </span>

@@ -43,11 +43,11 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <span className="text-sm font-bold">HH</span>
+                <span className="text-body font-bold">HH</span>
               </div>
               <div className="flex flex-col">
-                <SheetTitle className="text-base">Household Hub</SheetTitle>
-                <span className="text-xs text-muted-foreground">Finance Tracker</span>
+                <SheetTitle>Household Hub</SheetTitle>
+                <span className="text-caption text-muted-foreground">Finance Tracker</span>
               </div>
             </div>
             <Button
@@ -73,7 +73,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
                   onClick={() => onOpenChange(false)}
                   aria-label={item.reviewCount ? reviewLabel(item.label, reviewCount) : undefined}
                   className={cn(
-                    "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+                    "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-body transition-colors",
                     "hover:bg-accent hover:text-accent-foreground",
                     "active:bg-accent active:text-accent-foreground",
                     active && "bg-accent text-accent-foreground font-medium"
@@ -94,11 +94,11 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
               <User className="h-5 w-5" />
             </div>
-            <span className="min-w-0 truncate text-sm text-muted-foreground">{user?.email}</span>
+            <span className="min-w-0 truncate text-body text-muted-foreground">{user?.email}</span>
           </div>
           <button
             onClick={() => void handleSignOut()}
-            className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground active:bg-accent active:text-accent-foreground"
+            className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-body transition-colors hover:bg-accent hover:text-accent-foreground active:bg-accent active:text-accent-foreground"
           >
             <LogOut className="h-5 w-5" />
             <span className="flex-1 text-left">Sign Out</span>

@@ -148,11 +148,13 @@ export function PWAInstallPrompt() {
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <span className="text-sm font-bold">HH</span>
+                  <span className="text-body font-bold">HH</span>
                 </div>
                 <div>
-                  <CardTitle className="text-base">Install Household Hub</CardTitle>
-                  <CardDescription className="text-xs">Add to your home screen</CardDescription>
+                  <CardTitle>Install Household Hub</CardTitle>
+                  <CardDescription className="text-caption">
+                    Add to your home screen
+                  </CardDescription>
                 </div>
               </div>
               <Button
@@ -168,7 +170,7 @@ export function PWAInstallPrompt() {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            <div className="space-y-3 text-sm">
+            <div className="space-y-3 text-body">
               <p className="text-muted-foreground">
                 Install this app for quick access and offline support:
               </p>
@@ -220,11 +222,11 @@ export function PWAInstallPrompt() {
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <span className="text-sm font-bold">HH</span>
+                <span className="text-body font-bold">HH</span>
               </div>
               <div>
-                <CardTitle className="text-base">Install Household Hub</CardTitle>
-                <CardDescription className="text-xs">
+                <CardTitle>Install Household Hub</CardTitle>
+                <CardDescription className="text-caption">
                   Get quick access and work offline
                 </CardDescription>
               </div>
@@ -242,7 +244,7 @@ export function PWAInstallPrompt() {
         </CardHeader>
 
         <CardContent className="space-y-4">
-          <div className="space-y-2 text-sm text-muted-foreground">
+          <div className="space-y-2 text-body text-muted-foreground">
             <p>✓ Faster loading times</p>
             <p>✓ Works offline</p>
             <p>✓ Desktop shortcut</p>

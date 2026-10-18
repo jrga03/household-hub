@@ -115,8 +115,8 @@ function EditDialog({
         </div>
         {children}
         <div className="space-y-1">
-          <p className="text-sm font-medium">Who sees it</p>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-label">Who sees it</p>
+          <p className="text-body text-muted-foreground">
             {VISIBILITY_SUMMARY[record.visibility]} Visibility can&apos;t be changed.
           </p>
         </div>
@@ -155,7 +155,7 @@ export function EditGroupDialog({
       onRetire={retire}
       retireLabel="Retire group"
     >
-      <p className="text-sm text-muted-foreground">
+      <p className="text-body text-muted-foreground">
         A group retires once every category in it is retired.
       </p>
     </EditDialog>
@@ -278,7 +278,9 @@ function RetireMovingMoneyDialog({
     >
       <ActionForm action={retireAction} className="space-y-4" aria-label={title}>
         {choices.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Add another category for its money first.</p>
+          <p className="text-body text-muted-foreground">
+            Add another category for its money first.
+          </p>
         ) : (
           <div className="space-y-2">
             <Label htmlFor="retire-move-to">Move its money into</Label>

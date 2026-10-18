@@ -34,7 +34,7 @@ export function LoginForm() {
       <CardContent>
         <ActionForm action={submitAction} className="space-y-4">
           <div>
-            <label htmlFor="email" className="text-sm font-medium">
+            <label htmlFor="email" className="text-label">
               Email
             </label>
             <Input
@@ -48,7 +48,7 @@ export function LoginForm() {
           </div>
 
           <div>
-            <label htmlFor="password" className="text-sm font-medium">
+            <label htmlFor="password" className="text-label">
               Password
             </label>
             <Input
@@ -63,7 +63,7 @@ export function LoginForm() {
           </div>
 
           {state.error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            <div className="rounded-md bg-destructive/10 p-3 text-body text-destructive">
               {state.error}
             </div>
           )}
@@ -72,7 +72,7 @@ export function LoginForm() {
             Sign In
           </SubmitButton>
 
-          <div className="text-center text-sm text-muted-foreground">
+          <div className="text-center text-body text-muted-foreground">
             Don&apos;t have an account?{" "}
             <Link to="/signup" className="text-primary hover:underline">
               Sign up

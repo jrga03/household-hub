@@ -70,7 +70,7 @@ function SignedAmount({ cents }: { cents: Cents }) {
 
 function Balance({ label, cents }: { label: string; cents: Cents }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-3 py-2 text-sm font-medium">
+    <div className="flex items-center justify-between gap-3 px-3 py-2 text-body font-medium">
       <span>{label}</span>
       <MoneyAmount cents={cents} />
     </div>
@@ -108,7 +108,7 @@ export function CategoryLedger({
       <div className="divide-y rounded-md border">
         <Balance label={`Start of ${monthLabel(month)}`} cents={ledger.opening} />
         {ledger.rows.length === 0 ? (
-          <p className="px-3 py-2 text-sm text-muted-foreground">
+          <p className="px-3 py-2 text-body text-muted-foreground">
             Nothing recorded in {categoryName} this month.
           </p>
         ) : (
@@ -124,11 +124,16 @@ export function CategoryLedger({
                   >
                     <span className="min-w-0">
                       <span className="block truncate font-medium">{label}</span>
-                      <span className="block truncate text-sm text-muted-foreground">{detail}</span>
+                      <span className="block truncate text-body text-muted-foreground">
+                        {detail}
+                      </span>
                     </span>
                     <span className="flex shrink-0 flex-col items-end">
                       <Change row={row} />
-                      <MoneyAmount cents={row.balance} className="text-xs text-muted-foreground" />
+                      <MoneyAmount
+                        cents={row.balance}
+                        className="text-caption text-muted-foreground"
+                      />
                     </span>
                   </button>
                 </li>
@@ -138,7 +143,7 @@ export function CategoryLedger({
         )}
         <Balance label={`End of ${monthLabel(month)}`} cents={ledger.closing} />
         {isCurrentMonth && ledger.datedLater !== 0 && (
-          <div className="flex items-center justify-between gap-3 px-3 py-2 text-sm text-muted-foreground">
+          <div className="flex items-center justify-between gap-3 px-3 py-2 text-body text-muted-foreground">
             <span>Dated later</span>
             <SignedAmount cents={ledger.datedLater} />
           </div>
@@ -150,13 +155,13 @@ export function CategoryLedger({
           Budget history
         </h3>
         {versions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No budget set yet.</p>
+          <p className="text-body text-muted-foreground">No budget set yet.</p>
         ) : (
           <ul aria-label="Budget history" className="divide-y rounded-md border">
             {versions.map((version) => (
               <li
                 key={version.id}
-                className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+                className="flex items-center justify-between gap-3 px-3 py-2 text-body"
               >
                 <span className="min-w-0">
                   <span className="block">From {monthLabel(version.fromMonth)}</span>

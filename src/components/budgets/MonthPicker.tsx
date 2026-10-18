@@ -21,7 +21,7 @@ export function MonthPicker({
       >
         <ChevronLeft />
       </Button>
-      <p className="w-[4.75rem] text-center text-sm font-medium" aria-live="polite">
+      <p className="w-[4.75rem] text-center text-body font-medium" aria-live="polite">
         <span aria-hidden>{format(parseLocalDate(`${month}-01`), "MMM yyyy")}</span>
         <span className="sr-only">{monthLabel(month)}</span>
       </p>

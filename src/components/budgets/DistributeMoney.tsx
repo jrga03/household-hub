@@ -66,7 +66,7 @@ export function DistributeMoney(props: Props) {
   const sources = accounts.filter((account) => !isCreditCard(account));
   if (sources.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">Add a bank, cash or e-wallet account first.</p>
+      <p className="text-body text-muted-foreground">Add a bank, cash or e-wallet account first.</p>
     );
   }
   return (
@@ -132,7 +132,7 @@ function DistributeForm({
               ))}
             </SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground">Unassigned: {formatPHP(unassigned)}</p>
+          <p className="text-caption text-muted-foreground">Unassigned: {formatPHP(unassigned)}</p>
         </div>
         {mode === "income" && (
           <div className="space-y-2">
@@ -185,7 +185,7 @@ function DistributeForm({
 function NoCategories({ source, offerSuggested }: { source: AccountRow; offerSuggested: boolean }) {
   const categoriesLink = <Link to="/categories">Categories</Link>;
   return (
-    <p className="text-sm text-muted-foreground">
+    <p className="text-body text-muted-foreground">
       {source.name} has no categories yet.{" "}
       {source.visibility === "personal" ? (
         <>Add a personal category on {categoriesLink}.</>
@@ -296,7 +296,7 @@ function LinesForm({
       className="space-y-4"
     >
       {lines.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           No budgets this month for {source.name}&apos;s categories. Add a category below.
         </p>
       ) : (
@@ -337,7 +337,7 @@ function LinesForm({
         </div>
       )}
 
-      <div className="space-y-1 text-sm" aria-live="polite">
+      <div className="space-y-1 text-body" aria-live="polite">
         <p>
           Distributing <span className="font-medium tabular-nums">{formatPHP(total)}</span>
         </p>
@@ -378,7 +378,7 @@ function DistributeLineRow({
           <Label htmlFor={amountId} className="font-medium">
             {name}
           </Label>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             {line.budgetCents === null ? "No budget" : `Budget ${formatPHP(line.budgetCents)}`}
             {line.fundingAccountRetired && " · Funding account retired"}
           </p>

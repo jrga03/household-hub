@@ -44,13 +44,13 @@ export function SyncStatusIndicator({ compact = false }: { compact?: boolean }) 
           aria-label={`Sync status: ${label}`}
         >
           <Icon className="h-4 w-4" aria-hidden="true" />
-          {!compact && <span className="text-xs">{label}</span>}
+          {!compact && <span className="text-caption">{label}</span>}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 space-y-3">
         <div className="space-y-1">
-          <p className="text-sm font-medium">{online ? "Online" : "Offline"}</p>
-          <p className="text-sm text-muted-foreground">{waitingText(online, waiting)}</p>
+          <p className="text-body font-medium">{online ? "Online" : "Offline"}</p>
+          <p className="text-body text-muted-foreground">{waitingText(online, waiting)}</p>
         </div>
         {stuck.length > 0 && <StuckList stuck={stuck} />}
       </PopoverContent>
@@ -69,10 +69,10 @@ function waitingText(online: boolean, waiting: number): string {
 function StuckList({ stuck }: { stuck: StuckEvent[] }) {
   return (
     <section aria-labelledby="stuck-changes-heading" className="space-y-2 border-t pt-3">
-      <h2 id="stuck-changes-heading" className="text-sm font-medium text-destructive">
+      <h2 id="stuck-changes-heading" className="text-body font-medium text-destructive">
         Refused by the server
       </h2>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-caption text-muted-foreground">
         Retry once the problem is fixed, or discard the change to remove it from this device.
       </p>
       <ul aria-label="Stuck changes" className="space-y-2">
@@ -110,9 +110,9 @@ function StuckItem({ event }: { event: StuckEvent }) {
   };
 
   return (
-    <li className="rounded-md border p-2 text-sm">
+    <li className="rounded-md border p-2 text-body">
       <p className="font-medium">{event.description}</p>
-      {event.reason && <p className="text-xs text-muted-foreground">{event.reason}</p>}
+      {event.reason && <p className="text-caption text-muted-foreground">{event.reason}</p>}
       <div className="mt-2 flex gap-2">
         <Button
           size="sm"
