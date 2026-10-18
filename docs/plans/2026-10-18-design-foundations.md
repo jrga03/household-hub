@@ -79,6 +79,10 @@ Status: grilling done 2026-10-18, ready to implement (start at the Rollout check
 - **#170 shadow reset covers every shadow namespace:** `shadow-*`, `inset-shadow-*`, `drop-shadow-*`, `text-shadow-*` and the bare `shadow`/`drop-shadow`; `shadow-none` and `shadow-float` remain. Revisit: never.
 - **#170 `no-unknown-classes` is on for all of `src/**/*.{ts,tsx}` with no allowlist.** The one non-Tailwind class found (`toaster` on sonner's Toaster, no CSS targets it) was dropped instead. Proof nothing lost styling: Tailwind's scanner candidates compiled before and after the reset; every lost class lives in docs, READMEs, comments or tests, none in source. Revisit: when a real non-Tailwind class is needed (add it to `ignore` with a reason).
 - **#170 `cn` mirrors the reset theme** with a tailwind-merge `override` of `text`, `font-weight`, `radius` and `shadow`, replacing #168's font-size class-group extension. Revisit: when a token is added to those scales.
+- **Token appendix deleted** (#171): its color, type, radius, shadow and motion values matched `src/index.css` line for line, which is now their only home. Revisit: never.
+- **#171 status badges:** "Already imported" moved from the `destructive` badge to a new `warning` variant (`border-warning/50 bg-warning-surface text-warning`), since DESIGN.md keeps `destructive` for actions and blocking errors. Revisit: the component-patterns session.
+- **#171 stale READMEs:** `src/components/README.md`, `src/components/ui/README.md` and `src/components/layout/README.md` deleted (they described removed folders, nav and classes); their links in `src/README.md` and `docs/features/README.md` point at DESIGN.md. Revisit: never.
+- **#171 transfers in money:** DESIGN.md lets a transfer amount stay muted with no sign, as the transaction list renders it, inside the "expenses and transfers stay neutral" rule. Revisit: the component-patterns session.
 
 ### Rollout checklist
 
@@ -96,75 +100,3 @@ Ticketed 2026-10-18 as sub-issues of #162, expand → migrate → contract. Each
 - [ ] #172 Integrate and verify design foundations (#170, #171)
 - **Deferred: adaptive layout** (more columns on the laptop, M3 window size classes). Revisit: the adaptive-layout session.
 - **Parked:** component patterns, adaptive layouts (M3 window size classes), migration of existing pages.
-
-## Appendix: specimen token values (delete once in `src/index.css`)
-
-From the specimen, 2026-10-18. Additions decided after it are not yet valued: `text-input` (16/24).
-
-Color, radius, shadow and motion landed in `src/index.css` in #164 (2026-10-18); the values below are the final ones, and `src/theme-contrast.test.ts` checks them. Changed from the specimen: light `input` 0.65 → 0.62 and dark `input` 0.52 → 0.55 (3:1 on `muted` and `popover` too, not only background and card); dark `muted-foreground` 0.7 → 0.78 and dark `shortfall` `0.72 0.16 25` → `0.79 0.12 25` (APCA Lc 60 on background, card and muted; chroma lowered to stay inside sRGB); `success-foreground` added for filled success badges. Motion: `duration-quick` 150ms, `duration-move` 250ms, `ease-out` `cubic-bezier(0.2, 0, 0, 1)`. `shadow-float` reads `--elevation-float`, set per theme below.
-
-Type roles (size/line-height, weight): display 30/36 650, title 22/28 600, heading 17/24 600, body 15/22 400, label 13/18 550, caption 12/16 400, figure 34/40 600 tabular.
-
-Font: Source Sans 3, Google Fonts (google/fonts `ofl/sourcesans3`, OFL-1.1). Latin + U+20B1 woff2 subset, 25.4 KB, features kern liga calt tnum lnum pnum case ccmp locl mark mkmk. Fallback `system-ui, sans-serif`.
-
-Radius: `--radius: 6px`; `--radius-sm` = radius − 3px; `--radius-lg` = radius + 4px.
-
-```css
-/* light */
---background: oklch(0.975 0.007 80);
---foreground: oklch(0.23 0.018 262);
---card: oklch(0.99 0.004 80);
---card-foreground: oklch(0.23 0.018 262);
---popover: oklch(0.997 0.002 80);
---popover-foreground: oklch(0.23 0.018 262);
---primary: oklch(0.42 0.12 262);
---primary-foreground: oklch(0.985 0.005 80);
---secondary: oklch(0.935 0.01 80);
---secondary-foreground: oklch(0.25 0.018 262);
---muted: oklch(0.945 0.009 80);
---muted-foreground: oklch(0.5 0.018 70);
---accent: oklch(0.93 0.012 80);
---accent-foreground: oklch(0.23 0.018 262);
---destructive: oklch(0.52 0.18 27);
---destructive-foreground: oklch(0.985 0.005 80);
---border: oklch(0.3 0.03 70 / 0.14);
---input: oklch(0.62 0.012 75);
---ring: oklch(0.52 0.13 262);
---income: oklch(0.5 0.12 150);
---shortfall: oklch(0.52 0.18 27);
---warning: oklch(0.52 0.11 70);
---warning-surface: oklch(0.955 0.04 85);
---success: oklch(0.5 0.12 150);
---success-foreground: oklch(0.985 0.005 80);
---scrim: oklch(0.2 0.02 262 / 0.42);
---elevation-float: 0 1px 2px oklch(0.2 0.02 262 / 0.06), 0 6px 16px -2px oklch(0.2 0.02 262 / 0.12);
-
-/* dark */
---background: oklch(0.19 0.006 70);
---foreground: oklch(0.93 0.01 85);
---card: oklch(0.225 0.007 70);
---card-foreground: oklch(0.93 0.01 85);
---popover: oklch(0.26 0.008 70);
---popover-foreground: oklch(0.93 0.01 85);
---primary: oklch(0.74 0.1 262);
---primary-foreground: oklch(0.19 0.03 262);
---secondary: oklch(0.29 0.008 70);
---secondary-foreground: oklch(0.93 0.01 85);
---muted: oklch(0.26 0.007 70);
---muted-foreground: oklch(0.78 0.012 80);
---accent: oklch(0.29 0.008 70);
---accent-foreground: oklch(0.93 0.01 85);
---destructive: oklch(0.68 0.18 27);
---destructive-foreground: oklch(0.18 0.02 25);
---border: oklch(0.95 0.01 85 / 0.1);
---input: oklch(0.55 0.008 75);
---ring: oklch(0.7 0.1 262);
---income: oklch(0.78 0.13 152);
---shortfall: oklch(0.79 0.12 25);
---warning: oklch(0.82 0.13 80);
---warning-surface: oklch(0.27 0.035 75);
---success: oklch(0.78 0.13 152);
---success-foreground: oklch(0.19 0.03 150);
---scrim: oklch(0.05 0 0 / 0.62);
---elevation-float: 0 1px 2px oklch(0 0 0 / 0.3), 0 8px 24px -4px oklch(0 0 0 / 0.45);
-```
