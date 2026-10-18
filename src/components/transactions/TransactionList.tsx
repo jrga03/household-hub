@@ -367,7 +367,8 @@ function VirtualTransactionRows({ items, renderRow }: VirtualTransactionRowsProp
     <ul
       ref={listRef}
       aria-label="Transactions"
-      className="relative rounded-md border"
+      // The rows fill the height; the borders sit outside it.
+      className="relative box-content rounded-md border"
       style={{ height: virtualizer.getTotalSize() }}
     >
       {virtualItems.map((virtualItem) => {
