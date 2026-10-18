@@ -10,6 +10,53 @@
   --container-wide: 1500px;
 }
 
+/* Source Sans 3 variable (OFL-1.1, see assets/fonts/OFL.txt), subset to
+   Latin plus U+20B1 so the peso sign matches the digits. */
+@font-face {
+  font-family: "Source Sans 3";
+  src: url("./assets/fonts/source-sans-3-latin-wght.woff2") format("woff2");
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Type roles: each class sets size, line-height and weight together.
+   figure is for hero numbers only; control keeps form fields at 16px so
+   iOS doesn't zoom on focus (not "input", which is already the
+   field-border color). */
+@theme {
+  --font-sans: "Source Sans 3", system-ui, sans-serif;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 550;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 650;
+
+  --text-display: 1.875rem;
+  --text-display--line-height: 2.25rem;
+  --text-display--font-weight: 650;
+  --text-title: 1.375rem;
+  --text-title--line-height: 1.75rem;
+  --text-title--font-weight: 600;
+  --text-heading: 1.0625rem;
+  --text-heading--line-height: 1.5rem;
+  --text-heading--font-weight: 600;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.375rem;
+  --text-body--font-weight: 400;
+  --text-label: 0.8125rem;
+  --text-label--line-height: 1.125rem;
+  --text-label--font-weight: 550;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+  --text-caption--font-weight: 400;
+  --text-figure: 2.125rem;
+  --text-figure--line-height: 2.5rem;
+  --text-figure--font-weight: 600;
+  --text-control: 1rem;
+  --text-control--line-height: 1.5rem;
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
