@@ -186,6 +186,114 @@ it.each([
   expect(await ruleIds(code, filePath)).toContain("no-restricted-imports");
 });
 
+const route = "src/routes/probe.tsx";
+const routeTest = "src/routes/probe.test.tsx";
+
+const styleCases = [
+  {
+    rule: "better-tailwindcss/no-restricted-classes",
+    flagged: [
+      '<div className="bg-[#1e40af]" />',
+      '<div className="text-[oklch(0.5_0.1_150)]" />',
+      '<div className="hover:border-[rgb(0,0,0)]/50" />',
+      '<div className="bg-(--brand)" />',
+      '<div className="bg-[color:var(--brand)]" />',
+      '<div className="data-[state=open]:[color:red]" />',
+      '<div className={cn("p-2", "fill-[var(--brand)]")} />',
+    ],
+    allowed: [
+      '<div className="bg-income text-muted-foreground data-[state=open]:bg-accent" />',
+      '<div className="w-[4.75rem] w-(--sidebar-width) focus-visible:ring-[3px]" />',
+      '<div className="pb-[calc(1rem+var(--safe-area-bottom))] max-h-[calc(100dvh-2rem)]" />',
+    ],
+  },
+  {
+    rule: "arch/no-color-literal",
+    flagged: [
+      'const color = "#0a0a0a";',
+      'const color = "#fff";',
+      "const color = `oklch(0.5 0.1 ${hue})`;",
+      'const color = "rgb(0 0 0 / 0.5)";',
+      'const color = "hsl(220 10% 50%)";',
+      'const shadow = "0 0 0 1px color-mix(in oklch, var(--ring), transparent)";',
+    ],
+    allowed: [
+      'const color = "var(--background)";',
+      'const label = "Issue #12";',
+      'const id = "section-label";',
+    ],
+  },
+  {
+    rule: "arch/no-inline-color-style",
+    flagged: [
+      '<div style={{ color: "red" }} />',
+      "<div style={{ backgroundColor: tone }} />",
+      '<div style={{ borderColor: "currentColor" }} />',
+      '<div style={{ "fill": tone }} />',
+    ],
+    allowed: [
+      "<div style={{ width: 4, transform: `translateX(${offset}px)` }} />",
+      '<div style={{ "--normal-bg": "var(--popover)" } as React.CSSProperties} />',
+    ],
+  },
+];
+
+describe.each(styleCases)("$rule", ({ rule, flagged, allowed }) => {
+  it.each(flagged)("fires on %s", async (snippet) => {
+    expect(await ruleIds(`export const probe = () => { ${snippet} };\n`, route)).toContain(rule);
+  });
+
+  it.each(allowed)("is silent on %s", async (snippet) => {
+    expect(await ruleIds(`export const probe = () => { ${snippet} };\n`, route)).not.toContain(
+      rule
+    );
+  });
+
+  it("is silent in test files", async () => {
+    const [snippet] = flagged;
+    expect(await ruleIds(`export const probe = () => { ${snippet} };\n`, routeTest)).not.toContain(
+      rule
+    );
+  });
+});
+
+describe("better-tailwindcss reads the theme from src/index.css", () => {
+  let themeLint: ESLint;
+  beforeAll(() => {
+    themeLint = new ESLint({
+      overrideConfig: [
+        {
+          files: ["src/**/*.{ts,tsx}"],
+          languageOptions: { parserOptions: { projectService: false } },
+          rules: {
+            "@typescript-eslint/no-floating-promises": "off",
+            "@typescript-eslint/no-misused-promises": "off",
+            "better-tailwindcss/no-unknown-classes": "error",
+          },
+        },
+      ],
+    });
+  });
+
+  async function unknownClassMessages(className: string) {
+    const [result] = await themeLint.lintText(
+      `export const probe = () => <div className="${className}" />;\n`,
+      { filePath: route }
+    );
+    return (result?.messages ?? []).filter(
+      (message) => message.ruleId === "better-tailwindcss/no-unknown-classes"
+    );
+  }
+
+  it("knows a project token class", async () => {
+    expect(await unknownClassMessages("text-income bg-card")).toHaveLength(0);
+  });
+
+  it("flags a made-up class", async () => {
+    expect(await unknownClassMessages("text-incoming")).toHaveLength(1);
+  });
+});
+
 it.each([
   ["src/components/accounts/probe.tsx", "../ui/button"],
   ["src/components/probe.tsx", "./ui/button"],
