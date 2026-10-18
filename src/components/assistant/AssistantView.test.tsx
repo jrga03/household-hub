@@ -223,6 +223,7 @@ describe("AssistantView waiting card after a reload", () => {
 
     expect(await screen.findByText("Recorded")).toBeInTheDocument();
     expect(await listTransactions()).toHaveLength(1);
+    await waitFor(() => expect(savedWhenToasted).toBeDefined());
     expect(await savedWhenToasted).toMatchObject({
       items: [{ kind: "proposal", decision: { outcome: "recorded" } }],
     });
