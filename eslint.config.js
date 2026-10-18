@@ -6,6 +6,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import prettier from "eslint-config-prettier";
+import betterTailwind from "eslint-plugin-better-tailwindcss";
 import { builtinRules } from "eslint/use-at-your-own-risk";
 
 // The core no-restricted-syntax rule, registered once per invariant. Flat config
@@ -17,6 +18,8 @@ const architecturePlugin = {
     "no-ad-hoc-money-parse": restrictedSyntax,
     "no-events-table-outside-sync": restrictedSyntax,
     "no-direct-event-log": restrictedSyntax,
+    "no-color-literal": restrictedSyntax,
+    "no-inline-color-style": restrictedSyntax,
     // Its own rule ID so it stacks with the no-restricted-imports blocks below
     // instead of replacing them.
     "no-direct-primitive-import": builtinRules.get("no-restricted-imports"),
@@ -78,6 +81,26 @@ const restrictSyncOnlyLog = {
 const eventDecoderFiles = ["src/lib/*/events.ts"];
 const commandFiles = ["src/lib/commands/**"];
 const syncFiles = ["src/lib/sync/**"];
+
+// Colors come only from theme tokens (spec #162, ADR 0011).
+const COLOR_FUNCTION = "(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color-mix|color)\\(";
+const COLOR_LITERAL = `(?:^|[\\s,(])#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})(?![0-9a-zA-Z])|\\b${COLOR_FUNCTION}`;
+const COLOR_UTILITY =
+  "(?:bg|text|border(?:-[xytrblse])?|divide|outline|ring(?:-offset)?|inset-ring|fill|stroke|decoration|accent|caret|placeholder|from|via|to|shadow|inset-shadow|drop-shadow|text-shadow)";
+const COLOR_STYLE_PROPERTY =
+  "^(?:color|background|backgroundColor|background-color|border(?:Top|Right|Bottom|Left|Block|Inline)?Color|border(?:-[a-z]+)?-color|outlineColor|outline-color|fill|stroke|textDecorationColor|caretColor|accentColor)$";
+
+const arbitraryColorClasses = [
+  {
+    pattern: `(?:^|:)!?-?${COLOR_UTILITY}-(?:\\[(?:color:|var\\(|#|${COLOR_FUNCTION})|\\((?:color:)?--)`,
+    message:
+      "Arbitrary colors bypass the theme. Use a token class (bg-primary, text-income, border-border…).",
+  },
+  {
+    pattern: "(?:^|:)\\[(?:color|background(?:-color)?|[a-z-]+-color|fill|stroke):",
+    message: "Arbitrary color properties bypass the theme. Use a token class.",
+  },
+];
 
 const restrictNanoid = {
   name: "nanoid",
@@ -558,6 +581,41 @@ export default [
           selector: "MemberExpression[object.name='db'][property.name='events']",
           message:
             "The local event log is reached only through src/lib/events/log: commands append, the sync engine pushes and receives.",
+        },
+      ],
+    },
+  },
+  // Tailwind class lint. The plugin reads the v4 theme from the CSS entry, so
+  // a theme token class is known and a removed one is not.
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { "better-tailwindcss": betterTailwind },
+    settings: { "better-tailwindcss": { entryPoint: "src/index.css" } },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: srcTestFiles,
+    rules: {
+      "better-tailwindcss/no-restricted-classes": ["error", { restrict: arbitraryColorClasses }],
+    },
+  },
+  {
+    files: ["src/**/*.tsx"],
+    ignores: srcTestFiles,
+    rules: {
+      "arch/no-color-literal": [
+        "error",
+        {
+          selector: `Literal[value=/${COLOR_LITERAL}/], TemplateElement[value.raw=/${COLOR_LITERAL}/]`,
+          message:
+            "Colors come from theme tokens in src/index.css. Use a token class, or read the token with getComputedStyle.",
+        },
+      ],
+      "arch/no-inline-color-style": [
+        "error",
+        {
+          selector: `JSXAttribute[name.name='style'] Property[key.name=/${COLOR_STYLE_PROPERTY}/], JSXAttribute[name.name='style'] Property[key.value=/${COLOR_STYLE_PROPERTY}/]`,
+          message: "Set colors with a theme token class, not an inline style.",
         },
       ],
     },
