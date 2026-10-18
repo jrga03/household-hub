@@ -84,6 +84,11 @@ Status: grilling done 2026-10-18, ready to implement (start at the Rollout check
 - **#171 stale READMEs:** `src/components/README.md`, `src/components/ui/README.md` and `src/components/layout/README.md` deleted (they described removed folders, nav and classes); their links in `src/README.md` and `docs/features/README.md` point at DESIGN.md. Revisit: never.
 - **#171 transfers in money:** DESIGN.md lets a transfer amount stay muted with no sign, as the transaction list renders it, inside the "expenses and transfers stay neutral" rule. Revisit: the component-patterns session.
 
+- **Layout baselines cover light at laptop and wider only** (#172). Dark and phone-width were checked by hand-taken screenshots, not committed baselines. Revisit: a later ticket adding dark and phone-width baselines.
+- **Transaction list's last row overlaps the bottom border by 1px**, pre-existing on `main` (#172). Revisit: its own small bug fix.
+- **webkit and Mobile Safari layout snapshots were not regenerated** (#172); neither project is trusted per CLAUDE.md. Revisit: when those projects are fixed.
+- **Theme-color meta still needs a real-phone status-bar check** (#172); Chromium renders the oklch value. Revisit: next time the PWA is opened on a phone.
+
 ### Rollout checklist
 
 Ticketed 2026-10-18 as sub-issues of #162, expand → migrate → contract. Each lint rule switches on at error in the ticket that clears its last violation (pre-push has no report mode). Frontier at start: #163, #164, #165, #166.
