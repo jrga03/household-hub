@@ -44,7 +44,7 @@ function SettingsPage() {
                 onClick={() => setTheme("light")}
               >
                 <Sun className="h-5 w-5" />
-                <span className="text-xs font-medium">Light</span>
+                <span className="text-label">Light</span>
               </Button>
               <Button
                 variant={theme === "dark" ? "default" : "outline"}
@@ -52,7 +52,7 @@ function SettingsPage() {
                 onClick={() => setTheme("dark")}
               >
                 <Moon className="h-5 w-5" />
-                <span className="text-xs font-medium">Dark</span>
+                <span className="text-label">Dark</span>
               </Button>
               <Button
                 variant={theme === "system" ? "default" : "outline"}
@@ -60,7 +60,7 @@ function SettingsPage() {
                 onClick={() => setTheme("system")}
               >
                 <Monitor className="h-5 w-5" />
-                <span className="text-xs font-medium">System</span>
+                <span className="text-label">System</span>
               </Button>
             </div>
           </CardContent>

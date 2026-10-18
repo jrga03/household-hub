@@ -35,7 +35,7 @@ export function BottomTabBar() {
             activeOptions={{ exact: tab.to === "/", includeSearch: false }}
             activeProps={{ className: "text-primary" }}
             inactiveProps={{ className: "text-muted-foreground" }}
-            className="flex min-h-11 flex-col items-center justify-center gap-1 text-[11px] font-medium leading-none transition-colors hover:text-foreground active:bg-accent"
+            className="flex min-h-11 flex-col items-center justify-center gap-1 text-caption font-medium leading-none transition-colors hover:text-foreground active:bg-accent"
           >
             <tab.icon className="size-5" aria-hidden="true" />
             <span>{tab.label}</span>

@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { categoryNames } from "@/components/allocations/envelopes";
+import { shortfallClass } from "@/components/allocations/MoneyAmount";
 import { rowDisplay } from "@/components/transactions/rowDisplay";
 import { AMOUNT_DIRECTION, TransactionAmount } from "@/components/transactions/TransactionAmount";
 import { useAccountNames } from "@/hooks/useAccounts";
@@ -27,7 +28,7 @@ import { cn } from "@/lib/utils";
 
 const VIEW_LABELS: Record<FinanceView, string> = { household: "Household", mine: "Mine" };
 
-const linkClass = "inline-flex items-center gap-1 text-sm font-medium hover:underline";
+const linkClass = "inline-flex items-center gap-1 text-body font-medium hover:underline";
 
 /** The current month at a glance, for Household accounts or the member's Personal ones. */
 export function FinancesSection({ userId }: { userId: string }) {
@@ -81,7 +82,7 @@ function FinancesBlocks({
 }) {
   if (overview.balances.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-body text-muted-foreground">
         {view === "mine"
           ? "No Personal accounts yet. Add one under Accounts to see your own money here."
           : "No Household accounts yet. Add one under Accounts to see the household's money here."}
@@ -99,7 +100,7 @@ function FinancesBlocks({
           </Link>
         }
       >
-        <dl className="grid grid-cols-3 gap-2 text-sm">
+        <dl className="grid grid-cols-3 gap-2 text-body">
           <Figure label="In" cents={overview.in} />
           <Figure label="Out" cents={overview.out} />
           <Figure label="Left" cents={overview.left} />
@@ -118,16 +119,21 @@ function FinancesBlocks({
       </Block>
 
       <Block title="Balances">
-        <ul aria-label="Balances" className="divide-y text-sm">
+        <ul aria-label="Balances" className="divide-y text-body">
           {overview.balances.map(({ account, balance }) => (
             <li key={account.id}>
               <Link
                 to="/accounts"
                 hash={`account-${account.id}`}
-                className="flex items-center justify-between gap-3 py-1.5 hover:underline"
+                className="flex items-center justify-between gap-3 py-2 hover:underline"
               >
                 <span className="truncate">{account.name}</span>
-                <span className="shrink-0 tabular-nums">
+                <span
+                  className={cn(
+                    "shrink-0 tabular-nums",
+                    shortfallClass(balance, { owed: isCreditCard(account) })
+                  )}
+                >
                   {isCreditCard(account) && <span className="text-muted-foreground">Owed </span>}
                   {formatPHP(balance)}
                 </span>
@@ -163,7 +169,7 @@ function Block({
   return (
     <section aria-label={title} className="space-y-2 rounded-md border p-3">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">{title}</h3>
+        <h3 className="text-heading">{title}</h3>
         {link}
       </div>
       {children}
@@ -174,8 +180,8 @@ function Block({
 function Figure({ label, cents }: { label: string; cents: Cents }) {
   return (
     <div className="min-w-0">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className={cn("truncate font-medium tabular-nums", cents < 0 && "text-destructive")}>
+      <dt className="text-caption text-muted-foreground">{label}</dt>
+      <dd className={cn("truncate font-medium tabular-nums", shortfallClass(cents))}>
         {formatPHP(cents)}
       </dd>
     </div>
@@ -184,20 +190,20 @@ function Figure({ label, cents }: { label: string; cents: Cents }) {
 
 function BudgetCounts({ counts }: { counts: BudgetStatusCounts }) {
   if (counts.fine + counts.close + counts.over === 0) {
-    return <p className="text-sm text-muted-foreground">No budgets this month.</p>;
+    return <p className="text-body text-muted-foreground">No budgets this month.</p>;
   }
   return (
-    <dl className="grid grid-cols-3 gap-2 text-sm">
+    <dl className="grid grid-cols-3 gap-2 text-body">
       <Count label="Fine" count={counts.fine} />
       <Count
         label="Close"
         count={counts.close}
-        className={counts.close > 0 ? "text-amber-700 dark:text-amber-400" : undefined}
+        className={counts.close > 0 ? "text-warning" : undefined}
       />
       <Count
         label="Over"
         count={counts.over}
-        className={counts.over > 0 ? "text-destructive" : undefined}
+        className={counts.over > 0 ? "text-shortfall" : undefined}
       />
     </dl>
   );
@@ -206,7 +212,7 @@ function BudgetCounts({ counts }: { counts: BudgetStatusCounts }) {
 function Count({ label, count, className }: { label: string; count: number; className?: string }) {
   return (
     <div>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dt className="text-caption text-muted-foreground">{label}</dt>
       <dd className={cn("font-medium tabular-nums", className)}>{count}</dd>
     </div>
   );
@@ -216,7 +222,7 @@ function LatestTransactions({ rows }: { rows: ListRow[] }) {
   const accountNames = useAccountNames();
   const categories = useCategoryList();
   if (rows.length === 0) {
-    return <p className="text-sm text-muted-foreground">No transactions yet.</p>;
+    return <p className="text-body text-muted-foreground">No transactions yet.</p>;
   }
 
   const names = {
@@ -225,12 +231,12 @@ function LatestTransactions({ rows }: { rows: ListRow[] }) {
   };
 
   return (
-    <ul aria-label="Latest transactions" className="divide-y text-sm">
+    <ul aria-label="Latest transactions" className="divide-y text-body">
       {rows.map((row) => {
         const { label, direction } = rowDisplay(row, names);
         return (
-          <li key={row.id} className="flex items-center justify-between gap-3 py-1.5">
-            <span className="flex min-w-0 items-center gap-1.5">
+          <li key={row.id} className="flex items-center justify-between gap-3 py-2">
+            <span className="flex min-w-0 items-center gap-2">
               {isTransfer(row) && (
                 <ArrowLeftRight
                   className="size-4 shrink-0 text-muted-foreground"

@@ -123,12 +123,12 @@ function ProposalForm({
         <p className="min-w-0 truncate font-medium">{proposal.description}</p>
         <p className="shrink-0 font-semibold tabular-nums">{formatPHP(proposal.amountCents)}</p>
       </div>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-body text-muted-foreground">
         {proposal.type === "income" ? "Income" : "Expense"}
         {proposal.notes && ` · ${proposal.notes}`}
       </p>
       <fieldset disabled={decided} className="grid grid-cols-1 gap-3 @[480px]:grid-cols-3">
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor={`${callId}-account`}>Account</Label>
           <Select value={accountId} onValueChange={setAccountId} disabled={decided}>
             <SelectTrigger id={`${callId}-account`} className="w-full">
@@ -144,7 +144,7 @@ function ProposalForm({
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor={`${callId}-category`}>Category</Label>
           <CategorySelect
             id={`${callId}-category`}
@@ -153,14 +153,14 @@ function ProposalForm({
             onValueChange={setCategoryId}
           />
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor={`${callId}-date`}>Date</Label>
           <Input id={`${callId}-date`} name="date" type="date" required defaultValue={shown.date} />
         </div>
       </fieldset>
       <FormError>{error}</FormError>
       {decided ? (
-        <p className="text-sm font-medium text-muted-foreground">
+        <p className="text-body font-medium text-muted-foreground">
           {decision.outcome === "recorded" ? "Recorded" : "Dismissed"}
         </p>
       ) : (

@@ -35,7 +35,7 @@ import type { RevealedAction } from "./useRowGestures";
 import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 
 const ROW_HEIGHT_ESTIMATE = 61;
-const HEADING_HEIGHT_ESTIMATE = 29;
+const HEADING_HEIGHT_ESTIMATE = 31;
 
 /** "yyyy-MM" months holding transactions or transfers, newest first (the list is newest first). */
 const monthsOf = (rows: ListRow[]) => [...new Set(rows.map((row) => monthOfDate(row.date)))];
@@ -93,7 +93,7 @@ export function TransactionList({
   if (rows.length === 0) {
     return (
       <PageShell.Main className="@[1100px]:col-span-full">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           No transactions yet. Add one with the Add transaction button or by pressing n.
         </p>
       </PageShell.Main>
@@ -186,7 +186,7 @@ export function TransactionList({
         </div>
 
         {shown.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No transactions match these filters.</p>
+          <p className="text-body text-muted-foreground">No transactions match these filters.</p>
         ) : (
           <VirtualTransactionRows
             items={items}
@@ -213,7 +213,7 @@ export function TransactionList({
             title={`${selected.length.toLocaleString("en-PH")} selected`}
             exitLabel="Cancel selection"
             onExit={stopSelecting}
-            inlineClassName="sticky bottom-4 z-20 rounded-md border bg-background shadow-sm"
+            inlineClassName="sticky bottom-4 z-20 rounded-md border bg-background shadow-float"
           >
             <SelectionActions
               actor={actor}
@@ -239,7 +239,7 @@ export function TransactionList({
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h2 className="font-semibold">{paneTitle}</h2>
-                  <p className="text-sm text-muted-foreground">{SAVED_LOCALLY}</p>
+                  <p className="text-body text-muted-foreground">{SAVED_LOCALLY}</p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => setOpenId(null)}>
                   Close
@@ -270,7 +270,7 @@ export function TransactionList({
               )}
             </section>
           ) : (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-body text-muted-foreground">
               Choose a transaction to see and edit it here.
             </p>
           )}
@@ -384,7 +384,7 @@ function VirtualTransactionRows({ items, renderRow }: VirtualTransactionRowsProp
               role="none"
               data-index={virtualItem.index}
               className={cn(
-                "left-0 z-10 w-full border-b bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground",
+                "left-0 z-10 w-full border-b bg-muted px-3 py-2 text-label text-muted-foreground",
                 stuck ? cn("sticky", BELOW_HEADER) : "absolute top-0"
               )}
               style={stuck ? undefined : placed}

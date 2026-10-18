@@ -91,7 +91,7 @@ export function BudgetView({
     <>
       <PageShell.Main className="space-y-4">
         {empty ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             No categories yet. Set them up on <Link to="/categories">Categories</Link>, then give
             each one a budget on the plan.
           </p>
@@ -110,7 +110,7 @@ export function BudgetView({
             ))}
             {rows.ungrouped.length > 0 && (
               <li className="rounded-md border">
-                <p className="border-b px-3 py-2 text-sm text-muted-foreground">
+                <p className="border-b px-3 py-2 text-body text-muted-foreground">
                   Waiting for their group to reach this device
                 </p>
                 <CategoryRows
@@ -138,7 +138,7 @@ export function BudgetView({
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <h2 className="truncate font-semibold">{ledgerName}</h2>
-                  <p className="text-sm text-muted-foreground">{monthLabel(month)}</p>
+                  <p className="text-body text-muted-foreground">{monthLabel(month)}</p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => setLedgerId(null)}>
                   Close
@@ -147,7 +147,7 @@ export function BudgetView({
               {ledger}
             </section>
           ) : (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-body text-muted-foreground">
               Choose a category to see its month here.
             </p>
           )}
@@ -197,7 +197,7 @@ export function BudgetView({
 
 function GroupTotals({ group, figures }: { group: GroupRow; figures: MonthFigures }) {
   return (
-    <div className="space-y-1.5 border-b bg-muted/40 px-3 py-2">
+    <div className="space-y-2 border-b bg-muted/40 px-3 py-2">
       <RecordName record={group} showRetired />
       <BudgetFigures name={group.name} figures={figures} />
     </div>
@@ -216,12 +216,12 @@ function CategoryRows({
   onOpenLedger: (categoryId: string) => void;
 }) {
   if (categories.length === 0) {
-    return <p className="px-3 py-2 text-sm text-muted-foreground">No categories in use.</p>;
+    return <p className="px-3 py-2 text-body text-muted-foreground">No categories in use.</p>;
   }
   return (
     <ul aria-label={label} className="divide-y">
       {categories.map((category) => (
-        <li key={category.id} className="relative space-y-1.5 px-3 py-2 pl-6 hover:bg-muted/40">
+        <li key={category.id} className="relative space-y-2 px-3 py-2 pl-6 hover:bg-muted/40">
           {/* Stretched over the row, so the whole row opens the ledger. */}
           <button
             type="button"
@@ -254,13 +254,13 @@ function BudgetFigures({ name, figures }: { name: string; figures: MonthFigures 
           aria-label={`${name} spent`}
           value={progress.percent}
           data-overspent={progress.overspent || undefined}
-          className={cn("pointer-events-none h-1.5", progress.overspent && "bg-destructive/20")}
-          indicatorClassName={progress.overspent ? "bg-destructive" : undefined}
+          className={cn("pointer-events-none h-1.5", progress.overspent && "bg-shortfall/20")}
+          indicatorClassName={progress.overspent ? "bg-shortfall" : undefined}
         />
       )}
       <dl
         aria-label={`${name} budget, spent and left`}
-        className="grid grid-cols-3 gap-2 text-xs text-muted-foreground"
+        className="grid grid-cols-3 gap-2 text-caption text-muted-foreground"
       >
         <div className="min-w-0">
           <dt>Budget</dt>
@@ -275,7 +275,7 @@ function BudgetFigures({ name, figures }: { name: string; figures: MonthFigures 
         {progress && (
           <div className="min-w-0 text-right">
             <dt>Left</dt>
-            <dd className="truncate text-sm font-medium text-foreground">
+            <dd className="truncate text-body font-medium text-foreground">
               <MoneyAmount cents={progress.left} />
             </dd>
           </div>

@@ -111,7 +111,7 @@ function CreateHouseholdForm({ userId }: { userId: string }) {
             Create household
           </SubmitButton>
           {!isOnline && (
-            <p id="create-offline-hint" className="text-sm text-muted-foreground">
+            <p id="create-offline-hint" className="text-body text-muted-foreground">
               Creating a household needs a connection. You&apos;re offline right now.
             </p>
           )}

@@ -17,7 +17,7 @@ export function AddTransactionButton({ floating }: { floating?: boolean }) {
       size={floating ? "icon" : "sm"}
       className={cn(
         floating &&
-          "fixed right-4 bottom-[calc(1rem+var(--bottom-chrome))] z-40 size-14 rounded-full shadow-lg"
+          "fixed right-4 bottom-[calc(1rem+var(--bottom-chrome))] z-40 size-14 rounded-full shadow-float"
       )}
     >
       <Plus className={floating ? "size-6" : "size-4"} aria-hidden="true" />

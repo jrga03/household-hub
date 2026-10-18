@@ -45,7 +45,7 @@ export function ChatComposer({
 
   return (
     <form onSubmit={submit} className="space-y-2">
-      {blockedBecause && <p className="text-sm text-muted-foreground">{blockedBecause}</p>}
+      {blockedBecause && <p className="text-body text-muted-foreground">{blockedBecause}</p>}
       <div className="flex gap-2">
         <Input
           aria-label="Message the assistant"

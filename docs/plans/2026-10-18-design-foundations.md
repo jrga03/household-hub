@@ -1,6 +1,6 @@
 # Design foundations
 
-Status: grilling done 2026-10-18, ready to implement (start at the Rollout checklist). Spec: #162. ADR 0011 is written; the rollout's step 5 only links it from DESIGN.md. Covers visual identity, design tokens, DESIGN.md and its enforcement. Component patterns, adaptive layouts and migration are later sessions. Event sourcing and sync are untouched.
+Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollout checklist complete. Spec: #162. ADR 0011 is written; the rollout's step 5 only links it from DESIGN.md. Covers visual identity, design tokens, DESIGN.md and its enforcement. Component patterns, adaptive layouts and migration are later sessions. Event sourcing and sync are untouched.
 
 ## Context
 
@@ -34,104 +34,74 @@ Status: grilling done 2026-10-18, ready to implement (start at the Rollout check
 - **Direction: Ink and paper** (decided 2026-10-18 from the specimen): warm paper neutrals (hue 80), deep ink-blue `primary` (hue 262). Why: it is the only tested accent clearly apart from `income` green (ΔE 21 light, 19 dark); Forest's green accent read as income (ΔE 5-8.5) and teal was borderline. Token values for both themes are in the specimen summary (vault note "Visual identity specimen") and go into `src/index.css`. Revisit: never.
 - **Font: Source Sans 3**, variable wght 200-900, self-hosted as a Latin + U+20B1 woff2 subset (25.4 KB), from google/fonts `ofl/sourcesans3`, OFL-1.1. Its digits are always tabular (no proportional figures). Why: smallest of the fonts that passed the ₱ and tabular checks, humanist. Revisit: if proportional figures are needed in running text (fallback: Noto Sans, 37.1 KB).
 - **Radius base 6px**: `--radius-sm` = base − 3px, `--radius-lg` = base + 4px for cards, dialogs and popovers; nested corners are concentric (inner = outer − inset). Why: the user preferred 6px over the recommended 10px. Revisit: never.
-- **Elevation: tone plus hairline borders.** Surfaces step in tone and carry a 1px inset border in the semi-transparent `--border` token; no shadows. Why: tone alone barely separates surfaces in light mode, and shadows mostly disappear in dark mode. Revisit: never.
+- **Elevation: tone plus hairline borders.** Surfaces step in tone and carry a 1px inset border in the semi-transparent `--border` token; no shadows. Why: tone alone barely separates surfaces in light mode, and shadows mostly disappear in dark mode. Revisit: never. Superseded by "Shadows: one `shadow-float`…" below: non-modal floating layers do get one shadow.
 - **Specimen confirmed `shortfall` and `destructive` as one red in two tokens**: amount text with a minus sign and a filled button didn't read as confusable side by side. Dark `destructive` is lighter (`oklch(0.68 0.18 27)`) with a dark label so error text passes on cards.
 - **Contrast fixes from the specimen:** `input` lightness 0.78 → 0.65 (light) and 0.40 → 0.52 (dark) so field outlines reach 3:1; dark `destructive` raised as above. All 26 checked pairs pass WCAG AA in both themes.
-- **Open: dark-mode APCA.** Pairs pass WCAG but sit under Lc 60 in dark: `muted-foreground` on surfaces (about 48), `shortfall` on surfaces (about 50), `destructive` on card (43), and the dark button labels (46-57). Revisit: when the tokens land in `src/index.css`.
+- **Open: dark-mode APCA.** Pairs pass WCAG but sit under Lc 60 in dark: `muted-foreground` on surfaces (about 48), `shortfall` on surfaces (about 50), `destructive` on card (43), and the dark button labels (46-57). Revisit: when the tokens land in `src/index.css`. Superseded by "Contrast: WCAG 2 AA is the hard gate" below: APCA Lc 60 is a target for `muted-foreground` and `shortfall` only.
 - **One density token set for both devices.** Laptop and phone get different layouts, but the laptop doesn't need tighter controls; the `pointer: coarse` 44px touch-target rule stays. Revisit: in the adaptive-layout session if laptop screens feel sparse.
 - **Spacing is held to a step set by lint, not by reset**: 0, 0.5, 1, 2, 3, 4, 6, 8, 12, 16 on padding, margin, gap, space and inset, in app code and layer 2; `ui/` is exempt. Sizing keeps the full scale. Why: v4 spacing also drives sizing, so a reset breaks `h-9`, `size-4.5` and the primitives. The 9 app-code files off the set are fixed in step 3. Verify in step 1 that the plugin's restricted-classes option can target utility prefixes; fallback is a `no-restricted-syntax` regex on class strings (weaker inside `cn()`). Revisit: if the plugin option can't scope by prefix.
+- **Spacing restriction uses the plugin, not the fallback** (verified in #163, 2026-10-18): `better-tailwindcss/no-restricted-classes` matches each class (variants included) against a regex, so a pattern anchored on the utility prefix (`(?:^|:)-?(?:p[xytrblse]?|m[xytrblse]?|gap(?:-[xy])?|space-[xy]|inset(?:-[xy])?|…)-<off-set step>`) flags `md:px-7` and `-mt-5` inside `cn()` and conditionals while leaving sizing (`h-5`, `size-4.5`) alone; scoping to app code and layer 2 is an ESLint `files`/`ignores` block with `src/components/ui/**` ignored. The `no-restricted-syntax` regex fallback is not needed. Revisit: if a plugin upgrade changes the option.
 - **ADR 0011 written** (`docs/adr/0011-semantic-tokens-and-private-primitives.md`), 2026-10-18.
 - **Token values sit in the appendix below until they land in `src/index.css`**, then the appendix is deleted. Why: the implementing session must not depend on the Obsidian vault. Revisit: when step 2 of the rollout merges.
-- **Form controls get a `text-input` role at 16/24** (input, textarea, select trigger, currency input); body stays 15/22. Why: iOS Safari zooms on focus below 16px. Revisit: never.
+- **Form controls get a `text-input` role at 16/24** (input, textarea, select trigger, currency input); body stays 15/22. Why: iOS Safari zooms on focus below 16px. Revisit: never. Superseded by "The form-control type role is `text-control`" below.
 - **Shadows: one `shadow-float` (two-layer) for non-modal floating layers only** (popover, dropdown, toast). The rest of the shadow scale is reset. Modals (dialog, sheet) rely on `scrim`. Why: a dropdown over a dark card is only 0.035 lightness apart. Revisit: never.
 - **Font weights limited to the role weights:** `font-normal` 400, `font-medium` 550, `font-semibold` 600, `font-bold` 650; others reset. Revisit: never.
 - **The hero-number role is `figure`** (34/40 600), not `amount`: inline amounts take the surrounding role. `tabular-nums` stays on amounts for the system-font fallback. Why: "amount" is in every row; the name would invite 34px row amounts. Revisit: never.
+- **The form-control type role is `text-control`** (16/24), not `text-input`: Tailwind resolves `text-input` to the `--color-input` border color, so the role class never applied. Why: `input` stays a shadcn color name. Revisit: never.
+- **Font subset range** is Google Fonts' Latin range minus the combining marks (U+0304, U+0308, U+0329), plus U+20B1 and arrows U+2190-2193: 25.5 KB. Why: the combining marks alone added ~3 KB of mark positioning; text with them falls back to the system font. Revisit: if names with combining marks render mixed.
 - **Contrast: WCAG 2 AA is the hard gate.** APCA Lc ≥ 60 is a target for `muted-foreground` and `shortfall` only; their dark values get nudged lighter when the tokens land. Button labels and `destructive` stay WCAG-only. Revisit: never.
 - **Token housekeeping:** `chart-1..5` deleted (charts get tokens in their own session); `sidebar-*` kept but aliased to base tokens; `ThemeColorSync` reads the computed `--background` instead of hex literals. Revisit: a charts session.
 - **Motion:** `--duration-quick` ~150ms (hover, press, fade) and `--duration-move` ~250ms (sheets, dialogs entering), one ease-out curve, transform and opacity only, no `transition-all` (lint-enforced), interruptible; reduced motion turns movement into fades. Revisit: never.
 - **DESIGN.md outline:** 1 how to use this doc; 2 principles; 3 color roles; 4 money; 5 type roles; 6 spacing and density; 7 shape and elevation; 8 motion; 9 interaction and accessibility; 10 writing in the UI (glossary terms, never their _Avoid_ words, sentence case); 11 components (two layers, import boundary, `shadcn add` lands in layer 1, patterns TBD); 12 layout (`PageShell`, container queries, adaptive TBD); 13 enforcement table. Revisit: never.
 - **Discovery:** CLAUDE.md gets a Code conventions line ("Any UI change follows `DESIGN.md`; read it in full first") and a Load-on-demand row; not added to SessionStart. Why: lint catches tokens, the line catches judgment; SessionStart would load it into non-UI sessions. Revisit: if UI work keeps skipping it.
 - **Rollout: one PR, five steps.** (1) Tailwind ≥4.1.17 and the lint plugin, rules in report mode; (2) `index.css` rewrite: tokens, palette/type/shadow/weight resets, Source Sans 3 self-hosted (already precached by the `woff2` glob in `vite.config.ts`); (3) mechanical codemod: 224 `text-*` sizes to roles, 28 raw colors to roles, weights and shadows mapped, `text-destructive` on money to `shortfall`; (4) rules to error, plus the `ui/` import ratchet with 61 allowlisted files; (5) DESIGN.md, CLAUDE.md, designer-agent rewrite, stale README deleted, ADR 0011. Layout-baseline e2e snapshots get regenerated in that PR. Page redesign stays in the migration session. Why: the resets would silently un-style 224 places without step 3. Revisit: never.
+- **Role mapping (#168):** page titles (shell header h1) take `title`; dialog, sheet, drawer and card titles and section headings take `heading`; buttons, nav items and links take `body` plus `font-medium`; form labels and legends take `label`; `text-xs` takes `caption`, or `label` where it carried `font-medium`; the tab bar's 11px labels take `caption`. Nothing uses `figure` yet: no screen shows a hero number today. Why: dialogs at 22px crowd phone sheets, and 13px buttons read too small. Revisit: the component-patterns session.
+- **`cn` knows the type roles** (#168): `tailwind-merge` is extended with the role names as font sizes. Why: unextended, it reads `text-body` as a color and drops `text-muted-foreground` beside it. Revisit: when roles change.
+- **#164 contrast scope:** `input` must reach 3:1 on `muted` and `popover` as well as background and card (fields sit in popovers and muted panels), so both themes' `input` darkened/lightened slightly; dark `shortfall` chroma dropped to 0.12 because the specimen value was outside sRGB and lightening it at 0.16 clipped. Revisit: never.
+- **#164 radius:** `rounded-md` is the 6px base, `rounded-sm` 3px, `rounded-lg` and `rounded-xl` both 10px (xl kept as an alias so today's cards keep the large step); bare `rounded` stays Tailwind's 4px until #170 resets it. Revisit: #170. Superseded by "#170 radius scale is sm/md/lg only" below: `rounded-xl` is reset.
+- **#164 motion:** durations are Tailwind's `--transition-duration-*` namespace (`duration-quick`, `duration-move`); the curve redefines `ease-out`. The default transition duration and timing function are unchanged; moving primitives onto them is #169. Revisit: #169.
+- **#167 shortfall scope:** the non-blocking "This leaves X at -₱…" notes (Move money, Pay card, Distribute) and `NegativeNote` use `shortfall`, since they describe money going short; validation errors (e.g. a retired funding account) and the sync "attention" state stay `destructive`. Revisit: never. Superseded for the sync state (code review of #162): sync "attention" and the "Refused by the server" heading use `warning`, because story 21 calls it a status and DESIGN.md says a status is never `destructive`. The Discard confirm stays `destructive`.
+- **#167 warning style:** inline warnings are `text-warning`; a boxed warning (import duplicate flags) is `border-warning/50 bg-warning-surface`. Status badges (`Already imported`, `destructive` variant) were left as they are. Revisit: #171 when DESIGN.md writes the pattern down.
+- **#167 negative balances:** a negative bank, cash or e-wallet balance on Accounts and Home's Balances uses `shortfall` (spec #162 story 4). Credit cards stay uncolored: their figure is the amount owed ("Owed ₱X"), and a negative one is a credit, not money short. Revisit: never.
+- **#167 splash and manifest:** theme-color metas, the manifest `theme_color`/`background_color` and the iOS splash set (regenerated) use the token backgrounds `#f9f6f2` / `#161311`. Revisit: if `--background` changes.
+- **The app-component layer lives in `src/components/app/`** (#166), held open by a `.gitkeep` until the component-patterns session fills it. The boundary is `arch/no-direct-primitive-import` (its own rule ID so it stacks with the existing `no-restricted-imports` blocks) over all of `src/**` except `ui/`, `app/` and tests; its allowlist is `directPrimitiveImporters` in `eslint.config.js` (61 files, including `src/App.tsx`). Why: "app" matches ADR 0011's "app-component layer" and sits beside `ui/`. Revisit: the component-patterns session.
+
+- **Theme-color meta carries the computed `oklch(...)` value** (#163), not hex. Why: it reads the token directly; Chromium accepts it. Revisit: #172, if a phone's status bar ignores it (then convert to hex at runtime).
+- **Color-literal ban covers TSX only** (#163), as the spec says. Why: `.ts` holds data-layer code with no styling. Revisit: if a color literal shows up in a `.ts` file.
+- **`success-foreground` added** (#164) beyond the spec's role list, for the filled success badge's label. Revisit: never.
+- **#169 spacing lint counts `top/right/bottom/left/start/end` as inset**, and `p-px` as off-set. Why: `inset-*` is their shorthand, so leaving them free would let `top-1.5` bypass the set. Revisit: if a layout needs an off-set offset (use calc()).
+- **#169 arbitrary spacing:** plain lengths (`p-[3px]`, `mt-[0.4rem]`) fail in app code; `calc()` and `var()` (safe areas, chrome heights) pass. Why: a literal is just an off-set step in disguise. Revisit: never.
+- **#169 spacing fixes rounded to context, not always down:** 1.5 → 2 for rows, stacks and gaps, 2.5 → 3 on 44px nav rows, `px-1.5` → `px-1` on the review count pill, `pl-5` → `pl-6` for reply lists, `space-y-5` → `space-y-6`. Revisit: never.
+- **#169 motion defaults:** Tailwind's default transition duration and curve now read `--transition-duration-quick` and `ease-out`, so a bare `transition-colors` is quick. Movement names `duration-move`; dialogs and sheets enter on `duration-move` and leave on `duration-quick`. tw-animate's 150ms default already matches quick, so overlays were left as they are. Revisit: never.
+- **#169 shadows:** `shadow-float` on popover, select, toast (sonner's own shadow is unlayered, so `shadow-float!`), the floating FAB, the install prompt, the storage warning, the sticky selection bar and the skip link; inputs, buttons, cards, tabs, dialogs and sheets lost theirs. The sidebar's broken `hsl()` outline shadows became `inset-ring` in the sidebar tokens. The arbitrary-shadow lint ban stays with #170. Revisit: never.
+- **#169 `cn` knows `shadow-float` and `duration-quick/move`** (tailwind-merge theme and class group), so `shadow-none` overrides `shadow-float` and a later duration replaces an earlier one. Revisit: when a token is added to those scales.
+- **#170 radius scale is sm/md/lg only:** bare `rounded`, `rounded-xs`, `rounded-xl` and up are reset; the three `rounded-xl` uses (card, sidebar inset, ReviewBanner) moved to `rounded-lg` (same 10px), ErrorBoundary's bare `rounded` to `rounded-md`, and the checkbox and tooltip-arrow arbitrary radii to `rounded-sm`. `rounded-[inherit]` (scroll-area viewport) stays allowed. Why: one class per step. Revisit: if a fourth step is needed.
+- **#170 shadow reset covers every shadow namespace:** `shadow-*`, `inset-shadow-*`, `drop-shadow-*`, `text-shadow-*` and the bare `shadow`/`drop-shadow`; `shadow-none` and `shadow-float` remain. Revisit: never.
+- **#170 `no-unknown-classes` is on for all of `src/**/*.{ts,tsx}` with no allowlist.** The one non-Tailwind class found (`toaster` on sonner's Toaster, no CSS targets it) was dropped instead. Proof nothing lost styling: Tailwind's scanner candidates compiled before and after the reset; every lost class lives in docs, READMEs, comments or tests, none in source. Revisit: when a real non-Tailwind class is needed (add it to `ignore` with a reason).
+- **#170 `cn` mirrors the reset theme** with a tailwind-merge `override` of `text`, `font-weight`, `radius` and `shadow`, replacing #168's font-size class-group extension. Revisit: when a token is added to those scales.
+- **Token appendix deleted** (#171): its color, type, radius, shadow and motion values matched `src/index.css` line for line, which is now their only home. Revisit: never.
+- **#171 status badges:** "Already imported" moved from the `destructive` badge to a new `warning` variant (`border-warning/50 bg-warning-surface text-warning`), since DESIGN.md keeps `destructive` for actions and blocking errors. Revisit: the component-patterns session.
+- **#171 stale READMEs:** `src/components/README.md`, `src/components/ui/README.md` and `src/components/layout/README.md` deleted (they described removed folders, nav and classes); their links in `src/README.md` and `docs/features/README.md` point at DESIGN.md. Revisit: never.
+- **#171 transfers in money:** DESIGN.md lets a transfer amount stay muted with no sign, as the transaction list renders it, inside the "expenses and transfers stay neutral" rule. Revisit: the component-patterns session.
+
+- **Layout baselines cover light at laptop and wider only** (#172). Dark and phone-width were checked by hand-taken screenshots, not committed baselines. Revisit: a later ticket adding dark and phone-width baselines.
+- **Transaction list's last row overlaps the bottom border by 1px**, pre-existing on `main` (#172). Revisit: its own small bug fix.
+- **webkit and Mobile Safari layout snapshots were not regenerated** (#172); neither project is trusted per CLAUDE.md. Revisit: when those projects are fixed.
+- **Theme-color meta still needs a real-phone status-bar check** (#172); Chromium renders the oklch value. Revisit: next time the PWA is opened on a phone.
 
 ### Rollout checklist
 
 Ticketed 2026-10-18 as sub-issues of #162, expand → migrate → contract. Each lint rule switches on at error in the ticket that clears its last violation (pre-push has no report mode). Frontier at start: #163, #164, #165, #166.
 
-- [ ] #163 Class lint plugin, with color literals banned (blocked by: none)
-- [ ] #164 Ink and paper color tokens, with a contrast test (none)
-- [ ] #165 Type roles and Source Sans 3 (none)
-- [ ] #166 Primitives private: import boundary (none)
-- [ ] #167 Money and status colors onto roles (#164)
-- [ ] #168 Text sizes and weights onto roles (#165)
-- [ ] #169 Shadows, motion and spacing onto the system (#163, #164)
-- [ ] #170 Remove Tailwind's defaults (#163, #167, #168, #169)
-- [ ] #171 DESIGN.md and agent guidance (#166, #170)
-- [ ] #172 Integrate and verify design foundations (#170, #171)
+- [x] #163 Class lint plugin, with color literals banned (blocked by: none)
+- [x] #164 Ink and paper color tokens, with a contrast test (none)
+- [x] #165 Type roles and Source Sans 3 (none)
+- [x] #166 Primitives private: import boundary (none)
+- [x] #167 Money and status colors onto roles (#164)
+- [x] #168 Text sizes and weights onto roles (#165)
+- [x] #169 Shadows, motion and spacing onto the system (#163, #164)
+- [x] #170 Remove Tailwind's defaults (#163, #167, #168, #169)
+- [x] #171 DESIGN.md and agent guidance (#166, #170)
+- [x] #172 Integrate and verify design foundations (#170, #171)
 - **Deferred: adaptive layout** (more columns on the laptop, M3 window size classes). Revisit: the adaptive-layout session.
 - **Parked:** component patterns, adaptive layouts (M3 window size classes), migration of existing pages.
-
-## Appendix: specimen token values (delete once in `src/index.css`)
-
-From the specimen, 2026-10-18. Additions decided after it are not yet valued: `text-input` (16/24), `shadow-float`, `--duration-quick`, `--duration-move`, and the APCA nudge to dark `muted-foreground` and `shortfall`.
-
-Type roles (size/line-height, weight): display 30/36 650, title 22/28 600, heading 17/24 600, body 15/22 400, label 13/18 550, caption 12/16 400, figure 34/40 600 tabular.
-
-Font: Source Sans 3, Google Fonts (google/fonts `ofl/sourcesans3`, OFL-1.1). Latin + U+20B1 woff2 subset, 25.4 KB, features kern liga calt tnum lnum pnum case ccmp locl mark mkmk. Fallback `system-ui, sans-serif`.
-
-Radius: `--radius: 6px`; `--radius-sm` = radius − 3px; `--radius-lg` = radius + 4px.
-
-```css
-/* light */
---background: oklch(0.975 0.007 80);
---foreground: oklch(0.23 0.018 262);
---card: oklch(0.99 0.004 80);
---card-foreground: oklch(0.23 0.018 262);
---popover: oklch(0.997 0.002 80);
---popover-foreground: oklch(0.23 0.018 262);
---primary: oklch(0.42 0.12 262);
---primary-foreground: oklch(0.985 0.005 80);
---secondary: oklch(0.935 0.01 80);
---secondary-foreground: oklch(0.25 0.018 262);
---muted: oklch(0.945 0.009 80);
---muted-foreground: oklch(0.5 0.018 70);
---accent: oklch(0.93 0.012 80);
---accent-foreground: oklch(0.23 0.018 262);
---destructive: oklch(0.52 0.18 27);
---destructive-foreground: oklch(0.985 0.005 80);
---border: oklch(0.3 0.03 70 / 0.14);
---input: oklch(0.65 0.012 75);
---ring: oklch(0.52 0.13 262);
---income: oklch(0.5 0.12 150);
---shortfall: oklch(0.52 0.18 27);
---warning: oklch(0.52 0.11 70);
---warning-surface: oklch(0.955 0.04 85);
---success: oklch(0.5 0.12 150);
---scrim: oklch(0.2 0.02 262 / 0.42);
-
-/* dark */
---background: oklch(0.19 0.006 70);
---foreground: oklch(0.93 0.01 85);
---card: oklch(0.225 0.007 70);
---card-foreground: oklch(0.93 0.01 85);
---popover: oklch(0.26 0.008 70);
---popover-foreground: oklch(0.93 0.01 85);
---primary: oklch(0.74 0.1 262);
---primary-foreground: oklch(0.19 0.03 262);
---secondary: oklch(0.29 0.008 70);
---secondary-foreground: oklch(0.93 0.01 85);
---muted: oklch(0.26 0.007 70);
---muted-foreground: oklch(0.7 0.012 80);
---accent: oklch(0.29 0.008 70);
---accent-foreground: oklch(0.93 0.01 85);
---destructive: oklch(0.68 0.18 27);
---destructive-foreground: oklch(0.18 0.02 25);
---border: oklch(0.95 0.01 85 / 0.1);
---input: oklch(0.52 0.008 75);
---ring: oklch(0.7 0.1 262);
---income: oklch(0.78 0.13 152);
---shortfall: oklch(0.72 0.16 25);
---warning: oklch(0.82 0.13 80);
---warning-surface: oklch(0.27 0.035 75);
---success: oklch(0.78 0.13 152);
---scrim: oklch(0.05 0 0 / 0.62);
-```

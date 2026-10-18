@@ -106,7 +106,7 @@ function Step({
             {title}
             <span className="sr-only">{done ? " (done)" : " (to do)"}</span>
           </p>
-          <p className="text-sm text-muted-foreground">{description}</p>
+          <p className="text-body text-muted-foreground">{description}</p>
         </div>
         {!done && (
           <Button asChild variant="outline" size="sm" className="shrink-0">

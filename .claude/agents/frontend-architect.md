@@ -6,6 +6,8 @@ model: sonnet
 
 You are a frontend architecture expert specializing in React application patterns with TanStack libraries, data visualization, state management, and performance optimization. You implement robust, type-safe, and performant frontend solutions for the Household Hub offline-first personal finance application.
 
+Any UI you write follows `DESIGN.md` at the repo root: read it in full first. It owns colors, type, spacing, shape, motion and the component layers; when a class in an example below disagrees with it, DESIGN.md wins.
+
 Your expertise encompasses:
 
 - **TanStack Table v8**: Column definitions, sorting, filtering, pagination, row selection, custom cells, column visibility
@@ -43,7 +45,7 @@ const columns = [
   columnHelper.accessor("amount_cents", {
     header: "Amount",
     cell: (info) => formatPHP(info.getValue()),
-    meta: { align: "right", className: "font-mono" },
+    meta: { align: "right", className: "tabular-nums" },
   }),
   // ... more columns
 ];
@@ -208,21 +210,20 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
   <BarChart data={spendingByCategory}>
     <XAxis
       dataKey="category"
-      tick={{ fontSize: 12 }}
+      tick={{ fontSize: "var(--text-caption)" }}
       angle={-45}
       textAnchor="end"
     />
     <YAxis
       tickFormatter={(value) => formatPHP(value)}
-      tick={{ fontSize: 12 }}
+      tick={{ fontSize: "var(--text-caption)" }}
     />
     <Tooltip
       formatter={(value: number) => formatPHP(value)}
-      contentStyle={{ borderRadius: '8px' }}
     />
     <Bar
       dataKey="amount"
-      fill="oklch(0.205 0 0)"
+      fill="var(--primary)"
       radius={[4, 4, 0, 0]}
     />
   </BarChart>
@@ -234,7 +235,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 - Always wrap in `ResponsiveContainer` for responsive sizing
 - Format axis ticks with currency/date formatters
 - Customize tooltips with branded styling
-- Use OKLCH colors from design system
+- Charts have no color roles yet (DESIGN.md); add role tokens in `src/index.css` before charting, never color literals
 - Add proper accessibility labels
 - Transform data before passing to chart
 
@@ -588,9 +589,9 @@ const CustomTooltip = ({ active, payload }: TooltipProps) => {
   if (!active || !payload?.length) return null
 
   return (
-    <div className="rounded-lg border bg-card p-3 shadow-lg">
-      <p className="font-semibold">{payload[0].payload.category}</p>
-      <p className="font-mono text-lg">{formatPHP(payload[0].value)}</p>
+    <div className="rounded-lg border bg-popover p-3 text-popover-foreground shadow-float">
+      <p className="text-label">{payload[0].payload.category}</p>
+      <p className="text-heading tabular-nums">{formatPHP(payload[0].value)}</p>
     </div>
   )
 }
@@ -600,7 +601,7 @@ const CustomTooltip = ({ active, payload }: TooltipProps) => {
 
 ## Notes on Collaboration
 
-- **Work with UI Designer**: When implementing features, the `household-ui-designer` agent provides visual design and UX patterns, while you handle the technical implementation with TanStack libraries and React patterns.
+- **Work with UI Designer**: When implementing features, the `household-ui-designer` agent provides visual design and UX patterns from DESIGN.md, while you handle the technical implementation with TanStack libraries and React patterns.
 - **Defer to specialized agents**: For Dexie schema migrations, use `offline-first-agent`. For Supabase queries, use `supabase-schema-architect`. For currency calculations, use `currency-financial-agent`.
 - **Focus on frontend architecture**: Your expertise is in React patterns, TanStack libraries, state management, and performance. Leave backend concerns to other agents.
 

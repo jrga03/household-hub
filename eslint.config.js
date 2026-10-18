@@ -6,6 +6,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import prettier from "eslint-config-prettier";
+import betterTailwind from "eslint-plugin-better-tailwindcss";
 import { builtinRules } from "eslint/use-at-your-own-risk";
 
 // The core no-restricted-syntax rule, registered once per invariant. Flat config
@@ -17,6 +18,11 @@ const architecturePlugin = {
     "no-ad-hoc-money-parse": restrictedSyntax,
     "no-events-table-outside-sync": restrictedSyntax,
     "no-direct-event-log": restrictedSyntax,
+    "no-color-literal": restrictedSyntax,
+    "no-inline-color-style": restrictedSyntax,
+    // Its own rule ID so it stacks with the no-restricted-imports blocks below
+    // instead of replacing them.
+    "no-direct-primitive-import": builtinRules.get("no-restricted-imports"),
   },
 };
 
@@ -76,9 +82,172 @@ const eventDecoderFiles = ["src/lib/*/events.ts"];
 const commandFiles = ["src/lib/commands/**"];
 const syncFiles = ["src/lib/sync/**"];
 
+// Colors come only from theme tokens (spec #162, ADR 0011).
+const COLOR_FUNCTION = "(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color-mix|color)\\(";
+const COLOR_LITERAL = `(?:^|[\\s,(])#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})(?![0-9a-zA-Z])|\\b${COLOR_FUNCTION}`;
+const COLOR_UTILITY =
+  "(?:bg|text|border(?:-[xytrblse])?|divide|outline|ring(?:-offset)?|inset-ring|fill|stroke|decoration|accent|caret|placeholder|from|via|to|shadow|inset-shadow|drop-shadow|text-shadow)";
+const COLOR_STYLE_PROPERTY =
+  "^(?:color|background|backgroundColor|background-color|border(?:Top|Right|Bottom|Left|Block|Inline)?Color|border(?:-[a-z]+)?-color|outlineColor|outline-color|fill|stroke|textDecorationColor|caretColor|accentColor)$";
+
+const arbitraryColorClasses = [
+  {
+    pattern: `(?:^|:)!?-?${COLOR_UTILITY}-(?:\\[(?:color:|var\\(|#|${COLOR_FUNCTION})|\\((?:color:)?--)`,
+    message:
+      "Arbitrary colors bypass the theme. Use a token class (bg-primary, text-income, border-border…).",
+  },
+  {
+    pattern: "(?:^|:)\\[(?:color|background(?:-color)?|[a-z-]+-color|fill|stroke):",
+    message: "Arbitrary color properties bypass the theme. Use a token class.",
+  },
+];
+
+// Motion names the properties it animates (spec #162): transform, opacity, or
+// color for a state change.
+const transitionAllClass = {
+  pattern: "(?:^|:)!?transition-all!?$",
+  message:
+    "List the properties that animate: transition-transform, transition-opacity or transition-colors.",
+};
+
+// Padding, margin, gap, space and inset (top/right/bottom/left/start/end
+// included) stay on the step set in app code; primitives in ui/ are exempt.
+// calc() and var() arbitrary values (safe areas, chrome heights) stay allowed.
+const SPACING_UTILITY =
+  "-?(?:p(?:[xytrblse]|b[se])?|m(?:[xytrblse]|b[se])?|gap(?:-[xy])?|space-[xy]|inset(?:-(?:[xyse]|b[se]))?|top|right|bottom|left|start|end)";
+const SPACING_STEP = "(?:0|0\\.5|1|2|3|4|6|8|12|16)";
+
+const offSetSpacingClasses = [
+  {
+    pattern: `(?:^|:)!?${SPACING_UTILITY}-(?!${SPACING_STEP}!?$)(?:[0-9.]+|px)!?$`,
+    message: "Spacing steps are 0, 0.5, 1, 2, 3, 4, 6, 8, 12 and 16. Use the nearest step.",
+  },
+  {
+    pattern: `(?:^|:)!?${SPACING_UTILITY}-\\[-?[0-9.]+(?:px|rem|em)?\\]!?$`,
+    message:
+      "Arbitrary spacing lengths bypass the step set (0, 0.5, 1, 2, 3, 4, 6, 8, 12, 16). Use a step, or calc()/var() for safe areas.",
+  },
+];
+
+// Font size, radius and shadow come only from the theme's named steps (spec
+// #162). Arbitrary sizing and calc() on width, height and the like stay allowed.
+const arbitraryScaleClasses = [
+  {
+    pattern: "(?:^|:)!?text-(?:\\[(?:length:|[0-9.]|calc\\(|clamp\\(|min\\(|max\\()|\\(length:)",
+    message: "Arbitrary font sizes bypass the type roles. Use text-body, text-label, text-caption…",
+  },
+  {
+    pattern: "(?:^|:)!?rounded(?:-(?:[trblse]|[tb][lr]|[se][se]))?-(?:\\[(?!inherit\\])|\\()",
+    message: "Arbitrary radii bypass the shape scale. Use rounded-sm, rounded-md or rounded-lg.",
+  },
+  {
+    pattern: "(?:^|:)!?-?(?:inset-shadow|drop-shadow|text-shadow|shadow)-[[(]",
+    message: "Arbitrary shadows bypass elevation. Use shadow-float for floating layers, or none.",
+  },
+];
+
+const primitiveRestrictedClasses = [
+  ...arbitraryColorClasses,
+  ...arbitraryScaleClasses,
+  transitionAllClass,
+];
+const appRestrictedClasses = [...primitiveRestrictedClasses, ...offSetSpacingClasses];
+
 const restrictNanoid = {
   name: "nanoid",
   message: "Use crypto.randomUUID(): local ids are server ids and the columns are uuid.",
+};
+
+// shadcn primitives (src/components/ui) are private to the app-component layer
+// (src/components/app), ADR 0011. These files imported a primitive directly when
+// the rule landed. The list only shrinks: migrate a file and delete its entry;
+// never add one (architecture-lint.test.ts holds the count down).
+export const directPrimitiveImporters = [
+  "src/App.tsx",
+  "src/components/accounts/AccountDetailsFields.tsx",
+  "src/components/accounts/AccountsCard.tsx",
+  "src/components/accounts/EditAccountDialog.tsx",
+  "src/components/accounts/PayCardDialog.tsx",
+  "src/components/allocations/AllocationList.tsx",
+  "src/components/allocations/MoveMoneyDialog.tsx",
+  "src/components/assistant/AssistantView.tsx",
+  "src/components/assistant/ChatComposer.tsx",
+  "src/components/assistant/ProposalCard.tsx",
+  "src/components/budgets/BudgetView.tsx",
+  "src/components/budgets/DistributeMoney.tsx",
+  "src/components/budgets/MonthPicker.tsx",
+  "src/components/budgets/PlanView.tsx",
+  "src/components/budgets/SetBudgetDialog.tsx",
+  "src/components/categories/AddCategoryForms.tsx",
+  "src/components/categories/CategoriesView.tsx",
+  "src/components/categories/EditCategoryDialogs.tsx",
+  "src/components/categories/GroupSelect.tsx",
+  "src/components/categories/RecordName.tsx",
+  "src/components/ConfirmDialog.tsx",
+  "src/components/corrections/CorrectBalanceDialog.tsx",
+  "src/components/ErrorBoundary.tsx",
+  "src/components/finances/FinancesSection.tsx",
+  "src/components/FormSheet.tsx",
+  "src/components/households/CreateOrJoin.tsx",
+  "src/components/households/HouseholdSettings.tsx",
+  "src/components/households/JoinHousehold.tsx",
+  "src/components/households/JoinRequestsCard.tsx",
+  "src/components/households/MembersCard.tsx",
+  "src/components/import/DraftDetail.tsx",
+  "src/components/import/DraftLabels.tsx",
+  "src/components/import/ImportView.tsx",
+  "src/components/import/ReadStatement.tsx",
+  "src/components/layout/AppLayout.tsx",
+  "src/components/layout/AppSidebar.tsx",
+  "src/components/layout/MobileNav.tsx",
+  "src/components/layout/PageHeader.tsx",
+  "src/components/layout/ReviewCount.tsx",
+  "src/components/LoginForm.tsx",
+  "src/components/opening/OpeningChecklist.tsx",
+  "src/components/PWAInstallPrompt.tsx",
+  "src/components/review/ReviewView.tsx",
+  "src/components/settings/ExportCard.tsx",
+  "src/components/SignupForm.tsx",
+  "src/components/StorageWarning.tsx",
+  "src/components/sync/SyncStatusIndicator.tsx",
+  "src/components/transactions/CategorySelect.tsx",
+  "src/components/transactions/EntryFields.tsx",
+  "src/components/transactions/QuickEntry.tsx",
+  "src/components/transactions/SelectionActions.tsx",
+  "src/components/transactions/TransactionDialog.tsx",
+  "src/components/transactions/TransactionFilters.tsx",
+  "src/components/transactions/TransactionList.tsx",
+  "src/components/transactions/TransferDialog.tsx",
+  "src/components/VisibilityField.tsx",
+  "src/routes/__root.tsx",
+  "src/routes/budget.tsx",
+  "src/routes/create-or-join.tsx",
+  "src/routes/settings.tsx",
+  "src/routes/transactions.tsx",
+];
+
+const primitiveBoundary = {
+  files: ["src/**/*.{ts,tsx}"],
+  ignores: [
+    ...srcTestFiles,
+    "src/components/ui/**",
+    "src/components/app/**",
+    ...directPrimitiveImporters,
+  ],
+  rules: {
+    "arch/no-direct-primitive-import": [
+      "error",
+      {
+        patterns: [
+          {
+            group: ["@/components/ui/*", "**/components/ui/*", "./ui/*", "../ui/*"],
+            message:
+              "shadcn primitives are private (ADR 0011). Build from a component in src/components/app, or add one there that wraps the primitive.",
+          },
+        ],
+      },
+    ],
+  },
 };
 
 export default [
@@ -467,6 +636,54 @@ export default [
       ],
     },
   },
+  // Tailwind class lint. The plugin reads the v4 theme from the CSS entry, so
+  // a theme token class is known and a removed one is not.
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { "better-tailwindcss": betterTailwind },
+    settings: { "better-tailwindcss": { entryPoint: "src/index.css" } },
+    rules: {
+      "better-tailwindcss/no-unknown-classes": "error",
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [...srcTestFiles, "src/components/ui/**"],
+    rules: {
+      "better-tailwindcss/no-restricted-classes": ["error", { restrict: appRestrictedClasses }],
+    },
+  },
+  {
+    files: ["src/components/ui/**/*.{ts,tsx}"],
+    ignores: srcTestFiles,
+    rules: {
+      "better-tailwindcss/no-restricted-classes": [
+        "error",
+        { restrict: primitiveRestrictedClasses },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.tsx"],
+    ignores: srcTestFiles,
+    rules: {
+      "arch/no-color-literal": [
+        "error",
+        {
+          selector: `Literal[value=/${COLOR_LITERAL}/], TemplateElement[value.raw=/${COLOR_LITERAL}/]`,
+          message:
+            "Colors come from theme tokens in src/index.css. Use a token class, or read the token with getComputedStyle.",
+        },
+      ],
+      "arch/no-inline-color-style": [
+        "error",
+        {
+          selector: `JSXAttribute[name.name='style'] Property[key.name=/${COLOR_STYLE_PROPERTY}/], JSXAttribute[name.name='style'] Property[key.value=/${COLOR_STYLE_PROPERTY}/]`,
+          message: "Set colors with a theme token class, not an inline style.",
+        },
+      ],
+    },
+  },
   // no-restricted-imports: one block per disjoint file set. A later block's
   // no-restricted-imports replaces an earlier one for the same file, so the
   // sets must never overlap.
@@ -540,5 +757,6 @@ export default [
       "no-restricted-imports": ["error", { paths: [restrictNanoid] }],
     },
   },
+  primitiveBoundary,
   prettier,
 ];

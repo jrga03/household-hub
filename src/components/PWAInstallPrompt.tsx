@@ -143,16 +143,18 @@ export function PWAInstallPrompt() {
   if (isIOS) {
     return (
       <div className="fixed bottom-[calc(1rem+var(--bottom-chrome))] left-[calc(1rem+var(--safe-area-left))] right-[calc(1rem+var(--safe-area-right))] z-50 md:left-auto md:w-96">
-        <Card className="border-2 border-primary shadow-lg">
+        <Card className="border-2 border-primary shadow-float">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <span className="text-sm font-bold">HH</span>
+                  <span className="text-body font-bold">HH</span>
                 </div>
                 <div>
-                  <CardTitle className="text-base">Install Household Hub</CardTitle>
-                  <CardDescription className="text-xs">Add to your home screen</CardDescription>
+                  <CardTitle>Install Household Hub</CardTitle>
+                  <CardDescription className="text-caption">
+                    Add to your home screen
+                  </CardDescription>
                 </div>
               </div>
               <Button
@@ -168,7 +170,7 @@ export function PWAInstallPrompt() {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            <div className="space-y-3 text-sm">
+            <div className="space-y-3 text-body">
               <p className="text-muted-foreground">
                 Install this app for quick access and offline support:
               </p>
@@ -215,16 +217,16 @@ export function PWAInstallPrompt() {
   // Chromium/Edge installation prompt
   return (
     <div className="fixed bottom-[calc(1rem+var(--bottom-chrome))] left-[calc(1rem+var(--safe-area-left))] right-[calc(1rem+var(--safe-area-right))] z-50 md:left-auto md:w-96">
-      <Card className="border-2 border-primary shadow-lg">
+      <Card className="border-2 border-primary shadow-float">
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <span className="text-sm font-bold">HH</span>
+                <span className="text-body font-bold">HH</span>
               </div>
               <div>
-                <CardTitle className="text-base">Install Household Hub</CardTitle>
-                <CardDescription className="text-xs">
+                <CardTitle>Install Household Hub</CardTitle>
+                <CardDescription className="text-caption">
                   Get quick access and work offline
                 </CardDescription>
               </div>
@@ -242,7 +244,7 @@ export function PWAInstallPrompt() {
         </CardHeader>
 
         <CardContent className="space-y-4">
-          <div className="space-y-2 text-sm text-muted-foreground">
+          <div className="space-y-2 text-body text-muted-foreground">
             <p>✓ Faster loading times</p>
             <p>✓ Works offline</p>
             <p>✓ Desktop shortcut</p>

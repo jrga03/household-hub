@@ -160,8 +160,7 @@ The following files are **auto-generated** and should not be edited manually:
 
 1. Add file to `components/` or feature subdirectory
 2. Import from routes or other components: `import { MyComponent } from "@/components/MyComponent"`
-3. Use shadcn/ui components from `components/ui/`
-4. See [components/README.md](./components/) for organization patterns
+3. Build from `components/app/`, never `components/ui/` directly; see `DESIGN.md` (Components)
 
 ### Adding a New Custom Hook
 

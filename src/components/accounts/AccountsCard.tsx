@@ -15,6 +15,7 @@ import { formatPHP, type Cents } from "@/lib/currency";
 import type { AccountMoney } from "@/lib/transactions/money";
 import type { Visibility } from "@/lib/events/log";
 import { VisibilityField } from "@/components/VisibilityField";
+import { shortfallClass } from "@/components/allocations/MoneyAmount";
 import {
   ACCOUNT_TYPE_LABELS,
   AccountDetailsFields,
@@ -25,7 +26,7 @@ import { EditAccountDialog } from "./EditAccountDialog";
 import { PayCardDialog } from "./PayCardDialog";
 import { CorrectBalanceDialog } from "@/components/corrections/CorrectBalanceDialog";
 import { FormError } from "@/components/ui/form-error";
-import { errorMessage } from "@/lib/utils";
+import { cn, errorMessage } from "@/lib/utils";
 import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 
 export function AccountsCard({ actor }: { actor: Actor }) {
@@ -45,7 +46,9 @@ export function AccountsCard({ actor }: { actor: Actor }) {
     <Card>
       <CardContent className="space-y-6">
         {accounts?.length === 0 && (
-          <p className="text-sm text-muted-foreground">No accounts yet. Add the first one below.</p>
+          <p className="text-body text-muted-foreground">
+            No accounts yet. Add the first one below.
+          </p>
         )}
         {accounts && accounts.length > 0 && (
           <ul aria-label="Accounts" className="divide-y rounded-md border">
@@ -136,7 +139,7 @@ function AccountItem({
           </Link>
           {account.visibility === "personal" && <Badge variant="secondary">Personal</Badge>}
         </p>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           {ACCOUNT_TYPE_LABELS[account.type]}
           {isCreditCard(account) && ` · ${payingAccountSummary(account)}`}
         </p>
@@ -145,7 +148,10 @@ function AccountItem({
       <div className="flex shrink-0 items-center gap-2">
         {money && (
           <span
-            className="tabular-nums"
+            className={cn(
+              "tabular-nums",
+              shortfallClass(money.balance, { owed: isCreditCard(account) })
+            )}
             aria-label={isCreditCard(account) ? "Amount owed" : "Balance"}
           >
             {formatPHP(money.balance)}
@@ -157,8 +163,6 @@ function AccountItem({
   );
 }
 
-const negativeClass = (cents: Cents) => (cents < 0 ? "text-destructive" : undefined);
-
 /**
  * "Cleared ₱X · Pending ₱Y", the account's Unassigned, and the Card Payment of
  * each card paid from it (red when negative).
@@ -166,12 +170,12 @@ const negativeClass = (cents: Cents) => (cents < 0 ? "text-destructive" : undefi
 function MoneySummary({ money }: { money: AccountMoney }) {
   return (
     <>
-      <p className="text-sm text-muted-foreground tabular-nums">
+      <p className="text-body text-muted-foreground tabular-nums">
         Cleared {formatPHP(money.cleared)} · Pending {formatPHP(money.pending)}
         {money.envelopes && (
           <>
             {" · "}
-            <span className={negativeClass(money.envelopes.unassigned)}>
+            <span className={shortfallClass(money.envelopes.unassigned)}>
               Unassigned {formatPHP(money.envelopes.unassigned)}
             </span>
           </>
@@ -190,8 +194,8 @@ function CardPayments({ cardPayments }: { cardPayments: Map<string, Cents> }) {
     .map(([cardId, cents]) => ({ cardId, cents, name: names.get(cardId) ?? "A card" }))
     .sort((a, b) => a.name.localeCompare(b.name));
   return reserved.map(({ cardId, cents, name }) => (
-    <p key={cardId} className="text-sm text-muted-foreground tabular-nums">
-      <span className={negativeClass(cents)}>
+    <p key={cardId} className="text-body text-muted-foreground tabular-nums">
+      <span className={shortfallClass(cents)}>
         Card Payment · {name} {formatPHP(cents)}
       </span>
     </p>

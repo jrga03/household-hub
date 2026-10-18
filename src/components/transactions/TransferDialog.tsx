@@ -323,7 +323,7 @@ export function TransferForm({
     return (
       <div className="space-y-4">
         {directionChoice}
-        <p className="text-sm text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           A transfer needs two accounts in use, other than credit cards. Add another on Home.
         </p>
       </div>
@@ -446,7 +446,7 @@ export function TransferForm({
       </div>
 
       <fieldset className="space-y-2">
-        <legend className="text-sm font-medium">Status</legend>
+        <legend className="text-label">Status</legend>
         <RadioGroup
           name="status"
           defaultValue={transfer?.status ?? "cleared"}

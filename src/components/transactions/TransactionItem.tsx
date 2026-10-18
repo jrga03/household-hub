@@ -95,7 +95,7 @@ export function TransactionItem({
       {offset > 0 && (
         <button
           type="button"
-          className="absolute inset-y-0 left-0 bg-primary px-2 text-sm font-medium text-primary-foreground"
+          className="absolute inset-y-0 left-0 bg-primary px-2 text-body font-medium text-primary-foreground"
           style={{ width: REVEAL_WIDTH }}
           disabled={changing}
           onClick={toggleStatus}
@@ -106,7 +106,7 @@ export function TransactionItem({
       {offset < 0 && (
         <button
           type="button"
-          className="absolute inset-y-0 right-0 bg-destructive px-2 text-sm font-medium text-white"
+          className="absolute inset-y-0 right-0 bg-destructive px-2 text-body font-medium text-destructive-foreground"
           style={{ width: REVEAL_WIDTH }}
           onClick={remove}
         >
@@ -117,7 +117,7 @@ export function TransactionItem({
         {...handlers}
         className={cn(
           "relative flex touch-pan-y select-none items-center gap-3 bg-background px-3 py-2 [-webkit-touch-callout:none]",
-          !dragging && "transition-transform duration-200 motion-reduce:transition-none",
+          !dragging && "transition-transform duration-move motion-reduce:transition-none",
           selected && "bg-accent",
           open && !selecting && "bg-accent ring-2 ring-inset ring-ring"
         )}
@@ -180,7 +180,7 @@ export function TransactionItem({
               />
             </span>
           </span>
-          <span className="block truncate text-sm text-muted-foreground">{detail}</span>
+          <span className="block truncate text-body text-muted-foreground">{detail}</span>
         </button>
       </div>
     </div>
