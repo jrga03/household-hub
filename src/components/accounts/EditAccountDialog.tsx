@@ -75,7 +75,7 @@ export function EditAccountDialog({
           ownership={account}
           defaults={account}
         />
-        <p className="text-sm text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           Balance drifted from the bank&apos;s? Use{" "}
           <Button type="button" variant="link" className="h-auto p-0" onClick={onCorrectBalance}>
             Correct balance
@@ -83,8 +83,8 @@ export function EditAccountDialog({
           instead of changing the starting balance.
         </p>
         <div className="space-y-1">
-          <p className="text-sm font-medium">Who sees it</p>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-label">Who sees it</p>
+          <p className="text-body text-muted-foreground">
             {VISIBILITY_SUMMARY[account.visibility]} Visibility can&apos;t be changed.
           </p>
         </div>

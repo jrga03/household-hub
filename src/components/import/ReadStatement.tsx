@@ -92,7 +92,7 @@ export function ReadStatement() {
   if (!accounts) return null;
   if (cards.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-body text-muted-foreground">
         Add a credit card first; a card statement is imported into one of your cards.
       </p>
     );

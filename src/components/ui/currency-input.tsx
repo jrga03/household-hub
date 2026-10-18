@@ -139,7 +139,7 @@ export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputPro
           aria-describedby={error ? `${props.id}-error` : props["aria-describedby"]}
         />
         {error && (
-          <p id={`${props.id}-error`} className="mt-1.5 text-sm text-destructive">
+          <p id={`${props.id}-error`} className="mt-1.5 text-body text-destructive">
             {error}
           </p>
         )}

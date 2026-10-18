@@ -76,7 +76,7 @@ export function CorrectionDetails({
 
   return (
     <div className="space-y-4">
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-body">
         <dt className="text-muted-foreground">Account</dt>
         <dd>{accountName}</dd>
         <dt className="text-muted-foreground">Date</dt>
@@ -91,7 +91,7 @@ export function CorrectionDetails({
         <dt className="text-muted-foreground">Category</dt>
         <dd>{envelope}</dd>
       </dl>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-body text-muted-foreground">
         A correction can&apos;t be edited. If it&apos;s wrong, remove it and correct the balance
         again.
       </p>

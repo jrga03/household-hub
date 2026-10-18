@@ -37,7 +37,7 @@ export function AllocationList({
                 <p className="truncate font-medium">
                   {label(allocation, "from")} → {label(allocation, "to")}
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-body text-muted-foreground">
                   {format(parseLocalDate(allocation.date), "MMM d, yyyy")} ·{" "}
                   {accountNames.get(allocation.accountId) ?? "An account"}
                 </p>

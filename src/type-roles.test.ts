@@ -34,9 +34,12 @@ beforeAll(async () => {
 });
 
 function declarationsOf(className: string) {
-  const css = buildClasses([className]);
-  const rule = new RegExp(`\\.${className}\\s*\\{([^}]*)\\}`).exec(css);
-  if (!rule?.[1]) throw new Error(`.${className} generated no rule`);
+  return declarationsIn(buildClasses([className]), `\\.${className}`);
+}
+
+function declarationsIn(css: string, selector: string) {
+  const rule = new RegExp(`(?:^|[\\s}])${selector}\\s*\\{([^}]*)\\}`).exec(css);
+  if (!rule?.[1]) throw new Error(`${selector} has no rule`);
   const resolve = (value: string): string => {
     const trimmed = value.trim();
     const reference = /^var\((--[\w-]+)(?:,\s*(.+))?\)$/.exec(trimmed);
@@ -91,6 +94,12 @@ describe("type roles", () => {
     ["font-bold", "650"],
   ])("%s renders at weight %s", (className, weight) => {
     expect(declarationsOf(className).get("font-weight")).toBe(weight);
+  });
+
+  it("running text defaults to the body role", () => {
+    const declarations = declarationsIn(buildClasses([]), "body");
+    expect(declarations.get("font-size")).toBe("15px");
+    expect(declarations.get("line-height")).toBe("22px");
   });
 
   it("font-sans is Source Sans 3 with the system stack as fallback", () => {

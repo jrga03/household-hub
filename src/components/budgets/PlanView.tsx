@@ -96,7 +96,7 @@ export function PlanView({
 
   const rows = (categories: CategoryRow[]) =>
     categories.length === 0 ? (
-      <li className="px-3 py-2 text-sm text-muted-foreground">No categories in use.</li>
+      <li className="px-3 py-2 text-body text-muted-foreground">No categories in use.</li>
     ) : (
       categories.map((category) => (
         <PlanRow
@@ -124,7 +124,7 @@ export function PlanView({
       />
 
       {inUse.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           No categories yet. Set them up on <Link to="/categories">Categories</Link> first.
         </p>
       ) : (
@@ -150,7 +150,7 @@ export function PlanView({
           ))}
           {list.ungrouped.length > 0 && (
             <section className="rounded-md border">
-              <h2 className="border-b px-3 py-2 text-sm font-normal text-muted-foreground">
+              <h2 className="border-b px-3 py-2 text-body font-normal text-muted-foreground">
                 Waiting for their group to reach this device
               </h2>
               <ul aria-label="Ungrouped plan" className="divide-y">
@@ -246,7 +246,7 @@ function ToAssignBar({
   return (
     <section aria-label="To assign" className="space-y-3 rounded-md border bg-muted/40 p-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-lg font-semibold">
+        <p className="text-heading">
           <MoneyAmount cents={toAssign} /> <span className="font-normal">to assign</span>
         </p>
         <div className="flex gap-2">
@@ -259,7 +259,7 @@ function ToAssignBar({
         </div>
       </div>
       {listed.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           Add a bank, cash or e-wallet account on Accounts first.
         </p>
       ) : (
@@ -334,7 +334,7 @@ function UnassignedByAccount({
               {namedAmounts(envelopes?.cardPayments, accountNames).map(({ id, cents, name }) => (
                 <div
                   key={id}
-                  className="flex items-center justify-between gap-3 text-sm text-muted-foreground"
+                  className="flex items-center justify-between gap-3 text-body text-muted-foreground"
                 >
                   <span className="min-w-0 truncate">Card Payment · {name}</span>
                   <span className="flex shrink-0 items-center gap-2">
@@ -422,11 +422,11 @@ function PlanRow({
         <label htmlFor={inputId} className="flex min-w-0">
           <RecordName record={category} />
         </label>
-        <p id={hintId} className="truncate text-xs text-muted-foreground">
+        <p id={hintId} className="truncate text-caption text-muted-foreground">
           Spent {shortMonth(shiftMonth(month, -1))} {spentIn(spent.last)} · {shortMonth(month)}{" "}
           {spentIn(spent.this)}
         </p>
-        <p id={moneyId} className="truncate text-xs text-muted-foreground">
+        <p id={moneyId} className="truncate text-caption text-muted-foreground">
           Holds <MoneyAmount cents={categoryMonth(spent.this, category.id).money} />
         </p>
       </div>

@@ -102,7 +102,7 @@ export function JoinForm({ userId }: { userId: string }) {
             Send request
           </SubmitButton>
           {!isOnline && (
-            <p id="join-offline-hint" className="text-sm text-muted-foreground">
+            <p id="join-offline-hint" className="text-body text-muted-foreground">
               Joining a household needs a connection. You&apos;re offline right now.
             </p>
           )}

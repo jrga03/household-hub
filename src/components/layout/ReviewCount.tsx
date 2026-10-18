@@ -10,7 +10,7 @@ export function ReviewCountBadge({ count, className }: { count: number; classNam
       aria-hidden
       data-testid="review-count"
       className={cn(
-        "min-w-5 rounded-full bg-primary px-1 text-center text-xs font-medium leading-5 text-primary-foreground",
+        "min-w-5 rounded-full bg-primary px-1 text-center text-label leading-5 text-primary-foreground",
         className
       )}
     >

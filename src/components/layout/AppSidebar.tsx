@@ -55,7 +55,7 @@ export function AppSidebar() {
                   {item.shortcut && (
                     <span
                       className={cn(
-                        "text-xs",
+                        "text-caption",
                         isActiveRoute(item.to)
                           ? "text-sidebar-accent-foreground"
                           : "text-muted-foreground"
@@ -80,12 +80,12 @@ export function AppSidebar() {
         <div className="flex items-center justify-between px-2">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <span className="text-sm font-bold">HH</span>
+              <span className="text-body font-bold">HH</span>
             </div>
             {open && (
               <div className="flex flex-col">
-                <span className="text-sm font-semibold">Household Hub</span>
-                <span className="text-xs text-muted-foreground">Finance Tracker</span>
+                <span className="text-body font-semibold">Household Hub</span>
+                <span className="text-caption text-muted-foreground">Finance Tracker</span>
               </div>
             )}
           </div>
@@ -124,10 +124,10 @@ export function AppSidebar() {
               </div>
               {open && (
                 <div className="flex flex-1 flex-col">
-                  <span className="text-sm font-medium">
+                  <span className="text-body font-medium">
                     {user?.email?.split("@")[0] || "User"}
                   </span>
-                  <span className="text-xs text-muted-foreground">{user?.email}</span>
+                  <span className="text-caption text-muted-foreground">{user?.email}</span>
                 </div>
               )}
             </div>

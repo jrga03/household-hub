@@ -217,7 +217,7 @@ function FilterSelect({ label, value, allLabel, groups, onChange }: FilterSelect
   const id = `filter-${label.toLowerCase()}`;
   return (
     <div className="min-w-0 space-y-1">
-      <Label htmlFor={id} className="text-xs text-muted-foreground">
+      <Label htmlFor={id} className="text-caption text-muted-foreground">
         {label}
       </Label>
       <Select value={value ?? ALL} onValueChange={onChange}>

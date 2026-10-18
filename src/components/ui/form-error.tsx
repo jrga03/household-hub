@@ -2,7 +2,7 @@
 export function FormError({ children }: { children: string | null }) {
   if (!children) return null;
   return (
-    <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+    <div role="alert" className="rounded-md bg-destructive/10 p-3 text-body text-destructive">
       {children}
     </div>
   );

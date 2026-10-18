@@ -123,7 +123,7 @@ function ProposalForm({
         <p className="min-w-0 truncate font-medium">{proposal.description}</p>
         <p className="shrink-0 font-semibold tabular-nums">{formatPHP(proposal.amountCents)}</p>
       </div>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-body text-muted-foreground">
         {proposal.type === "income" ? "Income" : "Expense"}
         {proposal.notes && ` · ${proposal.notes}`}
       </p>
@@ -160,7 +160,7 @@ function ProposalForm({
       </fieldset>
       <FormError>{error}</FormError>
       {decided ? (
-        <p className="text-sm font-medium text-muted-foreground">
+        <p className="text-body font-medium text-muted-foreground">
           {decision.outcome === "recorded" ? "Recorded" : "Dismissed"}
         </p>
       ) : (
