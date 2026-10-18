@@ -8,13 +8,17 @@
      See docs/plans/2026-05-30-wide-screen-layout-design.md */
   --container-mid: 1100px;
   --container-wide: 1500px;
+  --transition-duration-quick: 150ms;
+  --transition-duration-move: 250ms;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
 }
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
+  --radius-sm: calc(var(--radius) - 3px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 4px);
   --radius-xl: calc(var(--radius) + 4px);
+  --shadow-float: var(--elevation-float);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -30,34 +34,30 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-  /* Semantic financial colors (review R40): money-in, money-out, and
-     budget/money warnings. Light shades are -700 (green-600 and yellow-600
-     fail WCAG AA on white at body sizes); dark shades are -400 (red-600
-     fails on the dark card). Use text-income, text-expense, text-warning —
-     never raw green, red, or yellow classes for money intent. */
   --color-income: var(--income);
-  --color-expense: var(--expense);
+  --color-shortfall: var(--shortfall);
   --color-warning: var(--warning);
+  --color-warning-surface: var(--warning-surface);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-scrim: var(--scrim);
+  --color-sidebar: var(--card);
+  --color-sidebar-foreground: var(--card-foreground);
+  --color-sidebar-primary: var(--primary);
+  --color-sidebar-primary-foreground: var(--primary-foreground);
+  --color-sidebar-accent: var(--accent);
+  --color-sidebar-accent-foreground: var(--accent-foreground);
+  --color-sidebar-border: var(--border);
+  --color-sidebar-ring: var(--ring);
 }
 
+/* Ink and paper. Contrast pairs are checked by src/theme-contrast.test.ts. */
 :root {
-  --radius: 0.625rem;
+  --radius: 6px;
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
@@ -78,77 +78,65 @@
   --toast-bottom: calc(2rem + var(--bottom-chrome));
   /* Toasts move to the top while a phone sheet is open (sonner.tsx). */
   --toast-top: calc(0.5rem + var(--safe-area-top));
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-  --income: oklch(0.527 0.154 150.069); /* green-700 */
-  --expense: oklch(0.505 0.213 27.518); /* red-700 */
-  --warning: oklch(0.554 0.135 66.442); /* yellow-700 */
+  --background: oklch(0.975 0.007 80);
+  --foreground: oklch(0.23 0.018 262);
+  --card: oklch(0.99 0.004 80);
+  --card-foreground: oklch(0.23 0.018 262);
+  --popover: oklch(0.997 0.002 80);
+  --popover-foreground: oklch(0.23 0.018 262);
+  --primary: oklch(0.42 0.12 262);
+  --primary-foreground: oklch(0.985 0.005 80);
+  --secondary: oklch(0.935 0.01 80);
+  --secondary-foreground: oklch(0.25 0.018 262);
+  --muted: oklch(0.945 0.009 80);
+  --muted-foreground: oklch(0.5 0.018 70);
+  --accent: oklch(0.93 0.012 80);
+  --accent-foreground: oklch(0.23 0.018 262);
+  --destructive: oklch(0.52 0.18 27);
+  --destructive-foreground: oklch(0.985 0.005 80);
+  --border: oklch(0.3 0.03 70 / 0.14);
+  --input: oklch(0.62 0.012 75);
+  --ring: oklch(0.52 0.13 262);
+  --income: oklch(0.5 0.12 150);
+  --shortfall: oklch(0.52 0.18 27);
+  --warning: oklch(0.52 0.11 70);
+  --warning-surface: oklch(0.955 0.04 85);
+  --success: oklch(0.5 0.12 150);
+  --success-foreground: oklch(0.985 0.005 80);
+  --scrim: oklch(0.2 0.02 262 / 0.42);
+  --elevation-float:
+    0 1px 2px oklch(0.2 0.02 262 / 0.06), 0 6px 16px -2px oklch(0.2 0.02 262 / 0.12);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-  --income: oklch(0.792 0.209 151.711); /* green-400 */
-  --expense: oklch(0.704 0.191 22.216); /* red-400 */
-  --warning: oklch(0.852 0.199 91.936); /* yellow-400 */
+  --background: oklch(0.19 0.006 70);
+  --foreground: oklch(0.93 0.01 85);
+  --card: oklch(0.225 0.007 70);
+  --card-foreground: oklch(0.93 0.01 85);
+  --popover: oklch(0.26 0.008 70);
+  --popover-foreground: oklch(0.93 0.01 85);
+  --primary: oklch(0.74 0.1 262);
+  --primary-foreground: oklch(0.19 0.03 262);
+  --secondary: oklch(0.29 0.008 70);
+  --secondary-foreground: oklch(0.93 0.01 85);
+  --muted: oklch(0.26 0.007 70);
+  --muted-foreground: oklch(0.78 0.012 80);
+  --accent: oklch(0.29 0.008 70);
+  --accent-foreground: oklch(0.93 0.01 85);
+  --destructive: oklch(0.68 0.18 27);
+  --destructive-foreground: oklch(0.18 0.02 25);
+  --border: oklch(0.95 0.01 85 / 0.1);
+  --input: oklch(0.55 0.008 75);
+  --ring: oklch(0.7 0.1 262);
+  --income: oklch(0.78 0.13 152);
+  --shortfall: oklch(0.79 0.12 25);
+  --warning: oklch(0.82 0.13 80);
+  --warning-surface: oklch(0.27 0.035 75);
+  --success: oklch(0.78 0.13 152);
+  --success-foreground: oklch(0.19 0.03 150);
+  --scrim: oklch(0.05 0 0 / 0.62);
+  --elevation-float:
+    0 1px 2px oklch(0 0 0 / 0.3), 0 8px 24px -4px oklch(0 0 0 / 0.45);
 }
 
 /* The bottom tab bar exists only in AppLayout's mobile branch. This media
