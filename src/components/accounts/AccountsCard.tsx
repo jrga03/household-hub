@@ -15,6 +15,7 @@ import { formatPHP, type Cents } from "@/lib/currency";
 import type { AccountMoney } from "@/lib/transactions/money";
 import type { Visibility } from "@/lib/events/log";
 import { VisibilityField } from "@/components/VisibilityField";
+import { shortfallClass } from "@/components/allocations/MoneyAmount";
 import {
   ACCOUNT_TYPE_LABELS,
   AccountDetailsFields,
@@ -147,7 +148,10 @@ function AccountItem({
       <div className="flex shrink-0 items-center gap-2">
         {money && (
           <span
-            className={cn("tabular-nums", !isCreditCard(account) && negativeClass(money.balance))}
+            className={cn(
+              "tabular-nums",
+              shortfallClass(money.balance, { owed: isCreditCard(account) })
+            )}
             aria-label={isCreditCard(account) ? "Amount owed" : "Balance"}
           >
             {formatPHP(money.balance)}
@@ -158,8 +162,6 @@ function AccountItem({
     </li>
   );
 }
-
-const negativeClass = (cents: Cents) => (cents < 0 ? "text-shortfall" : undefined);
 
 /**
  * "Cleared ₱X · Pending ₱Y", the account's Unassigned, and the Card Payment of
@@ -173,7 +175,7 @@ function MoneySummary({ money }: { money: AccountMoney }) {
         {money.envelopes && (
           <>
             {" · "}
-            <span className={negativeClass(money.envelopes.unassigned)}>
+            <span className={shortfallClass(money.envelopes.unassigned)}>
               Unassigned {formatPHP(money.envelopes.unassigned)}
             </span>
           </>
@@ -193,7 +195,7 @@ function CardPayments({ cardPayments }: { cardPayments: Map<string, Cents> }) {
     .sort((a, b) => a.name.localeCompare(b.name));
   return reserved.map(({ cardId, cents, name }) => (
     <p key={cardId} className="text-body text-muted-foreground tabular-nums">
-      <span className={negativeClass(cents)}>
+      <span className={shortfallClass(cents)}>
         Card Payment · {name} {formatPHP(cents)}
       </span>
     </p>

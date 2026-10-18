@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { categoryNames } from "@/components/allocations/envelopes";
+import { shortfallClass } from "@/components/allocations/MoneyAmount";
 import { rowDisplay } from "@/components/transactions/rowDisplay";
 import { AMOUNT_DIRECTION, TransactionAmount } from "@/components/transactions/TransactionAmount";
 import { useAccountNames } from "@/hooks/useAccounts";
@@ -130,7 +131,7 @@ function FinancesBlocks({
                 <span
                   className={cn(
                     "shrink-0 tabular-nums",
-                    !isCreditCard(account) && balance < 0 && "text-shortfall"
+                    shortfallClass(balance, { owed: isCreditCard(account) })
                   )}
                 >
                   {isCreditCard(account) && <span className="text-muted-foreground">Owed </span>}
@@ -180,7 +181,7 @@ function Figure({ label, cents }: { label: string; cents: Cents }) {
   return (
     <div className="min-w-0">
       <dt className="text-caption text-muted-foreground">{label}</dt>
-      <dd className={cn("truncate font-medium tabular-nums", cents < 0 && "text-shortfall")}>
+      <dd className={cn("truncate font-medium tabular-nums", shortfallClass(cents))}>
         {formatPHP(cents)}
       </dd>
     </div>

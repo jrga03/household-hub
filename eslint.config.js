@@ -161,8 +161,8 @@ const restrictNanoid = {
 // shadcn primitives (src/components/ui) are private to the app-component layer
 // (src/components/app), ADR 0011. These files imported a primitive directly when
 // the rule landed. The list only shrinks: migrate a file and delete its entry;
-// never add one.
-const directPrimitiveImporters = [
+// never add one (architecture-lint.test.ts holds the count down).
+export const directPrimitiveImporters = [
   "src/App.tsx",
   "src/components/accounts/AccountDetailsFields.tsx",
   "src/components/accounts/AccountsCard.tsx",

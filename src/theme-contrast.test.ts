@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { apcaContrast, composite, parseOklch, toSrgb, wcagContrast } from "./test/contrast";
+import { resolveVar } from "./test/css-var";
 
 type Theme = "light" | "dark";
 
@@ -26,12 +27,7 @@ const themes: Record<Theme, Map<string, string>> = {
 };
 
 function resolve(theme: Theme, token: string): string {
-  const value = themes[theme].get(token);
-  if (value === undefined) {
-    throw new Error(`--${token} is not defined for ${theme}`);
-  }
-  const aliased = /^var\(--([\w-]+)\)$/.exec(value)?.[1];
-  return aliased ? resolve(theme, aliased) : value;
+  return resolveVar(`var(--${token})`, (name) => themes[theme].get(name));
 }
 
 function surfaceColor(theme: Theme, surface: string) {

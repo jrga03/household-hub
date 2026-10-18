@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { ESLint } from "eslint";
 import { beforeAll, describe, expect, it } from "vitest";
 
@@ -189,6 +192,11 @@ it.each([
 const route = "src/routes/probe.tsx";
 const routeTest = "src/routes/probe.test.tsx";
 
+/** Rule ids reported for a JSX or statement snippet wrapped in an exported function. */
+async function snippetRuleIds(snippet: string, filePath: string) {
+  return ruleIds(`export const probe = () => { ${snippet} };\n`, filePath);
+}
+
 const styleCases = [
   {
     rule: "better-tailwindcss/no-restricted-classes",
@@ -240,30 +248,22 @@ const styleCases = [
 
 describe.each(styleCases)("$rule", ({ rule, flagged, allowed }) => {
   it.each(flagged)("fires on %s", async (snippet) => {
-    expect(await ruleIds(`export const probe = () => { ${snippet} };\n`, route)).toContain(rule);
+    expect(await snippetRuleIds(snippet, route)).toContain(rule);
   });
 
   it.each(allowed)("is silent on %s", async (snippet) => {
-    expect(await ruleIds(`export const probe = () => { ${snippet} };\n`, route)).not.toContain(
-      rule
-    );
+    expect(await snippetRuleIds(snippet, route)).not.toContain(rule);
   });
 
   it("is silent in test files", async () => {
-    const [snippet] = flagged;
-    expect(await ruleIds(`export const probe = () => { ${snippet} };\n`, routeTest)).not.toContain(
-      rule
-    );
+    const [snippet = ""] = flagged;
+    expect(await snippetRuleIds(snippet, routeTest)).not.toContain(rule);
   });
 });
 
 const primitive = "src/components/ui/probe.tsx";
 const appComponent = "src/components/app/probe.tsx";
 const restrictedClass = "better-tailwindcss/no-restricted-classes";
-
-async function restrictedClassIds(snippet: string, filePath: string) {
-  return ruleIds(`export const probe = () => { ${snippet} };\n`, filePath);
-}
 
 describe("off-set spacing", () => {
   const offSet = [
@@ -288,21 +288,21 @@ describe("off-set spacing", () => {
   ];
 
   it.each(offSet)("fails in a route: %s", async (snippet) => {
-    expect(await restrictedClassIds(snippet, route)).toContain(restrictedClass);
+    expect(await snippetRuleIds(snippet, route)).toContain(restrictedClass);
   });
 
   it("fails in the app-component layer", async () => {
-    expect(await restrictedClassIds('<div className="p-5" />', appComponent)).toContain(
+    expect(await snippetRuleIds('<div className="p-5" />', appComponent)).toContain(
       restrictedClass
     );
   });
 
   it.each(onSet)("passes in a route: %s", async (snippet) => {
-    expect(await restrictedClassIds(snippet, route)).not.toContain(restrictedClass);
+    expect(await snippetRuleIds(snippet, route)).not.toContain(restrictedClass);
   });
 
   it.each(offSet)("passes in a primitive: %s", async (snippet) => {
-    expect(await restrictedClassIds(snippet, primitive)).not.toContain(restrictedClass);
+    expect(await snippetRuleIds(snippet, primitive)).not.toContain(restrictedClass);
   });
 });
 
@@ -312,19 +312,19 @@ describe("transition-all", () => {
       '<div className="transition-all" />',
       '<div className={cn("hover:transition-all")} />',
     ]) {
-      expect(await restrictedClassIds(snippet, path)).toContain(restrictedClass);
+      expect(await snippetRuleIds(snippet, path)).toContain(restrictedClass);
     }
   });
 
   it("lets a primitive name what it animates", async () => {
     const snippet =
       '<div className="transition-colors transition-transform transition-opacity transition-[color,box-shadow] duration-move ease-out" />';
-    expect(await restrictedClassIds(snippet, primitive)).not.toContain(restrictedClass);
+    expect(await snippetRuleIds(snippet, primitive)).not.toContain(restrictedClass);
   });
 });
 
 it("primitives keep the arbitrary color ban", async () => {
-  expect(await restrictedClassIds('<div className="bg-[#1e40af]" />', primitive)).toContain(
+  expect(await snippetRuleIds('<div className="bg-[#1e40af]" />', primitive)).toContain(
     restrictedClass
   );
 });
@@ -353,13 +353,13 @@ describe("arbitrary font-size, radius and shadow values", () => {
 
   it.each([route, primitive])("fail in %s", async (filePath) => {
     for (const snippet of arbitrary) {
-      expect(await restrictedClassIds(snippet, filePath), snippet).toContain(restrictedClass);
+      expect(await snippetRuleIds(snippet, filePath), snippet).toContain(restrictedClass);
     }
   });
 
   it.each([route, primitive])("arbitrary sizes and calc() pass in %s", async (filePath) => {
     for (const snippet of sizing) {
-      expect(await restrictedClassIds(snippet, filePath), snippet).not.toContain(restrictedClass);
+      expect(await snippetRuleIds(snippet, filePath), snippet).not.toContain(restrictedClass);
     }
   });
 });
@@ -382,7 +382,7 @@ describe("no-unknown-classes", () => {
   it.each([route, primitive])("flags removed defaults in %s", async (filePath) => {
     for (const className of removed) {
       expect(
-        await restrictedClassIds(`<div className="${className}" />`, filePath),
+        await snippetRuleIds(`<div className="${className}" />`, filePath),
         className
       ).toContain(unknownClass);
     }
@@ -391,7 +391,7 @@ describe("no-unknown-classes", () => {
   it("knows the design system", async () => {
     const snippet =
       '<div className="text-income bg-card text-body font-medium shadow-float shadow-none rounded-md rounded-full bg-transparent" />';
-    expect(await restrictedClassIds(snippet, route)).not.toContain(unknownClass);
+    expect(await snippetRuleIds(snippet, route)).not.toContain(unknownClass);
   });
 });
 
@@ -418,4 +418,44 @@ it("the primitive ban leaves the routes and components import bans in place", as
   expect(await ruleIds(code, "src/components/accounts/AccountList.tsx")).toContain(
     "no-restricted-imports"
   );
+});
+
+describe("the directPrimitiveImporters allowlist only shrinks", () => {
+  const ALLOWLIST_CEILING = 61;
+
+  async function loadAllowlist(): Promise<string[]> {
+    const config: unknown = await import(pathToFileURL(path.resolve("eslint.config.js")).href);
+    const list =
+      typeof config === "object" && config !== null && "directPrimitiveImporters" in config
+        ? config.directPrimitiveImporters
+        : undefined;
+    if (!Array.isArray(list) || !list.every((entry) => typeof entry === "string")) {
+      throw new Error("eslint.config.js must export directPrimitiveImporters as a string array");
+    }
+    return list;
+  }
+
+  it("never grows", async () => {
+    const allowlist = await loadAllowlist();
+    expect(
+      allowlist.length,
+      `directPrimitiveImporters has ${allowlist.length} entries. Never add one; when you migrate a file off ui/ primitives, delete its entry and lower ALLOWLIST_CEILING to the new count.`
+    ).toBeLessThanOrEqual(ALLOWLIST_CEILING);
+  });
+
+  it("lists only files that still import a primitive", async () => {
+    const allowlist = await loadAllowlist();
+    const stale: string[] = [];
+    for (const entry of allowlist) {
+      const source = await readFile(entry, "utf8");
+      const probe = path.join(path.dirname(entry), `allowlist-probe${path.extname(entry)}`);
+      if (!(await ruleIds(source, probe)).includes("arch/no-direct-primitive-import")) {
+        stale.push(entry);
+      }
+    }
+    expect(
+      stale,
+      "These files no longer import a ui/ primitive; remove them from directPrimitiveImporters"
+    ).toEqual([]);
+  });
 });

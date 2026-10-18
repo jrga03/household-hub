@@ -3,12 +3,18 @@ import { cn } from "@/lib/utils";
 
 export const OVERDRAWN_UNASSIGNED = "Allocated more than this account has";
 
+/**
+ * The shortfall color for a negative amount. A credit card's figure is the amount owed,
+ * so pass `owed` for it: a negative owed amount is a credit, not money short.
+ */
+export function shortfallClass(cents: Cents, { owed = false }: { owed?: boolean } = {}) {
+  return !owed && cents < 0 ? "text-shortfall" : undefined;
+}
+
 /** An amount, red when negative. */
 export function MoneyAmount({ cents, className }: { cents: Cents; className?: string }) {
   return (
-    <span
-      className={cn("whitespace-nowrap tabular-nums", cents < 0 && "text-shortfall", className)}
-    >
+    <span className={cn("whitespace-nowrap tabular-nums", shortfallClass(cents), className)}>
       {formatPHP(cents)}
     </span>
   );

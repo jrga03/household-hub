@@ -9,7 +9,7 @@ Why: lint checks the tokens, but only this doc covers the judgment calls.
 - Read it in full before any UI change: classes, components, layout or copy.
 - It names roles and when to use them. Values live only in `src/index.css`. Read them there; never copy one into code or docs.
 - A rule marked _(lint)_ fails `npm run lint`. The [enforcement table](#enforcement) names each rule. Everything else is yours to get right.
-- When a purpose has no role, stop and add a role token in `src/index.css` plus a line here (`docs/adr/0011-semantic-tokens-and-private-primitives.md`). Never reach around the theme.
+- When a purpose has no role, stop and add a role token in `src/index.css` plus a line here (`docs/adr/0011-semantic-tokens-and-private-primitives.md`). A new type, weight, radius, shadow or duration role also goes in the `cn` tailwind-merge config in `src/lib/utils.ts`, or `cn` drops it when merging. Never reach around the theme.
 
 ## Principles
 
@@ -63,7 +63,7 @@ Why: every amount follows one convention, so a person reads money the same way o
 - Expenses and transfers stay neutral: no money color. An expense takes the surrounding text color with a `−` sign (U+2212). A transfer is neither in nor out, so it carries no sign and may be muted, with its transfer icon.
 - `shortfall` marks money that is short: an overspent category, a negative bank, cash or e-wallet balance, over budget, a "This leaves X at −₱…" note. Use `MoneyAmount` (`src/components/allocations/MoneyAmount.tsx`), which colors a negative amount.
 - A credit card's figure is the amount owed. Leave it uncolored, even when negative (that is a credit, not money short).
-- `shortfall` and `destructive` share one red as separate tokens. An amount is never `destructive`; an action is never `shortfall`.
+- `shortfall` and `destructive` share a red hue but are separate tokens; their dark values differ so each keeps its contrast. An amount is never `destructive`; an action is never `shortfall`.
 - Never color alone. A short amount always shows its minus sign; income shows its `+`; a pending transaction is muted and keeps its Info icon. Icon-only signals need an `aria-label`.
 - Use the money roles, never a raw hue, for money intent. The theme has no palette to reach for _(lint: unknown classes)_.
 - Amounts take the surrounding type role. Use `text-figure` only for the one hero number on a screen (an account balance, a month total).
@@ -136,6 +136,7 @@ Why: everyone in the household must be able to use every screen by touch, keyboa
 - Prefer undo over a confirm dialog for removals the event log can reverse. Confirm only what cannot be undone.
 - Keep the URL in step with what is shown (filters, the selected item) so back and refresh work.
 - Show loading only when it lasts long enough to notice. Keep the layout stable: no jumps when data arrives.
+- Underline links inside running text. Color alone fails contrast against the surrounding text (axe `link-in-text-block`).
 - Use the ellipsis character (…) and curly quotes in copy.
 - Contrast: WCAG 2 AA in both themes. 4.5:1 for text, 3:1 for large text and UI such as field outlines (see Color roles).
 
