@@ -9,6 +9,7 @@ import { BudgetView } from "@/components/budgets/BudgetView";
 import { PageShell } from "@/components/layout/PageShell";
 import { PrototypeSwitcher } from "@/components/prototype/PrototypeSwitcher";
 import { useHousehold } from "@/hooks/useHousehold";
+import { cn } from "@/lib/utils";
 import { isLocalMonth, localMonth } from "@/lib/utils/dates";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -54,7 +55,12 @@ function BudgetPage() {
       <BudgetHeaderPrototype {...props} />
 
       <PageShell variant="rail">
-        <div className="space-y-4 @[1100px]:col-span-2 empty:hidden">
+        <div
+          className={cn(
+            "space-y-4 @[1100px]:col-span-2 empty:hidden",
+            variant !== "C" && month === currentMonth && "sm:hidden"
+          )}
+        >
           <BudgetBodyTopPrototype {...props} />
         </div>
         {household && userId && (

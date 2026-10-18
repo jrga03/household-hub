@@ -92,7 +92,7 @@ export function BudgetBodyTopPrototype({ variant, month, currentMonth, setMonth,
 
   if (variant === "A") {
     return (
-      <div className="flex min-h-11 items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2">
         <div>{back}</div>
         <div className="sm:hidden">
           <EditPlanLabelled search={search} />
