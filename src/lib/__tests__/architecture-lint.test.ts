@@ -329,40 +329,69 @@ it("primitives keep the arbitrary color ban", async () => {
   );
 });
 
-describe("better-tailwindcss reads the theme from src/index.css", () => {
-  let themeLint: ESLint;
-  beforeAll(() => {
-    themeLint = new ESLint({
-      overrideConfig: [
-        {
-          files: ["src/**/*.{ts,tsx}"],
-          languageOptions: { parserOptions: { projectService: false } },
-          rules: {
-            "@typescript-eslint/no-floating-promises": "off",
-            "@typescript-eslint/no-misused-promises": "off",
-            "better-tailwindcss/no-unknown-classes": "error",
-          },
-        },
-      ],
-    });
+describe("arbitrary font-size, radius and shadow values", () => {
+  const arbitrary = [
+    '<div className="text-[13px]" />',
+    '<div className="md:text-[0.8rem]" />',
+    '<div className="text-[length:var(--size)]" />',
+    '<div className="text-(length:--size)" />',
+    '<div className="text-[calc(1rem+1vw)]" />',
+    '<div className="rounded-[10px]" />',
+    '<div className="rounded-t-[4px]" />',
+    '<div className="rounded-(--card-radius)" />',
+    '<div className="shadow-[0_0_0_1px_var(--ring)]" />',
+    '<div className="hover:inset-shadow-[0_1px_0_0_black]" />',
+    '<div className="drop-shadow-[0_1px_2px_black]" />',
+    '<div className="text-shadow-[0_1px_0_black]" />',
+    '<div className={cn("p-2", isOpen && "rounded-[3px]")} />',
+  ];
+  const sizing = [
+    '<div className="w-[4.75rem] h-[calc(100dvh-2rem)] max-w-[calc(100%-2rem)] size-(--cell-size)" />',
+    '<div className="min-h-[44px] basis-[30%] translate-y-[calc(-50%-2px)] focus-visible:ring-[3px]" />',
+    '<div className="text-body rounded-md rounded-[inherit] shadow-float shadow-none" />',
+  ];
+
+  it.each([route, primitive])("fail in %s", async (filePath) => {
+    for (const snippet of arbitrary) {
+      expect(await restrictedClassIds(snippet, filePath), snippet).toContain(restrictedClass);
+    }
   });
 
-  async function unknownClassMessages(className: string) {
-    const [result] = await themeLint.lintText(
-      `export const probe = () => <div className="${className}" />;\n`,
-      { filePath: route }
-    );
-    return (result?.messages ?? []).filter(
-      (message) => message.ruleId === "better-tailwindcss/no-unknown-classes"
-    );
-  }
+  it.each([route, primitive])("arbitrary sizes and calc() pass in %s", async (filePath) => {
+    for (const snippet of sizing) {
+      expect(await restrictedClassIds(snippet, filePath), snippet).not.toContain(restrictedClass);
+    }
+  });
+});
 
-  it("knows a project token class", async () => {
-    expect(await unknownClassMessages("text-income bg-card")).toHaveLength(0);
+describe("no-unknown-classes", () => {
+  const unknownClass = "better-tailwindcss/no-unknown-classes";
+  const removed = [
+    "text-green-600",
+    "text-sm",
+    "shadow-lg",
+    "font-light",
+    "bg-white",
+    "bg-black/50",
+    "shadow",
+    "rounded",
+    "rounded-xl",
+    "text-incoming",
+  ];
+
+  it.each([route, primitive])("flags removed defaults in %s", async (filePath) => {
+    for (const className of removed) {
+      expect(
+        await restrictedClassIds(`<div className="${className}" />`, filePath),
+        className
+      ).toContain(unknownClass);
+    }
   });
 
-  it("flags a made-up class", async () => {
-    expect(await unknownClassMessages("text-incoming")).toHaveLength(1);
+  it("knows the design system", async () => {
+    const snippet =
+      '<div className="text-income bg-card text-body font-medium shadow-float shadow-none rounded-md rounded-full bg-transparent" />';
+    expect(await restrictedClassIds(snippet, route)).not.toContain(unknownClass);
   });
 });
 

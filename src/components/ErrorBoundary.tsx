@@ -49,7 +49,7 @@ export class ErrorBoundary extends Component<Props, State> {
             click the button below.
           </p>
           {this.state.error && import.meta.env.DEV && (
-            <pre className="text-caption text-destructive bg-muted p-2 rounded max-w-md overflow-auto">
+            <pre className="text-caption text-destructive bg-muted p-2 rounded-md max-w-md overflow-auto">
               {this.state.error.message}
             </pre>
           )}

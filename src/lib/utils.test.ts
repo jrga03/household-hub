@@ -32,3 +32,13 @@ describe("cn with elevation and motion tokens", () => {
     expect(cn("duration-quick ease-out", "duration-move")).toBe("ease-out duration-move");
   });
 });
+
+describe("cn with the shape scale", () => {
+  it("lets a later radius step replace an earlier one", () => {
+    expect(cn("rounded-lg border", "rounded-md")).toBe("border rounded-md");
+  });
+
+  it("lets a later weight replace an earlier one", () => {
+    expect(cn("text-body font-medium", "font-semibold")).toBe("text-body font-semibold");
+  });
+});

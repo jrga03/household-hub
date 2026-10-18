@@ -129,7 +129,28 @@ const offSetSpacingClasses = [
   },
 ];
 
-const primitiveRestrictedClasses = [...arbitraryColorClasses, transitionAllClass];
+// Font size, radius and shadow come only from the theme's named steps (spec
+// #162). Arbitrary sizing and calc() on width, height and the like stay allowed.
+const arbitraryScaleClasses = [
+  {
+    pattern: "(?:^|:)!?text-(?:\\[(?:length:|[0-9.]|calc\\(|clamp\\(|min\\(|max\\()|\\(length:)",
+    message: "Arbitrary font sizes bypass the type roles. Use text-body, text-label, text-caption…",
+  },
+  {
+    pattern: "(?:^|:)!?rounded(?:-(?:[trblse]|[tb][lr]|[se][se]))?-(?:\\[(?!inherit\\])|\\()",
+    message: "Arbitrary radii bypass the shape scale. Use rounded-sm, rounded-md or rounded-lg.",
+  },
+  {
+    pattern: "(?:^|:)!?-?(?:inset-shadow|drop-shadow|text-shadow|shadow)-[[(]",
+    message: "Arbitrary shadows bypass elevation. Use shadow-float for floating layers, or none.",
+  },
+];
+
+const primitiveRestrictedClasses = [
+  ...arbitraryColorClasses,
+  ...arbitraryScaleClasses,
+  transitionAllClass,
+];
 const appRestrictedClasses = [...primitiveRestrictedClasses, ...offSetSpacingClasses];
 
 const restrictNanoid = {
@@ -621,6 +642,9 @@ export default [
     files: ["src/**/*.{ts,tsx}"],
     plugins: { "better-tailwindcss": betterTailwind },
     settings: { "better-tailwindcss": { entryPoint: "src/index.css" } },
+    rules: {
+      "better-tailwindcss/no-unknown-classes": "error",
+    },
   },
   {
     files: ["src/**/*.{ts,tsx}"],
