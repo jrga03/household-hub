@@ -257,6 +257,78 @@ describe.each(styleCases)("$rule", ({ rule, flagged, allowed }) => {
   });
 });
 
+const primitive = "src/components/ui/probe.tsx";
+const appComponent = "src/components/app/probe.tsx";
+const restrictedClass = "better-tailwindcss/no-restricted-classes";
+
+async function restrictedClassIds(snippet: string, filePath: string) {
+  return ruleIds(`export const probe = () => { ${snippet} };\n`, filePath);
+}
+
+describe("off-set spacing", () => {
+  const offSet = [
+    '<div className="p-5" />',
+    '<div className="md:px-7" />',
+    '<div className="-mt-5" />',
+    '<div className="gap-x-10" />',
+    '<div className="space-y-2.5" />',
+    '<div className="inset-x-3.5" />',
+    '<div className="top-1.5" />',
+    '<div className="hover:py-9" />',
+    '<div className="p-px" />',
+    '<div className="p-5!" />',
+    '<div className="mt-[3px]" />',
+    '<div className={cn("p-2", isOpen && "gap-1.5")} />',
+  ];
+  const onSet = [
+    '<div className="p-0 p-0.5 p-1 p-2 p-3 p-4 p-6 p-8 p-12 p-16 -mx-2 gap-x-4 space-y-6" />',
+    '<div className="top-1/2 left-full inset-0 mx-auto" />',
+    '<div className="h-5 w-10 size-4.5 translate-x-5 min-h-11" />',
+    '<div className="pb-[calc(1rem+var(--safe-area-bottom))] pt-[var(--safe-area-top)]" />',
+  ];
+
+  it.each(offSet)("fails in a route: %s", async (snippet) => {
+    expect(await restrictedClassIds(snippet, route)).toContain(restrictedClass);
+  });
+
+  it("fails in the app-component layer", async () => {
+    expect(await restrictedClassIds('<div className="p-5" />', appComponent)).toContain(
+      restrictedClass
+    );
+  });
+
+  it.each(onSet)("passes in a route: %s", async (snippet) => {
+    expect(await restrictedClassIds(snippet, route)).not.toContain(restrictedClass);
+  });
+
+  it.each(offSet)("passes in a primitive: %s", async (snippet) => {
+    expect(await restrictedClassIds(snippet, primitive)).not.toContain(restrictedClass);
+  });
+});
+
+describe("transition-all", () => {
+  it.each([route, appComponent, primitive, "src/hooks/probe.tsx"])("fails in %s", async (path) => {
+    for (const snippet of [
+      '<div className="transition-all" />',
+      '<div className={cn("hover:transition-all")} />',
+    ]) {
+      expect(await restrictedClassIds(snippet, path)).toContain(restrictedClass);
+    }
+  });
+
+  it("lets a primitive name what it animates", async () => {
+    const snippet =
+      '<div className="transition-colors transition-transform transition-opacity transition-[color,box-shadow] duration-move ease-out" />';
+    expect(await restrictedClassIds(snippet, primitive)).not.toContain(restrictedClass);
+  });
+});
+
+it("primitives keep the arbitrary color ban", async () => {
+  expect(await restrictedClassIds('<div className="bg-[#1e40af]" />', primitive)).toContain(
+    restrictedClass
+  );
+});
+
 describe("better-tailwindcss reads the theme from src/index.css", () => {
   let themeLint: ESLint;
   beforeAll(() => {
