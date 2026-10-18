@@ -123,7 +123,7 @@ export function SignupForm() {
 
           <div className="text-center text-body text-muted-foreground">
             Already have an account?{" "}
-            <Link to="/login" className="text-primary hover:underline">
+            <Link to="/login" className="text-primary underline underline-offset-4">
               Log in
             </Link>
           </div>
