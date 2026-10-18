@@ -9,7 +9,7 @@
  * Usage: npm run generate:splash
  *
  * Colors match --background in src/index.css (and the paired theme-color
- * metas in index.html): #ffffff light / #0a0a0a dark.
+ * metas in index.html): #f9f6f2 light / #161311 dark.
  *
  * The matching <link rel="apple-touch-startup-image"> tags live in
  * index.html. Re-running this script with the same device specs keeps those
@@ -32,8 +32,8 @@ const outDir = path.join(root, "public", "splash");
 const padding = "calc(50vh - 25%) calc(50vw - 25%)";
 
 const runs = [
-  { label: "light", args: ["--background", "#ffffff"] },
-  { label: "dark", args: ["--background", "#0a0a0a", "--dark-mode"] },
+  { label: "light", args: ["--background", "#f9f6f2"] },
+  { label: "dark", args: ["--background", "#161311", "--dark-mode"] },
 ];
 
 for (const { label, args } of runs) {
