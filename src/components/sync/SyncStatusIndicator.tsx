@@ -21,7 +21,7 @@ const TONE_COLORS: Record<SyncTone, string> = {
   synced: "text-muted-foreground",
   waiting: "text-muted-foreground",
   offline: "text-warning",
-  attention: "text-destructive",
+  attention: "text-warning",
 };
 
 /**
@@ -69,7 +69,7 @@ function waitingText(online: boolean, waiting: number): string {
 function StuckList({ stuck }: { stuck: StuckEvent[] }) {
   return (
     <section aria-labelledby="stuck-changes-heading" className="space-y-2 border-t pt-3">
-      <h2 id="stuck-changes-heading" className="text-body font-medium text-destructive">
+      <h2 id="stuck-changes-heading" className="text-body font-medium text-warning">
         Refused by the server
       </h2>
       <p className="text-caption text-muted-foreground">
