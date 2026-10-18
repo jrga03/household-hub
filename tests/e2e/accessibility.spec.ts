@@ -5,13 +5,15 @@ import { login } from "./fixtures/helpers";
 const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
 test.describe("Accessibility", () => {
-  test("should not have accessibility violations on the login page", async ({ page }) => {
-    await page.goto("/login");
+  for (const path of ["/login", "/signup"]) {
+    test(`should not have accessibility violations on ${path}`, async ({ page }) => {
+      await page.goto(path);
 
-    const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
+      const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
 
-    expect(results.violations).toHaveLength(0);
-  });
+      expect(results.violations).toHaveLength(0);
+    });
+  }
 
   for (const path of ["/", "/accounts", "/settings"]) {
     test(`should not have accessibility violations on ${path} when signed in`, async ({ page }) => {
