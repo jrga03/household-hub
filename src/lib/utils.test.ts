@@ -18,3 +18,17 @@ describe("cn with type roles", () => {
     );
   });
 });
+
+describe("cn with elevation and motion tokens", () => {
+  it("lets shadow-none remove shadow-float", () => {
+    expect(cn("shadow-float", "shadow-none")).toBe("shadow-none");
+  });
+
+  it("keeps shadow-float next to a ring color", () => {
+    expect(cn("shadow-float", "ring-ring")).toBe("shadow-float ring-ring");
+  });
+
+  it("lets a later duration replace an earlier one", () => {
+    expect(cn("duration-quick ease-out", "duration-move")).toBe("ease-out duration-move");
+  });
+});
