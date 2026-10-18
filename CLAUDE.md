@@ -37,6 +37,7 @@ Always ask: what happens offline, and what happens when two devices edit the sam
 - TanStack Router (not react-router-dom); Sonner toasts (not react-hot-toast).
 - `@tanstack/eslint-plugin-query` (strict) applies to any query.
 - Server state in TanStack Query, client state in Zustand (minimal). Projections are read with `useLiveQuery` (dexie-react-hooks), so local writes and synced events re-render on their own.
+- Any UI change follows `DESIGN.md`; read it in full first.
 - Every route uses `<PageShell variant="…">` (`src/components/layout/PageShell.tsx`). Inside rails, sheets, and panes, use container queries (`@[600px]:`), not viewport breakpoints.
 - No `any`. No `!` in production code (lint-enforced); narrow with a guard instead. Tests may use `!` after asserting length.
 - No blanket `eslint-disable`; any disable needs a trailing reason.
@@ -68,6 +69,7 @@ Check here before debugging a test or CLI failure you did not cause. A failure i
 
 | When working on                                             | Read                                                                                              |
 | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| UI: classes, components, layout, copy                       | `DESIGN.md` (in full)                                                                             |
 | Schema, migrations, query patterns, currency and date specs | `docs/initial plan/DATABASE.md`                                                                   |
 | Event log, sync, projections, membership boundary           | `docs/adr/0001-event-log-is-the-only-synced-data.md`, `docs/adr/0004-membership-is-relational.md` |
 | Why something is the way it is (numbered decisions)         | `docs/initial plan/DECISIONS.md`                                                                  |

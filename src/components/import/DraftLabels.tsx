@@ -19,7 +19,7 @@ export function SuggestedBadge() {
 }
 
 const FLAG_BADGES = {
-  "already-imported": { label: "Already imported", variant: "destructive" },
+  "already-imported": { label: "Already imported", variant: "warning" },
   "might-be-recorded": { label: "Might already be recorded", variant: "outline" },
   "card-payment": { label: "Card payment", variant: "secondary" },
 } as const;
