@@ -1,6 +1,6 @@
 # Design foundations
 
-Status: grilling done 2026-10-18, ready to implement (start at the Rollout checklist). ADR 0011 is written; the rollout's step 5 only links it from DESIGN.md. Covers visual identity, design tokens, DESIGN.md and its enforcement. Component patterns, adaptive layouts and migration are later sessions. Event sourcing and sync are untouched.
+Status: grilling done 2026-10-18, ready to implement (start at the Rollout checklist). Spec: #162. ADR 0011 is written; the rollout's step 5 only links it from DESIGN.md. Covers visual identity, design tokens, DESIGN.md and its enforcement. Component patterns, adaptive layouts and migration are later sessions. Event sourcing and sync are untouched.
 
 ## Context
 
