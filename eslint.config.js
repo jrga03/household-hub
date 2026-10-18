@@ -220,7 +220,6 @@ export const directPrimitiveImporters = [
   "src/components/transactions/TransferDialog.tsx",
   "src/components/VisibilityField.tsx",
   "src/routes/__root.tsx",
-  "src/routes/budget.tsx",
   "src/routes/create-or-join.tsx",
   "src/routes/settings.tsx",
   "src/routes/transactions.tsx",
