@@ -25,7 +25,7 @@ import { EditAccountDialog } from "./EditAccountDialog";
 import { PayCardDialog } from "./PayCardDialog";
 import { CorrectBalanceDialog } from "@/components/corrections/CorrectBalanceDialog";
 import { FormError } from "@/components/ui/form-error";
-import { errorMessage } from "@/lib/utils";
+import { cn, errorMessage } from "@/lib/utils";
 import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 
 export function AccountsCard({ actor }: { actor: Actor }) {
@@ -147,7 +147,7 @@ function AccountItem({
       <div className="flex shrink-0 items-center gap-2">
         {money && (
           <span
-            className="tabular-nums"
+            className={cn("tabular-nums", !isCreditCard(account) && negativeClass(money.balance))}
             aria-label={isCreditCard(account) ? "Amount owed" : "Balance"}
           >
             {formatPHP(money.balance)}
@@ -159,7 +159,7 @@ function AccountItem({
   );
 }
 
-const negativeClass = (cents: Cents) => (cents < 0 ? "text-destructive" : undefined);
+const negativeClass = (cents: Cents) => (cents < 0 ? "text-shortfall" : undefined);
 
 /**
  * "Cleared ₱X · Pending ₱Y", the account's Unassigned, and the Card Payment of

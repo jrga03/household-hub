@@ -55,7 +55,7 @@ test("moving money between envelopes, past Unassigned, with an undoable removal"
   );
   await dialog.getByRole("button", { name: "Move money" }).click();
   await expect(dialog).toBeHidden();
-  await expect(bar.getByText("-₱3,000.00").first()).toHaveClass(/text-destructive/);
+  await expect(bar.getByText("-₱3,000.00").first()).toHaveClass(/text-shortfall/);
   await expect(unassignedItem(page)).toContainText("-₱3,000.00");
   await expect(unassignedItem(page)).toContainText("Allocated more than this account has");
 

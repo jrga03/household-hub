@@ -73,6 +73,8 @@ const textPairs: Array<[text: string, surface: string]> = [
   ["destructive", "card"],
   ["destructive", "popover"],
   ["warning", "warning-surface"],
+  ["warning", "accent"],
+  ["income", "accent"],
   ["muted-foreground", "secondary"],
   ["muted-foreground", "accent"],
 ];

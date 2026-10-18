@@ -135,7 +135,7 @@ function FlagNote({ flag }: { flag: DraftFlag }) {
   switch (flag.kind) {
     case "already-imported":
       return (
-        <p className="rounded-md border border-amber-500/50 p-3 text-body">
+        <p className="rounded-md border border-warning/50 bg-warning-surface p-3 text-body">
           <strong className="font-medium">Already imported</strong> as{" "}
           {flag.transaction.description || formatPHP(flag.transaction.amountCents)} on{" "}
           {longDate(flag.transaction.date)}. Saving it again would count it twice.
@@ -143,7 +143,7 @@ function FlagNote({ flag }: { flag: DraftFlag }) {
       );
     case "might-be-recorded":
       return (
-        <p className="rounded-md border border-amber-500/50 p-3 text-body">
+        <p className="rounded-md border border-warning/50 bg-warning-surface p-3 text-body">
           <strong className="font-medium">Might already be recorded:</strong>{" "}
           {flag.transaction.description || "a transaction"} of{" "}
           {formatPHP(flag.transaction.amountCents)} on {longDate(flag.transaction.date)}, typed in
@@ -216,7 +216,7 @@ function DraftFields({
       {draft.description === "" && (
         <p
           id="draft-description-needed"
-          className="-mt-2 text-body text-amber-700 @[480px]:col-span-2 dark:text-amber-400"
+          className="-mt-2 text-body text-warning @[480px]:col-span-2"
         >
           Needs a description before it can be saved.
         </p>

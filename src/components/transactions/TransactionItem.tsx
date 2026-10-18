@@ -106,7 +106,7 @@ export function TransactionItem({
       {offset < 0 && (
         <button
           type="button"
-          className="absolute inset-y-0 right-0 bg-destructive px-2 text-body font-medium text-white"
+          className="absolute inset-y-0 right-0 bg-destructive px-2 text-body font-medium text-destructive-foreground"
           style={{ width: REVEAL_WIDTH }}
           onClick={remove}
         >

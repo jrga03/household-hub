@@ -342,7 +342,7 @@ function LinesForm({
           Distributing <span className="font-medium tabular-nums">{formatPHP(total)}</span>
         </p>
         {left < 0 ? (
-          <p className="text-destructive">
+          <p className="text-shortfall">
             {formatPHP(diffCents(total, available.cents))} more than {available.label}. You can
             still distribute it; trim a line or Unassigned shows in red.
           </p>

@@ -226,7 +226,7 @@ function PaymentNote({
     const left = diffCents(reserved, amount);
     if (left >= 0) return null;
     return (
-      <p className="text-body text-destructive" aria-live="polite">
+      <p className="text-body text-shortfall" aria-live="polite">
         This leaves Card Payment · {card.name} in {payer.name} at {formatPHP(left)}. You can still
         pay; it shows in red until money comes in.
       </p>
@@ -242,7 +242,7 @@ function PaymentNote({
         </p>
       )}
       {left < 0 && (
-        <p className="text-destructive">
+        <p className="text-shortfall">
           This leaves {payer.name}&apos;s Unassigned at {formatPHP(left)}. You can still pay; it
           shows in red until money comes in.
         </p>

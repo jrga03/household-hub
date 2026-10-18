@@ -7,8 +7,10 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
+import { format } from "date-fns";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { createAccount } from "@/lib/commands/accounts";
+import { addTransaction } from "@/lib/commands/transactions";
 import { parsePHP } from "@/lib/currency";
 import { FinancesSection } from "./FinancesSection";
 
@@ -69,6 +71,35 @@ afterEach(() => {
 });
 
 describe("FinancesSection", () => {
+  it("shows a negative balance as short, and a card's owed amount plainly", async () => {
+    const visa = await createAccount(MEMBER, {
+      name: "Visa",
+      type: "credit_card",
+      startingBalanceCents: parsePHP("0"),
+      payingAccountId: bpiId,
+    });
+    for (const [accountId, amount] of [
+      [bpiId, "41000"],
+      [visa.id, "2000"],
+    ] as const) {
+      await addTransaction(MEMBER, {
+        date: format(new Date(), "yyyy-MM-dd"),
+        type: "expense",
+        amountCents: parsePHP(amount),
+        accountId,
+        categoryId: null,
+        description: "Spending",
+      });
+    }
+    renderHome();
+
+    const balances = await screen.findByRole("list", { name: "Balances" });
+    expect(await within(balances).findByText("-₱1,000.00")).toHaveClass("text-shortfall");
+    const owed = within(balances).getByText("₱2,000.00", { exact: false });
+    expect(owed).toHaveTextContent(/^Owed ₱2,000\.00$/);
+    expect(owed).not.toHaveClass("text-shortfall");
+  });
+
   it("links each block to its full screen", async () => {
     renderHome();
 

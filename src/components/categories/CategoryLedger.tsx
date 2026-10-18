@@ -61,12 +61,7 @@ function Change({ row }: { row: LedgerRow }) {
 
 function SignedAmount({ cents }: { cents: Cents }) {
   return (
-    <span
-      className={cn(
-        "whitespace-nowrap tabular-nums",
-        cents > 0 && "text-green-700 dark:text-green-400"
-      )}
-    >
+    <span className={cn("whitespace-nowrap tabular-nums", cents > 0 && "text-income")}>
       {cents > 0 ? "+" : "−"}
       {formatPHP(absCents(cents))}
     </span>

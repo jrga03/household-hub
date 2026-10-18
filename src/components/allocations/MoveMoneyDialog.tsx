@@ -340,7 +340,7 @@ function MoveMoneyForm({
       </div>
 
       {left !== null && left < 0 && account && (
-        <p className="text-body text-destructive" aria-live="polite">
+        <p className="text-body text-shortfall" aria-live="polite">
           This leaves {fromLabel} in {account.name} at {formatPHP(left)}. You can still move it; it
           shows in red until money comes in.
         </p>

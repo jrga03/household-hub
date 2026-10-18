@@ -127,7 +127,12 @@ function FinancesBlocks({
                 className="flex items-center justify-between gap-3 py-1.5 hover:underline"
               >
                 <span className="truncate">{account.name}</span>
-                <span className="shrink-0 tabular-nums">
+                <span
+                  className={cn(
+                    "shrink-0 tabular-nums",
+                    !isCreditCard(account) && balance < 0 && "text-shortfall"
+                  )}
+                >
                   {isCreditCard(account) && <span className="text-muted-foreground">Owed </span>}
                   {formatPHP(balance)}
                 </span>
@@ -175,7 +180,7 @@ function Figure({ label, cents }: { label: string; cents: Cents }) {
   return (
     <div className="min-w-0">
       <dt className="text-caption text-muted-foreground">{label}</dt>
-      <dd className={cn("truncate font-medium tabular-nums", cents < 0 && "text-destructive")}>
+      <dd className={cn("truncate font-medium tabular-nums", cents < 0 && "text-shortfall")}>
         {formatPHP(cents)}
       </dd>
     </div>
@@ -192,12 +197,12 @@ function BudgetCounts({ counts }: { counts: BudgetStatusCounts }) {
       <Count
         label="Close"
         count={counts.close}
-        className={counts.close > 0 ? "text-amber-700 dark:text-amber-400" : undefined}
+        className={counts.close > 0 ? "text-warning" : undefined}
       />
       <Count
         label="Over"
         count={counts.over}
-        className={counts.over > 0 ? "text-destructive" : undefined}
+        className={counts.over > 0 ? "text-shortfall" : undefined}
       />
     </dl>
   );
