@@ -2,6 +2,7 @@ import { db } from "@/lib/dexie/db";
 import type { LoggedEvent } from "@/lib/events/log";
 import { sameOwnership, type Ownership, type Visibility } from "@/lib/events/ownership";
 import type { EntityProjection } from "@/lib/events/projector";
+import { byName } from "@/lib/utils/sort";
 import {
   CATEGORY_CREATED,
   CATEGORY_ENTITY,
@@ -138,9 +139,6 @@ export interface CategoryList {
 /** The suggested categories are offered only until the household has a group, retired or not. */
 export const hasHouseholdGroup = (list: CategoryList) =>
   [...list.groups, ...list.retiredGroups].some((group) => group.visibility === "household");
-
-const byName = (a: CategoryRecord, b: CategoryRecord) =>
-  a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
 
 /**
  * Resolves each category's group when read rather than when projected, so a

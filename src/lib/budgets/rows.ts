@@ -1,4 +1,5 @@
 import type { CategoryList, CategoryRow, GroupRow } from "@/lib/categories/projection";
+import { byName } from "@/lib/utils/sort";
 import { categoryMonth, countsInMonth, type MonthView } from "./month";
 
 export interface BudgetGroup {
@@ -11,9 +12,6 @@ export interface BudgetRows {
   /** Categories whose group isn't on this device yet. */
   ungrouped: CategoryRow[];
 }
-
-const byName = (a: { name: string; id: string }, b: { name: string; id: string }) =>
-  a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
 
 /**
  * Budget's rows for a month: categories in use, plus retired ones that count

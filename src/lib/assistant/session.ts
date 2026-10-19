@@ -1,6 +1,7 @@
 import { listAccounts, type AccountRow } from "@/lib/accounts/projection";
 import { db } from "@/lib/dexie/db";
 import type { Ownership } from "@/lib/events/ownership";
+import { byName } from "@/lib/utils/sort";
 
 /** Who is asking, and when: what they can see and what "today" means. */
 export interface AssistantSession {
@@ -28,5 +29,5 @@ export async function listUsableCategories(userId: string) {
   const categories = await db.categories
     .filter((category) => !category.retired && isSeen(category))
     .toArray();
-  return categories.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+  return categories.sort(byName);
 }

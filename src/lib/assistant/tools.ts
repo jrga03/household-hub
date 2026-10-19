@@ -3,6 +3,7 @@ import { budgetStatus } from "@/lib/budgets/progress";
 import { diffCents, formatPHP, ZERO_CENTS } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import { localMonth } from "@/lib/utils/dates";
+import { byName } from "@/lib/utils/sort";
 import { readAccountNames } from "@/lib/accounts/projection";
 import { readCategoryNames } from "@/lib/categories/projection";
 import { readAccountMoney } from "@/lib/transactions/money";
@@ -110,7 +111,7 @@ async function getBudgetStatus(args: ToolArguments, { userId, now }: AssistantSe
   const isSeen = canSee(userId);
   const rows = categories
     .filter(isSeen)
-    .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+    .sort(byName)
     .flatMap((category) => {
       const figures = view.get(category.id);
       // Only what had a budget or spending; transfers and corrections never count as spent.
