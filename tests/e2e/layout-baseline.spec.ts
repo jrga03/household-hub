@@ -31,11 +31,20 @@ for (const { vpName, vp, colorScheme } of RUNS) {
       test(`${route.name} renders`, async ({ page }) => {
         await page.goto(route.path);
         // The page title is the shell header's h1
-        await expect(page.getByRole("banner").getByRole("heading", { level: 1 })).toBeVisible();
+        const title = page.getByRole("banner").getByRole("heading", { level: 1 });
+        await expect(title).toBeVisible();
+        // Measure after server data has rendered
+        await page.waitForLoadState("networkidle");
+        if (vpName === "phone") {
+          const { scrollWidth, clientWidth } = await title.evaluate((heading) => ({
+            scrollWidth: heading.scrollWidth,
+            clientWidth: heading.clientWidth,
+          }));
+          expect(scrollWidth, "the page title is truncated").toBeLessThanOrEqual(clientWidth);
+        }
         // Grow the viewport rather than use fullPage: fullPage capture drops touch
         // emulation on Mobile Chrome (masks land off target) and the sidebar stops
-        // at the original viewport line. Measure after server data has rendered.
-        await page.waitForLoadState("networkidle");
+        // at the original viewport line.
         const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
         await page.setViewportSize({ width: vp.width, height: Math.max(vp.height, pageHeight) });
         await expect(page).toHaveScreenshot(`${route.name}-${variantName}.png`, {
