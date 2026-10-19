@@ -26,6 +26,23 @@ export function initSentry() {
       // INFRA-04).
       integrations: [Sentry.browserTracingIntegration()],
 
+      // v11 collects user info, cookies and HTTP bodies unless told not to.
+      // These are the SDK's documented v10 (restrictive) defaults.
+      dataCollection: {
+        userInfo: false,
+        cookies: false,
+        httpHeaders: {
+          request: { deny: ["forwarded", "-ip", "remote-", "via", "-user"] },
+          response: { deny: ["forwarded", "-ip", "remote-", "via", "-user"] },
+        },
+        httpBodies: [],
+        urlQueryParams: { deny: ["forwarded", "-ip", "remote-", "via", "-user"] },
+        genAI: { inputs: false, outputs: false },
+        databaseQueryData: false,
+        queues: false,
+        graphQL: { document: false, variables: false },
+      },
+
       // PII Scrubbing (Decision #87)
       beforeSend(event) {
         // Remove sensitive data from request payloads

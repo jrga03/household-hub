@@ -77,7 +77,8 @@ export function startSupabase() {
     const message = error.stderr?.toString() ?? error.message;
     if (/docker/i.test(message)) {
       throw new Error(
-        "Docker is not running. Start Docker Desktop and retry, or use `npm run dev:vite` to skip Supabase."
+        "Docker is not running. Start Docker Desktop and retry, or use `npm run dev:vite` to skip Supabase.",
+        { cause: error }
       );
     }
     if (/port.*already in use|address already in use/i.test(message)) {
@@ -88,7 +89,8 @@ export function startSupabase() {
         // ignore
       }
       throw new Error(
-        "Port conflict — another Supabase instance may be running. Try: npx supabase stop --no-backup"
+        "Port conflict — another Supabase instance may be running. Try: npx supabase stop --no-backup",
+        { cause: error }
       );
     }
     throw error;
@@ -148,7 +150,9 @@ export function getSupabaseCredentials() {
       cwd: process.cwd(),
     });
   } catch (error) {
-    throw new Error(`Failed to get Supabase status. Is Supabase running?\n${error.message}`);
+    throw new Error(`Failed to get Supabase status. Is Supabase running?\n${error.message}`, {
+      cause: error,
+    });
   }
 
   const env = parseStatusEnvOutput(output);

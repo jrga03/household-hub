@@ -42,6 +42,7 @@ Always ask: what happens offline, and what happens when two devices edit the sam
 - No `any`. No `!` in production code (lint-enforced); narrow with a guard instead. Tests may use `!` after asserting length.
 - No blanket `eslint-disable`; any disable needs a trailing reason.
 - Path alias `@/` maps to `src/`.
+- TypeScript is installed twice: `tsc` is TS 7 (`@typescript/native`), and the `typescript` package is a TS 6 alias because typescript-eslint needs the JS compiler API that TS 7.0 dropped. Remove the alias when typescript-eslint supports TS 7.
 - Keep all `@radix-ui/*` packages upgraded together; `npm ls @radix-ui/react-dismissable-layer` must show one version (two copies break popovers inside dialogs).
 
 ## Git hooks
