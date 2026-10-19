@@ -1,3 +1,4 @@
+import uFuzzy from "@leeoniya/ufuzzy";
 import { diffCents, parsePHPUnbounded, sumCents, type Cents } from "@/lib/currency";
 import type { BalanceCorrectionRow } from "@/lib/corrections/projection";
 import type { TransferRow } from "@/lib/transfers/projection";
@@ -50,7 +51,7 @@ export interface TransactionFilter {
   type?: ListType;
   status?: TransactionStatus;
   needsCategory?: boolean;
-  /** Matches the description or notes, or the exact amount when it's a number. */
+  /** Fuzzy-matches every word in the description or notes, or the exact amount when it's a number. */
   query?: string;
 }
 
@@ -115,14 +116,60 @@ function matchesFilter(row: ListRow, filter: TransactionFilter): boolean {
 
 const AMOUNT_QUERY = /^₱?\s*(\d{1,3}(,\d{3})*|\d+)(\.\d{0,2})?$/;
 
-function matchesQuery(query: string) {
+const NO_TYPOS = { intraIns: 0, intraSub: 0, intraTrn: 0, intraDel: 0 } as const;
+const ONE_TYPO = { intraIns: 1, intraSub: 1, intraTrn: 1, intraDel: 1 } as const;
+
+/** uFuzzy's cap on terms it tries in every order; past it, each term is filtered on its own. */
+const MAX_REORDERED_TERMS = 5;
+
+const fuzzy = new uFuzzy({
+  intraMode: 1,
+  intraRules: (term) => ({
+    intraSlice: [1, Infinity],
+    ...(term.length > 3 && /\D/.test(term) ? ONE_TYPO : NO_TYPOS),
+  }),
+});
+
+const normalize = (text: string) => uFuzzy.latinize(text.toLowerCase());
+
+const NOT_LATIN_ALPHANUMERIC = /[^a-z\d]+/g;
+
+/** "Grab Food" and "7-Eleven" also as "grabfood" and "7eleven". */
+const compact = (text: string) => text.replace(NOT_LATIN_ALPHANUMERIC, "");
+
+/** Built once per row, so typing a query doesn't rebuild it for every row. */
+const searchTexts = new WeakMap<ListRow, string>();
+
+function searchTextOf(row: ListRow): string {
+  const cached = searchTexts.get(row);
+  if (cached !== undefined) return cached;
+  const fields = isCorrection(row) ? [] : [row.description, row.notes].map(normalize);
+  const text = [...fields, ...fields.map(compact)].join(" ");
+  searchTexts.set(row, text);
+  return text;
+}
+
+/** The indexes of the rows whose text holds every term of the query. */
+function textMatches(rows: ListRow[], query: string): Set<number> {
+  const normalized = normalize(query);
+  // uFuzzy reads quotes, dashes and apostrophes as exact, excluded and contracted terms.
+  const terms = normalized.replace(NOT_LATIN_ALPHANUMERIC, " ").trim();
+  const texts = rows.map(searchTextOf);
+  if (terms === "") {
+    // uFuzzy can't search a non-Latin script, so it matches by substring; symbols alone match nothing.
+    if (!/[\p{L}\p{N}]/u.test(normalized)) return new Set();
+    return new Set(texts.flatMap((text, index) => (text.includes(normalized) ? [index] : [])));
+  }
+  const [indexes] = fuzzy.search(texts, terms, MAX_REORDERED_TERMS, 0);
+  return new Set(indexes ?? []);
+}
+
+function searchRows<Row extends ListRow>(rows: Row[], query: string): Row[] {
   const text = query.trim().toLowerCase();
-  if (text === "") return () => true;
+  if (text === "") return rows;
   const amount: Cents | null = AMOUNT_QUERY.test(text) ? parsePHPUnbounded(text) : null;
-  return (row: ListRow) =>
-    row.amountCents === amount ||
-    (!isCorrection(row) &&
-      (row.description.toLowerCase().includes(text) || row.notes.toLowerCase().includes(text)));
+  const matched = textMatches(rows, text);
+  return rows.filter((row, index) => row.amountCents === amount || matched.has(index));
 }
 
 /** Every filter given must hold; order is kept. */
@@ -130,8 +177,10 @@ export function filterTransactions<Row extends ListRow>(
   rows: Row[],
   filter: TransactionFilter
 ): Row[] {
-  const matchesSearch = matchesQuery(filter.query ?? "");
-  return rows.filter((row) => matchesFilter(row, filter) && matchesSearch(row));
+  return searchRows(
+    rows.filter((row) => matchesFilter(row, filter)),
+    filter.query ?? ""
+  );
 }
 
 /** Which way a transfer moves for the filtered account; null when no account is filtered or it's neither side. */
