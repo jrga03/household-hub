@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
-import { chooseOption, navigateTo, signUpNewPerson } from "./fixtures/helpers";
+import { chooseOption, login, navigateTo, signUpNewPerson } from "./fixtures/helpers";
+import { VIEWPORTS } from "./fixtures/viewports";
 
 const unassignedItem = (page: Page, account: string) =>
   page
@@ -140,4 +141,22 @@ test("a payroll distribution from Plan leaves the source account's Unassigned at
     )
     .toBe(0);
   await page.screenshot({ path: test.info().outputPath("budget.png"), fullPage: true });
+});
+
+test.describe("on a phone", () => {
+  test.use({ viewport: VIEWPORTS.phone });
+
+  test("Edit plan sits under the header and keeps the picked month", async ({ page }) => {
+    await login(page);
+    await page.goto("/budget");
+    await expect(page.getByRole("banner").getByRole("link", { name: "Edit plan" })).toBeHidden();
+
+    await page.getByRole("button", { name: "Previous month" }).click();
+    await expect(page.getByRole("button", { name: "Back to this month" })).toBeVisible();
+    const month = new URL(page.url()).searchParams.get("month");
+    expect(month).toMatch(/^\d{4}-\d{2}$/);
+
+    await page.getByRole("main").getByRole("link", { name: "Edit plan" }).click();
+    await expect(page).toHaveURL(new RegExp(`/plan\\?month=${month}$`));
+  });
 });

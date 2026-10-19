@@ -6,6 +6,7 @@ import { HeaderActions } from "@/components/layout/HeaderActions";
 import { PageShell } from "@/components/layout/PageShell";
 import { Button } from "@/components/ui/button";
 import { useHousehold } from "@/hooks/useHousehold";
+import { cn } from "@/lib/utils";
 import { isLocalMonth, localMonth } from "@/lib/utils/dates";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -36,17 +37,19 @@ function BudgetPage() {
     <>
       <HeaderActions>
         <MonthPicker month={month} onChange={setMonth} />
-        <Button asChild variant="outline" size="sm" aria-label="Edit plan">
-          <Link to="/plan" search={search}>
-            <Pencil />
-            <span className="hidden sm:inline">Edit plan</span>
-          </Link>
-        </Button>
+        {/* On phones the header has no room for it beside the title; it sits in the body */}
+        <EditPlanLink search={search} className="hidden sm:inline-flex" />
       </HeaderActions>
 
       <PageShell variant="rail">
-        <div className="space-y-4 @[1100px]:col-span-2 empty:hidden">
+        <div
+          className={cn(
+            "flex items-center gap-2 @[1100px]:col-span-2",
+            month === currentMonth && "sm:hidden"
+          )}
+        >
           <BackToThisMonth month={month} currentMonth={currentMonth} onChange={setMonth} />
+          <EditPlanLink search={search} className="ml-auto sm:hidden" />
         </div>
         {household && userId && (
           <BudgetView
@@ -57,5 +60,16 @@ function BudgetPage() {
         )}
       </PageShell>
     </>
+  );
+}
+
+function EditPlanLink({ search, className }: { search: MonthSearch; className: string }) {
+  return (
+    <Button asChild variant="outline" size="sm" className={className}>
+      <Link to="/plan" search={search}>
+        <Pencil />
+        Edit plan
+      </Link>
+    </Button>
   );
 }
