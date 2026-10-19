@@ -758,5 +758,28 @@ export default [
     },
   },
   primitiveBoundary,
+  // verbatimModuleSyntax keeps every import not marked as a type, so a
+  // type-only use must say so or the module loads at runtime (#184).
+  // disallowTypeAnnotations stays off for Vitest's typeof import("…") mocks.
+  {
+    files: [
+      "src/**/*.{ts,tsx}",
+      "workers/**/*.ts",
+      "tests/e2e/**/*.ts",
+      "supabase/functions/**/*.ts",
+    ],
+    plugins: { "@typescript-eslint": typescript },
+    rules: {
+      "@typescript-eslint/consistent-type-imports": [
+        "error",
+        {
+          prefer: "type-imports",
+          fixStyle: "separate-type-imports",
+          disallowTypeAnnotations: false,
+        },
+      ],
+      "@typescript-eslint/no-import-type-side-effects": "error",
+    },
+  },
   prettier,
 ];

@@ -1,5 +1,5 @@
 import { useActionState } from "react";
-import { AuthError } from "@supabase/supabase-js";
+import type { AuthError } from "@supabase/supabase-js";
 import { Link } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
 import { ActionForm } from "@/components/ui/action-form";
