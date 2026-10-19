@@ -32,17 +32,13 @@ for (const { vpName, vp, colorScheme } of RUNS) {
         await page.goto(route.path);
         // The page title is the shell header's h1
         await expect(page.getByRole("banner").getByRole("heading", { level: 1 })).toBeVisible();
-        const isPhone = vpName === "phone";
-        if (isPhone) {
-          // fullPage capture drops touch emulation on Mobile Chrome, so it renders
-          // without the coarse-pointer touch targets and masks land off target.
-          // Measure after server data (members, join requests) has rendered.
-          await page.waitForLoadState("networkidle");
-          const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
-          await page.setViewportSize({ width: vp.width, height: Math.max(vp.height, pageHeight) });
-        }
+        // Grow the viewport rather than use fullPage: fullPage capture drops touch
+        // emulation on Mobile Chrome (masks land off target) and the sidebar stops
+        // at the original viewport line. Measure after server data has rendered.
+        await page.waitForLoadState("networkidle");
+        const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+        await page.setViewportSize({ width: vp.width, height: Math.max(vp.height, pageHeight) });
         await expect(page).toHaveScreenshot(`${route.name}-${variantName}.png`, {
-          fullPage: !isPhone,
           maxDiffPixelRatio: 0.02,
           // The Household Code differs on every database; the month changes monthly
           mask: [
