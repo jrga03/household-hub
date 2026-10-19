@@ -420,6 +420,44 @@ it("the primitive ban leaves the routes and components import bans in place", as
   );
 });
 
+const typeScriptProbes = [
+  "src/lib/probe.ts",
+  "src/components/probe.tsx",
+  "src/lib/probe.test.ts",
+  "src/sw.ts",
+  "workers/probe.ts",
+  "tests/e2e/probe.ts",
+  "supabase/functions/probe/index.ts",
+];
+
+it.each(typeScriptProbes)("an inline-only type import fails in %s", async (filePath) => {
+  const code =
+    'import { type Session } from "@supabase/supabase-js";\nexport let session: Session;\n';
+  expect(await ruleIds(code, filePath)).toContain("@typescript-eslint/no-import-type-side-effects");
+});
+
+it("a value import used only as a type fails", async () => {
+  const code =
+    'import { AuthError } from "@supabase/supabase-js";\nexport let error: AuthError | null = null;\n';
+  expect(await ruleIds(code, "src/components/probe.tsx")).toContain(
+    "@typescript-eslint/consistent-type-imports"
+  );
+});
+
+it("a mixed value and type import stays legal", async () => {
+  const code =
+    'import { createClient, type Session } from "@supabase/supabase-js";\nexport const make = createClient;\nexport let session: Session;\n';
+  expect(await ruleIds(code, "src/lib/probe.ts")).toEqual([]);
+});
+
+it("typeof import() stays legal in a Vitest mock", async () => {
+  const code =
+    'import { vi } from "vitest";\nvi.mock("@/lib/assistant/client", async (importOriginal) => ({\n  ...(await importOriginal<typeof import("@/lib/assistant/client")>()),\n}));\n';
+  expect(await ruleIds(code, "src/lib/probe.test.ts")).not.toContain(
+    "@typescript-eslint/consistent-type-imports"
+  );
+});
+
 describe("the directPrimitiveImporters allowlist only shrinks", () => {
   const ALLOWLIST_CEILING = 61;
 
