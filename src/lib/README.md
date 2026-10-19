@@ -180,7 +180,7 @@ CSV and JSON import/export functionality:
 ### Utilities
 
 - **[`utils/`](./utils/)** - Utility functions
-  - `filters.ts` - Filter utilities
+  - `dates.ts`, `download.ts`, `sort.ts`, `uuid.ts` (see [utils/README.md](./utils/README.md))
 - **`utils.ts`** - General utilities (cn function for Tailwind)
 - **`index.ts`** - Library exports
 - **`validateColor.ts`** - Color validation for categories
