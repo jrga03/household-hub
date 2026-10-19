@@ -2,6 +2,7 @@ import { db } from "@/lib/dexie/db";
 import type { LoggedEvent } from "@/lib/events/log";
 import type { Visibility } from "@/lib/events/ownership";
 import type { EntityProjection } from "@/lib/events/projector";
+import { byName } from "@/lib/utils/sort";
 import {
   ACCOUNT_CREATED,
   ACCOUNT_ENTITY,
@@ -81,7 +82,7 @@ async function listByRetirement(retired: boolean): Promise<AccountListItem[]> {
   return accounts
     .filter((account) => account.retired === retired)
     .map((account) => ({ ...account, payingAccount: payingAccountOf(account) }))
-    .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+    .sort(byName);
 }
 
 export const listAccounts = () => listByRetirement(false);

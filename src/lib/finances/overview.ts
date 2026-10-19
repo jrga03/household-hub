@@ -13,6 +13,7 @@ import type { Ownership } from "@/lib/events/ownership";
 import { newestFirst, totalTransactions, type ListRow } from "@/lib/transactions/filter";
 import { readMoneyRecords, sumAccountMoney } from "@/lib/transactions/money";
 import { monthOfDate } from "@/lib/utils/dates";
+import { byName } from "@/lib/utils/sort";
 
 export type FinanceView = "household" | "mine";
 
@@ -64,7 +65,7 @@ export async function readFinanceOverview(
   const money = sumAccountMoney(records);
   const balances = accounts
     .filter((account) => !account.retired && isShown(account))
-    .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+    .sort(byName)
     .map((account) => ({ account, balance: money.get(account.id)?.balance ?? ZERO_CENTS }));
 
   const monthView = summarizeMonth(currentMonth, currentMonth, { ...records, budgets });
