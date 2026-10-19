@@ -15,6 +15,7 @@ import { formatPHP, type Cents } from "@/lib/currency";
 import type { AccountMoney } from "@/lib/transactions/money";
 import type { Visibility } from "@/lib/events/ownership";
 import { VisibilityField } from "@/components/VisibilityField";
+import { namedAmounts } from "@/components/allocations/envelopes";
 import { shortfallClass } from "@/components/allocations/MoneyAmount";
 import {
   ACCOUNT_TYPE_LABELS,
@@ -189,12 +190,8 @@ function MoneySummary({ money }: { money: AccountMoney }) {
 function CardPayments({ cardPayments }: { cardPayments: Map<string, Cents> }) {
   const names = useAccountNames();
   if (!names) return null;
-  const reserved = [...cardPayments]
-    .filter(([, cents]) => cents !== 0)
-    .map(([cardId, cents]) => ({ cardId, cents, name: names.get(cardId) ?? "A card" }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-  return reserved.map(({ cardId, cents, name }) => (
-    <p key={cardId} className="text-body text-muted-foreground tabular-nums">
+  return namedAmounts(cardPayments, names).map(({ id, cents, name }) => (
+    <p key={id} className="text-body text-muted-foreground tabular-nums">
       <span className={shortfallClass(cents)}>
         Card Payment · {name} {formatPHP(cents)}
       </span>

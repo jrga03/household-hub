@@ -5,7 +5,7 @@ import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { PayCardDialog } from "@/components/accounts/PayCardDialog";
 import { AllocationList } from "@/components/allocations/AllocationList";
-import { categoryNames } from "@/components/allocations/envelopes";
+import { categoryNames, namedAmounts } from "@/components/allocations/envelopes";
 import {
   MoneyAmount,
   NegativeNote,
@@ -34,7 +34,7 @@ import { canFundBudget } from "@/lib/budgets/projection";
 import type { CategoryRow } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { setBudget } from "@/lib/commands/budgets";
-import { formatPHP, formatPHPInput, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
+import { formatPHP, formatPHPInput, sumCents, ZERO_CENTS } from "@/lib/currency";
 import type { AccountMoney } from "@/lib/transactions/money";
 import { cn, errorMessage } from "@/lib/utils";
 import { parseLocalDate, shiftMonth, todayLocalDate } from "@/lib/utils/dates";
@@ -54,14 +54,6 @@ export interface DistributeRequest {
 type Moving = { allocation?: AllocationRow; toCategory?: CategoryRow } | null;
 
 const shortMonth = (month: string) => format(parseLocalDate(`${month}-01`), "MMM");
-
-/** Non-zero amounts by account ID, named and sorted by name. */
-function namedAmounts(byId: Map<string, Cents> | undefined, names: Map<string, string>) {
-  return [...(byId ?? [])]
-    .filter(([, cents]) => cents !== 0)
-    .map(([id, cents]) => ({ id, cents, name: names.get(id) ?? "A card" }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
 
 /**
  * Where the month's budgets are set and Unassigned money is given a job:

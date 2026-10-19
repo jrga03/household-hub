@@ -1,5 +1,7 @@
 import { UNASSIGNED_ENVELOPE, type Envelope } from "@/lib/allocations/events";
 import type { CategoryList } from "@/lib/categories/projection";
+import type { Cents } from "@/lib/currency";
+import { byName } from "@/lib/utils/sort";
 
 /** Radix Select holds strings: "unassigned", "category:<id>" or "card_payment:<id>". */
 export const envelopeKey = (envelope: Envelope) =>
@@ -20,4 +22,12 @@ export function categoryNames(list: CategoryList): Map<string, string> {
     ...list.retiredCategories,
   ];
   return new Map(categories.map((category) => [category.id, category.name]));
+}
+
+/** Non-zero amounts by account ID, named and sorted by name. */
+export function namedAmounts(byId: Map<string, Cents> | undefined, names: Map<string, string>) {
+  return [...(byId ?? [])]
+    .filter(([, cents]) => cents !== 0)
+    .map(([id, cents]) => ({ id, cents, name: names.get(id) ?? "A card" }))
+    .sort(byName);
 }
