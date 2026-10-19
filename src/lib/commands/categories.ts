@@ -1,6 +1,7 @@
 import type { Envelope } from "@/lib/allocations/events";
 import { absCents, formatPHP, sumCents, type Cents } from "@/lib/currency";
-import { appendTogether, isVisibility, VISIBILITY_LABELS, type Ownership } from "@/lib/events/log";
+import { appendTogether } from "@/lib/events/log";
+import { isVisibility, VISIBILITY_LABELS, type Ownership } from "@/lib/events/ownership";
 import { readAccountMoney, sumCategoryMoney } from "@/lib/transactions/money";
 import { requestSync } from "@/lib/sync/triggers";
 import {

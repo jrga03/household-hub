@@ -11,8 +11,8 @@ import {
   receiveEvents,
   switchHousehold,
   type LoggedEvent,
-  type Visibility,
 } from "./log";
+import type { Visibility } from "./ownership";
 import { registerProjection } from "./projector";
 
 // A second entity, registered only here, to show the log needs no edits to project one.

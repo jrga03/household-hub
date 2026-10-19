@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
-import { isVisibility, type LoggedEvent } from "@/lib/events/log";
+import type { LoggedEvent } from "@/lib/events/log";
+import { isVisibility } from "@/lib/events/ownership";
 import type { Json, Tables, TablesInsert } from "@/types/database.types";
 import { EventLogRejected, type PulledEvent, type RemoteEventLog } from "./engine";
 

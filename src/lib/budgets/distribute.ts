@@ -15,7 +15,7 @@ import {
 } from "@/lib/categories/projection";
 import { diffCents, ZERO_CENTS, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
-import { sameOwnership } from "@/lib/events/log";
+import { sameOwnership } from "@/lib/events/ownership";
 import { categoryMonth, readMonthView } from "./month";
 
 /** After recording income, prefilled from the budgets; or the opening balance, blank. */

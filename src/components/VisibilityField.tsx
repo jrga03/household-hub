@@ -1,6 +1,6 @@
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { isVisibility, type Visibility } from "@/lib/events/log";
+import { isVisibility, type Visibility } from "@/lib/events/ownership";
 
 /** Household or Personal, chosen once when an account, group or category is added. */
 export function VisibilityField({

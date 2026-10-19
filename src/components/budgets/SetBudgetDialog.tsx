@@ -22,7 +22,7 @@ import type { BudgetRow } from "@/lib/budgets/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { setBudget } from "@/lib/commands/budgets";
 import { formatPHPInput, parsePHPSafe, PESO_SIGN } from "@/lib/currency";
-import { VISIBILITY_LABELS } from "@/lib/events/log";
+import { VISIBILITY_LABELS } from "@/lib/events/ownership";
 import { errorMessage } from "@/lib/utils";
 import { monthLabel, shiftMonth } from "@/lib/utils/dates";
 

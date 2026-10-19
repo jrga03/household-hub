@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { HeaderSlotProvider, useHeaderSlot } from "@/components/layout/HeaderActions";
 import type { ChatItem } from "@/lib/assistant/conversation";
-import { createAccount } from "@/lib/commands/accounts"; // load-order cycle, see #159
 import { loadChat, saveChat } from "@/lib/assistant/savedChat";
+import { createAccount } from "@/lib/commands/accounts";
 import { confirm } from "@/lib/confirm";
 import { asCents } from "@/lib/currency";
 import { resetLocalDatabase } from "@/lib/dexie/reset";

@@ -9,7 +9,7 @@ import { countsInMonth, summarizeMonth } from "@/lib/budgets/month";
 import { budgetStatus, type BudgetStatus } from "@/lib/budgets/progress";
 import { ZERO_CENTS, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
-import type { Ownership } from "@/lib/events/log";
+import type { Ownership } from "@/lib/events/ownership";
 import { newestFirst, totalTransactions, type ListRow } from "@/lib/transactions/filter";
 import { readMoneyRecords, sumAccountMoney } from "@/lib/transactions/money";
 import { monthOfDate } from "@/lib/utils/dates";

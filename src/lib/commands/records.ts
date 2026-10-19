@@ -1,4 +1,4 @@
-import { sameOwnership, VISIBILITY_LABELS, type Ownership } from "@/lib/events/log";
+import { sameOwnership, VISIBILITY_LABELS, type Ownership } from "@/lib/events/ownership";
 import { isCreditCard } from "@/lib/accounts/events";
 import { getAccount, type AccountRow } from "@/lib/accounts/projection";
 import { canHoldMoneyIn, getCategory, type CategoryRow } from "@/lib/categories/projection";

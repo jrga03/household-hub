@@ -1,5 +1,6 @@
 import { db } from "@/lib/dexie/db";
-import { sameOwnership, type LoggedEvent, type Ownership } from "@/lib/events/log";
+import type { LoggedEvent } from "@/lib/events/log";
+import { sameOwnership, type Ownership } from "@/lib/events/ownership";
 import type { EntityProjection } from "@/lib/events/projector";
 import type { TransactionStatus } from "@/lib/transactions/events";
 import {

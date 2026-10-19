@@ -10,7 +10,7 @@ import { CATEGORY_NAME_MAX_LENGTH } from "@/lib/categories/events";
 import type { GroupRow } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { createCategory, createGroup } from "@/lib/commands/categories";
-import type { Visibility } from "@/lib/events/log";
+import type { Visibility } from "@/lib/events/ownership";
 import { errorMessage } from "@/lib/utils";
 import { GroupSelect } from "./GroupSelect";
 

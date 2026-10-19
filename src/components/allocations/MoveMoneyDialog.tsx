@@ -34,7 +34,7 @@ import {
   sumCents,
   type Cents,
 } from "@/lib/currency";
-import { sameOwnership } from "@/lib/events/log";
+import { sameOwnership } from "@/lib/events/ownership";
 import { moneyIn, type AccountMoney, type Envelopes } from "@/lib/transactions/money";
 import { errorMessage } from "@/lib/utils";
 import { envelopeFromKey, envelopeKey } from "./envelopes";

@@ -8,7 +8,7 @@ import type { AccountRow } from "@/lib/accounts/projection";
 import { canHoldMoneyIn, type CategoryRow } from "@/lib/categories/projection";
 import type { TransactionInput } from "@/lib/commands/transactions";
 import { formatPHP, parsePHPSafe } from "@/lib/currency";
-import { VISIBILITY_LABELS } from "@/lib/events/log";
+import { VISIBILITY_LABELS } from "@/lib/events/ownership";
 import { localDate } from "@/lib/utils/dates";
 import {
   checkTransactionDetails,

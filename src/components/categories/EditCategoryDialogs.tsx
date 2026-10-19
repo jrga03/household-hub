@@ -33,7 +33,7 @@ import {
   retireGroup,
 } from "@/lib/commands/categories";
 import { formatPHP, type Cents } from "@/lib/currency";
-import { sameOwnership } from "@/lib/events/log";
+import { sameOwnership } from "@/lib/events/ownership";
 import { sumCategoryMoney } from "@/lib/transactions/money";
 import { errorMessage } from "@/lib/utils";
 import { GroupSelect } from "./GroupSelect";
