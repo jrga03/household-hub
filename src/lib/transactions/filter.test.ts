@@ -254,6 +254,22 @@ describe("filterTransactions search", () => {
     expect(ids(filterTransactions([sevenEleven], { query: '"elevn"' }))).toEqual([sevenEleven.id]);
   });
 
+  it("finds words with apostrophes", () => {
+    const rockNRoll = row({ description: "Rock 'n' Roll bar" });
+    const mcdonalds = row({ description: "McDonald's" });
+    const rows = [rockNRoll, mcdonalds];
+
+    expect(ids(filterTransactions(rows, { query: "rock 'n' roll" }))).toEqual([rockNRoll.id]);
+    expect(ids(filterTransactions(rows, { query: "mcdonald's" }))).toEqual([mcdonalds.id]);
+    expect(ids(filterTransactions(rows, { query: "mcdonalds" }))).toEqual([mcdonalds.id]);
+  });
+
+  it("finds non-Latin text by substring", () => {
+    const cafe = row({ description: "Кафе Пушкин" });
+
+    expect(ids(filterTransactions([cafe], { query: "кафе" }))).toEqual([cafe.id]);
+  });
+
   it("needs every word, in any order, in the description or notes", () => {
     const order = row({ description: "Grab Food order" });
     const split = row({ description: "Grab", notes: "food for the team" });

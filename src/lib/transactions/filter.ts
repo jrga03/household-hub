@@ -119,8 +119,8 @@ const AMOUNT_QUERY = /^₱?\s*(\d{1,3}(,\d{3})*|\d+)(\.\d{0,2})?$/;
 const NO_TYPOS = { intraIns: 0, intraSub: 0, intraTrn: 0, intraDel: 0 } as const;
 const ONE_TYPO = { intraIns: 1, intraSub: 1, intraTrn: 1, intraDel: 1 } as const;
 
-/** uFuzzy's own cap; a longer query is still matched in any order, by filtering each term. */
-const OUT_OF_ORDER_TERMS = 5;
+/** uFuzzy's cap on terms it tries in every order; past it, each term is filtered on its own. */
+const MAX_REORDERED_TERMS = 5;
 
 const fuzzy = new uFuzzy({
   intraMode: 1,
@@ -132,8 +132,10 @@ const fuzzy = new uFuzzy({
 
 const normalize = (text: string) => uFuzzy.latinize(text.toLowerCase());
 
+const NOT_LATIN_ALPHANUMERIC = /[^a-z\d]+/g;
+
 /** "Grab Food" and "7-Eleven" also as "grabfood" and "7eleven". */
-const compact = (text: string) => text.replace(/[^a-z\d]/g, "");
+const compact = (text: string) => text.replace(NOT_LATIN_ALPHANUMERIC, "");
 
 /** Built once per row, so typing a query doesn't rebuild it for every row. */
 const searchTexts = new WeakMap<ListRow, string>();
@@ -149,9 +151,16 @@ function searchTextOf(row: ListRow): string {
 
 /** The indexes of the rows whose text holds every term of the query. */
 function textMatches(rows: ListRow[], query: string): Set<number> {
-  // Spaces in place of quotes and dashes, which uFuzzy reads as exact and excluded terms.
-  const terms = normalize(query).replace(/[^a-z\d']+/g, " ");
-  const [indexes] = fuzzy.search(rows.map(searchTextOf), terms, OUT_OF_ORDER_TERMS, 0);
+  const normalized = normalize(query);
+  // uFuzzy reads quotes, dashes and apostrophes as exact, excluded and contracted terms.
+  const terms = normalized.replace(NOT_LATIN_ALPHANUMERIC, " ").trim();
+  const texts = rows.map(searchTextOf);
+  if (terms === "") {
+    // uFuzzy can't search a non-Latin script, so it matches by substring; symbols alone match nothing.
+    if (!/[\p{L}\p{N}]/u.test(normalized)) return new Set();
+    return new Set(texts.flatMap((text, index) => (text.includes(normalized) ? [index] : [])));
+  }
+  const [indexes] = fuzzy.search(texts, terms, MAX_REORDERED_TERMS, 0);
   return new Set(indexes ?? []);
 }
 
