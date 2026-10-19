@@ -1,4 +1,4 @@
-import { sameOwnership } from "@/lib/events/log";
+import { sameOwnership } from "@/lib/events/ownership";
 import { requestSync } from "@/lib/sync/triggers";
 import { isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";

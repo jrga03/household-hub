@@ -1,4 +1,4 @@
-import type { Ownership } from "@/lib/events/log";
+import type { Ownership } from "@/lib/events/ownership";
 import { isCreditCard } from "./events";
 import type { AccountRow } from "./projection";
 

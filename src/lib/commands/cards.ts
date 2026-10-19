@@ -1,4 +1,5 @@
-import { appendTogether, sameOwnership } from "@/lib/events/log";
+import { appendTogether } from "@/lib/events/log";
+import { sameOwnership } from "@/lib/events/ownership";
 import { isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
 import { cardPaymentEnvelope, UNASSIGNED_ENVELOPE } from "@/lib/allocations/events";

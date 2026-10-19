@@ -19,7 +19,7 @@ import {
 import { payingAccountChoices } from "@/lib/accounts/paying-account";
 import type { AccountDetailsInput } from "@/lib/commands/accounts";
 import { formatPHPInput, parsePHPSafe, PESO_SIGN } from "@/lib/currency";
-import { VISIBILITY_LABELS, type Ownership } from "@/lib/events/log";
+import { VISIBILITY_LABELS, type Ownership } from "@/lib/events/ownership";
 
 export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   bank: "Bank account",

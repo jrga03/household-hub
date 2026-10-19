@@ -1,5 +1,6 @@
 import { db } from "@/lib/dexie/db";
-import type { LoggedEvent, Visibility } from "@/lib/events/log";
+import type { LoggedEvent } from "@/lib/events/log";
+import type { Visibility } from "@/lib/events/ownership";
 import type { EntityProjection } from "@/lib/events/projector";
 import {
   ACCOUNT_CREATED,

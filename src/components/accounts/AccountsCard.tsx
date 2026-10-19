@@ -13,7 +13,7 @@ import type { AccountListItem } from "@/lib/accounts/projection";
 import { createAccount, unretireAccount, type Actor } from "@/lib/commands/accounts";
 import { formatPHP, type Cents } from "@/lib/currency";
 import type { AccountMoney } from "@/lib/transactions/money";
-import type { Visibility } from "@/lib/events/log";
+import type { Visibility } from "@/lib/events/ownership";
 import { VisibilityField } from "@/components/VisibilityField";
 import { shortfallClass } from "@/components/allocations/MoneyAmount";
 import {

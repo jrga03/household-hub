@@ -35,7 +35,7 @@ import {
   type TransferInput,
 } from "@/lib/commands/transfers";
 import { formatPHPInput, parsePHPSafe, PESO_SIGN } from "@/lib/currency";
-import { sameOwnership } from "@/lib/events/log";
+import { sameOwnership } from "@/lib/events/ownership";
 import {
   DESCRIPTION_MAX_LENGTH,
   isTransactionStatus,

@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import type { Ownership } from "@/lib/events/log";
+import type { Ownership } from "@/lib/events/ownership";
 import { localDate } from "@/lib/utils/dates";
 import {
   listUsableAccounts,

@@ -1,4 +1,4 @@
-import { VISIBILITY_LABELS } from "@/lib/events/log";
+import { VISIBILITY_LABELS } from "@/lib/events/ownership";
 import { requestSync } from "@/lib/sync/triggers";
 import { isCreditCard } from "@/lib/accounts/events";
 import {

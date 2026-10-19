@@ -1,6 +1,6 @@
 import { listAccounts, type AccountRow } from "@/lib/accounts/projection";
 import { db } from "@/lib/dexie/db";
-import type { Ownership } from "@/lib/events/log";
+import type { Ownership } from "@/lib/events/ownership";
 
 /** Who is asking, and when: what they can see and what "today" means. */
 export interface AssistantSession {

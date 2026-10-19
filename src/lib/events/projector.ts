@@ -12,7 +12,8 @@ import { categoryProjection, groupProjection } from "@/lib/categories/projection
 import { balanceCorrectionProjection } from "@/lib/corrections/projection";
 import { transactionProjection } from "@/lib/transactions/projection";
 import { transferProjection } from "@/lib/transfers/projection";
-import type { LoggedEvent, Visibility } from "./log";
+import type { LoggedEvent } from "./log";
+import type { Visibility } from "./ownership";
 import { upcast, type EventVersions } from "./versions";
 
 export interface ProjectedRow {

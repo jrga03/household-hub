@@ -1,4 +1,4 @@
-import { isVisibility, VISIBILITY_LABELS, type Ownership } from "@/lib/events/log";
+import { isVisibility, VISIBILITY_LABELS, type Ownership } from "@/lib/events/ownership";
 import { requestSync } from "@/lib/sync/triggers";
 import {
   ACCOUNT_CREATED,
