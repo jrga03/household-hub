@@ -42,6 +42,7 @@ function BudgetPage() {
       </HeaderActions>
 
       <PageShell variant="rail">
+        {/* A viewport breakpoint, not a container query: it must flip with the header's copy */}
         <div
           className={cn(
             "flex items-center gap-2 @[1100px]:col-span-2",
