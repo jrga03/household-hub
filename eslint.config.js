@@ -1,3 +1,4 @@
+import { fixupConfigRules, fixupPluginRules } from "@eslint/compat";
 import js from "@eslint/js";
 import typescript from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
@@ -549,7 +550,9 @@ export default [
     },
     plugins: {
       "@typescript-eslint": typescript,
-      react,
+      // eslint-plugin-react and jsx-a11y still call context methods ESLint 10
+      // removed; @eslint/compat restores them.
+      react: fixupPluginRules(react),
       "react-hooks": reactHooks,
     },
     rules: {
@@ -585,7 +588,7 @@ export default [
     files: srcTestFiles,
     rules: { "@typescript-eslint/no-non-null-assertion": "off" },
   },
-  { ...jsxA11y.flatConfigs.recommended, files: ["src/**/*.tsx"] },
+  ...fixupConfigRules({ ...jsxA11y.flatConfigs.recommended, files: ["src/**/*.tsx"] }),
   ...queryPluginConfigs,
   // Architecture rules (roadmap 4.4-4.6). Each error message says why the rule
   // exists and what to do instead.

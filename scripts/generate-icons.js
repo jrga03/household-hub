@@ -1,4 +1,3 @@
-/* eslint-env node */
 // Quick placeholder icon generator for PWA
 import fs from "fs";
 import { createCanvas } from "canvas";
