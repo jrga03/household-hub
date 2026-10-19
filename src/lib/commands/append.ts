@@ -1,5 +1,5 @@
 import { appendEvent } from "@/lib/events/log";
-import { type Ownership } from "@/lib/events/ownership";
+import type { Ownership } from "@/lib/events/ownership";
 import { currentVersion, type EventVersions } from "@/lib/events/versions";
 import type { Actor } from "./accounts";
 
