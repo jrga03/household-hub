@@ -24,7 +24,7 @@ export function categoryNames(list: CategoryList): Map<string, string> {
   return new Map(categories.map((category) => [category.id, category.name]));
 }
 
-/** Non-zero amounts by account ID, named and sorted by name. */
+/** Non-zero amounts by card ID, named and sorted by name (id breaks ties). */
 export function namedAmounts(byId: Map<string, Cents> | undefined, names: Map<string, string>) {
   return [...(byId ?? [])]
     .filter(([, cents]) => cents !== 0)
