@@ -117,7 +117,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
   server: {
@@ -140,13 +140,12 @@ export default defineConfig({
     // No manualChunks: the hand-rolled vendor grouping forced heavy packages
     // (all of lucide-react, several radix packages) into a single eagerly
     // loaded ~186KB chunk and produced an empty vendor-react chunk (review
-    // UI-03). With autoCodeSplitting on, Rollup's default per-route splitting
+    // UI-03). With autoCodeSplitting on, the bundler's default per-route splitting
     // co-locates each dependency with the route that first needs it and
     // hoists genuinely shared modules automatically. Default [name]-[hash]
     // chunk names keep stable long-term caching.
 
     // Minification settings
-    minify: "esbuild", // Faster than terser, good compression
     cssMinify: true,
 
     // Enable tree-shaking
