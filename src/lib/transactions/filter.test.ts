@@ -174,6 +174,95 @@ describe("filterTransactions search", () => {
 
     expect(filterTransactions(rows, { query: "250abc" })).toEqual([]);
   });
+
+  it("forgives one typo in a word longer than three letters", () => {
+    const jollibee = row({ description: "Jollibee" });
+    const meralco = row({ description: "Meralco bill" });
+    const rows = [jollibee, meralco];
+
+    expect(ids(filterTransactions(rows, { query: "jolibee" }))).toEqual([jollibee.id]);
+    expect(ids(filterTransactions(rows, { query: "meralko" }))).toEqual([meralco.id]);
+  });
+
+  it("forgives no typo in a number", () => {
+    expect(filterTransactions([row({ description: "Room 2501" })], { query: "2500" })).toEqual([]);
+  });
+
+  it("forgives two swapped letters", () => {
+    const meralco = row({ description: "Meralco" });
+
+    expect(ids(filterTransactions([meralco], { query: "mearlco" }))).toEqual([meralco.id]);
+  });
+
+  it("finds a partly typed word with a typo", () => {
+    const meralco = row({ description: "Meralco" });
+
+    expect(ids(filterTransactions([meralco], { query: "meralk" }))).toEqual([meralco.id]);
+  });
+
+  it("forgives no typo in a word of three letters or fewer", () => {
+    expect(filterTransactions([row({ description: "1 gal water" })], { query: "gas" })).toEqual([]);
+  });
+
+  it("needs the first letter right", () => {
+    expect(filterTransactions([row({ description: "Jollibee" })], { query: "kolibee" })).toEqual(
+      []
+    );
+  });
+
+  it("ignores accents on either side", () => {
+    const paranaque = row({ description: "Parañaque toll" });
+
+    expect(ids(filterTransactions([paranaque], { query: "paranaque" }))).toEqual([paranaque.id]);
+    expect(
+      ids(filterTransactions([row({ description: "Paranaque" })], { query: "PARAÑAQUE" }))
+    ).toHaveLength(1);
+  });
+
+  it("finds words typed without their spaces or punctuation", () => {
+    const grabFood = row({ description: "Grab Food" });
+    const sevenEleven = row({ notes: "snacks at 7-Eleven" });
+    const rows = [grabFood, sevenEleven];
+
+    expect(ids(filterTransactions(rows, { query: "grabfood" }))).toEqual([grabFood.id]);
+    expect(ids(filterTransactions(rows, { query: "7eleven" }))).toEqual([sevenEleven.id]);
+  });
+
+  it("finds a number by its exact amount or in the text", () => {
+    const sevenEleven = row({ description: "7-11", amountCents: asCents(25000) });
+    const exactAmount = row({ description: "Load", amountCents: asCents(71100) });
+    const rows = [sevenEleven, exactAmount, row({ amountCents: asCents(7110) })];
+
+    expect(ids(filterTransactions(rows, { query: "711" }))).toEqual([
+      sevenEleven.id,
+      exactAmount.id,
+    ]);
+  });
+
+  it("matches no text for a query with no letters or digits, but still finds an amount", () => {
+    const rows = [row({ description: "7-Eleven ₱ store" })];
+
+    expect(filterTransactions(rows, { query: "₱" })).toEqual([]);
+    expect(filterTransactions(rows, { query: "-" })).toEqual([]);
+    expect(ids(filterTransactions(rows, { query: "₱250" }))).toEqual(ids(rows));
+  });
+
+  it("reads quotes and a leading dash as plain text", () => {
+    const sevenEleven = row({ description: "7-Eleven" });
+
+    expect(ids(filterTransactions([sevenEleven], { query: "-eleven" }))).toEqual([sevenEleven.id]);
+    expect(ids(filterTransactions([sevenEleven], { query: '"elevn"' }))).toEqual([sevenEleven.id]);
+  });
+
+  it("needs every word, in any order, in the description or notes", () => {
+    const order = row({ description: "Grab Food order" });
+    const split = row({ description: "Grab", notes: "food for the team" });
+    const court = row({ description: "Food court" });
+    const rows = [order, split, court];
+
+    expect(ids(filterTransactions(rows, { query: "food grab" }))).toEqual([order.id, split.id]);
+    expect(ids(filterTransactions(rows, { query: "grab food" }))).toEqual([order.id, split.id]);
+  });
 });
 
 describe("totalTransactions", () => {
@@ -224,6 +313,27 @@ describe("a 10,000-transaction list", () => {
 
     expect(found).toHaveLength(2000);
     expect(elapsed).toBeLessThan(50);
+  });
+});
+
+describe("a 10,000-transaction fuzzy search", () => {
+  it("finds typos and reordered words while typing, in under 500 ms", () => {
+    const many = Array.from({ length: 10_000 }, (_, index) =>
+      row({
+        description: index % 10 === 0 ? "Grab Food order" : `Purchase ${index}`,
+        notes: index % 7 === 0 ? "Parañaque branch" : "",
+      })
+    );
+
+    const started = performance.now();
+    for (const query of ["o", "or", "ord", "ordr", "ordr g", "ordr gr", "ordr grab"]) {
+      filterTransactions(many, { query });
+    }
+    const found = filterTransactions(many, { query: "ordr grab paranaque" });
+    const elapsed = performance.now() - started;
+
+    expect(found).toHaveLength(143);
+    expect(elapsed).toBeLessThan(500);
   });
 });
 
