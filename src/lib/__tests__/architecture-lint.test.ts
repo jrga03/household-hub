@@ -420,8 +420,6 @@ it("the primitive ban leaves the routes and components import bans in place", as
   );
 });
 
-// verbatimModuleSyntax keeps any import not marked as a type, so these files
-// would load the module at runtime for a type alone (#184).
 const typeScriptProbes = [
   "src/lib/probe.ts",
   "src/components/probe.tsx",
