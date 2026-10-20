@@ -18,7 +18,7 @@ This document serves as the master QA test plan for the Household Hub applicatio
 
 | Feature               | Unit Tests                                                   | E2E (Playwright)                         | AI QA Script         |
 | --------------------- | ------------------------------------------------------------ | ---------------------------------------- | -------------------- |
-| **Authentication**    | authStore.test.ts                                            | auth.spec.ts                             | auth.md (5)          |
+| **Authentication**    | authStore.dom.test.ts                                        | auth.spec.ts                             | auth.md (5)          |
 | **Dashboard**         | —                                                            | dashboard.spec.ts                        | dashboard.md (4)     |
 | **Transactions CRUD** | transaction validation                                       | transactions.spec.ts                     | transactions.md (8)  |
 | **Budgets**           | budgetCalculations.test.ts                                   | budgets.spec.ts                          | budgets.md (6)       |
@@ -30,7 +30,7 @@ This document serves as the master QA test plan for the Household Hub applicatio
 | **Debts**             | —                                                            | debts/\*.spec.ts (existing)              | debts.md (5)         |
 | **Offline/Sync**      | syncStore, syncIssuesStore, conflictStore, processor.test.ts | offline.spec.ts, sync.spec.ts (existing) | offline-sync.md (4)  |
 | **Settings**          | —                                                            | settings.spec.ts                         | —                    |
-| **Navigation**        | navStore.test.ts                                             | —                                        | —                    |
+| **Navigation**        | navStore.dom.test.ts                                         | —                                        | —                    |
 | **Device ID**         | device.test.ts                                               | —                                        | —                    |
 | **Sync Queue**        | syncQueue.test.ts (existing)                                 | —                                        | —                    |
 | **Idempotency**       | idempotency.test.ts (existing)                               | —                                        | —                    |
@@ -48,8 +48,8 @@ This document serves as the master QA test plan for the Household Hub applicatio
 | `src/stores/__tests__/syncStore.test.ts`            | 7     | Sync status, last sync time, pending changes                |
 | `src/stores/__tests__/conflictStore.test.ts`        | 8     | Add/remove/clear conflicts, pending count                   |
 | `src/stores/__tests__/syncIssuesStore.test.ts`      | 8     | Add/remove/clear sync issues                                |
-| `src/stores/__tests__/navStore.test.ts`             | 10    | Sidebar, mobile nav, quick add, localStorage persist        |
-| `src/stores/__tests__/authStore.test.ts`            | 12    | Auth lifecycle, unsynced data warning, export abort         |
+| `src/stores/__tests__/navStore.dom.test.ts`         | 10    | Sidebar, mobile nav, quick add, localStorage persist        |
+| `src/stores/__tests__/authStore.dom.test.ts`        | 12    | Auth lifecycle, unsynced data warning, export abort         |
 | `src/lib/validations/__tests__/transaction.test.ts` | 22    | Zod schema: date, description, amount, enums, cross-field   |
 | `src/lib/__tests__/duplicate-detector.test.ts`      | 16    | Fingerprint generation, duplicate detection                 |
 | `src/lib/__tests__/device.test.ts`                  | 7     | Device ID generation, storage, cleanup                      |
@@ -118,7 +118,7 @@ This document serves as the master QA test plan for the Household Hub applicatio
 npm test -- --run
 
 # Run specific test file
-npx vitest run src/stores/__tests__/authStore.test.ts
+npx vitest run src/stores/__tests__/authStore.dom.test.ts
 
 # Watch mode
 npm test
