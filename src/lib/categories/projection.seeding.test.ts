@@ -3,7 +3,7 @@ import { orders } from "@/test/permutations";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { receiveEvents } from "@/lib/events/log";
 import { readCategoryList } from "./projection";
-import { FOOD, GROCERIES, categoryOnlyEvent, groupEvent, hlcAt } from "./projection.fixtures";
+import { FOOD, GROCERIES, groceriesEvent, groupEvent, hlcAt } from "./projection.fixtures";
 
 beforeEach(async () => {
   await resetLocalDatabase();
@@ -12,11 +12,11 @@ beforeEach(async () => {
 describe("seeding on two devices", () => {
   // Both devices seed the same deterministic IDs with their own event IDs and clocks.
   const foodOnA = groupEvent("e-food-a", FOOD, "category_group.created", 1000, { name: "Food" });
-  const groceriesOnA = categoryOnlyEvent("e-groceries-a", "category.created", 1001, {
+  const groceriesOnA = groceriesEvent("e-groceries-a", "category.created", 1001, {
     name: "Groceries",
     groupId: FOOD,
   });
-  const renamedOnA = categoryOnlyEvent("e-renamed-a", "category.renamed", 2000, {
+  const renamedOnA = groceriesEvent("e-renamed-a", "category.renamed", 2000, {
     name: "Market",
   });
   const foodRenamedOnA = groupEvent("e-food-renamed-a", FOOD, "category_group.renamed", 2001, {

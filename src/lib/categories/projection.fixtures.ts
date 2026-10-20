@@ -40,7 +40,7 @@ export const groupEvent = (
   payload: Record<string, unknown> = {}
 ) => categoryEvent(eventId, "category_group", groupId, eventType, millis, payload);
 
-export const categoryOnlyEvent = (
+export const groceriesEvent = (
   eventId: string,
   eventType: string,
   millis: number,

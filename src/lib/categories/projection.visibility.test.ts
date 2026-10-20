@@ -3,7 +3,7 @@ import { orders } from "@/test/permutations";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { receiveEvents } from "@/lib/events/log";
 import { readCategoryList } from "./projection";
-import { BILLS, FOOD, GROCERIES, categoryOnlyEvent, groupEvent } from "./projection.fixtures";
+import { BILLS, FOOD, GROCERIES, groceriesEvent, groupEvent } from "./projection.fixtures";
 
 beforeEach(async () => {
   await resetLocalDatabase();
@@ -17,16 +17,16 @@ describe("visibility", () => {
     ...personal,
   };
 
-  const groceries = categoryOnlyEvent("e-groceries", "category.created", 3000, {
+  const groceries = groceriesEvent("e-groceries", "category.created", 3000, {
     name: "Groceries",
     groupId: FOOD,
   });
   const personalRename = {
-    ...categoryOnlyEvent("e-renamed", "category.renamed", 4000, { name: "Mine now" }),
+    ...groceriesEvent("e-renamed", "category.renamed", 4000, { name: "Mine now" }),
     ...personal,
   };
   const personalMove = {
-    ...categoryOnlyEvent("e-moved", "category.moved", 5000, { groupId: BILLS }),
+    ...groceriesEvent("e-moved", "category.moved", 5000, { groupId: BILLS }),
     ...personal,
   };
 
@@ -43,7 +43,7 @@ describe("visibility", () => {
   );
 
   it("lists a category as ungrouped while its group is missing or of another visibility", async () => {
-    const inMine = categoryOnlyEvent("e-groceries", "category.created", 3000, {
+    const inMine = groceriesEvent("e-groceries", "category.created", 3000, {
       name: "Groceries",
       groupId: BILLS,
     });
@@ -58,7 +58,7 @@ describe("visibility", () => {
 
   it("keeps a Personal category in its owner's Personal group", async () => {
     const savings = {
-      ...categoryOnlyEvent("e-savings", "category.created", 3000, {
+      ...groceriesEvent("e-savings", "category.created", 3000, {
         name: "Travel",
         groupId: BILLS,
       }),

@@ -24,6 +24,8 @@ Measured 2026-10-20 on `main` (`5fcb99c`, 12 cores, worktrees `prototype-194` an
 - **`node` is the default test environment; jsdom by glob.** Vitest `projects`: jsdom for `**/*.test.tsx`, `src/hooks/**` and `src/components/**`; everything else `node`. A `.ts` test that fails under `node` gets an explicit entry in the jsdom globs. Rejected: per-file `@vitest-environment` comments. Revisit: never.
 - **Four `.ts` tests run in jsdom by name**: `lib/__tests__/households`, `lib/sync/engine`, `stores/__tests__/authStore`, `stores/__tests__/navStore` need `window` or `localStorage`. Why: the plan's fallback for `.ts` tests that fail under `node`. Revisit: if they stop touching the DOM.
 - **Fixtures live beside their tests as `*.fixtures.ts`** and lint as test files (`srcTestFiles`). Why: test-only helpers must not get production lint rules. Revisit: never.
+- **Defer a shared `LoggedEvent` test builder.** The money and category fixtures, and about seven other test files, each build events and HLCs by hand. Why: outside #198. Revisit: when the next test file copies it.
+- **Re-time pre-push on `main` after merge.** The table below is from the worktree with a fake leaked worktree, not `main` with the real ones. Why: the branch config only reaches `main` on merge. Revisit: right after merge; add the timing to the PR.
 - **Leave `architecture-lint.test.ts` (10 s) as it is.** Why: under budget after the splits. Revisit: if the warm pre-push is over 30 s.
 - **Keep run-all, report-all.** Pre-push does not stop the other checks at the first failure. Why: one push shows every failure. Revisit: never.
 - **Acceptance: a quoted `node scripts/pre-push.mjs` run** in the PR, with before (96 s total, Vitest 91 s, lint 23 s) and after timings per check. Revisit: never.

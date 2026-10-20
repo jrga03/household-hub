@@ -3,7 +3,7 @@ import { orders } from "@/test/permutations";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { receiveEvents } from "@/lib/events/log";
 import { readCategoryList } from "./projection";
-import { FOOD, GROCERIES, categoryOnlyEvent, groupEvent } from "./projection.fixtures";
+import { FOOD, GROCERIES, groceriesEvent, groupEvent } from "./projection.fixtures";
 
 beforeEach(async () => {
   await resetLocalDatabase();
@@ -11,14 +11,14 @@ beforeEach(async () => {
 
 describe("retiring", () => {
   const food = groupEvent("e-food", FOOD, "category_group.created", 1000, { name: "Food" });
-  const groceries = categoryOnlyEvent("e-groceries", "category.created", 2000, {
+  const groceries = groceriesEvent("e-groceries", "category.created", 2000, {
     name: "Groceries",
     groupId: FOOD,
   });
-  const retired = categoryOnlyEvent("e-retired", "category.retired", 3000);
-  const unretired = categoryOnlyEvent("e-unretired", "category.unretired", 4000);
-  const retiredAgain = categoryOnlyEvent("e-retired-2", "category.retired", 5000);
-  const renamed = categoryOnlyEvent("e-renamed", "category.renamed", 6000, { name: "Market" });
+  const retired = groceriesEvent("e-retired", "category.retired", 3000);
+  const unretired = groceriesEvent("e-unretired", "category.unretired", 4000);
+  const retiredAgain = groceriesEvent("e-retired-2", "category.retired", 5000);
+  const renamed = groceriesEvent("e-renamed", "category.renamed", 6000, { name: "Market" });
 
   it.each(orders([food, groceries, retired, unretired, retiredAgain, renamed]))(
     "keeps the latest retirement and the latest name in the order %j",

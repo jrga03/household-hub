@@ -4,7 +4,7 @@
  */
 
 import { afterEach, vi } from "vitest";
-import "fake-indexeddb/auto";
+import "./setup.node";
 import "@testing-library/jest-dom/vitest";
 
 // Mock matchMedia for PWA platform detection
