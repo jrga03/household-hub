@@ -70,6 +70,8 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
                 <Link
                   key={item.to}
                   to={item.to}
+                  // Takes the place of the open drawer's history entry, so Back goes to the page before.
+                  replace
                   onClick={() => onOpenChange(false)}
                   aria-label={item.reviewCount ? reviewLabel(item.label, reviewCount) : undefined}
                   className={cn(

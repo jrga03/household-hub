@@ -8,7 +8,8 @@ import { useAssistantStore } from "@/stores/assistantStore";
 import { useAuthStore } from "@/stores/authStore";
 
 export const Route = createFileRoute("/assistant")({
-  staticData: { title: "Assistant" },
+  // The composer is pinned to the bottom edge instead.
+  staticData: { title: "Assistant", bottomChrome: false },
   beforeLoad: () => {
     if (!ASSISTANT_URL) throw redirect({ to: "/" });
   },
@@ -25,7 +26,7 @@ function AssistantPage() {
   }, [userId, openChat]);
 
   return (
-    <PageShell variant="centered">
+    <PageShell variant="centered" className="pb-0">
       <PageShell.Main>
         {household && userId && <AssistantView actor={{ householdId: household.id, userId }} />}
       </PageShell.Main>

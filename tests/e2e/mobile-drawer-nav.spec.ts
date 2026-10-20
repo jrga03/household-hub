@@ -66,4 +66,22 @@ test.describe("Mobile drawer navigation", () => {
     await expect(page.getByRole("dialog")).toBeHidden();
     expect(new URL(page.url()).pathname).toBe(before);
   });
+
+  test("back from a drawer destination returns to the page before it in one step", async ({
+    page,
+  }) => {
+    await openDrawer(page);
+    await page.getByRole("dialog").getByRole("link", { name: "Budget" }).click();
+    await page.waitForURL("**/budget");
+    await openDrawer(page);
+    await page.getByRole("dialog").getByRole("link", { name: "Settings" }).click();
+    await page.waitForURL("**/settings");
+
+    // The drawer's history entry (iOS snapshots it with the drawer open) must not sit between the two pages.
+    await page.goBack();
+    await page.waitForURL("**/budget");
+    await page.goBack();
+    await page.waitForURL((url) => url.pathname === "/");
+    await expect(page.getByRole("dialog")).toBeHidden();
+  });
 });
