@@ -214,9 +214,8 @@ test.describe("on a phone", () => {
     await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Add transaction" })).toHaveCount(0);
     const inputBox = await input.boundingBox();
-    const viewport = page.viewportSize();
-    expect(inputBox && viewport && viewport.height - (inputBox.y + inputBox.height)).toBeLessThan(
-      32
-    );
+    const screenHeight = page.viewportSize()?.height;
+    if (!inputBox || !screenHeight) throw new Error("The input or the screen has no size");
+    expect(screenHeight - (inputBox.y + inputBox.height)).toBeLessThan(32);
   });
 });

@@ -83,10 +83,12 @@ export function AssistantView({ actor }: { actor: Actor }) {
   const online = useOnlineStatus();
   const [prompt, setPrompt] = useState({ text: "", composerKey: 0 });
   const { viewportHeight, inset } = useVisibleArea();
+  // Not `inset` itself: iOS changes it while the reader pans, and the scroll would pull them back down.
+  const keyboardCoversPage = inset > 0;
   useEffect(() => {
     // The newest message stays just above the pinned composer, also when the keyboard opens or a notice grows it.
     document.getElementById("main-content")?.scrollIntoView?.({ block: "end" });
-  }, [items, replyText, busy, viewportHeight, inset, online, limitResetsAt]);
+  }, [items, replyText, busy, viewportHeight, keyboardCoversPage, online, limitResetsAt]);
 
   return (
     // Fills the screen below the header (3.5rem, its border and the page's 2rem top padding), so the composer starts at the bottom edge.

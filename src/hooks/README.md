@@ -77,6 +77,7 @@ const { used, quota, percentUsed } = useStorageQuota();
 - **`use-mobile.ts`** - Detect mobile viewport (responsive design)
 - **`useMediaQuery.ts`** - Generic media query hook
 - **`useKeyboardShortcuts.ts`** - Register keyboard shortcuts
+- **`useVisibleArea.ts`** - The part of the page an on-screen keyboard leaves visible (iOS overlays it)
 
 ## Key Patterns
 
