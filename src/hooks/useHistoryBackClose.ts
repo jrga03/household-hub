@@ -42,10 +42,12 @@ import type { RegisteredRouter, RouterHistory } from "@tanstack/react-router";
  *
  * Edge cases intentionally NOT handled (kept simple on purpose — history
  * manipulation is risky):
- * - If the overlay itself navigates forward while open (e.g. the nav drawer's
- *   links), the sentinel is buried mid-stack and cannot be removed without
- *   user-visible URL churn. It is left behind: cost is one extra back press
- *   later that lands on an identical URL.
+ * - If the overlay itself pushes a navigation while open, the sentinel is
+ *   buried mid-stack and cannot be removed without user-visible URL churn.
+ *   It is left behind: cost is one extra back press later that lands on an
+ *   identical URL (and iOS's back-swipe preview shows the overlay open). The
+ *   nav drawer's links navigate with `replace` instead, which takes the
+ *   sentinel's place.
  * - If the overlay replaces the URL while open (the filter sheet's
  *   replace-based filter updates), closing it by other means keeps the
  *   replaced URL instead of rolling back the user's changes; the pre-change
