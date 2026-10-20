@@ -8,7 +8,22 @@ import { pathToFileURL } from "node:url";
 const ZERO_SHA = /^0+$/;
 
 export const CHECKS = [
-  { name: "lint", command: "npm", args: ["run", "lint", "--", "--max-warnings=0"] },
+  // The cache can keep a type-aware pass after an imported type changes; CI lints cold.
+  {
+    name: "lint",
+    command: "npm",
+    args: [
+      "run",
+      "lint",
+      "--",
+      "--max-warnings=0",
+      "--cache",
+      "--cache-strategy",
+      "content",
+      "--cache-location",
+      "node_modules/.cache/eslint/",
+    ],
+  },
   { name: "unit tests", command: "npx", args: ["vitest", "run", "--allowOnly=false", "--silent"] },
   { name: "tsc src", command: "npx", args: ["tsc", "--noEmit", "-p", "tsconfig.json"] },
   { name: "tsc tests", command: "npx", args: ["tsc", "--noEmit", "-p", "tsconfig.tests.json"] },

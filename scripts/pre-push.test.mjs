@@ -116,6 +116,12 @@ describe("CHECKS", () => {
     });
   });
 
+  it("lints with a content cache inside this checkout's node_modules", () => {
+    const lintArgs = CHECKS.find((check) => check.name === "lint")?.args.join(" ");
+    expect(lintArgs).toContain("--cache --cache-strategy content");
+    expect(lintArgs).toContain("--cache-location node_modules/.cache/eslint/");
+  });
+
   it("keeps config hints as errors in the knip script", () => {
     const packageJson = JSON.parse(
       readFileSync(path.resolve(import.meta.dirname, "../package.json"), "utf8")

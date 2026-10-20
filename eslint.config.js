@@ -30,6 +30,7 @@ const architecturePlugin = {
 const srcTestFiles = [
   "src/**/*.test.{ts,tsx}",
   "src/**/*.spec.ts",
+  "src/**/*.fixtures.ts",
   "src/**/__tests__/**",
   "src/test/**",
 ];
@@ -254,6 +255,7 @@ const primitiveBoundary = {
 export default [
   {
     ignores: [
+      ".claude/**",
       "dist/**",
       "dist-ssr/**",
       "coverage/**",
