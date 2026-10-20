@@ -42,10 +42,7 @@ const jsdomTests = [
   "**/*.test.tsx",
   "src/hooks/**/*.test.ts",
   "src/components/**/*.test.ts",
-  "src/lib/__tests__/households.test.ts",
-  "src/lib/sync/engine.test.ts",
-  "src/stores/__tests__/authStore.test.ts",
-  "src/stores/__tests__/navStore.test.ts",
+  "**/*.dom.test.ts",
 ];
 
 // https://vite.dev/config/
