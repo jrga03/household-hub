@@ -3,6 +3,7 @@ import { format, isToday, isTomorrow } from "date-fns";
 import { SendHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useVisibleArea } from "@/hooks/useVisibleArea";
 
 function resetTime(resetsAt: Date) {
   const time = format(resetsAt, "h:mm a");
@@ -27,6 +28,7 @@ export function ChatComposer({
   onSend: (text: string) => Promise<boolean>;
 }) {
   const [text, setText] = useState(initialText);
+  const { inset } = useVisibleArea();
   const blockedBecause = !online
     ? "The assistant needs a connection. Everything else works offline."
     : limitResetsAt
@@ -44,7 +46,12 @@ export function ChatComposer({
   };
 
   return (
-    <form onSubmit={submit} className="space-y-2">
+    // Pinned to the screen's bottom edge; the conversation scrolls behind it.
+    <form
+      onSubmit={submit}
+      className="sticky bottom-0 space-y-2 bg-background pt-2 pb-[max(1rem,var(--safe-area-bottom))]"
+      style={inset > 0 ? { paddingBottom: `calc(${inset}px + 0.5rem)` } : undefined}
+    >
       {blockedBecause && <p className="text-body text-muted-foreground">{blockedBecause}</p>}
       <div className="flex gap-2">
         <Input

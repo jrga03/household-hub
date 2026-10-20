@@ -45,6 +45,13 @@ import { AddTransactionButton, QuickEntryDialog } from "@/components/transaction
  * @see src/routes/__root.tsx - Integration point
  */
 
+declare module "@tanstack/react-router" {
+  interface StaticDataRouteOption {
+    /** `false` drops the phone's tab bar and Add button, and main's bottom inset for them. */
+    bottomChrome?: false;
+  }
+}
+
 // Routes that should not show navigation
 const NO_NAV_ROUTES = ["/login", "/signup", CREATE_OR_JOIN_PATH];
 
@@ -73,6 +80,7 @@ export function AppLayout() {
   // mount (login, signup) would loop against the household gate's redirect.
   const currentPath = (router.resolvedLocation ?? router.location).pathname;
   const isAuthRoute = NO_NAV_ROUTES.includes(currentPath);
+  const hasBottomChrome = router.matches.at(-1)?.staticData.bottomChrome !== false;
 
   // Auth pages and create-or-join render without navigation
   if (isAuthRoute) {
@@ -112,17 +120,22 @@ export function AppLayout() {
             tab bar and the FAB (4.5rem above it) on every route */}
           <main
             id="main-content"
-            className="flex-1 bg-background pb-[calc(3.5rem+var(--bottom-chrome))]"
+            className={cn(
+              "flex-1 bg-background",
+              hasBottomChrome && "pb-[calc(3.5rem+var(--bottom-chrome))]"
+            )}
           >
             <Outlet />
           </main>
 
           {/* Bottom tab bar: one-tap access to the primary destinations
             (review R42); a mode such as selecting puts its actions there instead */}
-          <PhoneBottomChrome>
-            <BottomTabBar />
-            <AddTransactionButton floating />
-          </PhoneBottomChrome>
+          {hasBottomChrome && (
+            <PhoneBottomChrome>
+              <BottomTabBar />
+              <AddTransactionButton floating />
+            </PhoneBottomChrome>
+          )}
           <QuickEntryDialog />
 
           {/* PWA Installation Prompt */}

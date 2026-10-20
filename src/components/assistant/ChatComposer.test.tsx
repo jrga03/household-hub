@@ -11,9 +11,26 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 describe("ChatComposer", () => {
+  it("lifts itself above a keyboard laid over the page (iOS)", () => {
+    const viewport = Object.assign(new EventTarget(), { height: 800, offsetTop: 0, scale: 1 });
+    vi.stubGlobal("innerHeight", 800);
+    vi.stubGlobal("visualViewport", viewport);
+    render(<ChatComposer online limitResetsAt={null} busy={false} onSend={vi.fn()} />);
+    const bar = input().closest("form");
+    expect(bar?.style.paddingBottom).toBe("");
+
+    act(() => {
+      viewport.height = 500;
+      viewport.dispatchEvent(new Event("resize"));
+    });
+
+    expect(bar?.style.paddingBottom).toBe("calc(300px + 0.5rem)");
+  });
+
   it("sends the typed message and clears the input", () => {
     const onSend = vi.fn(() => Promise.resolve(true));
     render(<ChatComposer online limitResetsAt={null} busy={false} onSend={onSend} />);

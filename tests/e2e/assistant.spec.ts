@@ -84,7 +84,7 @@ async function setUpHousehold(page: Page, householdName: string) {
   await expect(page.getByRole("list", { name: "Food categories" })).toContainText("Groceries");
 }
 
-test("a line typed to the assistant is recorded after Confirm", async ({ page }) => {
+test("a line typed to the assistant is recorded after Confirm", async ({ page, isMobile }) => {
   await setUpHousehold(page, "Assistant home");
 
   const requests = await stubAssistant(page);
@@ -110,6 +110,8 @@ test("a line typed to the assistant is recorded after Confirm", async ({ page })
     content: expect.stringContaining("Groceries") as unknown,
   });
 
+  // The assistant has no tab bar on phones; Back leaves it.
+  if (isMobile) await page.goBack();
   await navigateTo(page, "Transactions");
   const row = page
     .getByRole("list", { name: "Transactions" })
@@ -158,7 +160,10 @@ test("a message that fails to send goes back in the input and is sent once", asy
   ]);
 });
 
-test("a waiting proposal survives a reload and records once after Confirm", async ({ page }) => {
+test("a waiting proposal survives a reload and records once after Confirm", async ({
+  page,
+  isMobile,
+}) => {
   await setUpHousehold(page, "Assistant reload home");
   await stubAssistant(page);
   await navigateTo(page, "Assistant");
@@ -180,6 +185,8 @@ test("a waiting proposal survives a reload and records once after Confirm", asyn
   await expect(card).toContainText("Recorded");
   await expect(card.getByRole("button", { name: "Confirm" })).toHaveCount(0);
 
+  // The assistant has no tab bar on phones; Back leaves it.
+  if (isMobile) await page.goBack();
   await navigateTo(page, "Transactions");
   await expect(
     page
@@ -187,4 +194,29 @@ test("a waiting proposal survives a reload and records once after Confirm", asyn
       .getByRole("listitem")
       .filter({ hasText: "Jollibee" })
   ).toHaveCount(1);
+});
+
+test.describe("on a phone", () => {
+  test.skip(({ isMobile }) => !isMobile, "the tab bar and the floating Add button are phone-only");
+
+  test("the composer is pinned to the bottom edge, with no tab bar or Add button", async ({
+    page,
+  }) => {
+    await signUpNewPerson(page);
+    await page.getByLabel("Household name").fill("Assistant phone home");
+    await page.getByRole("button", { name: "Create household" }).click();
+    await expect(page.getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
+
+    await navigateTo(page, "Assistant");
+
+    const input = page.getByRole("textbox", { name: "Message the assistant" });
+    await expect(input).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Add transaction" })).toHaveCount(0);
+    const inputBox = await input.boundingBox();
+    const viewport = page.viewportSize();
+    expect(inputBox && viewport && viewport.height - (inputBox.y + inputBox.height)).toBeLessThan(
+      32
+    );
+  });
 });

@@ -12,12 +12,14 @@ import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { AppLayout } from "./AppLayout";
 
-const { mockIsMobile, mockIsTablet, mockPathname, mockResolvedPathname } = vi.hoisted(() => ({
-  mockIsMobile: vi.fn((): boolean => false),
-  mockIsTablet: vi.fn((): boolean => false),
-  mockPathname: vi.fn((): string => "/"),
-  mockResolvedPathname: vi.fn((): string | undefined => undefined),
-}));
+const { mockIsMobile, mockIsTablet, mockPathname, mockResolvedPathname, mockStaticData } =
+  vi.hoisted(() => ({
+    mockIsMobile: vi.fn((): boolean => false),
+    mockIsTablet: vi.fn((): boolean => false),
+    mockPathname: vi.fn((): string => "/"),
+    mockResolvedPathname: vi.fn((): string | undefined => undefined),
+    mockStaticData: vi.fn((): { bottomChrome?: false } => ({})),
+  }));
 
 vi.mock("@/hooks/useMediaQuery", () => ({
   useIsMobile: () => mockIsMobile(),
@@ -31,6 +33,7 @@ vi.mock("@tanstack/react-router", () => ({
     return {
       location: { pathname: mockPathname() },
       resolvedLocation: resolvedPathname === undefined ? undefined : { pathname: resolvedPathname },
+      matches: [{ staticData: mockStaticData() }],
     };
   },
 }));
@@ -53,7 +56,7 @@ vi.mock("./MobileNav", () => ({
 }));
 // Reads the route's staticData and the household; covered in PageHeader.test.tsx
 vi.mock("./PageHeader", () => ({
-  PageHeader: () => <header />,
+  PageHeader: ({ children }: { children?: ReactNode }) => <header>{children}</header>,
 }));
 // The real BottomTabBar needs a RouterProvider (Link active matching); its
 // own semantics are covered in BottomTabBar.test.tsx
@@ -70,7 +73,7 @@ vi.mock("@/components/PWAInstallPrompt", () => ({
   PWAInstallPrompt: () => null,
 }));
 vi.mock("@/components/transactions/QuickEntry", () => ({
-  AddTransactionButton: () => null,
+  AddTransactionButton: () => <button type="button">Add transaction</button>,
   QuickEntryDialog: () => null,
 }));
 vi.mock("@/hooks/useKeyboardShortcuts", () => ({
@@ -83,6 +86,7 @@ describe("AppLayout bottom tab bar placement (review R42)", () => {
     mockIsTablet.mockReturnValue(false);
     mockPathname.mockReturnValue("/");
     mockResolvedPathname.mockReturnValue(undefined);
+    mockStaticData.mockReturnValue({});
   });
 
   it("renders the bottom tab bar in the mobile branch", () => {
@@ -127,5 +131,36 @@ describe("AppLayout bottom tab bar placement (review R42)", () => {
     render(<AppLayout />);
 
     expect(screen.queryByTestId("mobile-nav")).not.toBeInTheDocument();
+  });
+
+  it("leaves out the tab bar and the Add button on a phone when the route turns bottom chrome off", () => {
+    mockIsMobile.mockReturnValue(true);
+    mockStaticData.mockReturnValue({ bottomChrome: false });
+
+    render(<AppLayout />);
+
+    expect(screen.getByTestId("mobile-nav")).toBeInTheDocument();
+    expect(screen.queryByTestId("bottom-tab-bar")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add transaction" })).not.toBeInTheDocument();
+    expect(screen.getByRole("main")).not.toHaveClass("pb-[calc(3.5rem+var(--bottom-chrome))]");
+  });
+
+  it("keeps the tab bar, the Add button and the bottom inset on other phone routes", () => {
+    mockIsMobile.mockReturnValue(true);
+
+    render(<AppLayout />);
+
+    expect(screen.getByTestId("bottom-tab-bar")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add transaction" })).toBeInTheDocument();
+    expect(screen.getByRole("main")).toHaveClass("pb-[calc(3.5rem+var(--bottom-chrome))]");
+  });
+
+  it("keeps the header Add button on a tablet when the route turns bottom chrome off", () => {
+    mockIsTablet.mockReturnValue(true);
+    mockStaticData.mockReturnValue({ bottomChrome: false });
+
+    render(<AppLayout />);
+
+    expect(screen.getByRole("button", { name: "Add transaction" })).toBeInTheDocument();
   });
 });
