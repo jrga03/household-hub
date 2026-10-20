@@ -37,6 +37,17 @@ function allowAssistantOrigin(): Plugin {
   };
 }
 
+// Tests that need a DOM. Everything else runs in the faster node environment.
+const jsdomTests = [
+  "**/*.test.tsx",
+  "src/hooks/**/*.test.ts",
+  "src/components/**/*.test.ts",
+  "src/lib/__tests__/households.test.ts",
+  "src/lib/sync/engine.test.ts",
+  "src/stores/__tests__/authStore.test.ts",
+  "src/stores/__tests__/navStore.test.ts",
+];
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -154,14 +165,12 @@ export default defineConfig({
     },
   },
   test: {
-    environment: "jsdom",
     env: {
       VITE_SUPABASE_URL: "https://test.supabase.co",
       VITE_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test-anon-key",
     },
     globals: true,
     testTimeout: 15000, // IndexedDB integration tests need more than the 5s default
-    setupFiles: "./src/test/setup.ts",
     exclude: [
       "**/node_modules/**",
       "**/dist/**",
@@ -169,6 +178,27 @@ export default defineConfig({
       "**/.{idea,git,cache,output,temp}/**",
       "**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*",
       "**/tests/e2e/**", // Exclude Playwright E2E tests
+      ".claude/**", // Other worktrees' checkouts
+    ],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "node",
+          environment: "node",
+          setupFiles: "./src/test/setup.node.ts",
+          exclude: jsdomTests,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "jsdom",
+          environment: "jsdom",
+          setupFiles: "./src/test/setup.ts",
+          include: jsdomTests,
+        },
+      },
     ],
   },
 });

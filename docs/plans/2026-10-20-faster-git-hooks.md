@@ -1,6 +1,6 @@
 # Faster git hooks
 
-Status: planned 2026-10-20. Issue: #198. Build in its own worktree session, one PR.
+Status: built 2026-10-20 on `perf/198-faster-pre-push`. Issue: #198. Build in its own worktree session, one PR.
 
 ## Context
 
@@ -22,16 +22,31 @@ Measured 2026-10-20 on `main` (`5fcb99c`, 12 cores, worktrees `prototype-194` an
 - **Split the permutation files by case, keeping every order.** Each case becomes a sibling file (`money.cards.test.ts`, `money.allocations.test.ts`, `money.transfers.test.ts`, …) with shared setup in a sibling fixtures module; the same for `categories/projection.test.ts`. Why: workers run files in parallel, and "same rows for every permutation" stays proven on every push. Rejected: sampling orders locally. Revisit: never.
 - **Pre-push ESLint uses `--cache --cache-strategy content --cache-location node_modules/.cache/eslint/`.** Type-aware results can go stale when an imported file changes type; CI lints cold and stays the gate. Worktrees are safe: each checkout has its own `node_modules` (or gets its own `node_modules/.cache` from the relative path), entries key on absolute paths, and the cache clears on config or ESLint version change. Revisit: if a stale cached pass reaches CI more than once.
 - **`node` is the default test environment; jsdom by glob.** Vitest `projects`: jsdom for `**/*.test.tsx`, `src/hooks/**` and `src/components/**`; everything else `node`. A `.ts` test that fails under `node` gets an explicit entry in the jsdom globs. Rejected: per-file `@vitest-environment` comments. Revisit: never.
+- **Four `.ts` tests run in jsdom by name**: `lib/__tests__/households`, `lib/sync/engine`, `stores/__tests__/authStore`, `stores/__tests__/navStore` need `window` or `localStorage`. Why: the plan's fallback for `.ts` tests that fail under `node`. Revisit: if they stop touching the DOM.
+- **Fixtures live beside their tests as `*.fixtures.ts`** and lint as test files (`srcTestFiles`). Why: test-only helpers must not get production lint rules. Revisit: never.
 - **Leave `architecture-lint.test.ts` (10 s) as it is.** Why: under budget after the splits. Revisit: if the warm pre-push is over 30 s.
 - **Keep run-all, report-all.** Pre-push does not stop the other checks at the first failure. Why: one push shows every failure. Revisit: never.
 - **Acceptance: a quoted `node scripts/pre-push.mjs` run** in the PR, with before (96 s total, Vitest 91 s, lint 23 s) and after timings per check. Revisit: never.
 
 ## Tasks
 
-- [ ] Add `.claude/**` to the ESLint global ignores and Vitest `exclude`; confirm `npx eslint .` and `npx vitest run` in `main` no longer list worktree paths.
-- [ ] Add the ESLint cache flags to the `lint` check in `scripts/pre-push.mjs` only (`npm run lint` and CI stay cold).
-- [ ] Move Vitest to `projects` (`node` default, jsdom globs); move any `.ts` test that fails under `node` into the jsdom globs.
-- [ ] Split `src/lib/transactions/money.test.ts` by its 4 cases with a fixtures module; the test count stays 2885.
-- [ ] Split `src/lib/categories/projection.test.ts` by its 4 cases; the test count stays 1686.
-- [ ] Update the CLAUDE.md "Git hooks" section: per-checkout ESLint cache, `.claude/**` ignored by lint and tests, two Vitest projects.
-- [ ] Run `node scripts/pre-push.mjs` twice (cold, then warm) with worktrees present; quote both in the PR. Warm must be 30 s or less.
+- [x] Add `.claude/**` to the ESLint global ignores and Vitest `exclude`; confirm `npx eslint .` and `npx vitest run` in `main` no longer list worktree paths.
+- [x] Add the ESLint cache flags to the `lint` check in `scripts/pre-push.mjs` only (`npm run lint` and CI stay cold).
+- [x] Move Vitest to `projects` (`node` default, jsdom globs); move any `.ts` test that fails under `node` into the jsdom globs.
+- [x] Split `src/lib/transactions/money.test.ts` by its 4 cases with a fixtures module; the test count stays 2885.
+- [x] Split `src/lib/categories/projection.test.ts` by its 4 cases; the test count stays 1686.
+- [x] Update the CLAUDE.md "Git hooks" section: per-checkout ESLint cache, `.claude/**` ignored by lint and tests, two Vitest projects.
+- [x] Run `node scripts/pre-push.mjs` twice (cold, then warm) with worktrees present; quote both in the PR. Warm must be 30 s or less.
+
+## Result
+
+Measured 2026-10-20 in the `perf-198` worktree, with a fake `.claude/worktrees/leak-check` holding a failing test and a lint error.
+
+| Check      | Before (`main`)            | Cold       | Warm   |
+| ---------- | -------------------------- | ---------- | ------ |
+| lint       | 23 s (66 s with worktrees) | 17.8 s     | 1.9 s  |
+| unit tests | 91 s (96 s with worktrees) | 21.2 s     | 18.5 s |
+| tsc src    | 1.5 s                      | 1.0 s      | 1.0 s  |
+| tsc tests  | 0.3 s                      | 0.4 s      | 0.4 s  |
+| knip       | 1.9 s                      | 3.2 s      | 1.6 s  |
+| total wall | 96 s, failing              | about 21 s | 18.5 s |
