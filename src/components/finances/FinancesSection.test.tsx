@@ -94,7 +94,7 @@ describe("FinancesSection", () => {
     renderHome();
 
     const balances = await screen.findByRole("list", { name: "Balances" });
-    expect(await within(balances).findByText("-₱1,000.00")).toHaveClass("text-shortfall");
+    expect(await within(balances).findByText("−₱1,000.00")).toHaveClass("text-shortfall");
     const owed = within(balances).getByText("₱2,000.00", { exact: false });
     expect(owed).toHaveTextContent(/^Owed ₱2,000\.00$/);
     expect(owed).not.toHaveClass("text-shortfall");

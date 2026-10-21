@@ -6,7 +6,7 @@ import { MoneyAmount, shortfallClass } from "./MoneyAmount";
 describe("MoneyAmount", () => {
   it("marks a negative amount as short", () => {
     render(<MoneyAmount cents={asCents(-150)} />);
-    expect(screen.getByText("-₱1.50")).toHaveClass("text-shortfall");
+    expect(screen.getByText("−₱1.50")).toHaveClass("text-shortfall");
   });
 
   it("leaves a positive amount uncolored", () => {
