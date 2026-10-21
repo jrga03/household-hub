@@ -91,6 +91,8 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#209 `AccountsCard` keeps `formatPHP` + `shortfallClass`** (no spoken sign) instead of `Money`. Why: the transfer and card-payment e2e assert its exact balance text. `shortfallClass` stays exported from `app/Money.tsx` until then. Revisit: the Accounts migration (#228), which makes it private.
 - **#209 Knip treats `src/components/app/**` as entry**, so unused layer-2 exports are not flagged. Why: pages adopt the components ticket by ticket. Revisit: when the page migration ends (#233).
 - **#209 `CategoryLedger` shows an account-only move with `kind="transfer"`** (muted, unsigned) on purpose. Why: it moves money between accounts without changing the category's money, so its change is zero. Revisit: never.
+- **#218 The `list-detail` shell hides `Detail` below 840px itself** and lays out two columns only while a `Detail` is rendered (`:has`). Why: #219's `DetailPane` can render the slot only while an item is open. Meanwhile Transactions, Budget and Import show today's placeholder pane from 840px instead of 1100px, so `transactions.spec.ts` finds the editor in the pane or the dialog. Revisit: #219.
+- **#218 Settings drops its own `max-w-2xl`** and takes the `single` column (`max-w-3xl`), section links on top. Why: one centered width for simple pages. Revisit: the Settings migration (list-detail).
 
 ### Rollout checklist
 

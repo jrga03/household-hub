@@ -14,7 +14,7 @@ function ImportPage() {
   const userId = useAuthStore((state) => state.user?.id);
 
   return (
-    <PageShell variant="rail">
+    <PageShell variant="list-detail">
       {household && userId && <ImportView actor={{ householdId: household.id, userId }} />}
     </PageShell>
   );

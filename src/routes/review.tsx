@@ -9,7 +9,7 @@ export const Route = createFileRoute("/review")({
 
 function ReviewPage() {
   return (
-    <PageShell variant="centered">
+    <PageShell>
       <PageShell.Main>
         <ReviewView />
       </PageShell.Main>

@@ -23,9 +23,6 @@
 }
 
 @theme {
-  /* Custom container breakpoints for PageShell layout system. */
-  --container-mid: 1100px;
-  --container-wide: 1500px;
   --transition-duration-quick: 150ms;
   --transition-duration-move: 250ms;
   --ease-out: cubic-bezier(0.2, 0, 0, 1);

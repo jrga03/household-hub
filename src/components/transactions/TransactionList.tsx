@@ -86,11 +86,11 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
 
   if (rows.length === 0) {
     return (
-      <PageShell.Main className="@[1100px]:col-span-full">
+      <PageShell.List>
         <p className="text-body text-muted-foreground">
           No transactions yet. Add one with the Add transaction button or by pressing n.
         </p>
-      </PageShell.Main>
+      </PageShell.List>
     );
   }
 
@@ -156,7 +156,7 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
         )}
       </HeaderActions>
 
-      <PageShell.Main className="space-y-4">
+      <PageShell.List className="space-y-4">
         {/* Phones show the rows first; the filters wait behind a button. */}
         <Button
           variant="outline"
@@ -217,9 +217,9 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
             />
           </ContextMode>
         )}
-      </PageShell.Main>
+      </PageShell.List>
 
-      <PageShell.RightAside ref={setPane} className="hidden @[1100px]:block">
+      <PageShell.Detail ref={setPane}>
         <div
           className={cn(
             "@container sticky overflow-y-auto rounded-md border p-4",
@@ -268,7 +268,7 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
             </p>
           )}
         </div>
-      </PageShell.RightAside>
+      </PageShell.Detail>
 
       {openRow &&
         !paneShown &&

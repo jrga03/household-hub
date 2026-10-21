@@ -13,14 +13,7 @@ interface SettingsNavProps {
 
 export function SettingsNav({ activeId }: SettingsNavProps) {
   return (
-    <nav
-      aria-label="Settings sections"
-      className="
-        flex flex-wrap gap-2 pb-2
-        @[900px]:sticky @[900px]:top-4 @[900px]:self-start
-        @[900px]:flex-col @[900px]:flex-nowrap @[900px]:pb-0
-      "
-    >
+    <nav aria-label="Settings sections" className="flex flex-wrap gap-2 pb-2">
       {SECTIONS.map(({ id, label, icon: Icon }) => (
         <a
           key={id}

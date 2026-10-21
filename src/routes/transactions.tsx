@@ -33,7 +33,7 @@ function TransactionsPage() {
       )}
 
       {/* The list fills the main column and the detail pane beside it. */}
-      <PageShell variant="rail">
+      <PageShell variant="list-detail">
         {household && userId && (
           <TransactionList
             actor={{ householdId: household.id, userId }}
