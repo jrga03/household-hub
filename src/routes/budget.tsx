@@ -49,7 +49,7 @@ function BudgetPage() {
       <HeaderActions>
         <MonthPicker month={month} onChange={setMonth} />
         {/* On phones the header has no room for it beside the title; it sits in the body */}
-        <EditPlanLink search={planSearch} className="hidden sm:inline-flex" />
+        <EditPlanLink search={planSearch} className="hidden medium:inline-flex" />
       </HeaderActions>
 
       <PageShell variant="list-detail">
@@ -57,11 +57,11 @@ function BudgetPage() {
         <div
           className={cn(
             "col-span-full flex items-center gap-2",
-            month === currentMonth && "sm:hidden"
+            month === currentMonth && "medium:hidden"
           )}
         >
           <BackToThisMonth month={month} currentMonth={currentMonth} onChange={setMonth} />
-          <EditPlanLink search={planSearch} className="ml-auto sm:hidden" />
+          <EditPlanLink search={planSearch} className="ml-auto medium:hidden" />
         </div>
         {household && userId && (
           <BudgetView

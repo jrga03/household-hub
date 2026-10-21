@@ -3,7 +3,7 @@ import { defaultRangeExtractor, useWindowVirtualizer, type Range } from "@tansta
 import { SlidersHorizontal } from "lucide-react";
 import { ContextMode } from "@/components/layout/ContextMode";
 import { HeaderActions } from "@/components/layout/HeaderActions";
-import { DetailPane, useOpenItem } from "@/components/layout/DetailPane";
+import { DetailPane, resolveOpenItem, useOpenItem } from "@/components/layout/DetailPane";
 import { PageShell } from "@/components/layout/PageShell";
 import { BELOW_HEADER } from "@/components/layout/pane";
 import { Button } from "@/components/ui/button";
@@ -76,18 +76,42 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
     [shown, selectedIds]
   );
   const months = useMemo(() => monthsOf(rows ?? []), [rows]);
-  const openRow =
-    openId === null ? undefined : rows && (rows.find((row) => row.id === openId) ?? null);
+  const openRow = resolveOpenItem(openId, rows && ((id) => rows.find((row) => row.id === id)));
 
   if (!rows) return null;
 
+  const paneTitle = !openRow
+    ? "Edit transaction"
+    : isCorrection(openRow)
+      ? CORRECTION_LABEL
+      : isTransfer(openRow)
+        ? "Edit transfer"
+        : "Edit transaction";
+  const detailPane = (
+    <DetailPane title={paneTitle} description={SAVED_LOCALLY} item={openRow}>
+      {(row) =>
+        // Keyed, so the form's defaults follow the row picked.
+        isCorrection(row) ? (
+          <CorrectionDetails key={row.id} actor={actor} correction={row} onClose={close} />
+        ) : isTransfer(row) ? (
+          <TransferEditor key={row.id} actor={actor} transfer={row} onClose={close} />
+        ) : (
+          <TransactionEditor key={row.id} actor={actor} transaction={row} onClose={close} />
+        )
+      }
+    </DetailPane>
+  );
+
   if (rows.length === 0) {
     return (
-      <PageShell.List>
-        <p className="text-body text-muted-foreground">
-          No transactions yet. Add one with the Add transaction button or by pressing n.
-        </p>
-      </PageShell.List>
+      <>
+        <PageShell.List>
+          <p className="text-body text-muted-foreground">
+            No transactions yet. Add one with the Add transaction button or by pressing n.
+          </p>
+        </PageShell.List>
+        {detailPane}
+      </>
     );
   }
 
@@ -97,14 +121,6 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
     categories: categories ? categoryNames(categories) : new Map<string, string>(),
     accounts: new Map(allAccounts.map((account) => [account.id, account.name])),
   };
-  const paneTitle = !openRow
-    ? "Edit transaction"
-    : isCorrection(openRow)
-      ? CORRECTION_LABEL
-      : isTransfer(openRow)
-        ? "Edit transfer"
-        : "Edit transaction";
-
   const startSelecting = (firstId?: string) => {
     setSelecting(true);
     close();
@@ -216,18 +232,7 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
         )}
       </PageShell.List>
 
-      <DetailPane title={paneTitle} description={SAVED_LOCALLY} item={openRow}>
-        {(row) =>
-          // Keyed, so the form's defaults follow the row picked.
-          isCorrection(row) ? (
-            <CorrectionDetails key={row.id} actor={actor} correction={row} onClose={close} />
-          ) : isTransfer(row) ? (
-            <TransferEditor key={row.id} actor={actor} transfer={row} onClose={close} />
-          ) : (
-            <TransactionEditor key={row.id} actor={actor} transaction={row} onClose={close} />
-          )
-        }
-      </DetailPane>
+      {detailPane}
     </>
   );
 }

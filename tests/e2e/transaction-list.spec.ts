@@ -414,4 +414,19 @@ test.describe("the open transaction", () => {
     await expect(pane.getByLabel("Description", { exact: true })).toHaveValue("Item 1");
     await expect(sheet).toHaveCount(0);
   });
+
+  test("opened in the pane, then narrowed to a sheet, back closes the sheet", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    const list = await listOf(page, 2);
+    await rowOf(list, 1).click();
+    await expect(page).toHaveURL(/open=/);
+
+    await page.setViewportSize({ width: 700, height: 900 });
+    const sheet = page.getByRole("dialog", { name: "Edit transaction" });
+    await expect(sheet.getByLabel("Description", { exact: true })).toHaveValue("Item 1");
+
+    await page.goBack();
+    await expect(sheet).toHaveCount(0);
+    await expect(page).toHaveURL(/\/transactions$/);
+  });
 });

@@ -32,7 +32,7 @@
   --default-transition-timing-function: var(--ease-out);
 }
 
-/* Window size classes for global chrome (#216): medium:, expanded: and large:
+/* Window size classes for global chrome: medium:, expanded: and large:
    mirror useWindowClass (src/hooks/useMediaQuery.ts). Inside rails, sheets and
    panes, use container queries instead. */
 @theme {

@@ -23,7 +23,7 @@ import { AddTransactionButton, QuickEntryDialog } from "@/components/transaction
  * Every branch with navigation shares PageHeader: the route's title, a back
  * arrow on pushed screens, the route's actions and the sync status.
  *
- * Navigation follows the window size class (useWindowClass, #216):
+ * Navigation follows the window size class (useWindowClass):
  * - Compact: menu button + drawer, bottom tab bar, floating Add transaction
  * - Medium: collapsed rail; the menu button opens it expanded as a modal
  * - Expanded: rail collapsed by default
@@ -31,7 +31,7 @@ import { AddTransactionButton, QuickEntryDialog } from "@/components/transaction
  * From medium up, Add transaction sits in the header. The remembered rail
  * toggle (sidebar cookie) wins over the class default.
  *
- * Bottom-edge geometry (review R42): everything pinned to the bottom edge
+ * Bottom-edge geometry: everything pinned to the bottom edge
  * derives from the shared `--bottom-chrome` custom property (index.css),
  * which equals the BottomTabBar footprint at compact widths and just the
  * safe area elsewhere. The tab bar and the rail never show together.

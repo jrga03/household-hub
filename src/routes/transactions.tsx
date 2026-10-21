@@ -44,7 +44,6 @@ function TransactionsPage() {
         </HeaderActions>
       )}
 
-      {/* The list fills the main column and the detail pane beside it. */}
       <PageShell variant="list-detail">
         {household && userId && (
           <TransactionList

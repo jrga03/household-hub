@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ReactNode, type Ref } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { TWO_PANES_FROM, TwoPanesContext } from "./pane";
 
@@ -13,10 +13,6 @@ interface PageShellProps {
 interface SlotProps {
   className?: string;
   children: ReactNode;
-}
-
-interface DetailProps extends SlotProps {
-  ref?: Ref<HTMLElement>;
 }
 
 function Main({ className, children }: SlotProps) {
@@ -43,9 +39,9 @@ function List({ className, children }: SlotProps) {
   );
 }
 
-function Detail({ className, children, ref }: DetailProps) {
+function Detail({ className, children }: SlotProps) {
   return (
-    <aside ref={ref} data-slot="detail" className={cn("hidden min-w-0 @[840px]:block", className)}>
+    <aside data-slot="detail" className={cn("hidden min-w-0 @[840px]:block", className)}>
       {children}
     </aside>
   );

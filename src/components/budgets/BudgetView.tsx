@@ -6,7 +6,7 @@ import { MoveMoneyDialog } from "@/components/allocations/MoveMoneyDialog";
 import { CategoryLedger } from "@/components/categories/CategoryLedger";
 import { CorrectionDialog } from "@/components/corrections/CorrectionDialog";
 import { RecordName } from "@/components/categories/RecordName";
-import { DetailPane, useOpenItem } from "@/components/layout/DetailPane";
+import { DetailPane, resolveOpenItem, useOpenItem } from "@/components/layout/DetailPane";
 import { PageShell } from "@/components/layout/PageShell";
 import { TransactionDialog } from "@/components/transactions/TransactionDialog";
 import { TransferDialog } from "@/components/transactions/TransferDialog";
@@ -59,7 +59,10 @@ export function BudgetView({
 
   if (!list || !accountNames || !monthView) return null;
   const namesOfCategories = categoryNames(list);
-  const ledgerName = ledgerId === null ? undefined : (namesOfCategories.get(ledgerId) ?? null);
+  const ledger = resolveOpenItem(ledgerId, (id) => {
+    const name = namesOfCategories.get(id);
+    return name === undefined ? undefined : { id, name };
+  });
 
   const rows = budgetRows(list, monthView);
   const empty = rows.groups.length === 0 && rows.ungrouped.length === 0;
@@ -102,20 +105,18 @@ export function BudgetView({
         )}
       </PageShell.List>
 
-      <DetailPane title={ledgerName} description={monthLabel(month)} item={ledgerName}>
-        {(categoryName) =>
-          ledgerId !== null && (
-            <CategoryLedger
-              key={ledgerId}
-              categoryId={ledgerId}
-              categoryName={categoryName}
-              month={month}
-              isCurrentMonth={month === currentMonth}
-              names={{ accounts: accountNames, categories: namesOfCategories }}
-              onOpen={({ kind, record }) => setOpenedId({ kind, id: record.id })}
-            />
-          )
-        }
+      <DetailPane title={ledger?.name} description={monthLabel(month)} item={ledger}>
+        {({ id, name }) => (
+          <CategoryLedger
+            key={id}
+            categoryId={id}
+            categoryName={name}
+            month={month}
+            isCurrentMonth={month === currentMonth}
+            names={{ accounts: accountNames, categories: namesOfCategories }}
+            onOpen={({ kind, record }) => setOpenedId({ kind, id: record.id })}
+          />
+        )}
       </DetailPane>
 
       {opened?.kind === "transaction" && (

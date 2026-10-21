@@ -10,7 +10,7 @@ import {
 } from "@tanstack/react-router";
 import { useSyncExternalStore } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { DetailPane, readOpenItem, useOpenItem } from "./DetailPane";
+import { DetailPane, readOpenItem, resolveOpenItem, useOpenItem } from "./DetailPane";
 import { PageShell } from "./PageShell";
 
 interface Thing {
@@ -71,8 +71,7 @@ function ThingsPage({ things }: { things: Thing[] }) {
 
 function ThingsList({ things }: { things: Thing[] }) {
   const { openId, open } = useOpenItem();
-  const opened =
-    openId === null ? undefined : (things.find((thing) => thing.id === openId) ?? null);
+  const opened = resolveOpenItem(openId, (id) => things.find((thing) => thing.id === id));
   return (
     <>
       <PageShell.List>
@@ -285,5 +284,45 @@ describe("DetailPane", () => {
     await back(history);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(history.location.pathname).toBe("/things");
+  });
+
+  it("closes on back an item opened at two panes once it shows in a sheet", async () => {
+    shellWidth = 1024;
+    const { history } = renderThings("/things");
+    fireEvent.click(await screen.findByRole("button", { name: "Bakery" }));
+    await screen.findByRole("complementary");
+
+    resizeShell(700);
+    await screen.findByRole("dialog", { name: "Bakery" });
+    await act(() => Promise.resolve());
+
+    await back(history);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(history.location.pathname).toBe("/things");
+    expect(search(history)).toBe("");
+
+    await back(history);
+    expect(history.location.pathname).toBe("/");
+  });
+
+  it("closes a sheet brought back by forward", async () => {
+    const { history } = renderThings("/things");
+    fireEvent.click(await screen.findByRole("button", { name: "Bakery" }));
+    const firstSheet = await screen.findByRole("dialog", { name: "Bakery" });
+    fireEvent.click(within(firstSheet).getAllByRole("button", { name: "Close" })[0]!);
+    await act(() => Promise.resolve());
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await act(async () => {
+      history.forward();
+      await Promise.resolve();
+    });
+    const sheet = await screen.findByRole("dialog", { name: "Bakery" });
+
+    fireEvent.click(within(sheet).getAllByRole("button", { name: "Close" })[0]!);
+    await act(() => Promise.resolve());
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(search(history)).toBe("");
   });
 });

@@ -34,7 +34,7 @@ type SidebarContextProps = {
   setOpen: (open: boolean) => void;
   openMobile: boolean;
   setOpenMobile: (open: boolean) => void;
-  isMobile: boolean;
+  isCompact: boolean;
   /** Medium windows: the rail stays collapsed and the toggle opens it expanded in a modal sheet. */
   isModalRail: boolean;
   toggleSidebar: () => void;
@@ -51,11 +51,7 @@ function readSidebarCookie(): boolean | undefined {
 }
 
 function useSidebar() {
-  // React 19: use() hook for reading context
-  // Automatically throws with clear error message if context is not available
   const context = use(SidebarContext);
-
-  // Additional validation since context can be null
   if (!context) {
     throw new Error("useSidebar must be used within a SidebarProvider.");
   }
@@ -77,7 +73,7 @@ function SidebarProvider({
   onOpenChange?: (open: boolean) => void;
 }) {
   const windowClass = useWindowClass();
-  const isMobile = windowClass === "compact";
+  const isCompact = windowClass === "compact";
   const isModalRail = windowClass === "medium";
 
   // Tied to the class it opened in, so the sheet does not reopen after a resize away and back.
@@ -112,8 +108,8 @@ function SidebarProvider({
 
   // Helper to toggle the sidebar.
   const toggleSidebar = React.useCallback(() => {
-    return isMobile || isModalRail ? setOpenMobile((open) => !open) : setOpen((open) => !open);
-  }, [isMobile, isModalRail, setOpen, setOpenMobile]);
+    return isCompact || isModalRail ? setOpenMobile((open) => !open) : setOpen((open) => !open);
+  }, [isCompact, isModalRail, setOpen, setOpenMobile]);
 
   // Adds a keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
@@ -137,13 +133,13 @@ function SidebarProvider({
       state,
       open,
       setOpen,
-      isMobile,
+      isCompact,
       isModalRail,
       openMobile,
       setOpenMobile,
       toggleSidebar,
     }),
-    [state, open, setOpen, isMobile, isModalRail, openMobile, setOpenMobile, toggleSidebar]
+    [state, open, setOpen, isCompact, isModalRail, openMobile, setOpenMobile, toggleSidebar]
   );
 
   return (
@@ -184,7 +180,7 @@ function Sidebar({
   collapsible?: "offcanvas" | "icon" | "none";
 }) {
   const context = useSidebar();
-  const { isMobile, isModalRail, state, openMobile, setOpenMobile } = context;
+  const { isCompact, isModalRail, state, openMobile, setOpenMobile } = context;
 
   if (collapsible === "none") {
     return (
@@ -201,7 +197,7 @@ function Sidebar({
     );
   }
 
-  const renderSheet = (sheetProps: React.ComponentProps<"div">) => (
+  const renderModalSidebar = (sheetProps: React.ComponentProps<"div">) => (
     <Sheet open={openMobile} onOpenChange={setOpenMobile} {...sheetProps}>
       <SheetContent
         data-sidebar="sidebar"
@@ -226,7 +222,7 @@ function Sidebar({
     </Sheet>
   );
 
-  if (isMobile) return renderSheet(props);
+  if (isCompact) return renderModalSidebar(props);
 
   const rail = (
     <div
@@ -281,7 +277,7 @@ function Sidebar({
     <>
       {rail}
       <SidebarContext.Provider value={{ ...context, open: true, state: "expanded" }}>
-        {renderSheet({})}
+        {renderModalSidebar({})}
       </SidebarContext.Provider>
     </>
   );
@@ -531,7 +527,7 @@ function SidebarMenuButton({
   tooltip?: string | React.ComponentProps<typeof TooltipContent>;
 } & VariantProps<typeof sidebarMenuButtonVariants>) {
   const Comp = asChild ? Slot : "button";
-  const { isMobile, state } = useSidebar();
+  const { isCompact, state } = useSidebar();
 
   const button = (
     <Comp
@@ -560,7 +556,7 @@ function SidebarMenuButton({
       <TooltipContent
         side="right"
         align="center"
-        hidden={state !== "collapsed" || isMobile}
+        hidden={state !== "collapsed" || isCompact}
         {...tooltip}
       />
     </Tooltip>

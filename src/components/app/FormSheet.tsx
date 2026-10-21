@@ -14,7 +14,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { COMPACT_QUERY, useWindowClass } from "@/hooks/useMediaQuery";
+import { COMPACT_QUERY, useIsCompact } from "@/hooks/useMediaQuery";
 import { useVisibleArea } from "@/hooks/useVisibleArea";
 import { cn } from "@/lib/utils";
 
@@ -31,8 +31,7 @@ interface FormSheetProps {
  * dismiss. Put the form's buttons in a `FormFooter` after its last field.
  */
 export function FormSheet(props: FormSheetProps) {
-  const isPhone = useWindowClass() === "compact";
-  return isPhone ? <PhoneSheet {...props} /> : <WideDialog {...props} />;
+  return useIsCompact() ? <PhoneSheet {...props} /> : <WideDialog {...props} />;
 }
 
 const closeOn = (onClose: () => void) => (open: boolean) => !open && onClose();
