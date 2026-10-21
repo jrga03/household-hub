@@ -120,6 +120,15 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#224 Status is a `SegmentedControl` with an `aria-hidden` visible "Status" label**, since `SegmentedControl` names itself by `aria-label` only. Why: matches the direction control. Revisit: if `SegmentedControl` takes `aria-labelledby`.
 - **#224 `DirectionChoice` is now a `SegmentedControl`**, so Import's `DraftDetail` (#230) shows it too. Why: it is the shared entry control. Revisit: #230, if the draft needs a different look.
 - **#224 no "Saved on this device" line in the entry sheets.** Why: the user dropped it 2026-10-14 (ui-overhaul decisions); this closes the #216 and #223 items. Revisit: never.
+- **#225 `budgetStatus` counts a budget spent exactly as fine, not close** (`src/lib/budgets/progress.ts`). Why: spec #222 story 16; Home's counts, Budget (#226) and the assistant's tool share it, so they stay in step. Revisit: never.
+- **#225 Needs attention lists close budgets too, between negative balances and review items**, as "Groceries has ₱X left" with a `warning` "Close" badge. Why: the prototype's urgency order; the issue names over, negative and review only. Revisit: if the feed feels noisy.
+- **#225 the Finances overview also returns `budgetLines`** (the budgets it already counted, with spent), the input to the pure `attentionFeed`. Why: the feed needs per-category figures; no projection or event changes. Revisit: never.
+- **#225 `useTwoPanes()` also measures the `supporting-pane` shell**, and Home renders one arrangement (two columns or the stack) instead of reordering with CSS. Why: the stack order (Latest, Budgets, Balances) differs from the side column's (Balances, Latest). Revisit: never.
+- **#225 Budgets (Fine/Close/Over counts) shows only in the stack below 840**; from 840 the feed's "N budgets are fine" stands in. Why: the issue's side column is Balances and Latest. Revisit: after real use on a laptop.
+- **#225 Home's `ReviewBanner` is deleted**; review items are feed rows (uncategorized and join requests link to Review, drafts to Import). `review.spec` now finds "1 expense needs a category" in the feed. Revisit: never.
+- **#225 Days left counts today** (11 on October 21), via `daysLeftInMonth` in `src/lib/utils/dates.ts`; #226's caption should use it. The layout baseline masks it (`data-testid="days-left"`). Revisit: never.
+- **#225 the feed's `StatusBadge` hides below a 600 row width**, as in the prototype; the icon and sentence carry the urgency. Revisit: if phone users miss it.
+- **#225 the Household/Mine switch is a `SegmentedControl` above the hero** (radios now, not pressed buttons). Revisit: never.
 
 ### Rollout checklist
 
