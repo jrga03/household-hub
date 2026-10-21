@@ -1,15 +1,8 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { CheckCircle2, Circle, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Button } from "@/components/app/Button";
+import { SectionHeader } from "@/components/app/SectionHeader";
 import { useOpeningSteps } from "@/hooks/useOpeningSteps";
 import { dismissOpeningChecklist, isOpeningChecklistDismissed } from "@/lib/opening/dismissal";
 
@@ -27,11 +20,10 @@ export function OpeningChecklist({ householdId }: { householdId: string }) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Get started</CardTitle>
-        <CardDescription>Three steps to set up your household&apos;s money.</CardDescription>
-        <CardAction>
+    <section className="space-y-2">
+      <SectionHeader
+        title="Get started"
+        action={
           <Button
             variant="ghost"
             size="icon"
@@ -40,45 +32,47 @@ export function OpeningChecklist({ householdId }: { householdId: string }) {
           >
             <X />
           </Button>
-        </CardAction>
-      </CardHeader>
-      <CardContent>
-        <ol aria-label="Opening checklist" className="@container divide-y rounded-md border">
-          <Step
-            done={steps.startingBalances}
-            title="Set starting balances"
-            description="Add each account with what it holds today."
-            action={
-              <Link to="/accounts" hash="add-account">
-                Add an account
-              </Link>
-            }
-          />
-          <Step
-            done={steps.distributed}
-            title="Distribute them into categories"
-            description="Move each account's starting money out of Unassigned."
-            action={
-              <Link
-                to="/plan"
-                search={{
-                  distribute: "opening",
-                  ...(steps.distributeAccountId && { account: steps.distributeAccountId }),
-                }}
-              >
-                Distribute
-              </Link>
-            }
-          />
-          <Step
-            done={steps.budgets}
-            title="Set budgets"
-            description="Give each category a monthly target."
-            action={<Link to="/plan">Set budgets</Link>}
-          />
-        </ol>
-      </CardContent>
-    </Card>
+        }
+        className="items-center"
+      />
+      <p className="text-body text-muted-foreground">
+        Three steps to set up your household’s money.
+      </p>
+      <ol aria-label="Opening checklist" className="@container divide-y border-y">
+        <Step
+          done={steps.startingBalances}
+          title="Set starting balances"
+          description="Add each account with what it holds today."
+          action={
+            <Link to="/accounts" hash="add-account">
+              Add an account
+            </Link>
+          }
+        />
+        <Step
+          done={steps.distributed}
+          title="Distribute them into categories"
+          description="Move each account’s starting money out of Unassigned."
+          action={
+            <Link
+              to="/plan"
+              search={{
+                distribute: "opening",
+                ...(steps.distributeAccountId && { account: steps.distributeAccountId }),
+              }}
+            >
+              Distribute
+            </Link>
+          }
+        />
+        <Step
+          done={steps.budgets}
+          title="Set budgets"
+          description="Give each category a monthly target."
+          action={<Link to="/plan">Set budgets</Link>}
+        />
+      </ol>
+    </section>
   );
 }
 
@@ -94,7 +88,7 @@ function Step({
   action: ReactNode;
 }) {
   return (
-    <li className="flex items-start gap-3 px-3 py-2">
+    <li className="flex items-start gap-3 py-3">
       {done ? (
         <CheckCircle2 aria-hidden className="mt-0.5 size-5 shrink-0 text-primary" />
       ) : (

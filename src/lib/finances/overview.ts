@@ -7,6 +7,7 @@
 import type { AccountRow } from "@/lib/accounts/projection";
 import { countsInMonth, summarizeMonth } from "@/lib/budgets/month";
 import { budgetStatus, type BudgetStatus } from "@/lib/budgets/progress";
+import type { BudgetLine } from "./attention";
 import { ZERO_CENTS, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import type { Ownership } from "@/lib/events/ownership";
@@ -28,6 +29,8 @@ export interface FinanceOverview {
   /** Accounts in use, by name; for a credit card, the amount owed. */
   balances: { account: AccountRow; balance: Cents }[];
   budgets: BudgetStatusCounts;
+  /** The budgets counted above, for Needs attention. */
+  budgetLines: BudgetLine[];
   /** The newest transactions and transfers, in any month. */
   latest: ListRow[];
 }
@@ -70,11 +73,19 @@ export async function readFinanceOverview(
 
   const monthView = summarizeMonth(currentMonth, currentMonth, { ...records, budgets });
   const budgetCounts: BudgetStatusCounts = { fine: 0, close: 0, over: 0 };
+  const budgetLines: BudgetLine[] = [];
   for (const category of categories) {
     const figures = monthView.get(category.id);
     // Budget's rows follow the same rule, so the two screens agree.
     if (!isShown(category) || !figures?.budget || !countsInMonth(category, figures)) continue;
-    budgetCounts[budgetStatus(figures.budget.amountCents, figures.spent)] += 1;
+    const budget = figures.budget.amountCents;
+    budgetCounts[budgetStatus(budget, figures.spent)] += 1;
+    budgetLines.push({
+      categoryId: category.id,
+      name: category.name,
+      budget,
+      spent: figures.spent,
+    });
   }
 
   return {
@@ -83,6 +94,7 @@ export async function readFinanceOverview(
     left: totals.netCents,
     balances,
     budgets: budgetCounts,
+    budgetLines,
     latest: newestFirst(shownTransactions, shownTransfers).slice(0, LATEST_COUNT),
   };
 }
