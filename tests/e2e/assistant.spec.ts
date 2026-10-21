@@ -188,6 +188,37 @@ test("a waiting proposal survives a reload and records once after Confirm", asyn
   await expect(transactionRows(page).filter({ hasText: "Jollibee" })).toHaveCount(1);
 });
 
+test("a proposal is dismissed and confirmed by keyboard alone", async ({ page }) => {
+  await setUpHousehold(page, "Assistant keyboard home");
+  await stubAssistant(page);
+  await navigateTo(page, "Assistant");
+  const input = page.getByRole("textbox", { name: "Message the assistant" });
+  const card = page.getByRole("form", { name: "Confirm transaction" });
+
+  await input.focus();
+  await page.keyboard.type("jollibee 250 gcash");
+  await page.keyboard.press("Enter");
+  await expect(card).toContainText("₱250.00");
+  // The card sits right above the composer: Confirm, then Dismiss, going back from the input.
+  await input.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Shift+Tab");
+  await expect(card.getByRole("button", { name: "Dismiss" })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(card).toContainText("Dismissed");
+
+  await page.getByRole("button", { name: "New chat" }).click();
+  await input.focus();
+  await page.keyboard.type("jollibee 250 gcash");
+  await page.keyboard.press("Enter");
+  await expect(card).toContainText("₱250.00");
+  await input.focus();
+  await page.keyboard.press("Shift+Tab");
+  await expect(card.getByRole("button", { name: "Confirm" })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(card).toContainText("Recorded");
+});
+
 test.describe("on a phone", () => {
   test.skip(({ isMobile }) => !isMobile, "the tab bar and the floating Add button are phone-only");
 

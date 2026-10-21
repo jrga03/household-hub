@@ -148,6 +148,9 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#229 a phone `FormSheet` doesn't take focus when it opens** (vaul leaves focus on the trigger behind it, so Tab walks the page), so the keyboard e2e runs at 1024, where it is a dialog. Why: a layer-2 fix outside this ticket's files. Revisit: #233 or a FormSheet fix (focus the sheet on open).
 - **#229 the add-category form shows "Choose a group." under the Group field** (`Field` error) instead of in `FormError`. Why: DESIGN.md puts a field's error next to it. Revisit: never.
 - **#229 `RecordName` still imports `Badge`**; it belongs to #226, and Categories uses it as it is. Revisit: #226.
+- **#232 a proposal is a form between hairlines** (`border-y`, no card) with a `SectionHeader` of the description and its `Money`, the three `Field`s, and Dismiss / Confirm; once decided a `StatusBadge` (`success` "Recorded", `neutral` "Dismissed") replaces the buttons and takes focus when the decision was made there. Why: the ticket's section, and a decision removed the focused button, dropping keyboard focus to the page. Revisit: never.
+- **#232 the composer pads by `--bottom-chrome`, and `AppLayout` sets `--bottom-chrome` to the safe area under a route with `bottomChrome: false`** (only the Assistant). Why: at compact `--bottom-chrome` counted the tab bar the Assistant hides, which would float the composer 3.5rem up. A fix in a layout file no ticket lists. Revisit: if toasts should also drop the tab-bar offset there (`--toast-bottom` is still computed at `:root`).
+- **#232 the empty chat is an `EmptyState` sentence with the example prompts as its action**, and the inner `max-w-2xl` is gone, so the chat uses the `single` shell's `max-w-3xl`. Why: one empty-state pattern; one column width. Revisit: never.
 
 ### Rollout checklist
 
@@ -191,6 +194,6 @@ Spec #222, integration branch `feat/222-page-migration`. Order: #223 â†’ #224 â†
 - [x] #229 Categories: groups, adds and edits (#224)
 - [x] #230 Review and Import: review items and statement drafts (#224)
 - [ ] #231 Settings and households: list-detail sections and create-or-join (#224)
-- [ ] #232 Assistant: chat and proposals (#224)
+- [x] #232 Assistant: chat and proposals (#224)
 - [ ] #233 Auth and app leftovers, and delete the primitive allowlist (#223-#232)
 - [ ] Code review of the integration branch, findings fixed

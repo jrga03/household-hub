@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { format, isToday, isTomorrow } from "date-fns";
 import { SendHorizontal } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/app/Button";
+import { Input } from "@/components/app/Input";
 import { useVisibleArea } from "@/hooks/useVisibleArea";
 
 function resetTime(resetsAt: Date) {
@@ -46,10 +46,10 @@ export function ChatComposer({
   };
 
   return (
-    // Pinned to the screen's bottom edge; the conversation scrolls behind it.
+    // Pinned to the screen's bottom edge, above any bottom chrome; the conversation scrolls behind it.
     <form
       onSubmit={submit}
-      className="sticky bottom-0 space-y-2 bg-background pt-2 pb-[max(1rem,var(--safe-area-bottom))]"
+      className="sticky bottom-0 space-y-2 border-t bg-background pt-3 pb-[max(1rem,var(--bottom-chrome))]"
       style={inset > 0 ? { paddingBottom: `calc(${inset}px + 0.5rem)` } : undefined}
     >
       {blockedBecause && <p className="text-body text-muted-foreground">{blockedBecause}</p>}
