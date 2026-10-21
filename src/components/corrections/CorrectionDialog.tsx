@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { FormFooter, FormSheet } from "@/components/FormSheet";
+import { FormFooter, FormSheet } from "@/components/app/FormSheet";
 import { categoryNames } from "@/components/allocations/envelopes";
 import { useAccountNames } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";

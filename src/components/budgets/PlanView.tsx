@@ -10,7 +10,7 @@ import { NegativeNote, OVERDRAWN_UNASSIGNED } from "@/components/allocations/Neg
 import { Money } from "@/components/app/Money";
 import { MoveMoneyDialog } from "@/components/allocations/MoveMoneyDialog";
 import { RecordName } from "@/components/categories/RecordName";
-import { advanceOnEnter, FormSheet } from "@/components/FormSheet";
+import { advanceOnEnter, FormSheet } from "@/components/app/FormSheet";
 import { PageShell } from "@/components/layout/PageShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
