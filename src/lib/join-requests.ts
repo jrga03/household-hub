@@ -42,11 +42,17 @@ async function fetchPendingJoinRequests(): Promise<PendingJoinRequest[]> {
   }));
 }
 
-/** RLS shows these to the Owner only. */
-export const pendingJoinRequestsQueryOptions = (householdId: string) =>
+const NEW_REQUEST_POLL_MS = 30_000;
+
+/** RLS shows these to the Owner only. `poll` refetches while a screen waits on new ones. */
+export const pendingJoinRequestsQueryOptions = (
+  householdId: string,
+  { poll = false }: { poll?: boolean } = {}
+) =>
   queryOptions({
     queryKey: ["pending-join-requests", householdId],
     queryFn: fetchPendingJoinRequests,
+    refetchInterval: poll ? NEW_REQUEST_POLL_MS : false,
   });
 
 async function callAndRefresh(

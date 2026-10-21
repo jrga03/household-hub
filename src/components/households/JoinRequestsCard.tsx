@@ -15,14 +15,11 @@ import {
 } from "@/lib/join-requests";
 import { errorMessage } from "@/lib/utils";
 
-export const NEW_REQUEST_POLL_MS = 30_000;
-
 /** Settings → Join requests, for the Owner only; RLS shows other Members no requests. */
 export function JoinRequestsList({ householdId }: { householdId: string }) {
-  const { data: requests, isError } = useQuery({
-    ...pendingJoinRequestsQueryOptions(householdId),
-    refetchInterval: NEW_REQUEST_POLL_MS,
-  });
+  const { data: requests, isError } = useQuery(
+    pendingJoinRequestsQueryOptions(householdId, { poll: true })
+  );
 
   if (isError && !requests) {
     return <EmptyState className="py-0">Join requests show when you&apos;re online.</EmptyState>;

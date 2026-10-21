@@ -5,7 +5,7 @@ import { ListRow } from "@/components/app/ListRow";
 import { Notice } from "@/components/app/Notice";
 import { SectionHeader } from "@/components/app/SectionHeader";
 import { StatusBadge } from "@/components/app/StatusBadge";
-import { JoinRequestRow, NEW_REQUEST_POLL_MS } from "@/components/households/JoinRequestsCard";
+import { JoinRequestRow } from "@/components/households/JoinRequestsCard";
 import { useHousehold } from "@/hooks/useHousehold";
 import { usePendingJoinRequests } from "@/hooks/useJoinRequests";
 import { useReviewCounts } from "@/hooks/useReviewCount";
@@ -110,7 +110,7 @@ function DraftsSection({ count }: { count: number }) {
 
 function JoinRequestsSection({ count }: { count: number }) {
   const { household } = useHousehold();
-  const { data: requests } = usePendingJoinRequests({ refetchInterval: NEW_REQUEST_POLL_MS });
+  const { data: requests } = usePendingJoinRequests({ poll: true });
   if (!household || !requests) return null;
 
   return (
