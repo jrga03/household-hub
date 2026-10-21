@@ -125,6 +125,12 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#230 the draft description keeps its own label (with the Suggested badge) and its warning "Needs a description" line**, not `Field`. Why: `Field` takes a string label and shows errors in `destructive`; a missing description is something to check, not a failed submit. Revisit: if `Field` takes a node label or a warning hint.
 - **#230 `DraftDetail` keeps #224's `DirectionChoice` segmented control as it is.** Why: it reads well in the pane and the sheet (checked at 1280 and 393). Revisit: never.
 - **#230 the Import list is not width-capped**: with no draft open on a laptop the read form spans the list column. Why: `list-detail` lets the list flex. Revisit: after real use on a laptop.
+- **#231 Settings below 840 ignores `?open`** and shows the long page; it renders no `DetailPane`, so no sheet repeats a section the page already shows. Why: the spec keeps one long page at compact. Revisit: if a phone needs a deep link to one section (hash links work today).
+- **#231 `ListRow` takes no target** for Members and join requests, with their buttons beside the row, always visible, instead of in `actions`. Why: `actions` hide below a 600 row width, and the detail pane is 360, so the Owner could not remove anyone on a phone or in the pane. Revisit: if rows gain a member detail sheet.
+- **#231 only the Owner's member row carries a role badge** ("Owner", `neutral`); the Household section shows your own role. A pending join request is `outline` "Pending" with the Info icon (as pending transactions); a declined one on create-or-join is `warning` "Declined". Why: a "Member" badge on every row is noise. Revisit: never.
+- **#231 Appearance is a `SegmentedControl`** (Light, Dark, System) instead of three icon buttons. Why: DESIGN.md names it for two to four exclusive options. Revisit: never.
+- **#231 the create-or-join baseline logs in a fixed household-less fixture user** (`test-no-household@example.com`, made by global setup without a household), so the footer email is stable. Why: a signed-up person has a random email. Revisit: never.
+- **#231 Tabs on Mobile Chrome show the selected tab almost flat** in the create-or-join baselines (light theme). Not touched: `Tabs` is a layer-1 re-export outside this ticket. Revisit: #233 or a Tabs pass.
 
 ### Rollout checklist
 

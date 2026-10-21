@@ -74,3 +74,20 @@ export async function navigateTo(page: Page, label: string) {
     await drawer.waitFor({ state: "hidden" });
   }
 }
+
+/**
+ * Shows a Settings section: beside the list when Settings has two panes, or by
+ * its jump link on the one-pane page, which shows every section.
+ */
+export async function openSettingsSection(page: Page, section: string) {
+  await page
+    .getByRole("list", { name: "Settings sections" })
+    .getByRole("button", { name: new RegExp(`^${section}`) })
+    .or(
+      page
+        .getByRole("navigation", { name: "Settings sections" })
+        .getByRole("link", { name: section, exact: true })
+    )
+    .click();
+  return page.getByRole("region", { name: section, exact: true });
+}

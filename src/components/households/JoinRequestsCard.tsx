@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Info } from "lucide-react";
+import { Button } from "@/components/app/Button";
+import { EmptyState } from "@/components/app/EmptyState";
+import { ListRow } from "@/components/app/ListRow";
+import { StatusBadge } from "@/components/app/StatusBadge";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import {
   acceptJoinRequest,
@@ -12,41 +15,28 @@ import {
 } from "@/lib/join-requests";
 import { errorMessage } from "@/lib/utils";
 
-const NEW_REQUEST_POLL_MS = 30_000;
+export const NEW_REQUEST_POLL_MS = 30_000;
 
-/** For the Owner only; RLS shows other Members no requests. */
-export function JoinRequestsCard({ householdId }: { householdId: string }) {
+/** Settings → Join requests, for the Owner only; RLS shows other Members no requests. */
+export function JoinRequestsList({ householdId }: { householdId: string }) {
   const { data: requests, isError } = useQuery({
     ...pendingJoinRequestsQueryOptions(householdId),
     refetchInterval: NEW_REQUEST_POLL_MS,
   });
 
+  if (isError && !requests) {
+    return <EmptyState className="py-0">Join requests show when you&apos;re online.</EmptyState>;
+  }
+  if (requests?.length === 0) {
+    return <EmptyState className="py-0">No pending requests.</EmptyState>;
+  }
+  if (!requests) return null;
   return (
-    <Card role="region" aria-labelledby="join-requests-title">
-      <CardHeader>
-        <CardTitle id="join-requests-title">Join requests</CardTitle>
-        <CardDescription>
-          People who used your Household Code. Accepting makes them a Member.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isError && !requests && (
-          <p className="text-body text-muted-foreground">
-            Join requests show when you&apos;re online.
-          </p>
-        )}
-        {requests?.length === 0 && (
-          <p className="text-body text-muted-foreground">No pending requests.</p>
-        )}
-        {requests && requests.length > 0 && (
-          <ul className="divide-y rounded-md border">
-            {requests.map((request) => (
-              <JoinRequestRow key={request.id} householdId={householdId} request={request} />
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+    <ul aria-label="Join requests" className="-mx-4 divide-y border-y">
+      {requests.map((request) => (
+        <JoinRequestRow key={request.id} householdId={householdId} request={request} />
+      ))}
+    </ul>
   );
 }
 
@@ -74,9 +64,17 @@ export function JoinRequestRow({ householdId, request }: JoinRequestRowProps) {
   const disabled = !isOnline || isAnswering;
 
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 px-3 py-2">
-      <span className="min-w-0 truncate font-medium">{request.requesterEmail}</span>
-      <div className="flex shrink-0 gap-2">
+    <li className="flex flex-wrap items-center">
+      <ListRow
+        className="min-w-0 grow basis-48"
+        label={request.requesterEmail}
+        amount={
+          <StatusBadge tone="outline" icon={Info}>
+            Pending
+          </StatusBadge>
+        }
+      />
+      <div className="flex shrink-0 gap-2 px-4 py-2">
         <Button
           size="sm"
           variant="outline"

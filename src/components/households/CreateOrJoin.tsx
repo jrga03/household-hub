@@ -6,13 +6,12 @@ import {
   PendingRequest,
   useMyJoinRequest,
 } from "@/components/households/JoinHousehold";
-import { ActionForm } from "@/components/ui/action-form";
-import { Card, CardContent, CardDescription } from "@/components/ui/card";
-import { FormError } from "@/components/ui/form-error";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { SubmitButton } from "@/components/ui/submit-button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ActionForm } from "@/components/app/ActionForm";
+import { Field } from "@/components/app/Field";
+import { FormError } from "@/components/app/FormError";
+import { Input } from "@/components/app/Input";
+import { SubmitButton } from "@/components/app/SubmitButton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/app/Tabs";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { createHousehold } from "@/lib/households";
 import type { MyJoinRequest } from "@/lib/join-requests";
@@ -84,39 +83,37 @@ function CreateHouseholdForm({ userId }: { userId: string }) {
   );
 
   return (
-    <Card>
-      <CardContent className="space-y-4">
-        <CardDescription>You become its Owner and get a code to share.</CardDescription>
-        <ActionForm action={createAction} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="household-name">Household name</Label>
-            <Input
-              id="household-name"
-              name="name"
-              required
-              maxLength={HOUSEHOLD_NAME_MAX_LENGTH}
-              placeholder="e.g. Acido home"
-              autoComplete="off"
-            />
-          </div>
+    <div className="space-y-4">
+      <p className="text-body text-muted-foreground">
+        You become its Owner and get a code to share.
+      </p>
+      <ActionForm action={createAction} className="space-y-4">
+        <Field label="Household name">
+          <Input
+            name="name"
+            required
+            maxLength={HOUSEHOLD_NAME_MAX_LENGTH}
+            placeholder="e.g. Acido home"
+            autoComplete="off"
+          />
+        </Field>
 
-          <FormError>{state.error}</FormError>
+        <FormError>{state.error}</FormError>
 
-          <SubmitButton
-            className="w-full"
-            pendingText="Creating..."
-            disabled={!isOnline}
-            aria-describedby={isOnline ? undefined : "create-offline-hint"}
-          >
-            Create household
-          </SubmitButton>
-          {!isOnline && (
-            <p id="create-offline-hint" className="text-body text-muted-foreground">
-              Creating a household needs a connection. You&apos;re offline right now.
-            </p>
-          )}
-        </ActionForm>
-      </CardContent>
-    </Card>
+        <SubmitButton
+          className="w-full"
+          pendingText="Creating…"
+          disabled={!isOnline}
+          aria-describedby={isOnline ? undefined : "create-offline-hint"}
+        >
+          Create household
+        </SubmitButton>
+        {!isOnline && (
+          <p id="create-offline-hint" className="text-body text-muted-foreground">
+            Creating a household needs a connection. You&apos;re offline right now.
+          </p>
+        )}
+      </ActionForm>
+    </div>
   );
 }

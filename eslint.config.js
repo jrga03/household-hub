@@ -189,22 +189,14 @@ export const directPrimitiveImporters = [
   "src/components/corrections/CorrectBalanceDialog.tsx",
   "src/components/ErrorBoundary.tsx",
   "src/components/finances/FinancesSection.tsx",
-  "src/components/households/CreateOrJoin.tsx",
-  "src/components/households/HouseholdSettings.tsx",
-  "src/components/households/JoinHousehold.tsx",
-  "src/components/households/JoinRequestsCard.tsx",
-  "src/components/households/MembersCard.tsx",
   "src/components/LoginForm.tsx",
   "src/components/opening/OpeningChecklist.tsx",
   "src/components/PWAInstallPrompt.tsx",
-  "src/components/settings/ExportCard.tsx",
   "src/components/SignupForm.tsx",
   "src/components/StorageWarning.tsx",
   "src/components/sync/SyncStatusIndicator.tsx",
   "src/routes/__root.tsx",
   "src/routes/budget.tsx",
-  "src/routes/create-or-join.tsx",
-  "src/routes/settings.tsx",
 ];
 
 const primitiveBoundary = {

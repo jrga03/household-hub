@@ -185,6 +185,7 @@ Why: building pages from one app layer keeps them consistent and lets primitives
 | `FormError`                                     | The message when submitting a form failed. A field's own error goes in `Field`.                                                                                                                                                                                                                   |
 | Re-exported as they are                         | `Button`, `Input`, `Textarea`, `Select`, `Checkbox`, `Switch`, `RadioGroup`, `Label`, `Tabs`, `Tooltip`, `Popover`, `ScrollArea`, `Toaster`.                                                                                                                                                      |
 
+- A `ListRow` with no target only shows its content (a Member, a join request). Controls that must work on phones sit beside it, not in `actions`.
 - Some primitives have no re-export, because a pattern replaces them: Badge (`StatusBadge`), Dialog, Drawer and Sheet (`FormSheet`), AlertDialog (`ConfirmDialogHost`), Card (`SectionHeader` sections), Table (`DataTable`), Alert (`Notice`), Progress (`ProgressBar`). DropdownMenu, DatePicker, Command, Separator and Skeleton are re-exported when a page first needs them.
 - Status badge tones: `neutral` (secondary), `outline`, `warning`, `shortfall` and `success`, never `destructive`. Over budget is `shortfall`; close to it is `warning`; pending is `outline` with the Info icon; review is `neutral`; no budget is `outline`; "Already imported" is `warning`; cleared has no badge.
 - Progress bar tones: `primary` while spending is fine, `warning` when it is close to the target, `shortfall` (on a `shortfall/20` track) once it passes the target. Spending exactly the budget is not past it.
@@ -241,7 +242,7 @@ Every route except login and signup renders `<PageShell variant="…">` (`src/co
 | Transactions, Budget, Import                  | `list-detail`                       | same                                                      |
 | Plan, Review, Accounts, Categories, Assistant | `single`                            | same (Accounts may become `list-detail` in its migration) |
 | Home                                          | `single`                            | `supporting-pane` (Home migration)                        |
-| Settings                                      | `single`, one page of section links | `list-detail` (Settings migration)                        |
+| Settings                                      | `list-detail`, one page below 840px | same                                                      |
 | Create or join                                | `single`, narrowed with `max-w-md`  | same                                                      |
 | Login, signup                                 | no `PageShell`, a centered form     | same                                                      |
 

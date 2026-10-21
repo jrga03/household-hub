@@ -1,5 +1,5 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
-import { signUpNewPerson, navigateTo } from "./fixtures/helpers";
+import { navigateTo, openSettingsSection, signUpNewPerson } from "./fixtures/helpers";
 
 // Fresh people per run: membership is one household per person, so the
 // fixture users (who already have one) can't request.
@@ -10,6 +10,7 @@ async function newOwner(browser: Browser, householdName: string) {
   await page.getByLabel("Household name").fill(householdName);
   await page.getByRole("button", { name: "Create household" }).click();
   await navigateTo(page, "Settings");
+  await openSettingsSection(page, "Household");
   const code = await page.getByTestId("household-code").textContent();
   if (!code) throw new Error("The Owner sees no Household Code");
   return { context, page, code };
@@ -29,7 +30,13 @@ async function requestToJoin(page: Page, code: string) {
   await page.getByRole("button", { name: "Send request" }).click();
 }
 
-const joinRequests = (page: Page) => page.getByRole("region", { name: "Join requests" });
+const joinRequests = (page: Page) =>
+  page.getByRole("region", { name: "Join requests", exact: true });
+
+async function openJoinRequests(page: Page) {
+  await page.goto("/settings?open=join-requests");
+  return joinRequests(page);
+}
 
 test("an Owner accepts a Join Request and the requester lands in the household", async ({
   browser,
@@ -40,8 +47,7 @@ test("an Owner accepts a Join Request and the requester lands in the household",
   await requestToJoin(requester.page, owner.code.toLowerCase());
   await expect(requester.page.getByRole("heading", { name: "Request sent" })).toBeVisible();
 
-  await owner.page.reload();
-  const request = joinRequests(owner.page).getByRole("listitem").filter({
+  const request = (await openJoinRequests(owner.page)).getByRole("listitem").filter({
     hasText: requester.email,
   });
   await request.getByRole("button", { name: "Accept" }).click();
@@ -52,9 +58,9 @@ test("an Owner accepts a Join Request and the requester lands in the household",
     requester.page.getByRole("banner").getByRole("heading", { name: "Join home" })
   ).toBeVisible();
   await navigateTo(requester.page, "Settings");
-  const main = requester.page.getByRole("main");
-  await expect(main.getByText("Join home")).toBeVisible();
-  await expect(main.getByText("Member", { exact: true })).toBeVisible();
+  const household = await openSettingsSection(requester.page, "Household");
+  await expect(household.getByText("Join home")).toBeVisible();
+  await expect(household.getByText("Member", { exact: true })).toBeVisible();
   await expect(joinRequests(requester.page)).toHaveCount(0);
 
   await Promise.all([owner.context.close(), requester.context.close()]);
@@ -73,8 +79,7 @@ test("a requester cancels a pending request, and an unknown code is explained", 
   await requester.page.getByRole("button", { name: "Cancel request" }).click();
   await expect(requester.page.getByLabel("Household Code")).toBeVisible();
 
-  await owner.page.reload();
-  await expect(joinRequests(owner.page)).toContainText("No pending requests");
+  await expect(await openJoinRequests(owner.page)).toContainText("No pending requests");
 
   await Promise.all([owner.context.close(), requester.context.close()]);
 });
@@ -88,8 +93,9 @@ test("a declined requester is told politely and returned to create-or-join", asy
   await requestToJoin(requester.page, owner.code);
   await expect(requester.page.getByRole("heading", { name: "Request sent" })).toBeVisible();
 
-  await owner.page.reload();
-  await joinRequests(owner.page)
+  await (
+    await openJoinRequests(owner.page)
+  )
     .getByRole("listitem")
     .filter({ hasText: requester.email })
     .getByRole("button", { name: "Decline" })

@@ -74,7 +74,7 @@ test("an Owner answers a Join Request from Review", async ({ page, browser }) =>
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Review join home");
   await page.getByRole("button", { name: "Create household" }).click();
-  await navigateTo(page, "Settings");
+  await page.goto("/settings?open=household");
   const code = await page.getByTestId("household-code").textContent();
   if (!code) throw new Error("The Owner sees no Household Code");
 

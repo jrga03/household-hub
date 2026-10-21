@@ -1,5 +1,6 @@
 import { test, expect, type ViewportSize } from "@playwright/test";
-import { login } from "./fixtures/helpers";
+import { login, loginAs } from "./fixtures/helpers";
+import { householdlessUser } from "./fixtures/test-users";
 import { DARK_VIEWPORTS, VIEWPORTS } from "./fixtures/viewports";
 
 const ROUTES = [
@@ -11,6 +12,8 @@ const ROUTES = [
   { path: "/plan", name: "plan" },
   { path: "/review", name: "review" },
   { path: "/import", name: "import" },
+  // No app chrome: its title is the page's own h1, and only someone without a household sees it.
+  { path: "/create-or-join", name: "create-or-join", householdless: true },
 ];
 
 const withScheme = (viewports: Record<string, ViewportSize>, colorScheme: "light" | "dark") =>
@@ -24,15 +27,16 @@ for (const { vpName, vp, colorScheme } of RUNS) {
   test.describe(`Layout baselines — ${variantName} (${vp.width}x${vp.height})`, () => {
     test.use({ viewport: vp, colorScheme });
 
-    test.beforeEach(async ({ page }) => {
-      await login(page);
-    });
-
     for (const route of ROUTES) {
       test(`${route.name} renders`, async ({ page }) => {
+        if ("householdless" in route) await loginAs(page, householdlessUser);
+        else await login(page);
         await page.goto(route.path);
         // The page title is the shell header's h1
-        const title = page.getByRole("banner").getByRole("heading", { level: 1 });
+        const title = ("householdless" in route ? page : page.getByRole("banner")).getByRole(
+          "heading",
+          { level: 1 }
+        );
         await expect(title).toBeVisible();
         // Measure after server data has rendered
         await page.waitForLoadState("networkidle");
