@@ -3,40 +3,32 @@ import { orders } from "@/test/permutations";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { describeEvent } from "@/lib/events/projector";
 import { receiveEvents, type LoggedEvent } from "@/lib/events/log";
+import { HOUSEHOLD, loggedEvent } from "@/test/events";
 import { getAllocation, listAllocations } from "./projection";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const ALLOCATION = "eeeeeeee-0000-4000-8000-000000000001";
 const BANK = "aaaaaaaa-0000-4000-8000-000000000001";
 const WALLET = "aaaaaaaa-0000-4000-8000-000000000002";
 const GROCERIES = "cccccccc-0000-4000-8000-000000000001";
 const RENT = "cccccccc-0000-4000-8000-000000000002";
 
-const hlcAt = (millis: number) => `${String(millis).padStart(15, "0")}-000000-device-b`;
-
-function event(
+const event = (
   id: string,
   eventType: string,
   millis: number,
   payload: Record<string, unknown> = {},
   overrides: Partial<LoggedEvent> = {}
-): LoggedEvent {
-  return {
+): LoggedEvent => ({
+  ...loggedEvent({
     id,
-    householdId: HOUSEHOLD,
-    visibility: "household",
-    ownerUserId: null,
     entityType: "allocation",
     entityId: ALLOCATION,
     eventType,
-    eventVersion: 1,
-    hlc: hlcAt(millis),
-    deviceId: "device-b",
-    actorUserId: "user-b",
+    millis,
     payload,
-    ...overrides,
-  };
-}
+  }),
+  ...overrides,
+});
 
 const details = (overrides: Record<string, unknown> = {}) => ({
   date: "2026-10-12",

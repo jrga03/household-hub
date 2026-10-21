@@ -1,39 +1,21 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { orders } from "@/test/permutations";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
-import { receiveEvents, type LoggedEvent } from "@/lib/events/log";
+import { receiveEvents } from "@/lib/events/log";
+import { loggedEvent } from "@/test/events";
 import { listTransactions } from "./projection";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const BANK = "aaaaaaaa-0000-4000-8000-000000000001";
 const GROCERIES = "cccccccc-0000-4000-8000-000000000001";
 const LUNCH = "dddddddd-0000-4000-8000-000000000001";
 
-const hlcAt = (millis: number, device = "device-b") =>
-  `${String(millis).padStart(15, "0")}-000000-${device}`;
-
-function transactionEvent(
+const transactionEvent = (
   eventId: string,
   eventType: string,
   millis: number,
   payload: Record<string, unknown> = {},
   entityId = LUNCH
-): LoggedEvent {
-  return {
-    id: eventId,
-    householdId: HOUSEHOLD,
-    visibility: "household",
-    ownerUserId: null,
-    entityType: "transaction",
-    entityId,
-    eventType,
-    eventVersion: 1,
-    hlc: hlcAt(millis),
-    deviceId: "device-b",
-    actorUserId: "user-b",
-    payload,
-  };
-}
+) => loggedEvent({ id: eventId, entityType: "transaction", entityId, eventType, millis, payload });
 
 const lunchDetails = {
   date: "2026-10-12",

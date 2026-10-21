@@ -3,7 +3,8 @@ import { orders } from "@/test/permutations";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { receiveEvents } from "@/lib/events/log";
 import { readCategoryList } from "./projection";
-import { FOOD, GROCERIES, groceriesEvent, groupEvent, hlcAt } from "./projection.fixtures";
+import { hlcAt } from "@/test/events";
+import { FOOD, GROCERIES, groceriesEvent, groupEvent } from "./projection.fixtures";
 
 beforeEach(async () => {
   await resetLocalDatabase();
