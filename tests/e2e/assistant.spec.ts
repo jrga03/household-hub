@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
-import { chooseOption, navigateTo, signUpNewPerson } from "./fixtures/helpers";
+import { chooseOption, navigateTo, signUpNewPerson, transactionRows } from "./fixtures/helpers";
 
 // Set by the pretest:e2e scripts; nothing answers there except the stub below.
 const ASSISTANT_URL = "https://assistant.e2e.test/";
@@ -113,10 +113,7 @@ test("a line typed to the assistant is recorded after Confirm", async ({ page, i
   // The assistant has no tab bar on phones; Back leaves it.
   if (isMobile) await page.goBack();
   await navigateTo(page, "Transactions");
-  const row = page
-    .getByRole("list", { name: "Transactions" })
-    .getByRole("listitem")
-    .filter({ hasText: "Jollibee" });
+  const row = transactionRows(page).filter({ hasText: "Jollibee" });
   await expect(row).toContainText("₱250.00");
   await expect(row).toContainText("Groceries");
 });
@@ -188,12 +185,7 @@ test("a waiting proposal survives a reload and records once after Confirm", asyn
   // The assistant has no tab bar on phones; Back leaves it.
   if (isMobile) await page.goBack();
   await navigateTo(page, "Transactions");
-  await expect(
-    page
-      .getByRole("list", { name: "Transactions" })
-      .getByRole("listitem")
-      .filter({ hasText: "Jollibee" })
-  ).toHaveCount(1);
+  await expect(transactionRows(page).filter({ hasText: "Jollibee" })).toHaveCount(1);
 });
 
 test.describe("on a phone", () => {

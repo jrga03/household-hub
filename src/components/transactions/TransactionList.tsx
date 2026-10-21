@@ -275,10 +275,16 @@ function Summary({ rows, month }: { rows: ListRow[]; month: string | undefined }
       </span>
       <span>{countOf(rows.length, "transaction", "transactions")}</span>
       <span>
-        In <Money kind="income" cents={incomeCents} />
+        {/* Nothing in or out reads as a plain ₱0.00, not "+₱0.00". */}
+        In <Money kind={incomeCents > 0 ? "income" : "net"} cents={incomeCents} />
       </span>
       <span>
-        Out <Money kind="expense" cents={expenseCents} className="text-foreground" />
+        Out{" "}
+        <Money
+          kind={expenseCents > 0 ? "expense" : "net"}
+          cents={expenseCents}
+          className="text-foreground"
+        />
       </span>
     </p>
   );
