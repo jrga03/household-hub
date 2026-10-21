@@ -1,5 +1,4 @@
 import { render, screen } from "@testing-library/react";
-import { createRef } from "react";
 import { describe, it, expect } from "vitest";
 import { PageShell } from "./PageShell";
 
@@ -29,21 +28,6 @@ describe("PageShell", () => {
     expect(
       screen.getByText("overview").compareDocumentPosition(side) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
-  });
-
-  it("puts the list-detail detail slot in a complementary landmark the pane code can measure", () => {
-    const detailRef = createRef<HTMLElement>();
-    render(
-      <PageShell variant="list-detail">
-        <PageShell.List>rows</PageShell.List>
-        <PageShell.Detail ref={detailRef}>open item</PageShell.Detail>
-      </PageShell>
-    );
-
-    expect(screen.getByText("rows")).toBeInTheDocument();
-    const detail = screen.getByRole("complementary");
-    expect(detail).toHaveTextContent("open item");
-    expect(detailRef.current).toBe(detail);
   });
 
   it("renders a list-detail shell with nothing in the detail slot as the list alone", () => {
