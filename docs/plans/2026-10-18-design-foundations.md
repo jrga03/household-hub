@@ -135,3 +135,20 @@ Spec #216, integration branch `feat/216-adaptive-layouts`. Frontier at start: #2
 - [x] #220 Layout baselines: one viewport per size class, regenerated once (#217, #218, #219)
 - [x] #221 DESIGN.md: the adaptive layout rules (#217, #218, #219)
 - [x] Code review of the integration branch, findings fixed
+
+### Page migration checklist
+
+Spec #222, integration branch `feat/222-page-migration`. Order: #223 → #224 → (#225 → #226) and #227-#232 in parallel → #233. Frontier at start: #223.
+
+- [ ] #223 Transactions list: list-detail, filter rail and table (blocked by: none)
+- [ ] #224 Transaction entry: entry and transfer as FormSheets (#223)
+- [ ] #225 Home: supporting-pane with hero and Needs attention (#224)
+- [ ] #226 Budget: hero, grouped rows and the ledger pane (#225)
+- [ ] #227 Plan: allocations, move money and budgets (#224)
+- [ ] #228 Accounts: balances, edits, card payments and corrections (#224)
+- [ ] #229 Categories: groups, adds and edits (#224)
+- [ ] #230 Review and Import: review items and statement drafts (#224)
+- [ ] #231 Settings and households: list-detail sections and create-or-join (#224)
+- [ ] #232 Assistant: chat and proposals (#224)
+- [ ] #233 Auth and app leftovers, and delete the primitive allowlist (#223-#232)
+- [ ] Code review of the integration branch, findings fixed
