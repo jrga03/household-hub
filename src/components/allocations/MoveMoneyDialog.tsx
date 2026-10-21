@@ -1,10 +1,13 @@
 import { useActionState, useState } from "react";
 import { toast } from "sonner";
-import { ActionForm } from "@/components/ui/action-form";
-import { advanceOnEnter, FormFooter, FormSheet } from "@/components/app/FormSheet";
-import { FormError } from "@/components/ui/form-error";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ActionForm } from "@/components/app/ActionForm";
+import { CurrencyInput } from "@/components/app/CurrencyInput";
+import { Field } from "@/components/app/Field";
+import { FormFooter, FormSheet } from "@/components/app/FormSheet";
+import { FormError } from "@/components/app/FormError";
+import { Input } from "@/components/app/Input";
+import { Money } from "@/components/app/Money";
+import { Notice } from "@/components/app/Notice";
 import {
   Select,
   SelectContent,
@@ -13,9 +16,10 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { SubmitButton } from "@/components/ui/submit-button";
+} from "@/components/app/Select";
+import { SubmitButton } from "@/components/app/SubmitButton";
 import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
+import { useFocusFirstProblem } from "@/hooks/useFocusFirstProblem";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useAccountMoney } from "@/hooks/useTransactions";
 import { isCreditCard } from "@/lib/accounts/events";
@@ -26,9 +30,9 @@ import { canHoldMoneyIn, type CategoryList, type CategoryRow } from "@/lib/categ
 import type { Actor } from "@/lib/commands/accounts";
 import { addAllocation, editAllocation, type AllocationInput } from "@/lib/commands/allocations";
 import {
+  AMOUNT_PROBLEM,
   diffCents,
-  formatPHP,
-  formatPHPInput,
+  isAmount,
   parsePHPSafe,
   PESO_SIGN,
   sumCents,
@@ -161,6 +165,10 @@ export function MoveMoneyDialog({
 
 const UNCHOSEN = "";
 
+type MoveProblems = Partial<Record<"amount" | "from" | "to" | "form", string>>;
+
+const NO_PROBLEMS: MoveProblems = {};
+
 /**
  * What the source envelope would hold after this move. An edit's own earlier
  * move is taken back first, so changing ₱8,000 to ₱9,000 checks the ₱1,000 more.
@@ -206,9 +214,7 @@ function MoveMoneyForm({
     if (allocation) return envelopeKey(allocation.to);
     return toCategory ? envelopeKey({ kind: "category", id: toCategory.id }) : UNCHOSEN;
   });
-  const [amountText, setAmountText] = useState(
-    allocation ? formatPHPInput(allocation.amountCents) : ""
-  );
+  const [amount, setAmount] = useState<Cents | undefined>(allocation?.amountCents);
   const account = accounts.find((choice) => choice.id === accountId);
   const envelopes = money.get(accountId)?.envelopes;
 
@@ -226,22 +232,22 @@ function MoveMoneyForm({
   const shownToKey = shownKey(toKey, toChoices, UNCHOSEN);
 
   const from = envelopeFromKey(shownFromKey);
-  const amount = parsePHPSafe(amountText);
   const ownMove = allocation?.accountId === accountId ? allocation : null;
-  const left = from && amount.success ? moneyLeft(envelopes, from, amount.value, ownMove) : null;
+  const left = from && amount !== undefined ? moneyLeft(envelopes, from, amount, ownMove) : null;
   const fromLabel =
     fromChoices
       .flatMap((group) => group.choices)
       .find((choice) => from && sameEnvelope(choice.envelope, from))?.label ?? "Unassigned";
 
-  const [error, saveAction] = useActionState(
-    async (_previous: string | null, formData: FormData) => {
+  const [problems, saveAction] = useActionState(
+    async (_previous: MoveProblems, formData: FormData): Promise<MoveProblems> => {
       const parsed = parsePHPSafe(String(formData.get("amount") ?? ""));
-      if (!parsed.success) return parsed.error.message;
+      if (!parsed.success) return { amount: parsed.error.message };
+      if (!isAmount(parsed.value)) return { amount: AMOUNT_PROBLEM };
       const from = envelopeFromKey(String(formData.get("from") ?? ""));
-      if (!from) return "Choose where the money comes from.";
+      if (!from) return { from: "Choose where the money comes from." };
       const to = envelopeFromKey(String(formData.get("to") ?? ""));
-      if (!to) return "Choose where the money goes.";
+      if (!to) return { to: "Choose where the money goes." };
       const input: AllocationInput = {
         date: String(formData.get("date") ?? ""),
         accountId: String(formData.get("accountId") ?? ""),
@@ -258,13 +264,15 @@ function MoveMoneyForm({
           toast.success("Money moved");
         }
         onClose();
-        return null;
+        return NO_PROBLEMS;
       } catch (caught) {
-        return errorMessage(caught, "Couldn't move the money.");
+        return { form: errorMessage(caught, "Couldn't move the money.") };
       }
     },
-    null
+    NO_PROBLEMS
   );
+
+  const formRef = useFocusFirstProblem(problems);
 
   const remove = () => {
     if (!allocation) return;
@@ -274,52 +282,50 @@ function MoveMoneyForm({
 
   return (
     <ActionForm
-      ref={advanceOnEnter}
+      ref={formRef}
       action={saveAction}
+      noValidate
       className="space-y-4"
       aria-label={allocation ? "Edit allocation" : "Move money"}
     >
       <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="move-amount">Amount ({PESO_SIGN})</Label>
-          <Input
-            id="move-amount"
+        <Field label={`Amount (${PESO_SIGN})`} error={problems.amount}>
+          <CurrencyInput
             name="amount"
-            inputMode="decimal"
             placeholder="0.00"
             autoComplete="off"
             enterKeyHint="done"
-            required
-            value={amountText}
-            onChange={(event) => setAmountText(event.target.value)}
+            value={amount}
+            onChange={setAmount}
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="move-date">Date</Label>
+        </Field>
+        <Field label="Date">
           <Input
-            id="move-date"
             name="date"
             type="date"
             required
             defaultValue={allocation?.date ?? todayLocalDate()}
           />
-        </div>
-        <div className="space-y-2 @[480px]:col-span-2">
-          <Label htmlFor="move-account">Account</Label>
-          <Select name="accountId" value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger id="move-account" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {accounts.map((choice) => (
-                <SelectItem key={choice.id} value={choice.id}>
-                  {choice.name}
-                  {choice.visibility === "personal" && " (Personal)"}
-                  {choice.retired && " (retired)"}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        </Field>
+        <div className="@[480px]:col-span-2">
+          <Field label="Account">
+            {(control) => (
+              <Select name="accountId" value={accountId} onValueChange={setAccountId}>
+                <SelectTrigger {...control} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((choice) => (
+                    <SelectItem key={choice.id} value={choice.id}>
+                      {choice.name}
+                      {choice.visibility === "personal" && " (Personal)"}
+                      {choice.retired && " (retired)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
         </div>
         <EnvelopeSelect
           side="from"
@@ -328,6 +334,7 @@ function MoveMoneyForm({
           onChange={setFromKey}
           groups={fromChoices}
           envelopes={envelopes}
+          error={problems.from}
         />
         <EnvelopeSelect
           side="to"
@@ -336,19 +343,22 @@ function MoveMoneyForm({
           onChange={setToKey}
           groups={toChoices}
           envelopes={envelopes}
+          error={problems.to}
         />
       </div>
 
-      {left !== null && left < 0 && account && (
-        <p className="text-body text-shortfall" aria-live="polite">
-          This leaves {fromLabel} in {account.name} at {formatPHP(left)}. You can still move it; it
-          shows in red until money comes in.
-        </p>
-      )}
+      <div aria-live="polite">
+        {left !== null && left < 0 && account && (
+          <Notice tone="warning">
+            This leaves {fromLabel} in {account.name} at <Money kind="balance" cents={left} />. You
+            can still move it; it shows in red until money comes in.
+          </Notice>
+        )}
+      </div>
 
-      <FormError>{error}</FormError>
+      <FormError>{problems.form ?? null}</FormError>
       <FormFooter destructive={allocation && { label: "Remove", onClick: remove }}>
-        <SubmitButton pendingText="Saving...">{allocation ? "Save" : "Move money"}</SubmitButton>
+        <SubmitButton pendingText="Saving…">{allocation ? "Save" : "Move money"}</SubmitButton>
       </FormFooter>
     </ActionForm>
   );
@@ -361,6 +371,7 @@ function EnvelopeSelect({
   onChange,
   groups,
   envelopes,
+  error,
 }: {
   side: Side;
   label: string;
@@ -368,29 +379,38 @@ function EnvelopeSelect({
   onChange: (key: string) => void;
   groups: EnvelopeChoiceGroup[];
   envelopes: Envelopes | null | undefined;
+  error?: string;
 }) {
-  const amount = (envelope: Envelope) => formatPHP(moneyIn(envelopes, envelope));
+  const amount = (envelope: Envelope) => (
+    <Money kind="balance" cents={moneyIn(envelopes, envelope)} />
+  );
   return (
-    <div className="space-y-2">
-      <Label htmlFor={`move-${side}`}>{label}</Label>
-      <Select name={side} value={value} onValueChange={onChange}>
-        <SelectTrigger id={`move-${side}`} className="w-full">
-          <SelectValue placeholder="Choose" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="unassigned">Unassigned · {amount({ kind: "unassigned" })}</SelectItem>
-          {groups.map((group) => (
-            <SelectGroup key={group.label}>
-              <SelectLabel>{group.label}</SelectLabel>
-              {group.choices.map((choice) => (
-                <SelectItem key={envelopeKey(choice.envelope)} value={envelopeKey(choice.envelope)}>
-                  {choice.label} · {amount(choice.envelope)}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <Field label={label} error={error}>
+      {(control) => (
+        <Select name={side} value={value} onValueChange={onChange}>
+          <SelectTrigger {...control} className="w-full">
+            <SelectValue placeholder="Choose" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="unassigned">
+              Unassigned · {amount({ kind: "unassigned" })}
+            </SelectItem>
+            {groups.map((group) => (
+              <SelectGroup key={group.label}>
+                <SelectLabel>{group.label}</SelectLabel>
+                {group.choices.map((choice) => (
+                  <SelectItem
+                    key={envelopeKey(choice.envelope)}
+                    value={envelopeKey(choice.envelope)}
+                  >
+                    {choice.label} · {amount(choice.envelope)}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+    </Field>
   );
 }
