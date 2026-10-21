@@ -2,41 +2,31 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { orders } from "@/test/permutations";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { describeEvent } from "@/lib/events/projector";
-import { receiveEvents, type LoggedEvent } from "@/lib/events/log";
+import { receiveEvents } from "@/lib/events/log";
+import { HOUSEHOLD, loggedEvent, type EventFields } from "@/test/events";
 import { budgetId, checkBudgetDetails } from "./events";
 import { getBudget, listBudgets } from "./projection";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const BUDGET = "bbbbbbbb-0000-4000-8000-000000000001";
 const BPI = "aaaaaaaa-0000-4000-8000-000000000001";
 const GCASH = "aaaaaaaa-0000-4000-8000-000000000002";
 const GROCERIES = "cccccccc-0000-4000-8000-000000000001";
 
-const hlcAt = (millis: number, device = "device-b") =>
-  `${String(millis).padStart(15, "0")}-000000-${device}`;
-
-function event(
+const event = (
   id: string,
   millis: number,
   payload: Record<string, unknown>,
-  overrides: Partial<LoggedEvent> = {}
-): LoggedEvent {
-  return {
+  overrides: Partial<EventFields> = {}
+) =>
+  loggedEvent({
     id,
-    householdId: HOUSEHOLD,
-    visibility: "household",
-    ownerUserId: null,
     entityType: "budget",
     entityId: BUDGET,
     eventType: "budget.set",
-    eventVersion: 1,
-    hlc: hlcAt(millis),
-    deviceId: "device-b",
-    actorUserId: "user-b",
+    millis,
     payload,
     ...overrides,
-  };
-}
+  });
 
 const set = (overrides: Record<string, unknown> = {}) => ({
   categoryId: GROCERIES,
@@ -46,7 +36,7 @@ const set = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-const onDeviceA = event("e-a", 1000, set(), { deviceId: "device-a", hlc: hlcAt(1000, "device-a") });
+const onDeviceA = event("e-a", 1000, set(), { device: "device-a" });
 const onDeviceB = event("e-b", 2000, set({ amountCents: 900000, accountId: GCASH }));
 const cleared = event("e-clear", 3000, set({ amountCents: null, accountId: null }));
 

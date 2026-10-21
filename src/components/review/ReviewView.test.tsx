@@ -10,12 +10,12 @@ import {
 } from "@tanstack/react-router";
 import { parsePHP } from "@/lib/currency";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
-import { receiveEvents, type LoggedEvent } from "@/lib/events/log";
+import { receiveEvents } from "@/lib/events/log";
 import { createImport } from "@/lib/import/drafts";
 import type { PendingJoinRequest } from "@/lib/join-requests";
+import { HOUSEHOLD, loggedEvent } from "@/test/events";
 import { ReviewView } from "./ReviewView";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const BANK = "aaaaaaaa-0000-4000-8000-000000000001";
 
 const membership = vi.hoisted(() => ({ isOwner: true }));
@@ -23,7 +23,7 @@ const server = vi.hoisted(() => ({ requests: [] as PendingJoinRequest[], reachab
 
 vi.mock("@/hooks/useHousehold", () => ({
   useHousehold: () => ({
-    household: { id: "11111111-1111-4111-8111-111111111111", name: "The Santos Home" },
+    household: { id: HOUSEHOLD, name: "The Santos Home" },
     isOwner: membership.isOwner,
     isKnown: true,
   }),
@@ -42,20 +42,14 @@ vi.mock("@/lib/join-requests", () => ({
 
 let eventCount = 0;
 
-function uncategorizedExpense(entityId: string): LoggedEvent {
+function uncategorizedExpense(entityId: string) {
   eventCount += 1;
-  return {
+  return loggedEvent({
     id: `e-${eventCount}`,
-    householdId: HOUSEHOLD,
-    visibility: "household",
-    ownerUserId: null,
     entityType: "transaction",
     entityId,
     eventType: "transaction.created",
-    eventVersion: 1,
-    hlc: `${String(1000 + eventCount).padStart(15, "0")}-000000-device-b`,
-    deviceId: "device-b",
-    actorUserId: "user-b",
+    millis: 1000 + eventCount,
     payload: {
       date: "2026-10-12",
       type: "expense",
@@ -66,7 +60,7 @@ function uncategorizedExpense(entityId: string): LoggedEvent {
       notes: "",
       status: "cleared",
     },
-  };
+  });
 }
 
 const importLines = (descriptions: string[]) =>

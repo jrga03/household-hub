@@ -2,39 +2,30 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { orders } from "@/test/permutations";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { describeEvent } from "@/lib/events/projector";
-import { receiveEvents, type LoggedEvent } from "@/lib/events/log";
+import { receiveEvents } from "@/lib/events/log";
+import { HOUSEHOLD, loggedEvent, type EventFields } from "@/test/events";
 import { getBalanceCorrection, listBalanceCorrections } from "./projection";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const CORRECTION = "eeeeeeee-0000-4000-8000-000000000001";
 const BANK = "aaaaaaaa-0000-4000-8000-000000000001";
 const GROCERIES = "cccccccc-0000-4000-8000-000000000001";
 
-const hlcAt = (millis: number) => `${String(millis).padStart(15, "0")}-000000-device-b`;
-
-function event(
+const event = (
   id: string,
   eventType: string,
   millis: number,
   payload: Record<string, unknown> = {},
-  overrides: Partial<LoggedEvent> = {}
-): LoggedEvent {
-  return {
+  overrides: Partial<EventFields> = {}
+) =>
+  loggedEvent({
     id,
-    householdId: HOUSEHOLD,
-    visibility: "household",
-    ownerUserId: null,
     entityType: "balance_correction",
     entityId: CORRECTION,
     eventType,
-    eventVersion: 1,
-    hlc: hlcAt(millis),
-    deviceId: "device-b",
-    actorUserId: "user-b",
+    millis,
     payload,
     ...overrides,
-  };
-}
+  });
 
 const details = (overrides: Record<string, unknown> = {}) => ({
   accountId: BANK,

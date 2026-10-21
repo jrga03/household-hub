@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
-import { receiveEvents, type LoggedEvent } from "@/lib/events/log";
+import { receiveEvents } from "@/lib/events/log";
+import { loggedEvent } from "@/test/events";
 import { parsePHP } from "@/lib/currency";
 import { createImport } from "@/lib/import/drafts";
 import { countLocalReviewItems, totalReviewItems } from "./count";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const BANK = "aaaaaaaa-0000-4000-8000-000000000001";
 const GROCERIES = "cccccccc-0000-4000-8000-000000000001";
 
@@ -15,22 +15,16 @@ function transactionEvent(
   entityId: string,
   eventType: string,
   payload: Record<string, unknown> = {}
-): LoggedEvent {
+) {
   eventCount += 1;
-  return {
+  return loggedEvent({
     id: `e-${eventCount}`,
-    householdId: HOUSEHOLD,
-    visibility: "household",
-    ownerUserId: null,
     entityType: "transaction",
     entityId,
     eventType,
-    eventVersion: 1,
-    hlc: `${String(1000 + eventCount).padStart(15, "0")}-000000-device-b`,
-    deviceId: "device-b",
-    actorUserId: "user-b",
+    millis: 1000 + eventCount,
     payload,
-  };
+  });
 }
 
 const created = (
