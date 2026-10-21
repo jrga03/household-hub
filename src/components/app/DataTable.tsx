@@ -32,6 +32,8 @@ export interface DataTableColumn<Row> {
   target?: boolean;
   /** The cell holds quick actions, shown on hover or focus above the row's target. */
   actions?: boolean;
+  /** Width and wrapping for the column's header and cells, such as `w-full max-w-0` to truncate. */
+  className?: string;
 }
 
 interface DataTableProps<Row> {
@@ -67,7 +69,8 @@ export function DataTable<Row>({
                 className={cn(
                   "text-label text-muted-foreground",
                   column.align === "end" && "text-right",
-                  column.hideBelow && hiddenBelow[column.hideBelow]
+                  column.hideBelow && hiddenBelow[column.hideBelow],
+                  column.className
                 )}
               >
                 {column.header}
@@ -93,7 +96,8 @@ export function DataTable<Row>({
                     key={column.id}
                     className={cn(
                       column.align === "end" && "text-right tabular-nums",
-                      column.hideBelow && hiddenBelow[column.hideBelow]
+                      column.hideBelow && hiddenBelow[column.hideBelow],
+                      column.className
                     )}
                   >
                     <CellContent

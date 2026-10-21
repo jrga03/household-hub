@@ -29,6 +29,19 @@ export async function signUpNewPerson(page: Page) {
   return person;
 }
 
+/** The Transactions page's rows: the phone list's items, or the laptop table's body rows. */
+export function transactionRows(page: Page): Locator {
+  return page
+    .getByRole("list", { name: "Transactions" })
+    .getByRole("listitem")
+    .or(
+      page
+        .getByRole("table", { name: "Transactions" })
+        .getByRole("row")
+        .filter({ has: page.getByRole("cell") })
+    );
+}
+
 /** Opens a select field and picks the option with exactly that name. */
 export async function chooseOption(page: Page, field: Locator, option: string) {
   await field.click();

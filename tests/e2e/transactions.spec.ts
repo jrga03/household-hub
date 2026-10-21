@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { chooseOption, signUpNewPerson, navigateTo } from "./fixtures/helpers";
+import { chooseOption, signUpNewPerson, navigateTo, transactionRows } from "./fixtures/helpers";
 
 const bankItem = (page: Page) =>
   page.getByRole("list", { name: "Accounts" }).getByRole("listitem").filter({ hasText: "BPI" });
@@ -56,14 +56,13 @@ test("transactions recorded offline move the balance, and a removal can be undon
   // Tapping an account opens Transactions filtered to it.
   await bankItem(page).getByRole("link", { name: "BPI" }).click();
   await expect(page).toHaveURL(/\/transactions\?account=/);
-  const list = page.getByRole("list", { name: "Transactions" });
-  const market = list.getByRole("listitem").filter({ hasText: "Market" });
-  await market.getByRole("button", { name: "Edit Market" }).click();
+  const market = transactionRows(page).filter({ hasText: "Market" });
+  await market.getByRole("button", { name: /^Market/ }).click();
   // From 840px of shell width the row opens in the detail pane, below it in a bottom sheet.
-  const editor = page
-    .getByRole("dialog", { name: "Edit transaction" })
-    .or(page.getByRole("region", { name: "Edit transaction" }));
-  await editor.getByRole("button", { name: "Remove" }).click();
+  const detail = page
+    .getByRole("dialog", { name: "Market" })
+    .or(page.getByRole("region", { name: "Market" }));
+  await detail.getByRole("button", { name: "Remove", exact: true }).click();
   const confirm = page.getByRole("alertdialog", { name: "Remove “Market” ₱250.00?" });
   await confirm.getByRole("button", { name: "Remove" }).click();
   await expect(market).toBeHidden();

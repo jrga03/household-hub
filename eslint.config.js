@@ -209,16 +209,12 @@ export const directPrimitiveImporters = [
   "src/components/transactions/CategorySelect.tsx",
   "src/components/transactions/EntryFields.tsx",
   "src/components/transactions/QuickEntry.tsx",
-  "src/components/transactions/SelectionActions.tsx",
   "src/components/transactions/TransactionDialog.tsx",
-  "src/components/transactions/TransactionFilters.tsx",
-  "src/components/transactions/TransactionList.tsx",
   "src/components/transactions/TransferDialog.tsx",
   "src/routes/__root.tsx",
   "src/routes/budget.tsx",
   "src/routes/create-or-join.tsx",
   "src/routes/settings.tsx",
-  "src/routes/transactions.tsx",
 ];
 
 const primitiveBoundary = {

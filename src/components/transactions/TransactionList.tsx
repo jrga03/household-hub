@@ -1,43 +1,54 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { defaultRangeExtractor, useWindowVirtualizer, type Range } from "@tanstack/react-virtual";
 import { SlidersHorizontal } from "lucide-react";
+import { Button } from "@/components/app/Button";
+import { EmptyState } from "@/components/app/EmptyState";
+import { Money } from "@/components/app/Money";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/app/Popover";
+import { SectionHeader } from "@/components/app/SectionHeader";
 import { ContextMode } from "@/components/layout/ContextMode";
 import { HeaderActions } from "@/components/layout/HeaderActions";
 import { DetailPane, resolveOpenItem, useOpenItem } from "@/components/layout/DetailPane";
 import { PageShell } from "@/components/layout/PageShell";
-import { BELOW_HEADER } from "@/components/layout/pane";
-import { Button } from "@/components/ui/button";
+import { BELOW_HEADER, useTwoPanes } from "@/components/layout/pane";
 import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useTransactionListRows } from "@/hooks/useTransactions";
 import { categoryNames } from "@/components/allocations/envelopes";
 import type { Actor } from "@/lib/commands/accounts";
+import { ZERO_CENTS, type Cents } from "@/lib/currency";
 import { dateHeading, groupByDate, type DateGroupItem } from "@/lib/transactions/date-groups";
 import {
   filterTransactions,
   isCorrection,
-  isTransfer,
+  totalTransactions,
   type ListRow,
   type TransactionFilter,
 } from "@/lib/transactions/filter";
 import { CorrectionDetails } from "@/components/corrections/CorrectionDialog";
 import { CORRECTION_LABEL } from "@/lib/corrections/events";
-import { cn } from "@/lib/utils";
+import { cn, countOf } from "@/lib/utils";
 import { monthOfDate } from "@/lib/utils/dates";
-import { SAVED_LOCALLY } from "./EntryFields";
 import { SelectionActions } from "./SelectionActions";
-import { TransactionEditor } from "./TransactionDialog";
-import { rowDisplay } from "./rowDisplay";
+import { rowDisplay, type RowDisplay } from "./rowDisplay";
+import { TransactionDetail } from "./TransactionDetail";
 import { TransactionItem } from "./TransactionItem";
-import { TransferEditor } from "./TransferDialog";
-import { TransactionFilters } from "./TransactionFilters";
+import { monthLabel, TransactionFilters } from "./TransactionFilters";
+import { TransactionTable } from "./TransactionTable";
 import type { RevealedAction } from "./useRowGestures";
 
 const ROW_HEIGHT_ESTIMATE = 61;
-const HEADING_HEIGHT_ESTIMATE = 31;
+const HEADING_HEIGHT_ESTIMATE = 41;
 
 /** "yyyy-MM" months holding transactions or transfers, newest first (the list is newest first). */
 const monthsOf = (rows: ListRow[]) => [...new Set(rows.map((row) => monthOfDate(row.date)))];
+
+/** Each date's income less its expenses; transfers and corrections count for neither. */
+function netByDate(rows: ListRow[]): Map<string, Cents> {
+  const byDate = new Map<string, ListRow[]>();
+  for (const row of rows) byDate.set(row.date, [...(byDate.get(row.date) ?? []), row]);
+  return new Map([...byDate].map(([date, dayRows]) => [date, totalTransactions(dayRows).netCents]));
+}
 
 interface TransactionListProps {
   actor: Actor;
@@ -46,22 +57,23 @@ interface TransactionListProps {
 }
 
 /**
- * Transactions, transfers and balance corrections under their dates, newest
- * first, filtered. A transfer is one row for both legs, signed when an account
- * is filtered. A row
- * opens in the `DetailPane`. A long press or the header's Select starts
- * selecting.
+ * Transactions, transfers and balance corrections, newest first, filtered.
+ * A transfer is one row for both legs, signed when an account is filtered.
+ * Beside a detail pane (a shell from 840) it is a table under a summary, with
+ * the filter rail beside it while nothing is open; narrower, it is a list
+ * under date headers with filter chips. A row opens in the `DetailPane`. A
+ * long press or the header's Select starts selecting.
  */
 export function TransactionList({ actor, filter, onFilterChange }: TransactionListProps) {
   const rows = useTransactionListRows();
   const accounts = useAccounts();
   const retiredAccounts = useRetiredAccounts();
   const categories = useCategoryList();
+  const twoPanes = useTwoPanes();
   const { openId, open, close } = useOpenItem();
   const [selecting, setSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
   const [revealed, setRevealed] = useState<{ id: string; action: RevealedAction } | null>(null);
-  const [filtersOpen, setFiltersOpen] = useState(false);
   // A new filter starts a new selection, so hidden rows don't come back selected.
   const [selectionFilter, setSelectionFilter] = useState(filter);
   if (selectionFilter !== filter) {
@@ -71,6 +83,7 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
 
   const shown = useMemo(() => (rows ? filterTransactions(rows, filter) : []), [rows, filter]);
   const items = useMemo(() => groupByDate(shown), [shown]);
+  const dayNets = useMemo(() => netByDate(shown), [shown]);
   const selected = useMemo(
     () => shown.filter((row) => selectedIds.has(row.id)),
     [shown, selectedIds]
@@ -80,23 +93,25 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
 
   if (!rows) return null;
 
-  const paneTitle = !openRow
-    ? "Edit transaction"
-    : isCorrection(openRow)
-      ? CORRECTION_LABEL
-      : isTransfer(openRow)
-        ? "Edit transfer"
-        : "Edit transaction";
+  const allAccounts = [...(accounts ?? []), ...(retiredAccounts ?? [])];
+  const accountsById = new Map(allAccounts.map((account) => [account.id, account]));
+  const names = {
+    categories: categories ? categoryNames(categories) : new Map<string, string>(),
+    accounts: new Map(allAccounts.map((account) => [account.id, account.name])),
+  };
+  const displayOf = (row: ListRow): RowDisplay => rowDisplay(row, names, filter.account);
+
   const detailPane = (
-    <DetailPane title={paneTitle} description={SAVED_LOCALLY} item={openRow}>
+    <DetailPane
+      title={!openRow ? "" : isCorrection(openRow) ? CORRECTION_LABEL : displayOf(openRow).label}
+      item={openRow}
+    >
       {(row) =>
-        // Keyed, so the form's defaults follow the row picked.
+        // Keyed, so local state follows the row picked.
         isCorrection(row) ? (
           <CorrectionDetails key={row.id} actor={actor} correction={row} onClose={close} />
-        ) : isTransfer(row) ? (
-          <TransferEditor key={row.id} actor={actor} transfer={row} onClose={close} />
         ) : (
-          <TransactionEditor key={row.id} actor={actor} transaction={row} onClose={close} />
+          <TransactionDetail key={row.id} actor={actor} row={row} display={displayOf(row)} />
         )
       }
     </DetailPane>
@@ -106,21 +121,15 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
     return (
       <>
         <PageShell.List>
-          <p className="text-body text-muted-foreground">
+          <EmptyState>
             No transactions yet. Add one with the Add transaction button or by pressing n.
-          </p>
+          </EmptyState>
         </PageShell.List>
         {detailPane}
       </>
     );
   }
 
-  const allAccounts = [...(accounts ?? []), ...(retiredAccounts ?? [])];
-  const accountsById = new Map(allAccounts.map((account) => [account.id, account]));
-  const names = {
-    categories: categories ? categoryNames(categories) : new Map<string, string>(),
-    accounts: new Map(allAccounts.map((account) => [account.id, account.name])),
-  };
   const startSelecting = (firstId?: string) => {
     setSelecting(true);
     close();
@@ -141,7 +150,20 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
   const revealRow = (id: string, action: RevealedAction | null) =>
     setRevealed((current) => (action ? { id, action } : current?.id === id ? null : current));
   const allShownSelected = shown.length > 0 && selected.length === shown.length;
-  const activeFilters = Object.keys(filter).length;
+
+  const filters = (layout: "chips" | "rail") => (
+    <TransactionFilters
+      filter={filter}
+      onChange={onFilterChange}
+      months={months}
+      accounts={allAccounts}
+      categories={categories}
+      layout={layout}
+    />
+  );
+  const noMatch = <EmptyState>No transactions match these filters.</EmptyState>;
+  // The rail gives way to the open item, so the table keeps its width.
+  const railFolded = Boolean(openRow);
 
   return (
     <>
@@ -170,48 +192,54 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
       </HeaderActions>
 
       <PageShell.List className="space-y-4">
-        {/* Phones show the rows first; the filters wait behind a button. */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="@[600px]:hidden"
-          aria-expanded={filtersOpen}
-          aria-controls="transaction-filters"
-          onClick={() => setFiltersOpen((wasOpen) => !wasOpen)}
-        >
-          <SlidersHorizontal className="size-4" aria-hidden="true" />
-          Search and filters{activeFilters > 0 && ` (${activeFilters})`}
-        </Button>
-        <div id="transaction-filters" className={cn(!filtersOpen && "hidden @[600px]:block")}>
-          <TransactionFilters
-            filter={filter}
-            onChange={onFilterChange}
-            months={months}
-            accounts={allAccounts}
-            categories={categories}
-          />
-        </div>
-
-        {shown.length === 0 ? (
-          <p className="text-body text-muted-foreground">No transactions match these filters.</p>
+        {twoPanes && !selecting ? (
+          <div className="flex gap-6">
+            {!railFolded && <div className="w-56 shrink-0">{filters("rail")}</div>}
+            <div className="min-w-0 flex-1 space-y-4">
+              <div className="flex items-center gap-3">
+                <Summary rows={shown} month={filter.month} />
+                {railFolded && <FiltersButton>{filters("rail")}</FiltersButton>}
+              </div>
+              {shown.length === 0 ? (
+                noMatch
+              ) : (
+                <TransactionTable
+                  actor={actor}
+                  rows={shown.map((row) => ({ row, display: displayOf(row) }))}
+                  openId={openId}
+                  onOpen={open}
+                />
+              )}
+            </div>
+          </div>
         ) : (
-          <VirtualTransactionRows
-            items={items}
-            renderRow={(row) => (
-              <TransactionItem
-                actor={actor}
-                row={row}
-                display={rowDisplay(row, names, filter.account)}
-                open={row.id === openId}
-                selecting={selecting}
-                selected={selectedIds.has(row.id)}
-                revealed={revealed?.id === row.id ? revealed.action : null}
-                onRevealChange={(action) => revealRow(row.id, action)}
-                onTap={() => (selecting ? toggleSelected(row.id) : open(row.id))}
-                onLongPress={() => (selecting ? toggleSelected(row.id) : startSelecting(row.id))}
+          <>
+            {filters("chips")}
+            {shown.length === 0 ? (
+              noMatch
+            ) : (
+              <VirtualTransactionRows
+                items={items}
+                dayNets={dayNets}
+                renderRow={(row) => (
+                  <TransactionItem
+                    actor={actor}
+                    row={row}
+                    display={displayOf(row)}
+                    open={row.id === openId}
+                    selecting={selecting}
+                    selected={selectedIds.has(row.id)}
+                    revealed={revealed?.id === row.id ? revealed.action : null}
+                    onRevealChange={(action) => revealRow(row.id, action)}
+                    onTap={() => (selecting ? toggleSelected(row.id) : open(row.id))}
+                    onLongPress={() =>
+                      selecting ? toggleSelected(row.id) : startSelecting(row.id)
+                    }
+                  />
+                )}
               />
             )}
-          />
+          </>
         )}
 
         {selecting && (
@@ -237,8 +265,51 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
   );
 }
 
+/** "October 2026 · 28 transactions · In +₱… · Out −₱…" over the table. */
+function Summary({ rows, month }: { rows: ListRow[]; month: string | undefined }) {
+  const { incomeCents, expenseCents } = totalTransactions(rows);
+  return (
+    <p className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-1 text-body text-muted-foreground">
+      <span className="font-medium text-foreground">
+        {month ? monthLabel(month) : "All months"}
+      </span>
+      <span>{countOf(rows.length, "transaction", "transactions")}</span>
+      <span>
+        {/* Nothing in or out reads as a plain ₱0.00, not "+₱0.00". */}
+        In <Money kind={incomeCents > 0 ? "income" : "net"} cents={incomeCents} />
+      </span>
+      <span>
+        Out{" "}
+        <Money
+          kind={expenseCents > 0 ? "expense" : "net"}
+          cents={expenseCents}
+          className="text-foreground"
+        />
+      </span>
+    </p>
+  );
+}
+
+/** The folded filter rail: the same filters in a popover. */
+function FiltersButton({ children }: { children: ReactNode }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="ml-auto">
+          <SlidersHorizontal aria-hidden="true" />
+          Filters
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72">
+        {children}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 interface VirtualTransactionRowsProps {
   items: DateGroupItem<ListRow>[];
+  dayNets: Map<string, Cents>;
   renderRow: (row: ListRow) => ReactNode;
 }
 
@@ -246,7 +317,7 @@ interface VirtualTransactionRowsProps {
  * Renders only the items near the viewport; the page itself scrolls. The
  * heading of the date in view sticks under the shell header.
  */
-function VirtualTransactionRows({ items, renderRow }: VirtualTransactionRowsProps) {
+function VirtualTransactionRows({ items, dayNets, renderRow }: VirtualTransactionRowsProps) {
   const listRef = useRef<HTMLUListElement>(null);
   const [listTop, setListTop] = useState(0);
   // How far below the top of the window the headings stick: the shell header's height.
@@ -314,8 +385,8 @@ function VirtualTransactionRows({ items, renderRow }: VirtualTransactionRowsProp
     <ul
       ref={listRef}
       aria-label="Transactions"
-      // The rows fill the height; the borders sit outside it.
-      className="relative box-content rounded-md border"
+      // The rows fill the height; the borders sit outside it. Rows run edge to edge on a phone.
+      className="relative -mx-4 box-content border-y"
       style={{ height: virtualizer.getTotalSize() }}
     >
       {virtualItems.map((virtualItem) => {
@@ -332,12 +403,16 @@ function VirtualTransactionRows({ items, renderRow }: VirtualTransactionRowsProp
               role="none"
               data-index={virtualItem.index}
               className={cn(
-                "left-0 z-10 w-full border-b bg-muted px-3 py-2 text-label text-muted-foreground",
+                "left-0 z-10 w-full border-b bg-background",
                 stuck ? cn("sticky", BELOW_HEADER) : "absolute top-0"
               )}
               style={stuck ? undefined : placed}
             >
-              <h2>{dateHeading(item.date, today)}</h2>
+              <SectionHeader
+                title={dateHeading(item.date, today)}
+                action={<Money kind="net" cents={dayNets.get(item.date) ?? ZERO_CENTS} />}
+                className="px-4 pb-1 pt-3"
+              />
             </li>
           );
         }

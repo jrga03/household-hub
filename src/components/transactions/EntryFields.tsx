@@ -4,8 +4,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { isEntryDirection, TRANSFER_TYPE, type EntryDirection } from "@/lib/transactions/filter";
 import { cn } from "@/lib/utils";
 
-export const SAVED_LOCALLY = "Saved on this device at once; it reaches others when they sync.";
-
 /** Spans both columns of the entry form's two-column grid. */
 export const FULL_ROW = "@[480px]:col-span-2";
 

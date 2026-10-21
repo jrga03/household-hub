@@ -9,6 +9,8 @@ export type RowTarget =
 export type RowTargetProps = RowTarget & {
   /** The row whose detail is showing. */
   open?: boolean;
+  /** While picking rows, whether this one is picked. An `onClick` target only. */
+  pressed?: boolean;
 };
 
 const stretchedTarget =
@@ -22,6 +24,7 @@ export function RowTargetElement({
   link,
   onClick,
   open = false,
+  pressed,
   className,
   children,
 }: RowTargetProps & { className?: string; children: ReactNode }) {
@@ -38,6 +41,7 @@ export function RowTargetElement({
       type="button"
       onClick={onClick}
       aria-current={open ? "true" : undefined}
+      aria-pressed={pressed}
       className={classes}
     >
       {children}

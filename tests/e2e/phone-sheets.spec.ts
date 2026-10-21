@@ -295,8 +295,12 @@ test.describe("phone forms", () => {
 
     await navigateTo(page, "Transactions");
     await page
-      .getByRole("button", { name: /^Edit Top up/ })
+      .getByRole("button", { name: /^Transfer Top up/ })
       .first()
+      .click();
+    await page
+      .getByRole("dialog", { name: "Top up" })
+      .getByRole("button", { name: "Edit" })
       .click();
     const edit = page.getByRole("dialog", { name: "Edit transfer" });
     await expect(edit).toBeVisible();
@@ -311,7 +315,11 @@ test.describe("phone forms", () => {
     await expect(sheet).toBeHidden();
 
     await navigateTo(page, "Transactions");
-    await page.getByRole("button", { name: "Edit Market" }).click();
+    await page.getByRole("button", { name: /^Market/ }).click();
+    await page
+      .getByRole("dialog", { name: "Market" })
+      .getByRole("button", { name: "Edit" })
+      .click();
     const edit = page.getByRole("dialog", { name: "Edit transaction" });
     await scrollBodyTo(edit, "bottom");
     const remove = edit.getByRole("button", { name: "Remove" });
