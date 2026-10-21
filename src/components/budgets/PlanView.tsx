@@ -88,7 +88,9 @@ export function PlanView({
 
   const rows = (categories: CategoryRow[]) =>
     categories.length === 0 ? (
-      <li className="px-4 py-2 text-body text-muted-foreground">No categories in use.</li>
+      <li>
+        <EmptyState className="px-4 py-2">No categories in use.</EmptyState>
+      </li>
     ) : (
       categories.map((category) => (
         <PlanRow

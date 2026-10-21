@@ -167,17 +167,17 @@ function Balances({ overview, view }: { overview: FinanceOverview; view: Finance
         <ul aria-label="Balances" className="divide-y border-y">
           {overview.balances.map(({ account, balance }) => (
             <li key={account.id}>
-              <Link
-                to="/accounts"
-                search={{ open: account.id }}
-                className="flex items-center justify-between gap-3 py-3 transition-colors hover:bg-accent"
-              >
-                <span className="truncate">{account.name}</span>
-                <span className="shrink-0">
-                  {isCreditCard(account) && <span className="text-muted-foreground">Owed </span>}
-                  <Money kind="balance" owed={isCreditCard(account)} cents={balance} />
-                </span>
-              </Link>
+              <ListRow
+                link={{ to: "/accounts", search: { open: account.id } }}
+                className="px-0"
+                label={account.name}
+                amount={
+                  <>
+                    {isCreditCard(account) && <span className="text-muted-foreground">Owed </span>}
+                    <Money kind="balance" owed={isCreditCard(account)} cents={balance} />
+                  </>
+                }
+              />
             </li>
           ))}
         </ul>

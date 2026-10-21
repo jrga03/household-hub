@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link, type LinkOptions } from "@tanstack/react-router";
+import type { LinkOptions } from "@tanstack/react-router";
 import {
   ChevronRight,
   CircleAlert,
@@ -9,6 +9,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { EmptyState } from "@/components/app/EmptyState";
+import { ListRow } from "@/components/app/ListRow";
 import { BUDGET_STATUS_STYLE } from "@/components/budgets/budgetStatusStyle";
 import { Money } from "@/components/app/Money";
 import { SectionHeader } from "@/components/app/SectionHeader";
@@ -152,21 +153,22 @@ export function AttentionFeed({
 function AttentionRow({ row }: { row: FeedRow }) {
   const Icon = row.icon;
   return (
-    <li className="@container">
-      <Link
-        {...row.link}
-        className="flex items-center gap-3 py-3 transition-colors hover:bg-accent"
-      >
-        <Icon aria-hidden className={cn("size-5 shrink-0", row.iconClass)} />
-        <span className="min-w-0 flex-1">
-          <span className="block font-medium">{row.sentence}</span>
-          <span className="block truncate text-muted-foreground">{row.detail}</span>
-        </span>
-        <StatusBadge tone={row.badge.tone} className="hidden @[600px]:inline-flex">
-          {row.badge.text}
-        </StatusBadge>
-        <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-      </Link>
+    <li>
+      <ListRow
+        link={row.link}
+        className="px-0"
+        leading={<Icon aria-hidden className={cn("size-5 shrink-0", row.iconClass)} />}
+        label={row.sentence}
+        detail={row.detail}
+        amount={
+          <span className="flex items-center gap-2">
+            <StatusBadge tone={row.badge.tone} className="hidden @[600px]:inline-flex">
+              {row.badge.text}
+            </StatusBadge>
+            <ChevronRight aria-hidden className="size-4 text-muted-foreground" />
+          </span>
+        }
+      />
     </li>
   );
 }
