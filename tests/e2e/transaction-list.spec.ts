@@ -108,8 +108,8 @@ test("rows sit under their date, and a pending one is marked by an icon", async 
   const list = page.getByRole("list", { name: "Transactions" });
   await expect(list.getByRole("heading", { name: "Today" })).toBeVisible();
   const lunch = list.getByRole("listitem").filter({ hasText: "Lunch" });
-  // An expense reads in parentheses and is announced as minus.
-  await expect(lunch).toContainText("(₱250.00)");
+  // An expense reads with a minus sign and is announced as minus.
+  await expect(lunch).toContainText("−₱250.00");
   await expect(
     lunch.getByRole("button", { name: "Edit Lunch, minus ₱250.00, pending", exact: true })
   ).toBeVisible();

@@ -16,7 +16,7 @@ import type { AccountMoney } from "@/lib/transactions/money";
 import type { Visibility } from "@/lib/events/ownership";
 import { VisibilityField } from "@/components/VisibilityField";
 import { namedAmounts } from "@/components/allocations/envelopes";
-import { shortfallClass } from "@/components/allocations/MoneyAmount";
+import { shortfallClass } from "@/components/app/Money";
 import {
   ACCOUNT_TYPE_LABELS,
   AccountDetailsFields,

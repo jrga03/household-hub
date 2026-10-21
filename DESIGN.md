@@ -58,11 +58,13 @@ Use only these roles _(lint: unknown classes, arbitrary colors, color literals, 
 
 Why: every amount follows one convention, so a person reads money the same way on every screen.
 
-- Format with `formatPHP` (`src/lib/currency.ts`): peso sign, thousands separators, two decimals. Never format cents by hand.
-- `income` marks money coming in, with a `+` sign.
-- Expenses and transfers stay neutral: no money color. An expense takes the surrounding text color with a `−` sign (U+2212). A transfer is neither in nor out, so it carries no sign and may be muted, with its transfer icon.
-- `shortfall` marks money that is short: an overspent category, a negative bank, cash or e-wallet balance, over budget, a "This leaves X at −₱…" note. Use `MoneyAmount` (`src/components/allocations/MoneyAmount.tsx`), which colors a negative amount.
-- A credit card's figure is the amount owed. Leave it uncolored, even when negative (that is a credit, not money short).
+- Show every amount with `Money` (`src/components/app/Money.tsx`). Its `kind` decides the sign, the color and what a screen reader says, so a page never decides them itself. It formats with `formatPHP` (`src/lib/currency.ts`): peso sign, thousands separators, two decimals. Never format cents by hand.
+- `income` marks money coming in, with a `+` sign (`kind="income"`).
+- Expenses and transfers stay neutral: no money color. An expense takes the surrounding text color with a `−` sign (U+2212, `kind="expense"`). A transfer is neither in nor out, so it carries no sign and is muted, with its transfer icon (`kind="transfer"`). In a single-account view a transfer leg shows which way it moved for that account with a neutral `−` or `+` (`leg="out"` or `leg="in"`), never the income color.
+- A signed total, such as a change or a month's net, is `kind="net"`: a positive total shows `+` in `income`, a negative one a neutral `−`.
+- `shortfall` marks money that is short: an overspent category, a negative bank, cash or e-wallet balance, over budget, a "This leaves X at −₱…" note. A balance or what's left is `kind="balance"`, which shows a negative amount with `−` in `shortfall`. An overspent amount is the caller's copy around it ("₱1,230.00 over"), not a kind. Spending exactly the budget counts as fine, not short.
+- A credit card's figure is the amount owed. Leave it uncolored, even when negative (that is a credit, not money short): `<Money kind="balance" owed>`.
+- `Money` reads aloud with its sign: "−₱250.00" is "minus ₱250.00". A row that is muted (a pending transaction) mutes the amount through `className`.
 - `shortfall` and `destructive` share a red hue but are separate tokens; their dark values differ so each keeps its contrast. An amount is never `destructive`; an action is never `shortfall`.
 - Never color alone. A short amount always shows its minus sign; income shows its `+`; a pending transaction is muted and keeps its Info icon. Icon-only signals need an `aria-label`.
 - Use the money roles, never a raw hue, for money intent. The theme has no palette to reach for _(lint: unknown classes)_.
