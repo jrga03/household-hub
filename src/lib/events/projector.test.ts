@@ -14,6 +14,7 @@ import {
 } from "./log";
 import type { Visibility } from "./ownership";
 import { registerProjection } from "./projector";
+import { HOUSEHOLD, loggedEvent } from "@/test/events";
 
 // A second entity, registered only here, to show the log needs no edits to project one.
 interface WidgetRow {
@@ -23,7 +24,6 @@ interface WidgetRow {
   label: string;
 }
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const WIDGET_ID = "bbbbbbbb-0000-4000-8000-000000000001";
 
 let widgets: Table<WidgetRow, string>;
@@ -70,30 +70,27 @@ function widgetEvent(
   id: string,
   eventType: string,
   eventVersion: number,
-  hlc: string,
+  millis: number,
   payload: Record<string, unknown>,
   visibility: Visibility = "household"
 ): LoggedEvent {
-  return {
+  return loggedEvent({
     id,
-    householdId: HOUSEHOLD,
-    visibility,
-    ownerUserId: visibility === "personal" ? "user-b" : null,
     entityType: "widget",
     entityId: WIDGET_ID,
     eventType,
     eventVersion,
-    hlc,
-    deviceId: "device-b",
-    actorUserId: "user-b",
+    millis,
     payload,
-  };
+    visibility,
+    ownerUserId: visibility === "personal" ? "user-b" : null,
+  });
 }
 
-const created = widgetEvent("e-created", "widget.created", 1, "000000000001000-000000-device-b", {
+const created = widgetEvent("e-created", "widget.created", 1, 1000, {
   name: "Sprocket",
 });
-const renamed = widgetEvent("e-renamed", "widget.renamed", 1, "000000000002000-000000-device-b", {
+const renamed = widgetEvent("e-renamed", "widget.renamed", 1, 2000, {
   label: "Gear",
 });
 
@@ -165,14 +162,7 @@ describe("a registered entity", () => {
       [
         created,
         {
-          ...widgetEvent(
-            "e-personal",
-            "widget.created",
-            2,
-            "000000000003000-000000-device-b",
-            { label: "Mine" },
-            "personal"
-          ),
+          ...widgetEvent("e-personal", "widget.created", 2, 3000, { label: "Mine" }, "personal"),
           entityId: personalId,
         },
       ],

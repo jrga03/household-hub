@@ -9,8 +9,8 @@ import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { listTransactions as readTransactions } from "@/lib/transactions/projection";
 import { ASSISTANT_TOOLS } from "./definitions";
 import { runAssistantTool } from "./tools";
+import { HOUSEHOLD } from "@/test/events";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 const OTHER_MEMBER = { householdId: HOUSEHOLD, userId: "user-b" };
 const UNKNOWN_ID = "99999999-9999-4999-8999-999999999999";

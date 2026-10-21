@@ -4,8 +4,9 @@ import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { createAccount, editAccount } from "@/lib/commands/accounts";
 import { listUnpushed, markPushed } from "@/lib/events/log";
 import { readEventLogExport } from "./event-log";
+import { HOUSEHOLD } from "@/test/events";
 
-const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
+const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 beforeEach(async () => {
   await resetLocalDatabase();

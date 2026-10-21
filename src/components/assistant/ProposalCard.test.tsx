@@ -9,8 +9,8 @@ import { listTransactions } from "@/lib/transactions/projection";
 import type { ProposalItem } from "@/lib/assistant/conversation";
 import { loadChat } from "@/lib/assistant/savedChat";
 import { ProposalCard } from "./ProposalCard";
+import { HOUSEHOLD } from "@/test/events";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 const TRANSACTION_ID = "eeeeeeee-0000-4000-8000-000000000001";
 

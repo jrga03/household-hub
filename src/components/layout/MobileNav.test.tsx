@@ -21,7 +21,8 @@ import {
 import { MobileNav, NavMenuButton } from "./MobileNav";
 import { signOutWithToast } from "@/lib/sign-out";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
-import { receiveEvents, type LoggedEvent } from "@/lib/events/log";
+import { receiveEvents } from "@/lib/events/log";
+import { loggedEvent } from "@/test/events";
 
 // authStore pulls the Supabase client (env-dependent); the drawer only reads
 // the user for the profile header
@@ -52,18 +53,12 @@ function withQueryClient(children: React.ReactNode) {
   );
 }
 
-const uncategorizedExpense: LoggedEvent = {
+const uncategorizedExpense = loggedEvent({
   id: "e-1",
-  householdId: "11111111-1111-4111-8111-111111111111",
-  visibility: "household",
-  ownerUserId: null,
   entityType: "transaction",
   entityId: "t-1",
   eventType: "transaction.created",
-  eventVersion: 1,
-  hlc: "000000000001000-000000-device-b",
-  deviceId: "device-b",
-  actorUserId: "user-b",
+  millis: 1000,
   payload: {
     date: "2026-10-12",
     type: "expense",
@@ -74,7 +69,7 @@ const uncategorizedExpense: LoggedEvent = {
     notes: "",
     status: "cleared",
   },
-};
+});
 
 async function renderDrawer() {
   const rootRoute = createRootRoute({

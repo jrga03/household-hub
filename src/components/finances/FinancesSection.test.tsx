@@ -13,8 +13,9 @@ import { createAccount } from "@/lib/commands/accounts";
 import { addTransaction } from "@/lib/commands/transactions";
 import { parsePHP } from "@/lib/currency";
 import { FinancesSection } from "./FinancesSection";
+import { HOUSEHOLD } from "@/test/events";
 
-const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
+const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 function renderHome() {
   const rootRoute = createRootRoute();

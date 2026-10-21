@@ -16,8 +16,8 @@ import {
   type CorrectionInput,
 } from "./corrections";
 import { addTransaction } from "./transactions";
+import { HOUSEHOLD, loggedEvent } from "@/test/events";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 const peso = (amount: string): Cents => parsePHP(amount);
@@ -290,25 +290,20 @@ describe("recordBalanceCorrection on a credit card", () => {
     const elsewhereCard = "aaaaaaaa-0000-4000-8000-0000000000c1";
     await receiveEvents(
       [
-        {
+        loggedEvent({
           id: crypto.randomUUID(),
-          householdId: HOUSEHOLD,
-          visibility: "household",
-          ownerUserId: null,
           entityType: "account",
           entityId: elsewhereCard,
           eventType: "account.created",
           eventVersion: 2,
-          hlc: "000000000001000-000000-device-b",
-          deviceId: "device-b",
-          actorUserId: "user-b",
+          millis: 1000,
           payload: {
             name: "Amex",
             type: "credit_card",
             startingBalanceCents: 0,
             payingAccountId: "aaaaaaaa-0000-4000-8000-0000000000ff",
           },
-        },
+        }),
       ],
       0
     );

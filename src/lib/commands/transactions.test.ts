@@ -18,8 +18,8 @@ import {
   type TransactionInput,
 } from "./transactions";
 import { retireOnAnotherDevice } from "@/test/anotherDevice";
+import { HOUSEHOLD, loggedEvent } from "@/test/events";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 const OTHER_MEMBER = { householdId: HOUSEHOLD, userId: "user-b" };
 
@@ -30,18 +30,13 @@ const OLD_ID = "dddddddd-0000-4000-8000-000000000001";
 
 /** A transaction another device recorded before descriptions were required. */
 function oldEventWithoutDescription(details: Record<string, unknown> = {}): LoggedEvent {
-  return {
+  return loggedEvent({
     id: "old-created",
-    householdId: HOUSEHOLD,
-    visibility: "household",
-    ownerUserId: null,
     entityType: "transaction",
     entityId: OLD_ID,
     eventType: "transaction.created",
     eventVersion: 3,
-    hlc: "000000000001000-000000-device-b",
-    deviceId: "device-b",
-    actorUserId: "user-b",
+    millis: 1000,
     payload: {
       ...expense({ description: "" }),
       payingAccountId: null,
@@ -49,7 +44,7 @@ function oldEventWithoutDescription(details: Record<string, unknown> = {}): Logg
       status: "cleared",
       ...details,
     },
-  };
+  });
 }
 
 let bankId: string;

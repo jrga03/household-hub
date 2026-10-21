@@ -2,79 +2,72 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { permutations } from "@/test/permutations";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { receiveEvents, type LoggedEvent } from "@/lib/events/log";
+import { hlcAt, loggedEvent, type EventFields } from "@/test/events";
 import { listAccounts, listRetiredAccounts } from "./projection";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const CASH_ID = "aaaaaaaa-0000-4000-8000-000000000001";
 const BANK_ID = "aaaaaaaa-0000-4000-8000-000000000002";
 
-function accountCreated(
-  eventId: string,
-  entityId: string,
-  hlc: string,
-  payload: Record<string, unknown>
-): LoggedEvent {
-  return {
-    id: eventId,
-    householdId: HOUSEHOLD,
-    visibility: "household",
-    ownerUserId: null,
-    entityType: "account",
-    entityId,
-    eventType: "account.created",
+type AccountEventFields = Omit<EventFields, "entityType" | "eventType">;
+
+function accountCreated(fields: AccountEventFields): LoggedEvent {
+  return loggedEvent({
     eventVersion: 2,
-    hlc,
-    deviceId: "device-b",
-    actorUserId: "user-b",
-    payload: { payingAccountId: null, ...payload },
-  };
+    ...fields,
+    entityType: "account",
+    eventType: "account.created",
+    payload: { payingAccountId: null, ...fields.payload },
+  });
 }
 
-function accountEdited(
-  eventId: string,
-  entityId: string,
-  hlc: string,
-  payload: Record<string, unknown>
-): LoggedEvent {
-  return {
-    ...accountCreated(eventId, entityId, hlc, payload),
-    eventType: "account.edited",
-    eventVersion: 2,
-    deviceId: hlc.slice(-8),
-    payload: { payingAccountId: null, ...payload },
-  };
+function accountEdited(fields: AccountEventFields): LoggedEvent {
+  return { ...accountCreated(fields), eventType: "account.edited" };
 }
 
 function accountRetirement(
   eventType: "account.retired" | "account.unretired",
-  eventId: string,
-  hlc: string
+  {
+    entityId = CASH_ID,
+    ...fields
+  }: Omit<AccountEventFields, "entityId" | "payload"> & {
+    entityId?: string;
+  }
 ): LoggedEvent {
-  return {
-    ...accountCreated(eventId, CASH_ID, hlc, {}),
-    eventType,
-    eventVersion: 1,
-    deviceId: hlc.slice(-8),
-    payload: {},
-  };
+  return loggedEvent({ ...fields, entityType: "account", entityId, eventType });
 }
 
-const cash = accountCreated("e-cash", CASH_ID, "000000000001000-000000-device-b", {
-  name: "Cash",
-  type: "cash",
-  startingBalanceCents: 50_000,
+const cash = accountCreated({
+  id: "e-cash",
+  entityId: CASH_ID,
+  millis: 1000,
+  payload: {
+    name: "Cash",
+    type: "cash",
+    startingBalanceCents: 50_000,
+  },
 });
-const bank = accountCreated("e-bank", BANK_ID, "000000000002000-000000-device-b", {
-  name: "BDO Savings",
-  type: "bank",
-  startingBalanceCents: 1_250_075,
+const bank = accountCreated({
+  id: "e-bank",
+  entityId: BANK_ID,
+  millis: 2000,
+  payload: {
+    name: "BDO Savings",
+    type: "bank",
+    startingBalanceCents: 1_250_075,
+  },
 });
 // The same account created twice (never expected, but projections must stay
 // deterministic): the later HLC wins.
-const cashAgainLater = accountCreated("e-cash-2", CASH_ID, "000000000003000-000000-device-a", {
-  name: "Wallet",
-  type: "cash",
-  startingBalanceCents: 70_000,
+const cashAgainLater = accountCreated({
+  id: "e-cash-2",
+  entityId: CASH_ID,
+  millis: 3000,
+  device: "device-a",
+  payload: {
+    name: "Wallet",
+    type: "cash",
+    startingBalanceCents: 70_000,
+  },
 });
 
 const EXPECTED_ACCOUNTS = [
@@ -123,10 +116,15 @@ describe("account projection", () => {
   });
 
   it("skips an event whose payload is not a valid account", async () => {
-    const broken = accountCreated("e-broken", "aaaaaaaa-0000-4000-8000-000000000009", cash.hlc, {
-      name: "",
-      type: "cash",
-      startingBalanceCents: 1.5,
+    const broken = accountCreated({
+      id: "e-broken",
+      entityId: "aaaaaaaa-0000-4000-8000-000000000009",
+      millis: 1000,
+      payload: {
+        name: "",
+        type: "cash",
+        startingBalanceCents: 1.5,
+      },
     });
 
     await receiveEvents([broken, bank], 0);
@@ -134,30 +132,37 @@ describe("account projection", () => {
     expect(await listAccounts()).toMatchObject([{ id: BANK_ID }]);
   });
 
-  const personalSavings: LoggedEvent = {
-    ...accountCreated("e-savings", BANK_ID, "000000000001000-000000-device-b", {
+  const personalSavings = accountCreated({
+    id: "e-savings",
+    entityId: BANK_ID,
+    millis: 1000,
+    visibility: "personal",
+    ownerUserId: "user-b",
+    payload: {
       name: "Savings",
       type: "bank",
       startingBalanceCents: 0,
-    }),
+    },
+  });
+  const savingsRenamedByOwner = accountEdited({
+    id: "e-savings-2",
+    entityId: BANK_ID,
+    millis: 2000,
     visibility: "personal",
     ownerUserId: "user-b",
-  };
-  const savingsRenamedByOwner: LoggedEvent = {
-    ...accountEdited("e-savings-2", BANK_ID, "000000000002000-000000-device-b", {
+    payload: {
       name: "Rainy day",
       type: "bank",
       startingBalanceCents: 0,
-    }),
-    visibility: "personal",
-    ownerUserId: "user-b",
-  };
-  const savingsMadeHousehold = accountEdited(
-    "e-savings-3",
-    BANK_ID,
-    "000000000003000-000000-device-a",
-    { name: "Joint savings", type: "bank", startingBalanceCents: 0 }
-  );
+    },
+  });
+  const savingsMadeHousehold = accountEdited({
+    id: "e-savings-3",
+    entityId: BANK_ID,
+    millis: 3000,
+    device: "device-a",
+    payload: { name: "Joint savings", type: "bank", startingBalanceCents: 0 },
+  });
 
   it.each(
     permutations([personalSavings, savingsRenamedByOwner, savingsMadeHousehold]).map((order) => [
@@ -178,20 +183,37 @@ describe("account projection", () => {
   );
 
   describe("edits", () => {
-    const groceries = accountCreated("e-groceries", CASH_ID, "000000000001000-000000-device-a", {
-      name: "Groceries cash",
-      type: "cash",
-      startingBalanceCents: 10_000,
+    const groceries = accountCreated({
+      id: "e-groceries",
+      entityId: CASH_ID,
+      millis: 1000,
+      device: "device-a",
+      payload: {
+        name: "Groceries cash",
+        type: "cash",
+        startingBalanceCents: 10_000,
+      },
     });
-    const editOnA = accountEdited("e-edit-a", CASH_ID, "000000000005000-000000-device-a", {
-      name: "Market cash",
-      type: "cash",
-      startingBalanceCents: 12_000,
+    const editOnA = accountEdited({
+      id: "e-edit-a",
+      entityId: CASH_ID,
+      millis: 5000,
+      device: "device-a",
+      payload: {
+        name: "Market cash",
+        type: "cash",
+        startingBalanceCents: 12_000,
+      },
     });
-    const laterEditOnB = accountEdited("e-edit-b", CASH_ID, "000000000006000-000000-device-b", {
-      name: "Pantry cash",
-      type: "cash",
-      startingBalanceCents: 15_000,
+    const laterEditOnB = accountEdited({
+      id: "e-edit-b",
+      entityId: CASH_ID,
+      millis: 6000,
+      payload: {
+        name: "Pantry cash",
+        type: "cash",
+        startingBalanceCents: 15_000,
+      },
     });
 
     it.each(
@@ -210,18 +232,36 @@ describe("account projection", () => {
     });
 
     it.each([
-      ["the higher counter", "000000000005000-000001-device-a", "000000000005000-000002-device-a"],
-      ["the later device id", "000000000005000-000003-device-a", "000000000005000-000003-device-b"],
-    ])("breaks an equal wall time by %s", async (_rule, earlierHlc, laterHlc) => {
-      const earlier = accountEdited("e-earlier", CASH_ID, earlierHlc, {
-        name: "Earlier",
-        type: "cash",
-        startingBalanceCents: 0,
+      [
+        "the higher counter",
+        { millis: 5000, device: "device-a", counter: 1 },
+        { millis: 5000, device: "device-a", counter: 2 },
+      ],
+      [
+        "the later device id",
+        { millis: 5000, device: "device-a", counter: 3 },
+        { millis: 5000, device: "device-b", counter: 3 },
+      ],
+    ])("breaks an equal wall time by %s", async (_rule, earlierAt, laterAt) => {
+      const earlier = accountEdited({
+        id: "e-earlier",
+        entityId: CASH_ID,
+        ...earlierAt,
+        payload: {
+          name: "Earlier",
+          type: "cash",
+          startingBalanceCents: 0,
+        },
       });
-      const later = accountEdited("e-later", CASH_ID, laterHlc, {
-        name: "Later",
-        type: "cash",
-        startingBalanceCents: 0,
+      const later = accountEdited({
+        id: "e-later",
+        entityId: CASH_ID,
+        ...laterAt,
+        payload: {
+          name: "Later",
+          type: "cash",
+          startingBalanceCents: 0,
+        },
       });
 
       for (const order of [
@@ -259,20 +299,22 @@ describe("account projection", () => {
   });
 
   describe("retirement", () => {
-    const retired = accountRetirement(
-      "account.retired",
-      "e-retire",
-      "000000000005000-000000-device-a"
-    );
-    const unretired = accountRetirement(
-      "account.unretired",
-      "e-unretire",
-      "000000000006000-000000-device-b"
-    );
-    const renamed = accountEdited("e-rename", CASH_ID, "000000000007000-000000-device-a", {
-      name: "Coins",
-      type: "cash",
-      startingBalanceCents: 50_000,
+    const retired = accountRetirement("account.retired", {
+      id: "e-retire",
+      millis: 5000,
+      device: "device-a",
+    });
+    const unretired = accountRetirement("account.unretired", { id: "e-unretire", millis: 6000 });
+    const renamed = accountEdited({
+      id: "e-rename",
+      entityId: CASH_ID,
+      millis: 7000,
+      device: "device-a",
+      payload: {
+        name: "Coins",
+        type: "cash",
+        startingBalanceCents: 50_000,
+      },
     });
 
     it("moves a retired account from the main list to the retired list", async () => {
@@ -300,7 +342,7 @@ describe("account projection", () => {
     );
 
     it("keeps an account retired when the retire is later than a rename", async () => {
-      const laterRetire = { ...retired, hlc: "000000000008000-000000-device-a" };
+      const laterRetire = { ...retired, hlc: hlcAt(8000, "device-a") };
 
       await receiveEvents([renamed, laterRetire, cash], 0);
 
@@ -310,11 +352,17 @@ describe("account projection", () => {
 
   describe("credit cards", () => {
     const VISA_ID = "aaaaaaaa-0000-4000-8000-000000000003";
-    const visa = accountCreated("e-visa", VISA_ID, "000000000004000-000000-device-a", {
-      name: "Visa",
-      type: "credit_card",
-      startingBalanceCents: 0,
-      payingAccountId: BANK_ID,
+    const visa = accountCreated({
+      id: "e-visa",
+      entityId: VISA_ID,
+      millis: 4000,
+      device: "device-a",
+      payload: {
+        name: "Visa",
+        type: "credit_card",
+        startingBalanceCents: 0,
+        payingAccountId: BANK_ID,
+      },
     });
 
     it("resolves a card's Paying Account once that account arrives", async () => {
@@ -332,14 +380,11 @@ describe("account projection", () => {
     });
 
     it("still names a Paying Account that has since been retired", async () => {
-      const bankRetired = {
-        ...accountRetirement(
-          "account.retired",
-          "e-bank-retired",
-          "000000000005000-000000-device-b"
-        ),
+      const bankRetired = accountRetirement("account.retired", {
+        id: "e-bank-retired",
         entityId: BANK_ID,
-      };
+        millis: 5000,
+      });
 
       await receiveEvents([visa, bank, bankRetired], 0);
 
@@ -359,11 +404,16 @@ describe("account projection", () => {
       ]);
     });
 
-    const payFromCash = accountEdited("e-visa-cash", VISA_ID, "000000000006000-000000-device-b", {
-      name: "Visa",
-      type: "credit_card",
-      startingBalanceCents: 0,
-      payingAccountId: CASH_ID,
+    const payFromCash = accountEdited({
+      id: "e-visa-cash",
+      entityId: VISA_ID,
+      millis: 6000,
+      payload: {
+        name: "Visa",
+        type: "credit_card",
+        startingBalanceCents: 0,
+        payingAccountId: CASH_ID,
+      },
     });
 
     it.each(
@@ -384,22 +434,32 @@ describe("account projection", () => {
       [
         "a card edited into a bank account",
         visa,
-        accountEdited("e-visa-bank", VISA_ID, "000000000006000-000000-device-b", {
-          name: "Not a card",
-          type: "bank",
-          startingBalanceCents: 0,
-          payingAccountId: null,
+        accountEdited({
+          id: "e-visa-bank",
+          entityId: VISA_ID,
+          millis: 6000,
+          payload: {
+            name: "Not a card",
+            type: "bank",
+            startingBalanceCents: 0,
+            payingAccountId: null,
+          },
         }),
         { name: "Visa", type: "credit_card" },
       ],
       [
         "a bank account edited into a card",
         bank,
-        accountEdited("e-bank-card", BANK_ID, "000000000006000-000000-device-b", {
-          name: "Now a card",
-          type: "credit_card",
-          startingBalanceCents: 0,
-          payingAccountId: CASH_ID,
+        accountEdited({
+          id: "e-bank-card",
+          entityId: BANK_ID,
+          millis: 6000,
+          payload: {
+            name: "Now a card",
+            type: "credit_card",
+            startingBalanceCents: 0,
+            payingAccountId: CASH_ID,
+          },
         }),
         { name: "BDO Savings", type: "bank" },
       ],
@@ -413,11 +473,16 @@ describe("account projection", () => {
     });
 
     it("doesn't resolve another card as a Paying Account", async () => {
-      const otherCard = accountCreated("e-other", BANK_ID, bank.hlc, {
-        name: "Mastercard",
-        type: "credit_card",
-        startingBalanceCents: 0,
-        payingAccountId: CASH_ID,
+      const otherCard = accountCreated({
+        id: "e-other",
+        entityId: BANK_ID,
+        millis: 2000,
+        payload: {
+          name: "Mastercard",
+          type: "credit_card",
+          startingBalanceCents: 0,
+          payingAccountId: CASH_ID,
+        },
       });
 
       await receiveEvents([visa, otherCard], 0);
@@ -455,14 +520,18 @@ describe("account projection", () => {
     });
 
     it("projects a version 1 edit, which had no paying account", async () => {
-      const versionOneEdit: LoggedEvent = {
-        ...accountEdited("e-cash-edit", CASH_ID, "000000000002000-000000-device-a", {
+      const versionOneEdit = accountEdited({
+        id: "e-cash-edit",
+        entityId: CASH_ID,
+        millis: 2000,
+        device: "device-a",
+        eventVersion: 1,
+        payload: {
           name: "Coins",
           type: "cash",
           startingBalanceCents: 50_000,
-        }),
-        eventVersion: 1,
-      };
+        },
+      });
 
       await receiveEvents([cash, versionOneEdit], 0);
 

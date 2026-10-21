@@ -21,8 +21,8 @@ import { addTransaction } from "@/lib/commands/transactions";
 import { readFinanceOverview } from "@/lib/finances/overview";
 import { parsePHP } from "@/lib/currency";
 import { BudgetView } from "./BudgetView";
+import { HOUSEHOLD } from "@/test/events";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 const MONTH = "2026-10";
 

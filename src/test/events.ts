@@ -3,8 +3,8 @@ import type { LoggedEvent } from "@/lib/events/log";
 
 export const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 
-export const hlcAt = (millis: number, device = "device-b") =>
-  formatHlc({ wallTime: millis, counter: 0, deviceId: device });
+export const hlcAt = (millis: number, device = "device-b", counter = 0) =>
+  formatHlc({ wallTime: millis, counter, deviceId: device });
 
 export interface EventFields {
   id: string;
@@ -15,6 +15,8 @@ export interface EventFields {
   payload?: Record<string, unknown>;
   eventVersion?: number;
   device?: string;
+  counter?: number;
+  householdId?: string;
   visibility?: LoggedEvent["visibility"];
   ownerUserId?: LoggedEvent["ownerUserId"];
 }
@@ -29,19 +31,21 @@ export function loggedEvent({
   payload = {},
   eventVersion = 1,
   device = "device-b",
+  counter = 0,
+  householdId = HOUSEHOLD,
   visibility = "household",
   ownerUserId = null,
 }: EventFields): LoggedEvent {
   return {
     id,
-    householdId: HOUSEHOLD,
+    householdId,
     visibility,
     ownerUserId,
     entityType,
     entityId,
     eventType,
     eventVersion,
-    hlc: hlcAt(millis, device),
+    hlc: hlcAt(millis, device, counter),
     deviceId: device,
     actorUserId: "user-b",
     payload,

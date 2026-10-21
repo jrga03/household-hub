@@ -5,8 +5,8 @@ import { createAccount, retireAccount } from "@/lib/commands/accounts";
 import { setBudget } from "@/lib/commands/budgets";
 import { createCategory, createGroup, retireCategory } from "@/lib/commands/categories";
 import { readDistributeLines } from "./distribute";
+import { HOUSEHOLD } from "@/test/events";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 const peso = (amount: string): Cents => parsePHP(amount);
