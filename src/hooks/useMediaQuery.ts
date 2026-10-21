@@ -58,7 +58,7 @@ export function useMediaQuery(query: string): boolean {
   return matches;
 }
 
-/** Material 3 window size classes: global navigation switches on these (#216). */
+/** Material 3 window size classes: global navigation switches on these. */
 export type WindowClass = "compact" | "medium" | "expanded" | "large";
 
 /** Below 600px. src/index.css mirrors it for the bottom tab bar's `--bottom-chrome`. */
@@ -74,3 +74,6 @@ export function useWindowClass(): WindowClass {
   if (isLarge) return "large";
   return isExpandedUp ? "expanded" : "medium";
 }
+
+/** The compact window class: phones, with the tab bar and bottom sheets. */
+export const useIsCompact = () => useMediaQuery(COMPACT_QUERY);

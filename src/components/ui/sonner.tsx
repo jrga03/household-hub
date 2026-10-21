@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
-import { useWindowClass } from "@/hooks/useMediaQuery";
+import { useIsCompact } from "@/hooks/useMediaQuery";
 
 // Radix dialogs and the vaul sheets built on them mark the body while open.
 const SCROLL_LOCK = "data-scroll-locked";
@@ -23,10 +23,10 @@ const isScrollLocked = () => document.body.hasAttribute(SCROLL_LOCK);
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme();
-  const isPhone = useWindowClass() === "compact";
+  const isCompact = useIsCompact();
   const overlayOpen = useSyncExternalStore(subscribeToScrollLock, isScrollLocked, () => false);
   // A phone sheet rises from the bottom, where toasts sit, so they move to the top while one is open.
-  const position = isPhone && overlayOpen ? "top-center" : undefined;
+  const position = isCompact && overlayOpen ? "top-center" : undefined;
 
   return (
     <Sonner
@@ -40,7 +40,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         loading: <Loader2Icon className="size-4 motion-safe:animate-spin" />,
       }}
       // Lift toasts clear of the bottom tab bar, the FAB, and the iOS
-      // home-indicator zone (reviews R7, R42). --toast-bottom (index.css) is
+      // home-indicator zone. --toast-bottom (index.css) is
       // media-queried at the compact window class (below 600px): FAB+tab-bar
       // clearance there, ~sonner's 32px default from medium up.
       position={position}
