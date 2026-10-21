@@ -100,6 +100,7 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#219 `useSelectedItem` is deleted**, folded into `DetailPane`'s `useOpenItem`. Why: nothing else used it, and the open item needs push or replace by pane count and close-by-back. Revisit: never.
 - **#219 the sheet uses vaul's `Drawer.Root`, not the `ui/drawer` wrapper**, so the `?open=` entry is the one back pops (no second sentinel entry). Why: two entries would need two backs to close. Revisit: never.
 - **#219 records opened from the Budget ledger stay in `FormSheet` dialogs, outside the URL.** Why: only the list's open item is `?open=`. Revisit: the Budget migration.
+- **#221 DESIGN.md and CLAUDE.md say "every route except login and signup" uses `PageShell`**, and the route table lists them as a centered form with no shell. Why: as built, those two routes render their own centered `div`; the spec's "`single`, narrow" holds only for create-or-join. Revisit: if a page migration moves auth onto `PageShell`.
 
 ### Rollout checklist
 

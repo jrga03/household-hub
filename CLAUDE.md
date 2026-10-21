@@ -38,7 +38,7 @@ Always ask: what happens offline, and what happens when two devices edit the sam
 - `@tanstack/eslint-plugin-query` (strict) applies to any query.
 - Server state in TanStack Query, client state in Zustand (minimal). Projections are read with `useLiveQuery` (dexie-react-hooks), so local writes and synced events re-render on their own.
 - Any UI change follows `DESIGN.md`; read it in full first.
-- Every route uses `<PageShell variant="…">` (`src/components/layout/PageShell.tsx`). Inside rails, sheets, and panes, use container queries (`@[600px]:`), not viewport breakpoints.
+- Every route except login and signup uses `<PageShell variant="…">` (`src/components/layout/PageShell.tsx`). Inside the shell, rails, sheets, and panes, use container queries at 600, 840 or 1200 (`@[600px]:`); the window-class breakpoints `medium:`, `expanded:`, `large:` are for global chrome only.
 - No `any`. No `!` in production code (lint-enforced); narrow with a guard instead. Tests may use `!` after asserting length.
 - No blanket `eslint-disable`; any disable needs a trailing reason.
 - Path alias `@/` maps to `src/`.
