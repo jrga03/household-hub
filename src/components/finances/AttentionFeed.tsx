@@ -159,6 +159,7 @@ function AttentionRow({ row }: { row: FeedRow }) {
         className="px-0"
         leading={<Icon aria-hidden className={cn("size-5 shrink-0", row.iconClass)} />}
         label={row.sentence}
+        wrap
         detail={row.detail}
         trailing={
           <>

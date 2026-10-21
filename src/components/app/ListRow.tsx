@@ -98,6 +98,8 @@ type ListRowProps = (RowTargetProps | NoTarget) & {
   leading?: ReactNode;
   /** Mutes the label, as for a pending transaction. */
   muted?: boolean;
+  /** Lets a sentence label wrap instead of truncating, so its amount stays readable. */
+  wrap?: boolean;
   actions?: ReactNode;
   className?: string;
 };
@@ -114,6 +116,7 @@ export function ListRow({
   trailing,
   leading,
   muted = false,
+  wrap = false,
   actions,
   className,
   ...target
@@ -130,7 +133,11 @@ export function ListRow({
         <span className="flex items-center gap-2">
           {leading}
           <span
-            className={cn("min-w-0 flex-1 truncate font-medium", muted && "text-muted-foreground")}
+            className={cn(
+              "min-w-0 flex-1 font-medium",
+              wrap ? "text-pretty" : "truncate",
+              muted && "text-muted-foreground"
+            )}
           >
             {label}
           </span>
