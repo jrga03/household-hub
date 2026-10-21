@@ -3,7 +3,7 @@
  *
  * Pull-to-refresh is disabled app-wide (overscroll-behavior: none) and a
  * standalone PWA has no browser chrome, so the error fallback must offer a
- * hard "Reload app" escape hatch alongside the soft "Try Again" reset —
+ * hard "Reload app" escape hatch alongside the soft "Try again" reset —
  * otherwise a wedged screen requires force-killing the app.
  */
 
@@ -37,7 +37,7 @@ describe("ErrorBoundary", () => {
     expect(screen.queryByRole("button", { name: "Reload app" })).not.toBeInTheDocument();
   });
 
-  it("shows both Try Again and Reload app buttons in the fallback", () => {
+  it("shows both Try again and Reload app buttons in the fallback", () => {
     render(
       <ErrorBoundary>
         <Boom />
@@ -45,7 +45,7 @@ describe("ErrorBoundary", () => {
     );
 
     expect(screen.getByText("Something went wrong")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Try Again" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reload app" })).toBeInTheDocument();
   });
 

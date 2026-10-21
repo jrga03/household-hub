@@ -57,11 +57,11 @@ import {
   NO_PROBLEMS,
   readEntryBasics,
   StatusChoice,
-  useEntryFormRef,
   useFocusNewEntry,
   type EntryProblems,
 } from "./EntryFields";
 import { transferName } from "./transferName";
+import { useFocusFirstProblem } from "@/hooks/useFocusFirstProblem";
 
 /**
  * Asks first, then removes the transfer, offering Undo (a restore event) in
@@ -323,7 +323,7 @@ export function TransferForm({
     },
     NO_PROBLEMS
   );
-  const formRef = useEntryFormRef(problems);
+  const formRef = useFocusFirstProblem(problems);
 
   const directionChoice = onDirectionChange && (
     <DirectionChoice

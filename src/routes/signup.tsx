@@ -19,9 +19,5 @@ function Signup() {
     }
   }, [user, router]);
 
-  return (
-    <div className="flex min-h-dvh items-center justify-center bg-background px-4">
-      <SignupForm />
-    </div>
-  );
+  return <SignupForm />;
 }

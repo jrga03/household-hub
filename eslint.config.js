@@ -21,6 +21,7 @@ const architecturePlugin = {
     "no-direct-event-log": restrictedSyntax,
     "no-color-literal": restrictedSyntax,
     "no-inline-color-style": restrictedSyntax,
+    "no-hand-made-amount": restrictedSyntax,
     // Its own rule ID so it stacks with the no-restricted-imports blocks below
     // instead of replacing them.
     "no-direct-primitive-import": builtinRules.get("no-restricted-imports"),
@@ -153,7 +154,20 @@ const primitiveRestrictedClasses = [
   ...arbitraryScaleClasses,
   transitionAllClass,
 ];
-const appRestrictedClasses = [...primitiveRestrictedClasses, ...offSetSpacingClasses];
+// Page content follows its container (@[600px]:), global chrome the window
+// classes (medium:, expanded:, large:). Tailwind's sm/md/lg/xl/2xl stay in the
+// theme only because the shadcn primitives ship with them.
+const viewportBreakpointClass = {
+  pattern: "(?:^|:)(?:max-|min-)?(?:sm|md|lg|xl|2xl):",
+  message:
+    "Use a container query (@[600px]:, @[840px]:, @[1200px]:) in page content, or medium:, expanded:, large: in global chrome.",
+};
+
+const appRestrictedClasses = [
+  ...primitiveRestrictedClasses,
+  ...offSetSpacingClasses,
+  viewportBreakpointClass,
+];
 
 const restrictNanoid = {
   name: "nanoid",
@@ -162,20 +176,6 @@ const restrictNanoid = {
 
 // shadcn primitives (src/components/ui) are private to the app-component layer
 // (src/components/app, plus the layout chrome in src/components/layout), ADR 0011.
-// These files imported a primitive directly when the rule landed. The list only
-// shrinks: migrate a file and delete its entry; never add one
-// (architecture-lint.test.ts holds the count down).
-export const directPrimitiveImporters = [
-  "src/App.tsx",
-  "src/components/ErrorBoundary.tsx",
-  "src/components/LoginForm.tsx",
-  "src/components/PWAInstallPrompt.tsx",
-  "src/components/SignupForm.tsx",
-  "src/components/StorageWarning.tsx",
-  "src/components/sync/SyncStatusIndicator.tsx",
-  "src/routes/__root.tsx",
-];
-
 const primitiveBoundary = {
   files: ["src/**/*.{ts,tsx}"],
   ignores: [
@@ -183,7 +183,6 @@ const primitiveBoundary = {
     "src/components/ui/**",
     "src/components/app/**",
     "src/components/layout/**",
-    ...directPrimitiveImporters,
   ],
   rules: {
     "arch/no-direct-primitive-import": [
@@ -634,6 +633,21 @@ export default [
         {
           selector: `JSXAttribute[name.name='style'] Property[key.name=/${COLOR_STYLE_PROPERTY}/], JSXAttribute[name.name='style'] Property[key.value=/${COLOR_STYLE_PROPERTY}/]`,
           message: "Set colors with a theme token class, not an inline style.",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.tsx"],
+    ignores: [...srcTestFiles, "src/components/app/Money.tsx"],
+    rules: {
+      "arch/no-hand-made-amount": [
+        "error",
+        {
+          selector:
+            "JSXExpressionContainer > CallExpression[callee.name='formatPHP'], JSXExpressionContainer > TemplateLiteral > CallExpression[callee.name='formatPHP']",
+          message:
+            "Render an amount with <Money kind=…> (src/components/app/Money.tsx), which sets its sign, color and spoken text. For an aria-label, use spokenMoney().",
         },
       ],
     },

@@ -1,6 +1,3 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { ESLint } from "eslint";
 import { beforeAll, describe, expect, it } from "vitest";
 
@@ -90,12 +87,6 @@ const cases = [
     code: 'import { Button } from "@/components/ui/button";\nexport { Button };\n',
     flagged: "src/routes/probe.tsx",
     allowed: "src/components/app/probe.tsx",
-  },
-  {
-    rule: "arch/no-direct-primitive-import",
-    code: 'import { Button } from "@/components/ui/button";\nexport { Button };\n',
-    flagged: "src/components/accounts/probe.tsx",
-    allowed: "src/App.tsx",
   },
   {
     rule: "arch/no-direct-primitive-import",
@@ -329,6 +320,31 @@ describe("transition-all", () => {
   });
 });
 
+describe("default viewport breakpoints", () => {
+  const viewport = [
+    '<div className="sm:flex-row" />',
+    '<div className="md:hidden" />',
+    '<div className="hover:lg:block" />',
+    '<div className="max-md:hidden" />',
+  ];
+
+  it.each(viewport)("fail in app code: %s", async (snippet) => {
+    expect(await snippetRuleIds(snippet, route)).toContain(restrictedClass);
+    expect(await snippetRuleIds(snippet, appComponent)).toContain(restrictedClass);
+  });
+
+  it("leave window classes and container queries alone", async () => {
+    const snippet = '<div className="medium:flex expanded:hidden large:block @[600px]:grid" />';
+    expect(await snippetRuleIds(snippet, route)).not.toContain(restrictedClass);
+  });
+
+  it("stay allowed in a primitive, as shadcn ships it", async () => {
+    expect(await snippetRuleIds('<div className="sm:max-w-lg" />', primitive)).not.toContain(
+      restrictedClass
+    );
+  });
+});
+
 it("primitives keep the arbitrary color ban", async () => {
   expect(await snippetRuleIds('<div className="bg-[#1e40af]" />', primitive)).toContain(
     restrictedClass
@@ -406,6 +422,9 @@ it.each([
   ["src/components/probe.tsx", "./ui/button"],
   ["src/routes/probe.tsx", "../components/ui/button"],
   ["src/hooks/probe.ts", "@/components/ui/sonner"],
+  // Once allowlisted: no file outside the layer folders is exempt any more
+  ["src/App.tsx", "@/components/ui/sonner"],
+  ["src/components/LoginForm.tsx", "@/components/ui/card"],
 ])("arch/no-direct-primitive-import fires in %s for %s", async (filePath, source) => {
   const code = `import * as primitive from "${source}";\nexport { primitive };\n`;
   expect(await ruleIds(code, filePath)).toContain("arch/no-direct-primitive-import");
@@ -464,42 +483,29 @@ it("typeof import() stays legal in a Vitest mock", async () => {
   );
 });
 
-describe("the directPrimitiveImporters allowlist only shrinks", () => {
-  const ALLOWLIST_CEILING = 8;
+describe("arch/no-hand-made-amount", () => {
+  const rule = "arch/no-hand-made-amount";
+  const handMade = [
+    "return <p>{formatPHP(cents)}</p>;",
+    "return <p>{`${formatPHP(cents)} over`}</p>;",
+    "return <span aria-label={formatPHP(cents)} />;",
+  ];
 
-  async function loadAllowlist(): Promise<string[]> {
-    const config: unknown = await import(pathToFileURL(path.resolve("eslint.config.js")).href);
-    const list =
-      typeof config === "object" && config !== null && "directPrimitiveImporters" in config
-        ? config.directPrimitiveImporters
-        : undefined;
-    if (!Array.isArray(list) || !list.every((entry) => typeof entry === "string")) {
-      throw new Error("eslint.config.js must export directPrimitiveImporters as a string array");
-    }
-    return list;
-  }
-
-  it("never grows", async () => {
-    const allowlist = await loadAllowlist();
-    expect(
-      allowlist.length,
-      `directPrimitiveImporters has ${allowlist.length} entries. Never add one; when you migrate a file off ui/ primitives, delete its entry and lower ALLOWLIST_CEILING to the new count.`
-    ).toBeLessThanOrEqual(ALLOWLIST_CEILING);
+  it.each(handMade)("fails in a component: %s", async (snippet) => {
+    expect(await snippetRuleIds(snippet, "src/components/budgets/probe.tsx")).toContain(rule);
   });
 
-  it("lists only files that still import a primitive", async () => {
-    const allowlist = await loadAllowlist();
-    const stale: string[] = [];
-    for (const entry of allowlist) {
-      const source = await readFile(entry, "utf8");
-      const probe = path.join(path.dirname(entry), `allowlist-probe${path.extname(entry)}`);
-      if (!(await ruleIds(source, probe)).includes("arch/no-direct-primitive-import")) {
-        stale.push(entry);
-      }
-    }
-    expect(
-      stale,
-      "These files no longer import a ui/ primitive; remove them from directPrimitiveImporters"
-    ).toEqual([]);
+  it.each([
+    "toast.success(`Paid ${formatPHP(cents)}`);",
+    "return <button onClick={() => toast(formatPHP(cents))} />;",
+    'return <Money kind="balance" cents={cents} />;',
+  ])("passes where no amount is rendered by hand: %s", async (snippet) => {
+    expect(await snippetRuleIds(snippet, route)).not.toContain(rule);
+  });
+
+  it("passes in Money itself", async () => {
+    expect(await snippetRuleIds(handMade[0] ?? "", "src/components/app/Money.tsx")).not.toContain(
+      rule
+    );
   });
 });

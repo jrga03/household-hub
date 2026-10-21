@@ -10,7 +10,6 @@ import { SubmitButton } from "@/components/app/SubmitButton";
 import { categoryNames } from "@/components/allocations/envelopes";
 import {
   NO_PROBLEMS,
-  useEntryFormRef,
   useFocusNewEntry,
   type EntryProblems,
 } from "@/components/transactions/EntryFields";
@@ -37,6 +36,7 @@ import {
 import { errorMessage } from "@/lib/utils";
 import { isLocalDate } from "@/lib/transactions/events";
 import { todayLocalDate } from "@/lib/utils/dates";
+import { useFocusFirstProblem } from "@/hooks/useFocusFirstProblem";
 
 const envelopeOf = (value: string): CorrectionEnvelope =>
   value === UNASSIGNED ? { kind: "unassigned" } : { kind: "category", id: value };
@@ -114,7 +114,7 @@ function CorrectBalanceForm({
     NO_PROBLEMS
   );
   // The shared entry-form ref: Enter advances on phones, and focus lands on the field to fix.
-  const formRef = useEntryFormRef(problems);
+  const formRef = useFocusFirstProblem(problems);
   const amountRef = useRef<HTMLInputElement>(null);
   // Focus waits for the categories, which the form needs before it renders.
   useFocusNewEntry(amountRef, categories !== undefined);

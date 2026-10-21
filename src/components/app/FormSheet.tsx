@@ -62,11 +62,22 @@ export function useSheetAboveKeyboard() {
   return { ref: sheetRef, style };
 }
 
+/**
+ * vaul leaves focus on the trigger behind the sheet, so Tab would walk the page.
+ * Focus the sheet itself rather than its first field, so no keyboard pops up,
+ * unless the form has already focused a field.
+ */
+function focusSheet(event: Event) {
+  event.preventDefault();
+  const sheet = event.currentTarget;
+  if (sheet instanceof HTMLElement && !sheet.contains(document.activeElement)) sheet.focus();
+}
+
 function PhoneSheet({ title, description, onClose, children }: FormSheetProps) {
   const aboveKeyboard = useSheetAboveKeyboard();
   return (
     <Drawer open onOpenChange={closeOn(onClose)} repositionInputs={false}>
-      <DrawerContent {...aboveKeyboard}>
+      <DrawerContent {...aboveKeyboard} className="outline-none" onOpenAutoFocus={focusSheet}>
         <DrawerHeader>
           <DrawerTitle>{title}</DrawerTitle>
           {description && <DrawerDescription>{description}</DrawerDescription>}

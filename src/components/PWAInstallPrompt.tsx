@@ -15,10 +15,9 @@
  * <PWAInstallPrompt />
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId, type ReactNode } from "react";
 import { X, Download, Share } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/app/Button";
 import { usePwaPromptStore } from "@/stores/pwaPromptStore";
 import { reportError } from "@/lib/sentry";
 
@@ -139,128 +138,96 @@ export function PWAInstallPrompt() {
     return null;
   }
 
-  // iOS Safari installation instructions
   if (isIOS) {
     return (
-      <div className="fixed bottom-[calc(1rem+var(--bottom-chrome))] left-[calc(1rem+var(--safe-area-left))] right-[calc(1rem+var(--safe-area-right))] z-50 md:left-auto md:w-96">
-        <Card className="border-2 border-primary shadow-float">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <span className="text-body font-bold">HH</span>
-                </div>
-                <div>
-                  <CardTitle>Install Household Hub</CardTitle>
-                  <CardDescription className="text-caption">
-                    Add to your home screen
-                  </CardDescription>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-11 -mr-2 -mt-2"
-                onClick={handleDismiss}
-                aria-label="Dismiss install prompt"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-
-          <CardContent className="space-y-4">
-            <div className="space-y-3 text-body">
-              <p className="text-muted-foreground">
-                Install this app for quick access and offline support:
-              </p>
-              {isFxiOS ? (
-                // Firefox on iOS can't add to the home screen itself; the
-                // install has to happen from Safari.
-                <ol className="space-y-2 pl-4 list-decimal">
-                  <li>
-                    Open this page in <strong>Safari</strong>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    Tap the <Share className="inline h-4 w-4" /> share button
-                  </li>
-                  <li className="flex items-center gap-2">
-                    Select <strong>&quot;Add to Home Screen&quot;</strong>
-                  </li>
-                </ol>
-              ) : (
-                <ol className="space-y-2 pl-4 list-decimal">
-                  <li className="flex items-center gap-2">
-                    Tap the <Share className="inline h-4 w-4" /> share button
-                  </li>
-                  <li className="flex items-center gap-2">
-                    Select <strong>&quot;Add to Home Screen&quot;</strong>
-                  </li>
-                  <li>
-                    Tap <strong>&quot;Add&quot;</strong> to install
-                  </li>
-                </ol>
-              )}
-            </div>
-
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="flex-1" onClick={handleNeverShow}>
-                Don&apos;t show again
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <InstallCard description="Add to your home screen" onDismiss={handleDismiss}>
+        <p className="text-muted-foreground">Install it for quick access and offline use:</p>
+        <ol className="list-decimal space-y-2 pl-4">
+          {isFxiOS && (
+            // Firefox on iOS can't add to the home screen itself; the install has to happen from Safari.
+            <li>
+              Open this page in <strong>Safari</strong>
+            </li>
+          )}
+          <li>
+            Tap the <Share aria-label="Share" className="inline size-4 align-text-bottom" /> share
+            button
+          </li>
+          <li>
+            Choose <strong>“Add to Home Screen”</strong>
+          </li>
+          {!isFxiOS && (
+            <li>
+              Tap <strong>“Add”</strong>
+            </li>
+          )}
+        </ol>
+        <Button variant="outline" className="w-full" onClick={handleNeverShow}>
+          Don’t show again
+        </Button>
+      </InstallCard>
     );
   }
 
-  // Chromium/Edge installation prompt
   return (
-    <div className="fixed bottom-[calc(1rem+var(--bottom-chrome))] left-[calc(1rem+var(--safe-area-left))] right-[calc(1rem+var(--safe-area-right))] z-50 md:left-auto md:w-96">
-      <Card className="border-2 border-primary shadow-float">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <span className="text-body font-bold">HH</span>
-              </div>
-              <div>
-                <CardTitle>Install Household Hub</CardTitle>
-                <CardDescription className="text-caption">
-                  Get quick access and work offline
-                </CardDescription>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-11 -mr-2 -mt-2"
-              onClick={handleDismiss}
-              aria-label="Dismiss install prompt"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardHeader>
+    <InstallCard description="Get quick access and work offline" onDismiss={handleDismiss}>
+      <div className="flex gap-2">
+        <Button onClick={() => void handleInstall()} className="flex-1">
+          <Download aria-hidden="true" />
+          Install
+        </Button>
+        <Button variant="outline" onClick={handleNeverShow}>
+          Not now
+        </Button>
+      </div>
+    </InstallCard>
+  );
+}
 
-        <CardContent className="space-y-4">
-          <div className="space-y-2 text-body text-muted-foreground">
-            <p>✓ Faster loading times</p>
-            <p>✓ Works offline</p>
-            <p>✓ Desktop shortcut</p>
-          </div>
-
-          <div className="flex gap-2">
-            <Button onClick={() => void handleInstall()} className="flex-1" size="sm">
-              <Download className="mr-2 h-4 w-4" />
-              Install
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleNeverShow}>
-              Not now
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+/** A floating panel above the bottom chrome, not modal: the page stays usable behind it. */
+function InstallCard({
+  description,
+  onDismiss,
+  children,
+}: {
+  description: string;
+  onDismiss: () => void;
+  children: ReactNode;
+}) {
+  const titleId = useId();
+  const descriptionId = useId();
+  return (
+    <section
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
+      className="fixed right-[calc(1rem+var(--safe-area-right))] bottom-[calc(1rem+var(--bottom-chrome))] left-[calc(1rem+var(--safe-area-left))] z-50 space-y-4 rounded-lg border bg-popover p-4 text-body text-popover-foreground shadow-float medium:left-auto medium:w-96"
+    >
+      <div className="flex items-start gap-3">
+        <div
+          aria-hidden="true"
+          className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground"
+        >
+          <span className="text-body font-bold">HH</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <h2 id={titleId} className="text-heading">
+            Install Household Hub
+          </h2>
+          <p id={descriptionId} className="text-caption text-muted-foreground">
+            {description}
+          </p>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="-mt-2 -mr-2 size-11"
+          onClick={onDismiss}
+          aria-label="Dismiss install prompt"
+        >
+          <X aria-hidden="true" />
+        </Button>
+      </div>
+      {children}
+    </section>
   );
 }

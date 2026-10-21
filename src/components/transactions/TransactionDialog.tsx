@@ -49,13 +49,13 @@ import {
   NO_PROBLEMS,
   readEntryBasics,
   StatusChoice,
-  useEntryFormRef,
   useFocusNewEntry,
   type EntryProblems,
 } from "./EntryFields";
 import { categoryChoices, CategorySelect, isCategoryChoice, UNASSIGNED } from "./CategorySelect";
 import { removeWithUndo } from "./removeWithUndo";
 import { TransferForm } from "./TransferDialog";
+import { useFocusFirstProblem } from "@/hooks/useFocusFirstProblem";
 
 /** Add when `transaction` is left out; edit otherwise. */
 export function TransactionDialog({
@@ -289,7 +289,7 @@ function TransactionForm({
     },
     NO_PROBLEMS
   );
-  const formRef = useEntryFormRef(problems);
+  const formRef = useFocusFirstProblem(problems);
 
   const remove = async () => {
     if (transaction && (await removeWithUndo(actor, transaction))) onClose();

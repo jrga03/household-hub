@@ -72,7 +72,9 @@ describe("PWAInstallPrompt (iOS path + update-pending suppression)", () => {
       vi.advanceTimersByTime(3000);
     });
 
-    expect(screen.getByText("Install Household Hub")).toBeInTheDocument();
+    const card = screen.getByRole("region", { name: "Install Household Hub" });
+    expect(card).toHaveAccessibleDescription("Add to your home screen");
+    expect(screen.getByRole("button", { name: "Dismiss install prompt" })).toBeInTheDocument();
   });
 
   it("anchors the install card above the bottom tab bar via --bottom-chrome (R42)", () => {

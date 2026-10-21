@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useRef, type RefObject } from "react";
+import { useEffect, type RefObject } from "react";
 import { CurrencyInput } from "@/components/app/CurrencyInput";
 import { Field } from "@/components/app/Field";
-import { advanceOnEnter } from "@/components/app/FormSheet";
 import { SegmentedControl } from "@/components/app/SegmentedControl";
 import {
   AMOUNT_PROBLEM,
@@ -57,21 +56,6 @@ export function readEntryBasics(formData: FormData): {
 }
 
 export const hasFieldProblems = (fields: EntryProblems["fields"]) => Object.keys(fields).length > 0;
-
-/**
- * The entry form's `ref`: Enter advances on phones, and after a save with a
- * field to fix, focus moves to the first one, so its error is read out.
- */
-export function useEntryFormRef(problems: EntryProblems) {
-  const form = useRef<HTMLFormElement | null>(null);
-  useEffect(() => {
-    form.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
-  }, [problems]);
-  return useCallback((element: HTMLFormElement | null) => {
-    form.current = element;
-    return advanceOnEnter(element);
-  }, []);
-}
 
 /** The amount typed, kept as cents so it can follow a switch between forms. */
 export function AmountField({

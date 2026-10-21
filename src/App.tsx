@@ -1,10 +1,10 @@
 import { RouterProvider } from "@tanstack/react-router";
 import { ThemeProvider } from "next-themes";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@/components/app/Toaster";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
 import { ThemeColorSync } from "@/components/ThemeColorSync";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/app/Tooltip";
 // Router singleton + scroll restoration + Register augmentation live in
 // src/router.ts so non-component layers (authStore session expiry) can
 // navigate without importing the React tree.

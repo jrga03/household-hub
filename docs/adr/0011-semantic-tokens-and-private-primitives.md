@@ -19,3 +19,4 @@ We did this so pages Claude builds stay consistent without anyone reviewing ever
 - `shortfall` (money that is short) and `destructive` (an action that deletes) share a red but stay separate tokens, so they can diverge without a sweep.
 - The resets land together with a mechanical codemod of existing classes; page redesign is separate work.
 - Amended 2026-10-21 (#197): `src/components/layout/` (the app chrome: sidebar, tab bar, page header) counts as part of the app-component layer and may import primitives. It is the only user of the sidebar primitive, so wrapping it would add nothing.
+- Amended 2026-10-21 (#233): the page migration (#222) moved every allowlisted file onto the app-component layer and deleted the allowlist. The rule now exempts only tests, `ui/`, `app/` and `layout/`.
