@@ -148,7 +148,7 @@ Spec #216, integration branch `feat/216-adaptive-layouts`. Frontier at start: #2
 
 Spec #222, integration branch `feat/222-page-migration`. Order: #223 → #224 → (#225 → #226) and #227-#232 in parallel → #233. Frontier at start: #223.
 
-- [ ] #223 Transactions list: list-detail, filter rail and table (blocked by: none)
+- [x] #223 Transactions list: list-detail, filter rail and table (blocked by: none)
 - [ ] #224 Transaction entry: entry and transfer as FormSheets (#223)
 - [ ] #225 Home: supporting-pane with hero and Needs attention (#224)
 - [ ] #226 Budget: hero, grouped rows and the ledger pane (#225)
