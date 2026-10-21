@@ -65,7 +65,9 @@ test("transactions recorded offline move the balance, and a removal can be undon
   await expect(page.getByRole("list", { name: "Latest transactions" })).toContainText("−₱250.00");
   await navigateTo(page, "Accounts");
 
-  // An account's View transactions opens Transactions filtered to it.
+  // An account's View transactions opens Transactions filtered to it. Back online first: on a
+  // fresh device the service worker is still waiting, so an unvisited route's code can't load offline.
+  await page.context().setOffline(false);
   const details = await openAccount(page, "BPI");
   await details.getByRole("link", { name: "View transactions" }).click();
   await expect(page).toHaveURL(/\/transactions\?account=/);
