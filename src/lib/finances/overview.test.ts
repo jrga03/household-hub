@@ -155,13 +155,13 @@ describe("budget status", () => {
     });
   }
 
-  it("is fine below 80% spent, close from 80% to 100%, over above 100%", async () => {
+  it("is fine below 80% spent or exactly spent, close from 80%, over above 100%", async () => {
     await budgetedCategory("799.99");
     await budgetedCategory("800");
     await budgetedCategory("1000");
     await budgetedCategory("1000.01");
 
-    expect((await october()).budgets).toEqual({ fine: 1, close: 2, over: 1 });
+    expect((await october()).budgets).toEqual({ fine: 2, close: 1, over: 1 });
   });
 
   it("counts Household and the member's Personal categories apart", async () => {
@@ -170,6 +170,20 @@ describe("budget status", () => {
 
     expect((await october("household")).budgets).toEqual({ fine: 1, close: 0, over: 0 });
     expect((await october("mine")).budgets).toEqual({ fine: 0, close: 0, over: 1 });
+  });
+
+  it("lists each counted budget with what was spent, for Needs attention", async () => {
+    await budgetedCategory("100");
+    await budgetedCategory("2000", { personal: true });
+
+    expect((await october("mine")).budgetLines).toEqual([
+      {
+        categoryId: expect.any(String),
+        name: "Spent 2000",
+        budget: peso("1000"),
+        spent: peso("2000"),
+      },
+    ]);
   });
 
   it("still counts a retired category in a month its budget was in force, as Budget shows it", async () => {
