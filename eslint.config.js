@@ -167,9 +167,6 @@ const restrictNanoid = {
 // (architecture-lint.test.ts holds the count down).
 export const directPrimitiveImporters = [
   "src/App.tsx",
-  "src/components/budgets/BudgetView.tsx",
-  "src/components/budgets/MonthPicker.tsx",
-  "src/components/categories/RecordName.tsx",
   "src/components/ErrorBoundary.tsx",
   "src/components/households/CreateOrJoin.tsx",
   "src/components/households/HouseholdSettings.tsx",
@@ -183,7 +180,6 @@ export const directPrimitiveImporters = [
   "src/components/StorageWarning.tsx",
   "src/components/sync/SyncStatusIndicator.tsx",
   "src/routes/__root.tsx",
-  "src/routes/budget.tsx",
   "src/routes/create-or-join.tsx",
   "src/routes/settings.tsx",
 ];

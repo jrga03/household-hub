@@ -158,6 +158,14 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#228 `AccountsCard.tsx` is renamed `AccountsView.tsx`** and `shortfallClass` is private to `Money` (closes the #209 item). Revisit: never.
 - **#228 retiring from Edit closes the account's detail.** Why: the account leaves the list it was opened from. Revisit: never.
 - **#228 Pay and Correct balance reuse #224's `readEntryBasics`/`useEntryFormRef`/`useFocusNewEntry`**: field errors under the field, focus to the first. Correct balance keeps a plain `Input` (with a hint) since `CurrencyInput` takes no minus sign. A card's correction difference uses a neutral sign (`kind="transfer"` with a leg), since more owed is not income. Revisit: if `CurrencyInput` takes signed amounts.
+- **#226 Budget's hero and group totals count every category's spending**, budgeted or not, so the groups add up to "Left to spend"; the hero hides while no category has a budget. Why: the prototype's hero left out unbudgeted spending while its group totals kept it, so the two disagreed. Revisit: if unbudgeted spending should stay out of "Left to spend".
+- **#226 "· N days left" shows for this month only**, from `daysLeftInMonth` (the route passes it), masked by `data-testid="days-left"`. Why: a past or future month has no days left to spend. Revisit: never.
+- **#226 a Budget row's one target is the category's name** (button name "Groceries", was "Groceries ledger"), stretched over the row; figures sit beside it, Budget and Spent shown from a 600 list width with sr-only labels. Why: a button holding every figure reads as one long name; e2e now uses `exact: true`. Revisit: never.
+- **#226 Budget rows show a `warning` "Close" or `shortfall` "Over budget" badge from a 600 list width only**, as Home's feed does; below 600 the bar's tone and the "−₱…" carry it. Why: the phone row is one line. Revisit: if phone users miss it.
+- **#226 the Budget rows' container is the list, not the shell** (`@container` on `PageShell.List`), so columns follow the list's width with the pane open. Why: DESIGN.md's pane-width rule. Revisit: never.
+- **#226 `CategoryLedger` moved onto `ListRow` and hairline sections** (no boxed borders; "Budget history" is a `SectionHeader`, amounts are `Money`). It is on no ticket's file list; the spec's "Budget's ledger uses #223's rows" puts it here. Revisit: never.
+- **#226 records opened from the ledger stay in `FormSheet` dialogs over the pane, outside the URL** (closes the #219 item). Why: only the list's open item is `?open=`; a second URL level would need a nested detail model. Revisit: if people want to share a link to a ledger record.
+- **#226 `/budget` joined the signed-in accessibility e2e**, and `plan.spec`'s Budget checks now read the row's `left` test id and the bar's tone. Why: the old `dl` labels are gone. Revisit: never.
 
 ### Rollout checklist
 
@@ -195,7 +203,7 @@ Spec #222, integration branch `feat/222-page-migration`. Order: #223 → #224 �
 - [x] #223 Transactions list: list-detail, filter rail and table (blocked by: none)
 - [x] #224 Transaction entry: entry and transfer as FormSheets (#223)
 - [x] #225 Home: supporting-pane with hero and Needs attention (#224)
-- [ ] #226 Budget: hero, grouped rows and the ledger pane (#225)
+- [x] #226 Budget: hero, grouped rows and the ledger pane (#225)
 - [x] #227 Plan: allocations, move money and budgets (#224)
 - [x] #228 Accounts: balances, edits, card payments and corrections (#224)
 - [x] #229 Categories: groups, adds and edits (#224)
