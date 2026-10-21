@@ -1,9 +1,10 @@
+import { formatHlc } from "@/lib/events/hlc";
 import type { LoggedEvent } from "@/lib/events/log";
 
 export const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 
 export const hlcAt = (millis: number, device = "device-b") =>
-  `${String(millis).padStart(15, "0")}-000000-${device}`;
+  formatHlc({ wallTime: millis, counter: 0, deviceId: device });
 
 interface EventFields {
   id: string;
