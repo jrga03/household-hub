@@ -91,6 +91,9 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#209 `AccountsCard` keeps `formatPHP` + `shortfallClass`** (no spoken sign) instead of `Money`. Why: the transfer and card-payment e2e assert its exact balance text. `shortfallClass` stays exported from `app/Money.tsx` until then. Revisit: the Accounts migration (#228), which makes it private.
 - **#209 Knip treats `src/components/app/**` as entry**, so unused layer-2 exports are not flagged. Why: pages adopt the components ticket by ticket. Revisit: when the page migration ends (#233).
 - **#209 `CategoryLedger` shows an account-only move with `kind="transfer"`** (muted, unsigned) on purpose. Why: it moves money between accounts without changing the category's money, so its change is zero. Revisit: never.
+- **#217 window classes are Tailwind breakpoints `medium:`, `expanded:`, `large:`** (600, 840, 1200 in `src/index.css`); `sm:`/`md:`/`lg:` stay for page content. Why: app chrome needs the class thresholds by name, and page content belongs to the page migration. Revisit: when the page migration ends (#233), drop the defaults.
+- **#217 the header rail toggle hides at large (`large:hidden`)**, as `lg:hidden` did, so a rail the cookie collapsed at large expands only from its edge or Cmd+B. Why: mechanical move of the old threshold. Revisit: the Settings or Home migration, if people miss a visible toggle.
+- **#217 the medium modal rail ignores the sidebar cookie and never writes it**; the cookie applies from expanded up. Why: the spec fixes medium as a collapsed rail. Revisit: never.
 
 ### Rollout checklist
 
