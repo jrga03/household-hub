@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { ActionForm } from "@/components/app/ActionForm";
 import { Field } from "@/components/app/Field";
 import { FormError } from "@/components/app/FormError";
-import { FormFooter, FormSheet } from "@/components/app/FormSheet";
+import { FormFooter, FormSheet, FULL_ROW } from "@/components/app/FormSheet";
 import { Input } from "@/components/app/Input";
 import {
   Select,
@@ -52,7 +52,6 @@ import {
   AmountField,
   DirectionChoice,
   formProblem,
-  FULL_ROW,
   hasFieldProblems,
   NO_PROBLEMS,
   readEntryBasics,

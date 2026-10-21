@@ -177,7 +177,7 @@ Why: building pages from one app layer keeps them consistent and lets primitives
 | `SegmentedControl`                              | Two to four mutually exclusive options shown inline, such as a view switch. A radio group by keyboard.                                                                                                                                                                                            |
 | `FilterChips`, `FilterChip`, `FilterChipSelect` | The phone filter row: toggle chips that scroll sideways, each pressed or not. `FilterChipSelect` is a chip that picks one value from a list and then reads it.                                                                                                                                    |
 | `Field`                                         | A form control with its `label`, `hint` and `error`, wired for screen readers. Pass a function child to reach a nested control (a Select trigger).                                                                                                                                                |
-| `FormSheet`, `FormFooter`, `advanceOnEnter`     | Every form's container: a bottom sheet on phones, a dialog on wider screens. Its buttons go in `FormFooter`; `advanceOnEnter` makes Enter move to the next field on phones.                                                                                                                       |
+| `FormSheet`, `FormFooter`, `advanceOnEnter`     | Every form's container: a bottom sheet on phones, a dialog on wider screens. Its buttons go in `FormFooter`; `advanceOnEnter` makes Enter move to the next field on phones; `FULL_ROW` spans a field across the form grid.                                                                        |
 | `ConfirmDialogHost`                             | Mounted once. Pages call `confirm()` from `src/lib/confirm.ts`, only for what cannot be undone.                                                                                                                                                                                                   |
 | `VisibilityField`                               | The Household or Personal choice when adding an account, group or category.                                                                                                                                                                                                                       |
 | `ActionForm`, `SubmitButton`                    | Every form that submits. A failed save keeps what the person typed; the button shows that it is running.                                                                                                                                                                                          |
@@ -221,7 +221,8 @@ Inside the shell, panes, rails and sheets, use container queries (`@[600px]:`), 
 - 600: widen the layout inside a pane.
 - 840: a second pane may show.
 - 1200: the fixed detail pane widens from 360 to 412px.
-- Use only these three thresholds. Never add a third pane.
+- Use only these three thresholds for page layout. Never add a third pane.
+- One more threshold, 480, lives inside a form or a narrow pane: a form grid goes to two (or three) columns, `FormFooter` lays its buttons in a row, and a `DataTable` column can `hideBelow` it. Span a field across a two-column form grid with `FULL_ROW` (`src/components/app/FormSheet.tsx`); never retype the class.
 
 At 1366 with the expanded rail the shell is about 1110px, so the detail pane is 360px; it reaches 412px when the rail is collapsed.
 
