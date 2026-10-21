@@ -30,6 +30,7 @@ export function FilterChip({
   return (
     <button
       type="button"
+      data-slot="filter-chip"
       aria-pressed={pressed}
       onClick={() => onPressedChange(!pressed)}
       className={cn(

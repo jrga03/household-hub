@@ -59,6 +59,7 @@ export function SegmentedControl<Value extends string>({
             }}
             type="button"
             role="radio"
+            data-slot="segmented-control-option"
             aria-checked={checked}
             tabIndex={checked ? 0 : -1}
             onClick={() => select(index)}

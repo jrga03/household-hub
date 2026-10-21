@@ -59,4 +59,12 @@ describe("FilterChips", () => {
     expect(onPendingChange).toHaveBeenLastCalledWith(false);
     expect(chip).toHaveAttribute("aria-pressed", "false");
   });
+
+  it("marks each chip for the coarse-pointer touch-target floor", () => {
+    render(<StatusFilters />);
+    expect(screen.getByRole("button", { name: "Pending" })).toHaveAttribute(
+      "data-slot",
+      "filter-chip"
+    );
+  });
 });

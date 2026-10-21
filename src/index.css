@@ -251,7 +251,9 @@
       min-width: 44px;
     }
 
-    [data-slot="select-trigger"] {
+    [data-slot="select-trigger"],
+    [data-slot="filter-chip"],
+    [data-slot="segmented-control-option"] {
       min-height: 44px;
     }
 

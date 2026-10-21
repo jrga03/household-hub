@@ -85,4 +85,11 @@ describe("SegmentedControl", () => {
     fireEvent.keyDown(screen.getByRole("radio", { name: "Month" }), { key: "a" });
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it("marks each option for the coarse-pointer touch-target floor", () => {
+    render(<PeriodPicker />);
+    for (const option of screen.getAllByRole("radio")) {
+      expect(option).toHaveAttribute("data-slot", "segmented-control-option");
+    }
+  });
 });
