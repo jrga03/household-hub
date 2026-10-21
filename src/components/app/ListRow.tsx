@@ -95,7 +95,8 @@ type ListRowProps = RowTargetProps & {
 
 /**
  * A list row that is one tap target. Its height depends only on its own
- * content, so it works as an item in a virtualized list.
+ * content, so it works as an item in a virtualized list. It is its own
+ * `@container`, so its width must come from its parent, not its content.
  */
 export function ListRow({
   label,
@@ -110,7 +111,7 @@ export function ListRow({
   return (
     <div
       className={cn(
-        "group/row relative flex items-center gap-2 px-4 py-2 transition-colors hover:bg-accent",
+        "group/row @container relative flex items-center gap-2 px-4 py-2 transition-colors hover:bg-accent",
         target.open && "bg-accent",
         className
       )}

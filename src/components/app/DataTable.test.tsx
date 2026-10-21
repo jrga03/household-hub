@@ -72,6 +72,14 @@ describe("DataTable", () => {
     expect(screen.getByRole("columnheader", { name: "Description" })).not.toHaveClass("hidden");
   });
 
+  it("measures hideBelow against its own container, wherever it is placed", () => {
+    render(
+      <DataTable label="Payments" columns={columns} rows={payments} getRowKey={(row) => row.id} />
+    );
+
+    expect(screen.getByRole("table", { name: "Payments" }).closest(".\\@container")).not.toBeNull();
+  });
+
   it("gives each row one button target, in its target column and named by it", () => {
     const onOpen = vi.fn();
     render(
