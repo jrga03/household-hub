@@ -102,6 +102,10 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#219 records opened from the Budget ledger stay in `FormSheet` dialogs, outside the URL.** Why: only the list's open item is `?open=`. Revisit: the Budget migration.
 - **#220 the layout baselines show the seed user's empty states** (no accounts, categories or transactions, nothing open), so they cover chrome and shell width but not a filled list or an open `DetailPane`. Why: `ROUTES` stays unchanged here and the baseline user is unseeded. Revisit: the page migration, when it adds routes.
 - **#221 DESIGN.md and CLAUDE.md say "every route except login and signup" uses `PageShell`**, and the route table lists them as a centered form with no shell. Why: as built, those two routes render their own centered `div`; the spec's "`single`, narrow" holds only for create-or-join. Revisit: if a page migration moves auth onto `PageShell`.
+- **#216 review: the `DetailPane` sheet header is the title alone**; `description` shows only in the pane. Why: the phone sheet's header has room for one truncated line, and the sheet has no `aria-describedby`. Revisit: the Transactions migration, if phone users miss the "saved on this device" line.
+- **#216 review: the 412px pane needs a 1200px shell**, so a 1366 laptop with the expanded rail gets 360px (user story 18 not met there). Why: pane thresholds are container widths, not window widths. Revisit: the Transactions migration.
+- **#216 review: a sheet showing over a replaced entry pushes the list entry back underneath**, so back closes it. This also covers a reloaded or shared `?open=` URL at one pane: back now closes the sheet before leaving the page. Why: the spec's "one pane: back closes the sheet" holds however the item was opened. Revisit: never.
+- **#216 review: all listed findings fixed**, none skipped. Search updaters use `to: "."`, which types them without casts. Revisit: never.
 
 ### Rollout checklist
 
