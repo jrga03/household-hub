@@ -123,13 +123,13 @@ describe("BudgetView", () => {
     await spend(groceries.id, "1200");
     renderBudget();
 
-    expect(await left("Restaurants")).toHaveTextContent("-₱9,500.00");
+    expect(await left("Restaurants")).toHaveTextContent("−₱9,500.00");
     expect(await left("Restaurants")).toHaveClass("text-shortfall");
     const bar = screen.getByRole("progressbar", { name: "Restaurants spent" });
     expect(bar).toHaveAttribute("aria-valuenow", "100");
     expect(bar).toHaveAttribute("data-overspent", "true");
 
-    expect(await left("Food")).toHaveTextContent("-₱2,700.00");
+    expect(await left("Food")).toHaveTextContent("−₱2,700.00");
     expect(await left("Food")).toHaveClass("text-shortfall");
     expect(screen.getByRole("progressbar", { name: "Food spent" })).toHaveAttribute(
       "data-overspent",

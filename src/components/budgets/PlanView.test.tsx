@@ -126,7 +126,7 @@ describe("PlanView", () => {
     renderPlan();
 
     expect(await screen.findByRole("textbox", { name: "Groceries" })).toHaveAccessibleDescription(
-      "Spent Sep ₱2,500.00 · Oct ₱1,200.00 Holds -₱3,700.00"
+      "Spent Sep ₱2,500.00 · Oct ₱1,200.00 Holds −₱3,700.00"
     );
   });
 

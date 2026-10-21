@@ -25,6 +25,7 @@ export const MAX_AMOUNT_CENTS = 999999999;
  * Peso sign character
  */
 export const PESO_SIGN = "₱";
+const MINUS_SIGN = "−";
 
 /**
  * Error class for currency-related validation failures.
@@ -62,7 +63,7 @@ export const ZERO_CENTS = asCents(0);
  * - Thousand separators using en-PH locale
  * - Always shows 2 decimal places (centavos)
  * - Peso sign (₱) prefix
- * - Negative amounts prefixed with "-" before peso sign
+ * - Negative amounts prefixed with the minus sign "−" (U+2212) before peso sign
  *
  * @param cents - Integer amount in cents (1 PHP = 100 cents)
  * @returns Formatted currency string (e.g., "₱1,500.50")
@@ -71,7 +72,7 @@ export const ZERO_CENTS = asCents(0);
  * formatPHP(150050)      // "₱1,500.50"
  * formatPHP(0)           // "₱0.00"
  * formatPHP(100)         // "₱1.00"
- * formatPHP(-50000)      // "-₱500.00"
+ * formatPHP(-50000)      // "−₱500.00"
  * formatPHP(999999999)   // "₱9,999,999.99"
  */
 export function formatPHP(cents: Cents): string {
@@ -95,7 +96,7 @@ export function formatPHP(cents: Cents): string {
   const formattedCentavos = centavos.toString().padStart(2, "0");
 
   // Assemble final string with proper sign placement
-  return `${isNegative ? "-" : ""}${PESO_SIGN}${formattedPesos}.${formattedCentavos}`;
+  return `${isNegative ? MINUS_SIGN : ""}${PESO_SIGN}${formattedPesos}.${formattedCentavos}`;
 }
 
 /** A positive whole number of cents, at most MAX_AMOUNT_CENTS: an amount a record can hold. */
@@ -318,10 +319,10 @@ export function parseSignedPHPSafe(
  * formatPHPAxisTick(1200000)      // "₱12k"
  * formatPHPAxisTick(1250000)      // "₱12.5k"
  * formatPHPAxisTick(150000000)    // "₱1.5M"
- * formatPHPAxisTick(-50000)       // "-₱500"
+ * formatPHPAxisTick(-50000)       // "−₱500"
  */
 export function formatPHPAxisTick(cents: Cents): string {
-  const sign = cents < 0 ? "-" : "";
+  const sign = cents < 0 ? MINUS_SIGN : "";
   const pesos = Math.abs(cents) / 100;
 
   // Trim a redundant ".0" so round values render as "₱12k", not "₱12.0k"
