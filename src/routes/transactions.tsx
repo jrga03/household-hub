@@ -26,7 +26,7 @@ function TransactionsPage() {
       {/* Phones reach Import from the drawer, leaving the header to Select. */}
       {!mode && (
         <HeaderActions>
-          <Button asChild variant="outline" size="sm" className="hidden md:inline-flex">
+          <Button asChild variant="outline" size="sm" className="hidden medium:inline-flex">
             <Link to="/import">Import statement</Link>
           </Button>
         </HeaderActions>

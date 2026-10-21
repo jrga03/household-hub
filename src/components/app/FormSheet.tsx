@@ -14,7 +14,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { PHONE_QUERY, useIsMobile } from "@/hooks/useMediaQuery";
+import { COMPACT_QUERY, useWindowClass } from "@/hooks/useMediaQuery";
 import { useVisibleArea } from "@/hooks/useVisibleArea";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +31,7 @@ interface FormSheetProps {
  * dismiss. Put the form's buttons in a `FormFooter` after its last field.
  */
 export function FormSheet(props: FormSheetProps) {
-  const isPhone = useIsMobile();
+  const isPhone = useWindowClass() === "compact";
   return isPhone ? <PhoneSheet {...props} /> : <WideDialog {...props} />;
 }
 
@@ -155,7 +155,7 @@ export function advanceOnEnter(form: HTMLFormElement | null) {
     const field = event.target;
     const modified = event.shiftKey || event.altKey || event.ctrlKey || event.metaKey;
     if (event.key !== "Enter" || modified || event.isComposing) return;
-    if (!window.matchMedia(PHONE_QUERY).matches) return;
+    if (!window.matchMedia(COMPACT_QUERY).matches) return;
     if (!(field instanceof HTMLInputElement) || !isTypedField(field)) return;
 
     event.preventDefault();
