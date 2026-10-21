@@ -11,8 +11,9 @@ import { readOpenItem } from "@/components/layout/DetailPane";
 import { PageShell } from "@/components/layout/PageShell";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { TransactionList } from "./TransactionList";
+import { HOUSEHOLD } from "@/test/events";
 
-const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
+const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 function renderTransactions(initialEntry: string) {
   const rootRoute = createRootRoute();

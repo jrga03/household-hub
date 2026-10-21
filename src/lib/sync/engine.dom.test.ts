@@ -4,6 +4,7 @@ import { countWaiting, listStuck, listUnpushed, type LoggedEvent } from "@/lib/e
 import { listAccounts } from "@/lib/accounts/projection";
 import { createAccount } from "@/lib/commands/accounts";
 import { cents } from "@/test/cents";
+import { HOUSEHOLD, loggedEvent } from "@/test/events";
 import {
   createSyncEngine,
   EventLogRejected,
@@ -12,7 +13,7 @@ import {
 } from "./engine";
 import { startSyncTriggers } from "./triggers";
 
-const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
+const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 /** The server contract pgTAP checks: duplicates ignored, pulls after N in sequence order. */
 class FakeRemote implements RemoteEventLog {
@@ -58,20 +59,15 @@ class FakeRemote implements RemoteEventLog {
 let otherDeviceAccounts = 0;
 function accountFromOtherDevice(name: string, householdId = MEMBER.householdId): LoggedEvent {
   otherDeviceAccounts += 1;
-  return {
+  return loggedEvent({
     id: crypto.randomUUID(),
     householdId,
-    visibility: "household",
-    ownerUserId: null,
     entityType: "account",
     entityId: crypto.randomUUID(),
     eventType: "account.created",
-    eventVersion: 1,
-    hlc: `00000000000${1000 + otherDeviceAccounts}-000000-device-b`,
-    deviceId: "device-b",
-    actorUserId: "user-a",
+    millis: 1000 + otherDeviceAccounts,
     payload: { name, type: "bank", startingBalanceCents: 100 },
-  };
+  });
 }
 
 let remote: FakeRemote;

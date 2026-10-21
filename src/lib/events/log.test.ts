@@ -16,8 +16,9 @@ import {
   requeueStuck,
   switchHousehold,
 } from "./log";
+import { HOUSEHOLD } from "@/test/events";
 
-const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
+const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 const addCash = (name = "Cash") =>
   createAccount(MEMBER, { name, type: "cash", startingBalanceCents: cents(0) });

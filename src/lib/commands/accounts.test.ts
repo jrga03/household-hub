@@ -4,8 +4,9 @@ import { listUnpushed } from "@/lib/events/log";
 import { listAccounts, listRetiredAccounts } from "@/lib/accounts/projection";
 import { cents } from "@/test/cents";
 import { createAccount, editAccount, retireAccount, unretireAccount } from "./accounts";
+import { HOUSEHOLD } from "@/test/events";
 
-const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
+const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 beforeEach(async () => {
   await resetLocalDatabase();

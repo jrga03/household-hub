@@ -13,8 +13,8 @@ import { createCategory, createGroup } from "@/lib/commands/categories";
 import type { DistributeMode } from "@/lib/budgets/distribute";
 import { parsePHP } from "@/lib/currency";
 import { DistributeMoney } from "./DistributeMoney";
+import { HOUSEHOLD } from "@/test/events";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 function renderDistribute(mode: DistributeMode, accountId: string) {

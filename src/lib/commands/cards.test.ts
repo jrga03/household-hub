@@ -7,8 +7,8 @@ import { readAccountMoney } from "@/lib/transactions/money";
 import { createAccount, retireAccount } from "./accounts";
 import { payCard, type PayCardInput } from "./cards";
 import { addTransaction } from "./transactions";
+import { HOUSEHOLD } from "@/test/events";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 const peso = (amount: string): Cents => parsePHP(amount);

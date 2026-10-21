@@ -13,8 +13,9 @@ import { recordBalanceCorrection } from "@/lib/commands/corrections";
 import { listAccounts } from "@/lib/accounts/projection";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import { categoryMonth, readMonthView, summarizeMonth, sumMonthFigures } from "./month";
+import { HOUSEHOLD } from "@/test/events";
 
-const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
+const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 const peso = (amount: string): Cents => parsePHP(amount);
 

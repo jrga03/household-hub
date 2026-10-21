@@ -9,8 +9,9 @@ import { addTransaction, removeTransaction } from "@/lib/commands/transactions";
 import { addTransfer } from "@/lib/commands/transfers";
 import { recordBalanceCorrection, removeBalanceCorrection } from "@/lib/commands/corrections";
 import { readCategoryLedger, readLedgerRecord } from "./ledger";
+import { HOUSEHOLD } from "@/test/events";
 
-const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
+const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 const peso = (amount: string): Cents => parsePHP(amount);
 
