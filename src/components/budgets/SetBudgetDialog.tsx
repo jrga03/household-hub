@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { ActionForm } from "@/components/app/ActionForm";
 import { CurrencyInput } from "@/components/app/CurrencyInput";
 import { Field } from "@/components/app/Field";
-import { FormFooter, FormSheet } from "@/components/app/FormSheet";
+import { FormFooter, FormSheet, FULL_ROW } from "@/components/app/FormSheet";
 import { FormError } from "@/components/app/FormError";
 import { Notice } from "@/components/app/Notice";
 import {
@@ -25,7 +25,7 @@ import type { Actor } from "@/lib/commands/accounts";
 import { setBudget } from "@/lib/commands/budgets";
 import { parsePHPSafe, PESO_SIGN, type Cents } from "@/lib/currency";
 import { VISIBILITY_LABELS } from "@/lib/events/ownership";
-import { errorMessage } from "@/lib/utils";
+import { cn, errorMessage } from "@/lib/utils";
 import { monthLabel, shiftMonth } from "@/lib/utils/dates";
 
 type BudgetProblems = Partial<Record<"amount" | "form", string>>;
@@ -170,7 +170,7 @@ function SetBudgetForm({
             </Select>
           )}
         </Field>
-        <div className="space-y-2 @[480px]:col-span-2">
+        <div className={cn("space-y-2", FULL_ROW)}>
           {fundingChoices.length === 0 ? (
             <Notice title="Funding account">
               Add a {VISIBILITY_LABELS[category.visibility]} bank, cash or e-wallet account on

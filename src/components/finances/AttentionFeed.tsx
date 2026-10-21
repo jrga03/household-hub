@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link, type LinkOptions } from "@tanstack/react-router";
+import type { LinkOptions } from "@tanstack/react-router";
 import {
   ChevronRight,
   CircleAlert,
@@ -9,12 +9,14 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { EmptyState } from "@/components/app/EmptyState";
+import { ListRow } from "@/components/app/ListRow";
+import { BUDGET_STATUS_STYLE } from "@/components/budgets/budgetStatusStyle";
 import { Money } from "@/components/app/Money";
 import { SectionHeader } from "@/components/app/SectionHeader";
 import { StatusBadge, type StatusTone } from "@/components/app/StatusBadge";
 import type { AttentionItem } from "@/lib/finances/attention";
 import type { ReviewKind } from "@/lib/review/count";
-import { cn } from "@/lib/utils";
+import { cn, countOf } from "@/lib/utils";
 
 interface FeedRow {
   key: string;
@@ -26,24 +28,22 @@ interface FeedRow {
   badge: { tone: StatusTone; text: string };
 }
 
-const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
-
 const REVIEW_COPY: Record<
   ReviewKind,
   { sentence: (count: number) => string; detail: string; link: LinkOptions }
 > = {
   uncategorized: {
-    sentence: (count) => `${plural(count, "expense needs", "expenses need")} a category`,
+    sentence: (count) => `${countOf(count, "expense needs", "expenses need")} a category`,
     detail: "Give each one a category on Review",
     link: { to: "/review" },
   },
   drafts: {
-    sentence: (count) => plural(count, "imported draft waits", "imported drafts wait"),
+    sentence: (count) => countOf(count, "imported draft waits", "imported drafts wait"),
     detail: "Check and save them on Import",
     link: { to: "/import" },
   },
   joinRequests: {
-    sentence: (count) => plural(count, "join request waits", "join requests wait"),
+    sentence: (count) => countOf(count, "join request waits", "join requests wait"),
     detail: "Approve or decline on Review",
     link: { to: "/review" },
   },
@@ -56,7 +56,7 @@ function feedRow(item: AttentionItem): FeedRow {
         key: `over-${item.categoryId}`,
         link: { to: "/budget", search: { open: item.categoryId } },
         icon: CircleAlert,
-        iconClass: "text-shortfall",
+        iconClass: BUDGET_STATUS_STYLE.over.color,
         sentence: (
           <>
             {item.name} is{" "}
@@ -71,12 +71,12 @@ function feedRow(item: AttentionItem): FeedRow {
             <Money kind="balance" cents={item.spent} />
           </>
         ),
-        badge: { tone: "shortfall", text: "Over budget" },
+        badge: BUDGET_STATUS_STYLE.over.badge,
       };
     case "short":
       return {
         key: `short-${item.accountId}`,
-        link: { to: "/accounts", hash: `account-${item.accountId}` },
+        link: { to: "/accounts", search: { open: item.accountId } },
         icon: CircleAlert,
         iconClass: "text-shortfall",
         sentence: (
@@ -92,7 +92,7 @@ function feedRow(item: AttentionItem): FeedRow {
         key: `close-${item.categoryId}`,
         link: { to: "/budget", search: { open: item.categoryId } },
         icon: Clock,
-        iconClass: "text-warning",
+        iconClass: BUDGET_STATUS_STYLE.close.color,
         sentence: (
           <>
             {item.name} has <Money kind="balance" cents={item.left} /> left
@@ -103,7 +103,7 @@ function feedRow(item: AttentionItem): FeedRow {
             Budget <Money kind="balance" cents={item.budget} />
           </>
         ),
-        badge: { tone: "warning", text: "Close" },
+        badge: BUDGET_STATUS_STYLE.close.badge,
       };
     case "review": {
       const { sentence, detail, link } = REVIEW_COPY[item.review];
@@ -143,7 +143,7 @@ export function AttentionFeed({
       {fineBudgets > 0 && (
         <p className="flex items-center gap-2 text-body text-muted-foreground">
           <CircleCheck aria-hidden className="size-4 text-success" />
-          {plural(fineBudgets, "budget is", "budgets are")} fine.
+          {countOf(fineBudgets, "budget is", "budgets are")} fine.
         </p>
       )}
     </section>
@@ -153,21 +153,22 @@ export function AttentionFeed({
 function AttentionRow({ row }: { row: FeedRow }) {
   const Icon = row.icon;
   return (
-    <li className="@container">
-      <Link
-        {...row.link}
-        className="flex items-center gap-3 py-3 transition-colors hover:bg-accent"
-      >
-        <Icon aria-hidden className={cn("size-5 shrink-0", row.iconClass)} />
-        <span className="min-w-0 flex-1">
-          <span className="block font-medium">{row.sentence}</span>
-          <span className="block truncate text-muted-foreground">{row.detail}</span>
-        </span>
-        <StatusBadge tone={row.badge.tone} className="hidden @[600px]:inline-flex">
-          {row.badge.text}
-        </StatusBadge>
-        <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-      </Link>
+    <li>
+      <ListRow
+        link={row.link}
+        className="px-0"
+        leading={<Icon aria-hidden className={cn("size-5 shrink-0", row.iconClass)} />}
+        label={row.sentence}
+        detail={row.detail}
+        trailing={
+          <>
+            <StatusBadge tone={row.badge.tone} className="hidden @[600px]:inline-flex">
+              {row.badge.text}
+            </StatusBadge>
+            <ChevronRight aria-hidden className="size-4 text-muted-foreground" />
+          </>
+        }
+      />
     </li>
   );
 }

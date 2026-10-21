@@ -1,6 +1,7 @@
 import { useEffect, type RefObject } from "react";
 import { CurrencyInput } from "@/components/app/CurrencyInput";
 import { Field } from "@/components/app/Field";
+import { FULL_ROW } from "@/components/app/FormSheet";
 import { SegmentedControl } from "@/components/app/SegmentedControl";
 import {
   AMOUNT_PROBLEM,
@@ -13,9 +14,6 @@ import {
 import { isLocalDate, type TransactionStatus } from "@/lib/transactions/events";
 import { TRANSFER_TYPE, type EntryDirection } from "@/lib/transactions/filter";
 import { cn } from "@/lib/utils";
-
-/** Spans both columns of the entry form's two-column grid. */
-export const FULL_ROW = "@[480px]:col-span-2";
 
 /**
  * A new entry starts at its amount, also after switching to or from Transfer.

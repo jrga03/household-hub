@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/app/EmptyState";
 import { ListRow } from "@/components/app/ListRow";
 import { Money, spokenMoney } from "@/components/app/Money";
 import { SectionHeader } from "@/components/app/SectionHeader";
-import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
+import { useAllAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useImportReview } from "@/hooks/useImports";
 import type { AccountRow } from "@/lib/accounts/projection";
@@ -42,15 +42,12 @@ const draftTitle = (draft: ReviewedDraft) => draft.description || "Needs a descr
  */
 export function ImportView({ actor }: { actor: Actor }) {
   const imports = useImportReview();
-  const accounts = useAccounts();
-  const retiredAccounts = useRetiredAccounts();
+  const accounts = useAllAccounts();
   const categories = useCategoryList();
   const { openId, open, close } = useOpenItem();
 
-  if (!imports || !accounts || !retiredAccounts || !categories) return null;
-  const accountsById = new Map(
-    [...accounts, ...retiredAccounts].map((account) => [account.id, account])
-  );
+  if (!imports || !accounts || !categories) return null;
+  const accountsById = accounts.byId;
   const names = categoryNames(categories);
   // Saved or discarded, here or by a bulk action: it's gone, which closes it.
   const opened = resolveOpenItem(openId, (id) => findDraft(imports, id));

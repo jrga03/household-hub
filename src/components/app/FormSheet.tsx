@@ -112,6 +112,12 @@ interface DestructiveAction {
 }
 
 /**
+ * Spans both columns of a form grid. Form grids in sheets, dialogs and panes go
+ * to two columns at 480 (`@[480px]:grid-cols-2`), the one threshold below 600.
+ */
+export const FULL_ROW = "@[480px]:col-span-2";
+
+/**
  * The form's buttons, after its last field; they scroll with the form. A
  * destructive action (Remove, Retire) sits apart below them as a text button.
  */

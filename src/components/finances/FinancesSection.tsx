@@ -2,8 +2,8 @@ import { useState, type ReactNode } from "react";
 import { Link, type LinkOptions } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { ChevronRight } from "lucide-react";
-import { categoryNames } from "@/components/allocations/envelopes";
 import { EmptyState } from "@/components/app/EmptyState";
+import { BUDGET_STATUS_STYLE } from "@/components/budgets/budgetStatusStyle";
 import { HeroFigure } from "@/components/app/HeroFigure";
 import { ListRow } from "@/components/app/ListRow";
 import { Money } from "@/components/app/Money";
@@ -12,9 +12,7 @@ import { SegmentedControl } from "@/components/app/SegmentedControl";
 import { PageShell } from "@/components/layout/PageShell";
 import { useTwoPanes } from "@/components/layout/pane";
 import { RowIcons } from "@/components/transactions/TransactionItem";
-import { rowDisplay } from "@/components/transactions/rowDisplay";
-import { useAccountNames } from "@/hooks/useAccounts";
-import { useCategoryList } from "@/hooks/useCategories";
+import { rowDisplay, totalKind, useRowNames } from "@/components/transactions/rowDisplay";
 import { useFinanceOverview } from "@/hooks/useFinanceOverview";
 import { useReviewCounts } from "@/hooks/useReviewCount";
 import { isCreditCard } from "@/lib/accounts/events";
@@ -116,10 +114,10 @@ function MonthFigures({ overview, daysLeft }: { overview: FinanceOverview; daysL
       <HeroFigure label="Left this month" value={<Money kind="balance" cents={overview.left} />} />
       <dl className="flex gap-6 text-body">
         <Figure label="In">
-          <Money kind={overview.in > 0 ? "income" : "net"} cents={overview.in} />
+          <Money {...totalKind("in", overview.in)} cents={overview.in} />
         </Figure>
         <Figure label="Out">
-          <Money kind={overview.out > 0 ? "expense" : "net"} cents={overview.out} />
+          <Money {...totalKind("out", overview.out)} cents={overview.out} />
         </Figure>
         <Figure label="Days left">
           <span data-testid="days-left" className="tabular-nums">
@@ -169,17 +167,17 @@ function Balances({ overview, view }: { overview: FinanceOverview; view: Finance
         <ul aria-label="Balances" className="divide-y border-y">
           {overview.balances.map(({ account, balance }) => (
             <li key={account.id}>
-              <Link
-                to="/accounts"
-                hash={`account-${account.id}`}
-                className="flex items-center justify-between gap-3 py-3 transition-colors hover:bg-accent"
-              >
-                <span className="truncate">{account.name}</span>
-                <span className="shrink-0">
-                  {isCreditCard(account) && <span className="text-muted-foreground">Owed </span>}
-                  <Money kind="balance" owed={isCreditCard(account)} cents={balance} />
-                </span>
-              </Link>
+              <ListRow
+                link={{ to: "/accounts", search: { open: account.id } }}
+                className="px-0"
+                label={account.name}
+                amount={
+                  <>
+                    {isCreditCard(account) && <span className="text-muted-foreground">Owed </span>}
+                    <Money kind="balance" owed={isCreditCard(account)} cents={balance} />
+                  </>
+                }
+              />
             </li>
           ))}
         </ul>
@@ -198,8 +196,8 @@ function Budgets({ counts }: { counts: BudgetStatusCounts }) {
       ) : (
         <dl className="grid grid-cols-3 gap-2 border-y py-3">
           <Count label="Fine" count={counts.fine} />
-          <Count label="Close" count={counts.close} className="text-warning" />
-          <Count label="Over" count={counts.over} className="text-shortfall" />
+          <Count label="Close" count={counts.close} className={BUDGET_STATUS_STYLE.close.color} />
+          <Count label="Over" count={counts.over} className={BUDGET_STATUS_STYLE.over.color} />
         </dl>
       )}
     </section>
@@ -216,12 +214,7 @@ function Count({ label, count, className }: { label: string; count: number; clas
 }
 
 function Latest({ rows }: { rows: TransactionRow[] }) {
-  const accountNames = useAccountNames();
-  const categories = useCategoryList();
-  const names = {
-    categories: categories ? categoryNames(categories) : new Map<string, string>(),
-    accounts: accountNames ?? new Map<string, string>(),
-  };
+  const names = useRowNames();
 
   return (
     <section className="space-y-2">

@@ -11,6 +11,7 @@ import { useCategoryList } from "@/hooks/useCategories";
 import { DEFAULT_GROUPS } from "@/lib/categories/defaults";
 import type { RecordNoun } from "@/lib/categories/events";
 import {
+  categoriesInUse,
   hasHouseholdGroup,
   type CategoryList,
   type CategoryRow,
@@ -32,8 +33,10 @@ function findEditing(list: CategoryList, editing: Editing) {
   if (editing.kind === "group") {
     return { group: list.groups.find((group) => group.id === editing.id), category: undefined };
   }
-  const inUse = [...list.groups.flatMap((group) => group.categories), ...list.ungrouped];
-  return { group: undefined, category: inUse.find((category) => category.id === editing.id) };
+  return {
+    group: undefined,
+    category: categoriesInUse(list).find((category) => category.id === editing.id),
+  };
 }
 
 /** Setting up groups and categories; their money is on Budget and Plan. */
@@ -173,7 +176,7 @@ function CategoryItems({
                 <span className="sr-only">Edit</span> <RecordName record={category} />
               </>
             }
-            amount={<ChevronRight aria-hidden="true" className="size-4 text-muted-foreground" />}
+            trailing={<ChevronRight aria-hidden="true" className="size-4 text-muted-foreground" />}
           />
         </li>
       ))}

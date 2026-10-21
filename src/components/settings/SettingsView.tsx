@@ -5,7 +5,7 @@ import { ListRow } from "@/components/app/ListRow";
 import { SectionHeader } from "@/components/app/SectionHeader";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { HouseholdDetails } from "@/components/households/HouseholdSettings";
-import { JoinRequestsList, NEW_REQUEST_POLL_MS } from "@/components/households/JoinRequestsCard";
+import { JoinRequestsList } from "@/components/households/JoinRequestsCard";
 import { MembersList } from "@/components/households/MembersCard";
 import { DetailPane, resolveOpenItem, useOpenItem } from "@/components/layout/DetailPane";
 import { PageShell } from "@/components/layout/PageShell";
@@ -44,9 +44,8 @@ export function SettingsView({ household, userId, isOwner }: SettingsViewProps) 
 
 function useSettingsSections({ household, userId, isOwner }: SettingsViewProps) {
   const { data: requests } = useQuery({
-    ...pendingJoinRequestsQueryOptions(household.id),
+    ...pendingJoinRequestsQueryOptions(household.id, { poll: true }),
     enabled: isOwner,
-    refetchInterval: NEW_REQUEST_POLL_MS,
   });
   const requestCount = requests?.length ?? 0;
 
@@ -116,7 +115,7 @@ function SectionList({ sections }: { sections: SettingsSection[] }) {
                   <section.icon aria-hidden="true" className="size-4 text-muted-foreground" />
                 }
                 label={section.title}
-                amount={section.badge || undefined}
+                trailing={section.badge || undefined}
                 detail={section.summary}
               />
             </li>

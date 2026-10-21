@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { PayCardDialog } from "@/components/accounts/PayCardDialog";
 import { Button } from "@/components/app/Button";
 import { Checkbox } from "@/components/app/Checkbox";
+import { FULL_ROW } from "@/components/app/FormSheet";
 import { Input } from "@/components/app/Input";
 import { Label } from "@/components/app/Label";
 import { Money } from "@/components/app/Money";
@@ -22,7 +23,7 @@ import { saveDrafts } from "@/lib/commands/drafts";
 import { deleteDrafts, editDraft, type DraftChanges } from "@/lib/import/drafts";
 import { needsDescription, type DraftFlag, type ReviewedDraft } from "@/lib/import/review";
 import { DESCRIPTION_MAX_LENGTH, isTransactionType } from "@/lib/transactions/events";
-import { errorMessage } from "@/lib/utils";
+import { cn, errorMessage } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
 import { isSuggested, SuggestedBadge } from "./DraftLabels";
 import { useDraftAction } from "./useDraftAction";
@@ -192,7 +193,7 @@ function DraftFields({
 
   return (
     <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
-      <div className="space-y-2 @[480px]:col-span-2">
+      <div className={cn("space-y-2", FULL_ROW)}>
         <Label htmlFor="draft-description" className="flex items-center gap-2">
           Description
           {isSuggested(draft.descriptionSource) && <SuggestedBadge />}
@@ -218,10 +219,7 @@ function DraftFields({
         />
       </div>
       {draft.description === "" && (
-        <p
-          id="draft-description-needed"
-          className="-mt-2 text-body text-warning @[480px]:col-span-2"
-        >
+        <p id="draft-description-needed" className={cn("-mt-2 text-body text-warning", FULL_ROW)}>
           Needs a description before it can be saved.
         </p>
       )}
@@ -243,7 +241,7 @@ function DraftFields({
         />
       </div>
       {draft.type === "expense" && draft.categoryId === null && (
-        <p className="text-body text-muted-foreground @[480px]:col-span-2">
+        <p className={cn("text-body text-muted-foreground", FULL_ROW)}>
           Needs a category. It can be saved to Unassigned and given one later.
         </p>
       )}

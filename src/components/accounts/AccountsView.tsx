@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { ActionForm } from "@/components/app/ActionForm";
 import { Button } from "@/components/app/Button";
 import { EmptyState } from "@/components/app/EmptyState";
+import { Fact, Facts } from "@/components/app/Facts";
 import { FormError } from "@/components/app/FormError";
 import { advanceOnEnter } from "@/components/app/FormSheet";
 import { ListRow } from "@/components/app/ListRow";
@@ -118,12 +119,10 @@ function AccountSections({ accounts, ...rows }: RowsProps & { accounts: AccountL
               action={
                 section.accounts.length > 1 &&
                 total !== undefined && (
-                  <Money
-                    kind="balance"
-                    owed={section.type === "credit_card"}
-                    cents={total}
-                    className="text-body text-muted-foreground"
-                  />
+                  // Muted from outside, so a negative total keeps Money's shortfall color.
+                  <span className="text-body text-muted-foreground">
+                    <Money kind="balance" owed={section.type === "credit_card"} cents={total} />
+                  </span>
                 )
               }
             />
@@ -149,11 +148,7 @@ function AccountRows({
         const accountMoney = money?.get(account.id);
         const card = isCreditCard(account);
         return (
-          <li
-            key={account.id}
-            id={`account-${account.id}`}
-            className="scroll-mt-[calc(var(--app-header)+1rem)]"
-          >
+          <li key={account.id}>
             <ListRow
               onClick={() => onOpen(account.id)}
               open={account.id === openId}
@@ -219,7 +214,7 @@ function AccountDetail({
           <Money kind="balance" owed={card} cents={money.balance} className="block text-heading" />
         </div>
       )}
-      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-3 text-body">
+      <Facts>
         {card && (
           <Fact term="Paid from">{account.payingAccount?.name ?? "Not on this device yet"}</Fact>
         )}
@@ -236,7 +231,7 @@ function AccountDetail({
         {money?.envelopes && <Envelopes envelopes={money.envelopes} />}
         <Fact term="Who sees it">{VISIBILITY_LABELS[account.visibility]}</Fact>
         {retired && <Fact term="Status">Retired</Fact>}
-      </dl>
+      </Facts>
       <div className="flex flex-wrap items-center gap-2">
         {retired ? (
           <UnretireButton actor={actor} account={account} />
@@ -270,15 +265,6 @@ function AccountDetail({
       {dialog === "correct" && (
         <CorrectBalanceDialog actor={actor} account={account} onClose={closeDialog} />
       )}
-    </div>
-  );
-}
-
-function Fact({ term, children }: { term: string; children: React.ReactNode }) {
-  return (
-    <div className="contents">
-      <dt className="text-muted-foreground">{term}</dt>
-      <dd className="break-words">{children}</dd>
     </div>
   );
 }

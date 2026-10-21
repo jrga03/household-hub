@@ -116,7 +116,7 @@ function MemberRow({
             {isYou && <span className="font-normal text-muted-foreground"> (you)</span>}
           </>
         }
-        amount={member.isOwner ? <StatusBadge tone="neutral">Owner</StatusBadge> : undefined}
+        trailing={member.isOwner ? <StatusBadge tone="neutral">Owner</StatusBadge> : undefined}
       />
       {ownerControls && (
         <div className="flex shrink-0 gap-2 px-4 py-2">

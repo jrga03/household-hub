@@ -1,5 +1,9 @@
+import { categoryNames } from "@/components/allocations/envelopes";
 import type { MoneyKind } from "@/components/app/Money";
+import { useAccountNames } from "@/hooks/useAccounts";
+import { useCategoryList } from "@/hooks/useCategories";
 import { envelopeLabel } from "@/lib/allocations/envelope";
+import type { Cents } from "@/lib/currency";
 import { CORRECTION_LABEL, isMoneyIn } from "@/lib/corrections/events";
 import { transactionLabel } from "@/lib/transactions/events";
 import {
@@ -27,6 +31,20 @@ export interface RowNames {
   categories: Map<string, string>;
   accounts: Map<string, string>;
 }
+
+/** Every category and account name on this device, retired ones included; empty while loading. */
+export function useRowNames(): RowNames {
+  const categories = useCategoryList();
+  const accounts = useAccountNames();
+  return {
+    categories: categories ? categoryNames(categories) : new Map<string, string>(),
+    accounts: accounts ?? new Map<string, string>(),
+  };
+}
+
+/** A total of money in or out. Nothing reads as a plain ₱0.00, not "+₱0.00". */
+export const totalKind = (direction: "in" | "out", cents: Cents): MoneyKind =>
+  cents > 0 ? { kind: direction === "in" ? "income" : "expense" } : { kind: "net" };
 
 /** A transfer is a leg in or out of `filteredAccount`; without one, it only moved. */
 export function rowDisplay(row: ListRow, names: RowNames, filteredAccount?: string): RowDisplay {

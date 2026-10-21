@@ -10,10 +10,7 @@ import { useHousehold } from "@/hooks/useHousehold";
 import { usePendingJoinRequests } from "@/hooks/useJoinRequests";
 import { useReviewCounts } from "@/hooks/useReviewCount";
 import { REVIEW_KINDS, totalReviewItems, type ReviewKind } from "@/lib/review/count";
-
-const NEW_REQUEST_POLL_MS = 30_000;
-
-const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+import { countOf } from "@/lib/utils";
 
 /** Everything waiting for a member, one section per kind; each hides when empty. */
 export function ReviewView() {
@@ -92,7 +89,7 @@ function UncategorizedSection({ count }: { count: number }) {
     <ReviewSection title="Expenses without a category" count={count}>
       <ReviewLinkRow
         label="Categorize"
-        detail={`${plural(count, "expense has", "expenses have")} no category yet.`}
+        detail={`${countOf(count, "expense has", "expenses have")} no category yet.`}
         link={{ to: "/transactions", search: { needsCategory: true } }}
       />
     </ReviewSection>
@@ -104,7 +101,7 @@ function DraftsSection({ count }: { count: number }) {
     <ReviewSection title="Imported drafts" count={count}>
       <ReviewLinkRow
         label="Review drafts"
-        detail={`${plural(count, "draft waits", "drafts wait")} on this device.`}
+        detail={`${countOf(count, "draft waits", "drafts wait")} on this device.`}
         link={{ to: "/import" }}
       />
     </ReviewSection>
@@ -113,7 +110,7 @@ function DraftsSection({ count }: { count: number }) {
 
 function JoinRequestsSection({ count }: { count: number }) {
   const { household } = useHousehold();
-  const { data: requests } = usePendingJoinRequests({ refetchInterval: NEW_REQUEST_POLL_MS });
+  const { data: requests } = usePendingJoinRequests({ poll: true });
   if (!household || !requests) return null;
 
   return (

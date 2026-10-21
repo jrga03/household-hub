@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { ActionForm } from "@/components/app/ActionForm";
 import { Field } from "@/components/app/Field";
 import { FormError } from "@/components/app/FormError";
-import { FormFooter, FormSheet } from "@/components/app/FormSheet";
+import { FormFooter, FormSheet, FULL_ROW } from "@/components/app/FormSheet";
 import { Input } from "@/components/app/Input";
 import { Money } from "@/components/app/Money";
 import { SubmitButton } from "@/components/app/SubmitButton";
@@ -113,7 +113,6 @@ function CorrectBalanceForm({
     },
     NO_PROBLEMS
   );
-  // The shared entry-form ref: Enter advances on phones, and focus lands on the field to fix.
   const formRef = useFocusFirstProblem(problems);
   const amountRef = useRef<HTMLInputElement>(null);
   // Focus waits for the categories, which the form needs before it renders.
@@ -163,7 +162,7 @@ function CorrectBalanceForm({
             onChange={(event) => setDate(event.target.value)}
           />
         </Field>
-        <div className="@[480px]:col-span-2">
+        <div className={FULL_ROW}>
           <Field label="Category">
             {(control) => (
               <CategorySelect

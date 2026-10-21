@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { ActionForm } from "@/components/app/ActionForm";
 import { CurrencyInput } from "@/components/app/CurrencyInput";
 import { Field } from "@/components/app/Field";
-import { FormFooter, FormSheet } from "@/components/app/FormSheet";
+import { FormFooter, FormSheet, FULL_ROW } from "@/components/app/FormSheet";
 import { FormError } from "@/components/app/FormError";
 import { Input } from "@/components/app/Input";
 import { Money } from "@/components/app/Money";
@@ -307,7 +307,7 @@ function MoveMoneyForm({
             defaultValue={allocation?.date ?? todayLocalDate()}
           />
         </Field>
-        <div className="@[480px]:col-span-2">
+        <div className={FULL_ROW}>
           <Field label="Account">
             {(control) => (
               <Select name="accountId" value={accountId} onValueChange={setAccountId}>
