@@ -12,8 +12,8 @@ import { createAccount } from "@/lib/commands/accounts";
 import { parsePHP } from "@/lib/currency";
 import { useOpeningSteps } from "@/hooks/useOpeningSteps";
 import { OpeningChecklist } from "./OpeningChecklist";
+import { HOUSEHOLD } from "@/test/events";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 // Rendered beside the checklist so a test can wait until the steps have loaded.

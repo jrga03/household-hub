@@ -8,8 +8,8 @@ import { listTransactions } from "@/lib/transactions/projection";
 import { createAccount } from "./accounts";
 import { createCategory, createGroup, retireCategory } from "./categories";
 import { saveDrafts } from "./drafts";
+import { HOUSEHOLD } from "@/test/events";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 const peso = (amount: string): Cents => parsePHP(amount);

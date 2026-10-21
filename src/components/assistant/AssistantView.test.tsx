@@ -11,11 +11,12 @@ import { listTransactions } from "@/lib/transactions/projection";
 import { toast } from "sonner";
 import { useAssistantStore } from "@/stores/assistantStore";
 import { AssistantView } from "./AssistantView";
+import { HOUSEHOLD } from "@/test/events";
 
 vi.mock("@/lib/confirm", () => ({ confirm: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-const actor = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
+const actor = { householdId: HOUSEHOLD, userId: "user-a" };
 
 const showReply = (text: string) =>
   useAssistantStore.setState({ items: [{ kind: "assistant", text, toolCalls: [] }] });

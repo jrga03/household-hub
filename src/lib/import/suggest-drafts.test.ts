@@ -8,10 +8,10 @@ import { switchHousehold } from "@/lib/events/log";
 import { countDrafts, createImport, editDraft, listDrafts, listImports } from "./drafts";
 import { suggestDrafts } from "./suggest-drafts";
 import { historySuggester, type DraftSuggester } from "./suggestions";
+import { HOUSEHOLD } from "@/test/events";
 
 vi.mock("@/lib/sentry", () => ({ reportError: vi.fn() }));
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 let cardId: string;

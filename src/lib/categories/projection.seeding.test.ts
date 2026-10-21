@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { orders } from "@/test/permutations";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { receiveEvents } from "@/lib/events/log";
+import { hlcAt } from "@/test/events";
 import { readCategoryList } from "./projection";
-import { FOOD, GROCERIES, groceriesEvent, groupEvent, hlcAt } from "./projection.fixtures";
+import { FOOD, GROCERIES, groceriesEvent, groupEvent } from "./projection.fixtures";
 
 beforeEach(async () => {
   await resetLocalDatabase();

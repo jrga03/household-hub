@@ -1,18 +1,15 @@
 import { expect } from "vitest";
 import { sumCents } from "@/lib/currency";
-import type { LoggedEvent } from "@/lib/events/log";
+import { loggedEvent } from "@/test/events";
 import type { AccountMoney } from "./money";
 
-export const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 export const BANK = "aaaaaaaa-0000-4000-8000-000000000001";
 export const WALLET = "aaaaaaaa-0000-4000-8000-000000000002";
 export const CARD = "aaaaaaaa-0000-4000-8000-000000000003";
 export const GROCERIES = "cccccccc-0000-4000-8000-000000000001";
 export const RENT = "cccccccc-0000-4000-8000-000000000002";
 
-export const hlcAt = (millis: number) => `${String(millis).padStart(15, "0")}-000000-device-b`;
-
-export function event(
+export const event = (
   id: string,
   entityType: string,
   entityId: string,
@@ -20,22 +17,7 @@ export function event(
   millis: number,
   payload: Record<string, unknown> = {},
   eventVersion = 1
-): LoggedEvent {
-  return {
-    id,
-    householdId: HOUSEHOLD,
-    visibility: "household",
-    ownerUserId: null,
-    entityType,
-    entityId,
-    eventType,
-    eventVersion,
-    hlc: hlcAt(millis),
-    deviceId: "device-b",
-    actorUserId: "user-b",
-    payload,
-  };
-}
+) => loggedEvent({ id, entityType, entityId, eventType, millis, payload, eventVersion });
 
 export const account = (
   id: string,

@@ -7,8 +7,8 @@ import { addAllocation, removeAllocation } from "@/lib/commands/allocations";
 import { createCategory, createGroup } from "@/lib/commands/categories";
 import { setBudget } from "@/lib/commands/budgets";
 import { readOpeningSteps } from "./steps";
+import { HOUSEHOLD } from "@/test/events";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 beforeEach(async () => {

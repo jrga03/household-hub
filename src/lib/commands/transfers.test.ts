@@ -19,8 +19,8 @@ import {
   type TransferInput,
 } from "./transfers";
 import { retireOnAnotherDevice } from "@/test/anotherDevice";
+import { HOUSEHOLD } from "@/test/events";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 const OTHER_MEMBER = { householdId: HOUSEHOLD, userId: "user-b" };
 

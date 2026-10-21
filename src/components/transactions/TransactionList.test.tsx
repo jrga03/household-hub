@@ -16,8 +16,9 @@ import { parsePHP } from "@/lib/currency";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { listTransactions } from "@/lib/transactions/projection";
 import { TransactionList } from "./TransactionList";
+import { HOUSEHOLD } from "@/test/events";
 
-const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
+const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 let shellWidth = 393;
 const observers = new Set<FakeResizeObserver>();

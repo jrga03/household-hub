@@ -8,8 +8,8 @@ import { getBudget, listBudgets } from "@/lib/budgets/projection";
 import { createAccount, retireAccount } from "./accounts";
 import { createCategory, createGroup, retireCategory } from "./categories";
 import { setBudget, type BudgetInput } from "./budgets";
+import { HOUSEHOLD } from "@/test/events";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 const OTHER_MEMBER = { householdId: HOUSEHOLD, userId: "user-b" };
 

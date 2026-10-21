@@ -4,8 +4,8 @@ import { createAccount, retireAccount } from "@/lib/commands/accounts";
 import { createCategory, createGroup, retireCategory } from "@/lib/commands/categories";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { buildSessionContext } from "./context";
+import { HOUSEHOLD } from "@/test/events";
 
-const HOUSEHOLD = "11111111-1111-4111-8111-111111111111";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 const OTHER_MEMBER = { householdId: HOUSEHOLD, userId: "user-b" };
 

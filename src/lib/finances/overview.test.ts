@@ -8,8 +8,9 @@ import { setBudget } from "@/lib/commands/budgets";
 import { addTransaction, removeTransaction } from "@/lib/commands/transactions";
 import { addTransfer } from "@/lib/commands/transfers";
 import { readFinanceOverview, type FinanceView } from "./overview";
+import { HOUSEHOLD } from "@/test/events";
 
-const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
+const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 const OTHER_MEMBER = { ...MEMBER, userId: "user-b" };
 
 const peso = (amount: string): Cents => parsePHP(amount);

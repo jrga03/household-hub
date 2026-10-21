@@ -20,8 +20,9 @@ import {
   unretireGroup,
 } from "./categories";
 import { addTransaction } from "./transactions";
+import { HOUSEHOLD } from "@/test/events";
 
-const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
+const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 const OTHER_HOUSEHOLD = { householdId: "22222222-2222-4222-8222-222222222222", userId: "user-a" };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;

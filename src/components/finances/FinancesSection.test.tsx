@@ -18,12 +18,13 @@ import { addTransaction } from "@/lib/commands/transactions";
 import { parsePHP } from "@/lib/currency";
 import { localMonth } from "@/lib/utils/dates";
 import { FinancesSection } from "./FinancesSection";
+import { HOUSEHOLD } from "@/test/events";
 
 vi.mock("@/hooks/useHousehold", () => ({
   useHousehold: () => ({ household: null, isOwner: false, isKnown: true }),
 }));
 
-const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
+const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 const today = () => format(new Date(), "yyyy-MM-dd");
 
 function stubShellWidth(width: number) {
