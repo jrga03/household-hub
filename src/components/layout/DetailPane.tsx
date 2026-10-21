@@ -3,12 +3,7 @@ import { useNavigate, useRouter, useSearch } from "@tanstack/react-router";
 import { Drawer as DrawerPrimitive } from "vaul";
 import { useSheetAboveKeyboard } from "@/components/app/FormSheet";
 import { Button } from "@/components/ui/button";
-import {
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
+import { DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 import { PageShell } from "./PageShell";
 import { BELOW_HEADER, PANE_MAX_HEIGHT, useTwoPanes } from "./pane";
@@ -86,6 +81,7 @@ export function useOpenItem() {
 
 interface DetailPaneProps<T> {
   title: ReactNode;
+  /** Shown under the title in the pane; a phone sheet's header is its title alone. */
   description?: ReactNode;
   /** The open item from the local projections: undefined while they load, null once it's gone. */
   item: T | null | undefined;
@@ -112,7 +108,7 @@ export function DetailPane<T>({ title, description, item, children }: DetailPane
       {content}
     </Pane>
   ) : (
-    <Sheet title={title} description={description} onClose={close}>
+    <Sheet title={title} onClose={close}>
       {content}
     </Sheet>
   );
@@ -154,14 +150,14 @@ function Pane({ title, description, onClose, children }: ShownProps) {
   );
 }
 
-function Sheet({ title, description, onClose, children }: ShownProps) {
+function Sheet({ title, onClose, children }: Omit<ShownProps, "description">) {
   const aboveKeyboard = useSheetAboveKeyboard();
   return (
     // The open item's URL entry stands in for the drawer's own back-close entry.
     <DrawerPrimitive.Root open onOpenChange={(open) => !open && onClose()} repositionInputs={false}>
       <DrawerContent
         {...aboveKeyboard}
-        {...(!description && { "aria-describedby": undefined })}
+        aria-describedby={undefined}
         // Reviewing comes first; focusing a field would open a phone's keyboard.
         onOpenAutoFocus={(event) => {
           event.preventDefault();
@@ -170,7 +166,6 @@ function Sheet({ title, description, onClose, children }: ShownProps) {
       >
         <DrawerHeader>
           <DrawerTitle className="truncate">{title}</DrawerTitle>
-          {description && <DrawerDescription>{description}</DrawerDescription>}
         </DrawerHeader>
         <div className="@container overflow-y-auto overscroll-contain px-4 pb-6">{children}</div>
       </DrawerContent>

@@ -86,7 +86,7 @@ function ThingsList({ things }: { things: Thing[] }) {
           ))}
         </ul>
       </PageShell.List>
-      <DetailPane title={opened?.name} item={opened}>
+      <DetailPane title={opened?.name} description="Saved on this device." item={opened}>
         {(thing) => <p>{thing.name} details</p>}
       </DetailPane>
     </>
@@ -216,6 +216,18 @@ describe("DetailPane", () => {
     fireEvent.click(within(pane).getByRole("button", { name: "Close" }));
     await act(() => Promise.resolve());
     expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+  });
+
+  it("shows the description in the pane, and a sheet's header is its title alone", async () => {
+    renderThings("/things?open=bakery");
+    const sheet = await screen.findByRole("dialog", { name: "Bakery" });
+    expect(within(sheet).queryByText("Saved on this device.")).not.toBeInTheDocument();
+    expect(sheet).not.toHaveAttribute("aria-describedby");
+
+    resizeShell(1024);
+
+    const pane = await screen.findByRole("complementary");
+    expect(within(pane).getByText("Saved on this device.")).toBeInTheDocument();
   });
 
   it("replaces the entry at two panes: back after three opens leaves the page", async () => {
