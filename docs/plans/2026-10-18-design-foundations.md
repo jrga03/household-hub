@@ -226,5 +226,5 @@ Spec #222, integration branch `feat/222-page-migration`. Order: #223 â†’ #224 â†
 - [x] #230 Review and Import: review items and statement drafts (#224)
 - [x] #231 Settings and households: list-detail sections and create-or-join (#224)
 - [x] #232 Assistant: chat and proposals (#224)
-- [ ] #233 Auth and app leftovers, and delete the primitive allowlist (#223-#232)
+- [x] #233 Auth and app leftovers, and delete the primitive allowlist (#223-#232)
 - [ ] Code review of the integration branch, findings fixed
