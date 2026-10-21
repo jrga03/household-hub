@@ -80,8 +80,8 @@ const figures = (name: string) => screen.findByLabelText(`${name} budget, spent 
 /** The last figure is what's left. */
 const left = async (name: string) =>
   within(await figures(name))
-    .getAllByText(/₱/)
-    .at(-1);
+    .getAllByText(/₱/, { selector: "[aria-hidden=true]" })
+    .at(-1)?.parentElement;
 
 beforeEach(async () => {
   await resetLocalDatabase();

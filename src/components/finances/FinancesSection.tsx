@@ -12,14 +12,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { categoryNames } from "@/components/allocations/envelopes";
-import { shortfallClass } from "@/components/allocations/MoneyAmount";
+import { Money } from "@/components/app/Money";
 import { rowDisplay } from "@/components/transactions/rowDisplay";
-import { AMOUNT_DIRECTION, TransactionAmount } from "@/components/transactions/TransactionAmount";
 import { useAccountNames } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useFinanceOverview } from "@/hooks/useFinanceOverview";
 import { isCreditCard } from "@/lib/accounts/events";
-import { formatPHP, type Cents } from "@/lib/currency";
+import type { Cents } from "@/lib/currency";
 import type { BudgetStatusCounts, FinanceOverview, FinanceView } from "@/lib/finances/overview";
 import { readFinanceView, rememberFinanceView } from "@/lib/finances/view";
 import { isTransfer, type ListRow } from "@/lib/transactions/filter";
@@ -128,14 +127,9 @@ function FinancesBlocks({
                 className="flex items-center justify-between gap-3 py-2 hover:underline"
               >
                 <span className="truncate">{account.name}</span>
-                <span
-                  className={cn(
-                    "shrink-0 tabular-nums",
-                    shortfallClass(balance, { owed: isCreditCard(account) })
-                  )}
-                >
+                <span className="shrink-0">
                   {isCreditCard(account) && <span className="text-muted-foreground">Owed </span>}
-                  {formatPHP(balance)}
+                  <Money kind="balance" owed={isCreditCard(account)} cents={balance} />
                 </span>
               </Link>
             </li>
@@ -181,8 +175,8 @@ function Figure({ label, cents }: { label: string; cents: Cents }) {
   return (
     <div className="min-w-0">
       <dt className="text-caption text-muted-foreground">{label}</dt>
-      <dd className={cn("truncate font-medium tabular-nums", shortfallClass(cents))}>
-        {formatPHP(cents)}
+      <dd className="truncate font-medium">
+        <Money kind="balance" cents={cents} />
       </dd>
     </div>
   );
@@ -233,7 +227,7 @@ function LatestTransactions({ rows }: { rows: ListRow[] }) {
   return (
     <ul aria-label="Latest transactions" className="divide-y text-body">
       {rows.map((row) => {
-        const { label, direction } = rowDisplay(row, names);
+        const { label, amount } = rowDisplay(row, names);
         return (
           <li key={row.id} className="flex items-center justify-between gap-3 py-2">
             <span className="flex min-w-0 items-center gap-2">
@@ -248,13 +242,7 @@ function LatestTransactions({ rows }: { rows: ListRow[] }) {
                 {format(parseLocalDate(row.date), "MMM d")}
               </span>
             </span>
-            <span className={cn("shrink-0 tabular-nums", AMOUNT_DIRECTION[direction].className)}>
-              <TransactionAmount
-                direction={direction}
-                cents={row.amountCents}
-                expenseInParentheses
-              />
-            </span>
+            <Money {...amount} cents={row.amountCents} className="shrink-0" />
           </li>
         );
       })}

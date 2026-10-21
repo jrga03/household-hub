@@ -55,7 +55,7 @@ test("moving money between envelopes, past Unassigned, with an undoable removal"
   );
   await dialog.getByRole("button", { name: "Move money" }).click();
   await expect(dialog).toBeHidden();
-  await expect(bar.getByText("−₱3,000.00").first()).toHaveClass(/text-shortfall/);
+  await expect(bar.getByText("−₱3,000.00").first().locator("..")).toHaveClass(/text-shortfall/);
   await expect(unassignedItem(page)).toContainText("−₱3,000.00");
   await expect(unassignedItem(page)).toContainText("Allocated more than this account has");
 
@@ -74,7 +74,7 @@ test("moving money between envelopes, past Unassigned, with an undoable removal"
   await expect(allocations.getByRole("listitem")).toHaveCount(2);
   await expect(unassignedItem(page)).toContainText("−₱3,000.00");
 
-  await expect(holds(page, "Groceries")).toHaveText("Holds ₱8,000.00");
+  await expect(holds(page, "Groceries")).toContainText("Holds ₱8,000.00");
 
   await page.getByRole("button", { name: "Back" }).click();
   await expect(page).toHaveURL(/\/budget$/);
@@ -90,5 +90,5 @@ test("moving money between envelopes, past Unassigned, with an undoable removal"
 
   await page.goto("/plan");
   await expect(page.getByRole("textbox", { name: "Groceries", exact: true })).toHaveCount(0);
-  await expect(holds(page, "Restaurants")).toHaveText("Holds ₱8,000.00");
+  await expect(holds(page, "Restaurants")).toContainText("Holds ₱8,000.00");
 });

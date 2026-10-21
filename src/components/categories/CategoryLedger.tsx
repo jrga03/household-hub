@@ -1,11 +1,10 @@
 import { format } from "date-fns";
-import { MoneyAmount } from "@/components/allocations/MoneyAmount";
+import { Money } from "@/components/app/Money";
 import { envelopeLabel } from "@/lib/allocations/envelope";
 import { useBudgets, useCategoryLedger } from "@/hooks/useBudgets";
 import { budgetHistory } from "@/lib/budgets/inForce";
 import type { LedgerRecord, LedgerRow } from "@/lib/budgets/ledger";
-import { absCents, formatPHP, type Cents } from "@/lib/currency";
-import { cn } from "@/lib/utils";
+import { formatPHP, type Cents } from "@/lib/currency";
 import { CORRECTION_LABEL } from "@/lib/corrections/events";
 import { monthLabel, parseLocalDate } from "@/lib/utils/dates";
 
@@ -49,30 +48,15 @@ function describe({ kind, record }: LedgerRecord, names: Names) {
 
 /** A signed change; a record that only moves the money between accounts shows its amount, muted. */
 function Change({ row }: { row: LedgerRow }) {
-  if (row.change === 0) {
-    return (
-      <span className="whitespace-nowrap tabular-nums text-muted-foreground">
-        {formatPHP(row.record.amountCents)}
-      </span>
-    );
-  }
-  return <SignedAmount cents={row.change} />;
-}
-
-function SignedAmount({ cents }: { cents: Cents }) {
-  return (
-    <span className={cn("whitespace-nowrap tabular-nums", cents > 0 && "text-income")}>
-      {cents > 0 ? "+" : "−"}
-      {formatPHP(absCents(cents))}
-    </span>
-  );
+  if (row.change === 0) return <Money kind="transfer" cents={row.record.amountCents} />;
+  return <Money kind="net" cents={row.change} />;
 }
 
 function Balance({ label, cents }: { label: string; cents: Cents }) {
   return (
     <div className="flex items-center justify-between gap-3 px-3 py-2 text-body font-medium">
       <span>{label}</span>
-      <MoneyAmount cents={cents} />
+      <Money kind="balance" cents={cents} />
     </div>
   );
 }
@@ -130,7 +114,8 @@ export function CategoryLedger({
                     </span>
                     <span className="flex shrink-0 flex-col items-end">
                       <Change row={row} />
-                      <MoneyAmount
+                      <Money
+                        kind="balance"
                         cents={row.balance}
                         className="text-caption text-muted-foreground"
                       />
@@ -145,7 +130,7 @@ export function CategoryLedger({
         {isCurrentMonth && ledger.datedLater !== 0 && (
           <div className="flex items-center justify-between gap-3 px-3 py-2 text-body text-muted-foreground">
             <span>Dated later</span>
-            <SignedAmount cents={ledger.datedLater} />
+            <Money kind="net" cents={ledger.datedLater} />
           </div>
         )}
       </div>

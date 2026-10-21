@@ -6,11 +6,8 @@ import { toast } from "sonner";
 import { PayCardDialog } from "@/components/accounts/PayCardDialog";
 import { AllocationList } from "@/components/allocations/AllocationList";
 import { categoryNames, namedAmounts } from "@/components/allocations/envelopes";
-import {
-  MoneyAmount,
-  NegativeNote,
-  OVERDRAWN_UNASSIGNED,
-} from "@/components/allocations/MoneyAmount";
+import { NegativeNote, OVERDRAWN_UNASSIGNED } from "@/components/allocations/NegativeNote";
+import { Money } from "@/components/app/Money";
 import { MoveMoneyDialog } from "@/components/allocations/MoveMoneyDialog";
 import { RecordName } from "@/components/categories/RecordName";
 import { advanceOnEnter, FormSheet } from "@/components/app/FormSheet";
@@ -239,7 +236,7 @@ function ToAssignBar({
     <section aria-label="To assign" className="space-y-3 rounded-md border bg-muted/40 p-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-heading">
-          <MoneyAmount cents={toAssign} /> <span className="font-normal">to assign</span>
+          <Money kind="balance" cents={toAssign} /> <span className="font-normal">to assign</span>
         </p>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={onMove} disabled={inUse.length === 0}>
@@ -320,7 +317,7 @@ function UnassignedByAccount({
                   <span className="truncate font-medium">{account.name}</span>
                   {account.retired && <Badge variant="outline">Retired</Badge>}
                 </p>
-                <MoneyAmount cents={unassigned} />
+                <Money kind="balance" cents={unassigned} />
               </div>
               <NegativeNote cents={unassigned} label={OVERDRAWN_UNASSIGNED} />
               {namedAmounts(envelopes?.cardPayments, accountNames).map(({ id, cents, name }) => (
@@ -330,7 +327,7 @@ function UnassignedByAccount({
                 >
                   <span className="min-w-0 truncate">Card Payment · {name}</span>
                   <span className="flex shrink-0 items-center gap-2">
-                    <MoneyAmount cents={cents} />
+                    <Money kind="balance" cents={cents} />
                     {payableFrom(id, account.id) && (
                       <Button
                         variant="outline"
@@ -419,7 +416,7 @@ function PlanRow({
           {spentIn(spent.this)}
         </p>
         <p id={moneyId} className="truncate text-caption text-muted-foreground">
-          Holds <MoneyAmount cents={categoryMonth(spent.this, category.id).money} />
+          Holds <Money kind="balance" cents={categoryMonth(spent.this, category.id).money} />
         </p>
       </div>
       <Input

@@ -55,7 +55,7 @@ describe("rowDisplay", () => {
     expect(rowDisplay(transaction(), names)).toEqual({
       label: "Market",
       detail: "Groceries · BPI",
-      direction: "out",
+      amount: { kind: "expense" },
     });
   });
 
@@ -64,7 +64,7 @@ describe("rowDisplay", () => {
     expect(rowDisplay(income, names)).toEqual({
       label: "₱250.00",
       detail: "Unassigned · BPI",
-      direction: "in",
+      amount: { kind: "income" },
     });
   });
 
@@ -72,16 +72,18 @@ describe("rowDisplay", () => {
     expect(rowDisplay(transfer(), names)).toEqual({
       label: "Transfer to GCash",
       detail: "Groceries · BPI → GCash",
-      direction: "moved",
+      amount: { kind: "transfer" },
     });
   });
 
-  it("signs a transfer by the account the list is filtered to", () => {
+  it("gives a transfer the leg of the account the list is filtered to", () => {
     expect(rowDisplay(transfer(), names, "gcash")).toMatchObject({
       label: "Transfer from BPI",
-      direction: "in",
+      amount: { kind: "transfer", leg: "in" },
     });
-    expect(rowDisplay(transfer(), names, "bpi")).toMatchObject({ direction: "out" });
+    expect(rowDisplay(transfer(), names, "bpi")).toMatchObject({
+      amount: { kind: "transfer", leg: "out" },
+    });
   });
 
   it("says when an account or category isn't on this device yet", () => {

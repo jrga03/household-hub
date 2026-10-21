@@ -85,7 +85,7 @@ test("a payroll distribution from Plan leaves the source account's Unassigned at
 
   await page.goto("/budget");
   await expect(page.getByLabel("Transportation budget, spent and left")).toHaveText(
-    "Budget₱3,000.00Spent₱0.00Left₱3,000.00"
+    "Budget₱3,000.00Spent₱0.00Left₱3,000.00₱3,000.00"
   );
 
   // Spending past Groceries' budget turns it and its group red.
@@ -99,8 +99,8 @@ test("a payroll distribution from Plan leaves the source account's Unassigned at
   await expect(expense).toBeHidden();
   for (const name of ["Groceries", "Food"]) {
     const figures = page.getByLabel(`${name} budget, spent and left`);
-    await expect(figures).toHaveText("Budget₱8,000.00Spent₱9,000.00Left−₱1,000.00");
-    await expect(figures.getByText("−₱1,000.00")).toHaveClass(/text-shortfall/);
+    await expect(figures).toHaveText("Budget₱8,000.00Spent₱9,000.00Left−₱1,000.00minus ₱1,000.00");
+    await expect(figures.getByText("−₱1,000.00").locator("..")).toHaveClass(/text-shortfall/);
     await expect(page.getByRole("progressbar", { name: `${name} spent` })).toHaveAttribute(
       "data-overspent",
       "true"
@@ -127,7 +127,7 @@ test("a payroll distribution from Plan leaves the source account's Unassigned at
     "BudgetNoneSpent₱500.00"
   );
   await expect(page.getByLabel("Food budget, spent and left")).toHaveText(
-    "Budget₱8,000.00Spent₱9,500.00Left−₱1,500.00"
+    "Budget₱8,000.00Spent₱9,500.00Left−₱1,500.00minus ₱1,500.00"
   );
 
   // The bar slides to full; wait for it before the screenshot.
