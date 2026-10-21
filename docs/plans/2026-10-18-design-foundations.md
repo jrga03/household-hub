@@ -120,6 +120,13 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#224 Status is a `SegmentedControl` with an `aria-hidden` visible "Status" label**, since `SegmentedControl` names itself by `aria-label` only. Why: matches the direction control. Revisit: if `SegmentedControl` takes `aria-labelledby`.
 - **#224 `DirectionChoice` is now a `SegmentedControl`**, so Import's `DraftDetail` (#230) shows it too. Why: it is the shared entry control. Revisit: #230, if the draft needs a different look.
 - **#224 no "Saved on this device" line in the entry sheets.** Why: the user dropped it 2026-10-14 (ui-overhaul decisions); this closes the #216 and #223 items. Revisit: never.
+- **#228 Accounts is `list-detail`**: a row opens the account in `DetailPane` (balance, cleared, pending, Unassigned, each Card Payment, who sees it) with Pay, Edit, Correct balance, View transactions, or Unretire for a retired one. Why: `ListRow` hides quick actions below 600, so phones needed somewhere for them, and the old rows wrapped badly on phones with three buttons each. Rows carry no hover actions. Revisit: never.
+- **#228 sections are nested lists inside the one `list "Accounts"`**; the inner lists have no name, the retired list is named "Retired". Why: about 15 e2e specs find `list "Accounts"`, and Playwright's substring match would also hit "Bank accounts". Revisit: never.
+- **#228 the List slot is capped at `max-w-3xl`**, so with nothing open it is the old single column and the pane opens beside it. Why: the form and a few rows read badly at `max-w-7xl`. Revisit: if accounts grow into a table.
+- **#228 a row's second line is the card's Paying Account, or the account's Unassigned**; the type is the section. A section with two or more accounts shows its total. Why: Unassigned is what a person checks most. Revisit: never.
+- **#228 `AccountsCard.tsx` is renamed `AccountsView.tsx`** and `shortfallClass` is private to `Money` (closes the #209 item). Revisit: never.
+- **#228 retiring from Edit closes the account's detail.** Why: the account leaves the list it was opened from. Revisit: never.
+- **#228 Pay and Correct balance reuse #224's `readEntryBasics`/`useEntryFormRef`/`useFocusNewEntry`**: field errors under the field, focus to the first. Correct balance keeps a plain `Input` (with a hint) since `CurrencyInput` takes no minus sign. A card's correction difference uses a neutral sign (`kind="transfer"` with a leg), since more owed is not income. Revisit: if `CurrencyInput` takes signed amounts.
 
 ### Rollout checklist
 

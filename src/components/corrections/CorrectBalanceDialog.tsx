@@ -1,12 +1,19 @@
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ActionForm } from "@/components/ui/action-form";
-import { advanceOnEnter, FormFooter, FormSheet } from "@/components/app/FormSheet";
-import { FormError } from "@/components/ui/form-error";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { SubmitButton } from "@/components/ui/submit-button";
+import { ActionForm } from "@/components/app/ActionForm";
+import { Field } from "@/components/app/Field";
+import { FormError } from "@/components/app/FormError";
+import { FormFooter, FormSheet } from "@/components/app/FormSheet";
+import { Input } from "@/components/app/Input";
+import { Money } from "@/components/app/Money";
+import { SubmitButton } from "@/components/app/SubmitButton";
 import { categoryNames } from "@/components/allocations/envelopes";
+import {
+  NO_PROBLEMS,
+  useEntryFormRef,
+  useFocusNewEntry,
+  type EntryProblems,
+} from "@/components/transactions/EntryFields";
 import {
   categoryChoices,
   CategorySelect,
@@ -28,6 +35,7 @@ import {
   type Cents,
 } from "@/lib/currency";
 import { errorMessage } from "@/lib/utils";
+import { isLocalDate } from "@/lib/transactions/events";
 import { todayLocalDate } from "@/lib/utils/dates";
 
 const envelopeOf = (value: string): CorrectionEnvelope =>
@@ -78,24 +86,38 @@ function CorrectBalanceForm({
   const cleared = useClearedBalanceAt(account.id, date);
   const card = isCreditCard(account);
 
-  const [error, saveAction] = useActionState(async (_previous: string | null) => {
-    const actual = parseSignedPHPSafe(actualText);
-    if (!actual.success) return actual.error.message;
-    try {
-      const recorded = await recordBalanceCorrection(actor, {
-        accountId: account.id,
-        date,
-        actualBalanceCents: actual.value,
-        envelope: envelopeOf(categoryValue),
-      });
-      if (recorded) toast.success(`${account.name} corrected to ${formatPHP(actual.value)}`);
-      else toast.info(`${account.name} already matches ${formatPHP(actual.value)}.`);
-      onClose();
-      return null;
-    } catch (caught) {
-      return errorMessage(caught, `Couldn't correct ${account.name}.`);
-    }
-  }, null);
+  const [problems, saveAction] = useActionState(
+    async (_previous: EntryProblems): Promise<EntryProblems> => {
+      const actual = parseSignedPHPSafe(actualText);
+      const dateProblem = isLocalDate(date) ? undefined : "Choose a date.";
+      if (!actual.success || dateProblem) {
+        // The actual balance sits where an entry's amount does.
+        const fields: EntryProblems["fields"] = { date: dateProblem };
+        if (!actual.success) fields.amount = actual.error.message;
+        return { fields, form: null };
+      }
+      try {
+        const recorded = await recordBalanceCorrection(actor, {
+          accountId: account.id,
+          date,
+          actualBalanceCents: actual.value,
+          envelope: envelopeOf(categoryValue),
+        });
+        if (recorded) toast.success(`${account.name} corrected to ${formatPHP(actual.value)}`);
+        else toast.info(`${account.name} already matches ${formatPHP(actual.value)}.`);
+        onClose();
+        return NO_PROBLEMS;
+      } catch (caught) {
+        return { fields: {}, form: errorMessage(caught, `Couldn't correct ${account.name}.`) };
+      }
+    },
+    NO_PROBLEMS
+  );
+  // The shared entry-form ref: Enter advances on phones, and focus lands on the field to fix.
+  const formRef = useEntryFormRef(problems);
+  const amountRef = useRef<HTMLInputElement>(null);
+  // Focus waits for the categories, which the form needs before it renders.
+  useFocusNewEntry(amountRef, categories !== undefined);
 
   if (!categories) return null;
   const choices = categoryChoices(categories, account, null);
@@ -107,18 +129,20 @@ function CorrectBalanceForm({
 
   return (
     <ActionForm
-      ref={advanceOnEnter}
+      ref={formRef}
       action={saveAction}
+      noValidate
       className="space-y-4"
       aria-label={`Correct ${account.name}`}
     >
       <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="correction-actual">
-            {card ? "Amount owed" : "Actual balance"} ({PESO_SIGN})
-          </Label>
+        <Field
+          label={`${card ? "Amount owed" : "Actual balance"} (${PESO_SIGN})`}
+          hint={card ? undefined : "Start with a minus sign for a negative balance."}
+          error={problems.fields.amount}
+        >
           <Input
-            id="correction-actual"
+            ref={amountRef}
             name="actual"
             inputMode="decimal"
             placeholder="0.00"
@@ -128,11 +152,9 @@ function CorrectBalanceForm({
             value={actualText}
             onChange={(event) => setActualText(event.target.value)}
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="correction-date">Date</Label>
+        </Field>
+        <Field label="Date" error={problems.fields.date}>
           <Input
-            id="correction-date"
             name="date"
             type="date"
             required
@@ -140,15 +162,18 @@ function CorrectBalanceForm({
             value={date}
             onChange={(event) => setDate(event.target.value)}
           />
-        </div>
-        <div className="space-y-2 @[480px]:col-span-2">
-          <Label htmlFor="correction-category">Category</Label>
-          <CategorySelect
-            id="correction-category"
-            choices={choices}
-            value={categoryValue}
-            onValueChange={setCategoryValue}
-          />
+        </Field>
+        <div className="@[480px]:col-span-2">
+          <Field label="Category">
+            {(control) => (
+              <CategorySelect
+                {...control}
+                choices={choices}
+                value={categoryValue}
+                onValueChange={setCategoryValue}
+              />
+            )}
+          </Field>
         </div>
       </div>
 
@@ -156,7 +181,7 @@ function CorrectBalanceForm({
         <div className="space-y-1 text-body" aria-live="polite">
           <p className="text-muted-foreground">
             {card ? "Cleared amount owed" : "Cleared balance"} at the end of that day:{" "}
-            <span className="tabular-nums">{formatPHP(cleared)}</span>
+            <Money kind="balance" owed={card} cents={cleared} />
           </p>
           {actualText.trim() !== "" && actual.success && (
             <DifferenceNote
@@ -168,9 +193,9 @@ function CorrectBalanceForm({
         </div>
       )}
 
-      <FormError>{error}</FormError>
+      <FormError>{problems.form}</FormError>
       <FormFooter>
-        <SubmitButton pendingText="Saving...">Correct balance</SubmitButton>
+        <SubmitButton pendingText="Saving…">Correct balance</SubmitButton>
       </FormFooter>
     </ActionForm>
   );
@@ -187,18 +212,41 @@ function DifferenceNote({
   envelopeName: string;
 }) {
   if (difference === 0) return <p>Already matches. Nothing will be recorded.</p>;
-  const amount = formatPHP(absCents(difference));
-  const sign = difference > 0 ? "+" : "−";
-  const effect = card
-    ? difference > 0
-      ? `${envelopeName} sets aside ${amount} more for the card.`
-      : `${amount} set aside for the card goes back to ${envelopeName}.`
-    : difference > 0
-      ? `${amount} is added to ${envelopeName}.`
-      : `${amount} is taken from ${envelopeName}.`;
+  const amount = <Money kind="balance" cents={absCents(difference)} />;
+  const effect = card ? (
+    difference > 0 ? (
+      <>
+        {envelopeName} sets aside {amount} more for the card.
+      </>
+    ) : (
+      <>
+        {amount} set aside for the card goes back to {envelopeName}.
+      </>
+    )
+  ) : difference > 0 ? (
+    <>
+      {amount} is added to {envelopeName}.
+    </>
+  ) : (
+    <>
+      {amount} is taken from {envelopeName}.
+    </>
+  );
   return (
     <p>
-      Difference: <span className="font-medium tabular-nums">{`${sign}${amount}`}</span>. {effect}
+      Difference:{" "}
+      {card ? (
+        // More owed is not income: a card's change keeps a neutral sign.
+        <Money
+          kind="transfer"
+          leg={difference > 0 ? "in" : "out"}
+          cents={absCents(difference)}
+          className="font-medium"
+        />
+      ) : (
+        <Money kind="net" cents={difference} className="font-medium" />
+      )}
+      . {effect}
     </p>
   );
 }

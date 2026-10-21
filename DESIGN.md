@@ -236,14 +236,14 @@ Every route except login and signup renders `<PageShell variant="…">` (`src/co
 
 `supporting-pane` has no route yet; the Home migration is its first user.
 
-| Route                                         | Variant now                         | Final variant (owner)                                     |
-| --------------------------------------------- | ----------------------------------- | --------------------------------------------------------- |
-| Transactions, Budget, Import                  | `list-detail`                       | same                                                      |
-| Plan, Review, Accounts, Categories, Assistant | `single`                            | same (Accounts may become `list-detail` in its migration) |
-| Home                                          | `single`                            | `supporting-pane` (Home migration)                        |
-| Settings                                      | `single`, one page of section links | `list-detail` (Settings migration)                        |
-| Create or join                                | `single`, narrowed with `max-w-md`  | same                                                      |
-| Login, signup                                 | no `PageShell`, a centered form     | same                                                      |
+| Route                                  | Variant now                         | Final variant (owner)              |
+| -------------------------------------- | ----------------------------------- | ---------------------------------- |
+| Transactions, Budget, Import, Accounts | `list-detail`                       | same                               |
+| Plan, Review, Categories, Assistant    | `single`                            | same                               |
+| Home                                   | `single`                            | `supporting-pane` (Home migration) |
+| Settings                               | `single`, one page of section links | `list-detail` (Settings migration) |
+| Create or join                         | `single`, narrowed with `max-w-md`  | same                               |
+| Login, signup                          | no `PageShell`, a centered form     | same                               |
 
 ### DetailPane
 

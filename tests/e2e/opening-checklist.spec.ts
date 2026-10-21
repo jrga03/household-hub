@@ -51,6 +51,6 @@ test("a new household's opening checklist ticks itself off and stays dismissed",
   await page.getByRole("list", { name: "Balances" }).getByRole("link", { name: /BPI/ }).click();
   await expect(page).toHaveURL(/\/accounts#account-/);
   await expect(
-    page.getByRole("list", { name: "Accounts" }).getByRole("listitem").filter({ hasText: "BPI" })
+    page.getByRole("list", { name: "Accounts" }).getByRole("listitem").filter({ hasText: /^BPI/ })
   ).toBeInViewport();
 });
