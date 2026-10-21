@@ -96,6 +96,10 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#217 window classes are Tailwind breakpoints `medium:`, `expanded:`, `large:`** (600, 840, 1200 in `src/index.css`); `sm:`/`md:`/`lg:` stay for page content. Why: app chrome needs the class thresholds by name, and page content belongs to the page migration. Revisit: when the page migration ends (#233), drop the defaults.
 - **#217 the header rail toggle hides at large (`large:hidden`)**, as `lg:hidden` did, so a rail the cookie collapsed at large expands only from its edge or Cmd+B. Why: mechanical move of the old threshold. Revisit: the Settings or Home migration, if people miss a visible toggle.
 - **#217 the medium modal rail ignores the sidebar cookie and never writes it**; the cookie applies from expanded up. Why: the spec fixes medium as a collapsed rail. Revisit: never.
+- **#219 the pane is 412px only from a 1200px shell**, so at 1366 with the default expanded rail (shell about 1110px) it is 360px; the e2e checks 412 at 1366 with the rail collapsed. Why: the spec's pane thresholds are container widths, and the ticket's "412 at 1366" assumed the window. Revisit: #221 (DESIGN.md), if 1366 laptops should get the wide pane.
+- **#219 `useSelectedItem` is deleted**, folded into `DetailPane`'s `useOpenItem`. Why: nothing else used it, and the open item needs push or replace by pane count and close-by-back. Revisit: never.
+- **#219 the sheet uses vaul's `Drawer.Root`, not the `ui/drawer` wrapper**, so the `?open=` entry is the one back pops (no second sentinel entry). Why: two entries would need two backs to close. Revisit: never.
+- **#219 records opened from the Budget ledger stay in `FormSheet` dialogs, outside the URL.** Why: only the list's open item is `?open=`. Revisit: the Budget migration.
 
 ### Rollout checklist
 

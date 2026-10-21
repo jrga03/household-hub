@@ -6,23 +6,14 @@ import { MoveMoneyDialog } from "@/components/allocations/MoveMoneyDialog";
 import { CategoryLedger } from "@/components/categories/CategoryLedger";
 import { CorrectionDialog } from "@/components/corrections/CorrectionDialog";
 import { RecordName } from "@/components/categories/RecordName";
+import { DetailPane, useOpenItem } from "@/components/layout/DetailPane";
 import { PageShell } from "@/components/layout/PageShell";
-import { BELOW_HEADER, PANE_MAX_HEIGHT } from "@/components/layout/pane";
 import { TransactionDialog } from "@/components/transactions/TransactionDialog";
 import { TransferDialog } from "@/components/transactions/TransferDialog";
-import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { useAccountNames } from "@/hooks/useAccounts";
 import { useLedgerRecord, useMonthView } from "@/hooks/useBudgets";
 import { useCategoryList } from "@/hooks/useCategories";
-import { useLaidOut } from "@/hooks/useLaidOut";
 import type { LedgerRecordId } from "@/lib/budgets/ledger";
 import {
   categoryMonth,
@@ -61,28 +52,14 @@ export function BudgetView({
   const list = useCategoryList();
   const accountNames = useAccountNames();
   const monthView = useMonthView(month, currentMonth);
-  const [ledgerId, setLedgerId] = useState<string | null>(null);
+  const { openId: ledgerId, open: openLedger } = useOpenItem();
   const [openedId, setOpenedId] = useState<LedgerRecordId | null>(null);
   const opened = useLedgerRecord(openedId);
-  const [pane, setPane] = useState<HTMLElement | null>(null);
-  const paneShown = useLaidOut(pane);
   useCloseWhenGone(openedId, opened, () => setOpenedId(null));
 
   if (!list || !accountNames || !monthView) return null;
   const namesOfCategories = categoryNames(list);
-  const ledgerName = ledgerId === null ? undefined : namesOfCategories.get(ledgerId);
-  if (ledgerId !== null && ledgerName === undefined) setLedgerId(null);
-  const ledger = ledgerId !== null && ledgerName !== undefined && (
-    <CategoryLedger
-      key={ledgerId}
-      categoryId={ledgerId}
-      categoryName={ledgerName}
-      month={month}
-      isCurrentMonth={month === currentMonth}
-      names={{ accounts: accountNames, categories: namesOfCategories }}
-      onOpen={({ kind, record }) => setOpenedId({ kind, id: record.id })}
-    />
-  );
+  const ledgerName = ledgerId === null ? undefined : (namesOfCategories.get(ledgerId) ?? null);
 
   const rows = budgetRows(list, monthView);
   const empty = rows.groups.length === 0 && rows.ungrouped.length === 0;
@@ -104,7 +81,7 @@ export function BudgetView({
                   label={`${group.name} budget`}
                   categories={categories}
                   view={monthView}
-                  onOpenLedger={setLedgerId}
+                  onOpenLedger={openLedger}
                 />
               </li>
             ))}
@@ -117,7 +94,7 @@ export function BudgetView({
                   label="Ungrouped budget"
                   categories={rows.ungrouped}
                   view={monthView}
-                  onOpenLedger={setLedgerId}
+                  onOpenLedger={openLedger}
                 />
               </li>
             )}
@@ -125,47 +102,21 @@ export function BudgetView({
         )}
       </PageShell.List>
 
-      <PageShell.Detail ref={setPane}>
-        <div
-          className={cn(
-            "@container sticky overflow-y-auto rounded-md border p-4",
-            BELOW_HEADER,
-            PANE_MAX_HEIGHT
-          )}
-        >
-          {ledger && paneShown ? (
-            <section aria-label={`${ledgerName} ledger`} className="space-y-4">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <h2 className="truncate font-semibold">{ledgerName}</h2>
-                  <p className="text-body text-muted-foreground">{monthLabel(month)}</p>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => setLedgerId(null)}>
-                  Close
-                </Button>
-              </div>
-              {ledger}
-            </section>
-          ) : (
-            <p className="text-body text-muted-foreground">
-              Choose a category to see its month here.
-            </p>
-          )}
-        </div>
-      </PageShell.Detail>
-
-      <Sheet
-        open={Boolean(ledger) && !paneShown}
-        onOpenChange={(open) => !open && setLedgerId(null)}
-      >
-        <SheetContent side="bottom" className="@container gap-0">
-          <SheetHeader>
-            <SheetTitle>{ledgerName}</SheetTitle>
-            <SheetDescription>{monthLabel(month)}</SheetDescription>
-          </SheetHeader>
-          <div className="px-4 pb-6">{ledger}</div>
-        </SheetContent>
-      </Sheet>
+      <DetailPane title={ledgerName} description={monthLabel(month)} item={ledgerName}>
+        {(categoryName) =>
+          ledgerId !== null && (
+            <CategoryLedger
+              key={ledgerId}
+              categoryId={ledgerId}
+              categoryName={categoryName}
+              month={month}
+              isCurrentMonth={month === currentMonth}
+              names={{ accounts: accountNames, categories: namesOfCategories }}
+              onOpen={({ kind, record }) => setOpenedId({ kind, id: record.id })}
+            />
+          )
+        }
+      </DetailPane>
 
       {opened?.kind === "transaction" && (
         <TransactionDialog

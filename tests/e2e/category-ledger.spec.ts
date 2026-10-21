@@ -45,8 +45,9 @@ test.describe("wide screens", () => {
     await groceriesThisMonth(page);
 
     await page.getByRole("button", { name: "Groceries ledger" }).click();
-    const pane = page.getByRole("region", { name: "Groceries ledger" });
+    const pane = page.getByRole("complementary").getByRole("region", { name: "Groceries" });
     await expect(pane).toBeVisible();
+    await expect(page).toHaveURL(/[?&]open=/);
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(groceriesLedger(page).getByRole("listitem")).toHaveCount(2);
     await expect(pane).toContainText("+₱8,000.00");
