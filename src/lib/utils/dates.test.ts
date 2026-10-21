@@ -7,6 +7,7 @@
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
+  daysLeftInMonth,
   isLocalMonth,
   localMonth,
   monthLabel,
@@ -98,5 +99,14 @@ describe("todayLocalDate", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("daysLeftInMonth", () => {
+  it("counts today and the days after it to the month's end", () => {
+    expect(daysLeftInMonth(parseLocalDate("2026-10-21"))).toBe(11);
+    expect(daysLeftInMonth(parseLocalDate("2026-10-01"))).toBe(31);
+    expect(daysLeftInMonth(parseLocalDate("2026-10-31"))).toBe(1);
+    expect(daysLeftInMonth(parseLocalDate("2028-02-28"))).toBe(2);
   });
 });

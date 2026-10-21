@@ -2,7 +2,7 @@
  * Date utilities shared across components.
  */
 
-import { addMonths, format } from "date-fns";
+import { addMonths, format, getDaysInMonth } from "date-fns";
 
 /**
  * Parses a "yyyy-MM-dd" string as a LOCAL date (local midnight).
@@ -46,3 +46,6 @@ export const shiftMonth = (month: string, by: number) =>
 
 /** "October 2026". */
 export const monthLabel = (month: string) => format(parseLocalDate(`${month}-01`), "MMMM yyyy");
+
+/** The days left in `date`'s month, today included: 11 on October 21. */
+export const daysLeftInMonth = (date: Date) => getDaysInMonth(date) - date.getDate() + 1;

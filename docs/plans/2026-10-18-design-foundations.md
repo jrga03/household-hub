@@ -120,6 +120,29 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#224 Status is a `SegmentedControl` with an `aria-hidden` visible "Status" label**, since `SegmentedControl` names itself by `aria-label` only. Why: matches the direction control. Revisit: if `SegmentedControl` takes `aria-labelledby`.
 - **#224 `DirectionChoice` is now a `SegmentedControl`**, so Import's `DraftDetail` (#230) shows it too. Why: it is the shared entry control. Revisit: #230, if the draft needs a different look.
 - **#224 no "Saved on this device" line in the entry sheets.** Why: the user dropped it 2026-10-14 (ui-overhaul decisions); this closes the #216 and #223 items. Revisit: never.
+- **#227 Plan's "To assign" is a `HeroFigure`**, with Move money and Distribute beside it and "By account" below, outside its region. Why: `HeroFigure` is its own labelled region; nesting it in another "To assign" region would name two. Revisit: never.
+- **#227 `SectionHeader`'s `title` takes a `ReactNode`** (was `string`), so Plan's group headers keep `RecordName`'s Personal and Retired badges; the header's action is the group's total budget ("₱… budgeted"). Why: the badges carry meaning. Revisit: never.
+- **#227 an allocation is a `ListRow` that opens its edit sheet**, replacing the "Edit the ₱… allocation to X" button. Why: one target per row, as on Transactions. Revisit: never.
+- **#227 Plan's per-category amounts are `CurrencyInput`s that save on blur from the typed text**, so `planChange` still reports a typo by toast. Why: `CurrencyInput` resets invalid text on blur and keeps no draft. Revisit: never.
+- **#227 Move money and Set budget validate per field** (`noValidate`) through the new `src/hooks/useFocusFirstProblem.ts`, a generic copy of #224's `useEntryFormRef`. Why: `useEntryFormRef` is typed to `EntryProblems` in #224's file. Revisit: #233, fold `useEntryFormRef` into it.
+- **#227 envelope choices show `Money` inside `SelectItem`s**, so a trigger's text includes the spoken copy; e2e checks it with `toContainText`. Why: every amount is `Money`. Revisit: never.
+- **#227 the Plan row's "Spent" amounts are `Money kind="balance"`** (unsigned; a month of net refunds would show in shortfall). Why: no kind means "spent". Revisit: if a spent kind is added.
+- **#227 the Plan layout baselines show only the empty state** (the fixture user has no accounts or categories); `plan.spec`'s `plan.png` covers a filled Plan. Revisit: seeding the baseline user (see #220).
+- **#227 the keyboard-only e2e runs at the expanded viewport**, since on phones the `FormSheet` drawer does not focus the first field. Revisit: if phone sheets should focus their first field.
+- **#225 `budgetStatus` counts a budget spent exactly as fine, not close** (`src/lib/budgets/progress.ts`). Why: spec #222 story 16; Home's counts, Budget (#226) and the assistant's tool share it, so they stay in step. Revisit: never.
+- **#225 Needs attention lists close budgets too, between negative balances and review items**, as "Groceries has ₱X left" with a `warning` "Close" badge. Why: the prototype's urgency order; the issue names over, negative and review only. Revisit: if the feed feels noisy.
+- **#225 the Finances overview also returns `budgetLines`** (the budgets it already counted, with spent), the input to the pure `attentionFeed`. Why: the feed needs per-category figures; no projection or event changes. Revisit: never.
+- **#225 `useTwoPanes()` also measures the `supporting-pane` shell**, and Home renders one arrangement (two columns or the stack) instead of reordering with CSS. Why: the stack order (Latest, Budgets, Balances) differs from the side column's (Balances, Latest). Revisit: never.
+- **#225 Budgets (Fine/Close/Over counts) shows only in the stack below 840**; from 840 the feed's "N budgets are fine" stands in. Why: the issue's side column is Balances and Latest. Revisit: after real use on a laptop.
+- **#225 Home's `ReviewBanner` is deleted**; review items are feed rows (uncategorized and join requests link to Review, drafts to Import). `review.spec` now finds "1 expense needs a category" in the feed. Revisit: never.
+- **#225 Days left counts today** (11 on October 21), via `daysLeftInMonth` in `src/lib/utils/dates.ts`; #226's caption should use it. The layout baseline masks it (`data-testid="days-left"`). Revisit: never.
+- **#225 the feed's `StatusBadge` hides below a 600 row width**, as in the prototype; the icon and sentence carry the urgency. Revisit: if phone users miss it.
+- **#225 the Household/Mine switch is a `SegmentedControl` above the hero** (radios now, not pressed buttons). Revisit: never.
+- **#230 each Review section is a `SectionHeader` with a `neutral` "N to review" badge over one `ListRow` link** ("Categorize", "Review drafts", the count sentence as its detail); join requests keep #231's `JoinRequestRow` between hairlines. Why: the ticket's rows and badge; `JoinRequestRow` belongs to #231. Revisit: #231, if `JoinRequestRow` becomes a `ListRow`.
+- **#230 a draft row is a checkbox beside a `ListRow`**, not `pressed` selection; the `li` carries the hover and open highlight so both read as one row. Why: bulk save and discard are always available, and a checkbox inside the row's target would nest controls. Revisit: never.
+- **#230 the draft description keeps its own label (with the Suggested badge) and its warning "Needs a description" line**, not `Field`. Why: `Field` takes a string label and shows errors in `destructive`; a missing description is something to check, not a failed submit. Revisit: if `Field` takes a node label or a warning hint.
+- **#230 `DraftDetail` keeps #224's `DirectionChoice` segmented control as it is.** Why: it reads well in the pane and the sheet (checked at 1280 and 393). Revisit: never.
+- **#230 the Import list is not width-capped**: with no draft open on a laptop the read form spans the list column. Why: `list-detail` lets the list flex. Revisit: after real use on a laptop.
 - **#228 Accounts is `list-detail`**: a row opens the account in `DetailPane` (balance, cleared, pending, Unassigned, each Card Payment, who sees it) with Pay, Edit, Correct balance, View transactions, or Unretire for a retired one. Why: `ListRow` hides quick actions below 600, so phones needed somewhere for them, and the old rows wrapped badly on phones with three buttons each. Rows carry no hover actions. Revisit: never.
 - **#228 sections are nested lists inside the one `list "Accounts"`**; the inner lists have no name, the retired list is named "Retired". Why: about 15 e2e specs find `list "Accounts"`, and Playwright's substring match would also hit "Bank accounts". Revisit: never.
 - **#228 the List slot is capped at `max-w-3xl`**, so with nothing open it is the old single column and the pane opens beside it. Why: the form and a few rows read badly at `max-w-7xl`. Revisit: if accounts grow into a table.
@@ -163,12 +186,12 @@ Spec #222, integration branch `feat/222-page-migration`. Order: #223 → #224 �
 
 - [x] #223 Transactions list: list-detail, filter rail and table (blocked by: none)
 - [x] #224 Transaction entry: entry and transfer as FormSheets (#223)
-- [ ] #225 Home: supporting-pane with hero and Needs attention (#224)
+- [x] #225 Home: supporting-pane with hero and Needs attention (#224)
 - [ ] #226 Budget: hero, grouped rows and the ledger pane (#225)
-- [ ] #227 Plan: allocations, move money and budgets (#224)
+- [x] #227 Plan: allocations, move money and budgets (#224)
 - [ ] #228 Accounts: balances, edits, card payments and corrections (#224)
 - [ ] #229 Categories: groups, adds and edits (#224)
-- [ ] #230 Review and Import: review items and statement drafts (#224)
+- [x] #230 Review and Import: review items and statement drafts (#224)
 - [ ] #231 Settings and households: list-detail sections and create-or-join (#224)
 - [ ] #232 Assistant: chat and proposals (#224)
 - [ ] #233 Auth and app leftovers, and delete the primitive allowlist (#223-#232)

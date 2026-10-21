@@ -12,6 +12,7 @@ import { createAccount } from "@/lib/commands/accounts";
 import { createCategory, createGroup } from "@/lib/commands/categories";
 import { setBudget } from "@/lib/commands/budgets";
 import { addTransaction } from "@/lib/commands/transactions";
+import { addAllocation } from "@/lib/commands/allocations";
 import { categoryMonth, readMonthView } from "@/lib/budgets/month";
 import { parsePHP } from "@/lib/currency";
 import { PlanView, type DistributeRequest } from "./PlanView";
@@ -140,11 +141,11 @@ describe("PlanView", () => {
     const onDistribute = vi.fn();
     renderPlan({ onDistribute });
 
-    const bar = await screen.findByRole("region", { name: "To assign" });
+    const hero = await screen.findByRole("region", { name: "To assign" });
     expect(
-      await within(bar).findByText("₱21,500.00", { selector: "[aria-hidden=true]" })
+      await within(hero).findByText("₱21,500.00", { selector: "[aria-hidden=true]" })
     ).toBeInTheDocument();
-    fireEvent.click(within(bar).getByRole("button", { name: "Distribute" }));
+    fireEvent.click(screen.getByRole("button", { name: "Distribute" }));
     expect(onDistribute).toHaveBeenCalledWith("income");
   });
 
@@ -168,5 +169,38 @@ describe("PlanView", () => {
 
     const dialog = await screen.findByRole("dialog", { name: "Move money" });
     expect(within(dialog).getByLabelText("To")).toHaveTextContent("Groceries");
+  });
+
+  it("opens an allocation for editing from its row", async () => {
+    const { bpi, category } = await groceries();
+    await addAllocation(MEMBER, {
+      date: "2026-10-05",
+      accountId: bpi.id,
+      from: { kind: "unassigned" },
+      to: { kind: "category", id: category.id },
+      amountCents: parsePHP("8000"),
+    });
+    renderPlan();
+
+    const allocations = await screen.findByRole("list", { name: "Allocations" });
+    const row = within(allocations).getByRole("button", { name: /^Unassigned → Groceries/ });
+    expect(row).toHaveAccessibleName(/₱8,000\.00\s*Oct 5, 2026 · BPI$/);
+    fireEvent.click(row);
+
+    const dialog = await screen.findByRole("dialog", { name: "Edit allocation" });
+    expect(within(dialog).getByLabelText("Amount (₱)")).toHaveDisplayValue(/^8,?000\.00$/);
+  });
+
+  it("puts a missing amount's problem on the Move money amount field", async () => {
+    await groceries();
+    renderPlan();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Move money" }));
+    const dialog = await screen.findByRole("dialog", { name: "Move money" });
+    fireEvent.submit(within(dialog).getByRole("form", { name: "Move money" }));
+
+    const amount = within(dialog).getByLabelText("Amount (₱)");
+    await waitFor(() => expect(amount).toHaveAttribute("aria-invalid", "true"));
+    expect(amount).toHaveAccessibleDescription(/more than zero/);
   });
 });

@@ -1,13 +1,13 @@
 import { format } from "date-fns";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ListRow } from "@/components/app/ListRow";
+import { Money } from "@/components/app/Money";
+import { SectionHeader } from "@/components/app/SectionHeader";
 import { useAllocations } from "@/hooks/useAllocations";
 import { envelopeLabel } from "@/lib/allocations/envelope";
 import type { AllocationRow } from "@/lib/allocations/projection";
-import { formatPHP } from "@/lib/currency";
 import { parseLocalDate } from "@/lib/utils/dates";
 
-/** Every allocation, newest first, each editable. */
+/** Every allocation, newest first; a row opens it for editing. */
 export function AllocationList({
   categoryNames,
   accountNames,
@@ -24,39 +24,27 @@ export function AllocationList({
     envelopeLabel(allocation[side], categoryNames, accountNames);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Allocations</CardTitle>
-        <CardDescription>Money moved between categories, newest first.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ul aria-label="Allocations" className="divide-y rounded-md border">
-          {allocations.map((allocation) => (
-            <li key={allocation.id} className="flex items-center justify-between gap-3 px-3 py-2">
-              <div className="min-w-0">
-                <p className="truncate font-medium">
-                  {label(allocation, "from")} → {label(allocation, "to")}
-                </p>
-                <p className="text-body text-muted-foreground">
-                  {format(parseLocalDate(allocation.date), "MMM d, yyyy")} ·{" "}
-                  {accountNames.get(allocation.accountId) ?? "An account"}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <span className="tabular-nums">{formatPHP(allocation.amountCents)}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`Edit the ${formatPHP(allocation.amountCents)} allocation to ${label(allocation, "to")}`}
-                  onClick={() => onEdit(allocation)}
-                >
-                  Edit
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </CardContent>
-    </Card>
+    <section className="space-y-2">
+      <div className="space-y-1">
+        <SectionHeader title="Allocations" />
+        <p className="text-body text-muted-foreground">
+          Money moved between categories, newest first.
+        </p>
+      </div>
+      <ul aria-label="Allocations" className="divide-y border-y">
+        {allocations.map((allocation) => (
+          <li key={allocation.id}>
+            <ListRow
+              onClick={() => onEdit(allocation)}
+              label={`${label(allocation, "from")} → ${label(allocation, "to")}`}
+              amount={<Money kind="balance" cents={allocation.amountCents} />}
+              detail={`${format(parseLocalDate(allocation.date), "MMM d, yyyy")} · ${
+                accountNames.get(allocation.accountId) ?? "An account"
+              }`}
+            />
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

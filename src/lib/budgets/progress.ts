@@ -6,11 +6,14 @@ export type BudgetStatus = "fine" | "close" | "over";
 /** A budget is close once this share of it is spent. */
 const CLOSE_PERCENT = 80;
 
-/** Home's Budgets counts and Budget's rows both use this, so they agree. */
+/**
+ * Home's Budgets counts and Budget's rows both use this, so they agree. A budget
+ * spent exactly, such as a bill paid in full, is fine.
+ */
 export function budgetStatus(budget: Cents, spent: Cents): BudgetStatus {
   if (spent > budget) return "over";
   // Compared without dividing cents.
-  if (budget > 0 && spent * 100 >= budget * CLOSE_PERCENT) return "close";
+  if (spent < budget && spent * 100 >= budget * CLOSE_PERCENT) return "close";
   return "fine";
 }
 

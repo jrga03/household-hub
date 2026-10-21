@@ -7,37 +7,40 @@ import { PayCardDialog } from "@/components/accounts/PayCardDialog";
 import { AllocationList } from "@/components/allocations/AllocationList";
 import { categoryNames, namedAmounts } from "@/components/allocations/envelopes";
 import { NegativeNote, OVERDRAWN_UNASSIGNED } from "@/components/allocations/NegativeNote";
-import { Money } from "@/components/app/Money";
 import { MoveMoneyDialog } from "@/components/allocations/MoveMoneyDialog";
-import { RecordName } from "@/components/categories/RecordName";
+import { Button } from "@/components/app/Button";
+import { CurrencyInput } from "@/components/app/CurrencyInput";
+import { EmptyState } from "@/components/app/EmptyState";
 import { advanceOnEnter, FormSheet } from "@/components/app/FormSheet";
+import { HeroFigure } from "@/components/app/HeroFigure";
+import { Money } from "@/components/app/Money";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/app/Popover";
+import { SectionHeader } from "@/components/app/SectionHeader";
+import { StatusBadge } from "@/components/app/StatusBadge";
+import { RecordName } from "@/components/categories/RecordName";
 import { PageShell } from "@/components/layout/PageShell";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAccountNames, useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useMonthView } from "@/hooks/useBudgets";
 import { useCategoryList } from "@/hooks/useCategories";
+import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 import { useAccountMoney } from "@/hooks/useTransactions";
 import { isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { AllocationRow } from "@/lib/allocations/projection";
 import type { DistributeMode } from "@/lib/budgets/distribute";
 import type { Budget } from "@/lib/budgets/inForce";
-import { categoryMonth, type MonthView } from "@/lib/budgets/month";
+import { categoryMonth, sumMonthFigures, type MonthView } from "@/lib/budgets/month";
 import { planChange } from "@/lib/budgets/plan";
 import { canFundBudget } from "@/lib/budgets/projection";
 import type { CategoryRow } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { setBudget } from "@/lib/commands/budgets";
-import { formatPHP, formatPHPInput, sumCents, ZERO_CENTS } from "@/lib/currency";
+import { sumCents, ZERO_CENTS } from "@/lib/currency";
 import type { AccountMoney } from "@/lib/transactions/money";
 import { cn, errorMessage } from "@/lib/utils";
 import { parseLocalDate, shiftMonth, todayLocalDate } from "@/lib/utils/dates";
 import { DistributeMoney } from "./DistributeMoney";
 import { SetBudgetDialog } from "./SetBudgetDialog";
-import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 
 /** Opened from the route's search, so a payday toast or the checklist can link straight to it. */
 export interface DistributeRequest {
@@ -85,7 +88,7 @@ export function PlanView({
 
   const rows = (categories: CategoryRow[]) =>
     categories.length === 0 ? (
-      <li className="px-3 py-2 text-body text-muted-foreground">No categories in use.</li>
+      <li className="px-4 py-2 text-body text-muted-foreground">No categories in use.</li>
     ) : (
       categories.map((category) => (
         <PlanRow
@@ -102,10 +105,22 @@ export function PlanView({
         />
       ))
     );
+  const budgeted = (categories: CategoryRow[]) => (
+    <span className="text-body text-muted-foreground">
+      <Money
+        kind="balance"
+        cents={
+          sumMonthFigures(categories.map((category) => categoryMonth(thisMonth, category.id)))
+            .budget
+        }
+      />{" "}
+      budgeted
+    </span>
+  );
 
   return (
-    <PageShell.Main className="space-y-4">
-      <ToAssignBar
+    <PageShell.Main className="space-y-8">
+      <ToAssign
         actor={actor}
         accountNames={accountNames}
         onDistribute={() => onDistribute("income")}
@@ -113,36 +128,38 @@ export function PlanView({
       />
 
       {inUse.length === 0 ? (
-        <p className="text-body text-muted-foreground">
+        <EmptyState>
           No categories yet. Set them up on <Link to="/categories">Categories</Link> first.
-        </p>
+        </EmptyState>
       ) : (
         // Each amount saves as you leave it; Enter moves on, or saves the last one.
         <form
           ref={advanceOnEnter}
           aria-label="Plan"
-          className="space-y-4"
+          className="space-y-8"
           onSubmit={(event) => {
             event.preventDefault();
             if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
           }}
         >
           {list.groups.map((group) => (
-            <section key={group.id} className="rounded-md border">
-              <h2 className="border-b bg-muted/40 px-3 py-2">
-                <RecordName record={group} showRetired />
-              </h2>
-              <ul aria-label={`${group.name} plan`} className="divide-y">
+            <section key={group.id} className="space-y-2">
+              <SectionHeader
+                title={<RecordName record={group} showRetired />}
+                action={budgeted(group.categories)}
+              />
+              <ul aria-label={`${group.name} plan`} className="divide-y border-y">
                 {rows(group.categories)}
               </ul>
             </section>
           ))}
           {list.ungrouped.length > 0 && (
-            <section className="rounded-md border">
-              <h2 className="border-b px-3 py-2 text-body font-normal text-muted-foreground">
-                Waiting for their group to reach this device
-              </h2>
-              <ul aria-label="Ungrouped plan" className="divide-y">
+            <section className="space-y-2">
+              <SectionHeader
+                title="Waiting for their group to reach this device"
+                action={budgeted(list.ungrouped)}
+              />
+              <ul aria-label="Ungrouped plan" className="divide-y border-y">
                 {rows(list.ungrouped)}
               </ul>
             </section>
@@ -201,7 +218,7 @@ export function PlanView({
  * with each account's Unassigned and Card Payments beneath. A retired account
  * still holding money stays listed until it's moved out.
  */
-function ToAssignBar({
+function ToAssign({
   actor,
   accountNames,
   onDistribute,
@@ -233,30 +250,32 @@ function ToAssignBar({
   );
 
   return (
-    <section aria-label="To assign" className="space-y-3 rounded-md border bg-muted/40 p-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-heading">
-          <Money kind="balance" cents={toAssign} /> <span className="font-normal">to assign</span>
-        </p>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <HeroFigure
+          label="To assign"
+          value={<Money kind="balance" cents={toAssign} />}
+          caption="Money in your accounts not yet in a category"
+        />
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={onMove} disabled={inUse.length === 0}>
+          <Button variant="outline" onClick={onMove} disabled={inUse.length === 0}>
             Move money
           </Button>
-          <Button size="sm" onClick={onDistribute} disabled={inUse.length === 0}>
+          <Button onClick={onDistribute} disabled={inUse.length === 0}>
             Distribute
           </Button>
         </div>
       </div>
       {listed.length === 0 ? (
-        <p className="text-body text-muted-foreground">
+        <EmptyState className="py-0">
           Add a bank, cash or e-wallet account on Accounts first.
-        </p>
+        </EmptyState>
       ) : (
-        <>
+        <div className="space-y-2">
           <Button
             variant="ghost"
             size="sm"
-            className="-ml-2 self-start"
+            className="-ml-2"
             aria-expanded={expanded}
             onClick={() => setExpanded(!expanded)}
           >
@@ -278,9 +297,9 @@ function ToAssignBar({
               accountNames={accountNames}
             />
           )}
-        </>
+        </div>
       )}
-    </section>
+    </div>
   );
 }
 
@@ -306,16 +325,16 @@ function UnassignedByAccount({
 
   return (
     <>
-      <ul aria-label="Unassigned by account" className="divide-y rounded-md border bg-background">
+      <ul aria-label="Unassigned by account" className="divide-y border-y">
         {listed.map((account) => {
           const envelopes = accountMoney.get(account.id)?.envelopes;
           const unassigned = envelopes?.unassigned ?? ZERO_CENTS;
           return (
-            <li key={account.id} className="space-y-1 px-3 py-2">
+            <li key={account.id} className="space-y-1 px-4 py-2">
               <div className="flex items-center justify-between gap-3">
                 <p className="flex min-w-0 items-center gap-2">
                   <span className="truncate font-medium">{account.name}</span>
-                  {account.retired && <Badge variant="outline">Retired</Badge>}
+                  {account.retired && <StatusBadge tone="outline">Retired</StatusBadge>}
                 </p>
                 <Money kind="balance" cents={unassigned} />
               </div>
@@ -374,30 +393,27 @@ function PlanRow({
   onMove: () => void;
   onDetails: () => void;
 }) {
-  const [draft, setDraft] = useState<string | null>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
-  const stored = budget ? formatPHPInput(budget.amountCents) : "";
   const inputId = `plan-${category.id}`;
   const hintId = `${inputId}-hint`;
   const moneyId = `${inputId}-money`;
-  const spentIn = (view: MonthView) => formatPHP(categoryMonth(view, category.id).spent);
+  const spentIn = (view: MonthView) => (
+    <Money kind="balance" cents={categoryMonth(view, category.id).spent} />
+  );
 
-  const save = async () => {
-    if (draft === null) return;
-    const change = planChange(draft, budget, fundingChoices);
+  // The typed text, read before the field reformats it, so a typo reaches planChange's message.
+  const save = async (text: string) => {
+    const change = planChange(text, budget, fundingChoices);
     if (change.kind === "problem") {
       toast.error(`${category.name}: ${change.message}`);
       return;
     }
-    if (change.kind === "set") {
-      try {
-        await setBudget(actor, { categoryId: category.id, fromMonth: month, ...change });
-      } catch (caught) {
-        toast.error(errorMessage(caught, `Couldn't set the budget for ${category.name}.`));
-        return;
-      }
+    if (change.kind === "unchanged") return;
+    try {
+      await setBudget(actor, { categoryId: category.id, fromMonth: month, ...change });
+    } catch (caught) {
+      toast.error(errorMessage(caught, `Couldn't set the budget for ${category.name}.`));
     }
-    setDraft(null);
   };
 
   const act = (action: () => void) => () => {
@@ -406,7 +422,7 @@ function PlanRow({
   };
 
   return (
-    <li className="flex items-center gap-2 py-2 pr-1 pl-6">
+    <li className="flex items-center gap-2 py-2 pr-2 pl-4">
       <div className="min-w-0 flex-1">
         <label htmlFor={inputId} className="flex min-w-0">
           <RecordName record={category} />
@@ -419,18 +435,15 @@ function PlanRow({
           Holds <Money kind="balance" cents={categoryMonth(spent.this, category.id).money} />
         </p>
       </div>
-      <Input
+      <CurrencyInput
         id={inputId}
-        className="w-28 shrink-0 text-right tabular-nums"
-        inputMode="decimal"
+        className="w-32 shrink-0 text-right"
         autoComplete="off"
         placeholder="0.00"
         enterKeyHint={isLast ? "done" : "next"}
         aria-describedby={`${hintId} ${moneyId}`}
-        value={draft ?? stored}
-        onFocus={() => setDraft((current) => current ?? stored)}
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={() => void save()}
+        value={budget?.amountCents ?? ZERO_CENTS}
+        onBlur={(event) => void save(event.target.value)}
       />
       <Popover open={actionsOpen} onOpenChange={setActionsOpen}>
         <PopoverTrigger asChild>

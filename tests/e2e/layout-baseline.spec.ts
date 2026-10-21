@@ -10,6 +10,7 @@ const ROUTES = [
   { path: "/budget", name: "budget" },
   { path: "/plan", name: "plan" },
   { path: "/review", name: "review" },
+  { path: "/import", name: "import" },
 ];
 
 const withScheme = (viewports: Record<string, ViewportSize>, colorScheme: "light" | "dark") =>
@@ -49,10 +50,11 @@ for (const { vpName, vp, colorScheme } of RUNS) {
         await page.setViewportSize({ width: vp.width, height: Math.max(vp.height, pageHeight) });
         await expect(page).toHaveScreenshot(`${route.name}-${variantName}.png`, {
           maxDiffPixelRatio: 0.02,
-          // The Household Code differs on every database; the month changes monthly
+          // The Household Code differs on every database; the month and days left change with the date
           mask: [
             page.getByTestId("household-code"),
             page.getByTestId("finances-month"),
+            page.getByTestId("days-left"),
             page.getByRole("group", { name: "Month" }),
           ],
         });

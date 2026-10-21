@@ -34,7 +34,9 @@ test("Review is all clear, then counts an expense without a category everywhere"
   await addUncategorizedExpense(page, "Lunch");
 
   await navigateTo(page, "Home");
-  const banner = page.getByRole("main").getByRole("link", { name: "1 item to review" });
+  const banner = page
+    .getByRole("list", { name: "Needs attention" })
+    .getByRole("link", { name: /^1 expense needs a category/ });
   await expect(banner).toBeVisible();
 
   if (isMobile) {

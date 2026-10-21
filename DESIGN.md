@@ -234,13 +234,13 @@ Every route except login and signup renders `<PageShell variant="…">` (`src/co
 | `supporting-pane`  | `PageShell.Main`, `PageShell.Side`   | A main column with related context beside it, about 2:1 from 840, stacked below. `max-w-7xl`, centered. |
 | `list-detail`      | `PageShell.List`, `PageShell.Detail` | A list whose items open for review or edit. The list flexes; `Detail` is fixed. `max-w-7xl`, centered.  |
 
-`supporting-pane` has no route yet; the Home migration is its first user.
+Home is the `supporting-pane` page. Inside either wide variant, `useTwoPanes()` (`src/components/layout/pane.ts`) says whether the two columns sit side by side; use it when the stacked order differs from the two-column one, and render one arrangement rather than hiding the other with CSS.
 
 | Route                                  | Variant now                         | Final variant (owner)              |
 | -------------------------------------- | ----------------------------------- | ---------------------------------- |
 | Transactions, Budget, Import, Accounts | `list-detail`                       | same                               |
 | Plan, Review, Categories, Assistant    | `single`                            | same                               |
-| Home                                   | `single`                            | `supporting-pane` (Home migration) |
+| Home                                   | `supporting-pane`                   | same                               |
 | Settings                               | `single`, one page of section links | `list-detail` (Settings migration) |
 | Create or join                         | `single`, narrowed with `max-w-md`  | same                               |
 | Login, signup                          | no `PageShell`, a centered form     | same                               |
