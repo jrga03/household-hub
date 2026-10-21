@@ -31,7 +31,7 @@ import { budgetProgress, budgetStatus, type BudgetStatus } from "@/lib/budgets/p
 import { budgetRows } from "@/lib/budgets/rows";
 import type { CategoryRow } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
-import { cn } from "@/lib/utils";
+import { cn, countOf } from "@/lib/utils";
 import { monthLabel } from "@/lib/utils/dates";
 
 const BAR_TONE: Record<BudgetStatus, ComponentProps<typeof ProgressBar>["tone"]> = {
@@ -195,9 +195,7 @@ function Overall({ figures, daysLeft }: { figures: MonthFigures; daysLeft?: numb
             {daysLeft !== undefined && (
               <>
                 {" · "}
-                <span data-testid="days-left">
-                  {daysLeft === 1 ? "1 day left" : `${daysLeft} days left`}
-                </span>
+                <span data-testid="days-left">{countOf(daysLeft, "day", "days")} left</span>
               </>
             )}
           </>

@@ -7,19 +7,12 @@ import {
   FilterChip,
   FilterChips,
   FilterChipSelect,
+  FilterSelect,
   type FilterChoiceGroup,
 } from "@/components/app/FilterChips";
 import { Input } from "@/components/app/Input";
 import { Label } from "@/components/app/Label";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/app/Select";
+import { SelectTrigger, SelectValue } from "@/components/app/Select";
 import { Switch } from "@/components/app/Switch";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { CategoryList } from "@/lib/categories/projection";
@@ -32,12 +25,7 @@ import {
   type TransactionFilter,
 } from "@/lib/transactions/filter";
 import { isTransactionStatus } from "@/lib/transactions/events";
-import { parseLocalDate } from "@/lib/utils/dates";
-
-// Radix Select can't hold an empty value.
-const ALL = "all";
-
-export const monthLabel = (month: string) => format(parseLocalDate(`${month}-01`), "MMMM yyyy");
+import { monthLabel } from "@/lib/utils/dates";
 
 function categoryGroups(list: CategoryList | undefined): FilterChoiceGroup[] {
   if (!list) return [];
@@ -229,27 +217,16 @@ export function TransactionFilters({
       {choices.map((choice) => (
         <Field key={choice.key} label={choice.label}>
           {(control) => (
-            <Select
-              value={filter[choice.key] ?? ALL}
-              onValueChange={(value) => mergeFilter(choice.read(value === ALL ? undefined : value))}
+            <FilterSelect
+              anyLabel={choice.anyLabel}
+              value={filter[choice.key]}
+              groups={choice.groups}
+              onChange={(value) => mergeFilter(choice.read(value))}
             >
               <SelectTrigger {...control} className="w-full">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>{choice.anyLabel}</SelectItem>
-                {choice.groups.map((group) => (
-                  <SelectGroup key={group.label}>
-                    <SelectLabel>{group.label}</SelectLabel>
-                    {group.choices.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
+            </FilterSelect>
           )}
         </Field>
       ))}

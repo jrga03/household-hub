@@ -75,23 +75,13 @@ const ANY = "all";
  */
 export function FilterChipSelect({
   label,
-  anyLabel,
-  value,
-  groups,
-  onChange,
-}: {
-  label: string;
-  anyLabel: string;
-  value: string | undefined;
-  groups: FilterChoiceGroup[];
-  onChange: (value: string | undefined) => void;
-}) {
-  const chosen = groups.flatMap((group) => group.choices).find((choice) => choice.value === value);
+  ...select
+}: Omit<FilterSelectProps, "children"> & { label: string }) {
+  const chosen = select.groups
+    .flatMap((group) => group.choices)
+    .find((choice) => choice.value === select.value);
   return (
-    <Select
-      value={value ?? ANY}
-      onValueChange={(next) => onChange(next === ANY ? undefined : next)}
-    >
+    <FilterSelect {...select}>
       <SelectTrigger
         data-slot="filter-chip"
         aria-label={chosen ? `${label}: ${chosen.label}` : label}
@@ -99,6 +89,27 @@ export function FilterChipSelect({
       >
         <span>{chosen?.label ?? label}</span>
       </SelectTrigger>
+    </FilterSelect>
+  );
+}
+
+interface FilterSelectProps {
+  anyLabel: string;
+  value: string | undefined;
+  groups: FilterChoiceGroup[];
+  onChange: (value: string | undefined) => void;
+  /** The trigger. */
+  children: ReactNode;
+}
+
+/** A Select over grouped choices, led by `anyLabel`, the choice that clears it. */
+export function FilterSelect({ anyLabel, value, groups, onChange, children }: FilterSelectProps) {
+  return (
+    <Select
+      value={value ?? ANY}
+      onValueChange={(next) => onChange(next === ANY ? undefined : next)}
+    >
+      {children}
       <SelectContent>
         <SelectItem value={ANY}>{anyLabel}</SelectItem>
         {groups.map((group) => (

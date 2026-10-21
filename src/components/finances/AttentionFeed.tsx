@@ -14,7 +14,7 @@ import { SectionHeader } from "@/components/app/SectionHeader";
 import { StatusBadge, type StatusTone } from "@/components/app/StatusBadge";
 import type { AttentionItem } from "@/lib/finances/attention";
 import type { ReviewKind } from "@/lib/review/count";
-import { cn } from "@/lib/utils";
+import { cn, countOf } from "@/lib/utils";
 
 interface FeedRow {
   key: string;
@@ -26,24 +26,22 @@ interface FeedRow {
   badge: { tone: StatusTone; text: string };
 }
 
-const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
-
 const REVIEW_COPY: Record<
   ReviewKind,
   { sentence: (count: number) => string; detail: string; link: LinkOptions }
 > = {
   uncategorized: {
-    sentence: (count) => `${plural(count, "expense needs", "expenses need")} a category`,
+    sentence: (count) => `${countOf(count, "expense needs", "expenses need")} a category`,
     detail: "Give each one a category on Review",
     link: { to: "/review" },
   },
   drafts: {
-    sentence: (count) => plural(count, "imported draft waits", "imported drafts wait"),
+    sentence: (count) => countOf(count, "imported draft waits", "imported drafts wait"),
     detail: "Check and save them on Import",
     link: { to: "/import" },
   },
   joinRequests: {
-    sentence: (count) => plural(count, "join request waits", "join requests wait"),
+    sentence: (count) => countOf(count, "join request waits", "join requests wait"),
     detail: "Approve or decline on Review",
     link: { to: "/review" },
   },
@@ -143,7 +141,7 @@ export function AttentionFeed({
       {fineBudgets > 0 && (
         <p className="flex items-center gap-2 text-body text-muted-foreground">
           <CircleCheck aria-hidden className="size-4 text-success" />
-          {plural(fineBudgets, "budget is", "budgets are")} fine.
+          {countOf(fineBudgets, "budget is", "budgets are")} fine.
         </p>
       )}
     </section>

@@ -28,12 +28,12 @@ import {
 import { CorrectionDetails } from "@/components/corrections/CorrectionDialog";
 import { CORRECTION_LABEL } from "@/lib/corrections/events";
 import { cn, countOf } from "@/lib/utils";
-import { monthOfDate } from "@/lib/utils/dates";
+import { monthLabel, monthOfDate } from "@/lib/utils/dates";
 import { SelectionActions } from "./SelectionActions";
 import { rowDisplay, type RowDisplay } from "./rowDisplay";
 import { TransactionDetail } from "./TransactionDetail";
 import { TransactionItem } from "./TransactionItem";
-import { monthLabel, TransactionFilters } from "./TransactionFilters";
+import { TransactionFilters } from "./TransactionFilters";
 import { TransactionTable } from "./TransactionTable";
 import type { RevealedAction } from "./useRowGestures";
 
