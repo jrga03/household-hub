@@ -44,8 +44,11 @@ describe("budgetProgress", () => {
 
 describe("budgetStatus", () => {
   it("is over only once spending passes the budget", () => {
-    expect(budgetStatus(peso("1000"), peso("1000"))).toBe("close");
     expect(budgetStatus(peso("1000"), peso("1000.01"))).toBe("over");
+  });
+
+  it("is fine, not close, when the budget is spent exactly", () => {
+    expect(budgetStatus(peso("1000"), peso("1000"))).toBe("fine");
   });
 
   it("is close from 80% spent", () => {

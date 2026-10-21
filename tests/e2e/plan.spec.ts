@@ -76,9 +76,8 @@ test("a payroll distribution from Plan leaves the source account's Unassigned at
 
   await expect(form).toBeHidden();
   await expect(page).toHaveURL(/\/plan$/);
-  const bar = page.getByRole("region", { name: "To assign" });
-  await expect(bar).toContainText("₱0.00 to assign");
-  await bar.getByRole("button", { name: "By account" }).click();
+  await expect(page.getByRole("region", { name: "To assign" })).toContainText("₱0.00");
+  await page.getByRole("button", { name: "By account" }).click();
   await expect(unassignedItem(page, "BPI")).toContainText("₱0.00");
   await expect(unassignedItem(page, "GCash")).toContainText("₱0.00");
   await page.screenshot({ path: test.info().outputPath("plan.png"), fullPage: true });

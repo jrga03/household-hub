@@ -1,20 +1,24 @@
 import { Link } from "@tanstack/react-router";
 import { useActionState, useState } from "react";
 import { toast } from "sonner";
-import { ActionForm } from "@/components/ui/action-form";
 import { categoryNames } from "@/components/allocations/envelopes";
+import { ActionForm } from "@/components/app/ActionForm";
+import { CurrencyInput } from "@/components/app/CurrencyInput";
+import { EmptyState } from "@/components/app/EmptyState";
+import { Field } from "@/components/app/Field";
 import { advanceOnEnter, FormFooter } from "@/components/app/FormSheet";
-import { FormError } from "@/components/ui/form-error";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormError } from "@/components/app/FormError";
+import { Input } from "@/components/app/Input";
+import { Label } from "@/components/app/Label";
+import { Money } from "@/components/app/Money";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { SubmitButton } from "@/components/ui/submit-button";
+} from "@/components/app/Select";
+import { SubmitButton } from "@/components/app/SubmitButton";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useDistributeLines } from "@/hooks/useBudgets";
 import { useCategoryList } from "@/hooks/useCategories";
@@ -36,8 +40,8 @@ import type { Actor } from "@/lib/commands/accounts";
 import { distributeMoney, type DistributeLineInput } from "@/lib/commands/distribute";
 import {
   diffCents,
-  formatPHP,
   formatPHPInput,
+  MAX_AMOUNT_CENTS,
   parsePHPSafe,
   PESO_SIGN,
   sumCents,
@@ -65,9 +69,7 @@ export function DistributeMoney(props: Props) {
 
   const sources = accounts.filter((account) => !isCreditCard(account));
   if (sources.length === 0) {
-    return (
-      <p className="text-body text-muted-foreground">Add a bank, cash or e-wallet account first.</p>
-    );
+    return <EmptyState>Add a bank, cash or e-wallet account first.</EmptyState>;
   }
   return (
     <DistributeForm
@@ -101,63 +103,65 @@ function DistributeForm({
     sources.find((account) => account.id === initialAccountId)?.id ?? sources[0]?.id ?? ""
   );
   const [date, setDate] = useState(initialDate);
-  const [amountText, setAmountText] = useState(initialAmount ?? "");
+  const [income, setIncome] = useState<Cents>(() => {
+    const parsed = parsePHPSafe(initialAmount ?? "");
+    return parsed.success ? parsed.value : ZERO_CENTS;
+  });
   const source = sources.find((account) => account.id === sourceId);
   const month = isLocalDate(date) ? monthOfDate(date) : localMonth(new Date());
   const lines = useDistributeLines(sourceId, month, mode);
   const holdsCategories = source !== undefined && categoriesHeldBy(categories, source).length > 0;
 
   const unassigned = unassignedIn(sourceId);
-  const income = parsePHPSafe(amountText);
   const available =
-    mode === "income" && income.success
-      ? { cents: income.value, label: "this income" }
+    mode === "income"
+      ? { cents: income, label: "this income" }
       : { cents: unassigned, label: `${source?.name ?? "the account"}'s Unassigned` };
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-3">
-        <div className="space-y-2">
-          <Label htmlFor="distribute-source">From</Label>
-          <Select value={sourceId} onValueChange={setSourceId}>
-            <SelectTrigger id="distribute-source" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {sources.map((account) => (
-                <SelectItem key={account.id} value={account.id}>
-                  {account.name}
-                  {account.visibility === "personal" && " (Personal)"}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-caption text-muted-foreground">Unassigned: {formatPHP(unassigned)}</p>
+        <div className="space-y-1">
+          <Field label="From">
+            {(control) => (
+              <Select value={sourceId} onValueChange={setSourceId}>
+                <SelectTrigger {...control} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {sources.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.name}
+                      {account.visibility === "personal" && " (Personal)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
+          <p className="text-caption text-muted-foreground">
+            Unassigned: <Money kind="balance" cents={unassigned} />
+          </p>
         </div>
         {mode === "income" && (
-          <div className="space-y-2">
-            <Label htmlFor="distribute-amount">Income ({PESO_SIGN})</Label>
-            <Input
-              id="distribute-amount"
-              inputMode="decimal"
+          <Field label={`Income (${PESO_SIGN})`}>
+            <CurrencyInput
               autoComplete="off"
               placeholder={formatPHPInput(unassigned) || "0.00"}
               enterKeyHint="done"
-              value={amountText}
-              onChange={(event) => setAmountText(event.target.value)}
+              value={income}
+              onChange={setIncome}
             />
-          </div>
+          </Field>
         )}
-        <div className="space-y-2">
-          <Label htmlFor="distribute-date">Date</Label>
+        <Field label="Date">
           <Input
-            id="distribute-date"
             type="date"
             required
             value={date}
             onChange={(event) => setDate(event.target.value)}
           />
-        </div>
+        </Field>
       </div>
 
       {source && !holdsCategories && (
@@ -185,7 +189,7 @@ function DistributeForm({
 function NoCategories({ source, offerSuggested }: { source: AccountRow; offerSuggested: boolean }) {
   const categoriesLink = <Link to="/categories">Categories</Link>;
   return (
-    <p className="text-body text-muted-foreground">
+    <EmptyState>
       {source.name} has no categories yet.{" "}
       {source.visibility === "personal" ? (
         <>Add a personal category on {categoriesLink}.</>
@@ -197,14 +201,15 @@ function NoCategories({ source, offerSuggested }: { source: AccountRow; offerSug
       ) : (
         <>Add a household category on {categoriesLink}.</>
       )}
-    </p>
+    </EmptyState>
   );
 }
 
 interface LineDraft {
   categoryId: string;
   accountId: string;
-  amountText: string;
+  /** Zero when left blank. */
+  amountCents: Cents;
   budgetCents: Cents | null;
   fundingAccountRetired: boolean;
 }
@@ -212,17 +217,14 @@ interface LineDraft {
 const toDraft = (line: DistributeLine): LineDraft => ({
   categoryId: line.categoryId,
   accountId: line.accountId,
-  amountText: line.amountCents === null ? "" : formatPHPInput(line.amountCents),
+  amountCents: line.amountCents ?? ZERO_CENTS,
   budgetCents: line.budgetCents,
   fundingAccountRetired: line.fundingAccountRetired,
 });
 
-/** A blank line's amount is zero; text that isn't an amount is null. */
-function lineAmount(line: LineDraft): Cents | null {
-  if (line.amountText.trim() === "") return ZERO_CENTS;
-  const parsed = parsePHPSafe(line.amountText);
-  return parsed.success ? parsed.value : null;
-}
+/** An amount past the maximum is null. */
+const lineAmount = (line: LineDraft): Cents | null =>
+  line.amountCents > MAX_AMOUNT_CENTS ? null : line.amountCents;
 
 function LinesForm({
   actor,
@@ -300,7 +302,7 @@ function LinesForm({
           No budgets this month for {source.name}&apos;s categories. Add a category below.
         </p>
       ) : (
-        <ul className="divide-y rounded-lg border">
+        <ul className="divide-y border-y">
           {lines.map((line) => (
             <DistributeLineRow
               key={line.categoryId}
@@ -314,40 +316,43 @@ function LinesForm({
       )}
 
       {unlisted.length > 0 && (
-        <div className="space-y-2">
-          <Label htmlFor="distribute-add">Add a category</Label>
-          <Select
-            value=""
-            onValueChange={(categoryId) => {
-              const category = unlisted.find((choice) => choice.id === categoryId);
-              if (category) addLine(category);
-            }}
-          >
-            <SelectTrigger id="distribute-add" className="w-full @[480px]:w-64">
-              <SelectValue placeholder="Choose a category" />
-            </SelectTrigger>
-            <SelectContent>
-              {unlisted.map((category) => (
-                <SelectItem key={category.id} value={category.id}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <Field label="Add a category">
+          {(control) => (
+            <Select
+              value=""
+              onValueChange={(categoryId) => {
+                const category = unlisted.find((choice) => choice.id === categoryId);
+                if (category) addLine(category);
+              }}
+            >
+              <SelectTrigger {...control} className="w-full @[480px]:w-64">
+                <SelectValue placeholder="Choose a category" />
+              </SelectTrigger>
+              <SelectContent>
+                {unlisted.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </Field>
       )}
 
       <div className="space-y-1 text-body" aria-live="polite">
         <p>
-          Distributing <span className="font-medium tabular-nums">{formatPHP(total)}</span>
+          Distributing <Money kind="balance" cents={total} className="font-medium" />
         </p>
         {left < 0 ? (
           <p className="text-shortfall">
-            {formatPHP(diffCents(total, available.cents))} more than {available.label}. You can
-            still distribute it; trim a line or Unassigned shows in red.
+            <Money kind="balance" cents={diffCents(total, available.cents)} /> more than{" "}
+            {available.label}. You can still distribute it; trim a line or Unassigned shows in red.
           </p>
         ) : (
-          <p className="text-muted-foreground">{formatPHP(left)} stays in Unassigned</p>
+          <p className="text-muted-foreground">
+            <Money kind="balance" cents={left} /> stays in Unassigned
+          </p>
         )}
       </div>
 
@@ -372,25 +377,30 @@ function DistributeLineRow({
 }) {
   const amountId = `distribute-${line.categoryId}-amount`;
   return (
-    <li className="@container px-4 py-3">
+    <li className="@container px-4 py-2">
       <div className="grid grid-cols-1 gap-2 @[560px]:grid-cols-[minmax(0,1fr)_9rem_11rem] @[560px]:items-center">
         <div>
           <Label htmlFor={amountId} className="font-medium">
             {name}
           </Label>
           <p className="text-caption text-muted-foreground">
-            {line.budgetCents === null ? "No budget" : `Budget ${formatPHP(line.budgetCents)}`}
+            {line.budgetCents === null ? (
+              "No budget"
+            ) : (
+              <>
+                Budget <Money kind="balance" cents={line.budgetCents} />
+              </>
+            )}
             {line.fundingAccountRetired && " · Funding account retired"}
           </p>
         </div>
-        <Input
+        <CurrencyInput
           id={amountId}
-          inputMode="decimal"
           autoComplete="off"
           placeholder="0.00"
           enterKeyHint="next"
-          value={line.amountText}
-          onChange={(event) => onChange({ amountText: event.target.value })}
+          value={line.amountCents}
+          onChange={(amountCents) => onChange({ amountCents })}
         />
         <Select value={line.accountId} onValueChange={(accountId) => onChange({ accountId })}>
           <SelectTrigger aria-label={`${name} goes to`} className="w-full">
