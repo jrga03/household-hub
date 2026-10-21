@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { login, signUpNewPerson, navigateTo } from "./fixtures/helpers";
+import { login, navigateTo, openSettingsSection, signUpNewPerson } from "./fixtures/helpers";
 
 const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
@@ -27,11 +27,9 @@ test.describe("Create a household", () => {
     ).toBeVisible();
 
     await navigateTo(page, "Settings");
-    const main = page.getByRole("main");
-    await expect(main.getByText("Acido home")).toBeVisible();
-    // The badge beside the household name; the Members list has its own "Owner".
-    const nameRow = main.getByText("Acido home").locator("..");
-    await expect(nameRow.getByText("Owner", { exact: true })).toBeVisible();
+    const household = await openSettingsSection(page, "Household");
+    await expect(household.getByText("Acido home")).toBeVisible();
+    await expect(household.getByText("Owner", { exact: true })).toBeVisible();
     await expect(page.getByTestId("household-code")).toHaveText(
       /^[23456789ABCDEFGHJKMNPQRSTVWXYZ]{6}$/
     );

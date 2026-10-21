@@ -83,7 +83,10 @@ export function RowActions({ className, children }: { className?: string; childr
   );
 }
 
-type ListRowProps = RowTargetProps & {
+/** A row with nothing to open: it shows its content, and any `actions` stay its controls. */
+type NoTarget = { link?: never; onClick?: never; open?: never; pressed?: never };
+
+type ListRowProps = (RowTargetProps | NoTarget) & {
   label: ReactNode;
   /** The muted second line: category, account, date. */
   detail?: ReactNode;
@@ -120,7 +123,7 @@ export function ListRow({
         className
       )}
     >
-      <RowTargetElement {...target} className="block min-w-0 flex-1 text-left">
+      <RowContent target={target}>
         <span className="flex items-center gap-2">
           {leading}
           <span
@@ -135,8 +138,29 @@ export function ListRow({
         {detail !== undefined && (
           <span className="block truncate text-muted-foreground">{detail}</span>
         )}
-      </RowTargetElement>
+      </RowContent>
       {actions !== undefined && <RowActions>{actions}</RowActions>}
     </div>
   );
+}
+
+const hasTarget = (target: RowTargetProps | NoTarget): target is RowTargetProps =>
+  target.link !== undefined || target.onClick !== undefined;
+
+function RowContent({
+  target,
+  children,
+}: {
+  target: RowTargetProps | NoTarget;
+  children: ReactNode;
+}) {
+  const className = "block min-w-0 flex-1 text-left";
+  if (hasTarget(target)) {
+    return (
+      <RowTargetElement {...target} className={className}>
+        {children}
+      </RowTargetElement>
+    );
+  }
+  return <div className={className}>{children}</div>;
 }

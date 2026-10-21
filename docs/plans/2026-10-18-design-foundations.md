@@ -166,6 +166,12 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#226 `CategoryLedger` moved onto `ListRow` and hairline sections** (no boxed borders; "Budget history" is a `SectionHeader`, amounts are `Money`). It is on no ticket's file list; the spec's "Budget's ledger uses #223's rows" puts it here. Revisit: never.
 - **#226 records opened from the ledger stay in `FormSheet` dialogs over the pane, outside the URL** (closes the #219 item). Why: only the list's open item is `?open=`; a second URL level would need a nested detail model. Revisit: if people want to share a link to a ledger record.
 - **#226 `/budget` joined the signed-in accessibility e2e**, and `plan.spec`'s Budget checks now read the row's `left` test id and the bar's tone. Why: the old `dl` labels are gone. Revisit: never.
+- **#231 Settings below 840 ignores `?open`** and shows the long page; it renders no `DetailPane`, so no sheet repeats a section the page already shows. Why: the spec keeps one long page at compact. Revisit: if a phone needs a deep link to one section (hash links work today).
+- **#231 `ListRow` takes no target** for Members and join requests, with their buttons beside the row, always visible, instead of in `actions`. Why: `actions` hide below a 600 row width, and the detail pane is 360, so the Owner could not remove anyone on a phone or in the pane. Revisit: if rows gain a member detail sheet.
+- **#231 only the Owner's member row carries a role badge** ("Owner", `neutral`); the Household section shows your own role. A pending join request is `outline` "Pending" with the Info icon (as pending transactions); a declined one on create-or-join is `warning` "Declined". Why: a "Member" badge on every row is noise. Revisit: never.
+- **#231 Appearance is a `SegmentedControl`** (Light, Dark, System) instead of three icon buttons. Why: DESIGN.md names it for two to four exclusive options. Revisit: never.
+- **#231 the create-or-join baseline logs in a fixed household-less fixture user** (`test-no-household@example.com`, made by global setup without a household), so the footer email is stable. Why: a signed-up person has a random email. Revisit: never.
+- **#231 Tabs on Mobile Chrome show the selected tab almost flat** in the create-or-join baselines (light theme). Not touched: `Tabs` is a layer-1 re-export outside this ticket. Revisit: #233 or a Tabs pass.
 
 ### Rollout checklist
 
@@ -208,7 +214,7 @@ Spec #222, integration branch `feat/222-page-migration`. Order: #223 â†’ #224 â†
 - [x] #228 Accounts: balances, edits, card payments and corrections (#224)
 - [x] #229 Categories: groups, adds and edits (#224)
 - [x] #230 Review and Import: review items and statement drafts (#224)
-- [ ] #231 Settings and households: list-detail sections and create-or-join (#224)
+- [x] #231 Settings and households: list-detail sections and create-or-join (#224)
 - [x] #232 Assistant: chat and proposals (#224)
 - [ ] #233 Auth and app leftovers, and delete the primitive allowlist (#223-#232)
 - [ ] Code review of the integration branch, findings fixed

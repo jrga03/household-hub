@@ -1,41 +1,32 @@
 import { useState } from "react";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/app/Button";
+import { StatusBadge } from "@/components/app/StatusBadge";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { confirm } from "@/lib/confirm";
 import { replaceHouseholdCode } from "@/lib/household-members";
 import type { Household } from "@/lib/households";
 import { errorMessage } from "@/lib/utils";
-import { JoinRequestsCard } from "./JoinRequestsCard";
-import { MembersCard } from "./MembersCard";
 
-interface HouseholdSettingsProps {
+interface HouseholdDetailsProps {
   household: Household;
   userId: string;
   isOwner: boolean;
 }
 
-/** Settings → Household: the household and its code, join requests, and members. */
-export function HouseholdSettings({ household, userId, isOwner }: HouseholdSettingsProps) {
+/** Settings → Household: its name, your role, and (for the Owner) the Household Code. */
+export function HouseholdDetails({ household, userId, isOwner }: HouseholdDetailsProps) {
   return (
-    <section id="household" aria-label="Household" className="scroll-mt-4 space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <CardTitle>{household.name}</CardTitle>
-            <Badge variant="secondary">{isOwner ? "Owner" : "Member"}</Badge>
-          </div>
-        </CardHeader>
-        {isOwner && (
-          <HouseholdCode userId={userId} householdId={household.id} code={household.code} />
-        )}
-      </Card>
-      {isOwner && <JoinRequestsCard householdId={household.id} />}
-      <MembersCard householdId={household.id} userId={userId} isOwner={isOwner} />
-    </section>
+    <div className="space-y-6">
+      <div className="flex items-center gap-2">
+        <p className="min-w-0 truncate font-medium">{household.name}</p>
+        <StatusBadge tone="neutral">{isOwner ? "Owner" : "Member"}</StatusBadge>
+      </div>
+      {isOwner && (
+        <HouseholdCode userId={userId} householdId={household.id} code={household.code} />
+      )}
+    </div>
   );
 }
 
@@ -78,9 +69,9 @@ function HouseholdCode({ userId, householdId, code }: HouseholdCodeProps) {
   }
 
   return (
-    <CardContent className="space-y-2">
+    <div className="space-y-2">
       <p className="text-label">Household Code</p>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <span data-testid="household-code" className="font-mono text-title tracking-[0.3em]">
           {code}
         </span>
@@ -90,7 +81,7 @@ function HouseholdCode({ userId, householdId, code }: HouseholdCodeProps) {
           aria-label="Copy Household Code"
           onClick={() => void copyCode()}
         >
-          <Copy className="h-4 w-4" />
+          <Copy aria-hidden="true" />
         </Button>
         <Button
           variant="outline"
@@ -105,6 +96,6 @@ function HouseholdCode({ userId, householdId, code }: HouseholdCodeProps) {
         Share it so others can ask to join. You approve each request; the code alone grants no
         access.
       </p>
-    </CardContent>
+    </div>
   );
 }

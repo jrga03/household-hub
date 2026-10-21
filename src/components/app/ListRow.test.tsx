@@ -34,6 +34,14 @@ describe("ListRow", () => {
     expect(onOpen).toHaveBeenCalledTimes(2);
   });
 
+  it("shows its content with nothing to open when it has no target", () => {
+    render(<ListRow label="ana@example.com" amount="Owner" actions={<button>Remove</button>} />);
+
+    expect(screen.getByText("ana@example.com")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+  });
+
   it("renders a link to its URL", async () => {
     await renderInRouter(
       <ListRow label="Groceries" link={{ to: "/transactions", search: { account: "t1" } }} />

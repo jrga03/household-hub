@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CreateOrJoinChoices } from "@/components/households/CreateOrJoin";
 import { PageShell } from "@/components/layout/PageShell";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/app/Button";
 import { signOutWithToast } from "@/lib/sign-out";
 import { useAuthStore } from "@/stores/authStore";
 

@@ -168,20 +168,12 @@ const restrictNanoid = {
 export const directPrimitiveImporters = [
   "src/App.tsx",
   "src/components/ErrorBoundary.tsx",
-  "src/components/households/CreateOrJoin.tsx",
-  "src/components/households/HouseholdSettings.tsx",
-  "src/components/households/JoinHousehold.tsx",
-  "src/components/households/JoinRequestsCard.tsx",
-  "src/components/households/MembersCard.tsx",
   "src/components/LoginForm.tsx",
   "src/components/PWAInstallPrompt.tsx",
-  "src/components/settings/ExportCard.tsx",
   "src/components/SignupForm.tsx",
   "src/components/StorageWarning.tsx",
   "src/components/sync/SyncStatusIndicator.tsx",
   "src/routes/__root.tsx",
-  "src/routes/create-or-join.tsx",
-  "src/routes/settings.tsx",
 ];
 
 const primitiveBoundary = {
