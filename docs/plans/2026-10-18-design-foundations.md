@@ -100,6 +100,7 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#219 `useSelectedItem` is deleted**, folded into `DetailPane`'s `useOpenItem`. Why: nothing else used it, and the open item needs push or replace by pane count and close-by-back. Revisit: never.
 - **#219 the sheet uses vaul's `Drawer.Root`, not the `ui/drawer` wrapper**, so the `?open=` entry is the one back pops (no second sentinel entry). Why: two entries would need two backs to close. Revisit: never.
 - **#219 records opened from the Budget ledger stay in `FormSheet` dialogs, outside the URL.** Why: only the list's open item is `?open=`. Revisit: the Budget migration.
+- **#220 the layout baselines show the seed user's empty states** (no accounts, categories or transactions, nothing open), so they cover chrome and shell width but not a filled list or an open `DetailPane`. Why: `ROUTES` stays unchanged here and the baseline user is unseeded. Revisit: the page migration, when it adds routes.
 
 ### Rollout checklist
 
