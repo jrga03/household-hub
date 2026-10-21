@@ -23,11 +23,9 @@ function SettingsPage() {
   useScrollToHash();
 
   return (
-    <PageShell variant="nav-content">
-      <PageShell.LeftAside>
+    <PageShell>
+      <PageShell.Main className="space-y-6">
         <SettingsNav />
-      </PageShell.LeftAside>
-      <PageShell.Main className="space-y-6 mx-auto w-full max-w-2xl">
         {household && userId && (
           <HouseholdSettings household={household} userId={userId} isOwner={isOwner} />
         )}

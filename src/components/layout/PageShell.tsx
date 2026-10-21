@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { ReactNode, Ref } from "react";
 
-type Variant = "centered" | "rail" | "split" | "nav-content" | "triple";
+type Variant = "single" | "supporting-pane" | "list-detail";
 
 interface PageShellProps {
   variant?: Variant;
@@ -14,7 +14,7 @@ interface SlotProps {
   children: ReactNode;
 }
 
-interface AsideProps extends SlotProps {
+interface DetailProps extends SlotProps {
   ref?: Ref<HTMLElement>;
 }
 
@@ -26,64 +26,58 @@ function Main({ className, children }: SlotProps) {
   );
 }
 
-function LeftAside({ className, children, ref }: AsideProps) {
+function Side({ className, children }: SlotProps) {
   return (
-    <aside ref={ref} data-slot="left-aside" className={cn("min-w-0", className)}>
+    <aside data-slot="side" className={cn("min-w-0", className)}>
       {children}
     </aside>
   );
 }
 
-function RightAside({ className, children, ref }: AsideProps) {
+function List({ className, children }: SlotProps) {
   return (
-    <aside ref={ref} data-slot="right-aside" className={cn("min-w-0", className)}>
+    <div data-slot="list" className={cn("min-w-0", className)}>
+      {children}
+    </div>
+  );
+}
+
+function Detail({ className, children, ref }: DetailProps) {
+  return (
+    <aside ref={ref} data-slot="detail" className={cn("hidden min-w-0 @[840px]:block", className)}>
       {children}
     </aside>
   );
 }
+
+const variantClasses: Record<Variant, string> = {
+  single: "max-w-3xl",
+  "supporting-pane": "grid max-w-7xl gap-6 @[840px]:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]",
+  "list-detail": cn(
+    "grid max-w-7xl gap-6",
+    "@[840px]:has-[>[data-slot=detail]]:grid-cols-[minmax(0,1fr)_360px]",
+    "@[1200px]:has-[>[data-slot=detail]]:grid-cols-[minmax(0,1fr)_412px]"
+  ),
+};
 
 /**
- * PageShell — layout primitive used by every page.
+ * PageShell: the layout every route renders. Pick a variant by the page's job.
  *
- * Variants:
- *   - centered: single column, max-w-7xl. Default.
- *   - rail: main + right rail. Rail collapses below the main on narrow widths.
- *   - split: master-detail. Aside is the detail pane; collapses to main-only on narrow.
- *   - nav-content: left section nav + main content. Nav becomes horizontal tabs on narrow.
- *   - triple: main + middle aside + right aside (Transactions only). At @[1100px]
- *     the middle aside is hidden and the layout reads [main | right]. At @[1500px]
- *     all three columns show as [main | middle | right]. CSS Grid auto-placement
- *     fills visible children into the available tracks in DOM order, so the
- *     middle slot just drops out cleanly when hidden.
+ *   - single (default): one centered column, max-w-3xl. Slot: Main.
+ *   - supporting-pane: Main and Side at about 2:1 from 840px, stacked below.
+ *   - list-detail: a flexible List and a fixed Detail pane (360px from 840px,
+ *     412px from 1200px). Detail shows only from 840px; with no Detail rendered
+ *     the List takes the full width.
  *
- *     NOTE on slot names for `triple`: `LeftAside` is repurposed as the *middle*
- *     slot (detail pane) and `RightAside` as the *right* slot (filters). The
- *     names are positional fiction here — the JSX order (Main → LeftAside →
- *     RightAside) drives the visual columns, not the names.
- *
- * Uses container queries (`@container`) so layouts react to actual page width,
- * not viewport width (the global sidebar can collapse and shift content width).
+ * The wide variants cap at max-w-7xl, centered. Breakpoints are container
+ * queries (600, 840, 1200) on the shell, so the sidebar's width is already
+ * taken out; slots and their children use the same thresholds.
  */
-export function PageShell({ variant = "centered", className, children }: PageShellProps) {
-  // The outer wrapper carries `@container` so descendants can use `@[1100px]:`
-  // container query variants. CSS spec forbids an element from querying its own
-  // container, so the responsive grid/max-width classes live on an inner div.
+export function PageShell({ variant = "single", className, children }: PageShellProps) {
+  // An element cannot query its own container, so the grid lives on an inner div.
   return (
     <div data-variant={variant} className="@container w-full">
-      <div
-        className={cn(
-          variant === "centered" && "mx-auto w-full max-w-7xl px-4 py-8",
-          variant === "rail" &&
-            "grid gap-6 px-4 py-8 mx-auto w-full max-w-7xl @[1100px]:max-w-none @[1100px]:grid-cols-[1fr_320px] @[1500px]:grid-cols-[1fr_380px]",
-          variant === "split" &&
-            "grid gap-6 px-4 py-8 mx-auto w-full max-w-7xl @[1100px]:max-w-none @[1100px]:grid-cols-2 @[1500px]:grid-cols-[55fr_45fr]",
-          variant === "nav-content" &&
-            "grid gap-6 px-4 py-8 mx-auto w-full max-w-7xl @[900px]:grid-cols-[200px_1fr] @[1500px]:grid-cols-[240px_1fr]",
-          variant === "triple" &&
-            "grid gap-6 px-4 py-8 mx-auto w-full max-w-7xl @[1100px]:max-w-none @[1100px]:grid-cols-[1fr_280px] @[1500px]:grid-cols-[1fr_480px_300px]",
-          className
-        )}
-      >
+      <div className={cn("mx-auto w-full px-4 py-8", variantClasses[variant], className)}>
         {children}
       </div>
     </div>
@@ -91,5 +85,6 @@ export function PageShell({ variant = "centered", className, children }: PageShe
 }
 
 PageShell.Main = Main;
-PageShell.LeftAside = LeftAside;
-PageShell.RightAside = RightAside;
+PageShell.Side = Side;
+PageShell.List = List;
+PageShell.Detail = Detail;

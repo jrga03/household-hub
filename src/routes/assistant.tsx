@@ -26,7 +26,7 @@ function AssistantPage() {
   }, [userId, openChat]);
 
   return (
-    <PageShell variant="centered" className="pb-0">
+    <PageShell className="pb-0">
       <PageShell.Main>
         {household && userId && <AssistantView actor={{ householdId: household.id, userId }} />}
       </PageShell.Main>

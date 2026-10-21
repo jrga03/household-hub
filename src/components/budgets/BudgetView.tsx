@@ -89,7 +89,7 @@ export function BudgetView({
 
   return (
     <>
-      <PageShell.Main className="space-y-4">
+      <PageShell.List className="space-y-4">
         {empty ? (
           <p className="text-body text-muted-foreground">
             No categories yet. Set them up on <Link to="/categories">Categories</Link>, then give
@@ -123,9 +123,9 @@ export function BudgetView({
             )}
           </ul>
         )}
-      </PageShell.Main>
+      </PageShell.List>
 
-      <PageShell.RightAside ref={setPane} className="hidden @[1100px]:block">
+      <PageShell.Detail ref={setPane}>
         <div
           className={cn(
             "@container sticky overflow-y-auto rounded-md border p-4",
@@ -152,7 +152,7 @@ export function BudgetView({
             </p>
           )}
         </div>
-      </PageShell.RightAside>
+      </PageShell.Detail>
 
       <Sheet
         open={Boolean(ledger) && !paneShown}

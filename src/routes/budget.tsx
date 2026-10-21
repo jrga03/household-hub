@@ -41,11 +41,11 @@ function BudgetPage() {
         <EditPlanLink search={search} className="hidden sm:inline-flex" />
       </HeaderActions>
 
-      <PageShell variant="rail">
+      <PageShell variant="list-detail">
         {/* A viewport breakpoint, not a container query: it must flip with the header's copy */}
         <div
           className={cn(
-            "flex items-center gap-2 @[1100px]:col-span-2",
+            "col-span-full flex items-center gap-2",
             month === currentMonth && "sm:hidden"
           )}
         >

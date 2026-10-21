@@ -16,7 +16,7 @@ function HomePage() {
   const userId = useAuthStore((state) => state.user?.id);
 
   return (
-    <PageShell variant="centered">
+    <PageShell>
       <PageShell.Main className="space-y-4">
         {/* Home's sections, top to bottom. */}
         {household && <ReviewBanner />}

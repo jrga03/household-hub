@@ -23,7 +23,7 @@ const payments: Payment[] = [
 
 const columns: DataTableColumn<Payment>[] = [
   { id: "description", header: "Description", cell: (row) => row.description, target: true },
-  { id: "account", header: "Account", cell: (row) => row.account, hideBelow: 900 },
+  { id: "account", header: "Account", cell: (row) => row.account, hideBelow: 840 },
   { id: "amount", header: "Amount", cell: (row) => row.amount, align: "end" },
 ];
 
@@ -66,7 +66,7 @@ describe("DataTable", () => {
       <DataTable label="Payments" columns={columns} rows={payments} getRowKey={(row) => row.id} />
     );
 
-    const responsive = "@[900px]:table-cell";
+    const responsive = "@[840px]:table-cell";
     expect(screen.getByRole("columnheader", { name: "Account" })).toHaveClass("hidden", responsive);
     expect(screen.getByRole("cell", { name: "Cash" })).toHaveClass("hidden", responsive);
     expect(screen.getByRole("columnheader", { name: "Description" })).not.toHaveClass("hidden");

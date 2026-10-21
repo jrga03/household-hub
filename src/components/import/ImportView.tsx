@@ -77,7 +77,7 @@ export function ImportView({ actor }: { actor: Actor }) {
 
   return (
     <>
-      <PageShell.Main className="space-y-4">
+      <PageShell.List className="space-y-4">
         <Card>
           <CardHeader>
             <CardTitle>Read a statement</CardTitle>
@@ -105,9 +105,9 @@ export function ImportView({ actor }: { actor: Actor }) {
             />
           ))
         )}
-      </PageShell.Main>
+      </PageShell.List>
 
-      <PageShell.RightAside ref={setPane} className="hidden @[1100px]:block">
+      <PageShell.Detail ref={setPane}>
         <div
           className={cn(
             "@container sticky overflow-y-auto rounded-md border p-4",
@@ -129,7 +129,7 @@ export function ImportView({ actor }: { actor: Actor }) {
             <p className="text-body text-muted-foreground">Choose a draft to review it here.</p>
           )}
         </div>
-      </PageShell.RightAside>
+      </PageShell.Detail>
 
       <Sheet open={Boolean(detail) && !paneShown} onOpenChange={(open) => !open && setOpenId(null)}>
         <SheetContent
