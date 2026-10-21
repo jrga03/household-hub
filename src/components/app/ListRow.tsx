@@ -92,6 +92,8 @@ type ListRowProps = (RowTargetProps | NoTarget) & {
   detail?: ReactNode;
   /** Trailing slot on the label line, usually a `Money`. */
   amount?: ReactNode;
+  /** After the amount: a `StatusBadge` or a chevron. Never an amount. */
+  trailing?: ReactNode;
   /** Icons before the label, such as transfer or pending. */
   leading?: ReactNode;
   /** Mutes the label, as for a pending transaction. */
@@ -109,6 +111,7 @@ export function ListRow({
   label,
   detail,
   amount,
+  trailing,
   leading,
   muted = false,
   actions,
@@ -133,6 +136,9 @@ export function ListRow({
           </span>
           {amount !== undefined && (
             <span className="shrink-0 whitespace-nowrap tabular-nums">{amount}</span>
+          )}
+          {trailing !== undefined && (
+            <span className="flex shrink-0 items-center gap-2">{trailing}</span>
           )}
         </span>
         {detail !== undefined && (

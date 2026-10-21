@@ -34,6 +34,19 @@ describe("ListRow", () => {
     expect(onOpen).toHaveBeenCalledTimes(2);
   });
 
+  it("ends the label line with a status after the amount", () => {
+    render(
+      <ListRow
+        label="Groceries"
+        amount="₱250.00"
+        trailing={<span>Over budget</span>}
+        onClick={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("button")).toHaveTextContent(/^Groceries₱250\.00Over budget$/);
+  });
+
   it("shows its content with nothing to open when it has no target", () => {
     render(<ListRow label="ana@example.com" amount="Owner" actions={<button>Remove</button>} />);
 

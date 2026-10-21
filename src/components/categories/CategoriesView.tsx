@@ -176,7 +176,7 @@ function CategoryItems({
                 <span className="sr-only">Edit</span> <RecordName record={category} />
               </>
             }
-            amount={<ChevronRight aria-hidden="true" className="size-4 text-muted-foreground" />}
+            trailing={<ChevronRight aria-hidden="true" className="size-4 text-muted-foreground" />}
           />
         </li>
       ))}

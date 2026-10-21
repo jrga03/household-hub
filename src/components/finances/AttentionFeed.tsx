@@ -160,13 +160,13 @@ function AttentionRow({ row }: { row: FeedRow }) {
         leading={<Icon aria-hidden className={cn("size-5 shrink-0", row.iconClass)} />}
         label={row.sentence}
         detail={row.detail}
-        amount={
-          <span className="flex items-center gap-2">
+        trailing={
+          <>
             <StatusBadge tone={row.badge.tone} className="hidden @[600px]:inline-flex">
               {row.badge.text}
             </StatusBadge>
             <ChevronRight aria-hidden className="size-4 text-muted-foreground" />
-          </span>
+          </>
         }
       />
     </li>

@@ -65,7 +65,7 @@ export function JoinRequestRow({ householdId, request }: JoinRequestRowProps) {
       <ListRow
         className="min-w-0 grow basis-48"
         label={request.requesterEmail}
-        amount={
+        trailing={
           <StatusBadge tone="outline" icon={Info}>
             Pending
           </StatusBadge>

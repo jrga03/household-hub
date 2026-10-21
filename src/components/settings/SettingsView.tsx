@@ -115,7 +115,7 @@ function SectionList({ sections }: { sections: SettingsSection[] }) {
                   <section.icon aria-hidden="true" className="size-4 text-muted-foreground" />
                 }
                 label={section.title}
-                amount={section.badge || undefined}
+                trailing={section.badge || undefined}
                 detail={section.summary}
               />
             </li>
