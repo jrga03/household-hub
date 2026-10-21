@@ -117,7 +117,7 @@ Ticketed 2026-10-18 as sub-issues of #162, expand → migrate → contract. Each
 Spec #216, integration branch `feat/216-adaptive-layouts`. Frontier at start: #217, #218.
 
 - [ ] #217 Window size classes: one navigation per class (blocked by: none)
-- [ ] #218 PageShell variants: single, supporting-pane and list-detail (none)
+- [x] #218 PageShell variants: single, supporting-pane and list-detail (none)
 - [ ] #219 DetailPane: the open item in a pane or a bottom sheet, kept in the URL (#218)
 - [ ] #220 Layout baselines: one viewport per size class, regenerated once (#217, #218, #219)
 - [ ] #221 DESIGN.md: the adaptive layout rules (#217, #218, #219)
