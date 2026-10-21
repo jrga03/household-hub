@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageShell } from "@/components/layout/PageShell";
 import { FinancesSection } from "@/components/finances/FinancesSection";
 import { OpeningChecklist } from "@/components/opening/OpeningChecklist";
-import { ReviewBanner } from "@/components/review/ReviewBanner";
 import { useHousehold } from "@/hooks/useHousehold";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -16,13 +15,12 @@ function HomePage() {
   const userId = useAuthStore((state) => state.user?.id);
 
   return (
-    <PageShell>
-      <PageShell.Main className="space-y-4">
-        {/* Home's sections, top to bottom. */}
-        {household && <ReviewBanner />}
-        {household && <OpeningChecklist key={household.id} householdId={household.id} />}
-        {household && userId && <FinancesSection userId={userId} />}
-      </PageShell.Main>
+    <PageShell variant="supporting-pane">
+      {household && userId && (
+        <FinancesSection userId={userId}>
+          <OpeningChecklist key={household.id} householdId={household.id} />
+        </FinancesSection>
+      )}
     </PageShell>
   );
 }

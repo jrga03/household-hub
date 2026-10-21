@@ -1,5 +1,11 @@
 import { test, expect, type BrowserContext, type Locator, type Page } from "@playwright/test";
-import { chooseOption, loginAs, signUpNewPerson, navigateTo } from "./fixtures/helpers";
+import {
+  chooseOption,
+  loginAs,
+  signUpNewPerson,
+  navigateTo,
+  transactionRows,
+} from "./fixtures/helpers";
 
 const accountItem = (page: Page, name: string) =>
   page
@@ -50,25 +56,26 @@ test("a transfer recorded offline moves both balances on another device", async 
   const dialog = pageA.getByRole("dialog", { name: "Add transaction" });
   await dialog.getByLabel("Amount (₱)").fill("2000");
   await dialog.getByRole("radio", { name: "Transfer" }).click();
-  await expect(dialog.getByLabel("Amount (₱)")).toHaveValue("2000");
+  await expect(dialog.getByLabel("Amount (₱)")).toHaveValue("2000.00");
   await chooseOption(pageA, dialog.getByLabel("From"), "BPI");
   await chooseOption(pageA, dialog.getByLabel("To"), "GCash");
   await chooseOption(pageA, dialog.getByLabel("Category"), "Groceries");
   await dialog.getByRole("button", { name: "Add transfer" }).click();
   await expect(dialog).toBeHidden();
-  await expect(accountItem(pageA, "GCash").getByLabel("Balance")).toHaveText("₱2,000.00");
+  await expect(accountItem(pageA, "GCash")).toContainText("₱2,000.00");
   await deviceA.setOffline(false);
 
   await pullUntil(deviceB, accountItem(pageB, "GCash"), "₱2,000.00");
-  await expect(accountItem(pageB, "BPI").getByLabel("Balance")).toHaveText("₱8,000.00");
-  await expect(accountItem(pageB, "GCash").getByLabel("Balance")).toHaveText("₱2,000.00");
+  await expect(accountItem(pageB, "BPI")).toContainText("₱8,000.00");
+  await expect(accountItem(pageB, "GCash")).toContainText("₱2,000.00");
 
   // One row for both legs, named for where the money went.
   await pageB.getByRole("link", { name: "Transactions" }).first().click();
-  const rows = pageB.getByRole("list", { name: "Transactions" });
-  await expect(rows.getByRole("listitem")).toHaveCount(1);
-  await expect(rows.getByRole("listitem")).toContainText("Transfer to GCash");
-  await expect(rows).toContainText("Groceries · BPI → GCash");
+  const rows = transactionRows(pageB);
+  await expect(rows).toHaveCount(1);
+  await expect(rows).toContainText("Transfer to GCash");
+  await expect(rows).toContainText("Groceries");
+  await expect(rows).toContainText("BPI → GCash");
 
   await Promise.all([deviceA.close(), deviceB.close()]);
 });

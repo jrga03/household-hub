@@ -1,21 +1,20 @@
 import { useActionState, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { ActionForm } from "@/components/ui/action-form";
-import { advanceOnEnter, FormFooter, FormSheet } from "@/components/app/FormSheet";
-import { FormError } from "@/components/ui/form-error";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup } from "@/components/ui/radio-group";
+import { ActionForm } from "@/components/app/ActionForm";
+import { Field } from "@/components/app/Field";
+import { FormError } from "@/components/app/FormError";
+import { FormFooter, FormSheet, FULL_ROW } from "@/components/app/FormSheet";
+import { Input } from "@/components/app/Input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { SubmitButton } from "@/components/ui/submit-button";
-import { Textarea } from "@/components/ui/textarea";
+} from "@/components/app/Select";
+import { SubmitButton } from "@/components/app/SubmitButton";
+import { Textarea } from "@/components/app/Textarea";
 import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import type { AccountRow } from "@/lib/accounts/projection";
@@ -27,7 +26,7 @@ import {
   setTransactionStatus,
   type TransactionInput,
 } from "@/lib/commands/transactions";
-import { formatPHPInput, parsePHPSafe, PESO_SIGN } from "@/lib/currency";
+import { formatPHPInput, type Cents } from "@/lib/currency";
 import { sameOwnership } from "@/lib/events/ownership";
 import {
   DESCRIPTION_MAX_LENGTH,
@@ -38,13 +37,24 @@ import {
 } from "@/lib/transactions/events";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import { TRANSFER_TYPE, type EntryDirection } from "@/lib/transactions/filter";
-import { cn, errorMessage } from "@/lib/utils";
+import { errorMessage } from "@/lib/utils";
+import { todayLocalDate } from "@/lib/utils/dates";
 import { useQuickEntryStore } from "@/stores/quickEntryStore";
-import { ChoiceItem, DirectionChoice, FULL_ROW, useFocusNewEntry } from "./EntryFields";
+import {
+  AmountField,
+  DirectionChoice,
+  formProblem,
+  hasFieldProblems,
+  NO_PROBLEMS,
+  readEntryBasics,
+  StatusChoice,
+  useFocusNewEntry,
+  type EntryProblems,
+} from "./EntryFields";
 import { categoryChoices, CategorySelect, isCategoryChoice, UNASSIGNED } from "./CategorySelect";
 import { removeWithUndo } from "./removeWithUndo";
 import { TransferForm } from "./TransferDialog";
-import { todayLocalDate } from "@/lib/utils/dates";
+import { useFocusFirstProblem } from "@/hooks/useFocusFirstProblem";
 
 /** Add when `transaction` is left out; edit otherwise. */
 export function TransactionDialog({
@@ -126,11 +136,12 @@ function NewEntryForm({
   onClose: () => void;
 }) {
   // The amount typed so far follows a switch between forms.
-  const [draft, setDraft] = useState<{ direction: EntryDirection; amount: string }>({
+  const [draft, setDraft] = useState<{ direction: EntryDirection; amount: Cents | undefined }>({
     direction: "expense",
-    amount: "",
+    amount: undefined,
   });
-  const switchTo = (direction: EntryDirection, amount: string) => setDraft({ direction, amount });
+  const switchTo = (direction: EntryDirection, amount: Cents | undefined) =>
+    setDraft({ direction, amount });
   const { direction } = draft;
   if (direction === TRANSFER_TYPE) {
     return (
@@ -160,26 +171,30 @@ function NewEntryForm({
 }
 
 type ReadForm =
-  | { input: TransactionInput; status: TransactionStatus; error: null }
-  | { input: null; status: null; error: string };
+  | { input: TransactionInput; status: TransactionStatus; problems: null }
+  | { input: null; status: null; problems: EntryProblems };
 
 function readTransactionForm(formData: FormData): ReadForm {
-  const amount = parsePHPSafe(String(formData.get("amount") ?? ""));
-  if (!amount.success) return { input: null, status: null, error: amount.error.message };
+  const { amountCents, date, fields } = readEntryBasics(formData);
+  const description = String(formData.get("description") ?? "");
+  if (description.trim() === "") fields.description = "Add a description.";
+  if (hasFieldProblems(fields)) {
+    return { input: null, status: null, problems: { fields, form: null } };
+  }
   const categoryId = String(formData.get("categoryId") ?? UNASSIGNED);
   const status = formData.get("status");
   return {
     input: {
-      date: String(formData.get("date") ?? ""),
+      date,
       type: String(formData.get("type") ?? ""),
-      amountCents: amount.value,
+      amountCents,
       accountId: String(formData.get("accountId") ?? ""),
       categoryId: categoryId === UNASSIGNED ? null : categoryId,
-      description: String(formData.get("description") ?? ""),
+      description,
       notes: String(formData.get("notes") ?? ""),
     },
     status: isTransactionStatus(status) ? status : "cleared",
-    error: null,
+    problems: null,
   };
 }
 
@@ -196,17 +211,21 @@ function TransactionForm({
   actor: Actor;
   transaction?: TransactionRow;
   initialType?: TransactionType;
-  draftAmount?: string;
+  draftAmount?: Cents;
   accounts: AccountRow[];
   categories: CategoryList;
   /** Offered for a new entry, so it can become a transfer, carrying the amount typed. */
-  onDirectionChange?: (direction: EntryDirection, amount: string) => void;
+  onDirectionChange?: (direction: EntryDirection, amount: Cents | undefined) => void;
   onClose: () => void;
 }) {
   const { lastUsed, setLastUsed } = useQuickEntryStore();
   const navigate = useNavigate();
   const lastAccount = accounts.find((account) => account.id === lastUsed.accountId);
   const [type, setType] = useState<TransactionType>(transaction?.type ?? initialType);
+  const [amount, setAmount] = useState(transaction?.amountCents ?? draftAmount);
+  const [statusChoice, setStatusChoice] = useState<TransactionStatus>(
+    transaction?.status ?? "cleared"
+  );
   const amountRef = useRef<HTMLInputElement>(null);
   useFocusNewEntry(amountRef, !transaction);
   const [accountId, setAccountId] = useState(
@@ -228,10 +247,10 @@ function TransactionForm({
   const shownCategoryId =
     categoryId === UNASSIGNED || isChoice(categoryId) ? categoryId : UNASSIGNED;
 
-  const [error, saveAction] = useActionState(
-    async (_previous: string | null, formData: FormData) => {
-      const { input, status, error: readError } = readTransactionForm(formData);
-      if (readError !== null) return readError;
+  const [problems, saveAction] = useActionState(
+    async (_previous: EntryProblems, formData: FormData) => {
+      const { input, status, problems: readProblems } = readTransactionForm(formData);
+      if (readProblems !== null) return readProblems;
       try {
         if (transaction) {
           await editTransaction(actor, transaction.id, input);
@@ -262,13 +281,14 @@ function TransactionForm({
           toast.success("Transaction added", { action: distribute });
         }
         onClose();
-        return null;
+        return NO_PROBLEMS;
       } catch (caught) {
-        return errorMessage(caught, "Couldn't save the transaction.");
+        return formProblem(errorMessage(caught, "Couldn't save the transaction."));
       }
     },
-    null
+    NO_PROBLEMS
   );
+  const formRef = useFocusFirstProblem(problems);
 
   const remove = async () => {
     if (transaction && (await removeWithUndo(actor, transaction))) onClose();
@@ -276,33 +296,27 @@ function TransactionForm({
 
   return (
     <ActionForm
-      ref={advanceOnEnter}
+      ref={formRef}
       action={saveAction}
+      noValidate
       className="space-y-4"
       aria-label={transaction ? "Edit transaction" : "Add transaction"}
     >
       {/* The amount comes first, so the dialog opens with it focused. */}
       <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
-        <div className={cn("space-y-2", onDirectionChange && FULL_ROW)}>
-          <Label htmlFor="transaction-amount">Amount ({PESO_SIGN})</Label>
-          <Input
-            id="transaction-amount"
-            name="amount"
-            inputMode="decimal"
-            placeholder="0.00"
-            autoComplete="off"
-            enterKeyHint="next"
-            required
-            ref={amountRef}
-            defaultValue={transaction ? formatPHPInput(transaction.amountCents) : draftAmount}
-          />
-        </div>
+        <AmountField
+          value={amount}
+          onChange={setAmount}
+          error={problems.fields.amount}
+          inputRef={amountRef}
+          className={onDirectionChange && FULL_ROW}
+        />
         <DirectionChoice
           value={type}
           withTransfer={onDirectionChange !== undefined}
           onChange={(next) => {
             if (next === TRANSFER_TYPE) {
-              onDirectionChange?.(next, amountRef.current?.value ?? "");
+              onDirectionChange?.(next, amount);
               return;
             }
             setType(next);
@@ -310,49 +324,47 @@ function TransactionForm({
             if (next === "income" && !transaction) setCategoryId(UNASSIGNED);
           }}
         />
-        <div className="space-y-2">
-          <Label htmlFor="transaction-date">Date</Label>
+        <Field label="Date" error={problems.fields.date}>
           <Input
-            id="transaction-date"
             name="date"
             type="date"
             required
             defaultValue={transaction?.date ?? todayLocalDate()}
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="transaction-account">Account</Label>
-          <Select name="accountId" value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger id="transaction-account" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {accounts.map((choice) => (
-                <SelectItem key={choice.id} value={choice.id}>
-                  {choice.name}
-                  {choice.visibility === "personal" && " (Personal)"}
-                  {choice.retired && " (retired)"}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="transaction-category">Category</Label>
-          <CategorySelect
-            id="transaction-category"
-            name="categoryId"
-            choices={choices}
-            value={shownCategoryId}
-            onValueChange={setCategoryId}
-          />
-        </div>
+        </Field>
+        <Field label="Account">
+          {(control) => (
+            <Select name="accountId" value={accountId} onValueChange={setAccountId}>
+              <SelectTrigger {...control} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {accounts.map((choice) => (
+                  <SelectItem key={choice.id} value={choice.id}>
+                    {choice.name}
+                    {choice.visibility === "personal" && " (Personal)"}
+                    {choice.retired && " (retired)"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </Field>
+        <Field label="Category">
+          {(control) => (
+            <CategorySelect
+              {...control}
+              name="categoryId"
+              choices={choices}
+              value={shownCategoryId}
+              onValueChange={setCategoryId}
+            />
+          )}
+        </Field>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="transaction-description">Description</Label>
+      <Field label="Description" error={problems.fields.description}>
         <Input
-          id="transaction-description"
           name="description"
           required
           maxLength={DESCRIPTION_MAX_LENGTH}
@@ -360,31 +372,19 @@ function TransactionForm({
           enterKeyHint="next"
           defaultValue={transaction?.description}
         />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="transaction-notes">Notes (optional)</Label>
+      </Field>
+      <Field label="Notes (optional)">
         <Textarea
-          id="transaction-notes"
           name="notes"
           maxLength={NOTES_MAX_LENGTH}
           rows={2}
           defaultValue={transaction?.notes}
         />
-      </div>
+      </Field>
 
-      <fieldset className="space-y-2">
-        <legend className="text-label">Status</legend>
-        <RadioGroup
-          name="status"
-          defaultValue={transaction?.status ?? "cleared"}
-          className="grid grid-cols-2 gap-2"
-        >
-          <ChoiceItem id="transaction-status-cleared" value="cleared" label="Cleared" />
-          <ChoiceItem id="transaction-status-pending" value="pending" label="Pending" />
-        </RadioGroup>
-      </fieldset>
+      <StatusChoice value={statusChoice} onChange={setStatusChoice} />
 
-      <FormError>{error}</FormError>
+      <FormError>{problems.form}</FormError>
       <FormFooter destructive={transaction && { label: "Remove", onClick: () => void remove() }}>
         <SubmitButton pendingText="Saving...">
           {transaction ? "Save" : "Add transaction"}

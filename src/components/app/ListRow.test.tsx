@@ -34,6 +34,27 @@ describe("ListRow", () => {
     expect(onOpen).toHaveBeenCalledTimes(2);
   });
 
+  it("ends the label line with a status after the amount", () => {
+    render(
+      <ListRow
+        label="Groceries"
+        amount="₱250.00"
+        trailing={<span>Over budget</span>}
+        onClick={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("button")).toHaveTextContent(/^Groceries₱250\.00Over budget$/);
+  });
+
+  it("shows its content with nothing to open when it has no target", () => {
+    render(<ListRow label="ana@example.com" amount="Owner" actions={<button>Remove</button>} />);
+
+    expect(screen.getByText("ana@example.com")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+  });
+
   it("renders a link to its URL", async () => {
     await renderInRouter(
       <ListRow label="Groceries" link={{ to: "/transactions", search: { account: "t1" } }} />

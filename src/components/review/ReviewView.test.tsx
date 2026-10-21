@@ -118,7 +118,8 @@ describe("ReviewView", () => {
 
     const section = await screen.findByRole("region", { name: "Expenses without a category" });
     expect(within(section).getByText("2 expenses have no category yet.")).toBeInTheDocument();
-    expect(within(section).getByRole("link", { name: "Categorize" })).toHaveAttribute(
+    expect(within(section).getByText("2 to review")).toHaveClass("bg-secondary");
+    expect(within(section).getByRole("link", { name: /^Categorize/ })).toHaveAttribute(
       "href",
       "/transactions?needsCategory=true"
     );
@@ -132,7 +133,8 @@ describe("ReviewView", () => {
 
     const section = await screen.findByRole("region", { name: "Imported drafts" });
     expect(within(section).getByText("3 drafts wait on this device.")).toBeInTheDocument();
-    expect(within(section).getByRole("link", { name: "Review drafts" })).toHaveAttribute(
+    expect(within(section).getByText("3 to review")).toHaveClass("bg-secondary");
+    expect(within(section).getByRole("link", { name: /^Review drafts/ })).toHaveAttribute(
       "href",
       "/import"
     );

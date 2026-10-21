@@ -34,7 +34,9 @@ test("Review is all clear, then counts an expense without a category everywhere"
   await addUncategorizedExpense(page, "Lunch");
 
   await navigateTo(page, "Home");
-  const banner = page.getByRole("main").getByRole("link", { name: "1 item to review" });
+  const banner = page
+    .getByRole("list", { name: "Needs attention" })
+    .getByRole("link", { name: /^1 expense needs a category/ });
   await expect(banner).toBeVisible();
 
   if (isMobile) {
@@ -74,7 +76,7 @@ test("an Owner answers a Join Request from Review", async ({ page, browser }) =>
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Review join home");
   await page.getByRole("button", { name: "Create household" }).click();
-  await navigateTo(page, "Settings");
+  await page.goto("/settings?open=household");
   const code = await page.getByTestId("household-code").textContent();
   if (!code) throw new Error("The Owner sees no Household Code");
 

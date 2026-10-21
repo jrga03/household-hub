@@ -5,10 +5,10 @@ import { BackToThisMonth, MonthPicker } from "@/components/budgets/MonthPicker";
 import { readOpenItem, type OpenItemSearch } from "@/components/layout/DetailPane";
 import { HeaderActions } from "@/components/layout/HeaderActions";
 import { PageShell } from "@/components/layout/PageShell";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/app/Button";
 import { useHousehold } from "@/hooks/useHousehold";
 import { cn } from "@/lib/utils";
-import { isLocalMonth, localMonth } from "@/lib/utils/dates";
+import { daysLeftInMonth, isLocalMonth, localMonth } from "@/lib/utils/dates";
 import { useAuthStore } from "@/stores/authStore";
 
 export interface MonthSearch {
@@ -30,7 +30,8 @@ function BudgetPage() {
   const userId = useAuthStore((state) => state.user?.id);
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const currentMonth = localMonth(new Date());
+  const now = new Date();
+  const currentMonth = localMonth(now);
   const month = search.month ?? currentMonth;
   const planSearch: MonthSearch = search.month === undefined ? {} : { month: search.month };
   // This month is left out of the URL, so a bookmark keeps following the calendar.
@@ -68,6 +69,7 @@ function BudgetPage() {
             actor={{ householdId: household.id, userId }}
             month={month}
             currentMonth={currentMonth}
+            daysLeft={month === currentMonth ? daysLeftInMonth(now) : undefined}
           />
         )}
       </PageShell>

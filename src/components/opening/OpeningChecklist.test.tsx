@@ -78,6 +78,7 @@ describe("OpeningChecklist", () => {
   it("sends an empty household to the add-account form on Accounts", async () => {
     renderHome();
 
+    expect(await screen.findByRole("heading", { name: "Get started" })).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: "Add an account" })).toHaveAttribute(
       "href",
       "/accounts#add-account"

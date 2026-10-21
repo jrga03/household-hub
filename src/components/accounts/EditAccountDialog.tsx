@@ -1,15 +1,15 @@
 import { useActionState, useTransition } from "react";
 import { toast } from "sonner";
-import { ActionForm } from "@/components/ui/action-form";
+import { ActionForm } from "@/components/app/ActionForm";
+import { Button } from "@/components/app/Button";
+import { FormError } from "@/components/app/FormError";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/app/FormSheet";
-import { Button } from "@/components/ui/button";
-import { SubmitButton } from "@/components/ui/submit-button";
+import { SubmitButton } from "@/components/app/SubmitButton";
 import { ACCOUNT_TYPES, CREDIT_CARD, isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
 import { editAccount, retireAccount, type Actor } from "@/lib/commands/accounts";
-import { AccountDetailsFields, readAccountDetails } from "./AccountDetailsFields";
-import { FormError } from "@/components/ui/form-error";
 import { errorMessage } from "@/lib/utils";
+import { AccountDetailsFields, readAccountDetails } from "./AccountDetailsFields";
 
 const NON_CARD_TYPES = ACCOUNT_TYPES.filter((type) => type !== CREDIT_CARD);
 
@@ -18,31 +18,38 @@ const VISIBILITY_SUMMARY = {
   personal: "Personal: only you see it.",
 };
 
+interface SaveState {
+  startingBalanceError?: string;
+  error: string | null;
+}
+
 export function EditAccountDialog({
   actor,
   account,
   onCorrectBalance,
+  onRetired,
   onClose,
 }: {
   actor: Actor;
   account: AccountRow;
   onCorrectBalance: () => void;
+  onRetired: () => void;
   onClose: () => void;
 }) {
-  const [error, saveAction] = useActionState(
-    async (_previous: string | null, formData: FormData) => {
-      const { input, error: readError } = readAccountDetails(formData);
-      if (readError !== null) return readError;
+  const [state, saveAction] = useActionState(
+    async (_previous: SaveState, formData: FormData): Promise<SaveState> => {
+      const { input, startingBalanceError } = readAccountDetails(formData);
+      if (startingBalanceError !== null) return { startingBalanceError, error: null };
       try {
         await editAccount(actor, account.id, input);
         toast.success("Account saved");
         onClose();
-        return null;
+        return { error: null };
       } catch (caught) {
-        return errorMessage(caught, "Couldn't save the account.");
+        return { error: errorMessage(caught, "Couldn't save the account.") };
       }
     },
-    null
+    { error: null }
   );
   const [retiring, startRetiring] = useTransition();
 
@@ -52,6 +59,7 @@ export function EditAccountDialog({
         await retireAccount(actor, account.id);
         toast.success(`${account.name} retired`);
         onClose();
+        onRetired();
       } catch (caught) {
         toast.error(errorMessage(caught, "Couldn't retire the account."));
       }
@@ -66,14 +74,15 @@ export function EditAccountDialog({
       <ActionForm
         ref={advanceOnEnter}
         action={saveAction}
+        noValidate
         className="space-y-4"
         aria-label="Edit account"
       >
         <AccountDetailsFields
-          idPrefix="edit-account"
           types={isCreditCard(account) ? [CREDIT_CARD] : NON_CARD_TYPES}
           ownership={account}
           defaults={account}
+          startingBalanceError={state.startingBalanceError}
         />
         <p className="text-body text-muted-foreground">
           Balance drifted from the bank&apos;s? Use{" "}
@@ -88,9 +97,9 @@ export function EditAccountDialog({
             {VISIBILITY_SUMMARY[account.visibility]} Visibility can&apos;t be changed.
           </p>
         </div>
-        <FormError>{error}</FormError>
+        <FormError>{state.error}</FormError>
         <FormFooter destructive={{ label: "Retire account", onClick: retire, disabled: retiring }}>
-          <SubmitButton pendingText="Saving...">Save</SubmitButton>
+          <SubmitButton pendingText="Saving…">Save</SubmitButton>
         </FormFooter>
       </ActionForm>
     </FormSheet>

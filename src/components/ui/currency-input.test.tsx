@@ -75,6 +75,17 @@ describe("CurrencyInput", () => {
     expect(onChange).toHaveBeenLastCalledWith(0);
   });
 
+  it("leaves a cleared field empty instead of showing 0.00", () => {
+    render(<ControlledCurrencyInput onChangeSpy={vi.fn()} />);
+
+    const input = getInput();
+    expect(input.value).toBe("");
+    fireEvent.focus(input);
+    expect(input.value).toBe("");
+    fireEvent.blur(input);
+    expect(input.value).toBe("");
+  });
+
   it("silently ignores unparseable input on change and resets it on blur", () => {
     const onChange = vi.fn();
     render(<CurrencyInput value={cents(12345)} onChange={onChange} />);

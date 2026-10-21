@@ -3,10 +3,13 @@ import { format } from "date-fns";
 import { categoryNames } from "@/components/allocations/envelopes";
 import { DetailPane, resolveOpenItem, useOpenItem } from "@/components/layout/DetailPane";
 import { PageShell } from "@/components/layout/PageShell";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
+import { Button } from "@/components/app/Button";
+import { Checkbox } from "@/components/app/Checkbox";
+import { EmptyState } from "@/components/app/EmptyState";
+import { ListRow } from "@/components/app/ListRow";
+import { Money, spokenMoney } from "@/components/app/Money";
+import { SectionHeader } from "@/components/app/SectionHeader";
+import { useAllAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useImportReview } from "@/hooks/useImports";
 import type { AccountRow } from "@/lib/accounts/projection";
@@ -23,7 +26,7 @@ import {
 import { cn, countOf } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
 import { DraftDetail } from "./DraftDetail";
-import { FlagBadge, isSuggested, signedAmount, SuggestedBadge } from "./DraftLabels";
+import { FlagBadge, isSuggested, SuggestedBadge } from "./DraftLabels";
 import { ReadStatement } from "./ReadStatement";
 import { useDraftAction } from "./useDraftAction";
 
@@ -39,15 +42,12 @@ const draftTitle = (draft: ReviewedDraft) => draft.description || "Needs a descr
  */
 export function ImportView({ actor }: { actor: Actor }) {
   const imports = useImportReview();
-  const accounts = useAccounts();
-  const retiredAccounts = useRetiredAccounts();
+  const accounts = useAllAccounts();
   const categories = useCategoryList();
   const { openId, open, close } = useOpenItem();
 
-  if (!imports || !accounts || !retiredAccounts || !categories) return null;
-  const accountsById = new Map(
-    [...accounts, ...retiredAccounts].map((account) => [account.id, account])
-  );
+  if (!imports || !accounts || !categories) return null;
+  const accountsById = accounts.byId;
   const names = categoryNames(categories);
   // Saved or discarded, here or by a bulk action: it's gone, which closes it.
   const opened = resolveOpenItem(openId, (id) => findDraft(imports, id));
@@ -55,24 +55,22 @@ export function ImportView({ actor }: { actor: Actor }) {
 
   return (
     <>
-      <PageShell.List className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Read a statement</CardTitle>
-            <CardDescription>
+      <PageShell.List className="space-y-8">
+        <section aria-label="Read a statement" className="space-y-4">
+          <div className="space-y-1">
+            <SectionHeader title="Read a statement" />
+            <p className="text-body text-muted-foreground">
               Its lines wait below as drafts until you save or discard them.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ReadStatement />
-          </CardContent>
-        </Card>
+            </p>
+          </div>
+          <ReadStatement />
+        </section>
 
         {imports.length === 0 ? (
-          <p className="text-body text-muted-foreground">No open imports.</p>
+          <EmptyState className="border-t">No open imports.</EmptyState>
         ) : (
           imports.map((statement) => (
-            <ImportCard
+            <ImportSection
               key={statement.id}
               actor={actor}
               statement={statement}
@@ -115,7 +113,7 @@ function findDraft(imports: ReviewedImport[], draftId: string) {
   return undefined;
 }
 
-function ImportCard({
+function ImportSection({
   actor,
   statement,
   cardName,
@@ -160,79 +158,75 @@ function ImportCard({
     );
 
   return (
-    <Card>
-      <section aria-label={`Import ${statement.fileName}`} className="contents">
-        <CardHeader>
-          <CardTitle className="break-words">{statement.fileName}</CardTitle>
-          <CardDescription>
-            {cardName} · read {format(new Date(statement.importedAt), "MMM d, h:mm a")} ·{" "}
-            {draftsLabel(drafts.length)}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="mr-auto flex items-center gap-2">
-              <Checkbox
-                id={`select-all-${statement.id}`}
-                checked={allSelected ? true : selected.length > 0 ? "indeterminate" : false}
-                onCheckedChange={() =>
-                  choose(drafts.map((draft): [string, boolean] => [draft.id, !allSelected]))
-                }
-              />
-              <label htmlFor={`select-all-${statement.id}`} className="text-body">
-                Select all
-              </label>
-            </div>
-            <Button
-              size="sm"
-              disabled={busy || savable.length === 0 || undescribed.length > 0}
-              onClick={() => void save()}
-            >
-              Save {draftsLabel(savable.length)}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={busy || selected.length === 0}
-              onClick={() => void discard(selected)}
-            >
-              Discard {draftsLabel(selected.length)}
-            </Button>
-            {alreadyRecorded.length > 0 && (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={busy}
-                onClick={() => void discard(alreadyRecorded)}
-              >
-                Discard {alreadyRecorded.length} already recorded
-              </Button>
-            )}
-          </div>
+    <section aria-label={`Import ${statement.fileName}`} className="space-y-3 border-t pt-6">
+      <div className="space-y-1">
+        <SectionHeader title={statement.fileName} />
+        <p className="text-body text-muted-foreground">
+          {cardName} · read {format(new Date(statement.importedAt), "MMM d, h:mm a")} ·{" "}
+          {draftsLabel(drafts.length)}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="mr-auto flex items-center gap-2">
+          <Checkbox
+            id={`select-all-${statement.id}`}
+            checked={allSelected ? true : selected.length > 0 ? "indeterminate" : false}
+            onCheckedChange={() =>
+              choose(drafts.map((draft): [string, boolean] => [draft.id, !allSelected]))
+            }
+          />
+          <label htmlFor={`select-all-${statement.id}`} className="text-body">
+            Select all
+          </label>
+        </div>
+        <Button
+          size="sm"
+          disabled={busy || savable.length === 0 || undescribed.length > 0}
+          onClick={() => void save()}
+        >
+          Save {draftsLabel(savable.length)}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy || selected.length === 0}
+          onClick={() => void discard(selected)}
+        >
+          Discard {draftsLabel(selected.length)}
+        </Button>
+        {alreadyRecorded.length > 0 && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() => void discard(alreadyRecorded)}
+          >
+            Discard {alreadyRecorded.length} already recorded
+          </Button>
+        )}
+      </div>
 
-          {undescribed.length > 0 && (
-            <p className="text-body text-warning">
-              {countOf(undescribed.length, "selected draft needs", "selected drafts need")} a
-              description before saving.
-            </p>
-          )}
+      {undescribed.length > 0 && (
+        <p className="text-body text-warning">
+          {countOf(undescribed.length, "selected draft needs", "selected drafts need")} a
+          description before saving.
+        </p>
+      )}
 
-          <ul aria-label="Drafts" className="divide-y rounded-md border">
-            {drafts.map((draft) => (
-              <DraftItem
-                key={draft.id}
-                draft={draft}
-                categoryName={draft.categoryId ? categoryNames.get(draft.categoryId) : undefined}
-                selected={isSelected(draft)}
-                open={draft.id === openId}
-                onSelect={(next) => choose([[draft.id, next]])}
-                onOpen={() => onOpen(draft.id)}
-              />
-            ))}
-          </ul>
-        </CardContent>
-      </section>
-    </Card>
+      <ul aria-label="Drafts" className="-mx-4 border-y">
+        {drafts.map((draft) => (
+          <DraftItem
+            key={draft.id}
+            draft={draft}
+            categoryName={draft.categoryId ? categoryNames.get(draft.categoryId) : undefined}
+            selected={isSelected(draft)}
+            open={draft.id === openId}
+            onSelect={(next) => choose([[draft.id, next]])}
+            onOpen={() => onOpen(draft.id)}
+          />
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -252,33 +246,40 @@ function DraftItem({
   onOpen: () => void;
 }) {
   const { line, flag } = draft;
+  const amount = { kind: draft.type, cents: line.amount } as const;
   return (
-    <li className={cn("flex items-center gap-3 px-3 py-2", open && "bg-accent")}>
+    // The row and its checkbox highlight together.
+    <li
+      className={cn(
+        "flex items-center border-b pl-4 transition-colors last:border-b-0 hover:bg-accent",
+        open && "bg-accent"
+      )}
+    >
       <Checkbox
         checked={selected}
         onCheckedChange={(checked) => onSelect(checked === true)}
-        aria-label={`Select ${draft.description || signedAmount(draft.type, line.amount)}`}
+        aria-label={`Select ${draft.description || spokenMoney(amount)}`}
       />
-      <button
-        type="button"
+      <ListRow
         onClick={onOpen}
-        aria-current={open || undefined}
-        className="min-w-0 flex-1 text-left"
-      >
-        <p className={cn("truncate text-body", needsDescription(draft) && "text-warning")}>
-          {draftTitle(draft)}
-        </p>
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-muted-foreground">
-          <span>{format(parseLocalDate(line.purchaseDate), "MMM d")}</span>
-          {flag && <FlagBadge flag={flag} />}
-          {flag?.kind !== "card-payment" && (
-            <CategoryLabel draft={draft} categoryName={categoryName} />
-          )}
-        </p>
-      </button>
-      <span className="shrink-0 text-body tabular-nums">
-        {signedAmount(draft.type, line.amount)}
-      </span>
+        open={open}
+        className="min-w-0 flex-1 pl-3"
+        label={
+          <span className={needsDescription(draft) ? "text-warning" : undefined}>
+            {draftTitle(draft)}
+          </span>
+        }
+        amount={<Money {...amount} />}
+        detail={
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1 whitespace-normal">
+            <span>{format(parseLocalDate(line.purchaseDate), "MMM d")}</span>
+            {flag && <FlagBadge flag={flag} />}
+            {flag?.kind !== "card-payment" && (
+              <CategoryLabel draft={draft} categoryName={categoryName} />
+            )}
+          </span>
+        }
+      />
     </li>
   );
 }

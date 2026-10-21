@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { testUsers } from "./test-users";
+import { householdlessUser, testUsers } from "./test-users";
 
 const EMAIL_EXISTS_CODE = "email_exists";
 const FIXTURE_HOUSEHOLD_NAME = "Test household";
@@ -31,7 +31,11 @@ export async function ensureTestUsers(supabaseUrl: string, serviceRoleKey: strin
     auth: { persistSession: false },
   });
 
-  for (const { email, password } of Object.values(testUsers)) {
+  const fixtureUsers = [
+    ...Object.values(testUsers).map((user) => ({ ...user, inHousehold: true })),
+    { ...householdlessUser, inHousehold: false },
+  ];
+  for (const { email, password, inHousehold } of fixtureUsers) {
     const { error } = await adminClient.auth.admin.createUser({
       email,
       password,
@@ -41,7 +45,7 @@ export async function ensureTestUsers(supabaseUrl: string, serviceRoleKey: strin
       throw new Error(`Failed to create E2E fixture user ${email}: ${error.message}`);
     }
     console.log(`[global-setup] fixture user ${email}: ${error ? "already present" : "created"}`);
-    await ensureHousehold(supabaseUrl, serviceRoleKey, email, password);
+    if (inHousehold) await ensureHousehold(supabaseUrl, serviceRoleKey, email, password);
   }
 }
 

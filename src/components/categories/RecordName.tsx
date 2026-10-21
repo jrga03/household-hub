@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/app/StatusBadge";
 import type { GroupRow } from "@/lib/categories/projection";
 
 /** A group or category's name, badged when Personal, and when retired if `showRetired`. */
@@ -6,11 +6,11 @@ export function RecordName({ record, showRetired }: { record: GroupRow; showReti
   return (
     <span className="flex min-w-0 items-center gap-2">
       <span className="truncate font-medium">{record.name}</span>
-      {record.visibility === "personal" && <Badge variant="secondary">Personal</Badge>}
+      {record.visibility === "personal" && <StatusBadge tone="neutral">Personal</StatusBadge>}
       {showRetired && record.retired && (
-        <Badge variant="outline" className="font-normal text-muted-foreground">
+        <StatusBadge tone="outline" className="font-normal text-muted-foreground">
           Retired
-        </Badge>
+        </StatusBadge>
       )}
     </span>
   );

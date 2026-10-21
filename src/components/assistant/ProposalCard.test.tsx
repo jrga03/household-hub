@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { createAccount } from "@/lib/commands/accounts";
@@ -6,12 +7,13 @@ import { parsePHP } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { listTransactions } from "@/lib/transactions/projection";
-import type { ProposalItem } from "@/lib/assistant/conversation";
+import type { ProposalDecision, ProposalItem } from "@/lib/assistant/conversation";
 import { loadChat } from "@/lib/assistant/savedChat";
 import { ProposalCard } from "./ProposalCard";
 import { HOUSEHOLD } from "@/test/events";
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
+const DISMISSED_DECISION: ProposalDecision = { outcome: "dismissed", content: "{}" };
 const TRANSACTION_ID = "eeeeeeee-0000-4000-8000-000000000001";
 
 async function chooseOption(label: string, option: string) {
@@ -59,6 +61,14 @@ function proposalOn(accountId: string, categoryId: string): ProposalItem {
       notes: "",
     },
   };
+}
+
+/** Plays the store: the decision comes back as the card's item, as it does in the chat. */
+function DecidingCard({ start }: { start: ProposalItem }) {
+  const [item, setItem] = useState(start);
+  const decide = (_callId: string, decision: ProposalDecision) =>
+    setItem((current) => ({ ...current, decision }));
+  return <ProposalCard item={item} actor={MEMBER} onDecide={decide} />;
 }
 
 beforeEach(async () => {
@@ -211,5 +221,36 @@ describe("ProposalCard", () => {
     expect(screen.getByLabelText("Account")).toHaveTextContent("BPI");
     expect(screen.getByLabelText("Date")).toHaveValue("2026-10-15");
     expect(screen.queryByRole("button", { name: "Confirm" })).not.toBeInTheDocument();
+  });
+
+  it("keeps keyboard focus on the card's outcome after Dismiss", async () => {
+    const { gcash, dining } = await setUp();
+    render(<DecidingCard start={proposalOn(gcash.id, dining.id)} />);
+
+    const dismiss = await screen.findByRole("button", { name: "Dismiss" });
+    dismiss.focus();
+    fireEvent.click(dismiss);
+
+    await waitFor(() => expect(document.activeElement).toHaveTextContent("Dismissed"));
+  });
+
+  it("keeps keyboard focus on the card's outcome after Confirm", async () => {
+    const { gcash, dining } = await setUp();
+    render(<DecidingCard start={proposalOn(gcash.id, dining.id)} />);
+
+    const confirmButton = await screen.findByRole("button", { name: "Confirm" });
+    confirmButton.focus();
+    fireEvent.click(confirmButton);
+
+    await waitFor(() => expect(document.activeElement).toHaveTextContent("Recorded"));
+  });
+
+  it("doesn't take focus for a decision made before it showed", async () => {
+    const { gcash, dining } = await setUp();
+    const item = { ...proposalOn(gcash.id, dining.id), decision: { ...DISMISSED_DECISION } };
+    render(<ProposalCard item={item} actor={MEMBER} onDecide={vi.fn()} />);
+
+    await screen.findByText("Dismissed");
+    expect(document.activeElement).toBe(document.body);
   });
 });

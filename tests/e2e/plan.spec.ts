@@ -8,6 +8,21 @@ const unassignedItem = (page: Page, account: string) =>
     .getByRole("listitem")
     .filter({ has: page.getByText(account, { exact: true }) });
 
+/** A Budget row, found by its one button: the category's name. */
+const budgetRow = (page: Page, name: string | RegExp) =>
+  page
+    .getByRole("listitem")
+    .filter({ has: page.getByRole("button", { name, exact: typeof name === "string" }) });
+
+/** A Budget group's left, in its header ahead of the rows'. */
+const groupLeft = (page: Page, group: string) =>
+  page.getByRole("region", { name: group }).getByTestId("left").first();
+
+const barIndicator = (page: Page, name: string) =>
+  page
+    .getByRole("progressbar", { name: `${name} spent` })
+    .locator("[data-slot=progress-indicator]");
+
 async function addAccount(page: Page, name: string) {
   const form = page.getByRole("form", { name: "Add an account" });
   await form.getByLabel("Account name").fill(name);
@@ -76,19 +91,16 @@ test("a payroll distribution from Plan leaves the source account's Unassigned at
 
   await expect(form).toBeHidden();
   await expect(page).toHaveURL(/\/plan$/);
-  const bar = page.getByRole("region", { name: "To assign" });
-  await expect(bar).toContainText("₱0.00 to assign");
-  await bar.getByRole("button", { name: "By account" }).click();
+  await expect(page.getByRole("region", { name: "To assign" })).toContainText("₱0.00");
+  await page.getByRole("button", { name: "By account" }).click();
   await expect(unassignedItem(page, "BPI")).toContainText("₱0.00");
   await expect(unassignedItem(page, "GCash")).toContainText("₱0.00");
   await page.screenshot({ path: test.info().outputPath("plan.png"), fullPage: true });
 
   await page.goto("/budget");
-  await expect(page.getByLabel("Transportation budget, spent and left")).toHaveText(
-    "Budget₱3,000.00Spent₱0.00Left₱3,000.00₱3,000.00"
-  );
+  await expect(budgetRow(page, "Transportation").getByTestId("left")).toContainText("₱3,000.00");
 
-  // Spending past Groceries' budget turns it and its group red.
+  // Spending past Groceries' budget turns it and its group's left and bar to shortfall.
   await page.keyboard.press("n");
   const expense = page.getByRole("dialog", { name: "Add transaction" });
   await expense.getByLabel("Amount (₱)").fill("9000");
@@ -97,15 +109,15 @@ test("a payroll distribution from Plan leaves the source account's Unassigned at
   await expense.getByLabel("Description", { exact: true }).fill("Party supplies");
   await expense.getByRole("button", { name: "Add transaction" }).click();
   await expect(expense).toBeHidden();
-  for (const name of ["Groceries", "Food"]) {
-    const figures = page.getByLabel(`${name} budget, spent and left`);
-    await expect(figures).toHaveText("Budget₱8,000.00Spent₱9,000.00Left−₱1,000.00minus ₱1,000.00");
-    await expect(figures.getByText("−₱1,000.00").locator("..")).toHaveClass(/text-shortfall/);
-    await expect(page.getByRole("progressbar", { name: `${name} spent` })).toHaveAttribute(
-      "data-overspent",
-      "true"
-    );
-  }
+  const groceriesLeft = budgetRow(page, "Groceries").getByTestId("left");
+  await expect(groceriesLeft).toContainText("−₱1,000.00");
+  await expect(groceriesLeft.getByText("−₱1,000.00").locator("..")).toHaveClass(/text-shortfall/);
+  await expect(groupLeft(page, "Food").getByText("−₱1,000.00").locator("..")).toHaveClass(
+    /text-shortfall/
+  );
+  await expect(barIndicator(page, "Groceries")).toHaveClass(/bg-shortfall/);
+  await expect(barIndicator(page, "All budgets")).toHaveClass(/bg-primary/);
+
   // A category retired this month keeps its row and its spending in the group.
   await page.keyboard.press("n");
   await expense.getByLabel("Amount (₱)").fill("500");
@@ -122,13 +134,11 @@ test("a payroll distribution from Plan leaves the source account's Unassigned at
   await retire.getByRole("button", { name: "Move and retire" }).click();
   await expect(retire).toBeHidden();
   await page.goto("/budget");
-  await expect(page.getByRole("button", { name: "Restaurants ledger" })).toContainText("Retired");
-  await expect(page.getByLabel("Restaurants budget, spent and left")).toHaveText(
-    "BudgetNoneSpent₱500.00"
-  );
-  await expect(page.getByLabel("Food budget, spent and left")).toHaveText(
-    "Budget₱8,000.00Spent₱9,500.00Left−₱1,500.00minus ₱1,500.00"
-  );
+  const restaurants = budgetRow(page, /^Restaurants/);
+  await expect(restaurants).toContainText("Retired");
+  await expect(restaurants).toContainText("None");
+  await expect(restaurants.getByTestId("left")).toContainText("₱500.00");
+  await expect(groupLeft(page, "Food")).toContainText("−₱1,500.00");
 
   // The bar slides to full; wait for it before the screenshot.
   const groceriesBar = page.getByRole("progressbar", { name: "Groceries spent" });

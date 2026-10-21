@@ -1,12 +1,15 @@
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { ActionForm } from "@/components/ui/action-form";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { SubmitButton } from "@/components/ui/submit-button";
+import { Info } from "lucide-react";
+import { ActionForm } from "@/components/app/ActionForm";
+import { Button } from "@/components/app/Button";
+import { Field } from "@/components/app/Field";
+import { FormError } from "@/components/app/FormError";
+import { Input } from "@/components/app/Input";
+import { SectionHeader } from "@/components/app/SectionHeader";
+import { StatusBadge } from "@/components/app/StatusBadge";
+import { SubmitButton } from "@/components/app/SubmitButton";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { householdQueryOptions } from "@/lib/households";
 import {
@@ -16,7 +19,6 @@ import {
   requestToJoin,
   type MyJoinRequest,
 } from "@/lib/join-requests";
-import { FormError } from "@/components/ui/form-error";
 import { errorMessage } from "@/lib/utils";
 
 // How often a pending requester checks whether the Owner has answered.
@@ -69,46 +71,42 @@ export function JoinForm({ userId }: { userId: string }) {
   );
 
   return (
-    <Card>
-      <CardContent className="space-y-4">
-        <CardDescription>
-          Ask a member for their Household Code. The Owner approves your request.
-        </CardDescription>
-        <ActionForm action={joinAction} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="household-code">Household Code</Label>
-            <Input
-              id="household-code"
-              name="code"
-              required
-              maxLength={HOUSEHOLD_CODE_INPUT_MAX_LENGTH}
-              placeholder="e.g. 7KQ2MX"
-              autoComplete="off"
-              autoCapitalize="characters"
-              spellCheck={false}
-              className="font-mono tracking-widest uppercase"
-            />
-          </div>
+    <div className="space-y-4">
+      <p className="text-body text-muted-foreground">
+        Ask a member for their Household Code. The Owner approves your request.
+      </p>
+      <ActionForm action={joinAction} className="space-y-4">
+        <Field label="Household Code">
+          <Input
+            name="code"
+            required
+            maxLength={HOUSEHOLD_CODE_INPUT_MAX_LENGTH}
+            placeholder="e.g. 7KQ2MX"
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            className="font-mono tracking-widest uppercase"
+          />
+        </Field>
 
-          <FormError>{state.error}</FormError>
+        <FormError>{state.error}</FormError>
 
-          <SubmitButton
-            className="w-full"
-            variant="outline"
-            pendingText="Sending..."
-            disabled={!isOnline}
-            aria-describedby={isOnline ? undefined : "join-offline-hint"}
-          >
-            Send request
-          </SubmitButton>
-          {!isOnline && (
-            <p id="join-offline-hint" className="text-body text-muted-foreground">
-              Joining a household needs a connection. You&apos;re offline right now.
-            </p>
-          )}
-        </ActionForm>
-      </CardContent>
-    </Card>
+        <SubmitButton
+          className="w-full"
+          variant="outline"
+          pendingText="Sending…"
+          disabled={!isOnline}
+          aria-describedby={isOnline ? undefined : "join-offline-hint"}
+        >
+          Send request
+        </SubmitButton>
+        {!isOnline && (
+          <p id="join-offline-hint" className="text-body text-muted-foreground">
+            Joining a household needs a connection. You&apos;re offline right now.
+          </p>
+        )}
+      </ActionForm>
+    </div>
   );
 }
 
@@ -121,9 +119,14 @@ export function PendingRequest({ userId, request }: RequestProps) {
   return (
     <RequestCard
       title="Request sent"
+      status={
+        <StatusBadge tone="outline" icon={Info}>
+          Pending
+        </StatusBadge>
+      }
       description="The household's Owner will accept or decline it. You'll go straight in once they accept."
       actionLabel="Cancel request"
-      pendingLabel="Cancelling..."
+      pendingLabel="Cancelling…"
       onAction={() => cancelJoinRequest(userId, request.id)}
     />
   );
@@ -133,9 +136,10 @@ export function DeclinedRequest({ userId, request }: RequestProps) {
   return (
     <RequestCard
       title="Request not accepted"
+      status={<StatusBadge tone="warning">Declined</StatusBadge>}
       description="Your request to join wasn't accepted this time. You can ask again with a code, or start your own household."
       actionLabel="OK"
-      pendingLabel="One moment..."
+      pendingLabel="One moment…"
       onAction={() => dismissDeclinedJoinRequest(userId, request.id)}
     />
   );
@@ -143,6 +147,7 @@ export function DeclinedRequest({ userId, request }: RequestProps) {
 
 interface RequestCardProps {
   title: string;
+  status: ReactNode;
   description: string;
   actionLabel: string;
   pendingLabel: string;
@@ -151,6 +156,7 @@ interface RequestCardProps {
 
 function RequestCard({
   title,
+  status,
   description,
   actionLabel,
   pendingLabel,
@@ -173,24 +179,20 @@ function RequestCard({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle role="heading" aria-level={2}>
-          {title}
-        </CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <FormError>{error}</FormError>
-        <Button
-          variant="outline"
-          className="w-full"
-          disabled={!isOnline || isWorking}
-          onClick={() => void runAction()}
-        >
-          {isWorking ? pendingLabel : actionLabel}
-        </Button>
-      </CardContent>
-    </Card>
+    <section aria-label={title} className="space-y-4">
+      <div className="space-y-1">
+        <SectionHeader title={title} action={status} />
+        <p className="text-body text-muted-foreground">{description}</p>
+      </div>
+      <FormError>{error}</FormError>
+      <Button
+        variant="outline"
+        className="w-full"
+        disabled={!isOnline || isWorking}
+        onClick={() => void runAction()}
+      >
+        {isWorking ? pendingLabel : actionLabel}
+      </Button>
+    </section>
   );
 }

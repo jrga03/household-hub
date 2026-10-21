@@ -25,9 +25,5 @@ function Login() {
     }
   }, [user, redirect, router]);
 
-  return (
-    <div className="flex min-h-dvh items-center justify-center bg-background px-4">
-      <LoginForm />
-    </div>
-  );
+  return <LoginForm />;
 }

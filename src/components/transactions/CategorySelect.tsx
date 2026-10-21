@@ -6,7 +6,7 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/app/Select";
 import type { AccountRow } from "@/lib/accounts/projection";
 import { canHoldMoneyIn, type CategoryList, type CategoryRow } from "@/lib/categories/projection";
 
@@ -45,15 +45,20 @@ export function categoryChoices(
 export const isCategoryChoice = (choices: CategoryChoiceGroup[], id: string | null) =>
   choices.some((group) => group.categories.some((category) => category.id === id));
 
-/** Unassigned, then the choices by group. `value` is a category id or UNASSIGNED. */
+/**
+ * Unassigned, then the choices by group. `value` is a category id or UNASSIGNED.
+ * Inside a `Field`, spread its control props onto it.
+ */
 export function CategorySelect({
-  id,
   name,
   choices,
   value,
   onValueChange,
+  ...trigger
 }: {
   id: string;
+  "aria-describedby"?: string;
+  "aria-invalid"?: true;
   name?: string;
   choices: CategoryChoiceGroup[];
   value: string;
@@ -61,7 +66,7 @@ export function CategorySelect({
 }) {
   return (
     <Select name={name} value={value} onValueChange={onValueChange}>
-      <SelectTrigger id={id} className="w-full">
+      <SelectTrigger {...trigger} className="w-full">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

@@ -15,7 +15,7 @@ test.describe("Accessibility", () => {
     });
   }
 
-  for (const path of ["/", "/accounts", "/settings"]) {
+  for (const path of ["/", "/accounts", "/settings", "/budget"]) {
     test(`should not have accessibility violations on ${path} when signed in`, async ({ page }) => {
       await login(page);
       await page.goto(path);

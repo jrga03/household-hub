@@ -1,5 +1,5 @@
 import { UNASSIGNED_ENVELOPE, type Envelope } from "@/lib/allocations/events";
-import type { CategoryList } from "@/lib/categories/projection";
+import { categoriesInUse, type CategoryList } from "@/lib/categories/projection";
 import type { Cents } from "@/lib/currency";
 import { byName } from "@/lib/utils/sort";
 
@@ -16,11 +16,7 @@ export function envelopeFromKey(key: string): Envelope | null {
 
 /** Every category's name on this device, retired ones included, by category ID. */
 export function categoryNames(list: CategoryList): Map<string, string> {
-  const categories = [
-    ...list.groups.flatMap((group) => group.categories),
-    ...list.ungrouped,
-    ...list.retiredCategories,
-  ];
+  const categories = [...categoriesInUse(list), ...list.retiredCategories];
   return new Map(categories.map((category) => [category.id, category.name]));
 }
 

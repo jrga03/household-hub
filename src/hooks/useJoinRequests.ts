@@ -7,11 +7,10 @@ import { pendingJoinRequestsQueryOptions } from "@/lib/join-requests";
  * from the server, so offline this is the last list fetched this session, or
  * nothing after a reload.
  */
-export function usePendingJoinRequests(options: { refetchInterval?: number } = {}) {
+export function usePendingJoinRequests({ poll = false }: { poll?: boolean } = {}) {
   const { household, isOwner } = useHousehold();
   return useQuery({
-    ...pendingJoinRequestsQueryOptions(household?.id ?? ""),
+    ...pendingJoinRequestsQueryOptions(household?.id ?? "", { poll }),
     enabled: household !== null && isOwner,
-    ...options,
   });
 }

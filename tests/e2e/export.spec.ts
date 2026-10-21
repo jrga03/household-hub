@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { test, expect, type Page } from "@playwright/test";
-import { chooseOption, signUpNewPerson, navigateTo } from "./fixtures/helpers";
+import { chooseOption, navigateTo, openSettingsSection, signUpNewPerson } from "./fixtures/helpers";
 
 async function downloadText(page: Page, buttonName: string) {
   const [download] = await Promise.all([
@@ -40,6 +40,7 @@ test("exports transactions and the event log offline, from what the device holds
 
   await page.context().setOffline(true);
   await navigateTo(page, "Settings");
+  await openSettingsSection(page, "Export");
   await expect(page.getByRole("button", { name: "Transactions (CSV)" })).toBeVisible();
 
   const csv = await downloadText(page, "Transactions (CSV)");

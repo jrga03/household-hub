@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { CurrencyInput } from "@/components/app/CurrencyInput";
+import { Field } from "@/components/app/Field";
+import { Input } from "@/components/app/Input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/app/Select";
 import { useAccounts } from "@/hooks/useAccounts";
 import {
   ACCOUNT_NAME_MAX_LENGTH,
@@ -18,7 +19,7 @@ import {
 } from "@/lib/accounts/events";
 import { payingAccountChoices } from "@/lib/accounts/paying-account";
 import type { AccountDetailsInput } from "@/lib/commands/accounts";
-import { formatPHPInput, parsePHPSafe, PESO_SIGN } from "@/lib/currency";
+import { parsePHPSafe, PESO_SIGN, type Cents } from "@/lib/currency";
 import { VISIBILITY_LABELS, type Ownership } from "@/lib/events/ownership";
 
 export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
@@ -35,25 +36,26 @@ export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
  * is shown, not chosen.
  */
 export function AccountDetailsFields({
-  idPrefix,
   types,
   ownership,
   defaults,
+  startingBalanceError,
 }: {
-  idPrefix: string;
   types: readonly AccountType[];
   ownership: Ownership;
   defaults?: AccountDetails;
+  startingBalanceError?: string;
 }) {
   const [type, setType] = useState(defaults?.type ?? types[0]);
+  const [startingBalance, setStartingBalance] = useState<Cents | undefined>(
+    defaults?.startingBalanceCents
+  );
   const isCard = type === CREDIT_CARD;
 
   return (
     <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
-      <div className="space-y-2">
-        <Label htmlFor={`${idPrefix}-name`}>Account name</Label>
+      <Field label="Account name">
         <Input
-          id={`${idPrefix}-name`}
           name="name"
           required
           maxLength={ACCOUNT_NAME_MAX_LENGTH}
@@ -62,52 +64,49 @@ export function AccountDetailsFields({
           enterKeyHint="next"
           defaultValue={defaults?.name}
         />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={`${idPrefix}-type`}>Type</Label>
-        {types.length === 1 ? (
-          <>
-            <input type="hidden" name="type" value={type ?? ""} />
-            <p id={`${idPrefix}-type`} className="py-2 text-body">
-              {types[0] && ACCOUNT_TYPE_LABELS[types[0]]}
-            </p>
-          </>
-        ) : (
-          <Select
-            name="type"
-            value={type}
-            onValueChange={(value) => isAccountType(value) && setType(value)}
-          >
-            <SelectTrigger id={`${idPrefix}-type`} className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {types.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {ACCOUNT_TYPE_LABELS[option]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={`${idPrefix}-starting-balance`}>
-          {isCard ? "Starting amount owed" : "Starting balance"} ({PESO_SIGN})
-        </Label>
-        <Input
-          id={`${idPrefix}-starting-balance`}
+      </Field>
+      {types.length === 1 ? (
+        <Field label="Type">
+          <Input readOnly value={types[0] ? ACCOUNT_TYPE_LABELS[types[0]] : ""} />
+        </Field>
+      ) : (
+        <Field label="Type">
+          {(control) => (
+            <Select
+              name="type"
+              value={type}
+              onValueChange={(value) => isAccountType(value) && setType(value)}
+            >
+              <SelectTrigger {...control} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {types.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {ACCOUNT_TYPE_LABELS[option]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </Field>
+      )}
+      {types.length === 1 && <input type="hidden" name="type" value={type ?? ""} />}
+      <Field
+        label={`${isCard ? "Starting amount owed" : "Starting balance"} (${PESO_SIGN})`}
+        error={startingBalanceError}
+      >
+        <CurrencyInput
           name="startingBalance"
-          inputMode="decimal"
           placeholder="0.00"
           autoComplete="off"
           enterKeyHint="done"
-          defaultValue={defaults && formatPHPInput(defaults.startingBalanceCents)}
+          value={startingBalance}
+          onChange={setStartingBalance}
         />
-      </div>
+      </Field>
       {isCard && (
         <PayingAccountField
-          id={`${idPrefix}-paying-account`}
           ownership={ownership}
           defaultValue={defaults?.payingAccountId ?? undefined}
         />
@@ -117,11 +116,9 @@ export function AccountDetailsFields({
 }
 
 function PayingAccountField({
-  id,
   ownership,
   defaultValue,
 }: {
-  id: string;
   ownership: Ownership;
   defaultValue?: string;
 }) {
@@ -130,20 +127,25 @@ function PayingAccountField({
   // A Paying Account retired on another device is no longer a choice; the member picks again.
   const stillChoosable = choices.some((choice) => choice.id === defaultValue);
 
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>Paid from</Label>
-      {choices.length === 0 ? (
-        <p id={id} className="text-body text-muted-foreground">
+  if (choices.length === 0) {
+    return (
+      <div className="space-y-2">
+        <p className="text-label">Paid from</p>
+        <p className="text-body text-muted-foreground">
           Add a {visibility} account other than a credit card first.
         </p>
-      ) : (
+      </div>
+    );
+  }
+  return (
+    <Field label="Paid from">
+      {(control) => (
         <Select
           name="payingAccountId"
           required
           defaultValue={stillChoosable ? defaultValue : undefined}
         >
-          <SelectTrigger id={id} className="w-full">
+          <SelectTrigger {...control} className="w-full">
             <SelectValue placeholder={`Choose a ${visibility} account`} />
           </SelectTrigger>
           <SelectContent>
@@ -155,15 +157,19 @@ function PayingAccountField({
           </SelectContent>
         </Select>
       )}
-    </div>
+    </Field>
   );
 }
 
-type ReadDetails = { input: AccountDetailsInput; error: null } | { input: null; error: string };
+type ReadDetails =
+  | { input: AccountDetailsInput; startingBalanceError: null }
+  | { input: null; startingBalanceError: string };
 
 export function readAccountDetails(formData: FormData): ReadDetails {
   const startingBalance = parsePHPSafe(String(formData.get("startingBalance") ?? ""));
-  if (!startingBalance.success) return { input: null, error: startingBalance.error.message };
+  if (!startingBalance.success) {
+    return { input: null, startingBalanceError: startingBalance.error.message };
+  }
   // The picker is shown only for a card, so any other type submits no Paying Account.
   const payingAccountId = formData.get("payingAccountId");
   return {
@@ -173,6 +179,6 @@ export function readAccountDetails(formData: FormData): ReadDetails {
       startingBalanceCents: startingBalance.value,
       payingAccountId: typeof payingAccountId === "string" ? payingAccountId : null,
     },
-    error: null,
+    startingBalanceError: null,
   };
 }

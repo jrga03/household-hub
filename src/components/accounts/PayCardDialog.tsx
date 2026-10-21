@@ -1,18 +1,27 @@
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ActionForm } from "@/components/ui/action-form";
-import { advanceOnEnter, FormFooter, FormSheet } from "@/components/app/FormSheet";
-import { FormError } from "@/components/ui/form-error";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ActionForm } from "@/components/app/ActionForm";
+import { CurrencyInput } from "@/components/app/CurrencyInput";
+import { Field } from "@/components/app/Field";
+import { FormError } from "@/components/app/FormError";
+import { FormFooter, FormSheet, FULL_ROW } from "@/components/app/FormSheet";
+import { Input } from "@/components/app/Input";
+import { Money } from "@/components/app/Money";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { SubmitButton } from "@/components/ui/submit-button";
+} from "@/components/app/Select";
+import { SubmitButton } from "@/components/app/SubmitButton";
+import {
+  hasFieldProblems,
+  NO_PROBLEMS,
+  readEntryBasics,
+  useFocusNewEntry,
+  type EntryProblems,
+} from "@/components/transactions/EntryFields";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useAccountMoney } from "@/hooks/useTransactions";
 import { payingAccountChoices } from "@/lib/accounts/paying-account";
@@ -20,18 +29,11 @@ import type { AccountRow } from "@/lib/accounts/projection";
 import { cardPaymentEnvelope, UNASSIGNED_ENVELOPE } from "@/lib/allocations/events";
 import type { Actor } from "@/lib/commands/accounts";
 import { payCard } from "@/lib/commands/cards";
-import {
-  diffCents,
-  formatPHP,
-  formatPHPInput,
-  parsePHPSafe,
-  PESO_SIGN,
-  ZERO_CENTS,
-  type Cents,
-} from "@/lib/currency";
+import { diffCents, formatPHP, PESO_SIGN, ZERO_CENTS, type Cents } from "@/lib/currency";
 import { moneyIn, reservationFreed, type AccountMoney } from "@/lib/transactions/money";
 import { errorMessage } from "@/lib/utils";
 import { todayLocalDate } from "@/lib/utils/dates";
+import { useFocusFirstProblem } from "@/hooks/useFocusFirstProblem";
 
 /** A payment read from a statement, to record as it was made. */
 export interface PaymentPrefill {
@@ -68,7 +70,7 @@ export function PayCardDialog({
       onClose={onClose}
     >
       {payers.length === 0 ? (
-        <p className="text-body text-muted-foreground">
+        <p className="pb-6 text-body text-muted-foreground">
           Add a bank, cash or e-wallet account seen by the same people as {card.name} first.
         </p>
       ) : (
@@ -110,97 +112,99 @@ function PayCardForm({
   const reserved = payingAccount ? cardPaymentIn(money, payingAccount.id, card) : ZERO_CENTS;
   const [payerId, setPayerId] = useState(payingAccount?.id ?? payers[0]?.id ?? "");
   const prefilledAmount = prefill?.amountCents ?? reserved;
-  const [amountText, setAmountText] = useState(
-    prefilledAmount > 0 ? formatPHPInput(prefilledAmount) : ""
+  const [amount, setAmount] = useState<Cents | undefined>(
+    prefilledAmount > 0 ? prefilledAmount : undefined
   );
   const payer = payers.find((choice) => choice.id === payerId);
-  const amount = parsePHPSafe(amountText);
 
-  const [error, payAction] = useActionState(
-    async (_previous: string | null, formData: FormData) => {
-      const parsed = parsePHPSafe(String(formData.get("amount") ?? ""));
-      if (!parsed.success) return parsed.error.message;
+  const [problems, payAction] = useActionState(
+    async (_previous: EntryProblems, formData: FormData): Promise<EntryProblems> => {
+      const { amountCents, date, fields } = readEntryBasics(formData);
+      if (hasFieldProblems(fields)) return { fields, form: null };
       try {
         await payCard(actor, {
           cardId: card.id,
           fromAccountId: String(formData.get("fromAccountId") ?? ""),
-          amountCents: parsed.value,
-          date: String(formData.get("date") ?? ""),
+          amountCents,
+          date,
         });
-        toast.success(`Paid ${formatPHP(parsed.value)} to ${card.name}`);
+        toast.success(`Paid ${formatPHP(amountCents)} to ${card.name}`);
         onPaid();
-        return null;
+        return NO_PROBLEMS;
       } catch (caught) {
-        return errorMessage(caught, `Couldn't pay ${card.name}.`);
+        return { fields: {}, form: errorMessage(caught, `Couldn't pay ${card.name}.`) };
       }
     },
-    null
+    NO_PROBLEMS
   );
+  const formRef = useFocusFirstProblem(problems);
+  const amountRef = useRef<HTMLInputElement>(null);
+  useFocusNewEntry(amountRef, true);
 
   return (
     <ActionForm
-      ref={advanceOnEnter}
+      ref={formRef}
       action={payAction}
+      noValidate
       className="space-y-4"
       aria-label={`Pay ${card.name}`}
     >
       <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="pay-amount">Amount ({PESO_SIGN})</Label>
-          <Input
-            id="pay-amount"
+        <Field label={`Amount (${PESO_SIGN})`} error={problems.fields.amount}>
+          <CurrencyInput
+            ref={amountRef}
             name="amount"
-            inputMode="decimal"
             placeholder="0.00"
             autoComplete="off"
             enterKeyHint="done"
             required
-            value={amountText}
-            onChange={(event) => setAmountText(event.target.value)}
+            value={amount}
+            onChange={setAmount}
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="pay-date">Date</Label>
+        </Field>
+        <Field label="Date" error={problems.fields.date}>
           <Input
-            id="pay-date"
             name="date"
             type="date"
             required
             defaultValue={prefill?.date ?? todayLocalDate()}
           />
-        </div>
-        <div className="space-y-2 @[480px]:col-span-2">
-          <Label htmlFor="pay-from">Pay from</Label>
-          <Select name="fromAccountId" value={payerId} onValueChange={setPayerId}>
-            <SelectTrigger id="pay-from" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {payers.map((choice) => (
-                <SelectItem key={choice.id} value={choice.id}>
-                  {choice.name}
-                  {choice.id === card.payingAccountId && " (Paying Account)"}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        </Field>
+        <div className={FULL_ROW}>
+          <Field label="Pay from">
+            {(control) => (
+              <Select name="fromAccountId" value={payerId} onValueChange={setPayerId}>
+                <SelectTrigger {...control} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {payers.map((choice) => (
+                    <SelectItem key={choice.id} value={choice.id}>
+                      {choice.name}
+                      {choice.id === card.payingAccountId && " (Paying Account)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
         </div>
       </div>
 
-      {payer && amount.success && (
+      {payer && amount !== undefined && (
         <PaymentNote
           card={card}
           payer={payer}
           payingAccount={payingAccount}
           reserved={reserved}
-          amount={amount.value}
+          amount={amount}
           money={money}
         />
       )}
 
-      <FormError>{error}</FormError>
+      <FormError>{problems.form}</FormError>
       <FormFooter>
-        <SubmitButton pendingText="Paying...">Pay {card.name}</SubmitButton>
+        <SubmitButton pendingText="Paying…">Pay {card.name}</SubmitButton>
       </FormFooter>
     </ActionForm>
   );
@@ -227,8 +231,9 @@ function PaymentNote({
     if (left >= 0) return null;
     return (
       <p className="text-body text-shortfall" aria-live="polite">
-        This leaves Card Payment · {card.name} in {payer.name} at {formatPHP(left)}. You can still
-        pay; it shows in red until money comes in.
+        This leaves Card Payment · {card.name} in {payer.name} at{" "}
+        <Money kind="balance" cents={left} />. You can still pay; it shows in red until money comes
+        in.
       </p>
     );
   }
@@ -238,13 +243,14 @@ function PaymentNote({
     <div className="space-y-1 text-body" aria-live="polite">
       {payingAccount && freed > 0 && (
         <p className="text-muted-foreground">
-          {formatPHP(freed)} set aside in {payingAccount.name} goes back to its Unassigned.
+          <Money kind="balance" cents={freed} /> set aside in {payingAccount.name} goes back to its
+          Unassigned.
         </p>
       )}
       {left < 0 && (
         <p className="text-shortfall">
-          This leaves {payer.name}&apos;s Unassigned at {formatPHP(left)}. You can still pay; it
-          shows in red until money comes in.
+          This leaves {payer.name}&apos;s Unassigned at <Money kind="balance" cents={left} />. You
+          can still pay; it shows in red until money comes in.
         </p>
       )}
     </div>

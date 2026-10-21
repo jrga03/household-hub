@@ -9,6 +9,8 @@ export type RowTarget =
 export type RowTargetProps = RowTarget & {
   /** The row whose detail is showing. */
   open?: boolean;
+  /** While picking rows, whether this one is picked. An `onClick` target only. */
+  pressed?: boolean;
 };
 
 const stretchedTarget =
@@ -22,6 +24,7 @@ export function RowTargetElement({
   link,
   onClick,
   open = false,
+  pressed,
   className,
   children,
 }: RowTargetProps & { className?: string; children: ReactNode }) {
@@ -38,6 +41,7 @@ export function RowTargetElement({
       type="button"
       onClick={onClick}
       aria-current={open ? "true" : undefined}
+      aria-pressed={pressed}
       className={classes}
     >
       {children}
@@ -79,16 +83,23 @@ export function RowActions({ className, children }: { className?: string; childr
   );
 }
 
-type ListRowProps = RowTargetProps & {
+/** A row with nothing to open: it shows its content, and any `actions` stay its controls. */
+type NoTarget = { link?: never; onClick?: never; open?: never; pressed?: never };
+
+type ListRowProps = (RowTargetProps | NoTarget) & {
   label: ReactNode;
   /** The muted second line: category, account, date. */
   detail?: ReactNode;
   /** Trailing slot on the label line, usually a `Money`. */
   amount?: ReactNode;
+  /** After the amount: a `StatusBadge` or a chevron. Never an amount. */
+  trailing?: ReactNode;
   /** Icons before the label, such as transfer or pending. */
   leading?: ReactNode;
   /** Mutes the label, as for a pending transaction. */
   muted?: boolean;
+  /** Lets a sentence label wrap instead of truncating, so its amount stays readable. */
+  wrap?: boolean;
   actions?: ReactNode;
   className?: string;
 };
@@ -102,8 +113,10 @@ export function ListRow({
   label,
   detail,
   amount,
+  trailing,
   leading,
   muted = false,
+  wrap = false,
   actions,
   className,
   ...target
@@ -116,23 +129,51 @@ export function ListRow({
         className
       )}
     >
-      <RowTargetElement {...target} className="block min-w-0 flex-1 text-left">
+      <RowContent target={target}>
         <span className="flex items-center gap-2">
           {leading}
           <span
-            className={cn("min-w-0 flex-1 truncate font-medium", muted && "text-muted-foreground")}
+            className={cn(
+              "min-w-0 flex-1 font-medium",
+              wrap ? "text-pretty" : "truncate",
+              muted && "text-muted-foreground"
+            )}
           >
             {label}
           </span>
           {amount !== undefined && (
             <span className="shrink-0 whitespace-nowrap tabular-nums">{amount}</span>
           )}
+          {trailing !== undefined && (
+            <span className="flex shrink-0 items-center gap-2">{trailing}</span>
+          )}
         </span>
         {detail !== undefined && (
           <span className="block truncate text-muted-foreground">{detail}</span>
         )}
-      </RowTargetElement>
+      </RowContent>
       {actions !== undefined && <RowActions>{actions}</RowActions>}
     </div>
   );
+}
+
+const hasTarget = (target: RowTargetProps | NoTarget): target is RowTargetProps =>
+  target.link !== undefined || target.onClick !== undefined;
+
+function RowContent({
+  target,
+  children,
+}: {
+  target: RowTargetProps | NoTarget;
+  children: ReactNode;
+}) {
+  const className = "block min-w-0 flex-1 text-left";
+  if (hasTarget(target)) {
+    return (
+      <RowTargetElement {...target} className={className}>
+        {children}
+      </RowTargetElement>
+    );
+  }
+  return <div className={className}>{children}</div>;
 }

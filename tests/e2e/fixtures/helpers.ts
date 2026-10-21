@@ -29,6 +29,19 @@ export async function signUpNewPerson(page: Page) {
   return person;
 }
 
+/** The Transactions page's rows: the phone list's items, or the laptop table's body rows. */
+export function transactionRows(page: Page): Locator {
+  return page
+    .getByRole("list", { name: "Transactions" })
+    .getByRole("listitem")
+    .or(
+      page
+        .getByRole("table", { name: "Transactions" })
+        .getByRole("row")
+        .filter({ has: page.getByRole("cell") })
+    );
+}
+
 /** Opens a select field and picks the option with exactly that name. */
 export async function chooseOption(page: Page, field: Locator, option: string) {
   await field.click();
@@ -60,4 +73,50 @@ export async function navigateTo(page: Page, label: string) {
     // Keys like "n" are ignored while a dialog is open, so wait for the drawer to close.
     await drawer.waitFor({ state: "hidden" });
   }
+}
+
+/** Closes an open sheet, such as a phone's account sheet, which hides the page behind it. */
+export async function closeSheet(page: Page) {
+  const sheet = page.getByRole("dialog");
+  if (await sheet.isVisible()) {
+    await page.keyboard.press("Escape");
+    await sheet.waitFor({ state: "hidden" });
+  }
+}
+
+/**
+ * Opens an account on the Accounts page and returns its detail: a pane beside
+ * the list, or a sheet over it on a phone. An account sheet already open is
+ * closed first, since it covers the list.
+ */
+export async function openAccount(
+  page: Page,
+  name: string,
+  { list = "Accounts" }: { list?: string } = {}
+): Promise<Locator> {
+  await closeSheet(page);
+  await page
+    .getByRole("list", { name: list, exact: true })
+    .getByRole("button", { name: new RegExp(`^${name}`) })
+    .click();
+  return page
+    .getByRole("region", { name, exact: true })
+    .or(page.getByRole("dialog", { name, exact: true }));
+}
+
+/**
+ * Shows a Settings section: beside the list when Settings has two panes, or by
+ * its jump link on the one-pane page, which shows every section.
+ */
+export async function openSettingsSection(page: Page, section: string) {
+  await page
+    .getByRole("list", { name: "Settings sections" })
+    .getByRole("button", { name: new RegExp(`^${section}`) })
+    .or(
+      page
+        .getByRole("navigation", { name: "Settings sections" })
+        .getByRole("link", { name: section, exact: true })
+    )
+    .click();
+  return page.getByRole("region", { name: section, exact: true });
 }

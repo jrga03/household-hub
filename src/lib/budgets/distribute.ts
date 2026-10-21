@@ -9,6 +9,7 @@ import { isCreditCard } from "@/lib/accounts/events";
 import { getAccount, type AccountRow } from "@/lib/accounts/projection";
 import {
   canHoldMoneyIn,
+  categoriesInUse,
   readCategoryList,
   type CategoryList,
   type CategoryRow,
@@ -42,9 +43,7 @@ export const canReceive = (account: AccountRow | undefined, source: AccountRow) 
 
 /** Categories in use the account can hold, in the Categories screen's order. */
 export const categoriesHeldBy = (list: CategoryList, account: AccountRow): CategoryRow[] =>
-  [...list.groups.flatMap((group) => group.categories), ...list.ungrouped].filter((category) =>
-    canHoldMoneyIn(category, account)
-  );
+  categoriesInUse(list).filter((category) => canHoldMoneyIn(category, account));
 
 /**
  * In income mode, a line per budget in force for `month` ("yyyy-MM"),

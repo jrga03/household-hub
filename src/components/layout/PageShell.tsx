@@ -70,10 +70,12 @@ const variantClasses: Record<Variant, string> = {
  * queries (600, 840, 1200) on the shell, so the sidebar's width is already
  * taken out; slots and their children use the same thresholds. In list-detail,
  * `DetailPane` puts the open item in the Detail slot or a bottom sheet.
+ * `useTwoPanes()` tells either wide variant's content whether its two columns
+ * sit side by side.
  */
 export function PageShell({ variant = "single", className, children }: PageShellProps) {
   const shellRef = useRef<HTMLDivElement>(null);
-  const twoPanes = useWidthFrom(variant === "list-detail" ? shellRef : null, TWO_PANES_FROM);
+  const twoPanes = useWidthFrom(variant === "single" ? null : shellRef, TWO_PANES_FROM);
   // An element cannot query its own container, so the grid lives on an inner div.
   return (
     <div ref={shellRef} data-variant={variant} className="@container w-full">

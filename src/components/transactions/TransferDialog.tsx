@@ -1,12 +1,10 @@
 import { useActionState, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ActionForm } from "@/components/ui/action-form";
-import { categoryNames, envelopeFromKey, envelopeKey } from "@/components/allocations/envelopes";
-import { advanceOnEnter, FormFooter, FormSheet } from "@/components/app/FormSheet";
-import { FormError } from "@/components/ui/form-error";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup } from "@/components/ui/radio-group";
+import { ActionForm } from "@/components/app/ActionForm";
+import { Field } from "@/components/app/Field";
+import { FormError } from "@/components/app/FormError";
+import { FormFooter, FormSheet, FULL_ROW } from "@/components/app/FormSheet";
+import { Input } from "@/components/app/Input";
 import {
   Select,
   SelectContent,
@@ -15,9 +13,10 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { SubmitButton } from "@/components/ui/submit-button";
-import { Textarea } from "@/components/ui/textarea";
+} from "@/components/app/Select";
+import { SubmitButton } from "@/components/app/SubmitButton";
+import { Textarea } from "@/components/app/Textarea";
+import { categoryNames, envelopeFromKey, envelopeKey } from "@/components/allocations/envelopes";
 import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import { isCreditCard } from "@/lib/accounts/events";
@@ -34,7 +33,7 @@ import {
   setTransferStatus,
   type TransferInput,
 } from "@/lib/commands/transfers";
-import { formatPHPInput, parsePHPSafe, PESO_SIGN } from "@/lib/currency";
+import type { Cents } from "@/lib/currency";
 import { sameOwnership } from "@/lib/events/ownership";
 import {
   DESCRIPTION_MAX_LENGTH,
@@ -45,12 +44,23 @@ import {
 import { TRANSFER_TYPE, type EntryDirection } from "@/lib/transactions/filter";
 import { transferLabel } from "@/lib/transfers/events";
 import type { TransferRow } from "@/lib/transfers/projection";
-import { cn, errorMessage } from "@/lib/utils";
-import { useQuickEntryStore } from "@/stores/quickEntryStore";
-import { ChoiceItem, DirectionChoice, FULL_ROW, useFocusNewEntry } from "./EntryFields";
-import { confirmRemoval } from "./confirmRemoval";
-import { transferName } from "./transferName";
+import { errorMessage } from "@/lib/utils";
 import { todayLocalDate } from "@/lib/utils/dates";
+import { useQuickEntryStore } from "@/stores/quickEntryStore";
+import { confirmRemoval } from "./confirmRemoval";
+import {
+  AmountField,
+  DirectionChoice,
+  formProblem,
+  hasFieldProblems,
+  NO_PROBLEMS,
+  readEntryBasics,
+  StatusChoice,
+  useFocusNewEntry,
+  type EntryProblems,
+} from "./EntryFields";
+import { transferName } from "./transferName";
+import { useFocusFirstProblem } from "@/hooks/useFocusFirstProblem";
 
 /**
  * Asks first, then removes the transfer, offering Undo (a restore event) in
@@ -179,23 +189,23 @@ function envelopeChoices(
 }
 
 type ReadForm =
-  | { input: TransferInput; status: TransactionStatus; error: null }
-  | {
-      input: null;
-      status: null;
-      error: string;
-    };
+  | { input: TransferInput; status: TransactionStatus; problems: null }
+  | { input: null; status: null; problems: EntryProblems };
 
 function readTransferForm(formData: FormData): ReadForm {
-  const amount = parsePHPSafe(String(formData.get("amount") ?? ""));
-  if (!amount.success) return { input: null, status: null, error: amount.error.message };
+  const { amountCents, date, fields } = readEntryBasics(formData);
+  if (hasFieldProblems(fields)) {
+    return { input: null, status: null, problems: { fields, form: null } };
+  }
   const envelope = envelopeFromKey(String(formData.get("envelope") ?? ""));
-  if (!envelope) return { input: null, status: null, error: "Choose a category or Unassigned." };
+  if (!envelope) {
+    return { input: null, status: null, problems: formProblem("Choose a category or Unassigned.") };
+  }
   const status = formData.get("status");
   return {
     input: {
-      date: String(formData.get("date") ?? ""),
-      amountCents: amount.value,
+      date,
+      amountCents,
       fromAccountId: String(formData.get("fromAccountId") ?? ""),
       toAccountId: String(formData.get("toAccountId") ?? ""),
       envelope,
@@ -203,7 +213,7 @@ function readTransferForm(formData: FormData): ReadForm {
       notes: String(formData.get("notes") ?? ""),
     },
     status: isTransactionStatus(status) ? status : "cleared",
-    error: null,
+    problems: null,
   };
 }
 
@@ -228,12 +238,16 @@ export function TransferForm({
   accounts: AccountRow[];
   retiredAccounts: AccountRow[];
   categories: CategoryList;
-  draftAmount?: string;
+  draftAmount?: Cents;
   /** Offered for a new entry, so it can become an expense or income, carrying the amount typed. */
-  onDirectionChange?: (direction: EntryDirection, amount: string) => void;
+  onDirectionChange?: (direction: EntryDirection, amount: Cents | undefined) => void;
   onClose: () => void;
 }) {
   const lastUsedAccountId = useQuickEntryStore((state) => state.lastUsed.accountId);
+  const [amount, setAmount] = useState(transfer?.amountCents ?? draftAmount);
+  const [statusChoice, setStatusChoice] = useState<TransactionStatus>(
+    transfer?.status ?? "cleared"
+  );
   const amountRef = useRef<HTMLInputElement>(null);
   useFocusNewEntry(amountRef, !transfer);
   const allAccounts = [...accounts, ...retiredAccounts];
@@ -287,10 +301,10 @@ export function TransferForm({
     ? envelope
     : (envelopeGroups[0]?.choices[0]?.key ?? "");
 
-  const [error, saveAction] = useActionState(
-    async (_previous: string | null, formData: FormData) => {
-      const { input, status, error: readError } = readTransferForm(formData);
-      if (readError !== null) return readError;
+  const [problems, saveAction] = useActionState(
+    async (_previous: EntryProblems, formData: FormData) => {
+      const { input, status, problems: readProblems } = readTransferForm(formData);
+      if (readProblems !== null) return readProblems;
       try {
         if (transfer) {
           await editTransfer(actor, transfer.id, input);
@@ -301,21 +315,20 @@ export function TransferForm({
           toast.success("Transfer added");
         }
         onClose();
-        return null;
+        return NO_PROBLEMS;
       } catch (caught) {
-        return errorMessage(caught, "Couldn't save the transfer.");
+        return formProblem(errorMessage(caught, "Couldn't save the transfer."));
       }
     },
-    null
+    NO_PROBLEMS
   );
+  const formRef = useFocusFirstProblem(problems);
 
   const directionChoice = onDirectionChange && (
     <DirectionChoice
       value={TRANSFER_TYPE}
       withTransfer
-      onChange={(next) =>
-        next !== TRANSFER_TYPE && onDirectionChange(next, amountRef.current?.value ?? "")
-      }
+      onChange={(next) => next !== TRANSFER_TYPE && onDirectionChange(next, amount)}
     />
   );
 
@@ -340,124 +353,105 @@ export function TransferForm({
 
   return (
     <ActionForm
-      ref={advanceOnEnter}
+      ref={formRef}
       action={saveAction}
+      noValidate
       className="space-y-4"
       aria-label={transfer ? "Edit transfer" : "Add transfer"}
     >
       <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
-        <div className={cn("space-y-2", onDirectionChange && FULL_ROW)}>
-          <Label htmlFor="transfer-amount">Amount ({PESO_SIGN})</Label>
-          <Input
-            id="transfer-amount"
-            name="amount"
-            inputMode="decimal"
-            placeholder="0.00"
-            autoComplete="off"
-            enterKeyHint="next"
-            required
-            ref={amountRef}
-            defaultValue={transfer ? formatPHPInput(transfer.amountCents) : draftAmount}
-          />
-        </div>
+        <AmountField
+          value={amount}
+          onChange={setAmount}
+          error={problems.fields.amount}
+          inputRef={amountRef}
+          className={onDirectionChange && FULL_ROW}
+        />
         {directionChoice}
-        <div className="space-y-2">
-          <Label htmlFor="transfer-date">Date</Label>
+        <Field label="Date" error={problems.fields.date}>
           <Input
-            id="transfer-date"
             name="date"
             type="date"
             required
             defaultValue={transfer?.date ?? todayLocalDate()}
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="transfer-from">From</Label>
-          <Select name="fromAccountId" value={fromId} onValueChange={chooseFrom}>
-            <SelectTrigger id="transfer-from" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {fromChoices.map((choice) => (
-                <SelectItem key={choice.id} value={choice.id}>
-                  {accountLabel(choice)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="transfer-to">To</Label>
-          <Select name="toAccountId" value={shownToId} onValueChange={setToId}>
-            <SelectTrigger id="transfer-to" className="w-full">
-              <SelectValue placeholder="No other account" />
-            </SelectTrigger>
-            <SelectContent>
-              {toChoices.map((choice) => (
-                <SelectItem key={choice.id} value={choice.id}>
-                  {accountLabel(choice)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="transfer-envelope">Category</Label>
-          <Select name="envelope" value={shownEnvelope} onValueChange={setEnvelope}>
-            <SelectTrigger id="transfer-envelope" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {envelopeGroups.map((group) => (
-                <SelectGroup key={group.label}>
-                  {group.label !== "Unassigned" && <SelectLabel>{group.label}</SelectLabel>}
-                  {group.choices.map((choice) => (
-                    <SelectItem key={choice.key} value={choice.key}>
-                      {choice.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        </Field>
+        <Field label="From">
+          {(control) => (
+            <Select name="fromAccountId" value={fromId} onValueChange={chooseFrom}>
+              <SelectTrigger {...control} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {fromChoices.map((choice) => (
+                  <SelectItem key={choice.id} value={choice.id}>
+                    {accountLabel(choice)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </Field>
+        <Field label="To">
+          {(control) => (
+            <Select name="toAccountId" value={shownToId} onValueChange={setToId}>
+              <SelectTrigger {...control} className="w-full">
+                <SelectValue placeholder="No other account" />
+              </SelectTrigger>
+              <SelectContent>
+                {toChoices.map((choice) => (
+                  <SelectItem key={choice.id} value={choice.id}>
+                    {accountLabel(choice)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </Field>
+        <Field label="Category">
+          {(control) => (
+            <Select name="envelope" value={shownEnvelope} onValueChange={setEnvelope}>
+              <SelectTrigger {...control} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {envelopeGroups.map((group) => (
+                  <SelectGroup key={group.label}>
+                    {group.label !== "Unassigned" && <SelectLabel>{group.label}</SelectLabel>}
+                    {group.choices.map((choice) => (
+                      <SelectItem key={choice.key} value={choice.key}>
+                        {choice.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </Field>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="transfer-description">Description (optional)</Label>
+      <Field label="Description (optional)">
         <Input
-          id="transfer-description"
           name="description"
           maxLength={DESCRIPTION_MAX_LENGTH}
           autoComplete="off"
           enterKeyHint="next"
           defaultValue={transfer?.description}
         />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="transfer-notes">Notes (optional)</Label>
+      </Field>
+      <Field label="Notes (optional)">
         <Textarea
-          id="transfer-notes"
           name="notes"
           maxLength={NOTES_MAX_LENGTH}
           rows={2}
           defaultValue={transfer?.notes}
         />
-      </div>
+      </Field>
 
-      <fieldset className="space-y-2">
-        <legend className="text-label">Status</legend>
-        <RadioGroup
-          name="status"
-          defaultValue={transfer?.status ?? "cleared"}
-          className="grid grid-cols-2 gap-2"
-        >
-          <ChoiceItem id="transfer-status-cleared" value="cleared" label="Cleared" />
-          <ChoiceItem id="transfer-status-pending" value="pending" label="Pending" />
-        </RadioGroup>
-      </fieldset>
+      <StatusChoice value={statusChoice} onChange={setStatusChoice} />
 
-      <FormError>{error}</FormError>
+      <FormError>{problems.form}</FormError>
       <FormFooter destructive={transfer && { label: "Remove", onClick: () => void remove() }}>
         <SubmitButton pendingText="Saving...">{transfer ? "Save" : "Add transfer"}</SubmitButton>
       </FormFooter>

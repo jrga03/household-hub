@@ -1,10 +1,13 @@
 import { format } from "date-fns";
+import { EmptyState } from "@/components/app/EmptyState";
+import { ListRow } from "@/components/app/ListRow";
 import { Money } from "@/components/app/Money";
+import { SectionHeader } from "@/components/app/SectionHeader";
 import { envelopeLabel } from "@/lib/allocations/envelope";
 import { useBudgets, useCategoryLedger } from "@/hooks/useBudgets";
 import { budgetHistory } from "@/lib/budgets/inForce";
 import type { LedgerRecord, LedgerRow } from "@/lib/budgets/ledger";
-import { formatPHP, type Cents } from "@/lib/currency";
+import type { Cents } from "@/lib/currency";
 import { CORRECTION_LABEL } from "@/lib/corrections/events";
 import { cn } from "@/lib/utils";
 import { monthLabel, parseLocalDate } from "@/lib/utils/dates";
@@ -55,7 +58,7 @@ function Change({ row }: { row: LedgerRow }) {
 
 function Balance({ label, cents }: { label: string; cents: Cents }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-3 py-2 text-body font-medium">
+    <div className="flex items-center justify-between gap-3 px-4 py-2 text-body font-medium">
       <span>{label}</span>
       <Money kind="balance" cents={cents} />
     </div>
@@ -90,38 +93,36 @@ export function CategoryLedger({
 
   return (
     <div className="space-y-6">
-      <div className="divide-y rounded-md border">
+      <div className="-mx-4 divide-y border-y">
         <Balance label={`Start of ${monthLabel(month)}`} cents={ledger.opening} />
         {ledger.rows.length === 0 ? (
-          <p className="px-3 py-2 text-body text-muted-foreground">
+          <EmptyState className="px-4 py-2">
             Nothing recorded in {categoryName} this month.
-          </p>
+          </EmptyState>
         ) : (
           <ul aria-label={`${categoryName} in ${monthLabel(month)}`} className="divide-y">
             {ledger.rows.map((row) => {
               const { label, detail } = describe(row, names);
               return (
                 <li key={row.record.id}>
-                  <button
-                    type="button"
-                    className="flex w-full items-start justify-between gap-3 px-3 py-2 text-left hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+                  <ListRow
                     onClick={() => onOpen(row)}
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate font-medium">{label}</span>
-                      <span className="block truncate text-body text-muted-foreground">
-                        {detail}
+                    label={label}
+                    amount={<Change row={row} />}
+                    detail={
+                      <span className="flex justify-between gap-3">
+                        <span className="min-w-0 truncate">{detail}</span>
+                        <Money
+                          kind="balance"
+                          cents={row.balance}
+                          className={cn(
+                            "text-caption",
+                            row.balance >= 0 && "text-muted-foreground"
+                          )}
+                        />
                       </span>
-                    </span>
-                    <span className="flex shrink-0 flex-col items-end">
-                      <Change row={row} />
-                      <Money
-                        kind="balance"
-                        cents={row.balance}
-                        className={cn("text-caption", row.balance >= 0 && "text-muted-foreground")}
-                      />
-                    </span>
-                  </button>
+                    }
+                  />
                 </li>
               );
             })}
@@ -129,25 +130,23 @@ export function CategoryLedger({
         )}
         <Balance label={`End of ${monthLabel(month)}`} cents={ledger.closing} />
         {isCurrentMonth && ledger.datedLater !== 0 && (
-          <div className="flex items-center justify-between gap-3 px-3 py-2 text-body text-muted-foreground">
+          <div className="flex items-center justify-between gap-3 px-4 py-2 text-body text-muted-foreground">
             <span>Dated later</span>
             <Money kind="net" cents={ledger.datedLater} />
           </div>
         )}
       </div>
 
-      <section aria-labelledby="budget-history" className="space-y-2">
-        <h3 id="budget-history" className="font-medium">
-          Budget history
-        </h3>
+      <section aria-label="Budget history" className="space-y-2">
+        <SectionHeader title="Budget history" level={3} />
         {versions.length === 0 ? (
-          <p className="text-body text-muted-foreground">No budget set yet.</p>
+          <EmptyState className="py-0">No budget set yet.</EmptyState>
         ) : (
-          <ul aria-label="Budget history" className="divide-y rounded-md border">
+          <ul aria-label="Budget history" className="-mx-4 divide-y border-y">
             {versions.map((version) => (
               <li
                 key={version.id}
-                className="flex items-center justify-between gap-3 px-3 py-2 text-body"
+                className="flex items-center justify-between gap-3 px-4 py-2 text-body"
               >
                 <span className="min-w-0">
                   <span className="block">From {monthLabel(version.fromMonth)}</span>
@@ -157,8 +156,12 @@ export function CategoryLedger({
                     </span>
                   )}
                 </span>
-                <span className="shrink-0 tabular-nums">
-                  {version.amountCents === null ? "Cleared" : formatPHP(version.amountCents)}
+                <span className="shrink-0">
+                  {version.amountCents === null ? (
+                    "Cleared"
+                  ) : (
+                    <Money kind="balance" cents={version.amountCents} />
+                  )}
                 </span>
               </li>
             ))}

@@ -1,6 +1,6 @@
 import { test, expect, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { format } from "date-fns";
-import { chooseOption, signUpNewPerson, navigateTo } from "./fixtures/helpers";
+import { chooseOption, signUpNewPerson, navigateTo, transactionRows } from "./fixtures/helpers";
 
 interface Entry {
   amount: string;
@@ -70,12 +70,10 @@ test("filters combine, and the search follows them", async ({ page, isMobile }) 
   await addTransaction(page, { amount: "1000", description: "Salary", income: true });
   await addTransaction(page, { amount: "80", description: "Parking", category: "Unassigned" });
 
-  const list = page.getByRole("list", { name: "Transactions" });
+  const rows = transactionRows(page);
   const filters = page.getByRole("search", { name: "Filter transactions" });
-  await expect(list.getByRole("listitem")).toHaveCount(5);
+  await expect(rows).toHaveCount(5);
   await expect(page.getByRole("region", { name: "Totals" })).toHaveCount(0);
-  // Phones keep the filters behind a button.
-  if (isMobile) await page.getByRole("button", { name: "Search and filters" }).click();
 
   await chooseOption(
     page,
@@ -83,35 +81,45 @@ test("filters combine, and the search follows them", async ({ page, isMobile }) 
     format(new Date(), "MMMM yyyy")
   );
   await chooseOption(page, filters.getByLabel("Category", { exact: true }), "Groceries");
-  await expect(list.getByRole("listitem")).toHaveCount(2);
+  await expect(rows).toHaveCount(2);
 
   await filters.getByRole("button", { name: "Clear filters" }).click();
   const search = filters.getByLabel("Search description, notes or amount");
   await search.pressSequentially("250");
   await expect(search).toHaveValue("250");
-  await expect(list.getByRole("listitem")).toHaveCount(2);
-  await expect(list).toContainText("Market");
-  await expect(list).toContainText("Dinner");
+  await expect(rows).toHaveCount(2);
+  await expect(rows.filter({ hasText: "Market" })).toHaveCount(1);
+  await expect(rows.filter({ hasText: "Dinner" })).toHaveCount(1);
 
   await search.fill("");
-  await filters.getByLabel("Needs a category").check();
-  await expect(list.getByRole("listitem")).toHaveCount(1);
-  await expect(list).toContainText("Parking");
+  // A chip on phones, a switch in the laptop's filter rail.
+  await filters.getByRole(isMobile ? "button" : "switch", { name: "Needs a category" }).click();
+  await expect(rows).toHaveCount(1);
+  await expect(rows).toContainText("Parking");
 });
 
-test("rows sit under their date, and a pending one is marked by an icon", async ({ page }) => {
+test("rows sit under their date with its net, and a pending one is marked by an icon", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 393, height: 851 });
   await startHousehold(page);
   await navigateTo(page, "Transactions");
   await addTransaction(page, { amount: "250", description: "Lunch", pending: true });
   await addTransaction(page, { amount: "1000", description: "Salary", income: true });
 
   const list = page.getByRole("list", { name: "Transactions" });
-  await expect(list.getByRole("heading", { name: "Today" })).toBeVisible();
+  const today = list.getByRole("heading", { name: "Today" });
+  await expect(today).toBeVisible();
+  // The day's net: income less expenses, signed.
+  await expect(today.locator("..")).toContainText("+₱750.00");
   const lunch = list.getByRole("listitem").filter({ hasText: "Lunch" });
   // An expense reads with a minus sign and is announced as minus.
   await expect(lunch).toContainText("−₱250.00");
   await expect(
-    lunch.getByRole("button", { name: "Edit Lunch, minus ₱250.00, pending", exact: true })
+    lunch.getByRole("button", {
+      name: "Pending Lunch minus ₱250.00 Unassigned · BPI",
+      exact: true,
+    })
   ).toBeVisible();
   await expect(lunch).toContainText("Unassigned · BPI");
   await expect(lunch.getByRole("img", { name: "Pending" })).toBeVisible();
@@ -121,9 +129,11 @@ test("rows sit under their date, and a pending one is marked by an icon", async 
   await expect(salary.getByRole("img", { name: "Pending" })).toHaveCount(0);
   await expect(list.getByRole("checkbox")).toHaveCount(0);
   await expect(list.getByRole("button", { name: /^Mark/ })).toHaveCount(0);
+  await page.screenshot({ path: test.info().outputPath("list-393.png") });
 });
 
 test("the last row stays inside the list's bottom border", async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 851 });
   await startHousehold(page);
   await navigateTo(page, "Transactions");
   await addTransaction(page, { amount: "250", description: "Lunch" });
@@ -161,10 +171,10 @@ test("selecting rows changes their category or removes them, with undo", async (
   const tabBar = page.getByRole("navigation", { name: "Primary navigation" });
   await header.getByRole("button", { name: "Select", exact: true }).click();
   await expect(header.getByRole("heading", { name: "0 selected" })).toBeVisible();
-  await list.getByRole("button", { name: "Select Water" }).click();
-  await list.getByRole("button", { name: "Select Power" }).click();
+  await list.getByRole("button", { name: /^Water/ }).click();
+  await list.getByRole("button", { name: /^Power/ }).click();
   await expect(header.getByRole("heading", { name: "2 selected" })).toBeVisible();
-  await expect(list.getByRole("button", { name: "Select Power" })).toHaveAttribute(
+  await expect(list.getByRole("button", { name: /^Power/ })).toHaveAttribute(
     "aria-pressed",
     "true"
   );
@@ -178,10 +188,9 @@ test("selecting rows changes their category or removes them, with undo", async (
   await chooseOption(page, toolbar.getByLabel("Change category"), "Groceries");
   await expect(page.getByText("Changed the category of 2 transactions")).toBeVisible();
   await expect(toolbar).toBeHidden();
-  await expect(list.getByRole("listitem").filter({ hasText: "Water" })).toContainText(
-    "Groceries · BPI"
-  );
-  await expect(list.getByRole("button", { name: "Edit Water" })).toBeVisible();
+  const water = transactionRows(page).filter({ hasText: "Water" });
+  await expect(water).toContainText("Groceries");
+  await expect(water.getByRole("button", { name: /^Water/ })).not.toHaveAttribute("aria-pressed");
 
   await header.getByRole("button", { name: "Select", exact: true }).click();
   await header.getByRole("button", { name: "Select all" }).click();
@@ -189,9 +198,9 @@ test("selecting rows changes their category or removes them, with undo", async (
   await toolbar.getByRole("button", { name: "Remove" }).click();
   const confirm = page.getByRole("alertdialog", { name: "Remove 3 transactions?" });
   await confirm.getByRole("button", { name: "Remove" }).click();
-  await expect(list).toBeHidden();
+  await expect(transactionRows(page)).toHaveCount(0);
   await page.getByRole("button", { name: "Undo" }).click();
-  await expect(list.getByRole("listitem")).toHaveCount(3);
+  await expect(transactionRows(page)).toHaveCount(3);
 
   await header.getByRole("button", { name: "Select", exact: true }).click();
   await header.getByRole("button", { name: "Cancel selection" }).click();
@@ -269,7 +278,7 @@ test.describe("on a phone", () => {
     await expect(
       page.getByRole("banner").getByRole("heading", { name: "1 selected" })
     ).toBeVisible();
-    await expect(coffee.getByRole("button", { name: "Select Coffee" })).toHaveAttribute(
+    await expect(coffee.getByRole("button", { name: /^Coffee/ })).toHaveAttribute(
       "aria-pressed",
       "true"
     );
@@ -280,36 +289,118 @@ test.describe("on a phone", () => {
 test.describe("on a wide screen", () => {
   test.use({ viewport: { width: 1600, height: 600 } });
 
-  test("a row opens in the detail pane and the list keeps its place", async ({ page }) => {
+  test("a row opens in the detail pane, Edit opens the form, and the table keeps its place", async ({
+    page,
+  }) => {
     await startHousehold(page);
     await page.getByRole("link", { name: "Transactions" }).click();
     for (let index = 1; index <= 12; index++) {
       await addTransaction(page, { amount: `${index}00`, description: `Item ${index}` });
     }
 
-    const list = page.getByRole("list", { name: "Transactions" });
-    // The oldest row renders only once the page scrolls down to it.
+    const table = page.getByRole("table", { name: "Transactions" });
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    const row = list.getByRole("button", {
-      name: "Edit Item 1, minus ₱100.00",
-      exact: true,
-    });
+    const row = table.getByRole("button", { name: "Item 1", exact: true });
     await expect(row).toBeInViewport();
     const scrolledTo = await page.evaluate(() => window.scrollY);
     expect(scrolledTo).toBeGreaterThan(0);
     await row.click();
 
-    const pane = page.getByRole("region", { name: "Edit transaction" });
-    await expect(pane.getByLabel("Description", { exact: true })).toHaveValue("Item 1");
+    const pane = page.getByRole("region", { name: "Item 1" });
+    await expect(pane).toContainText("−₱100.00");
     await expect(page.getByRole("dialog")).toBeHidden();
     expect(await page.evaluate(() => window.scrollY)).toBe(scrolledTo);
 
-    await pane.getByLabel("Description", { exact: true }).fill("Item one");
-    await pane.getByRole("button", { name: "Save" }).click();
-    await expect(list.getByRole("button", { name: "Edit Item one" })).toBeInViewport();
-    // Rows are re-measured as they render, which can shift the page by a pixel or two.
+    await pane.getByRole("button", { name: "Edit" }).click();
+    const edit = page.getByRole("dialog", { name: "Edit transaction" });
+    await edit.getByLabel("Description", { exact: true }).fill("Item one");
+    await edit.getByRole("button", { name: "Save" }).click();
+    await expect(edit).toBeHidden();
+    await expect(page.getByRole("region", { name: "Item one" })).toBeVisible();
+    await expect(table.getByRole("button", { name: "Item one", exact: true })).toBeInViewport();
     expect(Math.abs((await page.evaluate(() => window.scrollY)) - scrolledTo)).toBeLessThan(5);
   });
+
+  test("a quick action changes the row without opening it", async ({ page }) => {
+    await startHousehold(page);
+    await page.getByRole("link", { name: "Transactions" }).click();
+    await addTransaction(page, { amount: "250", description: "Lunch", pending: true });
+
+    const lunch = transactionRows(page).filter({ hasText: "Lunch" });
+    await lunch.hover();
+    await lunch.getByRole("button", { name: "Mark Lunch cleared" }).click();
+    await expect(lunch).toContainText("Cleared");
+    await expect(page).not.toHaveURL(/[?&]open=/);
+    await expect(page.getByRole("complementary")).toHaveCount(0);
+  });
+
+  test("the filter rail folds into a Filters button while a row is open", async ({ page }) => {
+    await startHousehold(page);
+    await page.getByRole("link", { name: "Transactions" }).click();
+    await addTransaction(page, { amount: "250", description: "Lunch" });
+
+    const rail = page.getByRole("search", { name: "Filter transactions" });
+    await expect(rail).toBeVisible();
+    await transactionRows(page).getByRole("button", { name: "Lunch", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Lunch" })).toBeVisible();
+    await expect(rail).toBeHidden();
+    await page.getByRole("button", { name: "Filters", exact: true }).click();
+    await expect(rail).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await page
+      .getByRole("region", { name: "Lunch" })
+      .getByRole("button", { name: "Close" })
+      .click();
+    await expect(rail).toBeVisible();
+    await expect(page.getByRole("button", { name: "Filters", exact: true })).toHaveCount(0);
+  });
+});
+
+test.describe("a transfer's route", () => {
+  for (const width of [1024, 1366]) {
+    test(`is never truncated in the table at ${width}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 768 });
+      await startHousehold(page);
+      await expect(page.getByRole("list", { name: "Accounts" })).toContainText("BPI");
+      const addAccount = page.getByRole("form", { name: "Add an account" });
+      await addAccount.getByLabel("Account name").fill("Metrobank Savings for the Holidays");
+      await addAccount.getByLabel("Starting balance (₱)").fill("0");
+      await addAccount.getByRole("button", { name: "Add account" }).click();
+      await expect(
+        page.getByRole("list", { name: "Accounts" }).getByText("Metrobank Savings for the Holidays")
+      ).toBeVisible();
+
+      await page.getByRole("button", { name: "Add transaction" }).click();
+      const dialog = page.getByRole("dialog", { name: "Add transaction" });
+      await dialog.getByLabel("Amount (₱)").fill("2000");
+      await dialog.getByRole("radio", { name: "Transfer" }).click();
+      await chooseOption(page, dialog.getByLabel("From"), "BPI");
+      await chooseOption(page, dialog.getByLabel("To"), "Metrobank Savings for the Holidays");
+      await dialog.getByRole("button", { name: "Add transfer" }).click();
+      await expect(dialog).toBeHidden();
+
+      await navigateTo(page, "Transactions");
+      const route = transactionRows(page).getByRole("cell", {
+        name: "BPI → Metrobank Savings for the Holidays",
+      });
+      await expect(route).toBeVisible();
+      const clipped = await route.evaluate((cell) =>
+        [cell, ...cell.querySelectorAll("*")].some(
+          (element) => element.scrollWidth > element.clientWidth
+        )
+      );
+      expect(clipped).toBe(false);
+      // Nor pushed out of view: the table fits its pane without scrolling sideways.
+      const table = page.getByRole("table", { name: "Transactions" });
+      const overflows = await table.evaluate((element) => {
+        const container = element.parentElement;
+        return container ? container.scrollWidth > container.clientWidth : true;
+      });
+      expect(overflows).toBe(false);
+      await page.screenshot({ path: test.info().outputPath(`route-${width}.png`) });
+    });
+  }
 });
 
 test.describe("the open transaction", () => {
@@ -319,31 +410,34 @@ test.describe("the open transaction", () => {
     for (let index = 1; index <= count; index++) {
       await addTransaction(page, { amount: `${index}00`, description: `Item ${index}` });
     }
-    return page.getByRole("list", { name: "Transactions" });
+    return page;
   }
-  const rowOf = (list: Locator, index: number) =>
-    list.getByRole("button", { name: `Edit Item ${index}, minus ₱${index}00.00`, exact: true });
+  // "Item 1" in the table, "Item 1 minus ₱100.00 …" in the phone list.
+  const rowOf = (page: Page, index: number) =>
+    page.getByRole("button", { name: new RegExp(`^Item ${index}( minus|$)`) });
+  const shows = (place: Locator, index: number) =>
+    expect(place.getByRole("heading", { name: `Item ${index}`, exact: true })).toBeVisible();
 
   test("opens in a sheet on a phone; back closes it and the list keeps its place", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 393, height: 851 });
-    const list = await listOf(page, 14);
+    await listOf(page, 14);
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    const row = rowOf(list, 1);
+    const row = rowOf(page, 1);
     await expect(row).toBeInViewport();
     const scrolledTo = await page.evaluate(() => window.scrollY);
     expect(scrolledTo).toBeGreaterThan(0);
 
     await row.click();
-    const sheet = page.getByRole("dialog", { name: "Edit transaction" });
-    await expect(sheet.getByLabel("Description", { exact: true })).toHaveValue("Item 1");
+    const sheet = page.getByRole("dialog", { name: "Item 1" });
+    await shows(sheet, 1);
     await expect(page).toHaveURL(/[?&]open=/);
     await expect(page.getByRole("complementary")).toHaveCount(0);
     await sheet.screenshot({ path: test.info().outputPath("sheet-393.png") });
 
     await page.reload();
-    await expect(sheet.getByLabel("Description", { exact: true })).toHaveValue("Item 1");
+    await shows(sheet, 1);
 
     await page.goBack();
     await expect(sheet).toBeHidden();
@@ -356,28 +450,29 @@ test.describe("the open transaction", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1366, height: 768 });
-    const list = await listOf(page, 3);
+    await listOf(page, 3);
     // The expanded rail leaves the shell under 1200px; collapsed, it is over.
     await page
       .getByRole("button", { name: /^Toggle Sidebar/ })
       .first()
       .click();
     await expect(page.getByRole("complementary")).toHaveCount(0);
-    const fullWidth = (await list.boundingBox())?.width ?? 0;
+    const table = page.getByRole("table", { name: "Transactions" });
+    const fullWidth = (await table.boundingBox())?.width ?? 0;
 
-    await rowOf(list, 2).click();
+    await rowOf(page, 2).click();
     const pane = page.getByRole("complementary");
-    await expect(pane.getByLabel("Description", { exact: true })).toHaveValue("Item 2");
+    await shows(pane, 2);
     await expect(page.getByRole("dialog")).toHaveCount(0);
     expect((await pane.boundingBox())?.width).toBe(412);
-    expect((await list.boundingBox())?.width ?? 0).toBeLessThan(fullWidth);
+    expect((await table.boundingBox())?.width ?? 0).toBeLessThan(fullWidth);
     await page.screenshot({ path: test.info().outputPath("pane-1366.png") });
 
     await page.reload();
-    await expect(pane.getByLabel("Description", { exact: true })).toHaveValue("Item 2");
+    await shows(pane, 2);
 
     await page.setViewportSize({ width: 1024, height: 768 });
-    await expect(pane.getByLabel("Description", { exact: true })).toHaveValue("Item 2");
+    await shows(pane, 2);
     expect((await pane.boundingBox())?.width).toBe(360);
     await page.screenshot({ path: test.info().outputPath("pane-1024.png") });
   });
@@ -386,11 +481,11 @@ test.describe("the open transaction", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1366, height: 768 });
-    const list = await listOf(page, 3);
+    await listOf(page, 3);
     const pane = page.getByRole("complementary");
     for (const index of [1, 2, 3]) {
-      await rowOf(list, index).click();
-      await expect(pane.getByLabel("Description", { exact: true })).toHaveValue(`Item ${index}`);
+      await rowOf(page, index).click();
+      await shows(pane, index);
     }
 
     await page.goBack();
@@ -399,31 +494,31 @@ test.describe("the open transaction", () => {
 
   test("stays open while the window crosses 840 either way", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 });
-    const list = await listOf(page, 2);
+    await listOf(page, 2);
     await page.setViewportSize({ width: 1024, height: 768 });
-    await rowOf(list, 1).click();
+    await rowOf(page, 1).click();
     const pane = page.getByRole("complementary");
-    await expect(pane.getByLabel("Description", { exact: true })).toHaveValue("Item 1");
+    await shows(pane, 1);
 
     await page.setViewportSize({ width: 700, height: 900 });
-    const sheet = page.getByRole("dialog", { name: "Edit transaction" });
-    await expect(sheet.getByLabel("Description", { exact: true })).toHaveValue("Item 1");
+    const sheet = page.getByRole("dialog", { name: "Item 1" });
+    await shows(sheet, 1);
     await expect(pane).toHaveCount(0);
 
     await page.setViewportSize({ width: 1024, height: 768 });
-    await expect(pane.getByLabel("Description", { exact: true })).toHaveValue("Item 1");
+    await shows(pane, 1);
     await expect(sheet).toHaveCount(0);
   });
 
   test("opened in the pane, then narrowed to a sheet, back closes the sheet", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 });
-    const list = await listOf(page, 2);
-    await rowOf(list, 1).click();
+    await listOf(page, 2);
+    await rowOf(page, 1).click();
     await expect(page).toHaveURL(/open=/);
 
     await page.setViewportSize({ width: 700, height: 900 });
-    const sheet = page.getByRole("dialog", { name: "Edit transaction" });
-    await expect(sheet.getByLabel("Description", { exact: true })).toHaveValue("Item 1");
+    const sheet = page.getByRole("dialog", { name: "Item 1" });
+    await shows(sheet, 1);
 
     await page.goBack();
     await expect(sheet).toHaveCount(0);

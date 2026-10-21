@@ -1,5 +1,5 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
-import { navigateTo, signUpNewPerson } from "./fixtures/helpers";
+import { navigateTo, openSettingsSection, signUpNewPerson } from "./fixtures/helpers";
 
 // Fresh people per run: membership is one household per person.
 async function newPerson(browser: Browser) {
@@ -44,6 +44,7 @@ test("a removed Member's next sync drops the household's accounts and keeps thei
   await owner.page.getByLabel("Household name").fill("Lifecycle home");
   await owner.page.getByRole("button", { name: "Create household" }).click();
   await navigateTo(owner.page, "Settings");
+  await openSettingsSection(owner.page, "Household");
   const code = await owner.page.getByTestId("household-code").textContent();
   if (!code) throw new Error("The Owner sees no Household Code");
 
@@ -51,7 +52,7 @@ test("a removed Member's next sync drops the household's accounts and keeps thei
   await member.page.getByRole("tab", { name: "Join" }).click();
   await member.page.getByLabel("Household Code").fill(code);
   await member.page.getByRole("button", { name: "Send request" }).click();
-  await owner.page.reload();
+  await owner.page.goto("/settings?open=join-requests");
   await owner.page
     .getByRole("region", { name: "Join requests" })
     .getByRole("listitem")
@@ -73,7 +74,8 @@ test("a removed Member's next sync drops the household's accounts and keeps thei
   // Only the Owner sees the controls.
   await navigateTo(member.page, "Settings");
   await navigateTo(owner.page, "Settings");
-  const membersOnMemberPage = member.page.getByRole("region", { name: "Members" });
+  const membersOnMemberPage = await openSettingsSection(member.page, "Members");
+  await openSettingsSection(owner.page, "Members");
   await expect(membersOnMemberPage).toContainText(owner.email);
   await expect(membersOnMemberPage.getByRole("button", { name: /^Remove/ })).toHaveCount(0);
   await expect(member.page.getByRole("button", { name: "Replace code" })).toHaveCount(0);

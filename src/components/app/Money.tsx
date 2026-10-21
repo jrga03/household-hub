@@ -21,7 +21,7 @@ const SIGN_TEXT: Record<Sign, { shown: string; spoken: string }> = {
  * The shortfall color for a negative amount. A credit card's figure is the amount owed,
  * so pass `owed` for it: a negative owed amount is a credit, not money short.
  */
-export function shortfallClass(cents: Cents, { owed = false }: { owed?: boolean } = {}) {
+function shortfallClass(cents: Cents, { owed = false }: { owed?: boolean } = {}) {
   return !owed && cents < 0 ? "text-shortfall" : undefined;
 }
 

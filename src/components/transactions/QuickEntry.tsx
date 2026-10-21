@@ -1,5 +1,5 @@
 import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/app/Button";
 import { useHousehold } from "@/hooks/useHousehold";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";

@@ -93,7 +93,13 @@ export function AppLayout() {
   if (windowClass === "compact") {
     return (
       <HeaderSlotProvider>
-        <div className="min-h-dvh bg-background">
+        {/* Without the tab bar, bottom-pinned content (the Assistant's composer) sits on the safe area. */}
+        <div
+          className={cn(
+            "min-h-dvh bg-background",
+            !hasBottomChrome && "[--bottom-chrome:var(--safe-area-bottom)]"
+          )}
+        >
           {/* Skip to main content link for accessibility */}
           <a
             href="#main-content"

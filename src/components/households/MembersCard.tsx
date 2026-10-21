@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/app/Button";
+import { ListRow } from "@/components/app/ListRow";
+import { StatusBadge } from "@/components/app/StatusBadge";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { confirm } from "@/lib/confirm";
 import {
@@ -17,13 +17,14 @@ import {
 import { CREATE_OR_JOIN_PATH } from "@/lib/households";
 import { errorMessage } from "@/lib/utils";
 
-interface MembersCardProps {
+interface MembersListProps {
   householdId: string;
   userId: string;
   isOwner: boolean;
 }
 
-export function MembersCard({ householdId, userId, isOwner }: MembersCardProps) {
+/** Settings → Members: everyone in the household, the Owner's controls, and leaving. */
+export function MembersList({ householdId, userId, isOwner }: MembersListProps) {
   const isOnline = useOnlineStatus();
   const [isBusy, setIsBusy] = useState(false);
   const { data: members, isError } = useQuery(householdMembersQueryOptions(householdId));
@@ -41,56 +42,50 @@ export function MembersCard({ householdId, userId, isOwner }: MembersCardProps) 
   }
 
   return (
-    <Card role="region" aria-labelledby="members-title">
-      <CardHeader>
-        <CardTitle id="members-title">Members</CardTitle>
-        <CardDescription>Everyone in the household sees its Household accounts.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {isError && !members && (
-          <p className="text-body text-muted-foreground">Members show when you&apos;re online.</p>
-        )}
-        {members && (
-          <ul aria-label="Members" className="divide-y rounded-md border">
-            {members.map((member) => (
-              <MemberRow
-                key={member.userId}
-                member={member}
-                isYou={member.userId === userId}
-                ownerControls={isOwner && member.userId !== userId}
-                disabled={disabled}
-                onHandOver={() =>
-                  void runAction(
-                    () => confirmAndHandOver(userId, householdId, member),
-                    "Couldn't hand over ownership."
-                  )
-                }
-                onRemove={() =>
-                  void runAction(
-                    () => confirmAndRemove(userId, householdId, member),
-                    "Couldn't remove them."
-                  )
-                }
-              />
-            ))}
-          </ul>
-        )}
-        {!isOnline && (
-          <p className="text-body text-muted-foreground">
-            Membership changes need a connection. You&apos;re offline right now.
-          </p>
-        )}
-        {members && (
-          <LeaveHousehold
-            userId={userId}
-            isOwner={isOwner}
-            isLastMember={members.length === 1}
-            disabled={disabled}
-            onLeave={(leave) => void runAction(leave, "Couldn't leave the household.")}
-          />
-        )}
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      {isError && !members && (
+        <p className="text-body text-muted-foreground">Members show when you&apos;re online.</p>
+      )}
+      {members && (
+        <ul aria-label="Members" className="-mx-4 divide-y border-y">
+          {members.map((member) => (
+            <MemberRow
+              key={member.userId}
+              member={member}
+              isYou={member.userId === userId}
+              ownerControls={isOwner && member.userId !== userId}
+              disabled={disabled}
+              onHandOver={() =>
+                void runAction(
+                  () => confirmAndHandOver(userId, householdId, member),
+                  "Couldn't hand over ownership."
+                )
+              }
+              onRemove={() =>
+                void runAction(
+                  () => confirmAndRemove(userId, householdId, member),
+                  "Couldn't remove them."
+                )
+              }
+            />
+          ))}
+        </ul>
+      )}
+      {!isOnline && (
+        <p className="text-body text-muted-foreground">
+          Membership changes need a connection. You&apos;re offline right now.
+        </p>
+      )}
+      {members && (
+        <LeaveHousehold
+          userId={userId}
+          isOwner={isOwner}
+          isLastMember={members.length === 1}
+          disabled={disabled}
+          onLeave={(leave) => void runAction(leave, "Couldn't leave the household.")}
+        />
+      )}
+    </div>
   );
 }
 
@@ -112,16 +107,19 @@ function MemberRow({
   onRemove,
 }: MemberRowProps) {
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 px-3 py-2">
-      <span className="flex min-w-0 items-center gap-2">
-        <span className="truncate font-medium">
-          {member.email}
-          {isYou && <span className="text-muted-foreground"> (you)</span>}
-        </span>
-        {member.isOwner && <Badge variant="secondary">Owner</Badge>}
-      </span>
+    <li className="flex flex-wrap items-center">
+      <ListRow
+        className="min-w-0 grow basis-48"
+        label={
+          <>
+            {member.email}
+            {isYou && <span className="font-normal text-muted-foreground"> (you)</span>}
+          </>
+        }
+        trailing={member.isOwner ? <StatusBadge tone="neutral">Owner</StatusBadge> : undefined}
+      />
       {ownerControls && (
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 gap-2 px-4 py-2">
           <Button
             size="sm"
             variant="outline"

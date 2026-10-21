@@ -26,7 +26,7 @@ test("a member's Personal account never reaches another member; their Household 
   const owner = await newPerson(browser);
   await owner.page.getByLabel("Household name").fill("Visibility home");
   await owner.page.getByRole("button", { name: "Create household" }).click();
-  await navigateTo(owner.page, "Settings");
+  await owner.page.goto("/settings?open=household");
   const code = await owner.page.getByTestId("household-code").textContent();
   if (!code) throw new Error("The Owner sees no Household Code");
 
@@ -34,7 +34,7 @@ test("a member's Personal account never reaches another member; their Household 
   await member.page.getByRole("tab", { name: "Join" }).click();
   await member.page.getByLabel("Household Code").fill(code);
   await member.page.getByRole("button", { name: "Send request" }).click();
-  await owner.page.reload();
+  await owner.page.goto("/settings?open=join-requests");
   await owner.page
     .getByRole("region", { name: "Join requests" })
     .getByRole("listitem")
@@ -50,9 +50,9 @@ test("a member's Personal account never reaches another member; their Household 
   // Personal first: once the owner has pulled the later Household account,
   // they have pulled past everything the member pushed before it.
   await addAccount(member.page, "B savings", "Personal");
-  await expect(
-    accountsList(member.page).getByRole("listitem").filter({ hasText: "B savings" })
-  ).toContainText("Personal");
+  await expect(accountsList(member.page).getByRole("button", { name: /^B savings/ })).toContainText(
+    "Personal"
+  );
   await expect(form.getByRole("radio", { name: "Household" })).toBeChecked();
   await addAccount(member.page, "Shared groceries", "Household");
 

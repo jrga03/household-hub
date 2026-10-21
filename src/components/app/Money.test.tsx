@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import { asCents } from "@/lib/currency";
-import { Money, shortfallClass, type MoneyProps } from "./Money";
+import { Money, type MoneyProps } from "./Money";
 
 const COLORS = ["text-income", "text-shortfall", "text-muted-foreground"];
 
@@ -92,13 +92,5 @@ describe("Money", () => {
     expect(
       rendered({ kind: "income", cents: asCents(100), className: "text-muted-foreground" }).color
     ).toBe("text-muted-foreground");
-  });
-});
-
-describe("shortfallClass", () => {
-  it("is the shortfall role only for a negative amount that is not owed", () => {
-    expect(shortfallClass(asCents(-1))).toBe("text-shortfall");
-    expect(shortfallClass(asCents(0))).toBeUndefined();
-    expect(shortfallClass(asCents(-1), { owed: true })).toBeUndefined();
   });
 });

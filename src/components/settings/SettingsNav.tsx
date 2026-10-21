@@ -1,31 +1,21 @@
 import { cn } from "@/lib/utils";
-import { Download, House, Palette } from "lucide-react";
+import type { SettingsSection } from "./SettingsView";
 
-const SECTIONS = [
-  { id: "household", label: "Household", icon: House },
-  { id: "appearance", label: "Appearance", icon: Palette },
-  { id: "export", label: "Export", icon: Download },
-] as const;
-
-interface SettingsNavProps {
-  activeId?: string;
-}
-
-export function SettingsNav({ activeId }: SettingsNavProps) {
+/** Links that jump to each section of the one-pane Settings page. */
+export function SettingsNav({ sections }: { sections: SettingsSection[] }) {
   return (
-    <nav aria-label="Settings sections" className="flex flex-wrap gap-2 pb-2">
-      {SECTIONS.map(({ id, label, icon: Icon }) => (
+    <nav aria-label="Settings sections" className="-mx-3 flex flex-wrap gap-x-2">
+      {sections.map(({ id, title, icon: Icon }) => (
         <a
           key={id}
           href={`#${id}`}
           className={cn(
-            "flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-body font-medium transition-colors whitespace-nowrap",
-            "hover:bg-accent hover:text-accent-foreground",
-            activeId === id ? "bg-accent text-accent-foreground" : "text-muted-foreground"
+            "flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-body font-medium whitespace-nowrap text-muted-foreground transition-colors",
+            "hover:bg-accent hover:text-accent-foreground"
           )}
         >
-          <Icon className="h-4 w-4" />
-          {label}
+          <Icon aria-hidden="true" className="size-4" />
+          {title}
         </a>
       ))}
     </nav>

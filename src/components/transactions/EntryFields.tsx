@@ -1,13 +1,19 @@
 import { useEffect, type RefObject } from "react";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { isEntryDirection, TRANSFER_TYPE, type EntryDirection } from "@/lib/transactions/filter";
+import { CurrencyInput } from "@/components/app/CurrencyInput";
+import { Field } from "@/components/app/Field";
+import { FULL_ROW } from "@/components/app/FormSheet";
+import { SegmentedControl } from "@/components/app/SegmentedControl";
+import {
+  AMOUNT_PROBLEM,
+  isAmount,
+  parsePHPSafe,
+  PESO_SIGN,
+  ZERO_CENTS,
+  type Cents,
+} from "@/lib/currency";
+import { isLocalDate, type TransactionStatus } from "@/lib/transactions/events";
+import { TRANSFER_TYPE, type EntryDirection } from "@/lib/transactions/filter";
 import { cn } from "@/lib/utils";
-
-export const SAVED_LOCALLY = "Saved on this device at once; it reaches others when they sync.";
-
-/** Spans both columns of the entry form's two-column grid. */
-export const FULL_ROW = "@[480px]:col-span-2";
 
 /**
  * A new entry starts at its amount, also after switching to or from Transfer.
@@ -19,7 +25,79 @@ export function useFocusNewEntry(amount: RefObject<HTMLInputElement | null>, isN
   }, [amount, isNew]);
 }
 
-/** Expense, Income and, for a new entry, Transfer. */
+export type EntryField = "amount" | "date" | "description";
+
+/** What a save left to fix: a message per field, or one for the whole form. */
+export interface EntryProblems {
+  fields: Partial<Record<EntryField, string>>;
+  form: string | null;
+}
+
+export const NO_PROBLEMS: EntryProblems = { fields: {}, form: null };
+
+export const formProblem = (message: string): EntryProblems => ({ fields: {}, form: message });
+
+/** The amount and date every entry needs, checked before the command sees them. */
+export function readEntryBasics(formData: FormData): {
+  amountCents: Cents;
+  date: string;
+  fields: EntryProblems["fields"];
+} {
+  const fields: EntryProblems["fields"] = {};
+  const parsed = parsePHPSafe(String(formData.get("amount") ?? ""));
+  const amountCents = parsed.success ? parsed.value : ZERO_CENTS;
+  if (!parsed.success) fields.amount = parsed.error.message;
+  else if (!isAmount(amountCents)) fields.amount = AMOUNT_PROBLEM;
+  const date = String(formData.get("date") ?? "");
+  if (!isLocalDate(date)) fields.date = "Choose a date.";
+  return { amountCents, date, fields };
+}
+
+export const hasFieldProblems = (fields: EntryProblems["fields"]) => Object.keys(fields).length > 0;
+
+/** The amount typed, kept as cents so it can follow a switch between forms. */
+export function AmountField({
+  value,
+  onChange,
+  error,
+  inputRef,
+  className,
+}: {
+  value: Cents | undefined;
+  onChange: (cents: Cents) => void;
+  error?: string;
+  inputRef: RefObject<HTMLInputElement | null>;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <Field label={`Amount (${PESO_SIGN})`} error={error}>
+        <CurrencyInput
+          ref={inputRef}
+          name="amount"
+          placeholder="0.00"
+          autoComplete="off"
+          enterKeyHint="next"
+          required
+          value={value}
+          onChange={onChange}
+        />
+      </Field>
+    </div>
+  );
+}
+
+const DIRECTIONS = [
+  { value: "expense", label: "Expense" },
+  { value: "income", label: "Income" },
+] as const satisfies readonly { value: EntryDirection; label: string }[];
+
+const DIRECTIONS_WITH_TRANSFER = [
+  ...DIRECTIONS,
+  { value: TRANSFER_TYPE, label: "Transfer" },
+] as const satisfies readonly { value: EntryDirection; label: string }[];
+
+/** Expense, Income and, for a new entry, Transfer. Inside a form it submits as `type`. */
 export function DirectionChoice({
   value,
   onChange,
@@ -30,33 +108,46 @@ export function DirectionChoice({
   withTransfer: boolean;
 }) {
   return (
-    <RadioGroup
-      name="type"
-      value={value}
-      onValueChange={(next) => isEntryDirection(next) && onChange(next)}
-      // Three choices need a row of their own.
-      className={cn(
-        "grid gap-2 self-end",
-        withTransfer ? `grid-cols-3 ${FULL_ROW}` : "grid-cols-2"
-      )}
-      aria-label={withTransfer ? "Expense, income or transfer" : "Expense or income"}
-    >
-      <ChoiceItem id="transaction-type-expense" value="expense" label="Expense" />
-      <ChoiceItem id="transaction-type-income" value="income" label="Income" />
-      {withTransfer && (
-        <ChoiceItem id="transaction-type-transfer" value={TRANSFER_TYPE} label="Transfer" />
-      )}
-    </RadioGroup>
+    <div className={cn("self-end", withTransfer && FULL_ROW)}>
+      <input type="hidden" name="type" value={value} />
+      <SegmentedControl<EntryDirection>
+        label={withTransfer ? "Expense, income or transfer" : "Expense or income"}
+        options={withTransfer ? DIRECTIONS_WITH_TRANSFER : DIRECTIONS}
+        value={value}
+        onChange={onChange}
+        className={cn("grid w-full", withTransfer ? "grid-cols-3" : "grid-cols-2")}
+      />
+    </div>
   );
 }
 
-export function ChoiceItem({ id, value, label }: { id: string; value: string; label: string }) {
+const STATUSES = [
+  { value: "cleared", label: "Cleared" },
+  { value: "pending", label: "Pending" },
+] as const satisfies readonly { value: TransactionStatus; label: string }[];
+
+/** Cleared or Pending, submitted as `status`. */
+export function StatusChoice({
+  value,
+  onChange,
+}: {
+  value: TransactionStatus;
+  onChange: (status: TransactionStatus) => void;
+}) {
   return (
-    <div className="flex min-w-0 items-center gap-2 rounded-md border px-3 py-2">
-      <RadioGroupItem id={id} value={value} />
-      <Label htmlFor={id} className="flex-1">
-        {label}
-      </Label>
+    <div className="space-y-2">
+      {/* The control names itself; this is the visible label. */}
+      <p className="text-label leading-none" aria-hidden="true">
+        Status
+      </p>
+      <input type="hidden" name="status" value={value} />
+      <SegmentedControl<TransactionStatus>
+        label="Status"
+        options={STATUSES}
+        value={value}
+        onChange={onChange}
+        className="grid w-full grid-cols-2"
+      />
     </div>
   );
 }

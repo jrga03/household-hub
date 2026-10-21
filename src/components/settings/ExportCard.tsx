@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { FileJson, FileSpreadsheet } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/app/Button";
 import { readEventLogExport } from "@/lib/export/event-log";
 import { readTransactionsCsv } from "@/lib/export/transactions-csv";
 import { reportError } from "@/lib/sentry";
@@ -22,7 +21,7 @@ async function exportEventLog() {
 }
 
 /** Both downloads are built on this device, from what it holds; they work offline. */
-export function ExportCard() {
+export function ExportButtons() {
   const [exporting, setExporting] = useState(false);
 
   const run = async (download: () => Promise<void>, operation: string) => {
@@ -38,31 +37,23 @@ export function ExportCard() {
   };
 
   return (
-    <Card id="export" className="scroll-mt-4">
-      <CardHeader>
-        <CardTitle>Export</CardTitle>
-        <CardDescription>
-          Download what this device holds: Household records plus your own Personal ones.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3 @[600px]:flex-row">
-        <Button
-          variant="outline"
-          disabled={exporting}
-          onClick={() => void run(exportTransactions, "transactions-csv")}
-        >
-          <FileSpreadsheet className="h-4 w-4" />
-          Transactions (CSV)
-        </Button>
-        <Button
-          variant="outline"
-          disabled={exporting}
-          onClick={() => void run(exportEventLog, "event-log-json")}
-        >
-          <FileJson className="h-4 w-4" />
-          Event log (JSON)
-        </Button>
-      </CardContent>
-    </Card>
+    <div className="flex flex-col gap-3 @[600px]:flex-row">
+      <Button
+        variant="outline"
+        disabled={exporting}
+        onClick={() => void run(exportTransactions, "transactions-csv")}
+      >
+        <FileSpreadsheet aria-hidden="true" />
+        Transactions (CSV)
+      </Button>
+      <Button
+        variant="outline"
+        disabled={exporting}
+        onClick={() => void run(exportEventLog, "event-log-json")}
+      >
+        <FileJson aria-hidden="true" />
+        Event log (JSON)
+      </Button>
+    </div>
   );
 }

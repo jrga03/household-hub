@@ -75,6 +75,16 @@ describe("CreateOrJoinChoices", () => {
     expect(screen.getByRole("tab", { name: "Join" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: "Create" })).toBeDisabled();
     expect(screen.queryByLabelText("Household Code")).not.toBeInTheDocument();
+    expect(screen.getByText("Pending")).toBeInTheDocument();
+  });
+
+  it("labels each form's field through Field", async () => {
+    renderChoices(null);
+
+    const name = await screen.findByLabelText("Household name");
+    expect(name).toHaveAttribute("name", "name");
+    pressTab("Join");
+    expect(await screen.findByLabelText("Household Code")).toHaveAttribute("name", "code");
   });
 
   it("opens on Join with the declined request until it is acknowledged", async () => {
@@ -85,5 +95,6 @@ describe("CreateOrJoinChoices", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Join" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: "Create" })).toBeDisabled();
+    expect(screen.getByText("Declined")).toBeInTheDocument();
   });
 });
