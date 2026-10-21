@@ -169,6 +169,7 @@ Why: one shell per page keeps headers, padding and wide-screen behavior the same
 - Every route renders `<PageShell variant="…">` (`src/components/layout/PageShell.tsx`). Pick the variant from its doc comment.
 - Inside rails, sheets and panes, use container queries (`@[600px]:`), not viewport breakpoints. A pane's width, not the window's, decides its layout.
 - Pin bottom-edge elements with the `--bottom-chrome` offset so nothing lands under the tab bar.
+- Pin sticky content below the app header with the `--app-header` offset (`SectionHeader sticky` does this). Never hard-code the header's height.
 - Adaptive layouts (more columns on the laptop, window size classes) come in their own session.
 
 ## Enforcement

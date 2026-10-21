@@ -47,7 +47,7 @@ export function PageHeader({ menuButton, compactSync, className, children }: Pag
         className
       )}
     >
-      <div className="flex h-14 items-center gap-2 px-4">
+      <div className="flex h-[var(--app-header-height)] items-center gap-2 px-4">
         {mode ? (
           <Button variant="ghost" size="icon" aria-label={mode.exitLabel} onClick={mode.exit}>
             <X className="h-5 w-5" />
