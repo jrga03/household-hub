@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, type ReactNode } from "react";
-import { useNavigate, useRouter, useSearch } from "@tanstack/react-router";
+import { useNavigate, useRouter, useSearch, type RouterHistory } from "@tanstack/react-router";
 import { Drawer as DrawerPrimitive } from "vaul";
 import { useSheetAboveKeyboard } from "@/components/app/FormSheet";
 import { Button } from "@/components/ui/button";
@@ -24,15 +24,33 @@ export function readOpenItem(search: Record<string, unknown>): OpenItemSearch {
   return typeof search.open === "string" && search.open !== "" ? { open: search.open } : {};
 }
 
-const withoutOpen = (search: Record<string, unknown>) => {
-  const next = { ...search };
-  delete next.open;
-  return next;
-};
+/**
+ * The open item from the local projections: undefined while nothing is open or
+ * they load, null once it's gone (which closes it).
+ */
+export function resolveOpenItem<T>(
+  openId: string | null,
+  find: ((id: string) => T | undefined) | undefined
+): T | null | undefined {
+  if (openId === null || find === undefined) return undefined;
+  return find(openId) ?? null;
+}
 
-// The key of the entry a close already went back from: a second close while that pop lands
-// (the editor's onClose, then the item vanishing) must not leave the page too.
-let backedFromKey: string | undefined;
+const backInFlight = new WeakSet<RouterHistory>();
+
+/**
+ * Goes back once until the pop lands: a second close meanwhile (the editor's
+ * onClose, then the item vanishing) must not leave the page too.
+ */
+function backOnce(history: RouterHistory) {
+  if (backInFlight.has(history)) return;
+  backInFlight.add(history);
+  const unsubscribe = history.subscribe(() => {
+    backInFlight.delete(history);
+    unsubscribe();
+  });
+  history.back();
+}
 
 /**
  * The open item of a list-detail page, kept in the URL as `?open=<id>`.
@@ -54,8 +72,8 @@ export function useOpenItem() {
       const { location } = router.state;
       const push = !twoPanes && readOpenItem(location.search).open === undefined;
       void navigate({
-        // Route-agnostic: each list-detail route validates `open` itself.
-        search: ((previous: Record<string, unknown>) => ({ ...previous, open: id })) as never,
+        to: ".",
+        search: (previous) => ({ ...previous, open: id }),
         replace: !push,
         resetScroll: false,
         state: { openPushed: push || location.state.openPushed === true },
@@ -68,15 +86,30 @@ export function useOpenItem() {
     const { location } = router.state;
     if (readOpenItem(location.search).open === undefined) return;
     if (location.state.openPushed) {
-      if (backedFromKey === location.state.__TSR_key) return;
-      backedFromKey = location.state.__TSR_key;
-      router.history.back();
+      backOnce(router.history);
       return;
     }
-    void navigate({ search: withoutOpen as never, replace: true, resetScroll: false });
+    void navigate({
+      to: ".",
+      search: ({ open: _closed, ...rest }) => rest,
+      replace: true,
+      resetScroll: false,
+    });
   }, [router, navigate]);
 
-  return { openId, open, close };
+  /**
+   * An item opened at two panes replaced its entry. Once it shows in a sheet,
+   * put the list entry back underneath, so back closes the sheet.
+   */
+  const pushEntryForSheet = useCallback(() => {
+    const { location } = router.state;
+    if (location.state.openPushed || readOpenItem(location.search).open === undefined) return;
+    const list = router.buildLocation({ to: ".", search: ({ open: _closed, ...rest }) => rest });
+    router.history.replace(list.publicHref, location.state);
+    router.history.push(location.publicHref, { openPushed: true });
+  }, [router]);
+
+  return { openId, open, close, pushEntryForSheet };
 }
 
 interface DetailPaneProps<T> {
@@ -95,11 +128,15 @@ interface DetailPaneProps<T> {
  */
 export function DetailPane<T>({ title, description, item, children }: DetailPaneProps<T>) {
   const twoPanes = useTwoPanes();
-  const { openId, close } = useOpenItem();
+  const { openId, close, pushEntryForSheet } = useOpenItem();
   const gone = openId !== null && item === null;
   useEffect(() => {
     if (gone) close();
   }, [gone, close]);
+  const inSheet = !twoPanes && openId !== null && item !== null && item !== undefined;
+  useEffect(() => {
+    if (inSheet) pushEntryForSheet();
+  }, [inSheet, pushEntryForSheet]);
 
   if (openId === null || item === null || item === undefined) return null;
   const content = children(item);
@@ -114,14 +151,14 @@ export function DetailPane<T>({ title, description, item, children }: DetailPane
   );
 }
 
-interface ShownProps {
+interface PlacementProps {
   title: ReactNode;
   description?: ReactNode;
   onClose: () => void;
   children: ReactNode;
 }
 
-function Pane({ title, description, onClose, children }: ShownProps) {
+function Pane({ title, description, onClose, children }: PlacementProps) {
   const titleId = useId();
   return (
     <PageShell.Detail>
@@ -150,7 +187,7 @@ function Pane({ title, description, onClose, children }: ShownProps) {
   );
 }
 
-function Sheet({ title, onClose, children }: Omit<ShownProps, "description">) {
+function Sheet({ title, onClose, children }: Omit<PlacementProps, "description">) {
   const aboveKeyboard = useSheetAboveKeyboard();
   return (
     // The open item's URL entry stands in for the drawer's own back-close entry.
