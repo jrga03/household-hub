@@ -114,6 +114,12 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#223 the rail is stacked `Field` + `Select` filters** (search, month, account, category, status, type, needs a category), not the prototype's button lists; the phone chips cover the same filters through the new `FilterChipSelect`. Why: one filter model at every width, and category lists are long. Revisit: after real use on a laptop.
 - **#223 Account and Status `hideBelow: 600`** of the table's container: they drop with the pane open at 1024 (table about 560px) and stay at 1366. Why: `DataTable` offers 480/600/840/1200, and 600 matches the ticket's 456px case. Revisit: never.
 - **#223 the Transactions layout baselines still show the fixture user's empty state**, so they don't cover the table, chips or pane; e2e screenshots (`pane-1366`, `pane-1024`, `sheet-393`, `route-*`, `list-393`) do. Why: the baseline user is unseeded (see #220). Revisit: seeding the baseline user.
+- **#224 entry forms validate on submit, per field** (`noValidate`): amount, date and description errors sit under their `Field` (`aria-invalid`, `aria-describedby`) and focus moves to the first one; command errors stay in `FormError`. Why: native `required` bubbles aren't tied to the control. Same rules as the commands. Revisit: never.
+- **#224 `CurrencyInput` shows zero as an empty field** (`formatPHPInput`), a fix in `ui/currency-input.tsx`. Why: tabbing past an empty amount showed "0.00" and slipped past `required`. Revisit: never.
+- **#224 the amount label stays "Amount (₱)"** though `CurrencyInput` also draws ₱. Why: every other amount field and about 20 e2e locators use it. Revisit: #233, once every amount field is a `CurrencyInput`.
+- **#224 Status is a `SegmentedControl` with an `aria-hidden` visible "Status" label**, since `SegmentedControl` names itself by `aria-label` only. Why: matches the direction control. Revisit: if `SegmentedControl` takes `aria-labelledby`.
+- **#224 `DirectionChoice` is now a `SegmentedControl`**, so Import's `DraftDetail` (#230) shows it too. Why: it is the shared entry control. Revisit: #230, if the draft needs a different look.
+- **#224 no "Saved on this device" line in the entry sheets.** Why: the user dropped it 2026-10-14 (ui-overhaul decisions); this closes the #216 and #223 items. Revisit: never.
 
 ### Rollout checklist
 
