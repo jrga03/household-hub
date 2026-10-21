@@ -161,9 +161,10 @@ const restrictNanoid = {
 };
 
 // shadcn primitives (src/components/ui) are private to the app-component layer
-// (src/components/app), ADR 0011. These files imported a primitive directly when
-// the rule landed. The list only shrinks: migrate a file and delete its entry;
-// never add one (architecture-lint.test.ts holds the count down).
+// (src/components/app, plus the layout chrome in src/components/layout), ADR 0011.
+// These files imported a primitive directly when the rule landed. The list only
+// shrinks: migrate a file and delete its entry; never add one
+// (architecture-lint.test.ts holds the count down).
 export const directPrimitiveImporters = [
   "src/App.tsx",
   "src/components/accounts/AccountDetailsFields.tsx",
@@ -185,11 +186,9 @@ export const directPrimitiveImporters = [
   "src/components/categories/EditCategoryDialogs.tsx",
   "src/components/categories/GroupSelect.tsx",
   "src/components/categories/RecordName.tsx",
-  "src/components/ConfirmDialog.tsx",
   "src/components/corrections/CorrectBalanceDialog.tsx",
   "src/components/ErrorBoundary.tsx",
   "src/components/finances/FinancesSection.tsx",
-  "src/components/FormSheet.tsx",
   "src/components/households/CreateOrJoin.tsx",
   "src/components/households/HouseholdSettings.tsx",
   "src/components/households/JoinHousehold.tsx",
@@ -199,11 +198,6 @@ export const directPrimitiveImporters = [
   "src/components/import/DraftLabels.tsx",
   "src/components/import/ImportView.tsx",
   "src/components/import/ReadStatement.tsx",
-  "src/components/layout/AppLayout.tsx",
-  "src/components/layout/AppSidebar.tsx",
-  "src/components/layout/MobileNav.tsx",
-  "src/components/layout/PageHeader.tsx",
-  "src/components/layout/ReviewCount.tsx",
   "src/components/LoginForm.tsx",
   "src/components/opening/OpeningChecklist.tsx",
   "src/components/PWAInstallPrompt.tsx",
@@ -220,7 +214,6 @@ export const directPrimitiveImporters = [
   "src/components/transactions/TransactionFilters.tsx",
   "src/components/transactions/TransactionList.tsx",
   "src/components/transactions/TransferDialog.tsx",
-  "src/components/VisibilityField.tsx",
   "src/routes/__root.tsx",
   "src/routes/budget.tsx",
   "src/routes/create-or-join.tsx",
@@ -234,6 +227,7 @@ const primitiveBoundary = {
     ...srcTestFiles,
     "src/components/ui/**",
     "src/components/app/**",
+    "src/components/layout/**",
     ...directPrimitiveImporters,
   ],
   rules: {
