@@ -83,7 +83,6 @@ Check here before debugging a test or CLI failure you did not cause. A failure i
 | Deployment (Cloudflare)                                     | `DEPLOYMENT.md`                                                                                   |
 | Current roadmap and its decisions                           | `docs/plans/2026-09-30-guardrails-roadmap.md` (Resume state, Decisions & Deferrals)               |
 | Past architecture review findings                           | `docs/reviews/2026-07-02-architecture-review.md`                                                  |
-| Wide-screen layout design                                   | `docs/plans/2026-05-30-wide-screen-layout-design.md`                                              |
 | Domain specialists                                          | `.claude/agents/*.md` (sync, offline, currency, schema, frontend, UI, Cloudflare)                 |
 
 ## Agent skills
