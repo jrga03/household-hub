@@ -113,7 +113,6 @@ function CorrectBalanceForm({
     },
     NO_PROBLEMS
   );
-  // The shared entry-form ref: Enter advances on phones, and focus lands on the field to fix.
   const formRef = useFocusFirstProblem(problems);
   const amountRef = useRef<HTMLInputElement>(null);
   // Focus waits for the categories, which the form needs before it renders.
