@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/app/Button";
 import { monthLabel, parseLocalDate, shiftMonth } from "@/lib/utils/dates";
 
 /** The header's month stepper; `month` is "yyyy-MM". */

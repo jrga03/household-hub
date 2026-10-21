@@ -27,12 +27,15 @@ const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 const MONTH = "2026-10";
 
 function renderBudget(month = MONTH) {
+  const daysLeft = month === MONTH ? 11 : undefined;
   const rootRoute = createRootRoute();
   const routes = ["/budget", "/categories"].map((path) =>
     createRoute({
       getParentRoute: () => rootRoute,
       path,
-      component: () => <BudgetView actor={MEMBER} month={month} currentMonth={MONTH} />,
+      component: () => (
+        <BudgetView actor={MEMBER} month={month} currentMonth={MONTH} daysLeft={daysLeft} />
+      ),
     })
   );
   const router = createRouter({
@@ -76,31 +79,70 @@ async function foodThisMonth() {
   return { groceries, restaurants, delivery, spend };
 }
 
-const figures = (name: string) => screen.findByLabelText(`${name} budget, spent and left`);
-/** The last figure is what's left. */
-const left = async (name: string) =>
-  within(await figures(name))
-    .getAllByText(/₱/, { selector: "[aria-hidden=true]" })
-    .at(-1)?.parentElement;
+/** A category's row, found by its name (the row's one button). */
+const row = async (name: string | RegExp) => {
+  const item = (await screen.findByRole("button", { name })).closest("li");
+  if (!item) throw new Error(`No row for ${String(name)}`);
+  return item;
+};
+/** What the row shows on the right: left, or what was spent without a budget. */
+const left = async (name: string | RegExp) => within(await row(name)).getByTestId("left");
+const group = (name: string) => screen.findByRole("region", { name });
+/** The group's left sits in its header, ahead of its rows'. */
+const groupLeft = async (name: string) => {
+  const [header] = within(await group(name)).getAllByTestId("left");
+  if (!header) throw new Error(`No left for ${name}`);
+  return header;
+};
+const bar = (name: string) => screen.getByRole("progressbar", { name: `${name} spent` });
+const barTone = (name: string) => {
+  const indicator = bar(name).querySelector("[data-slot=progress-indicator]");
+  if (indicator?.classList.contains("bg-shortfall")) return "shortfall";
+  if (indicator?.classList.contains("bg-warning")) return "warning";
+  return indicator?.classList.contains("bg-primary") ? "primary" : "none";
+};
 
 beforeEach(async () => {
   await resetLocalDatabase();
 });
 
 describe("BudgetView", () => {
-  it("shows each category's budget, spent and left, and its group's totals, with no inputs", async () => {
+  it("leads with what's left to spend this month, the budget and the days left", async () => {
+    const { groceries, delivery, spend } = await foodThisMonth();
+    await spend(groceries.id, "1200");
+    await spend(delivery.id, "300");
+    renderBudget();
+
+    const hero = await screen.findByRole("region", { name: "Left to spend" });
+    // Every category's spending counts, as in the group totals below it.
+    expect(hero).toHaveTextContent("₱7,500.00");
+    // Money's text repeats the amount for screen readers, so the caption is checked in parts.
+    expect(hero).toHaveTextContent("of ₱9,000.00");
+    expect(hero).toHaveTextContent("budget · 11 days left");
+    expect(bar("All budgets")).toHaveAttribute("aria-valuenow", "17");
+    expect(barTone("All budgets")).toBe("primary");
+  });
+
+  it("leaves out the days left for another month", async () => {
+    await foodThisMonth();
+    renderBudget("2026-11");
+
+    expect(await screen.findByRole("region", { name: "Left to spend" })).not.toHaveTextContent(
+      "days left"
+    );
+  });
+
+  it("shows each category's budget, spent and left, and its group's left, with no inputs", async () => {
     const { groceries, spend } = await foodThisMonth();
     await spend(groceries.id, "1200");
     renderBudget();
 
-    expect(await figures("Groceries")).toHaveTextContent(
-      "Budget₱8,000.00Spent₱1,200.00Left₱6,800.00"
-    );
-    expect(await figures("Food")).toHaveTextContent("Budget₱9,000.00Spent₱1,200.00Left₱7,800.00");
-    expect(screen.getByRole("progressbar", { name: "Groceries spent" })).toHaveAttribute(
-      "aria-valuenow",
-      "15"
-    );
+    const groceriesRow = await row("Groceries");
+    expect(groceriesRow).toHaveTextContent("₱8,000.00");
+    expect(groceriesRow).toHaveTextContent("₱1,200.00");
+    expect(await left("Groceries")).toHaveTextContent("₱6,800.00 left");
+    expect(await groupLeft("Food")).toHaveTextContent("₱7,800.00 left");
+    expect(bar("Groceries")).toHaveAttribute("aria-valuenow", "15");
     expect(screen.queryAllByRole("textbox")).toHaveLength(0);
     expect(screen.queryAllByRole("spinbutton")).toHaveLength(0);
   });
@@ -110,47 +152,58 @@ describe("BudgetView", () => {
     await spend(delivery.id, "300");
     renderBudget();
 
-    expect(await figures("Delivery")).toHaveTextContent("BudgetNoneSpent₱300.00");
-    expect(await figures("Delivery")).not.toHaveTextContent("Left");
+    expect(await row("Delivery")).toHaveTextContent("None");
+    expect(await left("Delivery")).toHaveTextContent("₱300.00 spent");
     expect(screen.queryByRole("progressbar", { name: "Delivery spent" })).not.toBeInTheDocument();
     // The group's spending still counts it against the group's budgets.
-    expect(await figures("Food")).toHaveTextContent("Budget₱9,000.00Spent₱300.00Left₱8,700.00");
+    expect(await groupLeft("Food")).toHaveTextContent("₱8,700.00 left");
   });
 
-  it("shows an overspent category's left in red with a full red bar, and its group's total too", async () => {
+  it("shows an overspent category's left as −₱… in shortfall with a shortfall bar, and its group's too", async () => {
     const { restaurants, groceries, spend } = await foodThisMonth();
     await spend(restaurants.id, "10500");
     await spend(groceries.id, "1200");
     renderBudget();
 
-    expect(await left("Restaurants")).toHaveTextContent("−₱9,500.00");
-    expect(await left("Restaurants")).toHaveClass("text-shortfall");
-    const bar = screen.getByRole("progressbar", { name: "Restaurants spent" });
-    expect(bar).toHaveAttribute("aria-valuenow", "100");
-    expect(bar).toHaveAttribute("data-overspent", "true");
+    const restaurantsLeft = await left("Restaurants");
+    expect(restaurantsLeft).toHaveTextContent("−₱9,500.00");
+    expect(restaurantsLeft).not.toHaveTextContent("left");
+    expect(within(restaurantsLeft).getByText("−₱9,500.00").parentElement).toHaveClass(
+      "text-shortfall"
+    );
+    expect(bar("Restaurants")).toHaveAttribute("aria-valuenow", "100");
+    expect(barTone("Restaurants")).toBe("shortfall");
+    expect(await row("Restaurants")).toHaveTextContent("Over budget");
 
-    expect(await left("Food")).toHaveTextContent("−₱2,700.00");
-    expect(await left("Food")).toHaveClass("text-shortfall");
-    expect(screen.getByRole("progressbar", { name: "Food spent" })).toHaveAttribute(
-      "data-overspent",
-      "true"
+    expect(within(await groupLeft("Food")).getByText("−₱2,700.00").parentElement).toHaveClass(
+      "text-shortfall"
     );
-    expect(await left("Groceries")).not.toHaveClass("text-shortfall");
-    expect(screen.getByRole("progressbar", { name: "Groceries spent" })).not.toHaveAttribute(
-      "data-overspent"
-    );
+    expect(barTone("Groceries")).toBe("primary");
+    expect(await row("Groceries")).not.toHaveTextContent("Over budget");
   });
 
-  it("marks overspent exactly the categories Home counts as over", async () => {
+  it("counts a budget spent exactly as fine, and one nearly spent as close", async () => {
+    const { restaurants, groceries, spend } = await foodThisMonth();
+    await spend(groceries.id, "8000");
+    await spend(restaurants.id, "900");
+    renderBudget();
+
+    expect(await left("Groceries")).toHaveTextContent("₱0.00 left");
+    expect(barTone("Groceries")).toBe("primary");
+    expect(await row("Groceries")).not.toHaveTextContent("Close");
+
+    expect(barTone("Restaurants")).toBe("warning");
+    expect(await row("Restaurants")).toHaveTextContent("Close");
+  });
+
+  it("marks over budget exactly the categories Home counts as over", async () => {
     const { restaurants, groceries, spend } = await foodThisMonth();
     await spend(restaurants.id, "1000.01");
     await spend(groceries.id, "8000");
     renderBudget();
 
-    await screen.findByRole("progressbar", { name: "Groceries spent" });
-    const overspent = ["Groceries", "Restaurants"].filter((name) =>
-      screen.getByRole("progressbar", { name: `${name} spent` }).hasAttribute("data-overspent")
-    );
+    await row("Groceries");
+    const overspent = ["Groceries", "Restaurants"].filter((name) => barTone(name) === "shortfall");
     const { budgets } = await readFinanceOverview("household", MEMBER.userId, MONTH);
     expect(overspent).toEqual(["Restaurants"]);
     expect(budgets.over).toBe(overspent.length);
@@ -171,15 +224,15 @@ describe("BudgetView", () => {
     await retireCategory(MEMBER, delivery.id, { toCategoryId: groceries.id, date: "2026-09-30" });
 
     const september = renderBudget("2026-09");
-    expect(await figures("Delivery")).toHaveTextContent("BudgetNoneSpent₱450.00");
-    expect(screen.getByRole("button", { name: "Delivery ledger" })).toHaveTextContent("Retired");
-    expect(await figures("Food")).toHaveTextContent("Spent₱450.00");
+    expect(await row(/^Delivery/)).toHaveTextContent("Retired");
+    expect(await left(/^Delivery/)).toHaveTextContent("₱450.00 spent");
+    expect(await groupLeft("Food")).toHaveTextContent("₱450.00 spent");
     september.unmount();
 
     renderBudget();
-    await figures("Groceries");
-    expect(screen.queryByLabelText("Delivery budget, spent and left")).not.toBeInTheDocument();
-    expect(await figures("Food")).toHaveTextContent("Spent₱0.00");
+    await row("Groceries");
+    expect(screen.queryByRole("button", { name: /^Delivery/ })).not.toBeInTheDocument();
+    expect(await groupLeft("Food")).toHaveTextContent("₱9,000.00 left");
   });
 
   it("shows a retired group in a month one of its categories shows", async () => {
@@ -206,8 +259,8 @@ describe("BudgetView", () => {
     await retireGroup(MEMBER, fun.id);
 
     const september = renderBudget("2026-09");
-    expect(await figures("Fun")).toHaveTextContent("Budget₱500.00Spent₱0.00Left₱500.00");
-    expect(await figures("Movies")).toHaveTextContent("Budget₱500.00");
+    expect(await groupLeft("Fun")).toHaveTextContent("₱500.00 left");
+    expect(await row(/^Movies/)).toHaveTextContent("₱500.00");
     september.unmount();
 
     renderBudget();
@@ -216,7 +269,7 @@ describe("BudgetView", () => {
 
   it("points to Categories when there are none", async () => {
     renderBudget();
-    expect(await screen.findByRole("link", { name: "Categories" })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: "Set up categories" })).toHaveAttribute(
       "href",
       "/categories"
     );

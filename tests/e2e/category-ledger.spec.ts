@@ -44,7 +44,7 @@ test.describe("wide screens", () => {
   test("opens the ledger in the detail pane, and a row opens its record", async ({ page }) => {
     await groceriesThisMonth(page);
 
-    await page.getByRole("button", { name: "Groceries ledger" }).click();
+    await page.getByRole("button", { name: "Groceries", exact: true }).click();
     const pane = page.getByRole("complementary").getByRole("region", { name: "Groceries" });
     await expect(pane).toBeVisible();
     await expect(page).toHaveURL(/[?&]open=/);
@@ -54,6 +54,13 @@ test.describe("wide screens", () => {
     await expect(pane).toContainText("−₱1,200.00");
     await expect(pane).toContainText(/End of .*₱6,800\.00/);
     await page.screenshot({ path: test.info().outputPath("ledger-pane.png") });
+
+    await page.reload();
+    await expect(pane).toContainText(/End of .*₱6,800\.00/);
+    await expect(page.getByRole("button", { name: "Groceries", exact: true })).toHaveAttribute(
+      "aria-current",
+      "true"
+    );
 
     await groceriesLedger(page)
       .getByRole("button", { name: /Market/ })
@@ -68,7 +75,7 @@ test.describe("phones", () => {
   test("opens the ledger in a sheet", async ({ page }) => {
     await groceriesThisMonth(page);
 
-    await page.getByRole("button", { name: "Groceries ledger" }).click();
+    await page.getByRole("button", { name: "Groceries", exact: true }).click();
     const sheet = page.getByRole("dialog", { name: "Groceries" });
     await expect(sheet).toBeVisible();
     await expect(sheet).toContainText(/End of .*₱6,800\.00/);

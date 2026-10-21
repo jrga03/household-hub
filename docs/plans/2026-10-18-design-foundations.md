@@ -143,6 +143,14 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#230 the draft description keeps its own label (with the Suggested badge) and its warning "Needs a description" line**, not `Field`. Why: `Field` takes a string label and shows errors in `destructive`; a missing description is something to check, not a failed submit. Revisit: if `Field` takes a node label or a warning hint.
 - **#230 `DraftDetail` keeps #224's `DirectionChoice` segmented control as it is.** Why: it reads well in the pane and the sheet (checked at 1280 and 393). Revisit: never.
 - **#230 the Import list is not width-capped**: with no draft open on a laptop the read form spans the list column. Why: `list-detail` lets the list flex. Revisit: after real use on a laptop.
+- **#226 Budget's hero and group totals count every category's spending**, budgeted or not, so the groups add up to "Left to spend"; the hero hides while no category has a budget. Why: the prototype's hero left out unbudgeted spending while its group totals kept it, so the two disagreed. Revisit: if unbudgeted spending should stay out of "Left to spend".
+- **#226 "· N days left" shows for this month only**, from `daysLeftInMonth` (the route passes it), masked by `data-testid="days-left"`. Why: a past or future month has no days left to spend. Revisit: never.
+- **#226 a Budget row's one target is the category's name** (button name "Groceries", was "Groceries ledger"), stretched over the row; figures sit beside it, Budget and Spent shown from a 600 list width with sr-only labels. Why: a button holding every figure reads as one long name; e2e now uses `exact: true`. Revisit: never.
+- **#226 Budget rows show a `warning` "Close" or `shortfall` "Over budget" badge from a 600 list width only**, as Home's feed does; below 600 the bar's tone and the "−₱…" carry it. Why: the phone row is one line. Revisit: if phone users miss it.
+- **#226 the Budget rows' container is the list, not the shell** (`@container` on `PageShell.List`), so columns follow the list's width with the pane open. Why: DESIGN.md's pane-width rule. Revisit: never.
+- **#226 `CategoryLedger` moved onto `ListRow` and hairline sections** (no boxed borders; "Budget history" is a `SectionHeader`, amounts are `Money`). It is on no ticket's file list; the spec's "Budget's ledger uses #223's rows" puts it here. Revisit: never.
+- **#226 records opened from the ledger stay in `FormSheet` dialogs over the pane, outside the URL** (closes the #219 item). Why: only the list's open item is `?open=`; a second URL level would need a nested detail model. Revisit: if people want to share a link to a ledger record.
+- **#226 `/budget` joined the signed-in accessibility e2e**, and `plan.spec`'s Budget checks now read the row's `left` test id and the bar's tone. Why: the old `dl` labels are gone. Revisit: never.
 
 ### Rollout checklist
 
