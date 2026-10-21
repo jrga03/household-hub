@@ -99,4 +99,13 @@ describe("ListRow", () => {
     expect(onRemove).toHaveBeenCalledOnce();
     expect(onOpen).not.toHaveBeenCalled();
   });
+
+  it("is its own size container, so quick actions follow the row's width, not the page's", () => {
+    render(
+      <ListRow label="Groceries" onClick={() => {}} actions={<button type="button">Edit</button>} />
+    );
+    expect(screen.getByRole("button", { name: /Groceries/ }).parentElement).toHaveClass(
+      "@container"
+    );
+  });
 });

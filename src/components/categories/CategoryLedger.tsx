@@ -6,6 +6,7 @@ import { budgetHistory } from "@/lib/budgets/inForce";
 import type { LedgerRecord, LedgerRow } from "@/lib/budgets/ledger";
 import { formatPHP, type Cents } from "@/lib/currency";
 import { CORRECTION_LABEL } from "@/lib/corrections/events";
+import { cn } from "@/lib/utils";
 import { monthLabel, parseLocalDate } from "@/lib/utils/dates";
 
 interface Names {
@@ -117,7 +118,7 @@ export function CategoryLedger({
                       <Money
                         kind="balance"
                         cents={row.balance}
-                        className="text-caption text-muted-foreground"
+                        className={cn("text-caption", row.balance >= 0 && "text-muted-foreground")}
                       />
                     </span>
                   </button>
