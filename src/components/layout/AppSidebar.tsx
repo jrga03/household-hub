@@ -60,7 +60,11 @@ function SidebarBody() {
           <Link
             to={item.to}
             className="relative"
-            aria-label={item.reviewCount ? reviewLabel(item.label, reviewCount) : undefined}
+            // A collapsed rail shows only the icon, so the link names itself.
+            aria-label={
+              (item.reviewCount && reviewLabel(item.label, reviewCount)) ||
+              (open ? undefined : item.label)
+            }
           >
             <item.icon className="h-4 w-4" />
             {open ? (

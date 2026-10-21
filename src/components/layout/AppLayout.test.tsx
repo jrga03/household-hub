@@ -136,6 +136,18 @@ describe("AppLayout navigation per window size class", () => {
     }
   );
 
+  it("names each link of a collapsed rail, which shows only icons", () => {
+    setViewportWidth(EXPANDED);
+    render(<AppLayout />);
+
+    const element = rail();
+    if (!element) throw new Error("no rail");
+    expect(railIsExpanded()).toBe(false);
+    for (const label of ["Home", "Transactions", "Budget", "Review", "Accounts", "Settings"]) {
+      expect(within(element).getByRole("link", { name: label })).toBeInTheDocument();
+    }
+  });
+
   it("lets the remembered toggle expand the rail at an expanded window", () => {
     document.cookie = "sidebar_state=true; path=/";
     setViewportWidth(EXPANDED);
