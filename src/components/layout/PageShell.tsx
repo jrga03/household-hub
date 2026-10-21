@@ -63,8 +63,6 @@ function RightAside({ className, children, ref }: AsideProps) {
  *
  * Uses container queries (`@container`) so layouts react to actual page width,
  * not viewport width (the global sidebar can collapse and shift content width).
- *
- * See docs/plans/2026-05-30-wide-screen-layout-design.md for the full design.
  */
 export function PageShell({ variant = "centered", className, children }: PageShellProps) {
   // The outer wrapper carries `@container` so descendants can use `@[1100px]:`

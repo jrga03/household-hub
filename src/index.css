@@ -23,8 +23,7 @@
 }
 
 @theme {
-  /* Custom container breakpoints for PageShell layout system.
-     See docs/plans/2026-05-30-wide-screen-layout-design.md */
+  /* Custom container breakpoints for PageShell layout system. */
   --container-mid: 1100px;
   --container-wide: 1500px;
   --transition-duration-quick: 150ms;
