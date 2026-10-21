@@ -1,8 +1,12 @@
 import { useState, useTransition } from "react";
+import { ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell } from "@/components/layout/PageShell";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/app/Button";
+import { EmptyState } from "@/components/app/EmptyState";
+import { ListRow } from "@/components/app/ListRow";
+import { SectionHeader } from "@/components/app/SectionHeader";
+import { StatusBadge } from "@/components/app/StatusBadge";
 import { useCategoryList } from "@/hooks/useCategories";
 import { DEFAULT_GROUPS } from "@/lib/categories/defaults";
 import type { RecordNoun } from "@/lib/categories/events";
@@ -11,6 +15,7 @@ import {
   type CategoryList,
   type CategoryRow,
   type GroupListItem,
+  type GroupRow,
 } from "@/lib/categories/projection";
 import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 import { seedDefaultCategories, unretireCategory, unretireGroup } from "@/lib/commands/categories";
@@ -46,62 +51,71 @@ export function CategoriesView({ actor }: { actor: Actor }) {
   const editCategory = (id: string) => setEditing({ kind: "category", id });
 
   return (
-    <PageShell.Main className="space-y-4">
+    <PageShell.Main className="space-y-8">
       {!hasHouseholdGroup(list) && <SuggestedCategories actor={actor} />}
 
-      <Card>
-        <CardContent className="space-y-6">
-          {list.groups.length === 0 && list.ungrouped.length === 0 && (
-            <p className="text-body text-muted-foreground">
-              No groups yet. Household categories every member sees, and Personal ones only you see.
-              Add the first group below.
-            </p>
-          )}
-          {list.groups.length > 0 && (
-            <ul aria-label="Groups" className="space-y-4">
-              {list.groups.map((group) => (
-                <li key={group.id} className="rounded-md border">
-                  <GroupHeader
-                    group={group}
-                    onEdit={() => setEditing({ kind: "group", id: group.id })}
+      <div className="space-y-8">
+        {list.groups.length === 0 && list.ungrouped.length === 0 && (
+          <EmptyState className="py-0">
+            No groups yet. Household categories every member sees, and Personal ones only you see.
+            Add the first group below.
+          </EmptyState>
+        )}
+        {list.groups.length > 0 && (
+          <ul aria-label="Groups" className="space-y-8">
+            {list.groups.map((group) => (
+              <li key={group.id}>
+                <section aria-label={group.name} className="space-y-1">
+                  <SectionHeader
+                    title={group.name}
+                    action={
+                      <GroupActions
+                        group={group}
+                        onEdit={() => setEditing({ kind: "group", id: group.id })}
+                      />
+                    }
                   />
                   <CategoryItems
                     label={`${group.name} categories`}
                     categories={group.categories}
                     onEdit={editCategory}
                   />
-                </li>
-              ))}
-            </ul>
-          )}
-          {list.ungrouped.length > 0 && (
-            <div className="space-y-2 rounded-md border">
-              <p className="border-b px-3 py-2 text-body text-muted-foreground">
-                Waiting for their group to reach this device
-              </p>
-              <CategoryItems
-                label="Ungrouped categories"
-                categories={list.ungrouped}
-                onEdit={editCategory}
-              />
-            </div>
-          )}
-          <RetiredCategories actor={actor} list={list} />
-        </CardContent>
-      </Card>
+                </section>
+              </li>
+            ))}
+          </ul>
+        )}
+        {list.ungrouped.length > 0 && (
+          <section aria-label="Ungrouped" className="space-y-1">
+            <SectionHeader title="Ungrouped" />
+            <p className="text-body text-muted-foreground">
+              Waiting for their group to reach this device.
+            </p>
+            <CategoryItems
+              label="Ungrouped categories"
+              categories={list.ungrouped}
+              onEdit={editCategory}
+            />
+          </section>
+        )}
+        <RetiredCategories actor={actor} list={list} />
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Add</CardTitle>
-          <CardDescription>
-            A category belongs to a group and is seen by the same people as its group.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-8">
-          {groupsInUse.length > 0 && <AddCategoryForm actor={actor} groups={groupsInUse} />}
-          <AddGroupForm actor={actor} />
-        </CardContent>
-      </Card>
+      {groupsInUse.length > 0 && (
+        <section className="space-y-4">
+          <div className="space-y-1">
+            <SectionHeader title="Add a category" />
+            <p className="text-body text-muted-foreground">
+              A category belongs to a group and is seen by the same people as its group.
+            </p>
+          </div>
+          <AddCategoryForm actor={actor} groups={groupsInUse} />
+        </section>
+      )}
+      <section className="space-y-4">
+        <SectionHeader title="Add a group" />
+        <AddGroupForm actor={actor} />
+      </section>
 
       {editingGroup && (
         <EditGroupDialog actor={actor} group={editingGroup} onClose={() => setEditing(null)} />
@@ -118,11 +132,18 @@ export function CategoriesView({ actor }: { actor: Actor }) {
   );
 }
 
-function GroupHeader({ group, onEdit }: { group: GroupListItem; onEdit: () => void }) {
+function GroupActions({ group, onEdit }: { group: GroupListItem; onEdit: () => void }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b bg-muted/40 px-3 py-2">
-      <RecordName record={group} showRetired />
-      <Button variant="ghost" size="sm" aria-label={`Edit group ${group.name}`} onClick={onEdit}>
+    <div className="flex items-center gap-2">
+      {group.visibility === "personal" && <StatusBadge tone="neutral">Personal</StatusBadge>}
+      {group.retired && <StatusBadge tone="outline">Retired</StatusBadge>}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-mr-3"
+        aria-label={`Edit group ${group.name}`}
+        onClick={onEdit}
+      >
         Edit
       </Button>
     </div>
@@ -139,21 +160,21 @@ function CategoryItems({
   onEdit: (id: string) => void;
 }) {
   if (categories.length === 0) {
-    return <p className="px-3 py-2 text-body text-muted-foreground">No categories in use.</p>;
+    return <EmptyState className="py-2">No categories in use.</EmptyState>;
   }
   return (
-    <ul aria-label={label} className="divide-y">
+    <ul aria-label={label} className="-mx-4 divide-y border-y">
       {categories.map((category) => (
-        <li key={category.id} className="flex items-center justify-between gap-3 py-1 pr-3 pl-6">
-          <RecordName record={category} />
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-label={`Edit ${category.name}`}
+        <li key={category.id}>
+          <ListRow
             onClick={() => onEdit(category.id)}
-          >
-            Edit
-          </Button>
+            label={
+              <>
+                <span className="sr-only">Edit</span> <RecordName record={category} />
+              </>
+            }
+            amount={<ChevronRight aria-hidden="true" className="size-4 text-muted-foreground" />}
+          />
         </li>
       ))}
     </ul>
@@ -174,20 +195,18 @@ function SuggestedCategories({ actor }: { actor: Actor }) {
     });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Start with suggested categories</CardTitle>
-        <CardDescription>
+    <section className="space-y-3">
+      <div className="space-y-1">
+        <SectionHeader title="Start with suggested categories" />
+        <p className="text-body text-muted-foreground">
           {DEFAULT_GROUPS.map((group) => group.name).join(", ")}, each with a few categories.
           Rename, move or retire any of them later.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Button onClick={seed} disabled={seeding}>
-          {seeding ? "Adding..." : "Use suggested categories"}
-        </Button>
-      </CardContent>
-    </Card>
+        </p>
+      </div>
+      <Button onClick={seed} disabled={seeding}>
+        {seeding ? "Adding..." : "Use suggested categories"}
+      </Button>
+    </section>
   );
 }
 
@@ -209,50 +228,76 @@ function RetiredCategories({ actor, list }: { actor: Actor; list: CategoryList }
     });
 
   return (
-    <div className="space-y-3">
-      <Button variant="link" className="h-auto p-0" onClick={() => setShown(!shown)}>
-        {shown ? "Hide retired" : `Show retired (${count})`}
-      </Button>
+    <section className="space-y-1">
+      <SectionHeader
+        title="Retired"
+        action={
+          <Button
+            variant="link"
+            className="h-auto p-0"
+            aria-expanded={shown}
+            onClick={() => setShown(!shown)}
+          >
+            {shown ? "Hide retired" : `Show retired (${count})`}
+          </Button>
+        }
+      />
       {shown && (
-        <ul aria-label="Retired" className="divide-y rounded-md border">
+        <ul aria-label="Retired" className="-mx-4 divide-y border-y">
           {list.retiredGroups.map((group) => (
-            <li key={group.id} className="flex items-center justify-between gap-3 px-3 py-2">
-              <div className="min-w-0">
-                <RecordName record={group} />
-                <p className="text-body text-muted-foreground">Group</p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                aria-label={`Unretire group ${group.name}`}
-                disabled={unretiring}
-                onClick={() => unretire(group.name, () => unretireGroup(actor, group.id))}
-              >
-                Unretire
-              </Button>
-            </li>
+            <RetiredItem
+              key={group.id}
+              record={group}
+              detail="Group"
+              unretireLabel={`Unretire group ${group.name}`}
+              disabled={unretiring}
+              onUnretire={() => unretire(group.name, () => unretireGroup(actor, group.id))}
+            />
           ))}
           {list.retiredCategories.map((category) => (
-            <li key={category.id} className="flex items-center justify-between gap-3 px-3 py-2">
-              <div className="min-w-0">
-                <RecordName record={category} />
-                <p className="text-body text-muted-foreground">
-                  {category.group ? `In ${category.group.name}` : "Group not on this device yet"}
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                aria-label={`Unretire ${category.name}`}
-                disabled={unretiring}
-                onClick={() => unretire(category.name, () => unretireCategory(actor, category.id))}
-              >
-                Unretire
-              </Button>
-            </li>
+            <RetiredItem
+              key={category.id}
+              record={category}
+              detail={category.group ? `In ${category.group.name}` : "Group not on this device yet"}
+              unretireLabel={`Unretire ${category.name}`}
+              disabled={unretiring}
+              onUnretire={() => unretire(category.name, () => unretireCategory(actor, category.id))}
+            />
           ))}
         </ul>
       )}
-    </div>
+    </section>
+  );
+}
+
+function RetiredItem({
+  record,
+  detail,
+  unretireLabel,
+  disabled,
+  onUnretire,
+}: {
+  record: GroupRow;
+  detail: string;
+  unretireLabel: string;
+  disabled: boolean;
+  onUnretire: () => void;
+}) {
+  return (
+    <li className="flex items-center justify-between gap-3 px-4 py-2">
+      <div className="min-w-0">
+        <RecordName record={record} />
+        <p className="truncate text-muted-foreground">{detail}</p>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        aria-label={unretireLabel}
+        disabled={disabled}
+        onClick={onUnretire}
+      >
+        Unretire
+      </Button>
+    </li>
   );
 }

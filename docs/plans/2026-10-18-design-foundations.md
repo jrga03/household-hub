@@ -120,6 +120,11 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#224 Status is a `SegmentedControl` with an `aria-hidden` visible "Status" label**, since `SegmentedControl` names itself by `aria-label` only. Why: matches the direction control. Revisit: if `SegmentedControl` takes `aria-labelledby`.
 - **#224 `DirectionChoice` is now a `SegmentedControl`**, so Import's `DraftDetail` (#230) shows it too. Why: it is the shared entry control. Revisit: #230, if the draft needs a different look.
 - **#224 no "Saved on this device" line in the entry sheets.** Why: the user dropped it 2026-10-14 (ui-overhaul decisions); this closes the #216 and #223 items. Revisit: never.
+- **#229 a category row is one `ListRow` button named "Edit <name>"** (a visually hidden "Edit" before the name, a chevron after it) that opens its edit sheet; the group's Edit stays a ghost button in its `SectionHeader`, with Personal and Retired as `StatusBadge`s beside it. Why: keeps the e2e names other flows use and gives the row one target. Revisit: never.
+- **#229 retired rows are plain hairline rows with an Unretire button**, not `ListRow`. Why: their one action is a button, and `ListRow` hides quick actions below 600. Revisit: never.
+- **#229 a phone `FormSheet` doesn't take focus when it opens** (vaul leaves focus on the trigger behind it, so Tab walks the page), so the keyboard e2e runs at 1024, where it is a dialog. Why: a layer-2 fix outside this ticket's files. Revisit: #233 or a FormSheet fix (focus the sheet on open).
+- **#229 the add-category form shows "Choose a group." under the Group field** (`Field` error) instead of in `FormError`. Why: DESIGN.md puts a field's error next to it. Revisit: never.
+- **#229 `RecordName` still imports `Badge`**; it belongs to #226, and Categories uses it as it is. Revisit: #226.
 
 ### Rollout checklist
 

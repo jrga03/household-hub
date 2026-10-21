@@ -465,7 +465,7 @@ it("typeof import() stays legal in a Vitest mock", async () => {
 });
 
 describe("the directPrimitiveImporters allowlist only shrinks", () => {
-  const ALLOWLIST_CEILING = 44;
+  const ALLOWLIST_CEILING = 40;
 
   async function loadAllowlist(): Promise<string[]> {
     const config: unknown = await import(pathToFileURL(path.resolve("eslint.config.js")).href);

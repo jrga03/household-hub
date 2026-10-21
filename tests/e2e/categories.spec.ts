@@ -84,3 +84,63 @@ test("suggested categories reach every member; a Personal category reaches only 
   await owner.context.close();
   await member.context.close();
 });
+
+// A phone sheet doesn't take focus when it opens (see the plan doc), so this runs where FormSheet is a dialog.
+test.describe("with a keyboard", () => {
+  test.use({ viewport: { width: 1024, height: 768 } });
+
+  test("adding, renaming and moving a category work by keyboard alone", async ({ page }) => {
+    await signUpNewPerson(page);
+    await page.getByLabel("Household name").fill("Keyboard home");
+    await page.getByRole("button", { name: "Create household" }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/");
+    await page.goto("/categories");
+
+    const addGroup = page.getByRole("form", { name: "Add a group" });
+    for (const group of ["Food", "Bills"]) {
+      await addGroup.getByLabel("Name").focus();
+      await page.keyboard.type(group);
+      await page.keyboard.press("Enter");
+      await expect(groupsList(page)).toContainText(group);
+    }
+
+    const addCategory = page.getByRole("form", { name: "Add a category" });
+    await addCategory.getByLabel("Name").focus();
+    await page.keyboard.type("Snacks");
+    await page.keyboard.press("Tab");
+    await expect(addCategory.getByLabel("Group")).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("listbox")).toBeVisible();
+    await page.keyboard.type("Food");
+    await expect(page.getByRole("option", { name: "Food" })).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(addCategory.getByLabel("Group")).toHaveText("Food");
+    await page.keyboard.press("Tab");
+    await expect(addCategory.getByRole("button", { name: "Add category" })).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("list", { name: "Food categories" })).toContainText("Snacks");
+
+    await page.getByRole("button", { name: "Edit Snacks" }).focus();
+    await page.keyboard.press("Enter");
+    const edit = page.getByRole("dialog", { name: "Edit category" });
+    await expect(edit.getByLabel("Name")).toBeFocused();
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.keyboard.type("Chips");
+    await page.keyboard.press("Tab");
+    await expect(edit.getByLabel("Group")).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("listbox")).toBeVisible();
+    await page.keyboard.type("Bills");
+    await expect(page.getByRole("option", { name: "Bills" })).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(edit.getByLabel("Group")).toHaveText("Bills");
+    await page.keyboard.press("Tab");
+    await expect(edit.getByRole("button", { name: "Save" })).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(edit).toBeHidden();
+
+    await expect(page.getByRole("list", { name: "Bills categories" })).toContainText("Chips");
+    await expect(page.getByRole("list", { name: "Food categories" })).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "Food" })).toContainText("No categories in use.");
+  });
+});
