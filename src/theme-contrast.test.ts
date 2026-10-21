@@ -85,6 +85,23 @@ const uiPairs: Array<[ui: string, surface: string]> = PAGE_SURFACES.flatMap(
   ]
 );
 
+/** A ProgressBar's fill on its translucent track, over the page surfaces. */
+const PROGRESS_TRACK_ALPHA = 0.2;
+const progressPairs: Array<[fill: string, track: string, surface: string]> = (
+  [
+    ["primary", "primary"],
+    ["warning", "primary"],
+    ["shortfall", "shortfall"],
+  ] as const
+).flatMap(([fill, track]) =>
+  ["background", "card", "muted"].map((surface): [string, string, string] => [fill, track, surface])
+);
+
+function trackColor(theme: Theme, track: string, surface: string) {
+  const color = parseOklch(resolve(theme, track));
+  return composite({ ...color, alpha: PROGRESS_TRACK_ALPHA }, surfaceColor(theme, surface));
+}
+
 /** The most-read secondary text, held to APCA Lc 60 as well. */
 const apcaPairs: Array<[text: string, surface: string]> = ["muted-foreground", "shortfall"].flatMap(
   (text) => ["background", "card", "muted"].map((surface): [string, string] => [text, surface])
@@ -98,6 +115,11 @@ describe.each<Theme>(["light", "dark"])("%s theme contrast", (theme) => {
 
   it.each(uiPairs)("%s on %s reaches 3:1", (ui, surface) => {
     const ratio = wcagContrast(colorOn(theme, ui, surface), surfaceColor(theme, surface));
+    expect(ratio).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each(progressPairs)("%s fill on a %s/20 track over %s reaches 3:1", (fill, track, surface) => {
+    const ratio = wcagContrast(colorOn(theme, fill, surface), trackColor(theme, track, surface));
     expect(ratio).toBeGreaterThanOrEqual(3);
   });
 
