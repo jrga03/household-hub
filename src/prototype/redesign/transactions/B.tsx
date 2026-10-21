@@ -206,7 +206,7 @@ function Table({
             <tr
               key={row.id}
               className={cn(
-                "group transition-colors hover:bg-accent",
+                "group relative cursor-pointer transition-colors hover:bg-accent",
                 row.id === selected && "bg-accent"
               )}
             >
@@ -218,7 +218,7 @@ function Table({
                   type="button"
                   aria-current={row.id === selected || undefined}
                   onClick={() => setSelected(row.id)}
-                  className="flex w-full items-center gap-2 text-left"
+                  className="flex w-full items-center gap-2 text-left after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-inset"
                 >
                   <RowIcons row={row} />
                   <span
@@ -254,7 +254,7 @@ function Table({
                 <Amount row={row} />
               </td>
               <td className="px-2 py-0">
-                <div className="flex justify-end opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+                <div className="relative z-10 flex justify-end opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
                   <Button
                     variant="ghost"
                     size="icon"
