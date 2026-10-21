@@ -144,7 +144,7 @@ test("a payroll distribution from Plan leaves the source account's Unassigned at
 });
 
 test.describe("on a phone", () => {
-  test.use({ viewport: VIEWPORTS.phone });
+  test.use({ viewport: VIEWPORTS.compact });
 
   test("Edit plan sits under the header and keeps the picked month", async ({ page }) => {
     await login(page);
