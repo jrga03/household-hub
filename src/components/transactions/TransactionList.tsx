@@ -11,10 +11,9 @@ import { HeaderActions } from "@/components/layout/HeaderActions";
 import { DetailPane, resolveOpenItem, useOpenItem } from "@/components/layout/DetailPane";
 import { PageShell } from "@/components/layout/PageShell";
 import { BELOW_HEADER, useTwoPanes } from "@/components/layout/pane";
-import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
+import { useAllAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useTransactionListRows } from "@/hooks/useTransactions";
-import { categoryNames } from "@/components/allocations/envelopes";
 import type { Actor } from "@/lib/commands/accounts";
 import { ZERO_CENTS, type Cents } from "@/lib/currency";
 import { dateHeading, groupByDate, type DateGroupItem } from "@/lib/transactions/date-groups";
@@ -30,7 +29,7 @@ import { CORRECTION_LABEL } from "@/lib/corrections/events";
 import { cn, countOf } from "@/lib/utils";
 import { monthLabel, monthOfDate } from "@/lib/utils/dates";
 import { SelectionActions } from "./SelectionActions";
-import { rowDisplay, type RowDisplay } from "./rowDisplay";
+import { rowDisplay, useRowNames, type RowDisplay } from "./rowDisplay";
 import { TransactionDetail } from "./TransactionDetail";
 import { TransactionItem } from "./TransactionItem";
 import { TransactionFilters } from "./TransactionFilters";
@@ -66,9 +65,9 @@ interface TransactionListProps {
  */
 export function TransactionList({ actor, filter, onFilterChange }: TransactionListProps) {
   const rows = useTransactionListRows();
-  const accounts = useAccounts();
-  const retiredAccounts = useRetiredAccounts();
+  const accounts = useAllAccounts();
   const categories = useCategoryList();
+  const names = useRowNames();
   const twoPanes = useTwoPanes();
   const { openId, open, close } = useOpenItem();
   const [selecting, setSelecting] = useState(false);
@@ -93,12 +92,6 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
 
   if (!rows) return null;
 
-  const allAccounts = [...(accounts ?? []), ...(retiredAccounts ?? [])];
-  const accountsById = new Map(allAccounts.map((account) => [account.id, account]));
-  const names = {
-    categories: categories ? categoryNames(categories) : new Map<string, string>(),
-    accounts: new Map(allAccounts.map((account) => [account.id, account.name])),
-  };
   const displayOf = (row: ListRow): RowDisplay => rowDisplay(row, names, filter.account);
 
   const detailPane = (
@@ -156,7 +149,7 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
       filter={filter}
       onChange={onFilterChange}
       months={months}
-      accounts={allAccounts}
+      accounts={accounts?.list ?? []}
       categories={categories}
       layout={layout}
     />
@@ -252,7 +245,7 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
             <SelectionActions
               actor={actor}
               selected={selected}
-              accountsById={accountsById}
+              accountsById={accounts?.byId ?? new Map()}
               categories={categories}
               onDone={stopSelecting}
             />

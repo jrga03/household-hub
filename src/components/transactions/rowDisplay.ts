@@ -1,4 +1,7 @@
+import { categoryNames } from "@/components/allocations/envelopes";
 import type { MoneyKind } from "@/components/app/Money";
+import { useAccountNames } from "@/hooks/useAccounts";
+import { useCategoryList } from "@/hooks/useCategories";
 import { envelopeLabel } from "@/lib/allocations/envelope";
 import { CORRECTION_LABEL, isMoneyIn } from "@/lib/corrections/events";
 import { transactionLabel } from "@/lib/transactions/events";
@@ -26,6 +29,16 @@ export interface RowDisplay {
 export interface RowNames {
   categories: Map<string, string>;
   accounts: Map<string, string>;
+}
+
+/** Every category and account name on this device, retired ones included; empty while loading. */
+export function useRowNames(): RowNames {
+  const categories = useCategoryList();
+  const accounts = useAccountNames();
+  return {
+    categories: categories ? categoryNames(categories) : new Map<string, string>(),
+    accounts: accounts ?? new Map<string, string>(),
+  };
 }
 
 /** A transfer is a leg in or out of `filteredAccount`; without one, it only moved. */

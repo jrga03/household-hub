@@ -2,7 +2,6 @@ import { useState, type ReactNode } from "react";
 import { Link, type LinkOptions } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { ChevronRight } from "lucide-react";
-import { categoryNames } from "@/components/allocations/envelopes";
 import { EmptyState } from "@/components/app/EmptyState";
 import { HeroFigure } from "@/components/app/HeroFigure";
 import { ListRow } from "@/components/app/ListRow";
@@ -12,9 +11,7 @@ import { SegmentedControl } from "@/components/app/SegmentedControl";
 import { PageShell } from "@/components/layout/PageShell";
 import { useTwoPanes } from "@/components/layout/pane";
 import { RowIcons } from "@/components/transactions/TransactionItem";
-import { rowDisplay } from "@/components/transactions/rowDisplay";
-import { useAccountNames } from "@/hooks/useAccounts";
-import { useCategoryList } from "@/hooks/useCategories";
+import { rowDisplay, useRowNames } from "@/components/transactions/rowDisplay";
 import { useFinanceOverview } from "@/hooks/useFinanceOverview";
 import { useReviewCounts } from "@/hooks/useReviewCount";
 import { isCreditCard } from "@/lib/accounts/events";
@@ -216,12 +213,7 @@ function Count({ label, count, className }: { label: string; count: number; clas
 }
 
 function Latest({ rows }: { rows: TransactionRow[] }) {
-  const accountNames = useAccountNames();
-  const categories = useCategoryList();
-  const names = {
-    categories: categories ? categoryNames(categories) : new Map<string, string>(),
-    accounts: accountNames ?? new Map<string, string>(),
-  };
+  const names = useRowNames();
 
   return (
     <section className="space-y-2">
