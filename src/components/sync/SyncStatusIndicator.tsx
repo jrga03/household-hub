@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { CloudCheck, CloudOff, CloudUpload, TriangleAlert, type LucideIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/app/Button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/app/Popover";
 import { useSyncStatus } from "@/hooks/useSyncStatus";
 import { confirm } from "@/lib/confirm";
 import type { StuckEvent } from "@/lib/events/log";
@@ -68,14 +68,14 @@ function waitingText(online: boolean, waiting: number): string {
 
 function StuckList({ stuck }: { stuck: StuckEvent[] }) {
   return (
-    <section aria-labelledby="stuck-changes-heading" className="space-y-2 border-t pt-3">
+    <section aria-labelledby="stuck-changes-heading" className="space-y-2 pt-1">
       <h2 id="stuck-changes-heading" className="text-body font-medium text-warning">
         Refused by the server
       </h2>
       <p className="text-caption text-muted-foreground">
         Retry once the problem is fixed, or discard the change to remove it from this device.
       </p>
-      <ul aria-label="Stuck changes" className="space-y-2">
+      <ul aria-label="Stuck changes" className="divide-y border-y">
         {stuck.map((event) => (
           <StuckItem key={event.id} event={event} />
         ))}
@@ -110,7 +110,7 @@ function StuckItem({ event }: { event: StuckEvent }) {
   };
 
   return (
-    <li className="rounded-md border p-2 text-body">
+    <li className="py-2 text-body">
       <p className="font-medium">{event.description}</p>
       {event.reason && <p className="text-caption text-muted-foreground">{event.reason}</p>}
       <div className="mt-2 flex gap-2">

@@ -5,14 +5,7 @@
       // Vite, Vitest, Playwright, Husky and lint-staged are auto-detected; these entries are not.
       // The shadcn/ui kit is kept whole for the features #15 rebuilds on it.
       // The Workers are deployed by Wrangler, which isn't a dependency.
-      "entry": [
-        "scripts/*.{mjs,js,cjs}",
-        "src/components/ui/*.tsx",
-        // The app-component layer (ADR 0011) is built ahead of the page migration that imports it.
-        // Revisit: when the last page is migrated.
-        "src/components/app/**",
-        "workers/*/src/index.ts",
-      ],
+      "entry": ["scripts/*.{mjs,js,cjs}", "src/components/ui/*.tsx", "workers/*/src/index.ts"],
       // Installed by supabase/setup-cli in CI and Homebrew locally (pinned 2.119.0 in CI).
       // qpdf and uvx (msoffcrypto-tool) encrypt the statement fixtures
       // (scripts/make-statement-fixtures.mjs); Homebrew and uv locally.

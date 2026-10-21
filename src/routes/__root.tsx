@@ -4,8 +4,10 @@ import { useAuthStore } from "@/stores/authStore";
 import { enforceHouseholdGate } from "@/lib/households";
 import { useEventSync } from "@/hooks/useEventSync";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageShell } from "@/components/layout/PageShell";
+import { Button } from "@/components/app/Button";
+import { EmptyState } from "@/components/app/EmptyState";
+import { SectionHeader } from "@/components/app/SectionHeader";
 
 function RootComponent() {
   useEventSync();
@@ -25,19 +27,20 @@ function RootComponent() {
  */
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-[60dvh] items-center justify-center p-4">
-      <Card className="w-full max-w-sm text-center">
-        <CardHeader>
-          <CardTitle>Page not found</CardTitle>
-          <CardDescription>This page doesn&apos;t exist or may have moved.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button asChild>
-            <Link to="/">Go to Home</Link>
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
+    <PageShell>
+      <PageShell.Main>
+        <SectionHeader title="Page not found" />
+        <EmptyState
+          action={
+            <Button asChild>
+              <Link to="/">Go to Home</Link>
+            </Button>
+          }
+        >
+          This page doesn’t exist or may have moved.
+        </EmptyState>
+      </PageShell.Main>
+    </PageShell>
   );
 }
 

@@ -58,7 +58,7 @@ Use only these roles _(lint: unknown classes, arbitrary colors, color literals, 
 
 Why: every amount follows one convention, so a person reads money the same way on every screen.
 
-- Show every amount with `Money` (`src/components/app/Money.tsx`). Its `kind` decides the sign, the color and what a screen reader says, so a page never decides them itself. It formats with `formatPHP` (`src/lib/currency.ts`): peso sign, thousands separators, two decimals. Never format cents by hand.
+- Show every amount with `Money` (`src/components/app/Money.tsx`). Its `kind` decides the sign, the color and what a screen reader says, so a page never decides them itself. It formats with `formatPHP` (`src/lib/currency.ts`): peso sign, thousands separators, two decimals. Never format cents by hand _(lint: `formatPHP` rendered in JSX)_; `formatPHP` stays for plain strings such as toasts and confirm titles.
 - `income` marks money coming in, with a `+` sign (`kind="income"`).
 - Expenses and transfers stay neutral: no money color. An expense takes the surrounding text color with a `−` sign (U+2212, `kind="expense"`). A transfer is neither in nor out, so it carries no sign and is muted, with its transfer icon (`kind="transfer"`). In a single-account view a transfer leg shows which way it moved for that account with a neutral `−` or `+` (`leg="out"` or `leg="in"`), never the income color.
 - A signed total, such as a change or a month's net, is `kind="net"`: a positive total shows `+` in `income`, a negative one a neutral `−`.
@@ -157,7 +157,7 @@ Why: one word per idea, so a person never wonders whether two words mean the sam
 Why: building pages from one app layer keeps them consistent and lets primitives change in one place.
 
 - Two layers. `src/components/ui` holds shadcn primitives (layer 1). `src/components/app` holds the app components that wrap them (layer 2). `src/components/layout` (the shell, nav and header) also counts as layer 2.
-- Routes and feature components import from layer 2, never from `ui/` _(lint: arch/no-direct-primitive-import)_. Files that imported primitives when the rule landed sit on the `directPrimitiveImporters` allowlist in `eslint.config.js`. It only shrinks: remove a file's entry when you migrate it; never add one.
+- Routes and feature components import from layer 2, never from `ui/` _(lint: arch/no-direct-primitive-import)_. The rule has no allowlist: only tests and the three layer folders are exempt.
 - Layer 2 knows money (`Cents`, `formatPHP`) but no domain entities: no Transaction, Budget or Account. A mapping from a domain state to a tone (a budget's status to a `StatusBadge` tone) lives in the feature folder. `VisibilityField` is the one exception.
 - One flat PascalCase file per component in `src/components/app`, imported by its own path. There is no barrel.
 - When a page needs a primitive, add or extend a layer 2 component that wraps it. Re-export a primitive as it is (one `export *` line, no wrapper logic) only when no pattern below covers it.
@@ -183,10 +183,10 @@ Why: building pages from one app layer keeps them consistent and lets primitives
 | `ActionForm`, `SubmitButton`                    | Every form that submits. A failed save keeps what the person typed; the button shows that it is running.                                                                                                                                                                                          |
 | `CurrencyInput`                                 | Every amount a person types.                                                                                                                                                                                                                                                                      |
 | `FormError`                                     | The message when submitting a form failed. A field's own error goes in `Field`.                                                                                                                                                                                                                   |
-| Re-exported as they are                         | `Button`, `Input`, `Textarea`, `Select`, `Checkbox`, `Switch`, `RadioGroup`, `Label`, `Tabs`, `Tooltip`, `Popover`, `ScrollArea`, `Toaster`.                                                                                                                                                      |
+| Re-exported as they are                         | `Button`, `Input`, `Textarea`, `Select`, `Checkbox`, `Switch`, `Label`, `Tabs`, `Tooltip`, `Popover`, `Toaster`.                                                                                                                                                                                  |
 
 - A `ListRow` with no target only shows its content (a Member, a join request). Controls that must work on phones sit beside it, not in `actions`.
-- Some primitives have no re-export, because a pattern replaces them: Badge (`StatusBadge`), Dialog, Drawer and Sheet (`FormSheet`), AlertDialog (`ConfirmDialogHost`), Card (`SectionHeader` sections), Table (`DataTable`), Alert (`Notice`), Progress (`ProgressBar`). DropdownMenu, DatePicker, Command, Separator and Skeleton are re-exported when a page first needs them.
+- Some primitives have no re-export, because a pattern replaces them: Badge (`StatusBadge`), Dialog, Drawer and Sheet (`FormSheet`), AlertDialog (`ConfirmDialogHost`), Card (`SectionHeader` sections), Table (`DataTable`), Alert (`Notice`), Progress (`ProgressBar`). DropdownMenu, DatePicker, Command, Separator, Skeleton, RadioGroup and ScrollArea are re-exported when a page first needs them (Knip flags a re-export no page imports).
 - Status badge tones: `neutral` (secondary), `outline`, `warning`, `shortfall` and `success`, never `destructive`. Over budget is `shortfall`; close to it is `warning`; pending is `outline` with the Info icon; review is `neutral`; no budget is `outline`; "Already imported" is `warning`; cleared has no badge.
 - Progress bar tones: `primary` while spending is fine, `warning` when it is close to the target, `shortfall` (on a `shortfall/20` track) once it passes the target. Spending exactly the budget is not past it.
 
@@ -208,7 +208,7 @@ Global chrome switches on the window width. `useWindowClass()` (`src/hooks/useMe
 - The sidebar cookie (the person's rail toggle) wins over the class default, from expanded up. The medium modal rail ignores it.
 - The tab bar and the rail never show together.
 - Give every collapsed rail link an `aria-label`, since only its icon shows.
-- Use `medium:`, `expanded:` and `large:` only for global chrome (`AppLayout`, the header, the rail). Page content uses container queries.
+- Use `medium:`, `expanded:` and `large:` only for global chrome (`AppLayout`, the header, the rail). Page content uses container queries. Tailwind's `sm:`, `md:`, `lg:`, `xl:` and `2xl:` fail in app code _(lint: restricted classes)_; they stay in the theme only for the shadcn primitives.
 - There is no larger class. Wide windows cap content at `max-w-7xl` instead.
 - Pin bottom-edge elements with the `--bottom-chrome` offset so nothing lands under the tab bar. It is the tab bar's height at compact and the safe area elsewhere.
 - Pin sticky content below the app header with the `--app-header` offset (`SectionHeader sticky` does this). Never hard-code the header's height.
@@ -227,7 +227,7 @@ At 1366 with the expanded rail the shell is about 1110px, so the detail pane is 
 
 ### PageShell variants
 
-Every route except login and signup renders `<PageShell variant="…">` (`src/components/layout/PageShell.tsx`) and puts its content in the variant's slots.
+Every route renders `<PageShell variant="…">` (`src/components/layout/PageShell.tsx`) and puts its content in the variant's slots.
 
 | Variant            | Slots                                | Use it for                                                                                              |
 | ------------------ | ------------------------------------ | ------------------------------------------------------------------------------------------------------- |
@@ -244,7 +244,7 @@ Home is the `supporting-pane` page. Inside either wide variant, `useTwoPanes()` 
 | Home                                   | `supporting-pane`                   | same                  |
 | Settings                               | `list-detail`, one page below 840px | same                  |
 | Create or join                         | `single`, narrowed with `max-w-md`  | same                  |
-| Login, signup                          | no `PageShell`, a centered form     | same                  |
+| Login, signup                          | `single`, narrowed with `max-w-md`  | same                  |
 
 ### DetailPane
 
@@ -267,8 +267,10 @@ Why: an agent that skips this doc still cannot ship an off-system class.
 | No arbitrary colors, font sizes, radii or shadows in a class                                                    | `better-tailwindcss/no-restricted-classes`      |
 | Spacing on the step set in app code                                                                             | `better-tailwindcss/no-restricted-classes`      |
 | No `transition-all`                                                                                             | `better-tailwindcss/no-restricted-classes`      |
+| No `sm:`/`md:`/`lg:`/`xl:`/`2xl:` in app code                                                                   | `better-tailwindcss/no-restricted-classes`      |
 | No color literals (hex, `rgb()`, `oklch()`…) in TSX                                                             | `arch/no-color-literal`                         |
 | No inline color styles                                                                                          | `arch/no-inline-color-style`                    |
 | Routes and features never import `ui/` primitives                                                               | `arch/no-direct-primitive-import`               |
+| Amounts render through `Money`, not `formatPHP` in JSX                                                          | `arch/no-hand-made-amount`                      |
 | Semantic, accessible markup                                                                                     | `jsx-a11y/*` (recommended set)                  |
 | Contrast pairs pass in both themes                                                                              | `src/theme-contrast.test.ts` (Vitest, not lint) |

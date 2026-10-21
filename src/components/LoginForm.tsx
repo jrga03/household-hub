@@ -1,85 +1,65 @@
 import { useActionState } from "react";
-import type { AuthError } from "@supabase/supabase-js";
 import { Link } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
-import { ActionForm } from "@/components/ui/action-form";
-import { SubmitButton } from "@/components/ui/submit-button";
-import { Input } from "@/components/ui/input";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { ActionForm } from "@/components/app/ActionForm";
+import { Field } from "@/components/app/Field";
+import { FormError } from "@/components/app/FormError";
+import { Input } from "@/components/app/Input";
+import { SubmitButton } from "@/components/app/SubmitButton";
+import { AuthPage } from "@/components/AuthPage";
+import { useFocusFirstProblem } from "@/hooks/useFocusFirstProblem";
+import { errorMessage } from "@/lib/utils";
+
+type LoginProblems = Partial<Record<"email" | "password" | "form", string>>;
 
 export function LoginForm() {
   const { signIn } = useAuthStore();
 
-  const [state, submitAction, isPending] = useActionState(
-    async (_prevState: { error: string | null }, formData: FormData) => {
-      const email = formData.get("email") as string;
-      const password = formData.get("password") as string;
+  const [problems, submitAction] = useActionState(
+    async (_previous: LoginProblems, formData: FormData): Promise<LoginProblems> => {
+      const email = String(formData.get("email") ?? "").trim();
+      const password = String(formData.get("password") ?? "");
+      const fields: LoginProblems = {};
+      if (!email) fields.email = "Enter your email.";
+      if (!password) fields.password = "Enter your password.";
+      if (Object.keys(fields).length > 0) return fields;
 
       try {
         await signIn(email, password);
-        return { error: null };
-      } catch (err) {
-        const error = err as AuthError;
-        return { error: error.message || "Failed to sign in" };
+        return {};
+      } catch (caught) {
+        return { form: errorMessage(caught, "Couldn’t log in. Try again.") };
       }
     },
-    { error: null }
+    {}
   );
+  const formRef = useFocusFirstProblem(problems);
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>Login to Household Hub</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ActionForm action={submitAction} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="text-label">
-              Email
-            </label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              required
-              disabled={isPending}
-              autoComplete="email"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password" className="text-label">
-              Password
-            </label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              required
-              disabled={isPending}
-              minLength={6}
-              autoComplete="current-password"
-            />
-          </div>
-
-          {state.error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-body text-destructive">
-              {state.error}
-            </div>
-          )}
-
-          <SubmitButton className="w-full" pendingText="Signing in...">
-            Sign In
-          </SubmitButton>
-
-          <div className="text-center text-body text-muted-foreground">
-            Don&apos;t have an account?{" "}
-            <Link to="/signup" className="text-primary underline underline-offset-4">
-              Sign up
-            </Link>
-          </div>
-        </ActionForm>
-      </CardContent>
-    </Card>
+    <AuthPage title="Log in to Household Hub">
+      <ActionForm ref={formRef} action={submitAction} noValidate className="space-y-4">
+        <Field label="Email" error={problems.email}>
+          <Input name="email" type="email" autoComplete="email" enterKeyHint="next" />
+        </Field>
+        <Field label="Password" error={problems.password}>
+          <Input
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            enterKeyHint="done"
+          />
+        </Field>
+        <FormError>{problems.form ?? null}</FormError>
+        <SubmitButton className="w-full" pendingText="Logging in…">
+          Log in
+        </SubmitButton>
+      </ActionForm>
+      <p className="text-center text-body text-muted-foreground">
+        Don’t have an account?{" "}
+        <Link to="/signup" className="text-primary underline underline-offset-4">
+          Sign up
+        </Link>
+      </p>
+    </AuthPage>
   );
 }

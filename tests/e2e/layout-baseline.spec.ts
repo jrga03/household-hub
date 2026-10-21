@@ -15,6 +15,7 @@ const ROUTES = [
   { path: "/categories", name: "categories" },
   // No app chrome: its title is the page's own h1, and only someone without a household sees it.
   { path: "/create-or-join", name: "create-or-join", householdless: true },
+  { path: "/login", name: "login", signedOut: true },
 ];
 
 const withScheme = (viewports: Record<string, ViewportSize>, colorScheme: "light" | "dark") =>
@@ -31,13 +32,13 @@ for (const { vpName, vp, colorScheme } of RUNS) {
     for (const route of ROUTES) {
       test(`${route.name} renders`, async ({ page }) => {
         if ("householdless" in route) await loginAs(page, householdlessUser);
-        else await login(page);
+        else if (!("signedOut" in route)) await login(page);
         await page.goto(route.path);
-        // The page title is the shell header's h1
-        const title = ("householdless" in route ? page : page.getByRole("banner")).getByRole(
-          "heading",
-          { level: 1 }
-        );
+        // The page title is the shell header's h1; pages without chrome carry their own
+        const hasChrome = !("householdless" in route || "signedOut" in route);
+        const title = (hasChrome ? page.getByRole("banner") : page).getByRole("heading", {
+          level: 1,
+        });
         await expect(title).toBeVisible();
         // Measure after server data has rendered
         await page.waitForLoadState("networkidle");

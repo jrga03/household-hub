@@ -19,7 +19,6 @@ import {
   hasFieldProblems,
   NO_PROBLEMS,
   readEntryBasics,
-  useEntryFormRef,
   useFocusNewEntry,
   type EntryProblems,
 } from "@/components/transactions/EntryFields";
@@ -34,6 +33,7 @@ import { diffCents, formatPHP, PESO_SIGN, ZERO_CENTS, type Cents } from "@/lib/c
 import { moneyIn, reservationFreed, type AccountMoney } from "@/lib/transactions/money";
 import { errorMessage } from "@/lib/utils";
 import { todayLocalDate } from "@/lib/utils/dates";
+import { useFocusFirstProblem } from "@/hooks/useFocusFirstProblem";
 
 /** A payment read from a statement, to record as it was made. */
 export interface PaymentPrefill {
@@ -137,7 +137,7 @@ function PayCardForm({
     },
     NO_PROBLEMS
   );
-  const formRef = useEntryFormRef(problems);
+  const formRef = useFocusFirstProblem(problems);
   const amountRef = useRef<HTMLInputElement>(null);
   useFocusNewEntry(amountRef, true);
 

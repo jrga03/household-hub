@@ -90,6 +90,37 @@ describe("FormSheet", () => {
     expect(dialog).toHaveAccessibleDescription("Saved on this device.");
   });
 
+  it("moves focus into a phone sheet when it opens, so Tab starts inside it", () => {
+    setPhone(true);
+    const { rerender } = render(<button type="button">Add note</button>);
+    screen.getByRole("button", { name: "Add note" }).focus();
+
+    rerender(
+      <>
+        <button type="button">Add note</button>
+        <NoteForm />
+      </>
+    );
+
+    const sheet = screen.getByRole("dialog", { name: "Add note" });
+    expect(sheet).toContainElement(document.activeElement as HTMLElement);
+    expect(screen.getByRole("textbox", { name: "Note" })).not.toHaveFocus();
+  });
+
+  it("leaves focus on the field a phone form focuses itself", () => {
+    setPhone(true);
+    function FocusedNote() {
+      return (
+        <FormSheet title="Add note" onClose={() => {}}>
+          <input aria-label="Note" ref={(input) => input?.focus()} />
+        </FormSheet>
+      );
+    }
+    render(<FocusedNote />);
+
+    expect(screen.getByRole("textbox", { name: "Note" })).toHaveFocus();
+  });
+
   it("closes through onClose on Escape", () => {
     setPhone(true);
     const onClose = vi.fn();

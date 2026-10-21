@@ -11,8 +11,6 @@ const controls = [
   ["Tooltip", "tooltip"],
   ["Popover", "popover"],
   ["Tabs", "tabs"],
-  ["RadioGroup", "radio-group"],
-  ["ScrollArea", "scroll-area"],
   ["Toaster", "sonner"],
   ["FormError", "form-error"],
   ["ActionForm", "action-form"],
