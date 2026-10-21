@@ -9,6 +9,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { EmptyState } from "@/components/app/EmptyState";
+import { BUDGET_STATUS_STYLE } from "@/components/budgets/budgetStatusStyle";
 import { Money } from "@/components/app/Money";
 import { SectionHeader } from "@/components/app/SectionHeader";
 import { StatusBadge, type StatusTone } from "@/components/app/StatusBadge";
@@ -54,7 +55,7 @@ function feedRow(item: AttentionItem): FeedRow {
         key: `over-${item.categoryId}`,
         link: { to: "/budget", search: { open: item.categoryId } },
         icon: CircleAlert,
-        iconClass: "text-shortfall",
+        iconClass: BUDGET_STATUS_STYLE.over.color,
         sentence: (
           <>
             {item.name} is{" "}
@@ -69,7 +70,7 @@ function feedRow(item: AttentionItem): FeedRow {
             <Money kind="balance" cents={item.spent} />
           </>
         ),
-        badge: { tone: "shortfall", text: "Over budget" },
+        badge: BUDGET_STATUS_STYLE.over.badge,
       };
     case "short":
       return {
@@ -90,7 +91,7 @@ function feedRow(item: AttentionItem): FeedRow {
         key: `close-${item.categoryId}`,
         link: { to: "/budget", search: { open: item.categoryId } },
         icon: Clock,
-        iconClass: "text-warning",
+        iconClass: BUDGET_STATUS_STYLE.close.color,
         sentence: (
           <>
             {item.name} has <Money kind="balance" cents={item.left} /> left
@@ -101,7 +102,7 @@ function feedRow(item: AttentionItem): FeedRow {
             Budget <Money kind="balance" cents={item.budget} />
           </>
         ),
-        badge: { tone: "warning", text: "Close" },
+        badge: BUDGET_STATUS_STYLE.close.badge,
       };
     case "review": {
       const { sentence, detail, link } = REVIEW_COPY[item.review];

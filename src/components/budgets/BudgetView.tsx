@@ -1,4 +1,4 @@
-import { useState, type ComponentProps, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { EmptyState } from "@/components/app/EmptyState";
 import { HeroFigure } from "@/components/app/HeroFigure";
@@ -6,10 +6,11 @@ import { RowTargetElement } from "@/components/app/ListRow";
 import { Money } from "@/components/app/Money";
 import { ProgressBar } from "@/components/app/ProgressBar";
 import { SectionHeader } from "@/components/app/SectionHeader";
-import { StatusBadge, type StatusTone } from "@/components/app/StatusBadge";
+import { StatusBadge } from "@/components/app/StatusBadge";
 import { categoryNames } from "@/components/allocations/envelopes";
 import { MoveMoneyDialog } from "@/components/allocations/MoveMoneyDialog";
 import { CategoryLedger } from "@/components/categories/CategoryLedger";
+import { BUDGET_STATUS_STYLE } from "./budgetStatusStyle";
 import { CorrectionDialog } from "@/components/corrections/CorrectionDialog";
 import { RecordName } from "@/components/categories/RecordName";
 import { DetailPane, resolveOpenItem, useOpenItem } from "@/components/layout/DetailPane";
@@ -27,24 +28,12 @@ import {
   type MonthFigures,
   type MonthView,
 } from "@/lib/budgets/month";
-import { budgetProgress, budgetStatus, type BudgetStatus } from "@/lib/budgets/progress";
+import { budgetProgress, budgetStatus } from "@/lib/budgets/progress";
 import { budgetRows } from "@/lib/budgets/rows";
 import type { CategoryRow } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { cn, countOf } from "@/lib/utils";
 import { monthLabel } from "@/lib/utils/dates";
-
-const BAR_TONE: Record<BudgetStatus, ComponentProps<typeof ProgressBar>["tone"]> = {
-  fine: "primary",
-  close: "warning",
-  over: "shortfall",
-};
-
-const STATUS_BADGE: Record<BudgetStatus, { tone: StatusTone; text: string } | null> = {
-  fine: null,
-  close: { tone: "warning", text: "Close" },
-  over: { tone: "shortfall", text: "Over budget" },
-};
 
 /** Category, Budget, Spent and Left, from a list width of 600. */
 const COLUMNS = "@[600px]:grid-cols-[minmax(0,1fr)_7rem_7rem_8rem] @[600px]:gap-x-3";
@@ -204,7 +193,7 @@ function Overall({ figures, daysLeft }: { figures: MonthFigures; daysLeft?: numb
       <ProgressBar
         label="All budgets spent"
         value={progress.percent}
-        tone={BAR_TONE[budgetStatus(figures.budget, figures.spent)]}
+        tone={BUDGET_STATUS_STYLE[budgetStatus(figures.budget, figures.spent)].bar}
       />
     </div>
   );
@@ -292,7 +281,7 @@ function BudgetRow({
 }) {
   const progress = budgetProgress(figures.budget, figures.spent);
   const status = progress && budgetStatus(figures.budget, figures.spent);
-  const badge = status && STATUS_BADGE[status];
+  const badge = status && BUDGET_STATUS_STYLE[status].badge;
   return (
     <li
       className={cn(
@@ -326,7 +315,7 @@ function BudgetRow({
         <ProgressBar
           label={`${category.name} spent`}
           value={progress.percent}
-          tone={BAR_TONE[status]}
+          tone={BUDGET_STATUS_STYLE[status].bar}
           className="h-1 @[600px]:col-span-4"
         />
       )}

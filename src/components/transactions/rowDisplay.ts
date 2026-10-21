@@ -3,6 +3,7 @@ import type { MoneyKind } from "@/components/app/Money";
 import { useAccountNames } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import { envelopeLabel } from "@/lib/allocations/envelope";
+import type { Cents } from "@/lib/currency";
 import { CORRECTION_LABEL, isMoneyIn } from "@/lib/corrections/events";
 import { transactionLabel } from "@/lib/transactions/events";
 import {
@@ -40,6 +41,10 @@ export function useRowNames(): RowNames {
     accounts: accounts ?? new Map<string, string>(),
   };
 }
+
+/** A total of money in or out. Nothing reads as a plain ₱0.00, not "+₱0.00". */
+export const totalKind = (direction: "in" | "out", cents: Cents): MoneyKind =>
+  cents > 0 ? { kind: direction === "in" ? "income" : "expense" } : { kind: "net" };
 
 /** A transfer is a leg in or out of `filteredAccount`; without one, it only moved. */
 export function rowDisplay(row: ListRow, names: RowNames, filteredAccount?: string): RowDisplay {

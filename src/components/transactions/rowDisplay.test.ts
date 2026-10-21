@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parsePHP } from "@/lib/currency";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import type { TransferRow } from "@/lib/transfers/projection";
-import { rowDisplay } from "./rowDisplay";
+import { rowDisplay, totalKind } from "./rowDisplay";
 
 const names = {
   categories: new Map([["groceries", "Groceries"]]),
@@ -98,5 +98,14 @@ describe("rowDisplay", () => {
     expect(rowDisplay(row, names).detail).toBe(
       "Category not on this device yet · Account not on this device yet"
     );
+  });
+});
+
+describe("totalKind", () => {
+  it("signs a total in or out, and reads nothing as a plain ₱0.00", () => {
+    expect(totalKind("in", parsePHP("750"))).toEqual({ kind: "income" });
+    expect(totalKind("out", parsePHP("250"))).toEqual({ kind: "expense" });
+    expect(totalKind("in", parsePHP("0"))).toEqual({ kind: "net" });
+    expect(totalKind("out", parsePHP("0"))).toEqual({ kind: "net" });
   });
 });

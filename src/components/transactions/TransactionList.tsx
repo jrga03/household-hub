@@ -29,7 +29,7 @@ import { CORRECTION_LABEL } from "@/lib/corrections/events";
 import { cn, countOf } from "@/lib/utils";
 import { monthLabel, monthOfDate } from "@/lib/utils/dates";
 import { SelectionActions } from "./SelectionActions";
-import { rowDisplay, useRowNames, type RowDisplay } from "./rowDisplay";
+import { rowDisplay, totalKind, useRowNames, type RowDisplay } from "./rowDisplay";
 import { TransactionDetail } from "./TransactionDetail";
 import { TransactionItem } from "./TransactionItem";
 import { TransactionFilters } from "./TransactionFilters";
@@ -268,13 +268,12 @@ function Summary({ rows, month }: { rows: ListRow[]; month: string | undefined }
       </span>
       <span>{countOf(rows.length, "transaction", "transactions")}</span>
       <span>
-        {/* Nothing in or out reads as a plain ₱0.00, not "+₱0.00". */}
-        In <Money kind={incomeCents > 0 ? "income" : "net"} cents={incomeCents} />
+        In <Money {...totalKind("in", incomeCents)} cents={incomeCents} />
       </span>
       <span>
         Out{" "}
         <Money
-          kind={expenseCents > 0 ? "expense" : "net"}
+          {...totalKind("out", expenseCents)}
           cents={expenseCents}
           className="text-foreground"
         />
