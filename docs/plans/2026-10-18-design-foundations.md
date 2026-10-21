@@ -129,6 +129,11 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#227 the Plan row's "Spent" amounts are `Money kind="balance"`** (unsigned; a month of net refunds would show in shortfall). Why: no kind means "spent". Revisit: if a spent kind is added.
 - **#227 the Plan layout baselines show only the empty state** (the fixture user has no accounts or categories); `plan.spec`'s `plan.png` covers a filled Plan. Revisit: seeding the baseline user (see #220).
 - **#227 the keyboard-only e2e runs at the expanded viewport**, since on phones the `FormSheet` drawer does not focus the first field. Revisit: if phone sheets should focus their first field.
+- **#230 each Review section is a `SectionHeader` with a `neutral` "N to review" badge over one `ListRow` link** ("Categorize", "Review drafts", the count sentence as its detail); join requests keep #231's `JoinRequestRow` between hairlines. Why: the ticket's rows and badge; `JoinRequestRow` belongs to #231. Revisit: #231, if `JoinRequestRow` becomes a `ListRow`.
+- **#230 a draft row is a checkbox beside a `ListRow`**, not `pressed` selection; the `li` carries the hover and open highlight so both read as one row. Why: bulk save and discard are always available, and a checkbox inside the row's target would nest controls. Revisit: never.
+- **#230 the draft description keeps its own label (with the Suggested badge) and its warning "Needs a description" line**, not `Field`. Why: `Field` takes a string label and shows errors in `destructive`; a missing description is something to check, not a failed submit. Revisit: if `Field` takes a node label or a warning hint.
+- **#230 `DraftDetail` keeps #224's `DirectionChoice` segmented control as it is.** Why: it reads well in the pane and the sheet (checked at 1280 and 393). Revisit: never.
+- **#230 the Import list is not width-capped**: with no draft open on a laptop the read form spans the list column. Why: `list-detail` lets the list flex. Revisit: after real use on a laptop.
 
 ### Rollout checklist
 
@@ -170,7 +175,7 @@ Spec #222, integration branch `feat/222-page-migration`. Order: #223 â†’ #224 â†
 - [ ] #227 Plan: allocations, move money and budgets (#224)
 - [ ] #228 Accounts: balances, edits, card payments and corrections (#224)
 - [ ] #229 Categories: groups, adds and edits (#224)
-- [ ] #230 Review and Import: review items and statement drafts (#224)
+- [x] #230 Review and Import: review items and statement drafts (#224)
 - [ ] #231 Settings and households: list-detail sections and create-or-join (#224)
 - [ ] #232 Assistant: chat and proposals (#224)
 - [ ] #233 Auth and app leftovers, and delete the primitive allowlist (#223-#232)
