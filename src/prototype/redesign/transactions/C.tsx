@@ -42,7 +42,10 @@ export function TransactionsC() {
   return (
     <div className="grid gap-6 p-4 @[840px]:grid-cols-[1fr_360px] @[840px]:p-6 @[1200px]:grid-cols-[1fr_420px]">
       <div className="min-w-0 space-y-6">
-        <nav aria-label="Month" className="-mx-4 flex gap-1 overflow-x-auto px-4 @[840px]:mx-0 @[840px]:px-0">
+        <nav
+          aria-label="Month"
+          className="-mx-4 flex gap-1 overflow-x-auto px-4 @[840px]:mx-0 @[840px]:px-0"
+        >
           {MONTHS.map((month, index) => {
             const current = index === MONTHS.length - 1;
             return (
@@ -148,7 +151,12 @@ function DayRow({ row, open, onOpen }: { row: Row; open: boolean; onOpen: () => 
     >
       <span className="flex items-center gap-2">
         <RowIcons row={row} />
-        <span className={cn("min-w-0 flex-1 truncate font-medium", row.pending && "text-muted-foreground")}>
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate font-medium",
+            row.pending && "text-muted-foreground"
+          )}
+        >
           {labelOf(row)}
         </span>
         <Amount row={row} />

@@ -1,6 +1,6 @@
 /* eslint-disable arch/no-direct-primitive-import -- prototype (#194), throwaway branch */
 // PROTOTYPE (#194): the read-only detail of one row, for the list-detail panes.
-import { Pencil, X } from "lucide-react";
+import { Pencil, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -87,6 +87,9 @@ export function Detail({
           Edit {row.kind === "transfer" ? "transfer" : "transaction"}
         </Button>
         <Button variant="outline">Mark {row.pending ? "cleared" : "pending"}</Button>
+        <Button variant="ghost" className="ml-auto text-destructive" aria-label="Remove">
+          <Trash2 />
+        </Button>
       </div>
     </section>
   );

@@ -1,32 +1,61 @@
 /* eslint-disable arch/no-direct-primitive-import -- prototype (#194), throwaway branch */
 // PROTOTYPE (#194): Transactions B, a table on the laptop.
-import { useState, type ReactNode } from "react";
-import { Info } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { CircleCheck, Info, SlidersHorizontal, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { formatPHP } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import { ACCOUNTS, BUDGET_GROUPS, MONTH_LABEL, ROWS } from "../fixtures";
-import {
-  Amount,
-  dayHeading,
-  groupByDate,
-  labelOf,
-  RowIcons,
-  shortDate,
-  totalOf,
-} from "./shared";
+import { Amount, dayHeading, groupByDate, labelOf, RowIcons, shortDate, totalOf } from "./shared";
+import { Detail } from "./Detail";
 
 const CATEGORY_NAMES = BUDGET_GROUPS.flatMap((group) => group.categories.map((c) => c.name));
 
+/**
+ * Laptop: a row opens its detail in a pane on the right, and the filter rail
+ * folds into a Filters button while the pane is open (two panes at 1040px).
+ * Each row also carries quick actions on hover or focus.
+ */
 export function TransactionsB() {
+  const [openId, setOpenId] = useState<string | undefined>(ROWS[4]?.id);
+  const open = ROWS.find((row) => row.id === openId);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => event.key === "Escape" && setOpenId(undefined);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
-    <div className="grid gap-6 p-4 @[840px]:grid-cols-[200px_1fr] @[840px]:p-6">
-      <FilterRail />
+    <div
+      className={cn(
+        "grid gap-6 p-4 @[840px]:p-6",
+        open ? "@[840px]:grid-cols-[1fr_360px]" : "@[840px]:grid-cols-[200px_1fr]"
+      )}
+    >
+      {!open && <FilterRail />}
       <div className="min-w-0 space-y-4">
-        <Summary />
+        <div className="flex items-center gap-3">
+          <Summary />
+          {open && (
+            <Button variant="outline" size="sm" className="ml-auto hidden @[840px]:inline-flex">
+              <SlidersHorizontal />
+              Filters
+            </Button>
+          )}
+        </div>
         <CompactList />
-        <Table />
+        <Table openId={openId} onOpen={setOpenId} compact={Boolean(open)} />
       </div>
+      {open && (
+        <Detail
+          row={open}
+          figure={false}
+          onClose={() => setOpenId(undefined)}
+          className="sticky top-[calc(3.5rem+1.5rem)] hidden self-start @[840px]:block"
+        />
+      )}
     </div>
   );
 }
@@ -40,7 +69,8 @@ function Summary() {
         In <span className="text-income tabular-nums">+{formatPHP(totalOf(ROWS, "income"))}</span>
       </span>
       <span>
-        Out <span className="text-foreground tabular-nums">{formatPHP(totalOf(ROWS, "expense"))}</span>
+        Out{" "}
+        <span className="text-foreground tabular-nums">{formatPHP(totalOf(ROWS, "expense"))}</span>
       </span>
     </p>
   );
@@ -126,10 +156,7 @@ function CompactList() {
               <li key={row.id} className="flex items-center gap-2 px-4 py-2">
                 <RowIcons row={row} />
                 <span
-                  className={cn(
-                    "min-w-0 flex-1 truncate",
-                    row.pending && "text-muted-foreground"
-                  )}
+                  className={cn("min-w-0 flex-1 truncate", row.pending && "text-muted-foreground")}
                 >
                   {labelOf(row)}
                   {row.category && (
@@ -146,8 +173,18 @@ function CompactList() {
   );
 }
 
-function Table() {
-  const [selected, setSelected] = useState<string | undefined>(ROWS[4]?.id);
+function Table({
+  openId,
+  onOpen,
+  compact,
+}: {
+  openId: string | undefined;
+  onOpen: (id: string) => void;
+  /** The detail pane is open: drop the columns it repeats. */
+  compact: boolean;
+}) {
+  const selected = openId;
+  const setSelected = onOpen;
   return (
     <div className="hidden overflow-hidden rounded-lg border @[840px]:block">
       <table className="w-full text-body">
@@ -156,9 +193,12 @@ function Table() {
             <th className="w-20 px-3 py-2 font-medium">Date</th>
             <th className="px-3 py-2 font-medium">Description</th>
             <th className="px-3 py-2 font-medium">Category</th>
-            <th className="px-3 py-2 font-medium">Account</th>
-            <th className="w-24 px-3 py-2 font-medium">Status</th>
+            {!compact && <th className="px-3 py-2 font-medium">Account</th>}
+            {!compact && <th className="w-24 px-3 py-2 font-medium">Status</th>}
             <th className="w-32 px-3 py-2 text-right font-medium">Amount</th>
+            <th className="w-20 px-3 py-2">
+              <span className="sr-only">Actions</span>
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y">
@@ -166,7 +206,7 @@ function Table() {
             <tr
               key={row.id}
               className={cn(
-                "transition-colors hover:bg-accent",
+                "group transition-colors hover:bg-accent",
                 row.id === selected && "bg-accent"
               )}
             >
@@ -181,27 +221,57 @@ function Table() {
                   className="flex w-full items-center gap-2 text-left"
                 >
                   <RowIcons row={row} />
-                  <span className={cn("truncate font-medium", row.pending && "text-muted-foreground")}>
+                  <span
+                    className={cn("truncate font-medium", row.pending && "text-muted-foreground")}
+                  >
                     {row.label}
                   </span>
                 </button>
               </td>
               <td className="max-w-0 truncate px-3 py-2 text-muted-foreground">
-                {row.kind === "transfer" ? "—" : (row.category ?? (row.kind === "income" ? "Income" : "Unassigned"))}
+                {row.kind === "transfer"
+                  ? "—"
+                  : (row.category ?? (row.kind === "income" ? "Income" : "Unassigned"))}
               </td>
-              <td className="max-w-0 truncate px-3 py-2 text-muted-foreground">{labelOf(row) === row.label ? row.account : labelOf(row)}</td>
-              <td className="px-3 py-2">
-                {row.pending ? (
-                  <Badge variant="outline">
-                    <Info aria-hidden />
-                    Pending
-                  </Badge>
-                ) : (
-                  <span className="text-caption text-muted-foreground">Cleared</span>
-                )}
-              </td>
+              {!compact && (
+                <td className="max-w-0 truncate px-3 py-2 text-muted-foreground">
+                  {labelOf(row) === row.label ? row.account : labelOf(row)}
+                </td>
+              )}
+              {!compact && (
+                <td className="px-3 py-2">
+                  {row.pending ? (
+                    <Badge variant="outline">
+                      <Info aria-hidden />
+                      Pending
+                    </Badge>
+                  ) : (
+                    <span className="text-caption text-muted-foreground">Cleared</span>
+                  )}
+                </td>
+              )}
               <td className="px-3 py-2 text-right">
                 <Amount row={row} />
+              </td>
+              <td className="px-2 py-0">
+                <div className="flex justify-end opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    aria-label={`Mark ${row.label} ${row.pending ? "cleared" : "pending"}`}
+                  >
+                    <CircleCheck />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    aria-label={`Remove ${row.label}`}
+                  >
+                    <Trash2 />
+                  </Button>
+                </div>
               </td>
             </tr>
           ))}
