@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { MoneyAmount } from "@/components/allocations/MoneyAmount";
+import { Money } from "@/components/app/Money";
 import { categoryNames } from "@/components/allocations/envelopes";
 import { MoveMoneyDialog } from "@/components/allocations/MoveMoneyDialog";
 import { CategoryLedger } from "@/components/categories/CategoryLedger";
@@ -276,7 +276,7 @@ function BudgetFigures({ name, figures }: { name: string; figures: MonthFigures 
           <div className="min-w-0 text-right">
             <dt>Left</dt>
             <dd className="truncate text-body font-medium text-foreground">
-              <MoneyAmount cents={progress.left} />
+              <Money kind="balance" cents={progress.left} />
             </dd>
           </div>
         )}

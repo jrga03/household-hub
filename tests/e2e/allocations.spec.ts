@@ -51,12 +51,12 @@ test("moving money between envelopes, past Unassigned, with an undoable removal"
   await dialog.getByLabel("Amount (₱)").fill("15000");
   await chooseOption(page, dialog.getByLabel("To"), "Forever House · ₱0.00");
   await expect(dialog).toContainText(
-    "This leaves Unassigned in BDO Savings at -₱3,000.00. You can still move it"
+    "This leaves Unassigned in BDO Savings at −₱3,000.00. You can still move it"
   );
   await dialog.getByRole("button", { name: "Move money" }).click();
   await expect(dialog).toBeHidden();
-  await expect(bar.getByText("-₱3,000.00").first()).toHaveClass(/text-shortfall/);
-  await expect(unassignedItem(page)).toContainText("-₱3,000.00");
+  await expect(bar.getByText("−₱3,000.00").first().locator("..")).toHaveClass(/text-shortfall/);
+  await expect(unassignedItem(page)).toContainText("−₱3,000.00");
   await expect(unassignedItem(page)).toContainText("Allocated more than this account has");
 
   const allocations = page.getByRole("list", { name: "Allocations" });
@@ -72,9 +72,9 @@ test("moving money between envelopes, past Unassigned, with an undoable removal"
   await expect(unassignedItem(page)).toContainText("₱12,000.00");
   await page.getByRole("button", { name: "Undo" }).click();
   await expect(allocations.getByRole("listitem")).toHaveCount(2);
-  await expect(unassignedItem(page)).toContainText("-₱3,000.00");
+  await expect(unassignedItem(page)).toContainText("−₱3,000.00");
 
-  await expect(holds(page, "Groceries")).toHaveText("Holds ₱8,000.00");
+  await expect(holds(page, "Groceries")).toContainText("Holds ₱8,000.00");
 
   await page.getByRole("button", { name: "Back" }).click();
   await expect(page).toHaveURL(/\/budget$/);
@@ -90,5 +90,5 @@ test("moving money between envelopes, past Unassigned, with an undoable removal"
 
   await page.goto("/plan");
   await expect(page.getByRole("textbox", { name: "Groceries", exact: true })).toHaveCount(0);
-  await expect(holds(page, "Restaurants")).toHaveText("Holds ₱8,000.00");
+  await expect(holds(page, "Restaurants")).toContainText("Holds ₱8,000.00");
 });

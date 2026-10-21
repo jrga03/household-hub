@@ -126,7 +126,7 @@ describe("PlanView", () => {
     renderPlan();
 
     expect(await screen.findByRole("textbox", { name: "Groceries" })).toHaveAccessibleDescription(
-      "Spent Sep ₱2,500.00 · Oct ₱1,200.00 Holds -₱3,700.00"
+      "Spent Sep ₱2,500.00 · Oct ₱1,200.00 Holds minus ₱3,700.00"
     );
   });
 
@@ -141,7 +141,9 @@ describe("PlanView", () => {
     renderPlan({ onDistribute });
 
     const bar = await screen.findByRole("region", { name: "To assign" });
-    expect(await within(bar).findByText("₱21,500.00")).toBeInTheDocument();
+    expect(
+      await within(bar).findByText("₱21,500.00", { selector: "[aria-hidden=true]" })
+    ).toBeInTheDocument();
     fireEvent.click(within(bar).getByRole("button", { name: "Distribute" }));
     expect(onDistribute).toHaveBeenCalledWith("income");
   });

@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { FormFooter, FormSheet } from "@/components/FormSheet";
+import { FormFooter, FormSheet } from "@/components/app/FormSheet";
 import { categoryNames } from "@/components/allocations/envelopes";
 import { useAccountNames } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
@@ -12,7 +12,7 @@ import type { BalanceCorrectionRow } from "@/lib/corrections/projection";
 import { errorMessage } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
 import { confirmRemoval } from "@/components/transactions/confirmRemoval";
-import { TransactionAmount } from "@/components/transactions/TransactionAmount";
+import { Money } from "@/components/app/Money";
 
 /** Asks first, then removes the correction, offering Undo in the toast. Resolves whether it was removed. */
 export async function removeCorrectionWithUndo(
@@ -82,9 +82,9 @@ export function CorrectionDetails({
         <dt className="text-muted-foreground">Date</dt>
         <dd>{format(parseLocalDate(correction.date), "MMM d, yyyy")}</dd>
         <dt className="text-muted-foreground">Difference</dt>
-        <dd className="tabular-nums">
-          <TransactionAmount
-            direction={isMoneyIn(correction) ? "in" : "out"}
+        <dd>
+          <Money
+            kind={isMoneyIn(correction) ? "income" : "expense"}
             cents={correction.amountCents}
           />
         </dd>

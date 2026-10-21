@@ -58,11 +58,13 @@ Use only these roles _(lint: unknown classes, arbitrary colors, color literals, 
 
 Why: every amount follows one convention, so a person reads money the same way on every screen.
 
-- Format with `formatPHP` (`src/lib/currency.ts`): peso sign, thousands separators, two decimals. Never format cents by hand.
-- `income` marks money coming in, with a `+` sign.
-- Expenses and transfers stay neutral: no money color. An expense takes the surrounding text color with a `−` sign (U+2212). A transfer is neither in nor out, so it carries no sign and may be muted, with its transfer icon.
-- `shortfall` marks money that is short: an overspent category, a negative bank, cash or e-wallet balance, over budget, a "This leaves X at −₱…" note. Use `MoneyAmount` (`src/components/allocations/MoneyAmount.tsx`), which colors a negative amount.
-- A credit card's figure is the amount owed. Leave it uncolored, even when negative (that is a credit, not money short).
+- Show every amount with `Money` (`src/components/app/Money.tsx`). Its `kind` decides the sign, the color and what a screen reader says, so a page never decides them itself. It formats with `formatPHP` (`src/lib/currency.ts`): peso sign, thousands separators, two decimals. Never format cents by hand.
+- `income` marks money coming in, with a `+` sign (`kind="income"`).
+- Expenses and transfers stay neutral: no money color. An expense takes the surrounding text color with a `−` sign (U+2212, `kind="expense"`). A transfer is neither in nor out, so it carries no sign and is muted, with its transfer icon (`kind="transfer"`). In a single-account view a transfer leg shows which way it moved for that account with a neutral `−` or `+` (`leg="out"` or `leg="in"`), never the income color.
+- A signed total, such as a change or a month's net, is `kind="net"`: a positive total shows `+` in `income`, a negative one a neutral `−`.
+- `shortfall` marks money that is short: an overspent category, a negative bank, cash or e-wallet balance, over budget, a "This leaves X at −₱…" note. A balance or what's left is `kind="balance"`, which shows a negative amount with `−` in `shortfall`. An overspent amount is the caller's copy around it ("₱1,230.00 over"), not a kind. Spending exactly the budget counts as fine, not short.
+- A credit card's figure is the amount owed. Leave it uncolored, even when negative (that is a credit, not money short): `<Money kind="balance" owed>`.
+- `Money` reads aloud with its sign: "−₱250.00" is "minus ₱250.00". A row that is muted (a pending transaction) mutes the amount through `className`.
 - `shortfall` and `destructive` share a red hue but are separate tokens; their dark values differ so each keeps its contrast. An amount is never `destructive`; an action is never `shortfall`.
 - Never color alone. A short amount always shows its minus sign; income shows its `+`; a pending transaction is muted and keeps its Info icon. Icon-only signals need an `aria-label`.
 - Use the money roles, never a raw hue, for money intent. The theme has no palette to reach for _(lint: unknown classes)_.
@@ -154,11 +156,38 @@ Why: one word per idea, so a person never wonders whether two words mean the sam
 
 Why: building pages from one app layer keeps them consistent and lets primitives change in one place.
 
-- Two layers. `src/components/ui` holds shadcn primitives (layer 1). `src/components/app` holds the app components that wrap them (layer 2).
+- Two layers. `src/components/ui` holds shadcn primitives (layer 1). `src/components/app` holds the app components that wrap them (layer 2). `src/components/layout` (the shell, nav and header) also counts as layer 2.
 - Routes and feature components import from layer 2, never from `ui/` _(lint: arch/no-direct-primitive-import)_. Files that imported primitives when the rule landed sit on the `directPrimitiveImporters` allowlist in `eslint.config.js`. It only shrinks: remove a file's entry when you migrate it; never add one.
-- When a page needs a primitive, add or extend a layer 2 component that wraps it.
+- Layer 2 knows money (`Cents`, `formatPHP`) but no domain entities: no Transaction, Budget or Account. A mapping from a domain state to a tone (a budget's status to a `StatusBadge` tone) lives in the feature folder. `VisibilityField` is the one exception.
+- One flat PascalCase file per component in `src/components/app`, imported by its own path. There is no barrel.
+- When a page needs a primitive, add or extend a layer 2 component that wraps it. Re-export a primitive as it is (one `export *` line, no wrapper logic) only when no pattern below covers it.
 - `npx shadcn add` writes into `src/components/ui`. Its output may use Tailwind defaults the theme removed; lint flags them. Map them onto the roles: `text-sm` → `text-body`, `text-xs` → `text-caption` (or `text-label` with `font-medium`), `shadow-*` → `shadow-float` or none, raw palette → a role.
-- Layer 2's contents and patterns (focus and state styling beyond the tokens) are decided in the component-patterns session. Until then, follow this doc and the existing primitives.
+
+| Component                                   | Use it for                                                                                                                                                                                                                                          |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Money`                                     | Every amount. See [Money](#money).                                                                                                                                                                                                                  |
+| `HeroFigure`                                | The one large number on a screen: a `label`, a `value` (usually a `Money`) and an optional `caption`.                                                                                                                                               |
+| `SectionHeader`                             | A section's `text-heading` title, with an optional right-aligned link or amount (`action`). `sticky` pins it under the app header. Use sections with hairlines instead of cards.                                                                    |
+| `ListRow`                                   | A row in a list: one stretched target (`link`, such as `?open=<id>`, or `onClick`), a `label` with a trailing `amount`, a muted `detail` line, and quick `actions` shown on hover or focus (none on phones). `open` marks the row the detail shows. |
+| `DataTable`                                 | A plain table on the laptop. Each column can `hideBelow` a container width; rows take the same target, open state and actions as `ListRow`.                                                                                                         |
+| `EmptyState`                                | An empty list: one muted sentence saying what is missing, and an optional next step.                                                                                                                                                                |
+| `StatusBadge`                               | A short status in one of a few tones (below). Text is required; `icon` is optional.                                                                                                                                                                 |
+| `Notice`                                    | A boxed message in the page, `neutral` or `warning`, with an optional `title`.                                                                                                                                                                      |
+| `ProgressBar`                               | Progress toward a target, such as a category's spend against its budget. `label` is its accessible name; `value` is a percent.                                                                                                                      |
+| `SegmentedControl`                          | Two to four mutually exclusive options shown inline, such as a view switch. A radio group by keyboard.                                                                                                                                              |
+| `FilterChips`, `FilterChip`                 | The phone filter row: toggle chips that scroll sideways, each pressed or not.                                                                                                                                                                       |
+| `Field`                                     | A form control with its `label`, `hint` and `error`, wired for screen readers. Pass a function child to reach a nested control (a Select trigger).                                                                                                  |
+| `FormSheet`, `FormFooter`, `advanceOnEnter` | Every form's container: a bottom sheet on phones, a dialog on wider screens. Its buttons go in `FormFooter`; `advanceOnEnter` makes Enter move to the next field on phones.                                                                         |
+| `ConfirmDialogHost`                         | Mounted once. Pages call `confirm()` from `src/lib/confirm.ts`, only for what cannot be undone.                                                                                                                                                     |
+| `VisibilityField`                           | The Household or Personal choice when adding an account, group or category.                                                                                                                                                                         |
+| `ActionForm`, `SubmitButton`                | Every form that submits. A failed save keeps what the person typed; the button shows that it is running.                                                                                                                                            |
+| `CurrencyInput`                             | Every amount a person types.                                                                                                                                                                                                                        |
+| `FormError`                                 | The message when submitting a form failed. A field's own error goes in `Field`.                                                                                                                                                                     |
+| Re-exported as they are                     | `Button`, `Input`, `Textarea`, `Select`, `Checkbox`, `Switch`, `RadioGroup`, `Label`, `Tabs`, `Tooltip`, `Popover`, `ScrollArea`, `Toaster`.                                                                                                        |
+
+- Some primitives have no re-export, because a pattern replaces them: Badge (`StatusBadge`), Dialog, Drawer and Sheet (`FormSheet`), AlertDialog (`ConfirmDialogHost`), Card (`SectionHeader` sections), Table (`DataTable`), Alert (`Notice`), Progress (`ProgressBar`). DropdownMenu, DatePicker, Command, Separator and Skeleton are re-exported when a page first needs them.
+- Status badge tones: `neutral` (secondary), `outline`, `warning`, `shortfall` and `success`, never `destructive`. Over budget is `shortfall`; close to it is `warning`; pending is `outline` with the Info icon; review is `neutral`; no budget is `outline`; "Already imported" is `warning`; cleared has no badge.
+- Progress bar tones: `primary` while spending is fine, `warning` when it is close to the target, `shortfall` (on a `shortfall/20` track) once it passes the target. Spending exactly the budget is not past it.
 
 ## Layout
 
@@ -167,6 +196,7 @@ Why: one shell per page keeps headers, padding and wide-screen behavior the same
 - Every route renders `<PageShell variant="…">` (`src/components/layout/PageShell.tsx`). Pick the variant from its doc comment.
 - Inside rails, sheets and panes, use container queries (`@[600px]:`), not viewport breakpoints. A pane's width, not the window's, decides its layout.
 - Pin bottom-edge elements with the `--bottom-chrome` offset so nothing lands under the tab bar.
+- Pin sticky content below the app header with the `--app-header` offset (`SectionHeader sticky` does this). Never hard-code the header's height.
 - Adaptive layouts (more columns on the laptop, window size classes) come in their own session.
 
 ## Enforcement

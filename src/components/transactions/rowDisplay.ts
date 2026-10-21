@@ -1,3 +1,4 @@
+import type { MoneyKind } from "@/components/app/Money";
 import { envelopeLabel } from "@/lib/allocations/envelope";
 import { CORRECTION_LABEL, isMoneyIn } from "@/lib/corrections/events";
 import { transactionLabel } from "@/lib/transactions/events";
@@ -7,14 +8,13 @@ import {
   transferDirection,
   type ListRow,
 } from "@/lib/transactions/filter";
-import type { AmountDirection } from "./TransactionAmount";
 import { transferName } from "./transferName";
 
-/** What a row shows: its name, the muted line beneath it and which way its money went. */
+/** What a row shows: its name, the muted line beneath it and what kind of amount it is. */
 export interface RowDisplay {
   label: string;
   detail: string;
-  direction: AmountDirection;
+  amount: MoneyKind;
 }
 
 export interface RowNames {
@@ -22,7 +22,7 @@ export interface RowNames {
   accounts: Map<string, string>;
 }
 
-/** A transfer is signed in or out of `filteredAccount`; without one, it only moved. */
+/** A transfer is a leg in or out of `filteredAccount`; without one, it only moved. */
 export function rowDisplay(row: ListRow, names: RowNames, filteredAccount?: string): RowDisplay {
   const accountNameOf = (accountId: string) =>
     names.accounts.get(accountId) ?? "Account not on this device yet";
@@ -32,14 +32,14 @@ export function rowDisplay(row: ListRow, names: RowNames, filteredAccount?: stri
     return {
       label: transferName(row, accountNameOf, direction),
       detail: `${envelopeLabel(row.envelope, names.categories, names.accounts)} · ${path}`,
-      direction: direction ?? "moved",
+      amount: direction ? { kind: "transfer", leg: direction } : { kind: "transfer" },
     };
   }
   if (isCorrection(row)) {
     return {
       label: CORRECTION_LABEL,
       detail: `${envelopeLabel(row.envelope, names.categories, names.accounts)} · ${accountNameOf(row.accountId)}`,
-      direction: isMoneyIn(row) ? "in" : "out",
+      amount: { kind: isMoneyIn(row) ? "income" : "expense" },
     };
   }
   const categoryName =
@@ -49,6 +49,6 @@ export function rowDisplay(row: ListRow, names: RowNames, filteredAccount?: stri
   return {
     label: transactionLabel(row),
     detail: `${categoryName} · ${accountNameOf(row.accountId)}`,
-    direction: row.type === "income" ? "in" : "out",
+    amount: { kind: row.type === "income" ? "income" : "expense" },
   };
 }

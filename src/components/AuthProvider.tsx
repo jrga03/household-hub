@@ -2,7 +2,7 @@ import { useEffect, type ReactNode } from "react";
 import { reportError } from "@/lib/sentry";
 import { useAuthStore } from "@/stores/authStore";
 import { LoadingScreen } from "@/components/LoadingScreen";
-import { ConfirmDialogHost } from "@/components/ConfirmDialog";
+import { ConfirmDialogHost } from "@/components/app/ConfirmDialogHost";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const initialize = useAuthStore((state) => state.initialize);

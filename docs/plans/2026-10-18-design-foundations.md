@@ -88,6 +88,9 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **`transactions-*` baselines show the empty state** (#175): the baseline user has no transactions, so no baseline draws the list; the e2e test "the last row stays inside the list's bottom border" guards its border instead. Revisit: when the baseline user is seeded with transactions.
 - **webkit and Mobile Safari layout snapshots were not regenerated** (#172); neither project is trusted per CLAUDE.md. Revisit: when those projects are fixed.
 - **Theme-color meta still needs a real-phone status-bar check** (#172); Chromium renders the oklch value. Revisit: next time the PWA is opened on a phone.
+- **#209 `AccountsCard` keeps `formatPHP` + `shortfallClass`** (no spoken sign) instead of `Money`. Why: the transfer and card-payment e2e assert its exact balance text. `shortfallClass` stays exported from `app/Money.tsx` until then. Revisit: the Accounts migration (#228), which makes it private.
+- **#209 Knip treats `src/components/app/**` as entry**, so unused layer-2 exports are not flagged. Why: pages adopt the components ticket by ticket. Revisit: when the page migration ends (#233).
+- **#209 `CategoryLedger` shows an account-only move with `kind="transfer"`** (muted, unsigned) on purpose. Why: it moves money between accounts without changing the category's money, so its change is zero. Revisit: never.
 
 ### Rollout checklist
 

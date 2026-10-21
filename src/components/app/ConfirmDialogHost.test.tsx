@@ -6,7 +6,7 @@
 
 import { describe, expect, it, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { ConfirmDialogHost } from "./ConfirmDialog";
+import { ConfirmDialogHost } from "./ConfirmDialogHost";
 import { confirm, confirmWithOutcome, useConfirmStore } from "@/lib/confirm";
 
 beforeEach(() => {

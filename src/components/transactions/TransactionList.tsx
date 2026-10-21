@@ -44,7 +44,6 @@ interface TransactionListProps {
   actor: Actor;
   filter: TransactionFilter;
   onFilterChange: (filter: TransactionFilter) => void;
-  expenseInParentheses?: boolean;
 }
 
 /**
@@ -54,12 +53,7 @@ interface TransactionListProps {
  * opens in the detail pane on wide screens and in a sheet otherwise. A long
  * press or the header's Select starts selecting.
  */
-export function TransactionList({
-  actor,
-  filter,
-  onFilterChange,
-  expenseInParentheses = false,
-}: TransactionListProps) {
+export function TransactionList({ actor, filter, onFilterChange }: TransactionListProps) {
   const rows = useTransactionListRows();
   const accounts = useAccounts();
   const retiredAccounts = useRetiredAccounts();
@@ -202,7 +196,6 @@ export function TransactionList({
                 onRevealChange={(action) => revealRow(row.id, action)}
                 onTap={() => (selecting ? toggleSelected(row.id) : setOpenId(row.id))}
                 onLongPress={() => (selecting ? toggleSelected(row.id) : startSelecting(row.id))}
-                expenseInParentheses={expenseInParentheses}
               />
             )}
           />

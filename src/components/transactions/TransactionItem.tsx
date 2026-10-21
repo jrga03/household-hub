@@ -8,10 +8,10 @@ import { CORRECTION_LABEL } from "@/lib/corrections/events";
 import type { TransactionStatus } from "@/lib/transactions/events";
 import { isCorrection, isTransfer, statusOf, type ListRow } from "@/lib/transactions/filter";
 import { cn, errorMessage } from "@/lib/utils";
+import { Money, spokenMoney } from "@/components/app/Money";
 import { removeCorrectionWithUndo } from "@/components/corrections/CorrectionDialog";
 import { removeWithUndo } from "./removeWithUndo";
 import type { RowDisplay } from "./rowDisplay";
-import { AMOUNT_DIRECTION, spokenAmount, TransactionAmount } from "./TransactionAmount";
 import { removeTransferWithUndo } from "./TransferDialog";
 import { REVEAL_WIDTH, useRowGestures, type RevealedAction } from "./useRowGestures";
 
@@ -32,7 +32,6 @@ interface TransactionItemProps {
   /** A tap: opens the row, or toggles it while selecting. */
   onTap: () => void;
   onLongPress: () => void;
-  expenseInParentheses?: boolean;
 }
 
 /**
@@ -52,7 +51,6 @@ export function TransactionItem({
   onRevealChange,
   onTap,
   onLongPress,
-  expenseInParentheses = false,
 }: TransactionItemProps) {
   const rowRef = useRef<HTMLDivElement>(null);
   const [changing, startChanging] = useTransition();
@@ -60,8 +58,8 @@ export function TransactionItem({
   const toggleTo = OTHER_STATUS[status];
   const pending = status === "pending";
   const hasStatusAction = !isCorrection(row);
-  const { label, detail, direction } = display;
-  const spoken = spokenAmount(direction, row.amountCents);
+  const { label, detail, amount } = display;
+  const spoken = spokenMoney({ ...amount, cents: row.amountCents });
   const gestures = useRowGestures({
     rowRef,
     revealed,
@@ -167,18 +165,11 @@ export function TransactionItem({
                 aria-label="Pending"
               />
             )}
-            <span
-              className={cn(
-                "shrink-0 tabular-nums",
-                pending ? "text-muted-foreground" : AMOUNT_DIRECTION[direction].className
-              )}
-            >
-              <TransactionAmount
-                direction={direction}
-                cents={row.amountCents}
-                expenseInParentheses={expenseInParentheses}
-              />
-            </span>
+            <Money
+              {...amount}
+              cents={row.amountCents}
+              className={cn("shrink-0", pending && "text-muted-foreground")}
+            />
           </span>
           <span className="block truncate text-body text-muted-foreground">{detail}</span>
         </button>

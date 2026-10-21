@@ -30,7 +30,6 @@ import {
   formatPHPChartValue,
   formatPHPInput,
   formatPHPDecimal,
-  formatTransactionExpense,
 } from "./currency";
 
 describe("formatPHP", () => {
@@ -57,9 +56,13 @@ describe("formatPHP", () => {
   });
 
   it("formats negative amounts with minus sign before peso sign", () => {
-    expect(formatPHP(asCents(-50000))).toBe("-₱500.00");
-    expect(formatPHP(asCents(-150050))).toBe("-₱1,500.50");
-    expect(formatPHP(asCents(-1))).toBe("-₱0.01");
+    expect(formatPHP(asCents(-50000))).toBe("−₱500.00");
+    expect(formatPHP(asCents(-150050))).toBe("−₱1,500.50");
+    expect(formatPHP(asCents(-1))).toBe("−₱0.01");
+  });
+
+  it("uses the true minus sign U+2212, not a hyphen", () => {
+    expect(formatPHP(asCents(-50000)).codePointAt(0)).toBe(0x2212);
   });
 
   it("always shows 2 decimal places", () => {
@@ -83,6 +86,10 @@ describe("formatPHPDecimal", () => {
     expect(formatPHPDecimal(asCents(MAX_AMOUNT_CENTS))).toBe("9999999.99");
     expect(formatPHPDecimal(asCents(-250))).toBe("-2.50");
   });
+
+  it("keeps a hyphen-minus so spreadsheets read the number", () => {
+    expect(formatPHPDecimal(asCents(-250)).codePointAt(0)).toBe(0x2d);
+  });
 });
 
 describe("formatPHPInput", () => {
@@ -90,6 +97,14 @@ describe("formatPHPInput", () => {
     expect(formatPHPInput(asCents(150050))).toBe("1,500.50");
     expect(formatPHPInput(asCents(MAX_AMOUNT_CENTS))).toBe("9,999,999.99");
     expect(parsePHP(formatPHPInput(asCents(25000)))).toBe(25000);
+  });
+
+  it("prefills a negative balance that parseSignedPHPSafe reads back", () => {
+    expect(formatPHPInput(asCents(-125050))).toBe("−1,250.50");
+    expect(parseSignedPHPSafe(formatPHPInput(asCents(-125050)))).toEqual({
+      success: true,
+      value: -125050,
+    });
   });
 
   it("leaves an empty amount empty", () => {
@@ -320,8 +335,9 @@ describe("formatPHPAxisTick", () => {
   });
 
   it("places the sign before the peso symbol for negatives", () => {
-    expect(formatPHPAxisTick(asCents(-50000))).toBe("-₱500");
-    expect(formatPHPAxisTick(asCents(-1250000))).toBe("-₱12.5k");
+    expect(formatPHPAxisTick(asCents(-50000))).toBe("−₱500");
+    expect(formatPHPAxisTick(asCents(-1250000))).toBe("−₱12.5k");
+    expect(formatPHPAxisTick(asCents(-50000)).codePointAt(0)).toBe(0x2212);
   });
 });
 
@@ -463,16 +479,6 @@ describe("parsers return branded cents", () => {
 
   it.each(["", "abc", "-5", "Infinity"])("parsePHPUnbounded returns null for %j", (input) => {
     expect(parsePHPUnbounded(input)).toBeNull();
-  });
-});
-
-describe("formatTransactionExpense", () => {
-  it("shows money going out in parentheses", () => {
-    expect(formatTransactionExpense(asCents(25000))).toBe("(₱250.00)");
-  });
-
-  it("reads the size of the amount whichever sign it is stored with", () => {
-    expect(formatTransactionExpense(asCents(-150050))).toBe("(₱1,500.50)");
   });
 });
 
