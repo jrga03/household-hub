@@ -120,6 +120,11 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#224 Status is a `SegmentedControl` with an `aria-hidden` visible "Status" label**, since `SegmentedControl` names itself by `aria-label` only. Why: matches the direction control. Revisit: if `SegmentedControl` takes `aria-labelledby`.
 - **#224 `DirectionChoice` is now a `SegmentedControl`**, so Import's `DraftDetail` (#230) shows it too. Why: it is the shared entry control. Revisit: #230, if the draft needs a different look.
 - **#224 no "Saved on this device" line in the entry sheets.** Why: the user dropped it 2026-10-14 (ui-overhaul decisions); this closes the #216 and #223 items. Revisit: never.
+- **#230 each Review section is a `SectionHeader` with a `neutral` "N to review" badge over one `ListRow` link** ("Categorize", "Review drafts", the count sentence as its detail); join requests keep #231's `JoinRequestRow` between hairlines. Why: the ticket's rows and badge; `JoinRequestRow` belongs to #231. Revisit: #231, if `JoinRequestRow` becomes a `ListRow`.
+- **#230 a draft row is a checkbox beside a `ListRow`**, not `pressed` selection; the `li` carries the hover and open highlight so both read as one row. Why: bulk save and discard are always available, and a checkbox inside the row's target would nest controls. Revisit: never.
+- **#230 the draft description keeps its own label (with the Suggested badge) and its warning "Needs a description" line**, not `Field`. Why: `Field` takes a string label and shows errors in `destructive`; a missing description is something to check, not a failed submit. Revisit: if `Field` takes a node label or a warning hint.
+- **#230 `DraftDetail` keeps #224's `DirectionChoice` segmented control as it is.** Why: it reads well in the pane and the sheet (checked at 1280 and 393). Revisit: never.
+- **#230 the Import list is not width-capped**: with no draft open on a laptop the read form spans the list column. Why: `list-detail` lets the list flex. Revisit: after real use on a laptop.
 
 ### Rollout checklist
 
