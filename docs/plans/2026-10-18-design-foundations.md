@@ -166,7 +166,7 @@ Spec #222, integration branch `feat/222-page-migration`. Order: #223 â†’ #224 â†
 - [ ] #227 Plan: allocations, move money and budgets (#224)
 - [ ] #228 Accounts: balances, edits, card payments and corrections (#224)
 - [ ] #229 Categories: groups, adds and edits (#224)
-- [ ] #230 Review and Import: review items and statement drafts (#224)
+- [x] #230 Review and Import: review items and statement drafts (#224)
 - [ ] #231 Settings and households: list-detail sections and create-or-join (#224)
 - [ ] #232 Assistant: chat and proposals (#224)
 - [ ] #233 Auth and app leftovers, and delete the primitive allowlist (#223-#232)
