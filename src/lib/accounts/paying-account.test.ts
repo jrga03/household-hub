@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { cents } from "@/test/cents";
+import { HOUSEHOLD } from "@/test/events";
 import type { AccountRow } from "./projection";
 import { payingAccountChoices } from "./paying-account";
 
 function account(id: string, overrides: Partial<AccountRow> = {}): AccountRow {
   return {
     id,
-    householdId: "11111111-1111-4111-8111-111111111111",
+    householdId: HOUSEHOLD,
     visibility: "household",
     ownerUserId: null,
     name: id,

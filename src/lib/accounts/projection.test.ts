@@ -26,9 +26,14 @@ function accountEdited(fields: AccountEventFields): LoggedEvent {
 
 function accountRetirement(
   eventType: "account.retired" | "account.unretired",
-  fields: Omit<AccountEventFields, "entityId" | "payload">
+  {
+    entityId = CASH_ID,
+    ...fields
+  }: Omit<AccountEventFields, "entityId" | "payload"> & {
+    entityId?: string;
+  }
 ): LoggedEvent {
-  return loggedEvent({ ...fields, entityType: "account", entityId: CASH_ID, eventType });
+  return loggedEvent({ ...fields, entityType: "account", entityId, eventType });
 }
 
 const cash = accountCreated({
@@ -127,34 +132,30 @@ describe("account projection", () => {
     expect(await listAccounts()).toMatchObject([{ id: BANK_ID }]);
   });
 
-  const personalSavings: LoggedEvent = {
-    ...accountCreated({
-      id: "e-savings",
-      entityId: BANK_ID,
-      millis: 1000,
-      payload: {
-        name: "Savings",
-        type: "bank",
-        startingBalanceCents: 0,
-      },
-    }),
+  const personalSavings = accountCreated({
+    id: "e-savings",
+    entityId: BANK_ID,
+    millis: 1000,
     visibility: "personal",
     ownerUserId: "user-b",
-  };
-  const savingsRenamedByOwner: LoggedEvent = {
-    ...accountEdited({
-      id: "e-savings-2",
-      entityId: BANK_ID,
-      millis: 2000,
-      payload: {
-        name: "Rainy day",
-        type: "bank",
-        startingBalanceCents: 0,
-      },
-    }),
+    payload: {
+      name: "Savings",
+      type: "bank",
+      startingBalanceCents: 0,
+    },
+  });
+  const savingsRenamedByOwner = accountEdited({
+    id: "e-savings-2",
+    entityId: BANK_ID,
+    millis: 2000,
     visibility: "personal",
     ownerUserId: "user-b",
-  };
+    payload: {
+      name: "Rainy day",
+      type: "bank",
+      startingBalanceCents: 0,
+    },
+  });
   const savingsMadeHousehold = accountEdited({
     id: "e-savings-3",
     entityId: BANK_ID,
@@ -239,7 +240,7 @@ describe("account projection", () => {
       [
         "the later device id",
         { millis: 5000, device: "device-a", counter: 3 },
-        { millis: 5000, counter: 3 },
+        { millis: 5000, device: "device-b", counter: 3 },
       ],
     ])("breaks an equal wall time by %s", async (_rule, earlierAt, laterAt) => {
       const earlier = accountEdited({
@@ -379,10 +380,11 @@ describe("account projection", () => {
     });
 
     it("still names a Paying Account that has since been retired", async () => {
-      const bankRetired = {
-        ...accountRetirement("account.retired", { id: "e-bank-retired", millis: 5000 }),
+      const bankRetired = accountRetirement("account.retired", {
+        id: "e-bank-retired",
         entityId: BANK_ID,
-      };
+        millis: 5000,
+      });
 
       await receiveEvents([visa, bank, bankRetired], 0);
 
@@ -518,20 +520,18 @@ describe("account projection", () => {
     });
 
     it("projects a version 1 edit, which had no paying account", async () => {
-      const versionOneEdit: LoggedEvent = {
-        ...accountEdited({
-          id: "e-cash-edit",
-          entityId: CASH_ID,
-          millis: 2000,
-          device: "device-a",
-          payload: {
-            name: "Coins",
-            type: "cash",
-            startingBalanceCents: 50_000,
-          },
-        }),
+      const versionOneEdit = accountEdited({
+        id: "e-cash-edit",
+        entityId: CASH_ID,
+        millis: 2000,
+        device: "device-a",
         eventVersion: 1,
-      };
+        payload: {
+          name: "Coins",
+          type: "cash",
+          startingBalanceCents: 50_000,
+        },
+      });
 
       await receiveEvents([cash, versionOneEdit], 0);
 
