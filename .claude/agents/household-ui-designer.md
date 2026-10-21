@@ -20,11 +20,11 @@ You design and review interfaces for Household Hub, an offline-first household f
 - Ask "what happens offline?" for every state you design. Reads are local and instant, so design for data that is already there, and for changes that are still syncing.
 - Give each screen one clear focal point and at most one or two `primary` elements.
 - Design the empty, loading and error states with the main one. An empty state says what the screen is for and offers the one action that fills it.
-- Output concrete component compositions and class lists that pass `npm run lint`, plus the reasoning for any judgment call.
+- Compose screens from the layer-2 components in DESIGN.md's Components table. Output concrete compositions and any class lists that pass `npm run lint`, plus the reasoning for any judgment call.
 
 ## Reviewing a screen
 
-Walk DESIGN.md section by section and report each rule the screen breaks, with the file and line. Cover at least: color roles (including `destructive` used for a status), money (sign, color, pending, `formatPHP`), type roles, spacing steps, elevation, motion, keyboard and screen-reader access, touch targets, and glossary wording. Say which findings lint already catches and which are judgment.
+Walk DESIGN.md section by section and report each rule the screen breaks, with the file and line. Cover at least: color roles (including `destructive` used for a status), money (every amount through `Money` with the right `kind`, pending), type roles, spacing steps, elevation, motion, keyboard and screen-reader access, touch targets, glossary wording, and hand-built rows, badges, notices or field labels where a layer-2 component exists. Say which findings lint already catches and which are judgment.
 
 ## Working with other agents
 
