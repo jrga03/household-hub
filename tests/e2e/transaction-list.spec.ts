@@ -311,3 +311,122 @@ test.describe("on a wide screen", () => {
     expect(Math.abs((await page.evaluate(() => window.scrollY)) - scrolledTo)).toBeLessThan(5);
   });
 });
+
+test.describe("the open transaction", () => {
+  async function listOf(page: Page, count: number) {
+    await startHousehold(page);
+    await page.getByRole("link", { name: "Transactions" }).first().click();
+    for (let index = 1; index <= count; index++) {
+      await addTransaction(page, { amount: `${index}00`, description: `Item ${index}` });
+    }
+    return page.getByRole("list", { name: "Transactions" });
+  }
+  const rowOf = (list: Locator, index: number) =>
+    list.getByRole("button", { name: `Edit Item ${index}, minus ₱${index}00.00`, exact: true });
+
+  test("opens in a sheet on a phone; back closes it and the list keeps its place", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 393, height: 851 });
+    const list = await listOf(page, 14);
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    const row = rowOf(list, 1);
+    await expect(row).toBeInViewport();
+    const scrolledTo = await page.evaluate(() => window.scrollY);
+    expect(scrolledTo).toBeGreaterThan(0);
+
+    await row.click();
+    const sheet = page.getByRole("dialog", { name: "Edit transaction" });
+    await expect(sheet.getByLabel("Description", { exact: true })).toHaveValue("Item 1");
+    await expect(page).toHaveURL(/[?&]open=/);
+    await expect(page.getByRole("complementary")).toHaveCount(0);
+    await sheet.screenshot({ path: test.info().outputPath("sheet-393.png") });
+
+    await page.reload();
+    await expect(sheet.getByLabel("Description", { exact: true })).toHaveValue("Item 1");
+
+    await page.goBack();
+    await expect(sheet).toBeHidden();
+    await expect(page).not.toHaveURL(/[?&]open=/);
+    await expect(row).toBeInViewport();
+    expect(Math.abs((await page.evaluate(() => window.scrollY)) - scrolledTo)).toBeLessThan(5);
+  });
+
+  test("opens in a pane beside the list: 412px from a 1200px shell, 360px below", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    const list = await listOf(page, 3);
+    // The expanded rail leaves the shell under 1200px; collapsed, it is over.
+    await page
+      .getByRole("button", { name: /^Toggle Sidebar/ })
+      .first()
+      .click();
+    await expect(page.getByRole("complementary")).toHaveCount(0);
+    const fullWidth = (await list.boundingBox())?.width ?? 0;
+
+    await rowOf(list, 2).click();
+    const pane = page.getByRole("complementary");
+    await expect(pane.getByLabel("Description", { exact: true })).toHaveValue("Item 2");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    expect((await pane.boundingBox())?.width).toBe(412);
+    expect((await list.boundingBox())?.width ?? 0).toBeLessThan(fullWidth);
+    await page.screenshot({ path: test.info().outputPath("pane-1366.png") });
+
+    await page.reload();
+    await expect(pane.getByLabel("Description", { exact: true })).toHaveValue("Item 2");
+
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await expect(pane.getByLabel("Description", { exact: true })).toHaveValue("Item 2");
+    expect((await pane.boundingBox())?.width).toBe(360);
+    await page.screenshot({ path: test.info().outputPath("pane-1024.png") });
+  });
+
+  test("with two panes, opening items replaces the entry, so back leaves the page", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    const list = await listOf(page, 3);
+    const pane = page.getByRole("complementary");
+    for (const index of [1, 2, 3]) {
+      await rowOf(list, index).click();
+      await expect(pane.getByLabel("Description", { exact: true })).toHaveValue(`Item ${index}`);
+    }
+
+    await page.goBack();
+    await expect(page).not.toHaveURL(/\/transactions/);
+  });
+
+  test("stays open while the window crosses 840 either way", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    const list = await listOf(page, 2);
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await rowOf(list, 1).click();
+    const pane = page.getByRole("complementary");
+    await expect(pane.getByLabel("Description", { exact: true })).toHaveValue("Item 1");
+
+    await page.setViewportSize({ width: 700, height: 900 });
+    const sheet = page.getByRole("dialog", { name: "Edit transaction" });
+    await expect(sheet.getByLabel("Description", { exact: true })).toHaveValue("Item 1");
+    await expect(pane).toHaveCount(0);
+
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await expect(pane.getByLabel("Description", { exact: true })).toHaveValue("Item 1");
+    await expect(sheet).toHaveCount(0);
+  });
+
+  test("opened in the pane, then narrowed to a sheet, back closes the sheet", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    const list = await listOf(page, 2);
+    await rowOf(list, 1).click();
+    await expect(page).toHaveURL(/open=/);
+
+    await page.setViewportSize({ width: 700, height: 900 });
+    const sheet = page.getByRole("dialog", { name: "Edit transaction" });
+    await expect(sheet.getByLabel("Description", { exact: true })).toHaveValue("Item 1");
+
+    await page.goBack();
+    await expect(sheet).toHaveCount(0);
+    await expect(page).toHaveURL(/\/transactions$/);
+  });
+});

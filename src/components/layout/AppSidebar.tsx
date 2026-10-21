@@ -1,4 +1,5 @@
-import { Link } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { ChevronLeft, LogOut, User } from "lucide-react";
 import {
   Sidebar,
@@ -24,13 +25,28 @@ import { ReviewCountBadge, ReviewDot, reviewLabel } from "./ReviewCount";
 import { useReviewCount } from "@/hooks/useReviewCount";
 
 /**
- * Sidebar navigation for desktop and tablet views: the daily and manage
+ * The rail from the medium window class up: the daily and manage
  * groups, collapsible to icon-only mode, with the user profile and sign out.
  *
  * @see src/components/layout/AppLayout.tsx - Parent layout component
  */
 
 export function AppSidebar() {
+  const { setOpenMobile } = useSidebar();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+
+  // The modal rail (medium windows) closes on any navigation, shortcuts and back included.
+  useEffect(() => setOpenMobile(false), [pathname, setOpenMobile]);
+
+  return (
+    <Sidebar collapsible="icon">
+      <SidebarBody />
+    </Sidebar>
+  );
+}
+
+/** Reads `open` itself, so the collapsed rail and the modal rail each show their own state. */
+function SidebarBody() {
   const user = useAuthStore((state) => state.user);
   const { open } = useSidebar();
   const reviewCount = useReviewCount();
@@ -44,7 +60,11 @@ export function AppSidebar() {
           <Link
             to={item.to}
             className="relative"
-            aria-label={item.reviewCount ? reviewLabel(item.label, reviewCount) : undefined}
+            // A collapsed rail shows only the icon, so the link names itself.
+            aria-label={
+              (item.reviewCount && reviewLabel(item.label, reviewCount)) ||
+              (open ? undefined : item.label)
+            }
           >
             <item.icon className="h-4 w-4" />
             {open ? (
@@ -75,7 +95,7 @@ export function AppSidebar() {
     ));
 
   return (
-    <Sidebar collapsible="icon">
+    <>
       <SidebarHeader className="border-b">
         <div className="flex items-center justify-between px-2">
           <div className="flex items-center gap-2">
@@ -142,6 +162,6 @@ export function AppSidebar() {
       </SidebarFooter>
 
       <SidebarRail />
-    </Sidebar>
+    </>
   );
 }

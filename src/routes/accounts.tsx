@@ -18,7 +18,7 @@ function AccountsPage() {
   useScrollToHash(useAccounts() !== undefined);
 
   return (
-    <PageShell variant="centered">
+    <PageShell>
       <PageShell.Main>
         {household && userId && <AccountsCard actor={{ householdId: household.id, userId }} />}
       </PageShell.Main>

@@ -117,7 +117,7 @@ export function TransactionFilters({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-2 @[600px]:grid-cols-3 @[900px]:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2 @[600px]:grid-cols-3 @[840px]:grid-cols-5">
         <FilterSelect
           label="Month"
           value={filter.month}

@@ -6,13 +6,8 @@ import { useState, useEffect } from "react";
  * Listens to window resize events and updates when media queries match.
  * Properly cleans up event listeners and handles SSR.
  *
- * @param query - Media query string (e.g., '(min-width: 768px)')
+ * @param query - Media query string (e.g., '(min-width: 840px)')
  * @returns boolean indicating if the query matches
- *
- * @example
- * const isMobile = useMediaQuery('(max-width: 767px)');
- * const isTablet = useMediaQuery('(min-width: 768px) and (max-width: 1023px)');
- * const isDesktop = useMediaQuery('(min-width: 1024px)');
  */
 export function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState<boolean>(() => {
@@ -63,18 +58,22 @@ export function useMediaQuery(query: string): boolean {
   return matches;
 }
 
-/**
- * Convenience hooks for common breakpoints
- * Based on Tailwind CSS default breakpoints
- */
+/** Material 3 window size classes: global navigation switches on these. */
+export type WindowClass = "compact" | "medium" | "expanded" | "large";
 
-/** Phone widths; src/index.css mirrors it for the bottom tab bar. */
-export const PHONE_QUERY = "(max-width: 767px)";
+/** Below 600px. src/index.css mirrors it for the bottom tab bar's `--bottom-chrome`. */
+export const COMPACT_QUERY = "(max-width: 599px)";
+const EXPANDED_UP_QUERY = "(min-width: 840px)";
+const LARGE_QUERY = "(min-width: 1200px)";
 
-export function useIsMobile(): boolean {
-  return useMediaQuery(PHONE_QUERY);
+export function useWindowClass(): WindowClass {
+  const isCompact = useMediaQuery(COMPACT_QUERY);
+  const isExpandedUp = useMediaQuery(EXPANDED_UP_QUERY);
+  const isLarge = useMediaQuery(LARGE_QUERY);
+  if (isCompact) return "compact";
+  if (isLarge) return "large";
+  return isExpandedUp ? "expanded" : "medium";
 }
 
-export function useIsTablet(): boolean {
-  return useMediaQuery("(min-width: 768px) and (max-width: 1023px)");
-}
+/** The compact window class: phones, with the tab bar and bottom sheets. */
+export const useIsCompact = () => useMediaQuery(COMPACT_QUERY);

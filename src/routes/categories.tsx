@@ -14,7 +14,7 @@ function CategoriesPage() {
   const userId = useAuthStore((state) => state.user?.id);
 
   return (
-    <PageShell variant="centered">
+    <PageShell>
       {household && userId && <CategoriesView actor={{ householdId: household.id, userId }} />}
     </PageShell>
   );

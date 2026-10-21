@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
 import { BudgetView } from "@/components/budgets/BudgetView";
 import { BackToThisMonth, MonthPicker } from "@/components/budgets/MonthPicker";
+import { readOpenItem, type OpenItemSearch } from "@/components/layout/DetailPane";
 import { HeaderActions } from "@/components/layout/HeaderActions";
 import { PageShell } from "@/components/layout/PageShell";
 import { Button } from "@/components/ui/button";
@@ -17,8 +18,10 @@ export interface MonthSearch {
 
 export const Route = createFileRoute("/budget")({
   staticData: { title: "Budget" },
-  validateSearch: (search: Record<string, unknown>): MonthSearch =>
-    isLocalMonth(search.month) ? { month: search.month } : {},
+  validateSearch: (search: Record<string, unknown>): MonthSearch & OpenItemSearch => ({
+    ...(isLocalMonth(search.month) && { month: search.month }),
+    ...readOpenItem(search),
+  }),
   component: BudgetPage,
 });
 
@@ -29,28 +32,36 @@ function BudgetPage() {
   const navigate = Route.useNavigate();
   const currentMonth = localMonth(new Date());
   const month = search.month ?? currentMonth;
+  const planSearch: MonthSearch = search.month === undefined ? {} : { month: search.month };
   // This month is left out of the URL, so a bookmark keeps following the calendar.
+  // The open category stays open on the new month.
   const setMonth = (next: string) =>
-    void navigate({ search: next === currentMonth ? {} : { month: next }, replace: true });
+    void navigate({
+      search: ({ open }) => ({
+        ...(next !== currentMonth && { month: next }),
+        ...(open !== undefined && { open }),
+      }),
+      replace: true,
+    });
 
   return (
     <>
       <HeaderActions>
         <MonthPicker month={month} onChange={setMonth} />
         {/* On phones the header has no room for it beside the title; it sits in the body */}
-        <EditPlanLink search={search} className="hidden sm:inline-flex" />
+        <EditPlanLink search={planSearch} className="hidden medium:inline-flex" />
       </HeaderActions>
 
-      <PageShell variant="rail">
+      <PageShell variant="list-detail">
         {/* A viewport breakpoint, not a container query: it must flip with the header's copy */}
         <div
           className={cn(
-            "flex items-center gap-2 @[1100px]:col-span-2",
-            month === currentMonth && "sm:hidden"
+            "col-span-full flex items-center gap-2",
+            month === currentMonth && "medium:hidden"
           )}
         >
           <BackToThisMonth month={month} currentMonth={currentMonth} onChange={setMonth} />
-          <EditPlanLink search={search} className="ml-auto sm:hidden" />
+          <EditPlanLink search={planSearch} className="ml-auto medium:hidden" />
         </div>
         {household && userId && (
           <BudgetView

@@ -59,8 +59,8 @@ function PlanPage() {
         <MonthPicker month={month} onChange={setMonth} />
       </HeaderActions>
 
-      <PageShell variant="centered">
-        <div className="mx-auto max-w-3xl space-y-4">
+      <PageShell>
+        <div className="space-y-4">
           <BackToThisMonth month={month} currentMonth={currentMonth} onChange={setMonth} />
           {household && userId && (
             <PlanView

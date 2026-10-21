@@ -91,6 +91,21 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#209 `AccountsCard` keeps `formatPHP` + `shortfallClass`** (no spoken sign) instead of `Money`. Why: the transfer and card-payment e2e assert its exact balance text. `shortfallClass` stays exported from `app/Money.tsx` until then. Revisit: the Accounts migration (#228), which makes it private.
 - **#209 Knip treats `src/components/app/**` as entry**, so unused layer-2 exports are not flagged. Why: pages adopt the components ticket by ticket. Revisit: when the page migration ends (#233).
 - **#209 `CategoryLedger` shows an account-only move with `kind="transfer"`** (muted, unsigned) on purpose. Why: it moves money between accounts without changing the category's money, so its change is zero. Revisit: never.
+- **#218 The `list-detail` shell hides `Detail` below 840px itself** and lays out two columns only while a `Detail` is rendered (`:has`). Why: #219's `DetailPane` can render the slot only while an item is open. Meanwhile Transactions, Budget and Import show today's placeholder pane from 840px instead of 1100px, so `transactions.spec.ts` finds the editor in the pane or the dialog. Revisit: #219.
+- **#218 Settings drops its own `max-w-2xl`** and takes the `single` column (`max-w-3xl`), section links on top. Why: one centered width for simple pages. Revisit: the Settings migration (list-detail).
+- **#217 window classes are Tailwind breakpoints `medium:`, `expanded:`, `large:`** (600, 840, 1200 in `src/index.css`); `sm:`/`md:`/`lg:` stay for page content. Why: app chrome needs the class thresholds by name, and page content belongs to the page migration. Revisit: when the page migration ends (#233), drop the defaults.
+- **#217 the header rail toggle hides at large (`large:hidden`)**, as `lg:hidden` did, so a rail the cookie collapsed at large expands only from its edge or Cmd+B. Why: mechanical move of the old threshold. Revisit: the Settings or Home migration, if people miss a visible toggle.
+- **#217 the medium modal rail ignores the sidebar cookie and never writes it**; the cookie applies from expanded up. Why: the spec fixes medium as a collapsed rail. Revisit: never.
+- **#219 the pane is 412px only from a 1200px shell**, so at 1366 with the default expanded rail (shell about 1110px) it is 360px; the e2e checks 412 at 1366 with the rail collapsed. Why: the spec's pane thresholds are container widths, and the ticket's "412 at 1366" assumed the window. Revisit: #221 (DESIGN.md), if 1366 laptops should get the wide pane.
+- **#219 `useSelectedItem` is deleted**, folded into `DetailPane`'s `useOpenItem`. Why: nothing else used it, and the open item needs push or replace by pane count and close-by-back. Revisit: never.
+- **#219 the sheet uses vaul's `Drawer.Root`, not the `ui/drawer` wrapper**, so the `?open=` entry is the one back pops (no second sentinel entry). Why: two entries would need two backs to close. Revisit: never.
+- **#219 records opened from the Budget ledger stay in `FormSheet` dialogs, outside the URL.** Why: only the list's open item is `?open=`. Revisit: the Budget migration.
+- **#220 the layout baselines show the seed user's empty states** (no accounts, categories or transactions, nothing open), so they cover chrome and shell width but not a filled list or an open `DetailPane`. Why: `ROUTES` stays unchanged here and the baseline user is unseeded. Revisit: the page migration, when it adds routes.
+- **#221 DESIGN.md and CLAUDE.md say "every route except login and signup" uses `PageShell`**, and the route table lists them as a centered form with no shell. Why: as built, those two routes render their own centered `div`; the spec's "`single`, narrow" holds only for create-or-join. Revisit: if a page migration moves auth onto `PageShell`.
+- **#216 review: the `DetailPane` sheet header is the title alone**; `description` shows only in the pane. Why: the phone sheet's header has room for one truncated line, and the sheet has no `aria-describedby`. Revisit: the Transactions migration, if phone users miss the "saved on this device" line.
+- **#216 review: the 412px pane needs a 1200px shell**, so a 1366 laptop with the expanded rail gets 360px (user story 18 not met there). Why: pane thresholds are container widths, not window widths. Revisit: the Transactions migration.
+- **#216 review: a sheet showing over a replaced entry pushes the list entry back underneath**, so back closes it. This also covers a reloaded or shared `?open=` URL at one pane: back now closes the sheet before leaving the page. Why: the spec's "one pane: back closes the sheet" holds however the item was opened. Revisit: never.
+- **#216 review: all listed findings fixed**, none skipped. Search updaters use `to: "."`, which types them without casts. Revisit: never.
 
 ### Rollout checklist
 
@@ -109,3 +124,14 @@ Ticketed 2026-10-18 as sub-issues of #162, expand → migrate → contract. Each
 - [x] #174 Dark and phone-width layout baselines (#172)
 - **Deferred: adaptive layout** (more columns on the laptop, M3 window size classes). Revisit: the adaptive-layout session.
 - **Parked:** component patterns, adaptive layouts (M3 window size classes), migration of existing pages.
+
+### Adaptive layouts checklist
+
+Spec #216, integration branch `feat/216-adaptive-layouts`. Frontier at start: #217, #218.
+
+- [x] #217 Window size classes: one navigation per class (blocked by: none)
+- [x] #218 PageShell variants: single, supporting-pane and list-detail (none)
+- [x] #219 DetailPane: the open item in a pane or a bottom sheet, kept in the URL (#218)
+- [x] #220 Layout baselines: one viewport per size class, regenerated once (#217, #218, #219)
+- [x] #221 DESIGN.md: the adaptive layout rules (#217, #218, #219)
+- [x] Code review of the integration branch, findings fixed

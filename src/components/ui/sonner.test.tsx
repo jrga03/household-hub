@@ -1,10 +1,11 @@
 import { act, render, screen } from "@testing-library/react";
 import { toast } from "sonner";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setViewportWidth } from "@/test/viewport";
 import { Toaster } from "./sonner";
 
-let phone = true;
-vi.mock("@/hooks/useMediaQuery", () => ({ useIsMobile: () => phone }));
+/** Compact windows end at 599px; 600px is the first medium width. */
+const setPhone = (isPhone: boolean) => setViewportWidth(isPhone ? 599 : 600);
 
 const toaster = () => document.querySelector("[data-sonner-toaster]");
 
@@ -14,10 +15,12 @@ async function showToast() {
   await screen.findByText("Transaction added");
 }
 
+beforeEach(() => setPhone(true));
+
 afterEach(() => {
   document.body.removeAttribute("data-scroll-locked");
   toast.dismiss();
-  phone = true;
+  vi.restoreAllMocks();
 });
 
 describe("Toaster", () => {
@@ -37,7 +40,7 @@ describe("Toaster", () => {
   });
 
   it("stays at the bottom on wider screens, where forms open as centered dialogs", async () => {
-    phone = false;
+    setPhone(false);
     await showToast();
 
     await act(async () => document.body.setAttribute("data-scroll-locked", "1"));

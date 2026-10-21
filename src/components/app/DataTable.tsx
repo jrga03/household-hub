@@ -11,13 +11,13 @@ import { cn } from "@/lib/utils";
 import { RowActions, RowTargetElement, type RowTarget } from "./ListRow";
 
 /** Container widths, in px, a column can hide below. */
-type ContainerWidth = 480 | 600 | 900 | 1100;
+type ContainerWidth = 480 | 600 | 840 | 1200;
 
 const hiddenBelow: Record<ContainerWidth, string> = {
   480: "hidden @[480px]:table-cell",
   600: "hidden @[600px]:table-cell",
-  900: "hidden @[900px]:table-cell",
-  1100: "hidden @[1100px]:table-cell",
+  840: "hidden @[840px]:table-cell",
+  1200: "hidden @[1200px]:table-cell",
 };
 
 export interface DataTableColumn<Row> {

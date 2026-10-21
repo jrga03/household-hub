@@ -35,7 +35,7 @@ for (const { vpName, vp, colorScheme } of RUNS) {
         await expect(title).toBeVisible();
         // Measure after server data has rendered
         await page.waitForLoadState("networkidle");
-        if (vpName === "phone") {
+        if (vpName === "compact") {
           const { scrollWidth, clientWidth } = await title.evaluate((heading) => ({
             scrollWidth: heading.scrollWidth,
             clientWidth: heading.clientWidth,

@@ -3,43 +3,48 @@ import { describe, it, expect } from "vitest";
 import { PageShell } from "./PageShell";
 
 describe("PageShell", () => {
-  it("renders main slot for centered variant", () => {
-    render(
-      <PageShell variant="centered">
+  it("defaults to the single variant: one column and no side landmark", () => {
+    const { container } = render(
+      <PageShell>
         <PageShell.Main>main content</PageShell.Main>
       </PageShell>
     );
+
     expect(screen.getByText("main content")).toBeInTheDocument();
+    expect(container.firstChild).toHaveAttribute("data-variant", "single");
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
   });
 
-  it("renders main and right aside for rail variant", () => {
+  it("puts the supporting-pane side column in a complementary landmark after the main column", () => {
     render(
-      <PageShell variant="rail">
-        <PageShell.Main>main</PageShell.Main>
-        <PageShell.RightAside>rail</PageShell.RightAside>
+      <PageShell variant="supporting-pane">
+        <PageShell.Main>overview</PageShell.Main>
+        <PageShell.Side>upcoming</PageShell.Side>
       </PageShell>
     );
-    expect(screen.getByText("main")).toBeInTheDocument();
-    expect(screen.getByText("rail")).toBeInTheDocument();
+
+    const side = screen.getByRole("complementary");
+    expect(side).toHaveTextContent("upcoming");
+    expect(
+      screen.getByText("overview").compareDocumentPosition(side) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 
-  it("renders all three slots for triple variant", () => {
+  it("renders a list-detail shell with nothing in the detail slot as the list alone", () => {
     render(
-      <PageShell variant="triple">
-        <PageShell.LeftAside>filters</PageShell.LeftAside>
-        <PageShell.Main>list</PageShell.Main>
-        <PageShell.RightAside>detail</PageShell.RightAside>
+      <PageShell variant="list-detail">
+        <PageShell.List>rows</PageShell.List>
       </PageShell>
     );
-    expect(screen.getByText("filters")).toBeInTheDocument();
-    expect(screen.getByText("list")).toBeInTheDocument();
-    expect(screen.getByText("detail")).toBeInTheDocument();
+
+    expect(screen.getByText("rows")).toBeInTheDocument();
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
   });
 
-  it("applies @container class so children can use container query variants", () => {
+  it("applies @container so children can use container query variants", () => {
     const { container } = render(
-      <PageShell variant="rail">
-        <PageShell.Main>main</PageShell.Main>
+      <PageShell variant="list-detail">
+        <PageShell.List>rows</PageShell.List>
       </PageShell>
     );
     expect(container.firstChild).toHaveClass("@container");

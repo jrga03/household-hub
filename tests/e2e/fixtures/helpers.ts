@@ -42,9 +42,9 @@ const TAB_LABELS = ["Home", "Transactions"];
  * otherwise. The sidebar comes first in the DOM, ahead of same-named page links.
  */
 export async function navigateTo(page: Page, label: string) {
-  const isPhoneWidth = (page.viewportSize()?.width ?? Infinity) < 768;
+  const isPhoneWidth = (page.viewportSize()?.width ?? Infinity) < 600;
   if (!isPhoneWidth) {
-    // A sidebar link's name ends with its shortcut ("Settings g s")
+    // An expanded rail's link name ends with its shortcut ("Settings g s"); a collapsed rail's is the label alone.
     await page.getByRole("link", { name: label }).first().click();
   } else if (TAB_LABELS.includes(label)) {
     await page

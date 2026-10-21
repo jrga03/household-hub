@@ -59,10 +59,11 @@ test("transactions recorded offline move the balance, and a removal can be undon
   const list = page.getByRole("list", { name: "Transactions" });
   const market = list.getByRole("listitem").filter({ hasText: "Market" });
   await market.getByRole("button", { name: "Edit Market" }).click();
-  await page
+  // From 840px of shell width the row opens in the detail pane, below it in a bottom sheet.
+  const editor = page
     .getByRole("dialog", { name: "Edit transaction" })
-    .getByRole("button", { name: "Remove" })
-    .click();
+    .or(page.getByRole("region", { name: "Edit transaction" }));
+  await editor.getByRole("button", { name: "Remove" }).click();
   const confirm = page.getByRole("alertdialog", { name: "Remove “Market” ₱250.00?" });
   await confirm.getByRole("button", { name: "Remove" }).click();
   await expect(market).toBeHidden();

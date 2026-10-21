@@ -1,22 +1,14 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { categoryNames } from "@/components/allocations/envelopes";
+import { DetailPane, resolveOpenItem, useOpenItem } from "@/components/layout/DetailPane";
 import { PageShell } from "@/components/layout/PageShell";
-import { BELOW_HEADER, PANE_MAX_HEIGHT } from "@/components/layout/pane";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useImportReview } from "@/hooks/useImports";
-import { useLaidOut } from "@/hooks/useLaidOut";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { saveDrafts } from "@/lib/commands/drafts";
@@ -43,41 +35,27 @@ const draftTitle = (draft: ReviewedDraft) => draft.description || "Needs a descr
 /**
  * Read a statement, then review its drafts: each Import lists its lines,
  * flagged and selectable for bulk save or discard. A draft opens in the
- * detail pane on wide screens and in a sheet on phones.
+ * `DetailPane`.
  */
 export function ImportView({ actor }: { actor: Actor }) {
   const imports = useImportReview();
   const accounts = useAccounts();
   const retiredAccounts = useRetiredAccounts();
   const categories = useCategoryList();
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [pane, setPane] = useState<HTMLElement | null>(null);
-  const paneShown = useLaidOut(pane);
+  const { openId, open, close } = useOpenItem();
 
   if (!imports || !accounts || !retiredAccounts || !categories) return null;
   const accountsById = new Map(
     [...accounts, ...retiredAccounts].map((account) => [account.id, account])
   );
   const names = categoryNames(categories);
-  const opened = findDraft(imports, openId);
-  // Saved or discarded, here or by a bulk action: close it.
-  if (openId !== null && !opened) setOpenId(null);
-  const openedCard = opened && accountsById.get(opened.statement.accountId);
-
-  const detail = opened && (
-    <DraftDetail
-      key={opened.draft.id}
-      actor={actor}
-      draft={opened.draft}
-      card={openedCard}
-      categories={categories}
-      onDone={() => setOpenId(null)}
-    />
-  );
+  // Saved or discarded, here or by a bulk action: it's gone, which closes it.
+  const opened = resolveOpenItem(openId, (id) => findDraft(imports, id));
+  const openedCard = opened ? accountsById.get(opened.statement.accountId) : undefined;
 
   return (
     <>
-      <PageShell.Main className="space-y-4">
+      <PageShell.List className="space-y-4">
         <Card>
           <CardHeader>
             <CardTitle>Read a statement</CardTitle>
@@ -101,57 +79,35 @@ export function ImportView({ actor }: { actor: Actor }) {
               cardName={cardLabel(accountsById.get(statement.accountId))}
               categoryNames={names}
               openId={openId}
-              onOpen={setOpenId}
+              onOpen={open}
             />
           ))
         )}
-      </PageShell.Main>
+      </PageShell.List>
 
-      <PageShell.RightAside ref={setPane} className="hidden @[1100px]:block">
-        <div
-          className={cn(
-            "@container sticky overflow-y-auto rounded-md border p-4",
-            BELOW_HEADER,
-            PANE_MAX_HEIGHT
-          )}
-        >
-          {detail && paneShown ? (
-            <section aria-label="Draft" className="space-y-4">
-              <div className="flex items-start justify-between gap-2">
-                <h2 className="min-w-0 truncate font-semibold">{draftTitle(opened.draft)}</h2>
-                <Button variant="ghost" size="sm" onClick={() => setOpenId(null)}>
-                  Close
-                </Button>
-              </div>
-              {detail}
-            </section>
-          ) : (
-            <p className="text-body text-muted-foreground">Choose a draft to review it here.</p>
-          )}
-        </div>
-      </PageShell.RightAside>
-
-      <Sheet open={Boolean(detail) && !paneShown} onOpenChange={(open) => !open && setOpenId(null)}>
-        <SheetContent
-          side="bottom"
-          className="@container max-h-[90dvh] gap-0 overflow-y-auto"
-          // Reviewing comes first; focusing the description would open a phone's keyboard.
-          onOpenAutoFocus={(event) => event.preventDefault()}
-        >
-          <SheetHeader>
-            <SheetTitle>{opened && draftTitle(opened.draft)}</SheetTitle>
-            <SheetDescription>{opened && cardLabel(openedCard)}</SheetDescription>
-          </SheetHeader>
-          <div className="px-4 pb-6">{detail}</div>
-        </SheetContent>
-      </Sheet>
+      <DetailPane
+        title={opened && draftTitle(opened.draft)}
+        description={cardLabel(openedCard)}
+        item={opened}
+      >
+        {({ draft }) => (
+          <DraftDetail
+            key={draft.id}
+            actor={actor}
+            draft={draft}
+            card={openedCard}
+            categories={categories}
+            onDone={close}
+          />
+        )}
+      </DetailPane>
     </>
   );
 }
 
 const cardLabel = (card: AccountRow | undefined) => card?.name ?? "A card not on this device";
 
-function findDraft(imports: ReviewedImport[], draftId: string | null) {
+function findDraft(imports: ReviewedImport[], draftId: string) {
   for (const statement of imports) {
     const draft = statement.drafts.find((candidate) => candidate.id === draftId);
     if (draft) return { statement, draft };
