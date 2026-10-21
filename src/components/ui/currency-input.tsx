@@ -2,7 +2,8 @@ import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
-  formatPHP,
+  formatPHPDecimal,
+  formatPHPInput,
   parsePHP,
   parsePHPUnbounded,
   MAX_AMOUNT_CENTS,
@@ -44,17 +45,14 @@ export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputPro
     // Format value for display when not focused
     React.useEffect(() => {
       if (!isFocused && value !== undefined) {
-        setDisplayValue(formatPHP(value).replace("₱", ""));
+        setDisplayValue(formatPHPInput(value));
       }
     }, [value, isFocused]);
 
     const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
       setIsFocused(true);
       // Show raw number for editing
-      if (value !== undefined) {
-        const rawValue = (value / 100).toFixed(2);
-        setDisplayValue(rawValue);
-      }
+      if (value !== undefined && value !== 0) setDisplayValue(formatPHPDecimal(value));
       e.target.select(); // Select all on focus
     };
 
@@ -65,12 +63,10 @@ export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputPro
         const cents = parsePHP(displayValue);
         onChange?.(cents);
         // Format for display
-        setDisplayValue(formatPHP(cents).replace("₱", ""));
+        setDisplayValue(formatPHPInput(cents));
       } catch {
         // Invalid input - reset to current value
-        if (value !== undefined) {
-          setDisplayValue(formatPHP(value).replace("₱", ""));
-        }
+        if (value !== undefined) setDisplayValue(formatPHPInput(value));
       }
 
       onBlur?.(e);
