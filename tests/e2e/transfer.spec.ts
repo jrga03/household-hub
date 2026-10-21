@@ -56,7 +56,7 @@ test("a transfer recorded offline moves both balances on another device", async 
   const dialog = pageA.getByRole("dialog", { name: "Add transaction" });
   await dialog.getByLabel("Amount (₱)").fill("2000");
   await dialog.getByRole("radio", { name: "Transfer" }).click();
-  await expect(dialog.getByLabel("Amount (₱)")).toHaveValue("2000");
+  await expect(dialog.getByLabel("Amount (₱)")).toHaveValue("2000.00");
   await chooseOption(pageA, dialog.getByLabel("From"), "BPI");
   await chooseOption(pageA, dialog.getByLabel("To"), "GCash");
   await chooseOption(pageA, dialog.getByLabel("Category"), "Groceries");
