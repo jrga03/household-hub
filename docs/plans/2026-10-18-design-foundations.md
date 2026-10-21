@@ -134,6 +134,9 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#230 the draft description keeps its own label (with the Suggested badge) and its warning "Needs a description" line**, not `Field`. Why: `Field` takes a string label and shows errors in `destructive`; a missing description is something to check, not a failed submit. Revisit: if `Field` takes a node label or a warning hint.
 - **#230 `DraftDetail` keeps #224's `DirectionChoice` segmented control as it is.** Why: it reads well in the pane and the sheet (checked at 1280 and 393). Revisit: never.
 - **#230 the Import list is not width-capped**: with no draft open on a laptop the read form spans the list column. Why: `list-detail` lets the list flex. Revisit: after real use on a laptop.
+- **#232 a proposal is a form between hairlines** (`border-y`, no card) with a `SectionHeader` of the description and its `Money`, the three `Field`s, and Dismiss / Confirm; once decided a `StatusBadge` (`success` "Recorded", `neutral` "Dismissed") replaces the buttons and takes focus when the decision was made there. Why: the ticket's section, and a decision removed the focused button, dropping keyboard focus to the page. Revisit: never.
+- **#232 the composer pads by `--bottom-chrome`, and `AppLayout` sets `--bottom-chrome` to the safe area under a route with `bottomChrome: false`** (only the Assistant). Why: at compact `--bottom-chrome` counted the tab bar the Assistant hides, which would float the composer 3.5rem up. A fix in a layout file no ticket lists. Revisit: if toasts should also drop the tab-bar offset there (`--toast-bottom` is still computed at `:root`).
+- **#232 the empty chat is an `EmptyState` sentence with the example prompts as its action**, and the inner `max-w-2xl` is gone, so the chat uses the `single` shell's `max-w-3xl`. Why: one empty-state pattern; one column width. Revisit: never.
 
 ### Rollout checklist
 

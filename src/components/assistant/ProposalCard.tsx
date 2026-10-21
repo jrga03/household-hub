@@ -1,18 +1,21 @@
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { ActionForm } from "@/components/ui/action-form";
-import { FormError } from "@/components/ui/form-error";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ActionForm } from "@/components/app/ActionForm";
+import { Button } from "@/components/app/Button";
+import { Input } from "@/components/app/Input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { SubmitButton } from "@/components/ui/submit-button";
+} from "@/components/app/Select";
+import { SubmitButton } from "@/components/app/SubmitButton";
+import { Field } from "@/components/app/Field";
+import { FormError } from "@/components/app/FormError";
+import { Money } from "@/components/app/Money";
+import { SectionHeader } from "@/components/app/SectionHeader";
+import { StatusBadge } from "@/components/app/StatusBadge";
 import {
   categoryChoices,
   CategorySelect,
@@ -32,7 +35,6 @@ import { canSee } from "@/lib/assistant/session";
 import type { CategoryList } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { addTransaction } from "@/lib/commands/transactions";
-import { formatPHP } from "@/lib/currency";
 import { errorMessage } from "@/lib/utils";
 
 type Decide = (callId: string, decision: ProposalDecision) => void | Promise<void>;
@@ -113,62 +115,82 @@ function ProposalForm({
   );
 
   const decided = decision !== null;
+  // Deciding removes the focused button, so focus moves to the outcome instead of the page.
+  const decidedHere = useRef(false);
+  const outcomeRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (decided && decidedHere.current) outcomeRef.current?.focus();
+  }, [decided]);
+  const dismiss = () => {
+    decidedHere.current = true;
+    void onDecide(callId, DISMISSED);
+  };
+
+  const kind = proposal.type === "income" ? "income" : "expense";
   return (
     <ActionForm
-      action={confirmAction}
+      action={(formData) => {
+        decidedHere.current = true;
+        confirmAction(formData);
+      }}
       aria-label="Confirm transaction"
-      className="@container space-y-3 rounded-lg border bg-card p-4"
+      className="@container space-y-4 border-y py-4"
     >
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="min-w-0 truncate font-medium">{proposal.description}</p>
-        <p className="shrink-0 font-semibold tabular-nums">{formatPHP(proposal.amountCents)}</p>
+      <div className="space-y-1">
+        <SectionHeader
+          title={proposal.description}
+          action={<Money kind={kind} cents={proposal.amountCents} />}
+        />
+        <p className="text-body text-muted-foreground">
+          {kind === "income" ? "Income" : "Expense"}
+          {proposal.notes && ` · ${proposal.notes}`}
+        </p>
       </div>
-      <p className="text-body text-muted-foreground">
-        {proposal.type === "income" ? "Income" : "Expense"}
-        {proposal.notes && ` · ${proposal.notes}`}
-      </p>
-      <fieldset disabled={decided} className="grid grid-cols-1 gap-3 @[480px]:grid-cols-3">
-        <div className="space-y-2">
-          <Label htmlFor={`${callId}-account`}>Account</Label>
-          <Select value={accountId} onValueChange={setAccountId} disabled={decided}>
-            <SelectTrigger id={`${callId}-account`} className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {accounts.map((choice) => (
-                <SelectItem key={choice.id} value={choice.id}>
-                  {choice.name}
-                  {choice.visibility === "personal" && " (Personal)"}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={`${callId}-category`}>Category</Label>
-          <CategorySelect
-            id={`${callId}-category`}
-            choices={choices}
-            value={shownCategoryId}
-            onValueChange={setCategoryId}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={`${callId}-date`}>Date</Label>
-          <Input id={`${callId}-date`} name="date" type="date" required defaultValue={shown.date} />
-        </div>
+      <fieldset disabled={decided} className="grid grid-cols-1 gap-4 @[480px]:grid-cols-3">
+        <Field label="Account">
+          {(control) => (
+            <Select value={accountId} onValueChange={setAccountId} disabled={decided}>
+              <SelectTrigger {...control} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {accounts.map((choice) => (
+                  <SelectItem key={choice.id} value={choice.id}>
+                    {choice.name}
+                    {choice.visibility === "personal" && " (Personal)"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </Field>
+        <Field label="Category">
+          {(control) => (
+            <CategorySelect
+              {...control}
+              choices={choices}
+              value={shownCategoryId}
+              onValueChange={setCategoryId}
+            />
+          )}
+        </Field>
+        <Field label="Date">
+          <Input name="date" type="date" required defaultValue={shown.date} />
+        </Field>
       </fieldset>
       <FormError>{error}</FormError>
       {decided ? (
-        <p className="text-body font-medium text-muted-foreground">
-          {decision.outcome === "recorded" ? "Recorded" : "Dismissed"}
+        <p ref={outcomeRef} tabIndex={-1} className="w-fit rounded-md">
+          <StatusBadge tone={decision.outcome === "recorded" ? "success" : "neutral"}>
+            {decision.outcome === "recorded" ? "Recorded" : "Dismissed"}
+          </StatusBadge>
         </p>
       ) : (
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={() => void onDecide(callId, DISMISSED)}>
+          <Button type="button" variant="ghost" onClick={dismiss}>
             Dismiss
           </Button>
-          <SubmitButton pendingText="Recording...">Confirm</SubmitButton>
+          <SubmitButton pendingText="Recording…">Confirm</SubmitButton>
         </div>
       )}
     </ActionForm>

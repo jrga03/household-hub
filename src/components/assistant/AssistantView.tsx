@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { MessageSquarePlus } from "lucide-react";
 import { HeaderActions } from "@/components/layout/HeaderActions";
-import { Button } from "@/components/ui/button";
-import { FormError } from "@/components/ui/form-error";
+import { Button } from "@/components/app/Button";
+import { EmptyState } from "@/components/app/EmptyState";
+import { FormError } from "@/components/app/FormError";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useVisibleArea } from "@/hooks/useVisibleArea";
 import { isWaiting, type ChatItem } from "@/lib/assistant/conversation";
@@ -92,33 +93,36 @@ export function AssistantView({ actor }: { actor: Actor }) {
 
   return (
     // Fills the screen below the header (3.5rem, its border and the page's 2rem top padding), so the composer starts at the bottom edge.
-    <div className="mx-auto flex min-h-[calc(100dvh-5.5rem-1px-var(--safe-area-top))] max-w-2xl flex-col gap-4">
+    <div className="flex min-h-[calc(100dvh-5.5rem-1px-var(--safe-area-top))] flex-col gap-4">
       {items.length > 0 && (
         <HeaderActions>
           <NewChatButton userId={actor.userId} />
         </HeaderActions>
       )}
       {items.length === 0 && (
-        <div className="space-y-2">
-          <p className="text-body text-muted-foreground">Try asking</p>
-          <ul className="flex flex-wrap gap-2">
-            {EXAMPLE_PROMPTS.map((text) => (
-              <li key={text}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setPrompt((previous) => ({ text, composerKey: previous.composerKey + 1 }))
-                  }
-                >
-                  {text}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <EmptyState
+          action={
+            <ul aria-label="Try asking" className="flex flex-wrap gap-2">
+              {EXAMPLE_PROMPTS.map((text) => (
+                <li key={text}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setPrompt((previous) => ({ text, composerKey: previous.composerKey + 1 }))
+                    }
+                  >
+                    {text}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          }
+        >
+          Ask about your budgets and balances, or type a purchase to record it.
+        </EmptyState>
       )}
-      <ol aria-label="Conversation" aria-live="polite" className="flex flex-1 flex-col gap-3">
+      <ol aria-label="Conversation" aria-live="polite" className="flex flex-1 flex-col gap-4">
         {items.map((item, index) => (
           <ChatItemView key={index} item={item} actor={actor} />
         ))}
