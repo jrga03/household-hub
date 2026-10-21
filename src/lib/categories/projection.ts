@@ -136,6 +136,12 @@ export interface CategoryList {
   retiredCategories: CategoryListItem[];
 }
 
+/** Every category in use, grouped ones first, in the Categories screen's order. */
+export const categoriesInUse = (list: CategoryList): CategoryRow[] => [
+  ...list.groups.flatMap((group) => group.categories),
+  ...list.ungrouped,
+];
+
 /** The suggested categories are offered only until the household has a group, retired or not. */
 export const hasHouseholdGroup = (list: CategoryList) =>
   [...list.groups, ...list.retiredGroups].some((group) => group.visibility === "household");

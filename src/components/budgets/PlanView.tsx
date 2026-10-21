@@ -32,7 +32,7 @@ import type { Budget } from "@/lib/budgets/inForce";
 import { categoryMonth, sumMonthFigures, type MonthView } from "@/lib/budgets/month";
 import { planChange } from "@/lib/budgets/plan";
 import { canFundBudget } from "@/lib/budgets/projection";
-import type { CategoryRow } from "@/lib/categories/projection";
+import { categoriesInUse, type CategoryRow } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { setBudget } from "@/lib/commands/budgets";
 import { sumCents, ZERO_CENTS } from "@/lib/currency";
@@ -79,7 +79,7 @@ export function PlanView({
   const lastMonth = useMonthView(shiftMonth(month, -1), currentMonth);
   const [moving, setMoving] = useState<Moving>(null);
   const [detailsId, setDetailsId] = useState<string | null>(null);
-  const inUse = list && [...list.groups.flatMap((group) => group.categories), ...list.ungrouped];
+  const inUse = list && categoriesInUse(list);
   const details = inUse?.find((category) => category.id === detailsId);
   useCloseWhenGone(detailsId, inUse && (details ?? null), () => setDetailsId(null));
 
