@@ -1,19 +1,20 @@
 import { useActionState, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
-import { ActionForm } from "@/components/ui/action-form";
-import { Checkbox } from "@/components/ui/checkbox";
-import { FormError } from "@/components/ui/form-error";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ActionForm } from "@/components/app/ActionForm";
+import { Checkbox } from "@/components/app/Checkbox";
+import { Field } from "@/components/app/Field";
+import { FormError } from "@/components/app/FormError";
+import { Input } from "@/components/app/Input";
+import { Label } from "@/components/app/Label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { SubmitButton } from "@/components/ui/submit-button";
+} from "@/components/app/Select";
+import { SubmitButton } from "@/components/app/SubmitButton";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useLastImportCard } from "@/hooks/useImports";
 import { isCreditCard } from "@/lib/accounts/events";
@@ -101,68 +102,60 @@ export function ReadStatement() {
   return (
     <ActionForm action={readAction} className="@container space-y-4" aria-label="Read a statement">
       <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="statement-format">Format</Label>
-          <Select
-            value={formatId}
-            onValueChange={(next) => {
-              const chosen = STATEMENT_FORMATS.find((choice) => choice.id === next);
-              if (!chosen) return;
-              setFormatId(chosen.id);
-              // Each format remembers its own card.
-              setCardId("");
-            }}
-          >
-            <SelectTrigger id="statement-format" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {STATEMENT_FORMATS.map((choice) => (
-                <SelectItem key={choice.id} value={choice.id}>
-                  {choice.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="statement-card">Card</Label>
-          <Select value={chosenCardId} onValueChange={setCardId}>
-            <SelectTrigger id="statement-card" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {cards.map((card) => (
-                <SelectItem key={card.id} value={card.id}>
-                  {card.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="statement-file">Statement file</Label>
-          <Input
-            key={state.readCount}
-            id="statement-file"
-            name="file"
-            type="file"
-            accept={format?.accept}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="statement-password">Password</Label>
+        <Field label="Format">
+          {(control) => (
+            <Select
+              value={formatId}
+              onValueChange={(next) => {
+                const chosen = STATEMENT_FORMATS.find((choice) => choice.id === next);
+                if (!chosen) return;
+                setFormatId(chosen.id);
+                // Each format remembers its own card.
+                setCardId("");
+              }}
+            >
+              <SelectTrigger {...control} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATEMENT_FORMATS.map((choice) => (
+                  <SelectItem key={choice.id} value={choice.id}>
+                    {choice.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </Field>
+        <Field label="Card">
+          {(control) => (
+            <Select value={chosenCardId} onValueChange={setCardId}>
+              <SelectTrigger {...control} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {cards.map((card) => (
+                  <SelectItem key={card.id} value={card.id}>
+                    {card.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </Field>
+        <Field label="Statement file">
+          <Input key={state.readCount} name="file" type="file" accept={format?.accept} required />
+        </Field>
+        <Field label="Password">
           <Input
             // Remounts with the chosen card's remembered password once it loads, and after each read.
             key={`${chosenCardId}:${remembered ?? ""}:${state.readCount}`}
-            id="statement-password"
             name="password"
             type="password"
             autoComplete="off"
             defaultValue={remembered ?? ""}
           />
-        </div>
+        </Field>
       </div>
       {rememberable && (
         <div className="flex items-center gap-2">
@@ -178,7 +171,7 @@ export function ReadStatement() {
         </div>
       )}
       <FormError>{state.error}</FormError>
-      <SubmitButton pendingText="Reading...">Read statement</SubmitButton>
+      <SubmitButton pendingText="Reading…">Read statement</SubmitButton>
     </ActionForm>
   );
 }
