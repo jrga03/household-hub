@@ -18,3 +18,4 @@ We did this so pages Claude builds stay consistent without anyone reviewing ever
 - Adding a color, size or shadow means adding a role token in `src/index.css` and a line in DESIGN.md, not using a utility.
 - `shortfall` (money that is short) and `destructive` (an action that deletes) share a red but stay separate tokens, so they can diverge without a sweep.
 - The resets land together with a mechanical codemod of existing classes; page redesign is separate work.
+- Amended 2026-10-21 (#197): `src/components/layout/` (the app chrome: sidebar, tab bar, page header) counts as part of the app-component layer and may import primitives. It is the only user of the sidebar primitive, so wrapping it would add nothing.
