@@ -118,12 +118,10 @@ function AccountSections({ accounts, ...rows }: RowsProps & { accounts: AccountL
               action={
                 section.accounts.length > 1 &&
                 total !== undefined && (
-                  <Money
-                    kind="balance"
-                    owed={section.type === "credit_card"}
-                    cents={total}
-                    className="text-body text-muted-foreground"
-                  />
+                  // Muted from outside, so a negative total keeps Money's shortfall color.
+                  <span className="text-body text-muted-foreground">
+                    <Money kind="balance" owed={section.type === "credit_card"} cents={total} />
+                  </span>
                 )
               }
             />

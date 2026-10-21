@@ -120,6 +120,22 @@ describe("AccountsView", () => {
     );
   });
 
+  it("keeps a negative section total in shortfall", async () => {
+    const { bank } = await bankAndCard();
+    await createAccount(MEMBER, {
+      name: "Metrobank",
+      type: "bank",
+      startingBalanceCents: parsePHP("200"),
+    });
+    await record(bank.id, "1500");
+    renderAccounts();
+
+    const header = (await screen.findByRole("heading", { name: "Bank accounts" })).parentElement;
+    if (!header) throw new Error("No Bank accounts header");
+    const total = await within(header).findByText("minus ₱300.00");
+    expect(total.parentElement).toHaveClass("text-shortfall");
+  });
+
   it("opens an account's details and pays its card from there", async () => {
     const { card } = await bankAndCard();
     await record(card.id, "800");
