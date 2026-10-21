@@ -9,7 +9,7 @@ import { MobileNav, NavMenuButton } from "./MobileNav";
 import { PageHeader } from "./PageHeader";
 import { SidebarTriggerWithReview } from "./ReviewCount";
 import { useNavStore } from "@/stores/navStore";
-import { useIsMobile, useIsTablet } from "@/hooks/useMediaQuery";
+import { useWindowClass } from "@/hooks/useMediaQuery";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { cn } from "@/lib/utils";
 import { StorageWarning } from "@/components/StorageWarning";
@@ -23,17 +23,18 @@ import { AddTransactionButton, QuickEntryDialog } from "@/components/transaction
  * Every branch with navigation shares PageHeader: the route's title, a back
  * arrow on pushed screens, the route's actions and the sync status.
  *
- * Handles responsive layout logic:
- * - Mobile: PageHeader with hamburger + drawer navigation + bottom tab bar
- * - Tablet: PageHeader + collapsible sidebar (default collapsed)
- * - Desktop: PageHeader + collapsible sidebar (default expanded)
+ * Navigation follows the window size class (useWindowClass, #216):
+ * - Compact: menu button + drawer, bottom tab bar, floating Add transaction
+ * - Medium: collapsed rail; the menu button opens it expanded as a modal
+ * - Expanded: rail collapsed by default
+ * - Large: rail expanded by default
+ * From medium up, Add transaction sits in the header. The remembered rail
+ * toggle (sidebar cookie) wins over the class default.
  *
  * Bottom-edge geometry (review R42): everything pinned to the bottom edge
  * derives from the shared `--bottom-chrome` custom property (index.css),
- * which equals the BottomTabBar footprint at mobile widths and just the
- * safe area elsewhere. The tab bar is mobile-branch-only; the
- * tablet/desktop branch (including landscape phones, review C3) keeps the
- * sidebar instead.
+ * which equals the BottomTabBar footprint at compact widths and just the
+ * safe area elsewhere. The tab bar and the rail never show together.
  *
  * Features:
  * - Authentication-aware (no nav on login/signup)
@@ -59,9 +60,7 @@ export function AppLayout() {
   const router = useRouterState();
   const { mobileNavOpen, setMobileNavOpen } = useNavStore();
 
-  // Responsive breakpoints
-  const isMobile = useIsMobile();
-  const isTablet = useIsTablet();
+  const windowClass = useWindowClass();
 
   // Enable keyboard shortcuts
   useKeyboardShortcuts();
@@ -91,8 +90,7 @@ export function AppLayout() {
     );
   }
 
-  // Mobile layout
-  if (isMobile) {
+  if (windowClass === "compact") {
     return (
       <HeaderSlotProvider>
         <div className="min-h-dvh bg-background">
@@ -145,10 +143,9 @@ export function AppLayout() {
     );
   }
 
-  // Tablet/Desktop layout with sidebar
   return (
     <HeaderSlotProvider>
-      <SidebarProvider defaultOpen={!isTablet}>
+      <SidebarProvider defaultOpen={windowClass === "large"}>
         {/* w-full keeps the layout's width tied to the SidebarProvider wrapper
           rather than to descendant min-content widths. Required so that pages
           using container queries (PageShell) don't collapse the flex chain. */}
@@ -168,7 +165,7 @@ export function AppLayout() {
           <div className="flex flex-1 flex-col">
             <PageHeader
               className="z-30"
-              menuButton={<SidebarTriggerWithReview className="lg:hidden" />}
+              menuButton={<SidebarTriggerWithReview className="large:hidden" />}
             >
               <AddTransactionButton />
             </PageHeader>

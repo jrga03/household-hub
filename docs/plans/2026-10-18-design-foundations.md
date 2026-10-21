@@ -93,6 +93,9 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#209 `CategoryLedger` shows an account-only move with `kind="transfer"`** (muted, unsigned) on purpose. Why: it moves money between accounts without changing the category's money, so its change is zero. Revisit: never.
 - **#218 The `list-detail` shell hides `Detail` below 840px itself** and lays out two columns only while a `Detail` is rendered (`:has`). Why: #219's `DetailPane` can render the slot only while an item is open. Meanwhile Transactions, Budget and Import show today's placeholder pane from 840px instead of 1100px, so `transactions.spec.ts` finds the editor in the pane or the dialog. Revisit: #219.
 - **#218 Settings drops its own `max-w-2xl`** and takes the `single` column (`max-w-3xl`), section links on top. Why: one centered width for simple pages. Revisit: the Settings migration (list-detail).
+- **#217 window classes are Tailwind breakpoints `medium:`, `expanded:`, `large:`** (600, 840, 1200 in `src/index.css`); `sm:`/`md:`/`lg:` stay for page content. Why: app chrome needs the class thresholds by name, and page content belongs to the page migration. Revisit: when the page migration ends (#233), drop the defaults.
+- **#217 the header rail toggle hides at large (`large:hidden`)**, as `lg:hidden` did, so a rail the cookie collapsed at large expands only from its edge or Cmd+B. Why: mechanical move of the old threshold. Revisit: the Settings or Home migration, if people miss a visible toggle.
+- **#217 the medium modal rail ignores the sidebar cookie and never writes it**; the cookie applies from expanded up. Why: the spec fixes medium as a collapsed rail. Revisit: never.
 
 ### Rollout checklist
 

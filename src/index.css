@@ -32,6 +32,15 @@
   --default-transition-timing-function: var(--ease-out);
 }
 
+/* Window size classes for global chrome (#216): medium:, expanded: and large:
+   mirror useWindowClass (src/hooks/useMediaQuery.ts). Inside rails, sheets and
+   panes, use container queries instead. */
+@theme {
+  --breakpoint-medium: 600px;
+  --breakpoint-expanded: 840px;
+  --breakpoint-large: 1200px;
+}
+
 /* Source Sans 3 variable (OFL-1.1, see assets/fonts/OFL.txt), subset to
    Latin plus U+20B1 so the peso sign matches the digits. */
 @font-face {
@@ -140,10 +149,10 @@
      1px bottom border included). Sticky content pins below --app-header. */
   --app-header-height: 3.5rem;
   --app-header: calc(var(--app-header-height) + var(--safe-area-top) + 1px);
-  /* Toast clearance: sonner's own mobile breakpoint is 600px but the app's
-     mobile branch (tab bar + FAB) extends to 767px, so the FAB-clearing
-     offset must apply through 767px, not 600px. Desktop keeps ~sonner's
-     32px default. Overridden alongside --bottom-chrome below. */
+  /* Toast clearance: the FAB-clearing offset applies below 600px, where the
+     tab bar and the FAB show (sonner's own mobile breakpoint is also 600px).
+     Wider windows keep ~sonner's 32px default. Overridden alongside
+     --bottom-chrome below. */
   --toast-bottom: calc(2rem + var(--bottom-chrome));
   /* Toasts move to the top while a phone sheet is open (sonner.tsx). */
   --toast-top: calc(0.5rem + var(--safe-area-top));
@@ -207,13 +216,13 @@
   --elevation-float: 0 1px 2px oklch(0 0 0 / 0.3), 0 8px 24px -4px oklch(0 0 0 / 0.45);
 }
 
-/* The bottom tab bar exists only in AppLayout's mobile branch. This media
-   query MUST mirror useIsMobile's breakpoint (max-width: 767px in
+/* The bottom tab bar exists only at the compact window class. This media
+   query MUST mirror COMPACT_QUERY (max-width: 599px in
    src/hooks/useMediaQuery.ts) so the CSS offset flips exactly when the
    React branch does. Known tradeoff: auth routes (/login, /signup) render
-   no tab bar but still get the inflated offset at phone widths — only
+   no tab bar but still get the inflated offset at compact widths — only
    toasts are affected there, and a too-high toast is harmless. */
-@media (max-width: 767px) {
+@media (max-width: 599px) {
   :root {
     --bottom-chrome: calc(var(--tab-bar-height) + var(--safe-area-bottom));
     /* Clear the raised FAB (bottom 1.5rem+chrome, 3.5rem tall) too, not just

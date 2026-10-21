@@ -1,19 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { setViewportWidth } from "@/test/viewport";
 import { advanceOnEnter, FormFooter, FormSheet } from "./FormSheet";
 
-function setPhone(isPhone: boolean) {
-  vi.spyOn(window, "matchMedia").mockImplementation((query: string) => ({
-    matches: isPhone && query === "(max-width: 767px)",
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => false,
-  }));
-}
+/** Compact windows end at 599px; 600px is the first medium width. */
+const setPhone = (isPhone: boolean) => setViewportWidth(isPhone ? 599 : 600);
 
 function NoteForm({ onClose = () => {} }: { onClose?: () => void }) {
   return (
