@@ -82,7 +82,7 @@ test("moving money between envelopes, past Unassigned, with an undoable removal"
   await page.getByRole("button", { name: "Edit Groceries" }).click();
   await page.getByRole("button", { name: "Retire category" }).click();
   const retire = page.getByRole("dialog", { name: "Retire Groceries" });
-  await expect(retire).toContainText("Groceries holds ₱8,000.00.");
+  await expect(retire).toHaveAccessibleDescription(/^Groceries holds ₱8,000\.00/);
   await chooseOption(page, retire.getByLabel("Move its money into"), "Restaurants");
   await retire.getByRole("button", { name: "Move and retire" }).click();
   await expect(retire).toBeHidden();

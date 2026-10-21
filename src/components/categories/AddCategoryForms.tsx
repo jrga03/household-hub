@@ -1,10 +1,10 @@
 import { useActionState, useState } from "react";
 import { toast } from "sonner";
-import { ActionForm } from "@/components/ui/action-form";
-import { FormError } from "@/components/ui/form-error";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { SubmitButton } from "@/components/ui/submit-button";
+import { ActionForm } from "@/components/app/ActionForm";
+import { Field } from "@/components/app/Field";
+import { FormError } from "@/components/app/FormError";
+import { Input } from "@/components/app/Input";
+import { SubmitButton } from "@/components/app/SubmitButton";
 import { VisibilityField } from "@/components/app/VisibilityField";
 import { CATEGORY_NAME_MAX_LENGTH } from "@/lib/categories/events";
 import type { GroupRow } from "@/lib/categories/projection";
@@ -16,15 +16,21 @@ import { GroupSelect } from "./GroupSelect";
 
 interface AddState {
   error: string | null;
+  groupError?: string;
   added: number;
 }
 
 /** Runs the add, keeping the error on the form and counting adds so the fields can reset. */
-function useAddAction(add: (formData: FormData) => Promise<string>, failure: string) {
+function useAddAction(
+  add: (formData: FormData) => Promise<string | { groupError: string }>,
+  failure: string
+) {
   return useActionState(
     async (previous: AddState, formData: FormData): Promise<AddState> => {
       try {
-        toast.success(await add(formData));
+        const result = await add(formData);
+        if (typeof result !== "string") return { error: null, ...result, added: previous.added };
+        toast.success(result);
         return { error: null, added: previous.added + 1 };
       } catch (caught) {
         return { error: errorMessage(caught, failure), added: previous.added };
@@ -34,26 +40,24 @@ function useAddAction(add: (formData: FormData) => Promise<string>, failure: str
   );
 }
 
-function NameField({ id, placeholder }: { id: string; placeholder: string }) {
+function NameField({ placeholder }: { placeholder: string }) {
   return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>Name</Label>
+    <Field label="Name">
       <Input
-        id={id}
         name="name"
         required
         maxLength={CATEGORY_NAME_MAX_LENGTH}
         placeholder={placeholder}
         autoComplete="off"
       />
-    </div>
+    </Field>
   );
 }
 
 export function AddCategoryForm({ actor, groups }: { actor: Actor; groups: GroupRow[] }) {
   const [state, addAction] = useAddAction(async (formData) => {
     const groupId = String(formData.get("groupId") ?? "");
-    if (groupId === "") throw new Error("Choose a group.");
+    if (groupId === "") return { groupError: "Choose a group." };
     await createCategory(actor, { name: String(formData.get("name") ?? ""), groupId });
     return "Category added";
   }, "Couldn't add the category.");
@@ -61,8 +65,10 @@ export function AddCategoryForm({ actor, groups }: { actor: Actor; groups: Group
   return (
     <ActionForm action={addAction} className="@container space-y-4" aria-label="Add a category">
       <div key={state.added} className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
-        <NameField id="category-name" placeholder="e.g. Groceries" />
-        <GroupSelect id="category-group" groups={groups} />
+        <NameField placeholder="e.g. Groceries" />
+        <Field label="Group" error={state.groupError}>
+          {(control) => <GroupSelect {...control} groups={groups} />}
+        </Field>
       </div>
       <FormError>{state.error}</FormError>
       <SubmitButton pendingText="Adding...">Add category</SubmitButton>
@@ -93,7 +99,7 @@ function NewGroupFields() {
   const [visibility, setVisibility] = useState<Visibility>("household");
   return (
     <>
-      <NameField id="group-name" placeholder="e.g. Food" />
+      <NameField placeholder="e.g. Food" />
       <VisibilityField idPrefix="group" value={visibility} onChange={setVisibility} />
     </>
   );

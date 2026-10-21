@@ -11,6 +11,7 @@ const ROUTES = [
   { path: "/plan", name: "plan" },
   { path: "/review", name: "review" },
   { path: "/import", name: "import" },
+  { path: "/categories", name: "categories" },
 ];
 
 const withScheme = (viewports: Record<string, ViewportSize>, colorScheme: "light" | "dark") =>

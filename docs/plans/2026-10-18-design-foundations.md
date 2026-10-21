@@ -143,6 +143,11 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#230 the draft description keeps its own label (with the Suggested badge) and its warning "Needs a description" line**, not `Field`. Why: `Field` takes a string label and shows errors in `destructive`; a missing description is something to check, not a failed submit. Revisit: if `Field` takes a node label or a warning hint.
 - **#230 `DraftDetail` keeps #224's `DirectionChoice` segmented control as it is.** Why: it reads well in the pane and the sheet (checked at 1280 and 393). Revisit: never.
 - **#230 the Import list is not width-capped**: with no draft open on a laptop the read form spans the list column. Why: `list-detail` lets the list flex. Revisit: after real use on a laptop.
+- **#229 a category row is one `ListRow` button named "Edit <name>"** (a visually hidden "Edit" before the name, a chevron after it) that opens its edit sheet; the group's Edit stays a ghost button in its `SectionHeader`, with Personal and Retired as `StatusBadge`s beside it. Why: keeps the e2e names other flows use and gives the row one target. Revisit: never.
+- **#229 retired rows are plain hairline rows with an Unretire button**, not `ListRow`. Why: their one action is a button, and `ListRow` hides quick actions below 600. Revisit: never.
+- **#229 a phone `FormSheet` doesn't take focus when it opens** (vaul leaves focus on the trigger behind it, so Tab walks the page), so the keyboard e2e runs at 1024, where it is a dialog. Why: a layer-2 fix outside this ticket's files. Revisit: #233 or a FormSheet fix (focus the sheet on open).
+- **#229 the add-category form shows "Choose a group." under the Group field** (`Field` error) instead of in `FormError`. Why: DESIGN.md puts a field's error next to it. Revisit: never.
+- **#229 `RecordName` still imports `Badge`**; it belongs to #226, and Categories uses it as it is. Revisit: #226.
 
 ### Rollout checklist
 
@@ -183,7 +188,7 @@ Spec #222, integration branch `feat/222-page-migration`. Order: #223 â†’ #224 â†
 - [ ] #226 Budget: hero, grouped rows and the ledger pane (#225)
 - [x] #227 Plan: allocations, move money and budgets (#224)
 - [ ] #228 Accounts: balances, edits, card payments and corrections (#224)
-- [ ] #229 Categories: groups, adds and edits (#224)
+- [x] #229 Categories: groups, adds and edits (#224)
 - [x] #230 Review and Import: review items and statement drafts (#224)
 - [ ] #231 Settings and households: list-detail sections and create-or-join (#224)
 - [ ] #232 Assistant: chat and proposals (#224)

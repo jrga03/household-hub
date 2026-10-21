@@ -1,11 +1,13 @@
 import { useActionState, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ActionForm } from "@/components/ui/action-form";
-import { Button } from "@/components/ui/button";
+import { ActionForm } from "@/components/app/ActionForm";
+import { Button } from "@/components/app/Button";
+import { EmptyState } from "@/components/app/EmptyState";
+import { Field } from "@/components/app/Field";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/app/FormSheet";
-import { FormError } from "@/components/ui/form-error";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormError } from "@/components/app/FormError";
+import { Input } from "@/components/app/Input";
+import { Money } from "@/components/app/Money";
 import {
   Select,
   SelectContent,
@@ -14,8 +16,8 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { SubmitButton } from "@/components/ui/submit-button";
+} from "@/components/app/Select";
+import { SubmitButton } from "@/components/app/SubmitButton";
 import { useAccountMoney } from "@/hooks/useTransactions";
 import { CATEGORY_NAME_MAX_LENGTH } from "@/lib/categories/events";
 import {
@@ -32,7 +34,7 @@ import {
   retireCategory,
   retireGroup,
 } from "@/lib/commands/categories";
-import { formatPHP, type Cents } from "@/lib/currency";
+import type { Cents } from "@/lib/currency";
 import { sameOwnership } from "@/lib/events/ownership";
 import { sumCategoryMoney } from "@/lib/transactions/money";
 import { errorMessage } from "@/lib/utils";
@@ -101,10 +103,8 @@ function EditDialog({
       onClose={onClose}
     >
       <ActionForm ref={advanceOnEnter} action={saveAction} className="space-y-4" aria-label={title}>
-        <div className="space-y-2">
-          <Label htmlFor="edit-category-name">Name</Label>
+        <Field label="Name">
           <Input
-            id="edit-category-name"
             name="name"
             required
             maxLength={CATEGORY_NAME_MAX_LENGTH}
@@ -112,7 +112,7 @@ function EditDialog({
             enterKeyHint="done"
             defaultValue={record.name}
           />
-        </div>
+        </Field>
         {children}
         <div className="space-y-1">
           <p className="text-label">Who sees it</p>
@@ -219,11 +219,15 @@ export function EditCategoryDialog({
       onRetire={holdsMoney ? () => setMovingMoney(true) : retire}
       retireLabel="Retire category"
     >
-      <GroupSelect
-        id="edit-category-group"
-        groups={choices}
-        defaultValue={inChoices ? category.groupId : undefined}
-      />
+      <Field label="Group">
+        {(control) => (
+          <GroupSelect
+            {...control}
+            groups={choices}
+            defaultValue={inChoices ? category.groupId : undefined}
+          />
+        )}
+      </Field>
     </EditDialog>
   );
 }
@@ -273,35 +277,39 @@ function RetireMovingMoneyDialog({
   return (
     <FormSheet
       title={title}
-      description={`${category.name} holds ${formatPHP(held)}. Its money moves into another category first.`}
+      description={
+        <>
+          {category.name} holds <Money kind="balance" cents={held} />. Its money moves into another
+          category first.
+        </>
+      }
       onClose={onClose}
     >
       <ActionForm action={retireAction} className="space-y-4" aria-label={title}>
         {choices.length === 0 ? (
-          <p className="text-body text-muted-foreground">
-            Add another category for its money first.
-          </p>
+          <EmptyState>Add another category for its money first.</EmptyState>
         ) : (
-          <div className="space-y-2">
-            <Label htmlFor="retire-move-to">Move its money into</Label>
-            <Select name="toCategoryId" required>
-              <SelectTrigger id="retire-move-to" className="w-full">
-                <SelectValue placeholder="Choose a category" />
-              </SelectTrigger>
-              <SelectContent>
-                {choices.map((group) => (
-                  <SelectGroup key={group.id}>
-                    <SelectLabel>{group.name}</SelectLabel>
-                    {group.categories.map((other) => (
-                      <SelectItem key={other.id} value={other.id}>
-                        {other.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <Field label="Move its money into">
+            {(control) => (
+              <Select name="toCategoryId" required>
+                <SelectTrigger {...control} className="w-full">
+                  <SelectValue placeholder="Choose a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {choices.map((group) => (
+                    <SelectGroup key={group.id}>
+                      <SelectLabel>{group.name}</SelectLabel>
+                      {group.categories.map((other) => (
+                        <SelectItem key={other.id} value={other.id}>
+                          {other.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
         )}
         <FormError>{error}</FormError>
         <FormFooter className="@[480px]:justify-between">
