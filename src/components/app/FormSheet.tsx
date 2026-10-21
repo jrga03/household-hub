@@ -37,7 +37,12 @@ export function FormSheet(props: FormSheetProps) {
 
 const closeOn = (onClose: () => void) => (open: boolean) => !open && onClose();
 
-function PhoneSheet({ title, description, onClose, children }: FormSheetProps) {
+/**
+ * Keeps a bottom sheet's fields above the on-screen keyboard: put `ref` and
+ * `style` on its `DrawerContent`, and turn off vaul's `repositionInputs`,
+ * which fights this.
+ */
+export function useSheetAboveKeyboard() {
   const sheetRef = useRef<HTMLDivElement>(null);
   const { top, inset, viewportHeight } = useVisibleArea();
 
@@ -49,19 +54,20 @@ function PhoneSheet({ title, description, onClose, children }: FormSheetProps) {
     }
   }, [viewportHeight]);
 
+  // The sheet runs on under the keyboard, its content padded above it: moving the sheet up instead leaves a seam at its edge.
+  // Its top stays in the visible area, which iOS may have panned down the page.
+  const style =
+    inset > 0 || top > 0
+      ? { paddingBottom: inset, maxHeight: `calc(${viewportHeight + inset}px - 1rem)` }
+      : undefined;
+  return { ref: sheetRef, style };
+}
+
+function PhoneSheet({ title, description, onClose, children }: FormSheetProps) {
+  const aboveKeyboard = useSheetAboveKeyboard();
   return (
-    // vaul's own input repositioning fights the keyboard handling here, so it is off.
     <Drawer open onOpenChange={closeOn(onClose)} repositionInputs={false}>
-      <DrawerContent
-        ref={sheetRef}
-        // The sheet runs on under the keyboard, its content padded above it: moving the sheet up instead leaves a seam at its edge.
-        // Its top stays in the visible area, which iOS may have panned down the page.
-        style={
-          inset > 0 || top > 0
-            ? { paddingBottom: inset, maxHeight: `calc(${viewportHeight + inset}px - 1rem)` }
-            : undefined
-        }
-      >
+      <DrawerContent {...aboveKeyboard}>
         <DrawerHeader>
           <DrawerTitle>{title}</DrawerTitle>
           {description && <DrawerDescription>{description}</DrawerDescription>}

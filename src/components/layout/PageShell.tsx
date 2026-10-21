@@ -1,5 +1,6 @@
+import { useLayoutEffect, useRef, useState, type ReactNode, type Ref } from "react";
 import { cn } from "@/lib/utils";
-import type { ReactNode, Ref } from "react";
+import { TWO_PANES_FROM, TwoPanesContext } from "./pane";
 
 type Variant = "single" | "supporting-pane" | "list-detail";
 
@@ -71,17 +72,37 @@ const variantClasses: Record<Variant, string> = {
  *
  * The wide variants cap at max-w-7xl, centered. Breakpoints are container
  * queries (600, 840, 1200) on the shell, so the sidebar's width is already
- * taken out; slots and their children use the same thresholds.
+ * taken out; slots and their children use the same thresholds. In list-detail,
+ * `DetailPane` puts the open item in the Detail slot or a bottom sheet.
  */
 export function PageShell({ variant = "single", className, children }: PageShellProps) {
+  const shellRef = useRef<HTMLDivElement>(null);
+  const twoPanes = useWidthFrom(variant === "list-detail" ? shellRef : null, TWO_PANES_FROM);
   // An element cannot query its own container, so the grid lives on an inner div.
   return (
-    <div data-variant={variant} className="@container w-full">
+    <div ref={shellRef} data-variant={variant} className="@container w-full">
       <div className={cn("mx-auto w-full px-4 py-8", variantClasses[variant], className)}>
-        {children}
+        <TwoPanesContext value={twoPanes}>{children}</TwoPanesContext>
       </div>
     </div>
   );
+}
+
+/** Whether the element is at least `minWidth` wide, as its container queries see it. */
+function useWidthFrom(ref: { current: HTMLElement | null } | null, minWidth: number) {
+  const [wide, setWide] = useState(false);
+  useLayoutEffect(() => {
+    const element = ref?.current;
+    if (!element) return;
+    // Measured before paint, so a reload with an open item lands in the right place.
+    setWide(element.getBoundingClientRect().width >= minWidth);
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setWide(entry.contentRect.width >= minWidth);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ref, minWidth]);
+  return wide;
 }
 
 PageShell.Main = Main;

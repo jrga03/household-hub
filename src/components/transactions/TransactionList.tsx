@@ -3,12 +3,12 @@ import { defaultRangeExtractor, useWindowVirtualizer, type Range } from "@tansta
 import { SlidersHorizontal } from "lucide-react";
 import { ContextMode } from "@/components/layout/ContextMode";
 import { HeaderActions } from "@/components/layout/HeaderActions";
+import { DetailPane, useOpenItem } from "@/components/layout/DetailPane";
 import { PageShell } from "@/components/layout/PageShell";
-import { BELOW_HEADER, PANE_MAX_HEIGHT } from "@/components/layout/pane";
+import { BELOW_HEADER } from "@/components/layout/pane";
 import { Button } from "@/components/ui/button";
 import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
-import { useLaidOut } from "@/hooks/useLaidOut";
 import { useTransactionListRows } from "@/hooks/useTransactions";
 import { categoryNames } from "@/components/allocations/envelopes";
 import type { Actor } from "@/lib/commands/accounts";
@@ -20,19 +20,18 @@ import {
   type ListRow,
   type TransactionFilter,
 } from "@/lib/transactions/filter";
-import { CorrectionDetails, CorrectionDialog } from "@/components/corrections/CorrectionDialog";
+import { CorrectionDetails } from "@/components/corrections/CorrectionDialog";
 import { CORRECTION_LABEL } from "@/lib/corrections/events";
 import { cn } from "@/lib/utils";
 import { monthOfDate } from "@/lib/utils/dates";
 import { SAVED_LOCALLY } from "./EntryFields";
 import { SelectionActions } from "./SelectionActions";
-import { TransactionDialog, TransactionEditor } from "./TransactionDialog";
+import { TransactionEditor } from "./TransactionDialog";
 import { rowDisplay } from "./rowDisplay";
 import { TransactionItem } from "./TransactionItem";
-import { TransferDialog, TransferEditor } from "./TransferDialog";
+import { TransferEditor } from "./TransferDialog";
 import { TransactionFilters } from "./TransactionFilters";
 import type { RevealedAction } from "./useRowGestures";
-import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 
 const ROW_HEIGHT_ESTIMATE = 61;
 const HEADING_HEIGHT_ESTIMATE = 31;
@@ -50,21 +49,19 @@ interface TransactionListProps {
  * Transactions, transfers and balance corrections under their dates, newest
  * first, filtered. A transfer is one row for both legs, signed when an account
  * is filtered. A row
- * opens in the detail pane on wide screens and in a sheet otherwise. A long
- * press or the header's Select starts selecting.
+ * opens in the `DetailPane`. A long press or the header's Select starts
+ * selecting.
  */
 export function TransactionList({ actor, filter, onFilterChange }: TransactionListProps) {
   const rows = useTransactionListRows();
   const accounts = useAccounts();
   const retiredAccounts = useRetiredAccounts();
   const categories = useCategoryList();
-  const [openId, setOpenId] = useState<string | null>(null);
+  const { openId, open, close } = useOpenItem();
   const [selecting, setSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
   const [revealed, setRevealed] = useState<{ id: string; action: RevealedAction } | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [pane, setPane] = useState<HTMLElement | null>(null);
-  const paneShown = useLaidOut(pane);
   // A new filter starts a new selection, so hidden rows don't come back selected.
   const [selectionFilter, setSelectionFilter] = useState(filter);
   if (selectionFilter !== filter) {
@@ -79,8 +76,8 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
     [shown, selectedIds]
   );
   const months = useMemo(() => monthsOf(rows ?? []), [rows]);
-  const openRow = rows?.find((row) => row.id === openId);
-  useCloseWhenGone(openId, rows && (openRow ?? null), () => setOpenId(null));
+  const openRow =
+    openId === null ? undefined : rows && (rows.find((row) => row.id === openId) ?? null);
 
   if (!rows) return null;
 
@@ -110,7 +107,7 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
 
   const startSelecting = (firstId?: string) => {
     setSelecting(true);
-    setOpenId(null);
+    close();
     setRevealed(null);
     setSelectedIds(new Set(firstId ? [firstId] : []));
   };
@@ -194,7 +191,7 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
                 selected={selectedIds.has(row.id)}
                 revealed={revealed?.id === row.id ? revealed.action : null}
                 onRevealChange={(action) => revealRow(row.id, action)}
-                onTap={() => (selecting ? toggleSelected(row.id) : setOpenId(row.id))}
+                onTap={() => (selecting ? toggleSelected(row.id) : open(row.id))}
                 onLongPress={() => (selecting ? toggleSelected(row.id) : startSelecting(row.id))}
               />
             )}
@@ -219,66 +216,18 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
         )}
       </PageShell.List>
 
-      <PageShell.Detail ref={setPane}>
-        <div
-          className={cn(
-            "@container sticky overflow-y-auto rounded-md border p-4",
-            BELOW_HEADER,
-            PANE_MAX_HEIGHT
-          )}
-        >
-          {openRow && paneShown ? (
-            <section aria-label={paneTitle} className="space-y-4">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h2 className="font-semibold">{paneTitle}</h2>
-                  <p className="text-body text-muted-foreground">{SAVED_LOCALLY}</p>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => setOpenId(null)}>
-                  Close
-                </Button>
-              </div>
-              {/* Keyed, so the form's defaults follow the row picked. */}
-              {isCorrection(openRow) ? (
-                <CorrectionDetails
-                  key={openRow.id}
-                  actor={actor}
-                  correction={openRow}
-                  onClose={() => setOpenId(null)}
-                />
-              ) : isTransfer(openRow) ? (
-                <TransferEditor
-                  key={openRow.id}
-                  actor={actor}
-                  transfer={openRow}
-                  onClose={() => setOpenId(null)}
-                />
-              ) : (
-                <TransactionEditor
-                  key={openRow.id}
-                  actor={actor}
-                  transaction={openRow}
-                  onClose={() => setOpenId(null)}
-                />
-              )}
-            </section>
+      <DetailPane title={paneTitle} description={SAVED_LOCALLY} item={openRow}>
+        {(row) =>
+          // Keyed, so the form's defaults follow the row picked.
+          isCorrection(row) ? (
+            <CorrectionDetails key={row.id} actor={actor} correction={row} onClose={close} />
+          ) : isTransfer(row) ? (
+            <TransferEditor key={row.id} actor={actor} transfer={row} onClose={close} />
           ) : (
-            <p className="text-body text-muted-foreground">
-              Choose a transaction to see and edit it here.
-            </p>
-          )}
-        </div>
-      </PageShell.Detail>
-
-      {openRow &&
-        !paneShown &&
-        (isCorrection(openRow) ? (
-          <CorrectionDialog actor={actor} correction={openRow} onClose={() => setOpenId(null)} />
-        ) : isTransfer(openRow) ? (
-          <TransferDialog actor={actor} transfer={openRow} onClose={() => setOpenId(null)} />
-        ) : (
-          <TransactionDialog actor={actor} transaction={openRow} onClose={() => setOpenId(null)} />
-        ))}
+            <TransactionEditor key={row.id} actor={actor} transaction={row} onClose={close} />
+          )
+        }
+      </DetailPane>
     </>
   );
 }
