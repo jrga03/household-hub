@@ -56,6 +56,8 @@ describe("rowDisplay", () => {
       label: "Market",
       detail: "Groceries · BPI",
       amount: { kind: "expense" },
+      category: "Groceries",
+      account: "BPI",
     });
   });
 
@@ -65,6 +67,8 @@ describe("rowDisplay", () => {
       label: "₱250.00",
       detail: "Unassigned · BPI",
       amount: { kind: "income" },
+      category: "Unassigned",
+      account: "BPI",
     });
   });
 
@@ -73,6 +77,9 @@ describe("rowDisplay", () => {
       label: "Transfer to GCash",
       detail: "Groceries · BPI → GCash",
       amount: { kind: "transfer" },
+      category: "Groceries",
+      account: "BPI → GCash",
+      route: { from: "BPI", to: "GCash" },
     });
   });
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
-import { FilterChip, FilterChips } from "./FilterChips";
+import { FilterChip, FilterChipSelect, FilterChips } from "./FilterChips";
 
 function StatusFilters({
   onPendingChange = () => {},
@@ -66,5 +66,32 @@ describe("FilterChips", () => {
       "data-slot",
       "filter-chip"
     );
+  });
+
+  it("picks a value from a chip, which then reads and announces it", async () => {
+    function AccountChip() {
+      const [account, setAccount] = useState<string | undefined>();
+      return (
+        <FilterChipSelect
+          label="Account"
+          anyLabel="All accounts"
+          value={account}
+          groups={[{ label: "Accounts", choices: [{ value: "bpi", label: "BPI" }] }]}
+          onChange={setAccount}
+        />
+      );
+    }
+    render(<AccountChip />);
+
+    const chip = screen.getByRole("combobox", { name: "Account" });
+    fireEvent.keyDown(chip, { key: "Enter" });
+    fireEvent.keyDown(await screen.findByRole("option", { name: "BPI" }), { key: "Enter" });
+    expect(await screen.findByRole("combobox", { name: "Account: BPI" })).toHaveTextContent("BPI");
+
+    fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
+    fireEvent.keyDown(await screen.findByRole("option", { name: "All accounts" }), {
+      key: "Enter",
+    });
+    expect(await screen.findByRole("combobox", { name: "Account" })).toHaveTextContent("Account");
   });
 });
