@@ -3,7 +3,7 @@ import { useActionState, useState } from "react";
 import { toast } from "sonner";
 import { ActionForm } from "@/components/ui/action-form";
 import { categoryNames } from "@/components/allocations/envelopes";
-import { advanceOnEnter, FormFooter } from "@/components/FormSheet";
+import { advanceOnEnter, FormFooter } from "@/components/app/FormSheet";
 import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

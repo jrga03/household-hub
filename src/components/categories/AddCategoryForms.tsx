@@ -5,7 +5,7 @@ import { FormError } from "@/components/ui/form-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { VisibilityField } from "@/components/VisibilityField";
+import { VisibilityField } from "@/components/app/VisibilityField";
 import { CATEGORY_NAME_MAX_LENGTH } from "@/lib/categories/events";
 import type { GroupRow } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";

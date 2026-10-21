@@ -97,6 +97,12 @@ const cases = [
     flagged: "src/components/accounts/probe.tsx",
     allowed: "src/App.tsx",
   },
+  {
+    rule: "arch/no-direct-primitive-import",
+    code: 'import { Sidebar } from "@/components/ui/sidebar";\nexport { Sidebar };\n',
+    flagged: "src/components/probe.tsx",
+    allowed: "src/components/layout/probe.tsx",
+  },
 ];
 
 describe.each(cases)("$rule", ({ rule, code, flagged, allowed }) => {
@@ -459,7 +465,7 @@ it("typeof import() stays legal in a Vitest mock", async () => {
 });
 
 describe("the directPrimitiveImporters allowlist only shrinks", () => {
-  const ALLOWLIST_CEILING = 61;
+  const ALLOWLIST_CEILING = 53;
 
   async function loadAllowlist(): Promise<string[]> {
     const config: unknown = await import(pathToFileURL(path.resolve("eslint.config.js")).href);

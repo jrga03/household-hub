@@ -14,7 +14,7 @@ import { createAccount, unretireAccount, type Actor } from "@/lib/commands/accou
 import { formatPHP, type Cents } from "@/lib/currency";
 import type { AccountMoney } from "@/lib/transactions/money";
 import type { Visibility } from "@/lib/events/ownership";
-import { VisibilityField } from "@/components/VisibilityField";
+import { VisibilityField } from "@/components/app/VisibilityField";
 import { namedAmounts } from "@/components/allocations/envelopes";
 import { shortfallClass } from "@/components/allocations/MoneyAmount";
 import {
@@ -22,7 +22,7 @@ import {
   AccountDetailsFields,
   readAccountDetails,
 } from "./AccountDetailsFields";
-import { advanceOnEnter } from "@/components/FormSheet";
+import { advanceOnEnter } from "@/components/app/FormSheet";
 import { EditAccountDialog } from "./EditAccountDialog";
 import { PayCardDialog } from "./PayCardDialog";
 import { CorrectBalanceDialog } from "@/components/corrections/CorrectBalanceDialog";
