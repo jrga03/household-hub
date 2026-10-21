@@ -134,4 +134,4 @@ Spec #216, integration branch `feat/216-adaptive-layouts`. Frontier at start: #2
 - [x] #219 DetailPane: the open item in a pane or a bottom sheet, kept in the URL (#218)
 - [x] #220 Layout baselines: one viewport per size class, regenerated once (#217, #218, #219)
 - [x] #221 DESIGN.md: the adaptive layout rules (#217, #218, #219)
-- [ ] Code review of the integration branch, findings fixed
+- [x] Code review of the integration branch, findings fixed
