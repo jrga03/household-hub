@@ -172,7 +172,7 @@ Spec #222, integration branch `feat/222-page-migration`. Order: #223 â†’ #224 â†
 - [x] #224 Transaction entry: entry and transfer as FormSheets (#223)
 - [ ] #225 Home: supporting-pane with hero and Needs attention (#224)
 - [ ] #226 Budget: hero, grouped rows and the ledger pane (#225)
-- [ ] #227 Plan: allocations, move money and budgets (#224)
+- [x] #227 Plan: allocations, move money and budgets (#224)
 - [ ] #228 Accounts: balances, edits, card payments and corrections (#224)
 - [ ] #229 Categories: groups, adds and edits (#224)
 - [x] #230 Review and Import: review items and statement drafts (#224)
