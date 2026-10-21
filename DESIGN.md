@@ -191,13 +191,70 @@ Why: building pages from one app layer keeps them consistent and lets primitives
 
 ## Layout
 
-Why: one shell per page keeps headers, padding and wide-screen behavior the same.
+Why: one shared model (Material 3 window size classes) keeps navigation, columns and panes the same on every page and every device.
 
-- Every route renders `<PageShell variant="…">` (`src/components/layout/PageShell.tsx`). Pick the variant from its doc comment.
-- Inside rails, sheets and panes, use container queries (`@[600px]:`), not viewport breakpoints. A pane's width, not the window's, decides its layout.
-- Pin bottom-edge elements with the `--bottom-chrome` offset so nothing lands under the tab bar.
+### Window size classes
+
+Global chrome switches on the window width. `useWindowClass()` (`src/hooks/useMediaQuery.ts`) returns the class; the Tailwind breakpoints `medium:`, `expanded:` and `large:` (`src/index.css`) match it in classes.
+
+| Class    | Width       | Navigation                                                         | Add transaction |
+| -------- | ----------- | ------------------------------------------------------------------ | --------------- |
+| Compact  | below 600   | Tab bar (Home, Transactions) and the drawer for the rest           | Floating button |
+| Medium   | 600-839     | Collapsed rail; the menu icon opens it as a modal expanded rail    | Header          |
+| Expanded | 840-1199    | Collapsed rail by default; it expands to a standard rail beside it | Header          |
+| Large    | 1200 and up | Expanded rail by default                                           | Header          |
+
+- The sidebar cookie (the person's rail toggle) wins over the class default, from expanded up. The medium modal rail ignores it.
+- The tab bar and the rail never show together.
+- Give every collapsed rail link an `aria-label`, since only its icon shows.
+- Use `medium:`, `expanded:` and `large:` only for global chrome (`AppLayout`, the header, the rail). Page content uses container queries.
+- There is no larger class. Wide windows cap content at `max-w-7xl` instead.
+- Pin bottom-edge elements with the `--bottom-chrome` offset so nothing lands under the tab bar. It is the tab bar's height at compact and the safe area elsewhere.
 - Pin sticky content below the app header with the `--app-header` offset (`SectionHeader sticky` does this). Never hard-code the header's height.
-- Adaptive layouts (more columns on the laptop, window size classes) come in their own session.
+
+### Pane thresholds
+
+Inside the shell, panes, rails and sheets, use container queries (`@[600px]:`), not viewport breakpoints. The `PageShell` container is the window minus the rail, so a pane's width, not the window's, decides its layout.
+
+- Below 600: one stack.
+- 600: widen the layout inside a pane.
+- 840: a second pane may show.
+- 1200: the fixed detail pane widens from 360 to 412px.
+- Use only these three thresholds. Never add a third pane.
+
+At 1366 with the expanded rail the shell is about 1110px, so the detail pane is 360px; it reaches 412px when the rail is collapsed.
+
+### PageShell variants
+
+Every route except login and signup renders `<PageShell variant="…">` (`src/components/layout/PageShell.tsx`) and puts its content in the variant's slots.
+
+| Variant            | Slots                                | Use it for                                                                                              |
+| ------------------ | ------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `single` (default) | `PageShell.Main`                     | A page that reads top to bottom: one centered column, `max-w-3xl`.                                      |
+| `supporting-pane`  | `PageShell.Main`, `PageShell.Side`   | A main column with related context beside it, about 2:1 from 840, stacked below. `max-w-7xl`, centered. |
+| `list-detail`      | `PageShell.List`, `PageShell.Detail` | A list whose items open for review or edit. The list flexes; `Detail` is fixed. `max-w-7xl`, centered.  |
+
+`supporting-pane` has no route yet; the Home migration is its first user.
+
+| Route                                         | Variant now                         | Final variant (owner)                                     |
+| --------------------------------------------- | ----------------------------------- | --------------------------------------------------------- |
+| Transactions, Budget, Import                  | `list-detail`                       | same                                                      |
+| Plan, Review, Accounts, Categories, Assistant | `single`                            | same (Accounts may become `list-detail` in its migration) |
+| Home                                          | `single`                            | `supporting-pane` (Home migration)                        |
+| Settings                                      | `single`, one page of section links | `list-detail` (Settings migration)                        |
+| Create or join                                | `single`, narrowed with `max-w-md`  | same                                                      |
+| Login, signup                                 | no `PageShell`, a centered form     | same                                                      |
+
+### DetailPane
+
+A `list-detail` page shows its open item with `DetailPane` (`src/components/layout/DetailPane.tsx`). The page supplies a `title`, an optional `description`, the `item` from the local projections, and the item's content; `DetailPane` decides where it shows.
+
+- The open item lives in the URL as `?open=<id>`. Spread `readOpenItem(search)` into the route's `validateSearch`, and open or close with `useOpenItem()` inside the shell. Never keep the open item in component state.
+- From a shell width of 840 it shows in `PageShell.Detail`, sticky under the header and scrolling on its own. Below 840 it shows in a bottom sheet over the list, which keeps its scroll position on close.
+- Show the pane only while an item is open. Closed, the list takes the full width: no placeholder, no default selection.
+- With one pane, opening pushes a history entry, so back closes the sheet. With two panes, opening replaces the entry, so back leaves the page.
+- Crossing 840 moves the open item between sheet and pane; it stays open. A stale id (the item was removed or synced away) closes it.
+- The sheet's header is the title alone. The `description` shows only in the pane.
 
 ## Enforcement
 

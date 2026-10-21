@@ -101,6 +101,7 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#219 the sheet uses vaul's `Drawer.Root`, not the `ui/drawer` wrapper**, so the `?open=` entry is the one back pops (no second sentinel entry). Why: two entries would need two backs to close. Revisit: never.
 - **#219 records opened from the Budget ledger stay in `FormSheet` dialogs, outside the URL.** Why: only the list's open item is `?open=`. Revisit: the Budget migration.
 - **#220 the layout baselines show the seed user's empty states** (no accounts, categories or transactions, nothing open), so they cover chrome and shell width but not a filled list or an open `DetailPane`. Why: `ROUTES` stays unchanged here and the baseline user is unseeded. Revisit: the page migration, when it adds routes.
+- **#221 DESIGN.md and CLAUDE.md say "every route except login and signup" uses `PageShell`**, and the route table lists them as a centered form with no shell. Why: as built, those two routes render their own centered `div`; the spec's "`single`, narrow" holds only for create-or-join. Revisit: if a page migration moves auth onto `PageShell`.
 
 ### Rollout checklist
 
@@ -128,5 +129,5 @@ Spec #216, integration branch `feat/216-adaptive-layouts`. Frontier at start: #2
 - [x] #218 PageShell variants: single, supporting-pane and list-detail (none)
 - [x] #219 DetailPane: the open item in a pane or a bottom sheet, kept in the URL (#218)
 - [x] #220 Layout baselines: one viewport per size class, regenerated once (#217, #218, #219)
-- [ ] #221 DESIGN.md: the adaptive layout rules (#217, #218, #219)
+- [x] #221 DESIGN.md: the adaptive layout rules (#217, #218, #219)
 - [ ] Code review of the integration branch, findings fixed
