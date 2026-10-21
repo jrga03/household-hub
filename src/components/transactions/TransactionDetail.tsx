@@ -2,6 +2,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { Info, Pencil } from "lucide-react";
 import { Button } from "@/components/app/Button";
+import { Fact, Facts } from "@/components/app/Facts";
 import { Money } from "@/components/app/Money";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import type { Actor } from "@/lib/commands/accounts";
@@ -50,17 +51,14 @@ export function TransactionDetail({
         cents={row.amountCents}
         className={cn("block text-heading", pending && "text-muted-foreground")}
       />
-      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-3 text-body">
-        <dt className="text-muted-foreground">Date</dt>
-        <dd>{format(parseLocalDate(row.date), "EEEE, MMMM d, yyyy")}</dd>
+      <Facts>
+        <Fact term="Date">{format(parseLocalDate(row.date), "EEEE, MMMM d, yyyy")}</Fact>
         {facts.map(([term, value]) => (
-          <div key={term} className="contents">
-            <dt className="text-muted-foreground">{term}</dt>
-            <dd className="break-words">{value}</dd>
-          </div>
+          <Fact key={term} term={term}>
+            {value}
+          </Fact>
         ))}
-        <dt className="text-muted-foreground">Status</dt>
-        <dd>
+        <Fact term="Status">
           {pending ? (
             <StatusBadge tone="outline" icon={Info}>
               Pending
@@ -68,8 +66,8 @@ export function TransactionDetail({
           ) : (
             "Cleared"
           )}
-        </dd>
-      </dl>
+        </Fact>
+      </Facts>
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={() => setEditing(true)}>
           <Pencil aria-hidden="true" />

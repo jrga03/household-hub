@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { ActionForm } from "@/components/app/ActionForm";
 import { Button } from "@/components/app/Button";
 import { EmptyState } from "@/components/app/EmptyState";
+import { Fact, Facts } from "@/components/app/Facts";
 import { FormError } from "@/components/app/FormError";
 import { advanceOnEnter } from "@/components/app/FormSheet";
 import { ListRow } from "@/components/app/ListRow";
@@ -213,7 +214,7 @@ function AccountDetail({
           <Money kind="balance" owed={card} cents={money.balance} className="block text-heading" />
         </div>
       )}
-      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-3 text-body">
+      <Facts>
         {card && (
           <Fact term="Paid from">{account.payingAccount?.name ?? "Not on this device yet"}</Fact>
         )}
@@ -230,7 +231,7 @@ function AccountDetail({
         {money?.envelopes && <Envelopes envelopes={money.envelopes} />}
         <Fact term="Who sees it">{VISIBILITY_LABELS[account.visibility]}</Fact>
         {retired && <Fact term="Status">Retired</Fact>}
-      </dl>
+      </Facts>
       <div className="flex flex-wrap items-center gap-2">
         {retired ? (
           <UnretireButton actor={actor} account={account} />
@@ -264,15 +265,6 @@ function AccountDetail({
       {dialog === "correct" && (
         <CorrectBalanceDialog actor={actor} account={account} onClose={closeDialog} />
       )}
-    </div>
-  );
-}
-
-function Fact({ term, children }: { term: string; children: React.ReactNode }) {
-  return (
-    <div className="contents">
-      <dt className="text-muted-foreground">{term}</dt>
-      <dd className="break-words">{children}</dd>
     </div>
   );
 }
