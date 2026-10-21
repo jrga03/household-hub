@@ -236,14 +236,14 @@ Every route except login and signup renders `<PageShell variant="…">` (`src/co
 
 Home is the `supporting-pane` page. Inside either wide variant, `useTwoPanes()` (`src/components/layout/pane.ts`) says whether the two columns sit side by side; use it when the stacked order differs from the two-column one, and render one arrangement rather than hiding the other with CSS.
 
-| Route                                         | Variant now                         | Final variant (owner)                                     |
-| --------------------------------------------- | ----------------------------------- | --------------------------------------------------------- |
-| Transactions, Budget, Import                  | `list-detail`                       | same                                                      |
-| Plan, Review, Accounts, Categories, Assistant | `single`                            | same (Accounts may become `list-detail` in its migration) |
-| Home                                          | `supporting-pane`                   | same                                                      |
-| Settings                                      | `single`, one page of section links | `list-detail` (Settings migration)                        |
-| Create or join                                | `single`, narrowed with `max-w-md`  | same                                                      |
-| Login, signup                                 | no `PageShell`, a centered form     | same                                                      |
+| Route                                  | Variant now                         | Final variant (owner)              |
+| -------------------------------------- | ----------------------------------- | ---------------------------------- |
+| Transactions, Budget, Import, Accounts | `list-detail`                       | same                               |
+| Plan, Review, Categories, Assistant    | `single`                            | same                               |
+| Home                                   | `supporting-pane`                   | same                               |
+| Settings                               | `single`, one page of section links | `list-detail` (Settings migration) |
+| Create or join                         | `single`, narrowed with `max-w-md`  | same                               |
+| Login, signup                          | no `PageShell`, a centered form     | same                               |
 
 ### DetailPane
 

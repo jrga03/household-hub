@@ -151,6 +151,13 @@ Status: implemented 2026-10-18 on `feat/162-design-foundations` (PR #173); rollo
 - **#232 a proposal is a form between hairlines** (`border-y`, no card) with a `SectionHeader` of the description and its `Money`, the three `Field`s, and Dismiss / Confirm; once decided a `StatusBadge` (`success` "Recorded", `neutral` "Dismissed") replaces the buttons and takes focus when the decision was made there. Why: the ticket's section, and a decision removed the focused button, dropping keyboard focus to the page. Revisit: never.
 - **#232 the composer pads by `--bottom-chrome`, and `AppLayout` sets `--bottom-chrome` to the safe area under a route with `bottomChrome: false`** (only the Assistant). Why: at compact `--bottom-chrome` counted the tab bar the Assistant hides, which would float the composer 3.5rem up. A fix in a layout file no ticket lists. Revisit: if toasts should also drop the tab-bar offset there (`--toast-bottom` is still computed at `:root`).
 - **#232 the empty chat is an `EmptyState` sentence with the example prompts as its action**, and the inner `max-w-2xl` is gone, so the chat uses the `single` shell's `max-w-3xl`. Why: one empty-state pattern; one column width. Revisit: never.
+- **#228 Accounts is `list-detail`**: a row opens the account in `DetailPane` (balance, cleared, pending, Unassigned, each Card Payment, who sees it) with Pay, Edit, Correct balance, View transactions, or Unretire for a retired one. Why: `ListRow` hides quick actions below 600, so phones needed somewhere for them, and the old rows wrapped badly on phones with three buttons each. Rows carry no hover actions. Revisit: never.
+- **#228 sections are nested lists inside the one `list "Accounts"`**; the inner lists have no name, the retired list is named "Retired". Why: about 15 e2e specs find `list "Accounts"`, and Playwright's substring match would also hit "Bank accounts". Revisit: never.
+- **#228 the List slot is capped at `max-w-3xl`**, so with nothing open it is the old single column and the pane opens beside it. Why: the form and a few rows read badly at `max-w-7xl`. Revisit: if accounts grow into a table.
+- **#228 a row's second line is the card's Paying Account, or the account's Unassigned**; the type is the section. A section with two or more accounts shows its total. Why: Unassigned is what a person checks most. Revisit: never.
+- **#228 `AccountsCard.tsx` is renamed `AccountsView.tsx`** and `shortfallClass` is private to `Money` (closes the #209 item). Revisit: never.
+- **#228 retiring from Edit closes the account's detail.** Why: the account leaves the list it was opened from. Revisit: never.
+- **#228 Pay and Correct balance reuse #224's `readEntryBasics`/`useEntryFormRef`/`useFocusNewEntry`**: field errors under the field, focus to the first. Correct balance keeps a plain `Input` (with a hint) since `CurrencyInput` takes no minus sign. A card's correction difference uses a neutral sign (`kind="transfer"` with a leg), since more owed is not income. Revisit: if `CurrencyInput` takes signed amounts.
 
 ### Rollout checklist
 
@@ -190,7 +197,7 @@ Spec #222, integration branch `feat/222-page-migration`. Order: #223 â†’ #224 â†
 - [x] #225 Home: supporting-pane with hero and Needs attention (#224)
 - [ ] #226 Budget: hero, grouped rows and the ledger pane (#225)
 - [x] #227 Plan: allocations, move money and budgets (#224)
-- [ ] #228 Accounts: balances, edits, card payments and corrections (#224)
+- [x] #228 Accounts: balances, edits, card payments and corrections (#224)
 - [x] #229 Categories: groups, adds and edits (#224)
 - [x] #230 Review and Import: review items and statement drafts (#224)
 - [ ] #231 Settings and households: list-detail sections and create-or-join (#224)

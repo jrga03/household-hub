@@ -74,3 +74,32 @@ export async function navigateTo(page: Page, label: string) {
     await drawer.waitFor({ state: "hidden" });
   }
 }
+
+/** Closes an open sheet, such as a phone's account sheet, which hides the page behind it. */
+export async function closeSheet(page: Page) {
+  const sheet = page.getByRole("dialog");
+  if (await sheet.isVisible()) {
+    await page.keyboard.press("Escape");
+    await sheet.waitFor({ state: "hidden" });
+  }
+}
+
+/**
+ * Opens an account on the Accounts page and returns its detail: a pane beside
+ * the list, or a sheet over it on a phone. An account sheet already open is
+ * closed first, since it covers the list.
+ */
+export async function openAccount(
+  page: Page,
+  name: string,
+  { list = "Accounts" }: { list?: string } = {}
+): Promise<Locator> {
+  await closeSheet(page);
+  await page
+    .getByRole("list", { name: list, exact: true })
+    .getByRole("button", { name: new RegExp(`^${name}`) })
+    .click();
+  return page
+    .getByRole("region", { name, exact: true })
+    .or(page.getByRole("dialog", { name, exact: true }));
+}

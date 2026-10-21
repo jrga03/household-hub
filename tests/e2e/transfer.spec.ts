@@ -62,12 +62,12 @@ test("a transfer recorded offline moves both balances on another device", async 
   await chooseOption(pageA, dialog.getByLabel("Category"), "Groceries");
   await dialog.getByRole("button", { name: "Add transfer" }).click();
   await expect(dialog).toBeHidden();
-  await expect(accountItem(pageA, "GCash").getByLabel("Balance")).toHaveText("₱2,000.00");
+  await expect(accountItem(pageA, "GCash")).toContainText("₱2,000.00");
   await deviceA.setOffline(false);
 
   await pullUntil(deviceB, accountItem(pageB, "GCash"), "₱2,000.00");
-  await expect(accountItem(pageB, "BPI").getByLabel("Balance")).toHaveText("₱8,000.00");
-  await expect(accountItem(pageB, "GCash").getByLabel("Balance")).toHaveText("₱2,000.00");
+  await expect(accountItem(pageB, "BPI")).toContainText("₱8,000.00");
+  await expect(accountItem(pageB, "GCash")).toContainText("₱2,000.00");
 
   // One row for both legs, named for where the money went.
   await pageB.getByRole("link", { name: "Transactions" }).first().click();

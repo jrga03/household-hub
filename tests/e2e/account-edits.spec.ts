@@ -1,13 +1,16 @@
 import { test, expect, type Page } from "@playwright/test";
-import { loginAs, signUpNewPerson, navigateTo } from "./fixtures/helpers";
+import { closeSheet, loginAs, signUpNewPerson, navigateTo, openAccount } from "./fixtures/helpers";
 
 const accountsList = (page: Page) => page.getByRole("list", { name: "Accounts" });
 
 async function renameAccount(page: Page, from: string, to: string) {
-  await page.getByRole("button", { name: `Edit ${from}` }).click();
+  const details = await openAccount(page, from);
+  await details.getByRole("button", { name: "Edit", exact: true }).click();
   const form = page.getByRole("form", { name: "Edit account" });
   await form.getByLabel("Account name").fill(to);
   await form.getByRole("button", { name: "Save" }).click();
+  await expect(form).toBeHidden();
+  await closeSheet(page);
   await expect(accountsList(page)).toContainText(to);
 }
 
@@ -56,15 +59,19 @@ test("two devices rename the same account offline and both end on the later edit
   await expect(accountsList(pageB)).not.toContainText("Wallet on A");
 
   // Retiring moves it out of the main list; it can be brought back.
-  await pageA.getByRole("button", { name: "Edit Wallet on B" }).click();
+  const details = await openAccount(pageA, "Wallet on B");
+  await details.getByRole("button", { name: "Edit", exact: true }).click();
   await pageA.getByRole("button", { name: "Retire account" }).click();
+  await expect(details).toBeHidden();
   await expect(accountsList(pageA)).toHaveCount(0);
   await expectAfterSync(pageB, () =>
     expect(accountsList(pageB)).toHaveCount(0, { timeout: 2_000 })
   );
   await expect(pageB.getByRole("button", { name: /Show retired accounts/ })).toBeVisible();
   await pageA.getByRole("button", { name: /Show retired accounts/ }).click();
-  await pageA.getByRole("button", { name: "Unretire Wallet on B" }).click();
+  const retired = await openAccount(pageA, "Wallet on B", { list: "Retired" });
+  await retired.getByRole("button", { name: "Unretire Wallet on B" }).click();
+  await closeSheet(pageA);
   await expect(accountsList(pageA)).toContainText("Wallet on B");
   await expect(accountsList(pageA)).toContainText("₱0.00");
 

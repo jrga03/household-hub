@@ -1,8 +1,15 @@
 import { test, expect, type Page } from "@playwright/test";
-import { chooseOption, signUpNewPerson, navigateTo, transactionRows } from "./fixtures/helpers";
+import {
+  chooseOption,
+  closeSheet,
+  signUpNewPerson,
+  navigateTo,
+  openAccount,
+  transactionRows,
+} from "./fixtures/helpers";
 
 const bankItem = (page: Page) =>
-  page.getByRole("list", { name: "Accounts" }).getByRole("listitem").filter({ hasText: "BPI" });
+  page.getByRole("list", { name: "Accounts" }).getByRole("listitem").filter({ hasText: /^BPI/ });
 
 test("transactions recorded offline move the balance, and a removal can be undone", async ({
   page,
@@ -45,16 +52,24 @@ test("transactions recorded offline move the balance, and a removal can be undon
   await dialog.getByLabel("Description", { exact: true }).fill("Salary");
   await dialog.getByRole("button", { name: "Add transaction" }).click();
   await expect(bankItem(page)).toContainText("₱1,750.00");
-  await expect(bankItem(page)).toContainText("Cleared ₱750.00 · Pending ₱1,000.00");
   await expect(bankItem(page)).toContainText("Unassigned ₱2,000.00");
+  const bank = await openAccount(page, "BPI");
+  const figure = (term: string) =>
+    bank.getByText(term, { exact: true }).locator("xpath=following-sibling::*[1]");
+  await expect(figure("Cleared")).toContainText("₱750.00");
+  await expect(figure("Pending")).toContainText("₱1,000.00");
+  await closeSheet(page);
 
   // Home's Latest shows an expense with a minus sign, as the Transactions page does.
   await navigateTo(page, "Home");
   await expect(page.getByRole("list", { name: "Latest transactions" })).toContainText("−₱250.00");
   await navigateTo(page, "Accounts");
 
-  // Tapping an account opens Transactions filtered to it.
-  await bankItem(page).getByRole("link", { name: "BPI" }).click();
+  // An account's View transactions opens Transactions filtered to it. Back online first: on a
+  // fresh device the service worker is still waiting, so an unvisited route's code can't load offline.
+  await page.context().setOffline(false);
+  const details = await openAccount(page, "BPI");
+  await details.getByRole("link", { name: "View transactions" }).click();
   await expect(page).toHaveURL(/\/transactions\?account=/);
   const market = transactionRows(page).filter({ hasText: "Market" });
   await market.getByRole("button", { name: /^Market/ }).click();
