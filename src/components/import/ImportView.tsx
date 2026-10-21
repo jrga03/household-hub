@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { categoryNames } from "@/components/allocations/envelopes";
-import { DetailPane, useOpenItem } from "@/components/layout/DetailPane";
+import { DetailPane, resolveOpenItem, useOpenItem } from "@/components/layout/DetailPane";
 import { PageShell } from "@/components/layout/PageShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,7 +50,7 @@ export function ImportView({ actor }: { actor: Actor }) {
   );
   const names = categoryNames(categories);
   // Saved or discarded, here or by a bulk action: it's gone, which closes it.
-  const opened = openId === null ? undefined : (findDraft(imports, openId) ?? null);
+  const opened = resolveOpenItem(openId, (id) => findDraft(imports, id));
   const openedCard = opened ? accountsById.get(opened.statement.accountId) : undefined;
 
   return (
@@ -107,7 +107,7 @@ export function ImportView({ actor }: { actor: Actor }) {
 
 const cardLabel = (card: AccountRow | undefined) => card?.name ?? "A card not on this device";
 
-function findDraft(imports: ReviewedImport[], draftId: string | null) {
+function findDraft(imports: ReviewedImport[], draftId: string) {
   for (const statement of imports) {
     const draft = statement.drafts.find((candidate) => candidate.id === draftId);
     if (draft) return { statement, draft };
