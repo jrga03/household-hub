@@ -10,6 +10,7 @@ const ROUTES = [
   { path: "/budget", name: "budget" },
   { path: "/plan", name: "plan" },
   { path: "/review", name: "review" },
+  { path: "/import", name: "import" },
   { path: "/categories", name: "categories" },
 ];
 

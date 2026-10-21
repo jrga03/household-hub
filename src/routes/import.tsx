@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { readOpenItem } from "@/components/layout/DetailPane";
 import { PageShell } from "@/components/layout/PageShell";
 import { ImportView } from "@/components/import/ImportView";
 import { useHousehold } from "@/hooks/useHousehold";
@@ -6,6 +7,7 @@ import { useAuthStore } from "@/stores/authStore";
 
 export const Route = createFileRoute("/import")({
   staticData: { title: "Import statement" },
+  validateSearch: readOpenItem,
   component: ImportPage,
 });
 

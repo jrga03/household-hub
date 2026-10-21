@@ -39,6 +39,7 @@ async function openImportOffline(page: Page, context: BrowserContext, cardName: 
 test("a BDO statement is read offline, and its password can be remembered", async ({
   page,
   context,
+  isMobile,
 }) => {
   const form = await openImportOffline(page, context, "BDO Visa");
   await form.getByLabel("Statement file").setInputFiles(SYNTHETIC_BDO);
@@ -61,7 +62,19 @@ test("a BDO statement is read offline, and its password can be remembered", asyn
     "−₱549.00"
   );
 
+  // The open draft lives in the URL, so a reload shows it again.
+  await drafts.getByRole("button", { name: /^STREAMING SVC/ }).click();
+  await expect(page).toHaveURL(/[?&]open=/);
+  const openDraft = page.getByRole("heading", { name: "STREAMING SVC" });
+  await expect(openDraft).toBeVisible();
+
   await page.reload();
+  await expect(openDraft).toBeVisible();
+  if (isMobile) {
+    // The draft's sheet hides the form from the accessibility tree.
+    await page.keyboard.press("Escape");
+    await expect(openDraft).toBeHidden();
+  }
   await expect(form.getByLabel("Password", { exact: true })).toHaveValue(FIXTURE_PASSWORD);
   await expect(form.getByLabel("Remember password on this device")).toBeChecked();
 });
