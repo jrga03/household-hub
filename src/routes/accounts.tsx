@@ -16,7 +16,7 @@ export const Route = createFileRoute("/accounts")({
 function AccountsPage() {
   const { household } = useHousehold();
   const userId = useAuthStore((state) => state.user?.id);
-  // Home's Balances link to one account by hash; its row exists only once accounts load.
+  // The opening checklist links to the add form by hash; it renders once accounts load.
   useScrollToHash(useAccounts() !== undefined);
 
   return (

@@ -147,11 +147,7 @@ function AccountRows({
         const accountMoney = money?.get(account.id);
         const card = isCreditCard(account);
         return (
-          <li
-            key={account.id}
-            id={`account-${account.id}`}
-            className="scroll-mt-[calc(var(--app-header)+1rem)]"
-          >
+          <li key={account.id}>
             <ListRow
               onClick={() => onOpen(account.id)}
               open={account.id === openId}

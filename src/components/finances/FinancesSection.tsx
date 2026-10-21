@@ -171,7 +171,7 @@ function Balances({ overview, view }: { overview: FinanceOverview; view: Finance
             <li key={account.id}>
               <Link
                 to="/accounts"
-                hash={`account-${account.id}`}
+                search={{ open: account.id }}
                 className="flex items-center justify-between gap-3 py-3 transition-colors hover:bg-accent"
               >
                 <span className="truncate">{account.name}</span>

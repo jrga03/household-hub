@@ -76,7 +76,7 @@ function feedRow(item: AttentionItem): FeedRow {
     case "short":
       return {
         key: `short-${item.accountId}`,
-        link: { to: "/accounts", hash: `account-${item.accountId}` },
+        link: { to: "/accounts", search: { open: item.accountId } },
         icon: CircleAlert,
         iconClass: "text-shortfall",
         sentence: (

@@ -157,7 +157,7 @@ describe("FinancesSection", () => {
     expect(within(items[0]!).getByText("Over budget")).toBeInTheDocument();
     expect(within(items[2]!).getByText("Close")).toBeInTheDocument();
     expect(items[0]).toHaveAttribute("href", `/budget?open=${diningId}`);
-    expect(items[1]).toHaveAttribute("href", `/accounts#account-${bpiId}`);
+    expect(items[1]).toHaveAttribute("href", `/accounts?open=${bpiId}`);
     expect(items[3]).toHaveAttribute("href", "/review");
     expect(screen.getByText("1 budget is fine.")).toBeInTheDocument();
   });
@@ -199,7 +199,7 @@ describe("FinancesSection", () => {
     ).toEqual(["Balances", "Latest"]);
     expect(within(side).getByRole("link", { name: /BPI/ })).toHaveAttribute(
       "href",
-      `/accounts#account-${bpiId}`
+      `/accounts?open=${bpiId}`
     );
     expect(within(side).getByRole("link", { name: "See all" })).toHaveAttribute(
       "href",
