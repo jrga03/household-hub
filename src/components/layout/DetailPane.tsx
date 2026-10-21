@@ -106,6 +106,8 @@ export function useOpenItem() {
     if (location.state.openPushed || readOpenItem(location.search).open === undefined) return;
     const list = router.buildLocation({ to: ".", search: ({ open: _closed, ...rest }) => rest });
     router.history.replace(list.publicHref, location.state);
+    // The browser history coalesces queued writes; commit the replace before the push.
+    router.history.flush();
     router.history.push(location.publicHref, { openPushed: true });
   }, [router]);
 
