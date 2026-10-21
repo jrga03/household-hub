@@ -66,7 +66,7 @@ export function TransactionDetail({
               Pending
             </StatusBadge>
           ) : (
-            <StatusBadge tone="neutral">Cleared</StatusBadge>
+            "Cleared"
           )}
         </dd>
       </dl>

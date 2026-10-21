@@ -145,6 +145,8 @@ describe("TransactionList", () => {
       const pane = await screen.findByRole("region", { name: "Market" });
       expect(history.location.search).toMatch(/open=/);
       expect(pane).toHaveTextContent("−₱250.00");
+      const cleared = within(pane).getByText("Cleared");
+      expect(cleared.closest("[data-slot=badge]")).toBeNull();
       expect(within(pane).getByRole("button", { name: "Edit" })).toBeInTheDocument();
       expect(within(pane).getByRole("button", { name: "Mark pending" })).toBeInTheDocument();
       expect(within(pane).getByRole("button", { name: "Remove" })).toBeInTheDocument();
