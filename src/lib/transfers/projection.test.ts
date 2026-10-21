@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { orders } from "@/test/permutations";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { describeEvent } from "@/lib/events/projector";
-import { receiveEvents, type LoggedEvent } from "@/lib/events/log";
-import { HOUSEHOLD, loggedEvent } from "@/test/events";
+import { receiveEvents } from "@/lib/events/log";
+import { HOUSEHOLD, loggedEvent, type EventFields } from "@/test/events";
 import { getTransfer, listTransfers } from "./projection";
 
 const TRANSFER = "ffffffff-0000-4000-8000-000000000001";
@@ -17,11 +17,17 @@ const event = (
   eventType: string,
   millis: number,
   payload: Record<string, unknown> = {},
-  overrides: Partial<LoggedEvent> = {}
-): LoggedEvent => ({
-  ...loggedEvent({ id, entityType: "transfer", entityId: TRANSFER, eventType, millis, payload }),
-  ...overrides,
-});
+  overrides: Partial<EventFields> = {}
+) =>
+  loggedEvent({
+    id,
+    entityType: "transfer",
+    entityId: TRANSFER,
+    eventType,
+    millis,
+    payload,
+    ...overrides,
+  });
 
 const details = (overrides: Record<string, unknown> = {}) => ({
   date: "2026-10-12",

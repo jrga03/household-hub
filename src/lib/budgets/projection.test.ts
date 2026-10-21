@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { orders } from "@/test/permutations";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { describeEvent } from "@/lib/events/projector";
-import { receiveEvents, type LoggedEvent } from "@/lib/events/log";
-import { HOUSEHOLD, loggedEvent } from "@/test/events";
+import { receiveEvents } from "@/lib/events/log";
+import { HOUSEHOLD, loggedEvent, type EventFields } from "@/test/events";
 import { budgetId, checkBudgetDetails } from "./events";
 import { getBudget, listBudgets } from "./projection";
 
@@ -16,19 +16,17 @@ const event = (
   id: string,
   millis: number,
   payload: Record<string, unknown>,
-  { device, ...overrides }: Partial<LoggedEvent> & { device?: string } = {}
-): LoggedEvent => ({
-  ...loggedEvent({
+  overrides: Partial<EventFields> = {}
+) =>
+  loggedEvent({
     id,
     entityType: "budget",
     entityId: BUDGET,
     eventType: "budget.set",
     millis,
     payload,
-    device,
-  }),
-  ...overrides,
-});
+    ...overrides,
+  });
 
 const set = (overrides: Record<string, unknown> = {}) => ({
   categoryId: GROCERIES,
