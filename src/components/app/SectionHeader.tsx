@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 interface SectionHeaderProps {
-  title: string;
+  title: ReactNode;
   level?: 2 | 3 | 4;
   /** A right-aligned link or amount. */
   action?: ReactNode;
