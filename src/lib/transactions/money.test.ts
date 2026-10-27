@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { orders } from "@/test/permutations";
+import { medianMs } from "@/test/timing";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { receiveEvents } from "@/lib/events/log";
 import { listAccounts } from "@/lib/accounts/projection";
@@ -148,19 +149,20 @@ describe("account money", () => {
       listTransfers(),
     ]);
     expect(transferRows).toHaveLength(500);
-    const started = performance.now();
-    const money = sumAccountMoney({
-      accounts,
-      transactions,
-      allocations,
-      transfers: transferRows,
-      corrections: [],
-    });
-    const categoryMoney = sumCategoryMoney(money);
-    const elapsed = performance.now() - started;
+    const sumForCategories = () => {
+      const money = sumAccountMoney({
+        accounts,
+        transactions,
+        allocations,
+        transfers: transferRows,
+        corrections: [],
+      });
+      return { money, categoryMoney: sumCategoryMoney(money) };
+    };
 
+    const { money, categoryMoney } = sumForCategories();
     expect(money.size).toBe(2);
     expect(categoryMoney.size).toBe(2);
-    expect(elapsed).toBeLessThan(50);
+    expect(medianMs(sumForCategories)).toBeLessThan(50);
   });
 });

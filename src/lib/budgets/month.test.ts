@@ -14,6 +14,7 @@ import { listAccounts } from "@/lib/accounts/projection";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import { categoryMonth, readMonthView, summarizeMonth, sumMonthFigures } from "./month";
 import { HOUSEHOLD } from "@/test/events";
+import { medianMs } from "@/test/timing";
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
@@ -252,18 +253,17 @@ describe("month figures", () => {
       importKey: null,
     }));
 
-    const started = performance.now();
-    const view = summarizeMonth("2026-06", "2026-11", {
-      accounts,
-      transactions,
-      allocations: [],
-      transfers: [],
-      corrections: [],
-      budgets: [],
-    });
-    const elapsed = performance.now() - started;
+    const summarizeJune = () =>
+      summarizeMonth("2026-06", "2026-11", {
+        accounts,
+        transactions,
+        allocations: [],
+        transfers: [],
+        corrections: [],
+        budgets: [],
+      });
 
-    expect(categoryMonth(view, groceriesId).spent).not.toBe(0);
-    expect(elapsed).toBeLessThan(50);
+    expect(categoryMonth(summarizeJune(), groceriesId).spent).not.toBe(0);
+    expect(medianMs(summarizeJune)).toBeLessThan(50);
   });
 });

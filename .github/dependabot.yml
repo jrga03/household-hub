@@ -13,6 +13,10 @@ updates:
         update-types: [major, minor, patch]
       minor-and-patch:
         update-types: [minor, patch]
+      # One PR per week for majors, so CI runs once (parallel e2e jobs hit
+      # Docker Hub's pull rate limit) and the bumps are tested together.
+      majors:
+        update-types: [major]
   - package-ecosystem: github-actions
     directory: /
     schedule:
