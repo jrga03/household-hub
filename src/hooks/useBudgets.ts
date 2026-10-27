@@ -28,17 +28,18 @@ export function useLedgerRecord(opened: LedgerRecordId | null) {
 }
 
 /**
- * The lines Distribute money opens with, tagged with the source and month they
- * were read for; undefined while loading. After the deps change, the previous
- * result stays until the new read resolves, so compare the tags.
+ * The lines Distribute money opens with; undefined while loading. A changed
+ * source, month or mode reads as loading: useLiveQuery keeps the previous
+ * result until the new read resolves, and those lines belong to the old source.
  */
 export function useDistributeLines(sourceAccountId: string, month: string, mode: DistributeMode) {
-  return useLiveQuery(
+  const key = `${sourceAccountId}:${month}:${mode}`;
+  const read = useLiveQuery(
     async () => ({
-      sourceAccountId,
-      month,
+      key,
       lines: await readDistributeLines(sourceAccountId, month, mode),
     }),
     [sourceAccountId, month, mode]
   );
+  return read?.key === key ? read.lines : undefined;
 }

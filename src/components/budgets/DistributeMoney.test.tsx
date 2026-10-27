@@ -70,6 +70,18 @@ function expectNothingToDistribute() {
   expect(screen.queryByText(/Add a category below/)).not.toBeInTheDocument();
 }
 
+const secondHouseholdAccount = () =>
+  createAccount(MEMBER, { name: "BDO", type: "bank", startingBalanceCents: parsePHP("20000") });
+
+async function chooseFrom(name: string) {
+  fireEvent.keyDown(screen.getByLabelText("From"), { key: "Enter" });
+  fireEvent.keyDown(await screen.findByRole("option", { name }), { key: "Enter" });
+}
+
+async function expectLineGoesTo(name: string) {
+  await waitFor(() => expect(screen.getByLabelText("Groceries goes to")).toHaveTextContent(name));
+}
+
 beforeEach(async () => {
   vi.mocked(distributeMoney).mockReset();
   await resetLocalDatabase();
@@ -163,9 +175,7 @@ describe("DistributeMoney", () => {
 
     await chooseFrom("BDO");
 
-    await waitFor(() =>
-      expect(screen.getByLabelText("Groceries goes to")).toHaveTextContent("BDO")
-    );
+    await expectLineGoesTo("BDO");
   });
 
   it("keeps a line in the new From account in income mode when its funding account is retired", async () => {
@@ -189,9 +199,7 @@ describe("DistributeMoney", () => {
 
     await chooseFrom("BDO");
 
-    await waitFor(() =>
-      expect(screen.getByLabelText("Groceries goes to")).toHaveTextContent("BDO")
-    );
+    await expectLineGoesTo("BDO");
   });
 
   it("distributes from the new From account to it, never the old one", async () => {
@@ -202,9 +210,7 @@ describe("DistributeMoney", () => {
     await screen.findByLabelText("Groceries goes to");
 
     await chooseFrom("BDO");
-    await waitFor(() =>
-      expect(screen.getByLabelText("Groceries goes to")).toHaveTextContent("BDO")
-    );
+    await expectLineGoesTo("BDO");
     fireEvent.change(screen.getByLabelText("Groceries"), { target: { value: "500" } });
     fireEvent.click(screen.getByRole("button", { name: "Distribute" }));
 
@@ -232,11 +238,3 @@ describe("DistributeMoney", () => {
     expect(screen.getByLabelText("Groceries")).toHaveValue("500.00");
   });
 });
-
-const secondHouseholdAccount = () =>
-  createAccount(MEMBER, { name: "BDO", type: "bank", startingBalanceCents: parsePHP("20000") });
-
-async function chooseFrom(name: string) {
-  fireEvent.keyDown(screen.getByLabelText("From"), { key: "Enter" });
-  fireEvent.keyDown(await screen.findByRole("option", { name }), { key: "Enter" });
-}
