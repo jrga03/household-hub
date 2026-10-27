@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { db } from "@/lib/dexie/db";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { listUnpushed, receiveEvents } from "@/lib/events/log";
 import { readCategoryList } from "@/lib/categories/projection";
+import { defaultCategoryId } from "@/lib/categories/defaults";
 import { UNASSIGNED_ENVELOPE } from "@/lib/allocations/events";
 import { parsePHP } from "@/lib/currency";
 import { readAccountMoney, sumCategoryMoney } from "@/lib/transactions/money";
@@ -83,6 +85,22 @@ describe("seedDefaultCategories", () => {
     await seedDefaultCategories(MEMBER);
 
     expect(await listUnpushed(100)).toHaveLength(15);
+  });
+
+  it("keeps none of the defaults when one fails to append", async () => {
+    const transportationId = await defaultCategoryId(MEMBER.householdId, "Transportation");
+    const failTransportation = (_key: unknown, event: { entityId: string }) => {
+      if (event.entityId === transportationId) throw new Error("Storage failed.");
+    };
+    db.events.hook("creating", failTransportation);
+    try {
+      await expect(seedDefaultCategories(MEMBER)).rejects.toThrow("Storage failed.");
+    } finally {
+      db.events.hook("creating").unsubscribe(failTransportation);
+    }
+
+    expect(await listUnpushed(100)).toEqual([]);
+    expect((await readCategoryList()).groups).toEqual([]);
   });
 });
 

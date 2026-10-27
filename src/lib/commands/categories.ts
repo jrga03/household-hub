@@ -21,7 +21,7 @@ import {
   GROUP_UNRETIRED,
   GROUP_VERSIONS,
 } from "@/lib/categories/events";
-import { DEFAULT_GROUPS, defaultCategoryId, defaultGroupId } from "@/lib/categories/defaults";
+import { deriveDefaultGroups } from "@/lib/categories/defaults";
 import {
   canHold,
   getCategory,
@@ -41,27 +41,31 @@ const appendGroupEvent = appenderFor(GROUP_ENTITY, GROUP_VERSIONS);
 const appendCategoryEvent = appenderFor(CATEGORY_ENTITY, CATEGORY_VERSIONS);
 
 /**
- * Adds the suggested Household groups and categories. Their IDs come from the
- * household, so a second member seeding offline makes the same records and the
- * projection keeps one of each. Defaults this device already holds are skipped.
+ * Adds the suggested Household groups and categories as one change. Their IDs
+ * come from the household, so a second member seeding offline makes the same
+ * records and the projection keeps one of each. Defaults this device already
+ * holds are skipped.
  */
 export async function seedDefaultCategories(actor: Actor): Promise<void> {
-  for (const group of DEFAULT_GROUPS) {
-    const groupId = await defaultGroupId(actor.householdId, group.key);
-    if (!(await getGroup(groupId))) {
-      await appendGroupEvent(actor, { ...HOUSEHOLD, id: groupId }, GROUP_CREATED, {
-        name: group.name,
-      });
+  // Derived first: uuidV5 awaits crypto.subtle, which would commit the transaction early.
+  const groups = await deriveDefaultGroups(actor.householdId);
+
+  await appendTogether(async () => {
+    for (const group of groups) {
+      if (!(await getGroup(group.id))) {
+        await appendGroupEvent(actor, { ...HOUSEHOLD, id: group.id }, GROUP_CREATED, {
+          name: group.name,
+        });
+      }
+      for (const category of group.categories) {
+        if (await getCategory(category.id)) continue;
+        await appendCategoryEvent(actor, { ...HOUSEHOLD, id: category.id }, CATEGORY_CREATED, {
+          name: category.name,
+          groupId: group.id,
+        });
+      }
     }
-    for (const name of group.categories) {
-      const categoryId = await defaultCategoryId(actor.householdId, name);
-      if (await getCategory(categoryId)) continue;
-      await appendCategoryEvent(actor, { ...HOUSEHOLD, id: categoryId }, CATEGORY_CREATED, {
-        name,
-        groupId,
-      });
-    }
-  }
+  });
   requestSync();
 }
 
