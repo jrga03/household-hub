@@ -10,6 +10,7 @@ import {
   transferDirection,
 } from "./filter";
 import type { TransactionRow } from "./projection";
+import { medianMs } from "@/test/timing";
 
 let nextId = 0;
 
@@ -322,13 +323,14 @@ describe("a 10,000-transaction list", () => {
       })
     );
 
-    const started = performance.now();
-    const found = filterTransactions(many, { month: "2026-10", query: "ana" });
-    totalTransactions(found);
-    const elapsed = performance.now() - started;
+    const searchAndTotal = () => {
+      const found = filterTransactions(many, { month: "2026-10", query: "ana" });
+      totalTransactions(found);
+      return found;
+    };
 
-    expect(found).toHaveLength(2000);
-    expect(elapsed).toBeLessThan(50);
+    expect(searchAndTotal()).toHaveLength(2000);
+    expect(medianMs(searchAndTotal)).toBeLessThan(50);
   });
 });
 
