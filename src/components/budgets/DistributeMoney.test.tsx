@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -8,12 +8,16 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
-import { createAccount } from "@/lib/commands/accounts";
+import { createAccount, retireAccount } from "@/lib/commands/accounts";
+import { setBudget } from "@/lib/commands/budgets";
 import { createCategory, createGroup } from "@/lib/commands/categories";
 import type { DistributeMode } from "@/lib/budgets/distribute";
+import { distributeMoney } from "@/lib/commands/distribute";
 import { parsePHP } from "@/lib/currency";
 import { DistributeMoney } from "./DistributeMoney";
 import { HOUSEHOLD } from "@/test/events";
+
+vi.mock("@/lib/commands/distribute", () => ({ distributeMoney: vi.fn() }));
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
@@ -66,7 +70,20 @@ function expectNothingToDistribute() {
   expect(screen.queryByText(/Add a category below/)).not.toBeInTheDocument();
 }
 
+const secondHouseholdAccount = () =>
+  createAccount(MEMBER, { name: "BDO", type: "bank", startingBalanceCents: parsePHP("20000") });
+
+async function chooseFrom(name: string) {
+  fireEvent.keyDown(screen.getByLabelText("From"), { key: "Enter" });
+  fireEvent.keyDown(await screen.findByRole("option", { name }), { key: "Enter" });
+}
+
+async function expectLineGoesTo(name: string) {
+  await waitFor(() => expect(screen.getByLabelText("Groceries goes to")).toHaveTextContent(name));
+}
+
 beforeEach(async () => {
+  vi.mocked(distributeMoney).mockReset();
   await resetLocalDatabase();
 });
 
@@ -147,5 +164,77 @@ describe("DistributeMoney", () => {
     expect(await screen.findByText(/GCash has no categories yet/)).toHaveTextContent(
       "Add a personal category on Categories."
     );
+  });
+
+  it("moves the lines to the new From account in opening mode", async () => {
+    await householdCategory("Groceries");
+    const bpi = await householdAccount();
+    await secondHouseholdAccount();
+    renderDistribute("opening", bpi.id);
+    expect(await screen.findByLabelText("Groceries goes to")).toHaveTextContent("BPI");
+
+    await chooseFrom("BDO");
+
+    await expectLineGoesTo("BDO");
+  });
+
+  it("keeps a line in the new From account in income mode when its funding account is retired", async () => {
+    const groceries = await householdCategory("Groceries");
+    const bpi = await householdAccount();
+    await secondHouseholdAccount();
+    const cash = await createAccount(MEMBER, {
+      name: "Cash",
+      type: "cash",
+      startingBalanceCents: parsePHP("0"),
+    });
+    await setBudget(MEMBER, {
+      categoryId: groceries.id,
+      fromMonth: "2026-10",
+      amountCents: parsePHP("3000"),
+      accountId: cash.id,
+    });
+    await retireAccount(MEMBER, cash.id);
+    renderDistribute("income", bpi.id);
+    expect(await screen.findByLabelText("Groceries goes to")).toHaveTextContent("BPI");
+
+    await chooseFrom("BDO");
+
+    await expectLineGoesTo("BDO");
+  });
+
+  it("distributes from the new From account to it, never the old one", async () => {
+    const groceries = await householdCategory("Groceries");
+    const bpi = await householdAccount();
+    const bdo = await secondHouseholdAccount();
+    renderDistribute("opening", bpi.id);
+    await screen.findByLabelText("Groceries goes to");
+
+    await chooseFrom("BDO");
+    await expectLineGoesTo("BDO");
+    fireEvent.change(screen.getByLabelText("Groceries"), { target: { value: "500" } });
+    fireEvent.click(screen.getByRole("button", { name: "Distribute" }));
+
+    await waitFor(() =>
+      expect(distributeMoney).toHaveBeenCalledWith(MEMBER, {
+        sourceAccountId: bdo.id,
+        date: "2026-10-13",
+        lines: [{ categoryId: groceries.id, accountId: bdo.id, amountCents: parsePHP("500") }],
+      })
+    );
+  });
+
+  it("keeps line edits when the date stays in the month or the income changes", async () => {
+    await householdCategory("Groceries");
+    const bpi = await householdAccount();
+    renderDistribute("income", bpi.id);
+    await screen.findByLabelText("Add a category");
+    fireEvent.keyDown(screen.getByLabelText("Add a category"), { key: "Enter" });
+    fireEvent.keyDown(await screen.findByRole("option", { name: "Groceries" }), { key: "Enter" });
+    fireEvent.change(await screen.findByLabelText("Groceries"), { target: { value: "500" } });
+
+    fireEvent.change(screen.getByLabelText("Date"), { target: { value: "2026-10-20" } });
+    fireEvent.change(screen.getByLabelText("Income (₱)"), { target: { value: "9000" } });
+
+    expect(screen.getByLabelText("Groceries")).toHaveValue("500.00");
   });
 });

@@ -27,10 +27,19 @@ export function useLedgerRecord(opened: LedgerRecordId | null) {
   );
 }
 
-/** The lines Distribute money opens with; undefined while loading. */
+/**
+ * The lines Distribute money opens with; undefined while loading. A changed
+ * source, month or mode reads as loading: useLiveQuery keeps the previous
+ * result until the new read resolves, and those lines belong to the old source.
+ */
 export function useDistributeLines(sourceAccountId: string, month: string, mode: DistributeMode) {
-  return useLiveQuery(
-    () => readDistributeLines(sourceAccountId, month, mode),
+  const key = `${sourceAccountId}:${month}:${mode}`;
+  const read = useLiveQuery(
+    async () => ({
+      key,
+      lines: await readDistributeLines(sourceAccountId, month, mode),
+    }),
     [sourceAccountId, month, mode]
   );
+  return read?.key === key ? read.lines : undefined;
 }
