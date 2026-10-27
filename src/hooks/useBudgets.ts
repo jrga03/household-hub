@@ -27,10 +27,18 @@ export function useLedgerRecord(opened: LedgerRecordId | null) {
   );
 }
 
-/** The lines Distribute money opens with; undefined while loading. */
+/**
+ * The lines Distribute money opens with, tagged with the source and month they
+ * were read for; undefined while loading. After the deps change, the previous
+ * result stays until the new read resolves, so compare the tags.
+ */
 export function useDistributeLines(sourceAccountId: string, month: string, mode: DistributeMode) {
   return useLiveQuery(
-    () => readDistributeLines(sourceAccountId, month, mode),
+    async () => ({
+      sourceAccountId,
+      month,
+      lines: await readDistributeLines(sourceAccountId, month, mode),
+    }),
     [sourceAccountId, month, mode]
   );
 }

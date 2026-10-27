@@ -109,7 +109,8 @@ function DistributeForm({
   });
   const source = sources.find((account) => account.id === sourceId);
   const month = isLocalDate(date) ? monthOfDate(date) : localMonth(new Date());
-  const lines = useDistributeLines(sourceId, month, mode);
+  const read = useDistributeLines(sourceId, month, mode);
+  const lines = read?.sourceAccountId === sourceId && read.month === month ? read : undefined;
   const holdsCategories = source !== undefined && categoriesHeldBy(categories, source).length > 0;
 
   const unassigned = unassignedIn(sourceId);
@@ -170,11 +171,11 @@ function DistributeForm({
       {source && lines && holdsCategories && (
         // Edits reset only when the source or month changes the lines themselves.
         <LinesForm
-          key={`${source.id}:${month}`}
+          key={`${lines.sourceAccountId}:${lines.month}`}
           actor={actor}
           source={source}
           date={date}
-          initialLines={lines}
+          initialLines={lines.lines}
           accounts={accounts}
           categories={categories}
           available={available}
