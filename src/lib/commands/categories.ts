@@ -21,7 +21,7 @@ import {
   GROUP_UNRETIRED,
   GROUP_VERSIONS,
 } from "@/lib/categories/events";
-import { DEFAULT_GROUPS, defaultCategoryId, defaultGroupId } from "@/lib/categories/defaults";
+import { deriveDefaultGroups } from "@/lib/categories/defaults";
 import {
   canHold,
   getCategory,
@@ -47,19 +47,8 @@ const appendCategoryEvent = appenderFor(CATEGORY_ENTITY, CATEGORY_VERSIONS);
  * holds are skipped.
  */
 export async function seedDefaultCategories(actor: Actor): Promise<void> {
-  // uuidV5 awaits crypto.subtle, which would commit a Dexie transaction early.
-  const groups = await Promise.all(
-    DEFAULT_GROUPS.map(async (group) => ({
-      id: await defaultGroupId(actor.householdId, group.key),
-      name: group.name,
-      categories: await Promise.all(
-        group.categories.map(async (name) => ({
-          id: await defaultCategoryId(actor.householdId, name),
-          name,
-        }))
-      ),
-    }))
-  );
+  // Derived first: uuidV5 awaits crypto.subtle, which would commit the transaction early.
+  const groups = await deriveDefaultGroups(actor.householdId);
 
   await appendTogether(async () => {
     for (const group of groups) {
