@@ -22,6 +22,7 @@ import { Route as ReviewRouteImport } from './routes/review'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as TransactionsRouteImport } from './routes/transactions'
+import { Route as PrototypeReportsRouteImport } from './routes/prototype.reports'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -88,6 +89,11 @@ const TransactionsRoute = TransactionsRouteImport.update({
   path: '/transactions',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrototypeReportsRoute = PrototypeReportsRouteImport.update({
+  id: '/prototype/reports',
+  path: '/prototype/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -103,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/transactions': typeof TransactionsRoute
+  '/prototype/reports': typeof PrototypeReportsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/transactions': typeof TransactionsRoute
+  '/prototype/reports': typeof PrototypeReportsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -134,6 +142,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/transactions': typeof TransactionsRoute
+  '/prototype/reports': typeof PrototypeReportsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -151,6 +160,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/signup'
     | '/transactions'
+    | '/prototype/reports'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/signup'
     | '/transactions'
+    | '/prototype/reports'
   id:
     | '__root__'
     | '/'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/signup'
     | '/transactions'
+    | '/prototype/reports'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -197,6 +209,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
   TransactionsRoute: typeof TransactionsRoute
+  PrototypeReportsRoute: typeof PrototypeReportsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -292,6 +305,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TransactionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/prototype/reports': {
+      id: '/prototype/reports'
+      path: '/prototype/reports'
+      fullPath: '/prototype/reports'
+      preLoaderRoute: typeof PrototypeReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -309,6 +329,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,
   TransactionsRoute: TransactionsRoute,
+  PrototypeReportsRoute: PrototypeReportsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
