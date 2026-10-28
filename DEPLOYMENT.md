@@ -6,7 +6,7 @@ How Household Hub reaches production, and how to roll it back.
 
 Everything runs on free tiers.
 
-- **App**: Cloudflare Pages serves the static build in `dist/` and auto-deploys every push to `main`. `public/_headers` sets the security headers and the CSP.
+- **App**: the `household-hub` Worker serves the static build in `dist/` as Workers static assets (root `wrangler.jsonc`, single-page-app fallback). Workers Builds builds and deploys every push to `main`. `public/_headers` sets the security headers and the CSP.
 - **Database and auth**: Supabase Free. It pauses an idle project, so the [Keep-alive Worker](#keep-alive-worker) queries it every 3 days.
 - **Assistant**: a Cloudflare Worker in front of Workers AI, with Groq as the fallback. See [Assistant Worker](#assistant-worker).
 - **Error tracking**: Sentry, only when `VITE_SENTRY_DSN` is set. See [Monitoring](#monitoring).
@@ -17,7 +17,7 @@ The production URLs are not recorded here. Find them in the Cloudflare dashboard
 
 ## Environment Variables
 
-Set these in the Pages project's **Settings → Variables and Secrets**. Every `VITE_*` value ends up in the public bundle, so never put a secret here.
+Set these as build variables in the `household-hub` Worker's **Settings → Build → Variables and secrets**. Vite reads them at build time, so a runtime variable has no effect. Every `VITE_*` value ends up in the public bundle, so never put a secret here.
 
 ### Required Variables
 
@@ -55,14 +55,14 @@ The `database` and `e2e-smoke` jobs run against a local Supabase stack and need 
 ### The App
 
 1. Merge a PR into `main`. The `main` ruleset requires a PR and the `lint`, `typecheck`, `unit-tests` and `knip` checks.
-2. Cloudflare Pages sees the push and builds on its own. It does not wait for GitHub Actions.
-3. The new version is live when the Pages build finishes. Open clients see the update prompt within 15 minutes (`src/hooks/useServiceWorker.ts`).
+2. Workers Builds sees the push, runs the build and deploys the Worker on its own. It does not wait for GitHub Actions.
+3. The new version is live when the build finishes. Open clients see the update prompt within 15 minutes (`src/hooks/useServiceWorker.ts`).
 
-To redeploy without a code change, retry the latest deployment in the Pages dashboard (**Deployments**). Do not push an empty commit; `main` takes changes only through PRs.
+To redeploy without a code change, retry the latest build in the Worker's **Deployments** tab. Do not push an empty commit; `main` takes changes only through PRs.
 
 ### Database Migrations
 
-Pages does not apply migrations. A migration ships in its own PR with the regenerated `src/types/database.types.ts` (`npm run gen:types`; CI's `database` job fails on drift). The maintainer applies it to production by hand with `supabase db push` after the PR merges and before the app that needs it goes live. Agents never touch the linked project (`scripts/agent-bash-guard.mjs` blocks it).
+Workers Builds does not apply migrations. A migration ships in its own PR with the regenerated `src/types/database.types.ts` (`npm run gen:types`; CI's `database` job fails on drift). The maintainer applies it to production by hand with `supabase db push` after the PR merges and before the app that needs it goes live. Agents never touch the linked project (`scripts/agent-bash-guard.mjs` blocks it).
 
 ### Preview Deployments
 
@@ -118,14 +118,14 @@ The Wrangler log prints `Supabase keep-alive succeeded`. A failed query logs `Su
 
 ### Settings
 
-| Setting           | Kind    | Value                                                                     |
-| ----------------- | ------- | ------------------------------------------------------------------------- |
-| `AI`              | Binding | Workers AI, declared in `wrangler.jsonc`                                  |
-| `SUPABASE_URL`    | Secret  | Production Supabase project URL, no trailing slash                        |
-| `ALLOWED_ORIGINS` | Secret  | Comma-separated app origins, e.g. the Pages URL and any custom domain     |
-| `GROQ_API_KEY`    | Secret  | Groq API key for the fallback, from an organisation with ZDR on. Optional |
+| Setting           | Kind    | Value                                                                        |
+| ----------------- | ------- | ---------------------------------------------------------------------------- |
+| `AI`              | Binding | Workers AI, declared in `wrangler.jsonc`                                     |
+| `SUPABASE_URL`    | Secret  | Production Supabase project URL, no trailing slash                           |
+| `ALLOWED_ORIGINS` | Secret  | Comma-separated app origins, e.g. the app Worker's URL and any custom domain |
+| `GROQ_API_KEY`    | Secret  | Groq API key for the fallback, from an organisation with ZDR on. Optional    |
 
-Set the secrets in the assistant Worker's **Settings → Variables and Secrets** (not the Pages project, whose `VITE_*` variables end up in the public bundle, and not GitHub) as type **Secret**: a plain variable set in the dashboard is replaced by the next deploy, a secret is kept.
+Set the secrets in the assistant Worker's **Settings → Variables and Secrets** (not the app Worker, whose `VITE_*` build variables end up in the public bundle, and not GitHub) as type **Secret**: a plain variable set in the dashboard is replaced by the next deploy, a secret is kept.
 
 ### Deploy
 
@@ -175,15 +175,19 @@ The reply streams `data:` chunks carrying `delta.tool_calls` and ends with `data
 
 ## Build Configuration
 
-### Cloudflare Pages Settings
+### Workers Builds Settings
 
-| Setting                | Value                     |
-| ---------------------- | ------------------------- |
-| Build command          | `npm run build`           |
-| Build output directory | `dist`                    |
-| Root directory         | `/` (project root)        |
-| Node version           | `26` (read from `.nvmrc`) |
-| Install command        | `npm ci` (auto-detected)  |
+The `household-hub` Worker is connected to this repository with Workers Builds. Check its **Settings → Build** against this table:
+
+| Setting        | Value                                                  |
+| -------------- | ------------------------------------------------------ |
+| Project name   | `household-hub` (must match the root `wrangler.jsonc`) |
+| Root directory | `/` (project root)                                     |
+| Build command  | `npm run build`                                        |
+| Deploy command | `npx wrangler deploy`                                  |
+| Node version   | `26` (read from `.nvmrc`)                              |
+
+`wrangler.jsonc` points the static assets at `./dist`, so the Worker has no script of its own. The keep-alive and assistant Workers have their own `wrangler.jsonc` under `workers/`.
 
 `npm run build` runs `tsc -b`, then `vite build`. Vite writes the code-split route chunks to `dist/assets/`, the service worker (`sw.js`, built from `src/sw.ts`), `manifest.webmanifest`, `offline.html` and `_headers`.
 
@@ -221,8 +225,8 @@ Roll back for a critical bug, a security problem or a risk to data.
 
 ### The App
 
-1. In the Pages project, open **Deployments**.
-2. Find the last good deployment, open its menu and choose **Rollback to this deployment**.
+1. In the `household-hub` Worker, open **Deployments**.
+2. Find the last good version and roll back to it.
 3. Check the site: sign in, add a transaction, open Accounts.
 4. Fix forward with a PR. A `git revert` in a PR deploys like any other merge. Never force-push `main`.
 
@@ -244,7 +248,7 @@ Each Worker keeps its versions. In the Worker's **Deployments** tab, roll back t
 
 - [ ] CI is green: lint, knip, typecheck, unit-tests, build and size, database, e2e-smoke
 - [ ] A migration, if any, is applied to production first (see [Database Migrations](#database-migrations))
-- [ ] New environment variables are set in the Pages project
+- [ ] New `VITE_*` build variables are set on the `household-hub` Worker
 - [ ] A change that needs a Worker change deploys the Worker first
 
 ### After Deploying
@@ -258,8 +262,8 @@ Each Worker keeps its versions. In the Worker's **Deployments** tab, roll back t
 
 ## Troubleshooting
 
-- **The Pages build fails**: read the build log in the dashboard. Common causes are a missing `VITE_*` variable, a type error, or a Node version mismatch. Reproduce with `npm ci && npm run build`.
-- **Blank page**: check the browser console, then the `VITE_SUPABASE_*` variables in the Pages project.
+- **The Workers build fails**: read the build log in the dashboard. Common causes are a missing `VITE_*` variable, a type error, or a Node version mismatch. Reproduce with `npm ci && npm run build`.
+- **Blank page**: check the browser console, then the `VITE_SUPABASE_*` build variables on the `household-hub` Worker.
 - **Sync stops for everyone**: check the Supabase dashboard. A paused project refuses every request; restore it, then check the [Keep-alive Worker](#keep-alive-worker)'s last runs.
 - **The Assistant answers 401 or 403**: check `SUPABASE_URL` and `ALLOWED_ORIGINS` on the Assistant Worker.
 
