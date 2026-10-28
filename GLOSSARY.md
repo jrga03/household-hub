@@ -88,6 +88,14 @@ _Avoid_: Budgeting, assignment, reallocation
 A monthly target amount for a category, compared against what was spent that month, naming its funding account. Set from a month, it stands until a later month replaces it, so a category keeps a budget history. It never goes down as money is spent; the category's money does.
 _Avoid_: Envelope, allocation, pot
 
+**Spending**:
+What a category's expenses came to over a period, less the income recorded in it (refunds, cashback). A card purchase is spending on its own date; paying the card is a transfer and never spending.
+_Avoid_: Outflow, expenses (when refunds are netted)
+
+**Reports**:
+The screen for understanding patterns over time: spending by group and category, months compared, trends, and each figure opening the transactions behind it. Transfers never appear in it.
+_Avoid_: Analytics, insights, dashboard (that is Home's Finances section)
+
 **Ledger**:
 A category's month record by record: every transaction, transfer and allocation touching it, in date order, with a running balance from its money at the start of the month to its money at the end, and its budget history beneath.
 _Avoid_: Statement, history
