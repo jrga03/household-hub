@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Household Hub: an offline-first, event-sourced PWA for household finances (PHP only). React 19 + TypeScript, TanStack Router/Query (Table installed, not yet used), Zustand, shadcn/ui + Tailwind v4, Dexie (IndexedDB), Supabase. Node 26 (`.nvmrc`).
+Household Hub: an offline-first, event-sourced PWA for household finances (PHP only). React 19 + TypeScript, TanStack Router/Query (Table installed, not yet used), Zustand, shadcn/ui + Tailwind v4, Dexie (IndexedDB), Supabase. Node 26.12.1 (`.nvmrc`).
 
 ## Commands
 
