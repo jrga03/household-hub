@@ -1,7 +1,7 @@
 /* global Dexie, performance, console -- page and Node globals in a throwaway benchmark */
 // Throwaway benchmark for research ticket #269: the same Reports Year read in
 // headless Chromium, on real IndexedDB through Dexie, at 1x, 4x and 6x CPU
-// throttling. Run from the repo root: node docs/research/reports-compute-browser-bench.mjs
+// throttling. Run from the repo root: node scripts/reports-compute-bench.mjs
 import { chromium } from "@playwright/test";
 import { createRequire } from "node:module";
 
