@@ -50,7 +50,7 @@ Offline-first PWA for household financial management, built with privacy and res
 
 ### Prerequisites
 
-- Node.js 20+ (see `.nvmrc`)
+- Node.js 26.12.1 (see `.nvmrc`)
 - npm/pnpm
 
 ### Installation

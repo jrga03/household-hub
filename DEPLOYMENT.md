@@ -185,7 +185,7 @@ The `household-hub` Worker is connected to this repository with Workers Builds. 
 | Root directory | `/` (project root)                                     |
 | Build command  | `npm run build`                                        |
 | Deploy command | `npx wrangler deploy`                                  |
-| Node version   | `26` (read from `.nvmrc`)                              |
+| Node version   | `26.12.1` (read from `.nvmrc`)                         |
 
 `wrangler.jsonc` points the static assets at `./dist`, so the Worker has no script of its own. The keep-alive and assistant Workers have their own `wrangler.jsonc` under `workers/`.
 
