@@ -7,7 +7,7 @@ import { VitePWA } from "vite-plugin-pwa";
 import path from "path";
 
 /**
- * Cloudflare Pages serves public/_headers as is, so the assistant Worker's origin
+ * Workers static assets serve public/_headers as is, so the assistant Worker's origin
  * is added to the built copy's connect-src from VITE_ASSISTANT_URL, the variable
  * that turns the assistant on. Unset, the CSP stays as written.
  */

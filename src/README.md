@@ -152,9 +152,9 @@ The following files are **auto-generated** and should not be edited manually:
 ### Adding a New Page/Route
 
 1. Create file in `routes/` (e.g., `reports.tsx`)
-2. TanStack Router auto-generates route in `routeTree.gen.ts`
-3. Add navigation link in `components/layout/AppSidebar.tsx`
-4. See [routes/README.md](./routes/) for routing conventions
+2. Run `npx vite build` so the router plugin regenerates `routeTree.gen.ts`; `tsc -b` fails until it does
+3. Wrap the page in `<PageShell variant="…">` (`components/layout/PageShell.tsx`, see `DESIGN.md`)
+4. Add a navigation entry in `components/layout/nav.ts`
 
 ### Creating a New Component
 
@@ -242,7 +242,6 @@ npm run format             # Format with Prettier
 - [components/README.md](./components/) - UI component organization
 - [hooks/README.md](./hooks/) - Custom hooks guide
 - [lib/README.md](./lib/) - Business logic and utilities
-- [routes/README.md](./routes/) - Routing guide
 - [stores/README.md](./stores/) - State management
 - [types/README.md](./types/) - Type definitions
 
