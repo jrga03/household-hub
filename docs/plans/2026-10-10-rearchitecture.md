@@ -155,10 +155,10 @@ Fix commits cluster in `src/lib/{sync,offline,debts}`.
 
 ## Go-live
 
-Started: when the starting balances are confirmed (pending). Anything that sends us back to the spreadsheet becomes a `needs-triage` issue right away, listed here. Five or more open ones trigger M5 planning (see Decisions & Deferrals).
+Started: 2026-10-29 (#258). Anything that sends us back to the spreadsheet becomes a `needs-triage` issue right away, listed here, and the M5 map (#256) triages it.
 
-- [ ] Confirm today's balance for every account and enter it as the starting balance
-- [ ] Finish the opening checklist (distribute, budgets)
+- [x] Confirm today's balance for every account and enter it as the starting balance
+- [x] Finish the opening checklist (distribute, budgets)
 
 Friction issues: none yet.
 
@@ -869,7 +869,7 @@ Seams (from the issue's acceptance criteria): server contract (pgTAP), account p
 - Milestone 4 scoped 2026-10-13: spec #95, sub-issues #96-#99 (`ready-for-agent`, native blocked-by edges), ADR 0008, glossary Import and Import Key.
 - Next: build round 1 (#96, #97). Real statements for #97 and #98 come from the user during the build. Still owed: #40's dashboard checks (human).
 - Decided 2026-10-14: go live on a fresh start. #138 landed 2026-10-14 (PR #142). Building the assistant (#128): #129 landed 2026-10-15 (PR #143), #130 landed and deployed 2026-10-15 (PR #144), #132 landed 2026-10-16 (PR #146), #133 landed 2026-10-17 (PR #147). Live fixes: the Workers AI usage summary (PR #153), failed sends (PR #154). #131 (Groq fallback) landed 2026-10-17 (PR #157). #155 and #156 landed 2026-10-18 (PR #158), closing #128. Next: the maintainer's phone check on prod (reload restores a waiting card, tables scroll sideways, New chat), then the M5 planning session, which #128 closing triggers.
-- M5 charted 2026-10-28 as wayfinder map #256 (Reports). Tickets: chart approach #257 (closed: hand-written SVG/HTML, no library; findings on branch `research/reports-chart-approach`), go-live #258 (task, maintainer), chart color roles #261 (grilling), Reports prototype #259 (closed: variant B, list-detail with the drilldown in the pane), drilldown filters #260 (closed: `from`/`to` month range, `visibility` filter, net Spent in the summary). Next: work the map's frontier.
+- M5 charted 2026-10-28 as wayfinder map #256 (Reports). Tickets: chart approach #257 (closed: hand-written SVG/HTML, no library; findings on branch `research/reports-chart-approach`), go-live #258 (task, maintainer), chart color roles #261 (grilling), Reports prototype #259 (closed: variant B, list-detail with the drilldown in the pane), drilldown filters #260 (closed: `from`/`to` month range, `visibility` filter, net Spent in the summary). Go-live #258 closed 2026-10-29 with no friction issues. New tickets: Reports periods and month counts #268 (grilling), compute on read or monthly projection #269 (research). Next: work the map's frontier.
 - Gotchas found in #71 and #73:
   - `sumAccountMoney(accounts, transactions, allocations, transfers)` takes transfers as a required fourth argument; any month or ledger sum must pass the transfers dated in range.
   - List rows are `ListRow = TransactionRow | TransferRow` (`isTransfer`, `newestFirst`, `transferDirection` in `transactions/filter.ts`); `useTransactionListRows()` replaced `useTransactions()`.
