@@ -379,8 +379,8 @@ docs/
 
 ### Implementation Documentation
 
-- [/src/README.md](../src/README.md) - Source code overview
-- [/src/lib/README.md](../src/lib/README.md) - Core business logic
+- [/GLOSSARY.md](../GLOSSARY.md) - Domain terms
+- [/docs/adr/](adr/) - Architecture decision records
 - [/supabase/README.md](../supabase/README.md) - Backend infrastructure
 
 ### Configuration
