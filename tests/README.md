@@ -484,7 +484,7 @@ test("homepage is accessible", async ({ page }) => {
 ### Source Code
 
 - [/src/test/setup.ts](../src/test/setup.ts) - Vitest test setup
-- [/src/lib/](../src/lib/README.md) - Most unit tests are here
+- [/src/lib/](../src/lib/) - Most unit tests are here
 
 ### CI/CD
 

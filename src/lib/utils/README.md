@@ -11,5 +11,4 @@ Small helpers shared by lib modules that don't belong to one domain. General-pur
 
 ## Related Documentation
 
-- [../README.md](../README.md) - Core business logic overview
 - [/CLAUDE.md](../../../CLAUDE.md) - Project quick reference

@@ -632,9 +632,7 @@ WHERE account_id = 'xxx' AND date >= '2025-01-01';
 
 ### Frontend Integration
 
-- [/src/lib/README.md](../src/lib/README.md) - Frontend uses Supabase client
 - [/src/lib/supabase.ts](../src/lib/supabase.ts) - Supabase client initialization
-- [/src/lib/supabaseQueries.ts](../src/lib/supabaseQueries.ts) - All database queries
 
 ### Project Documentation
 

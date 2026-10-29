@@ -927,7 +927,6 @@ Update relevant documents:
 
 ### Implementation Documentation
 
-- [/src/README.md](../../src/README.md) - Source code overview
 - [/DESIGN.md](../../DESIGN.md) - UI rulebook: tokens, type, components
 - [/supabase/README.md](../../supabase/README.md) - Backend infrastructure
 
