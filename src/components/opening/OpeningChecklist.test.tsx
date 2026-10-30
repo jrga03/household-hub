@@ -23,7 +23,7 @@ function StepsLoaded() {
 
 function renderHome() {
   const rootRoute = createRootRoute();
-  const routes = ["/", "/plan", "/accounts"].map((path) =>
+  const routes = ["/", "/assign-money", "/set-budgets", "/accounts"].map((path) =>
     createRoute({
       getParentRoute: () => rootRoute,
       path,
@@ -71,7 +71,11 @@ describe("OpeningChecklist", () => {
     expect(within(steps[0]!).queryByRole("link")).toBeNull();
     expect(await screen.findByRole("link", { name: "Distribute" })).toHaveAttribute(
       "href",
-      `/plan?distribute=opening&account=${bpi.id}`
+      `/assign-money?distribute=opening&account=${bpi.id}`
+    );
+    expect(screen.getByRole("link", { name: "Set budgets" })).toHaveAttribute(
+      "href",
+      "/set-budgets"
     );
   });
 

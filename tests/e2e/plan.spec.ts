@@ -31,7 +31,7 @@ async function addAccount(page: Page, name: string) {
   await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
 }
 
-/** Types the amount into the category's Plan row; leaving the field saves it. */
+/** Types the amount into the category's Set budgets row; leaving the field saves it. */
 async function planAmount(page: Page, category: string, amount: string) {
   const field = page.getByRole("textbox", { name: category, exact: true });
   await field.fill(amount);
@@ -39,7 +39,7 @@ async function planAmount(page: Page, category: string, amount: string) {
   await expect(field).toHaveValue(new RegExp(`^${Number(amount).toLocaleString("en-US")}\\.00$`));
 }
 
-test("a payroll distribution from Plan leaves the source account's Unassigned at ₱0", async ({
+test("a payroll distribution from Assign money leaves the source account's Unassigned at ₱0", async ({
   page,
 }) => {
   await signUpNewPerson(page);
@@ -54,13 +54,12 @@ test("a payroll distribution from Plan leaves the source account's Unassigned at
   await expect(page.getByRole("list", { name: "Food categories" })).toContainText("Groceries");
 
   await page.goto("/budget");
-  await page.getByRole("link", { name: "Edit plan" }).click();
-  await expect(page).toHaveURL(/\/plan$/);
+  await page.getByRole("link", { name: "Set budgets" }).click();
+  await expect(page).toHaveURL(/\/set-budgets$/);
   await planAmount(page, "Groceries", "8000");
   await planAmount(page, "Utilities", "29000");
   // A funding account other than the first is chosen in the budget's details.
-  await page.getByRole("button", { name: "Transportation actions" }).click();
-  await page.getByRole("button", { name: "Budget details" }).click();
+  await page.getByRole("button", { name: "Transportation budget details" }).click();
   const details = page.getByRole("dialog", { name: "Budget for Transportation" });
   await details.getByLabel("Amount (₱)").fill("3000");
   await chooseOption(page, details.getByLabel("Funding account"), "GCash");
@@ -80,7 +79,7 @@ test("a payroll distribution from Plan leaves the source account's Unassigned at
   await expect(add).toBeHidden();
   await page.locator("[data-sonner-toast]").getByRole("button", { name: "Distribute" }).click();
 
-  await expect(page).toHaveURL(/\/plan\?distribute=income/);
+  await expect(page).toHaveURL(/\/assign-money\?distribute=income/);
   const form = page.getByRole("form", { name: "Distribute money" });
   await expect(page.getByLabel("Income (₱)")).toHaveValue("40,000.00");
   await expect(form.getByRole("textbox", { name: "Groceries" })).toHaveValue("8,000.00");
@@ -90,12 +89,12 @@ test("a payroll distribution from Plan leaves the source account's Unassigned at
   await form.getByRole("button", { name: "Distribute" }).click();
 
   await expect(form).toBeHidden();
-  await expect(page).toHaveURL(/\/plan$/);
-  await expect(page.getByRole("region", { name: "To assign" })).toContainText("₱0.00");
+  await expect(page).toHaveURL(/\/assign-money$/);
+  await expect(page.getByRole("region", { name: "Unassigned" })).toContainText("₱0.00");
   await page.getByRole("button", { name: "By account" }).click();
   await expect(unassignedItem(page, "BPI")).toContainText("₱0.00");
   await expect(unassignedItem(page, "GCash")).toContainText("₱0.00");
-  await page.screenshot({ path: test.info().outputPath("plan.png"), fullPage: true });
+  await page.screenshot({ path: test.info().outputPath("assign-money.png"), fullPage: true });
 
   await page.goto("/budget");
   await expect(budgetRow(page, "Transportation").getByTestId("left")).toContainText("₱3,000.00");
@@ -156,22 +155,28 @@ test("a payroll distribution from Plan leaves the source account's Unassigned at
 test.describe("on a phone", () => {
   test.use({ viewport: VIEWPORTS.compact });
 
-  test("Edit plan sits under the header and keeps the picked month", async ({ page }) => {
+  test("Set budgets and Assign money sit under the header and keep the picked month", async ({
+    page,
+  }) => {
     await login(page);
     await page.goto("/budget");
-    await expect(page.getByRole("banner").getByRole("link", { name: "Edit plan" })).toBeHidden();
+    await expect(page.getByRole("banner").getByRole("link", { name: "Set budgets" })).toBeHidden();
+    await expect(page.getByRole("banner").getByRole("link", { name: "Assign money" })).toBeHidden();
 
     await page.getByRole("button", { name: "Previous month" }).click();
     await expect(page.getByRole("button", { name: "Back to this month" })).toBeVisible();
     const month = new URL(page.url()).searchParams.get("month");
     expect(month).toMatch(/^\d{4}-\d{2}$/);
 
-    await page.getByRole("main").getByRole("link", { name: "Edit plan" }).click();
-    await expect(page).toHaveURL(new RegExp(`/plan\\?month=${month}$`));
+    await page.getByRole("main").getByRole("link", { name: "Set budgets" }).click();
+    await expect(page).toHaveURL(new RegExp(`/set-budgets\\?month=${month}$`));
+    await page.goBack();
+    await page.getByRole("main").getByRole("link", { name: "Assign money" }).click();
+    await expect(page).toHaveURL(new RegExp(`/assign-money\\?month=${month}$`));
   });
 });
 
-test("closing Distribute and then going back leaves Plan for Budget", async ({ page }) => {
+test("closing Distribute and then going back leaves Assign money for Budget", async ({ page }) => {
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Back home");
   await page.getByRole("button", { name: "Create household" }).click();
@@ -185,15 +190,21 @@ test("closing Distribute and then going back leaves Plan for Budget", async ({ p
   await expect(page.getByRole("list", { name: "Food categories" })).toContainText("Groceries");
 
   await navigateTo(page, "Budget");
-  await page.getByRole("link", { name: "Edit plan" }).click();
+  await page.getByRole("link", { name: "Assign money" }).click();
   const distribute = page.getByRole("dialog", { name: "Distribute money" });
 
-  // The browser's back closes the sheet and stays on Plan.
+  // The help explains the screen, by keyboard too.
+  await page.getByRole("button", { name: "About assigning money" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog")).toContainText("Unassigned is money in your accounts");
+  await page.keyboard.press("Escape");
+
+  // The browser's back closes the sheet and stays on Assign money.
   await page.getByRole("button", { name: "Distribute", exact: true }).click();
   await expect(distribute).toBeVisible();
   await page.goBack();
   await expect(distribute).toBeHidden();
-  await expect(page).toHaveURL(/\/plan$/);
+  await expect(page).toHaveURL(/\/assign-money$/);
 
   await page.getByRole("button", { name: "Distribute", exact: true }).click();
   await expect(distribute).toBeVisible();

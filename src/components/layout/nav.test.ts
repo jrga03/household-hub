@@ -10,7 +10,7 @@ describe("isNavItemActive", () => {
   });
 
   it("highlights the item a pushed screen declares as its parent", () => {
-    expect(isNavItemActive("/budget", "/plan", "/budget")).toBe(true);
-    expect(isNavItemActive("/review", "/plan", "/budget")).toBe(false);
+    expect(isNavItemActive("/budget", "/set-budgets", "/budget")).toBe(true);
+    expect(isNavItemActive("/review", "/set-budgets", "/budget")).toBe(false);
   });
 });

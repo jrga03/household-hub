@@ -109,16 +109,14 @@ function envelopeChoices(
   return groups.filter((group) => group.choices.length > 0);
 }
 
-/** Add when `allocation` is left out, into `toCategory` when given; edit otherwise. */
+/** Add when `allocation` is left out; edit otherwise. */
 export function MoveMoneyDialog({
   actor,
   allocation,
-  toCategory,
   onClose,
 }: {
   actor: Actor;
   allocation?: AllocationRow;
-  toCategory?: CategoryRow;
   onClose: () => void;
 }) {
   const accounts = useAccounts();
@@ -151,7 +149,6 @@ export function MoveMoneyDialog({
         <MoveMoneyForm
           actor={actor}
           allocation={allocation}
-          toCategory={toCategory}
           accounts={accountChoices}
           cards={cards}
           categories={categories}
@@ -188,7 +185,6 @@ function moneyLeft(
 function MoveMoneyForm({
   actor,
   allocation,
-  toCategory,
   accounts,
   cards,
   categories,
@@ -197,23 +193,15 @@ function MoveMoneyForm({
 }: {
   actor: Actor;
   allocation?: AllocationRow;
-  toCategory?: CategoryRow;
   accounts: AccountRow[];
   cards: AccountRow[];
   categories: CategoryList;
   money: Map<string, AccountMoney>;
   onClose: () => void;
 }) {
-  const holdsToCategory = (account: AccountRow) =>
-    toCategory !== undefined && canHoldMoneyIn(toCategory, account);
-  const [accountId, setAccountId] = useState(
-    allocation?.accountId ?? (accounts.find(holdsToCategory) ?? accounts[0])?.id ?? ""
-  );
+  const [accountId, setAccountId] = useState(allocation?.accountId ?? accounts[0]?.id ?? "");
   const [fromKey, setFromKey] = useState(allocation ? envelopeKey(allocation.from) : "unassigned");
-  const [toKey, setToKey] = useState(() => {
-    if (allocation) return envelopeKey(allocation.to);
-    return toCategory ? envelopeKey({ kind: "category", id: toCategory.id }) : UNCHOSEN;
-  });
+  const [toKey, setToKey] = useState(allocation ? envelopeKey(allocation.to) : UNCHOSEN);
   const [amount, setAmount] = useState<Cents | undefined>(allocation?.amountCents);
   const account = accounts.find((choice) => choice.id === accountId);
   const envelopes = money.get(accountId)?.envelopes;

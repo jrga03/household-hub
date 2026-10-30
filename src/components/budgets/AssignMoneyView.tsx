@@ -1,26 +1,19 @@
 import { useState } from "react";
-import { format } from "date-fns";
-import { ChevronDown, MoreHorizontal } from "lucide-react";
-import { Link } from "@tanstack/react-router";
-import { toast } from "sonner";
+import { ChevronDown, Info } from "lucide-react";
 import { PayCardDialog } from "@/components/accounts/PayCardDialog";
 import { AllocationList } from "@/components/allocations/AllocationList";
 import { categoryNames, namedAmounts } from "@/components/allocations/envelopes";
 import { NegativeNote, OVERDRAWN_UNASSIGNED } from "@/components/allocations/NegativeNote";
 import { MoveMoneyDialog } from "@/components/allocations/MoveMoneyDialog";
 import { Button } from "@/components/app/Button";
-import { CurrencyInput } from "@/components/app/CurrencyInput";
 import { EmptyState } from "@/components/app/EmptyState";
-import { advanceOnEnter, FormSheet } from "@/components/app/FormSheet";
+import { FormSheet } from "@/components/app/FormSheet";
 import { HeroFigure } from "@/components/app/HeroFigure";
 import { Money } from "@/components/app/Money";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/app/Popover";
-import { SectionHeader } from "@/components/app/SectionHeader";
 import { StatusBadge } from "@/components/app/StatusBadge";
-import { RecordName } from "@/components/categories/RecordName";
 import { PageShell } from "@/components/layout/PageShell";
 import { useAccountNames, useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
-import { useMonthView } from "@/hooks/useBudgets";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 import { useAccountMoney } from "@/hooks/useTransactions";
@@ -28,19 +21,12 @@ import { isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { AllocationRow } from "@/lib/allocations/projection";
 import type { DistributeMode } from "@/lib/budgets/distribute";
-import type { Budget } from "@/lib/budgets/inForce";
-import { categoryMonth, sumMonthFigures, type MonthView } from "@/lib/budgets/month";
-import { planChange } from "@/lib/budgets/plan";
-import { canFundBudget } from "@/lib/budgets/projection";
-import { categoriesInUse, type CategoryRow } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
-import { setBudget } from "@/lib/commands/budgets";
 import { sumCents, ZERO_CENTS } from "@/lib/currency";
 import type { AccountMoney } from "@/lib/transactions/money";
-import { cn, errorMessage } from "@/lib/utils";
-import { parseLocalDate, shiftMonth, todayLocalDate } from "@/lib/utils/dates";
+import { cn } from "@/lib/utils";
+import { todayLocalDate } from "@/lib/utils/dates";
 import { DistributeMoney } from "./DistributeMoney";
-import { SetBudgetDialog } from "./SetBudgetDialog";
 
 /** Opened from the route's search, so a payday toast or the checklist can link straight to it. */
 export interface DistributeRequest {
@@ -50,145 +36,42 @@ export interface DistributeRequest {
   date?: string;
 }
 
-/** Closed, adding an allocation (into a category when given), or editing one. */
-type Moving = { allocation?: AllocationRow; toCategory?: CategoryRow } | null;
-
-const shortMonth = (month: string) => format(parseLocalDate(`${month}-01`), "MMM");
-
-/**
- * Where the month's budgets are set and Unassigned money is given a job:
- * Distribute, Move money, and an amount per category. `month` is "yyyy-MM".
- */
-export function PlanView({
+/** Where Unassigned money is given a job, with Move money and Distribute. */
+export function AssignMoneyView({
   actor,
-  month,
-  currentMonth,
   distribute,
   onDistribute,
 }: {
   actor: Actor;
-  month: string;
-  currentMonth: string;
   distribute: DistributeRequest | null;
   onDistribute: (mode: DistributeMode | null) => void;
 }) {
   const list = useCategoryList();
-  const accounts = useAccounts();
   const accountNames = useAccountNames();
-  const thisMonth = useMonthView(month, currentMonth);
-  const lastMonth = useMonthView(shiftMonth(month, -1), currentMonth);
-  const [moving, setMoving] = useState<Moving>(null);
-  const [detailsId, setDetailsId] = useState<string | null>(null);
-  const inUse = list && categoriesInUse(list);
-  const details = inUse?.find((category) => category.id === detailsId);
-  useCloseWhenGone(detailsId, inUse && (details ?? null), () => setDetailsId(null));
+  const [moving, setMoving] = useState<AllocationRow | "new" | null>(null);
 
-  if (!list || !inUse || !accounts || !accountNames || !thisMonth || !lastMonth) return null;
-  const lastId = inUse.at(-1)?.id;
-
-  const rows = (categories: CategoryRow[]) =>
-    categories.length === 0 ? (
-      <li>
-        <EmptyState className="px-4 py-2">No categories in use.</EmptyState>
-      </li>
-    ) : (
-      categories.map((category) => (
-        <PlanRow
-          key={category.id}
-          actor={actor}
-          category={category}
-          month={month}
-          spent={{ last: lastMonth, this: thisMonth }}
-          budget={categoryMonth(thisMonth, category.id).budget}
-          fundingChoices={accounts.filter((account) => canFundBudget(account, category))}
-          isLast={category.id === lastId}
-          onMove={() => setMoving({ toCategory: category })}
-          onDetails={() => setDetailsId(category.id)}
-        />
-      ))
-    );
-  const budgeted = (categories: CategoryRow[]) => (
-    <span className="text-body text-muted-foreground">
-      <Money
-        kind="balance"
-        cents={
-          sumMonthFigures(categories.map((category) => categoryMonth(thisMonth, category.id)))
-            .budget
-        }
-      />{" "}
-      budgeted
-    </span>
-  );
+  if (!list || !accountNames) return null;
 
   return (
     <PageShell.Main className="space-y-8">
-      <ToAssign
+      <UnassignedMoney
         actor={actor}
         accountNames={accountNames}
         onDistribute={() => onDistribute("income")}
-        onMove={() => setMoving({})}
+        onMove={() => setMoving("new")}
       />
-
-      {inUse.length === 0 ? (
-        <EmptyState>
-          No categories yet. Set them up on <Link to="/categories">Categories</Link> first.
-        </EmptyState>
-      ) : (
-        // Each amount saves as you leave it; Enter moves on, or saves the last one.
-        <form
-          ref={advanceOnEnter}
-          aria-label="Plan"
-          className="space-y-8"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-          }}
-        >
-          {list.groups.map((group) => (
-            <section key={group.id} className="space-y-2">
-              <SectionHeader
-                title={<RecordName record={group} showRetired />}
-                action={budgeted(group.categories)}
-              />
-              <ul aria-label={`${group.name} plan`} className="divide-y border-y">
-                {rows(group.categories)}
-              </ul>
-            </section>
-          ))}
-          {list.ungrouped.length > 0 && (
-            <section className="space-y-2">
-              <SectionHeader
-                title="Waiting for their group to reach this device"
-                action={budgeted(list.ungrouped)}
-              />
-              <ul aria-label="Ungrouped plan" className="divide-y border-y">
-                {rows(list.ungrouped)}
-              </ul>
-            </section>
-          )}
-        </form>
-      )}
 
       <AllocationList
         categoryNames={categoryNames(list)}
         accountNames={accountNames}
-        onEdit={(allocation) => setMoving({ allocation })}
+        onEdit={setMoving}
       />
 
       {moving && (
         <MoveMoneyDialog
           actor={actor}
-          allocation={moving.allocation}
-          toCategory={moving.toCategory}
+          allocation={moving === "new" ? undefined : moving}
           onClose={() => setMoving(null)}
-        />
-      )}
-      {details && (
-        <SetBudgetDialog
-          actor={actor}
-          category={details}
-          month={month}
-          onClose={() => setDetailsId(null)}
         />
       )}
       {distribute && (
@@ -216,12 +99,30 @@ export function PlanView({
   );
 }
 
+/** What Unassigned, Move money and Distribute mean, beside the screen's title. */
+export function AssignMoneyHelp() {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label="About assigning money">
+          <Info />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="space-y-2 text-body">
+        <p>Unassigned is money in your accounts not yet in a category.</p>
+        <p>Move money moves it between categories.</p>
+        <p>Distribute shares this month’s income across categories by their budgets.</p>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 /**
  * The money not yet in a category, where Distribute and Move money start,
  * with each account's Unassigned and Card Payments beneath. A retired account
  * still holding money stays listed until it's moved out.
  */
-function ToAssign({
+function UnassignedMoney({
   actor,
   accountNames,
   onDistribute,
@@ -248,7 +149,7 @@ function ToAssign({
     );
   });
   const listed = [...inUse, ...retiredHoldingMoney];
-  const toAssign = sumCents(
+  const unassigned = sumCents(
     listed.map((account) => accountMoney.get(account.id)?.envelopes?.unassigned ?? ZERO_CENTS)
   );
 
@@ -256,8 +157,8 @@ function ToAssign({
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <HeroFigure
-          label="To assign"
-          value={<Money kind="balance" cents={toAssign} />}
+          label="Unassigned"
+          value={<Money kind="balance" cents={unassigned} />}
           caption="Money in your accounts not yet in a category"
         />
         <div className="flex gap-2">
@@ -371,98 +272,5 @@ function UnassignedByAccount({
         <PayCardDialog actor={actor} card={payingCard} onClose={() => setPayingCardId(null)} />
       )}
     </>
-  );
-}
-
-/** A category's budget for the month, typed in place, with what it spent and the money it holds as hints. */
-function PlanRow({
-  actor,
-  category,
-  month,
-  spent,
-  budget,
-  fundingChoices,
-  isLast,
-  onMove,
-  onDetails,
-}: {
-  actor: Actor;
-  category: CategoryRow;
-  month: string;
-  spent: { last: MonthView; this: MonthView };
-  budget: Budget | null;
-  fundingChoices: AccountRow[];
-  isLast: boolean;
-  onMove: () => void;
-  onDetails: () => void;
-}) {
-  const [actionsOpen, setActionsOpen] = useState(false);
-  const inputId = `plan-${category.id}`;
-  const hintId = `${inputId}-hint`;
-  const moneyId = `${inputId}-money`;
-  const spentIn = (view: MonthView) => (
-    <Money kind="balance" cents={categoryMonth(view, category.id).spent} />
-  );
-
-  // The typed text, read before the field reformats it, so a typo reaches planChange's message.
-  const save = async (text: string) => {
-    const change = planChange(text, budget, fundingChoices);
-    if (change.kind === "problem") {
-      toast.error(`${category.name}: ${change.message}`);
-      return;
-    }
-    if (change.kind === "unchanged") return;
-    try {
-      await setBudget(actor, { categoryId: category.id, fromMonth: month, ...change });
-    } catch (caught) {
-      toast.error(errorMessage(caught, `Couldn't set the budget for ${category.name}.`));
-    }
-  };
-
-  const act = (action: () => void) => () => {
-    setActionsOpen(false);
-    action();
-  };
-
-  return (
-    <li className="flex items-center gap-2 py-2 pr-2 pl-4">
-      <div className="min-w-0 flex-1">
-        <label htmlFor={inputId} className="flex min-w-0">
-          <RecordName record={category} />
-        </label>
-        <p id={hintId} className="truncate text-caption text-muted-foreground">
-          Spent {shortMonth(shiftMonth(month, -1))} {spentIn(spent.last)} · {shortMonth(month)}{" "}
-          {spentIn(spent.this)}
-        </p>
-        <p id={moneyId} className="truncate text-caption text-muted-foreground">
-          Holds <Money kind="balance" cents={categoryMonth(spent.this, category.id).money} />
-        </p>
-      </div>
-      <CurrencyInput
-        id={inputId}
-        className="w-32 shrink-0 text-right"
-        autoComplete="off"
-        placeholder="0.00"
-        enterKeyHint={isLast ? "done" : "next"}
-        aria-describedby={`${hintId} ${moneyId}`}
-        value={budget?.amountCents ?? ZERO_CENTS}
-        onBlur={(event) => void save(event.target.value)}
-      />
-      <Popover open={actionsOpen} onOpenChange={setActionsOpen}>
-        <PopoverTrigger asChild>
-          <Button type="button" variant="ghost" size="icon" aria-label={`${category.name} actions`}>
-            <MoreHorizontal />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align="end" className="flex w-48 flex-col p-1">
-          <Button variant="ghost" className="justify-start" onClick={act(onMove)}>
-            Move money
-          </Button>
-          <Button variant="ghost" className="justify-start" onClick={act(onDetails)}>
-            Budget details
-          </Button>
-        </PopoverContent>
-      </Popover>
-    </li>
   );
 }

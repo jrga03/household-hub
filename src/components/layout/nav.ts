@@ -55,7 +55,7 @@ const matchesPath = (to: string, pathname: string) =>
 
 /**
  * "/" matches only itself; every other item also matches its child routes. A
- * pushed screen highlights its `parent` (Plan highlights Budget).
+ * pushed screen highlights its `parent` (Set budgets highlights Budget).
  */
 export const isNavItemActive = (to: string, pathname: string, parent?: string) =>
   matchesPath(to, pathname) || to === parent;

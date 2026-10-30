@@ -41,7 +41,7 @@ export function HeaderSlotProvider({ children }: { children: ReactNode }) {
 
 export const useHeaderSlot = () => useContext(HeaderSlotContext);
 
-/** Renders a route's actions (month picker, Edit plan, Select) on the right of the header. */
+/** Renders a route's actions (month picker, Set budgets, Select) on the right of the header. */
 export function HeaderActions({ children }: { children: ReactNode }) {
   const { slot } = useHeaderSlot();
   return slot ? createPortal(children, slot) : null;

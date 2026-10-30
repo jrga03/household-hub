@@ -211,7 +211,7 @@ Global chrome switches on the window width. `useWindowClass()` (`src/hooks/useMe
 - The sidebar cookie (the person's rail toggle) wins over the class default, from expanded up. The medium modal rail ignores it.
 - The tab bar and the rail never show together.
 - Give every collapsed rail link an `aria-label`, since only its icon shows.
-- Use `medium:`, `expanded:` and `large:` only for global chrome (`AppLayout`, the header, the rail). Page content uses container queries. Tailwind's `sm:`, `md:`, `lg:`, `xl:` and `2xl:` fail in app code _(lint: restricted classes)_; they stay in the theme only for the shadcn primitives.
+- Use `medium:`, `expanded:` and `large:` only for global chrome (`AppLayout`, the header, the rail). Page content uses container queries. The one exception is page content that stands in for a header control on narrow windows (Budget's links, Set budgets' month picker): it flips on the same window class as the header. Tailwind's `sm:`, `md:`, `lg:`, `xl:` and `2xl:` fail in app code _(lint: restricted classes)_; they stay in the theme only for the shadcn primitives.
 - There is no larger class. Wide windows cap content at `max-w-7xl` instead.
 - Pin bottom-edge elements with the `--bottom-chrome` offset so nothing lands under the tab bar. It is the tab bar's height at compact and the safe area elsewhere.
 - Pin sticky content below the app header with the `--app-header` offset (`SectionHeader sticky` does this). Never hard-code the header's height.
@@ -241,14 +241,14 @@ Every route renders `<PageShell variant="…">` (`src/components/layout/PageShel
 
 Home is the `supporting-pane` page. Inside either wide variant, `useTwoPanes()` (`src/components/layout/pane.ts`) says whether the two columns sit side by side; use it when the stacked order differs from the two-column one, and render one arrangement rather than hiding the other with CSS.
 
-| Route                                           | Variant now                         | Final variant (owner) |
-| ----------------------------------------------- | ----------------------------------- | --------------------- |
-| Transactions, Budget, Import, Accounts, Reports | `list-detail`                       | same                  |
-| Plan, Review, Categories, Assistant             | `single`                            | same                  |
-| Home                                            | `supporting-pane`                   | same                  |
-| Settings                                        | `list-detail`, one page below 840px | same                  |
-| Create or join                                  | `single`, narrowed with `max-w-md`  | same                  |
-| Login, signup                                   | `single`, narrowed with `max-w-md`  | same                  |
+| Route                                                    | Variant now                         | Final variant (owner) |
+| -------------------------------------------------------- | ----------------------------------- | --------------------- |
+| Transactions, Budget, Import, Accounts, Reports          | `list-detail`                       | same                  |
+| Set budgets, Assign money, Review, Categories, Assistant | `single`                            | same                  |
+| Home                                                     | `supporting-pane`                   | same                  |
+| Settings                                                 | `list-detail`, one page below 840px | same                  |
+| Create or join                                           | `single`, narrowed with `max-w-md`  | same                  |
+| Login, signup                                            | `single`, narrowed with `max-w-md`  | same                  |
 
 ### DetailPane
 
@@ -263,7 +263,7 @@ A `list-detail` page shows its open item with `DetailPane` (`src/components/layo
 
 ### A FormSheet opened from the URL
 
-When a search param opens a `FormSheet` (Plan's `?distribute=`), the URL entry is what back closes, as with `DetailPane`. Open it with a push and `state: { openPushed: true }`; close it with `backOnce` when that flag is set, and with a replace when a link opened it; pass `openInUrl` so the sheet adds no back entry of its own. `src/routes/plan.tsx` is the example.
+When a search param opens a `FormSheet` (Assign money's `?distribute=`), the URL entry is what back closes, as with `DetailPane`. Open it with a push and `state: { openPushed: true }`; close it with `backOnce` when that flag is set, and with a replace when a link opened it; pass `openInUrl` so the sheet adds no back entry of its own. `src/routes/assign-money.tsx` is the example.
 
 ## Enforcement
 

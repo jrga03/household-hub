@@ -39,7 +39,7 @@ function findEditing(list: CategoryList, editing: Editing) {
   };
 }
 
-/** Setting up groups and categories; their money is on Budget and Plan. */
+/** Setting up groups and categories; their money is on Budget, Set budgets and Assign money. */
 export function CategoriesView({ actor }: { actor: Actor }) {
   const list = useCategoryList();
   const [editing, setEditing] = useState<Editing>(null);

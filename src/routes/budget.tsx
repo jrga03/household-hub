@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Pencil } from "lucide-react";
 import { BudgetView } from "@/components/budgets/BudgetView";
 import { BackToThisMonth, MonthPicker } from "@/components/budgets/MonthPicker";
 import { readOpenItem, type OpenItemSearch } from "@/components/layout/DetailPane";
@@ -33,7 +32,7 @@ function BudgetPage() {
   const now = new Date();
   const currentMonth = localMonth(now);
   const month = search.month ?? currentMonth;
-  const planSearch: MonthSearch = search.month === undefined ? {} : { month: search.month };
+  const monthSearch: MonthSearch = search.month === undefined ? {} : { month: search.month };
   // This month is left out of the URL, so a bookmark keeps following the calendar.
   // The open category stays open on the new month.
   const setMonth = (next: string) =>
@@ -49,20 +48,20 @@ function BudgetPage() {
     <>
       <HeaderActions>
         <MonthPicker month={month} onChange={setMonth} />
-        {/* On phones the header has no room for it beside the title; it sits in the body */}
-        <EditPlanLink search={planSearch} className="hidden medium:inline-flex" />
+        {/* Below expanded the header has no room for them beside the title; they sit in the body */}
+        <BudgetLinks search={monthSearch} className="hidden expanded:flex" />
       </HeaderActions>
 
       <PageShell variant="list-detail">
         {/* A viewport breakpoint, not a container query: it must flip with the header's copy */}
         <div
           className={cn(
-            "col-span-full flex items-center gap-2",
-            month === currentMonth && "medium:hidden"
+            "col-span-full flex flex-wrap items-center gap-2",
+            month === currentMonth && "expanded:hidden"
           )}
         >
           <BackToThisMonth month={month} currentMonth={currentMonth} onChange={setMonth} />
-          <EditPlanLink search={planSearch} className="ml-auto medium:hidden" />
+          <BudgetLinks search={monthSearch} className="ml-auto flex expanded:hidden" />
         </div>
         {household && userId && (
           <BudgetView
@@ -77,13 +76,19 @@ function BudgetPage() {
   );
 }
 
-function EditPlanLink({ search, className }: { search: MonthSearch; className: string }) {
+function BudgetLinks({ search, className }: { search: MonthSearch; className: string }) {
   return (
-    <Button asChild variant="outline" size="sm" className={className}>
-      <Link to="/plan" search={search}>
-        <Pencil />
-        Edit plan
-      </Link>
-    </Button>
+    <div className={cn("gap-2", className)}>
+      <Button asChild variant="outline" size="sm">
+        <Link to="/set-budgets" search={search}>
+          Set budgets
+        </Link>
+      </Button>
+      <Button asChild variant="outline" size="sm">
+        <Link to="/assign-money" search={search}>
+          Assign money
+        </Link>
+      </Button>
+    </div>
   );
 }
