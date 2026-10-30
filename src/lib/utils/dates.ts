@@ -44,7 +44,7 @@ export const monthOfDate = (date: string) => date.slice(0, 7);
 export const shiftMonth = (month: string, by: number) =>
   localMonth(addMonths(parseLocalDate(`${month}-01`), by));
 
-const formatMonth = (month: string, pattern: string) =>
+export const formatMonth = (month: string, pattern: string) =>
   format(parseLocalDate(`${month}-01`), pattern);
 
 /** "October 2026". */
