@@ -43,6 +43,7 @@ function colorOn(theme: Theme, token: string, surface: string) {
 }
 
 const PAGE_SURFACES = ["background", "card", "popover", "muted"];
+const CHART_SURFACES = ["background", "card"];
 
 /** Text that must reach WCAG 2 AA body contrast, 4.5:1. */
 const textPairs: Array<[text: string, surface: string]> = [
@@ -83,7 +84,7 @@ const uiPairs: Array<[ui: string, surface: string]> = [
     ["primary", surface],
     ["destructive", surface],
   ]),
-  ...["background", "card"].flatMap((surface): Array<[string, string]> => [
+  ...CHART_SURFACES.flatMap((surface): Array<[string, string]> => [
     ["chart", surface],
     ["chart-muted", surface],
     ["income", surface],
