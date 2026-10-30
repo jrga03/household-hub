@@ -7,7 +7,8 @@ import { createCategory, createGroup, retireCategory } from "@/lib/commands/cate
 import { setBudget } from "@/lib/commands/budgets";
 import { addTransaction, removeTransaction } from "@/lib/commands/transactions";
 import { addTransfer } from "@/lib/commands/transfers";
-import { readFinanceOverview, type FinanceView } from "./overview";
+import { readFinanceOverview } from "./overview";
+import type { FinanceView } from "./view";
 import { HOUSEHOLD } from "@/test/events";
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };

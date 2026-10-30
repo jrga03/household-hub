@@ -10,13 +10,11 @@ import { budgetStatus, type BudgetStatus } from "@/lib/budgets/progress";
 import type { BudgetLine } from "./attention";
 import { ZERO_CENTS, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
-import type { Ownership } from "@/lib/events/ownership";
 import { newestFirst, totalTransactions, type ListRow } from "@/lib/transactions/filter";
 import { readMoneyRecords, sumAccountMoney } from "@/lib/transactions/money";
 import { monthOfDate } from "@/lib/utils/dates";
+import { shownIn, type FinanceView } from "./view";
 import { byName } from "@/lib/utils/sort";
-
-export type FinanceView = "household" | "mine";
 
 /** Categories with a budget this month, by how much of it is spent: close from 80%, over past 100%. */
 export type BudgetStatusCounts = Record<BudgetStatus, number>;
@@ -36,12 +34,6 @@ export interface FinanceOverview {
 }
 
 const LATEST_COUNT = 5;
-
-/** Household, or Personal and the member's own. */
-const shownIn = (view: FinanceView, userId: string) => (owned: Ownership) =>
-  view === "household"
-    ? owned.visibility === "household"
-    : owned.visibility === "personal" && owned.ownerUserId === userId;
 
 export async function readFinanceOverview(
   view: FinanceView,
