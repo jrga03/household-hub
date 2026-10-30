@@ -25,7 +25,11 @@ import {
   type TransactionFilter,
 } from "@/lib/transactions/filter";
 import { isTransactionStatus } from "@/lib/transactions/events";
-import { monthLabel } from "@/lib/utils/dates";
+import { isVisibility, VISIBILITY_LABELS } from "@/lib/events/ownership";
+import { monthLabel, monthRangeLabel } from "@/lib/utils/dates";
+
+/** The Month control's value while a link's range is the current choice. */
+const RANGE = "range";
 
 function categoryGroups(list: CategoryList | undefined): FilterChoiceGroup[] {
   if (!list) return [];
@@ -44,7 +48,8 @@ function categoryGroups(list: CategoryList | undefined): FilterChoiceGroup[] {
 }
 
 interface FilterChoices {
-  key: "month" | "account" | "category" | "status" | "type";
+  key: string;
+  value: string | undefined;
   label: string;
   anyLabel: string;
   groups: FilterChoiceGroup[];
@@ -87,21 +92,25 @@ export function TransactionFilters({
   const monthChoices = [
     ...new Set([thisMonth, ...(filter.month ? [filter.month] : []), ...months]),
   ].sort((a, b) => b.localeCompare(a));
+  const range = filter.from && filter.to ? monthRangeLabel(filter.from, filter.to) : undefined;
   const choices: FilterChoices[] = [
     {
       key: "month",
+      value: filter.month ?? (range && RANGE),
       label: "Month",
       anyLabel: "All months",
       groups: [
+        ...(range ? [{ label: "Range", choices: [{ value: RANGE, label: range }] }] : []),
         {
           label: "Months",
           choices: monthChoices.map((month) => ({ value: month, label: monthLabel(month) })),
         },
       ],
-      read: (month) => ({ month }),
+      read: (month) => (month === RANGE ? {} : { month, from: undefined, to: undefined }),
     },
     {
       key: "account",
+      value: filter.account,
       label: "Account",
       anyLabel: "All accounts",
       groups: [
@@ -117,6 +126,7 @@ export function TransactionFilters({
     },
     {
       key: "category",
+      value: filter.category,
       label: "Category",
       anyLabel: "All categories",
       groups: [
@@ -126,7 +136,23 @@ export function TransactionFilters({
       read: (category) => ({ category }),
     },
     {
+      key: "visibility",
+      value: filter.visibility,
+      label: "Visibility",
+      anyLabel: "Any visibility",
+      groups: [
+        {
+          label: "Visibilities",
+          choices: Object.entries(VISIBILITY_LABELS).map(([value, label]) => ({ value, label })),
+        },
+      ],
+      read: (visibility) => ({
+        visibility: visibility && isVisibility(visibility) ? visibility : undefined,
+      }),
+    },
+    {
       key: "status",
+      value: filter.status,
       label: "Status",
       anyLabel: "Any status",
       groups: [
@@ -142,6 +168,7 @@ export function TransactionFilters({
     },
     {
       key: "type",
+      value: filter.type,
       label: "Type",
       anyLabel: "All types",
       groups: [
@@ -194,7 +221,7 @@ export function TransactionFilters({
               key={choice.key}
               label={choice.label}
               anyLabel={choice.anyLabel}
-              value={filter[choice.key]}
+              value={choice.value}
               groups={choice.groups}
               onChange={(value) => mergeFilter(choice.read(value))}
             />
@@ -219,7 +246,7 @@ export function TransactionFilters({
           {(control) => (
             <FilterSelect
               anyLabel={choice.anyLabel}
-              value={filter[choice.key]}
+              value={choice.value}
               groups={choice.groups}
               onChange={(value) => mergeFilter(choice.read(value))}
             >
