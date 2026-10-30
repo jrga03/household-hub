@@ -45,10 +45,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <span className="text-body font-bold">HH</span>
               </div>
-              <div className="flex flex-col">
-                <SheetTitle>Household Hub</SheetTitle>
-                <span className="text-caption text-muted-foreground">Finance Tracker</span>
-              </div>
+              <SheetTitle>Household Hub</SheetTitle>
             </div>
             <Button
               variant="ghost"

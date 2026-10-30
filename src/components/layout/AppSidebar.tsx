@@ -102,12 +102,7 @@ function SidebarBody() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <span className="text-body font-bold">HH</span>
             </div>
-            {open && (
-              <div className="flex flex-col">
-                <span className="text-body font-semibold">Household Hub</span>
-                <span className="text-caption text-muted-foreground">Finance Tracker</span>
-              </div>
-            )}
+            {open && <span className="text-body font-semibold">Household Hub</span>}
           </div>
 
           {open && (

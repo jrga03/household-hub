@@ -69,9 +69,9 @@ export default defineConfig({
       // install. See the matching globIgnores below.
       includeAssets: ["icons/*.png"],
       manifest: {
-        name: "Household Hub - Financial Tracker",
+        name: "Household Hub",
         short_name: "HouseholdHub",
-        description: "Offline-first household financial tracker",
+        description: "Offline-first hub for running a household",
         theme_color: "#f9f6f2",
         background_color: "#f9f6f2",
         display: "standalone",
