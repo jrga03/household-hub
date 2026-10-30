@@ -130,7 +130,10 @@ export function AppLayout() {
             id="main-content"
             className={cn(
               "flex-1 bg-background",
-              hasBottomChrome && "pb-[calc(3.5rem+var(--bottom-chrome))]"
+              hasBottomChrome &&
+                (routeData?.floatingAdd
+                  ? "pb-[calc(3.5rem+var(--bottom-chrome))]"
+                  : "pb-[var(--bottom-chrome)]")
             )}
           >
             <Outlet />

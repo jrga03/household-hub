@@ -258,6 +258,7 @@ describe("AppLayout routes without navigation", () => {
 
     expect(tabBar()).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add transaction" })).not.toBeInTheDocument();
+    expect(screen.getByRole("main")).toHaveClass("pb-[var(--bottom-chrome)]");
   });
 
   it("keeps the header Add button from medium up when the route turns bottom chrome off", () => {
