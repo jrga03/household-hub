@@ -7,6 +7,7 @@ import { SectionHeader } from "@/components/app/SectionHeader";
 import { SegmentedControl } from "@/components/app/SegmentedControl";
 import { MonthPicker } from "@/components/budgets/MonthPicker";
 import { VIEW_OPTIONS } from "@/components/finances/FinancesSection";
+import { DetailPane, resolveOpenItem, useOpenItem } from "@/components/layout/DetailPane";
 import { HeaderActions } from "@/components/layout/HeaderActions";
 import { PageShell } from "@/components/layout/PageShell";
 import type { CategoryList, CategoryRow, GroupRow } from "@/lib/categories/projection";
@@ -23,6 +24,7 @@ import {
 import type { ReportsSearch } from "@/lib/reports/search";
 import type { SpendingGrid, SpendingGrids } from "@/lib/reports/spending";
 import { monthOfDate, monthRangeLabel } from "@/lib/utils/dates";
+import { CategoryDetail } from "./CategoryDetail";
 import { Sparkline } from "./Sparkline";
 
 const PERIOD_OPTIONS = [
@@ -66,6 +68,7 @@ export function ReportsView({
   categories,
   search,
   today,
+  userId,
   onSearchChange,
 }: {
   grids: SpendingGrids;
@@ -73,8 +76,10 @@ export function ReportsView({
   search: ReportsSearch;
   /** "yyyy-MM-dd". */
   today: string;
+  userId: string;
   onSearchChange: (patch: ReportsSearch) => void;
 }) {
+  const { openId, open } = useOpenItem();
   const currentMonth = monthOfDate(today);
   const period = search.period ?? "month";
   const end = clampMonth(search.end ?? currentMonth, currentMonth);
@@ -87,7 +92,8 @@ export function ReportsView({
   const before = previous && spendingOver(grid, previous);
   const thinHistory = monthsWithSpending(grid) < 2;
   const sparkMonths = monthsEnding(end, SPARKLINE_MONTHS);
-  const periodLabel = monthRangeLabel(current.months[0] ?? end, end);
+  const from = current.months[0] ?? end;
+  const periodLabel = monthRangeLabel(from, end);
 
   const byId = categoriesById(categories);
   const ranked = [...totals]
@@ -104,6 +110,7 @@ export function ReportsView({
   ];
   const shownGroupId = groups.some((group) => group.id === search.group) ? search.group : null;
   const rows = ranked.filter(({ group }) => shownGroupId === null || group?.id === shownGroupId);
+  const opened = resolveOpenItem(openId, (id) => byId.get(id));
 
   function chooseView(next: FinanceView) {
     rememberFinanceView(next);
@@ -179,8 +186,8 @@ export function ReportsView({
               {rows.map(({ category, group, cents }) => (
                 <li key={category.id}>
                   <ListRow
-                    onClick={() => onSearchChange({ category: category.id })}
-                    open={search.category === category.id}
+                    onClick={() => open(category.id)}
+                    open={openId === category.id}
                     className="px-0"
                     label={category.name}
                     detail={
@@ -209,6 +216,24 @@ export function ReportsView({
           )}
         </section>
       </PageShell.List>
+
+      <DetailPane title={opened?.category.name} description={opened?.group?.name} item={opened}>
+        {({ category }) => (
+          <CategoryDetail
+            categoryId={category.id}
+            categoryName={category.name}
+            grid={grid}
+            from={from}
+            end={end}
+            periodMonths={current.months}
+            periodLabel={periodLabel}
+            spent={totals.get(category.id) ?? ZERO_CENTS}
+            thinHistory={thinHistory}
+            view={view}
+            userId={userId}
+          />
+        )}
+      </DetailPane>
     </>
   );
 }

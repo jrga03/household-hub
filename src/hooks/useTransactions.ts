@@ -1,10 +1,12 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { listBalanceCorrections } from "@/lib/corrections/projection";
+import { shownIn, type FinanceView } from "@/lib/finances/view";
 import { isLocalDate } from "@/lib/transactions/events";
 import { newestFirst } from "@/lib/transactions/filter";
 import { readAccountMoney, readClearedBalanceAt } from "@/lib/transactions/money";
 import { listTransactions } from "@/lib/transactions/projection";
 import { listTransfers } from "@/lib/transfers/projection";
+import { monthOfDate } from "@/lib/utils/dates";
 
 async function listRows() {
   const [transactions, transfers, corrections] = await Promise.all([
@@ -31,4 +33,24 @@ export function useClearedBalanceAt(accountId: string, date: string) {
     async () => (isLocalDate(date) ? readClearedBalanceAt(accountId, date) : null),
     [accountId, date]
   );
+}
+
+/** A category's transactions dated in the months `from` to `to`, as one view shows them, newest first. */
+export function useCategoryTransactions(
+  categoryId: string,
+  from: string,
+  to: string,
+  view: FinanceView,
+  userId: string
+) {
+  return useLiveQuery(async () => {
+    const shown = shownIn(view, userId);
+    return (await listTransactions()).filter(
+      (row) =>
+        row.categoryId === categoryId &&
+        monthOfDate(row.date) >= from &&
+        monthOfDate(row.date) <= to &&
+        shown(row)
+    );
+  }, [categoryId, from, to, view, userId]);
 }

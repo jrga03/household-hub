@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Notice } from "@/components/app/Notice";
+import { readOpenItem } from "@/components/layout/DetailPane";
 import { PageShell } from "@/components/layout/PageShell";
 import { ReportsView } from "@/components/reports/ReportsView";
 import { useCategoryList } from "@/hooks/useCategories";
@@ -10,7 +11,10 @@ import { useAuthStore } from "@/stores/authStore";
 
 export const Route = createFileRoute("/reports")({
   staticData: { title: "Reports" },
-  validateSearch: readReportsSearch,
+  validateSearch: (search: Record<string, unknown>) => ({
+    ...readReportsSearch(search),
+    ...readOpenItem(search),
+  }),
   component: ReportsPage,
 });
 
@@ -44,6 +48,7 @@ function Reports({ userId }: { userId: string }) {
       categories={categories}
       search={search}
       today={today}
+      userId={userId}
       onSearchChange={change}
     />
   );
