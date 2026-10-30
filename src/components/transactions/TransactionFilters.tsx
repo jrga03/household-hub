@@ -48,7 +48,7 @@ function categoryGroups(list: CategoryList | undefined): FilterChoiceGroup[] {
 }
 
 interface FilterChoices {
-  key: string;
+  key: "month" | "account" | "category" | "visibility" | "status" | "type";
   value: string | undefined;
   label: string;
   anyLabel: string;

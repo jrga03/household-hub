@@ -121,7 +121,7 @@ function typeOf(row: ListRow): ListType {
 }
 
 function matchesFilter(row: ListRow, filter: TransactionFilter): boolean {
-  if (filter.month !== undefined && !row.date.startsWith(`${filter.month}-`)) return false;
+  if (filter.month !== undefined && monthOfDate(row.date) !== filter.month) return false;
   if (filter.from !== undefined && monthOfDate(row.date) < filter.from) return false;
   if (filter.to !== undefined && monthOfDate(row.date) > filter.to) return false;
   if (filter.visibility !== undefined && row.visibility !== filter.visibility) return false;

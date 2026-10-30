@@ -266,7 +266,7 @@ function periodLabel({ month, from, to }: TransactionFilter): string {
 
 /**
  * "October 2026 · 28 transactions · In +₱… · Out −₱…" over the table. With one
- * category and no type, also "Spent ₱…": its expenses less its income, as Reports nets it.
+ * category and no type, also "Spent ₱…": its expenses less its income.
  */
 function Summary({ rows, filter }: { rows: ListRow[]; filter: TransactionFilter }) {
   const { incomeCents, expenseCents } = totalTransactions(rows);

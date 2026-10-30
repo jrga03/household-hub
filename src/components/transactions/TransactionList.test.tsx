@@ -17,6 +17,7 @@ import { parsePHP } from "@/lib/currency";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { readTransactionFilter } from "@/lib/transactions/filter";
 import { listTransactions } from "@/lib/transactions/projection";
+import { monthLabel } from "@/lib/utils/dates";
 import { TransactionList } from "./TransactionList";
 import { HOUSEHOLD } from "@/test/events";
 
@@ -155,6 +156,22 @@ describe("TransactionList", () => {
     ).toBeVisible();
   });
 
+  it("replaces a range with the month picked", async () => {
+    await recordMarket();
+    const history = renderTransactions("/transactions?from=2026-08&to=2026-10");
+
+    const chip = await screen.findByRole("combobox", { name: "Month: Aug – Oct 2026" });
+    fireEvent.keyDown(chip, { key: "Enter" });
+    const thisMonth = format(new Date(), "yyyy-MM");
+    fireEvent.keyDown(await screen.findByRole("option", { name: monthLabel(thisMonth) }), {
+      key: "Enter",
+    });
+    expect(
+      await screen.findByRole("combobox", { name: `Month: ${monthLabel(thisMonth)}` })
+    ).toBeVisible();
+    expect(history.location.search).toBe(`?month=${thisMonth}`);
+  });
+
   it("removes the visibility filter from its chip", async () => {
     await recordMarket();
     const history = renderTransactions("/transactions?visibility=household");
@@ -219,6 +236,9 @@ describe("TransactionList", () => {
 
       history.push(`/transactions?category=${groceries.id}&type=expense`);
       await waitFor(() => expect(screen.queryByText("Spent", { exact: false })).toBeNull());
+      history.push("/transactions?category=unassigned");
+      expect(await screen.findByText("Unassigned", { selector: "span" })).toBeVisible();
+      expect(screen.queryByText("Spent", { exact: false })).toBeNull();
       history.push("/transactions");
       expect(await screen.findByRole("table", { name: "Transactions" })).toBeVisible();
       expect(screen.queryByText("Spent", { exact: false })).toBeNull();
