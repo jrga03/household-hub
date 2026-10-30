@@ -200,6 +200,7 @@ export function PlanView({
               : "Split income across the budgets."
           }
           onClose={() => onDistribute(null)}
+          openInUrl
         >
           <DistributeMoney
             actor={actor}

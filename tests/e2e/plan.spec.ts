@@ -170,3 +170,36 @@ test.describe("on a phone", () => {
     await expect(page).toHaveURL(new RegExp(`/plan\\?month=${month}$`));
   });
 });
+
+test("closing Distribute and then going back leaves Plan for Budget", async ({ page }) => {
+  await signUpNewPerson(page);
+  await page.getByLabel("Household name").fill("Back home");
+  await page.getByRole("button", { name: "Create household" }).click();
+  await navigateTo(page, "Accounts");
+  const form = page.getByRole("form", { name: "Add an account" });
+  await form.getByLabel("Account name").fill("BDO Savings");
+  await form.getByLabel("Starting balance (₱)").fill("20000");
+  await form.getByRole("button", { name: "Add account" }).click();
+  await navigateTo(page, "Categories");
+  await page.getByRole("button", { name: "Use suggested categories" }).click();
+  await expect(page.getByRole("list", { name: "Food categories" })).toContainText("Groceries");
+
+  await navigateTo(page, "Budget");
+  await page.getByRole("link", { name: "Edit plan" }).click();
+  const distribute = page.getByRole("dialog", { name: "Distribute money" });
+
+  // The browser's back closes the sheet and stays on Plan.
+  await page.getByRole("button", { name: "Distribute", exact: true }).click();
+  await expect(distribute).toBeVisible();
+  await page.goBack();
+  await expect(distribute).toBeHidden();
+  await expect(page).toHaveURL(/\/plan$/);
+
+  await page.getByRole("button", { name: "Distribute", exact: true }).click();
+  await expect(distribute).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(distribute).toBeHidden();
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page).toHaveURL(/\/budget$/);
+  await expect(distribute).toBeHidden();
+});
