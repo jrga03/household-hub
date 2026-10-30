@@ -38,6 +38,10 @@ _Avoid_: Private, shared, scope
 An account, group or category no longer in use. It leaves the main list and the pickers but keeps its history, stays under a Retired view, and can be unretired. A group retires only once its categories are retired. A category holding money retires only after its money moves into another category.
 _Avoid_: Archived, closed, deleted
 
+**Deleted**:
+A retired account, group or category that nothing ever used, gone from every list and the Retired view. Only a record with no history can be deleted; a record with history stays retired, and history recorded on another device turns a deleted record back into a retired one.
+_Avoid_: Removed (that is for transactions), purged
+
 **Transaction**:
 One thing that happened to money in one account on one date: an amount, always positive, and a direction (income or expense).
 _Avoid_: Entry, record, line item, event
