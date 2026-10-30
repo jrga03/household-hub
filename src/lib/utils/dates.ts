@@ -44,8 +44,18 @@ export const monthOfDate = (date: string) => date.slice(0, 7);
 export const shiftMonth = (month: string, by: number) =>
   localMonth(addMonths(parseLocalDate(`${month}-01`), by));
 
+const formatMonth = (month: string, pattern: string) =>
+  format(parseLocalDate(`${month}-01`), pattern);
+
 /** "October 2026". */
-export const monthLabel = (month: string) => format(parseLocalDate(`${month}-01`), "MMMM yyyy");
+export const monthLabel = (month: string) => formatMonth(month, "MMMM yyyy");
+
+/** "Aug – Oct 2026", or "Nov 2025 – Jan 2026" across a year. */
+export function monthRangeLabel(from: string, to: string): string {
+  if (from === to) return formatMonth(to, "MMM yyyy");
+  const fromPattern = from.slice(0, 4) === to.slice(0, 4) ? "MMM" : "MMM yyyy";
+  return `${formatMonth(from, fromPattern)} – ${formatMonth(to, "MMM yyyy")}`;
+}
 
 /** The days left in `date`'s month, today included: 11 on October 21. */
 export const daysLeftInMonth = (date: Date) => getDaysInMonth(date) - date.getDate() + 1;

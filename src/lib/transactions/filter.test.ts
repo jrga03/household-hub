@@ -107,6 +107,33 @@ describe("filterTransactions", () => {
     ]);
   });
 
+  it("keeps a month range, both ends included, across a year", () => {
+    const october = row({ date: "2025-10-31" });
+    const november = row({ date: "2025-11-01" });
+    const january = row({ date: "2026-01-31" });
+    const february = row({ date: "2026-02-01" });
+    const rows = [october, november, january, february];
+
+    expect(ids(filterTransactions(rows, { from: "2025-11", to: "2026-01" }))).toEqual([
+      november.id,
+      january.id,
+    ]);
+  });
+
+  it("keeps one visibility, a transfer and a correction included", () => {
+    const household = row();
+    const personal = row({ visibility: "personal", ownerUserId: "user-a" });
+    const personalTransfer = transferRow({ visibility: "personal", ownerUserId: "user-a" });
+    const personalCorrection = correctionRow({ visibility: "personal", ownerUserId: "user-a" });
+    const rows = [household, personal, personalTransfer, transferRow(), personalCorrection];
+
+    expect(ids(filterTransactions(rows, { visibility: "personal" }))).toEqual([
+      personal.id,
+      personalTransfer.id,
+      personalCorrection.id,
+    ]);
+  });
+
   it("combines account, type and status", () => {
     const match = row({ accountId: "visa", type: "expense", status: "pending" });
     const rows = [
@@ -510,6 +537,24 @@ describe("readTransactionFilter", () => {
     });
   });
 
+  it("reads a month range and a visibility", () => {
+    expect(
+      readTransactionFilter({ from: "2025-11", to: "2026-01", visibility: "personal" })
+    ).toEqual({ from: "2025-11", to: "2026-01", visibility: "personal" });
+  });
+
+  it("lets month win over a range", () => {
+    expect(readTransactionFilter({ month: "2026-10", from: "2026-08", to: "2026-10" })).toEqual({
+      month: "2026-10",
+    });
+  });
+
+  it("drops a range that is backwards or half there", () => {
+    expect(readTransactionFilter({ from: "2026-10", to: "2026-08" })).toEqual({});
+    expect(readTransactionFilter({ from: "2026-08" })).toEqual({});
+    expect(readTransactionFilter({ from: "2026-08", to: "2026-13" })).toEqual({});
+  });
+
   it("reads a numeric query typed into the address bar as text", () => {
     expect(readTransactionFilter({ query: 250 })).toEqual({ query: "250" });
   });
@@ -524,6 +569,7 @@ describe("readTransactionFilter", () => {
         status: "void",
         needsCategory: "yes",
         query: "",
+        visibility: "shared",
         other: "x",
       })
     ).toEqual({});

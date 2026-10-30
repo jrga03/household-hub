@@ -1,7 +1,9 @@
 import uFuzzy from "@leeoniya/ufuzzy";
 import { diffCents, parsePHPUnbounded, sumCents, type Cents } from "@/lib/currency";
 import type { BalanceCorrectionRow } from "@/lib/corrections/projection";
+import { isVisibility, type Visibility } from "@/lib/events/ownership";
 import type { TransferRow } from "@/lib/transfers/projection";
+import { monthOfDate } from "@/lib/utils/dates";
 import {
   isTransactionStatus,
   isTransactionType,
@@ -44,6 +46,11 @@ export const statusOf = (row: ListRow): TransactionStatus =>
 export interface TransactionFilter {
   /** "yyyy-MM", matched against the local date. */
   month?: string;
+  /** An inclusive run of "yyyy-MM" months, set only together and only without `month`. */
+  from?: string;
+  to?: string;
+  /** A row takes its account's visibility (ADR 0002). */
+  visibility?: Visibility;
   /** A transfer matches on either side. */
   account?: string;
   /** A category ID, or UNASSIGNED_FILTER; a transfer or correction matches by its envelope. */
@@ -57,6 +64,8 @@ export interface TransactionFilter {
 
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 
+const isMonth = (value: unknown): value is string => typeof value === "string" && MONTH.test(value);
+
 const nonEmpty = (value: unknown) =>
   typeof value === "string" && value !== "" ? value : undefined;
 
@@ -69,7 +78,14 @@ export const isListType = (value: unknown): value is ListType =>
 /** The route's search params as a filter; anything unusable is left out. */
 export function readTransactionFilter(search: Record<string, unknown>): TransactionFilter {
   const filter: TransactionFilter = {};
-  if (typeof search.month === "string" && MONTH.test(search.month)) filter.month = search.month;
+  if (isMonth(search.month)) filter.month = search.month;
+  else if (isMonth(search.from) && isMonth(search.to) && search.from <= search.to) {
+    filter.from = search.from;
+    filter.to = search.to;
+  }
+  if (typeof search.visibility === "string" && isVisibility(search.visibility)) {
+    filter.visibility = search.visibility;
+  }
   const account = nonEmpty(search.account);
   if (account) filter.account = account;
   const category = nonEmpty(search.category);
@@ -105,7 +121,10 @@ function typeOf(row: ListRow): ListType {
 }
 
 function matchesFilter(row: ListRow, filter: TransactionFilter): boolean {
-  if (filter.month !== undefined && !row.date.startsWith(`${filter.month}-`)) return false;
+  if (filter.month !== undefined && monthOfDate(row.date) !== filter.month) return false;
+  if (filter.from !== undefined && monthOfDate(row.date) < filter.from) return false;
+  if (filter.to !== undefined && monthOfDate(row.date) > filter.to) return false;
+  if (filter.visibility !== undefined && row.visibility !== filter.visibility) return false;
   if (filter.account !== undefined && !touchesAccount(row, filter.account)) return false;
   if (filter.category !== undefined && categoryKey(row) !== filter.category) return false;
   if (filter.type !== undefined && typeOf(row) !== filter.type) return false;

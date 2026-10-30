@@ -15,19 +15,20 @@ import { useAllAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useTransactionListRows } from "@/hooks/useTransactions";
 import type { Actor } from "@/lib/commands/accounts";
-import { ZERO_CENTS, type Cents } from "@/lib/currency";
+import { diffCents, ZERO_CENTS, type Cents } from "@/lib/currency";
 import { dateHeading, groupByDate, type DateGroupItem } from "@/lib/transactions/date-groups";
 import {
   filterTransactions,
   isCorrection,
   totalTransactions,
+  UNASSIGNED_FILTER,
   type ListRow,
   type TransactionFilter,
 } from "@/lib/transactions/filter";
 import { CorrectionDetails } from "@/components/corrections/CorrectionDialog";
 import { CORRECTION_LABEL } from "@/lib/corrections/events";
 import { cn, countOf } from "@/lib/utils";
-import { monthLabel, monthOfDate } from "@/lib/utils/dates";
+import { monthLabel, monthOfDate, monthRangeLabel } from "@/lib/utils/dates";
 import { SelectionActions } from "./SelectionActions";
 import { rowDisplay, totalKind, useRowNames, type RowDisplay } from "./rowDisplay";
 import { TransactionDetail } from "./TransactionDetail";
@@ -190,7 +191,7 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
             {!railFolded && <div className="w-56 shrink-0">{filters("rail")}</div>}
             <div className="min-w-0 flex-1 space-y-4">
               <div className="flex items-center gap-3">
-                <Summary rows={shown} month={filter.month} />
+                <Summary rows={shown} filter={filter} />
                 {railFolded && <FiltersButton>{filters("rail")}</FiltersButton>}
               </div>
               {shown.length === 0 ? (
@@ -258,14 +259,23 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
   );
 }
 
-/** "October 2026 · 28 transactions · In +₱… · Out −₱…" over the table. */
-function Summary({ rows, month }: { rows: ListRow[]; month: string | undefined }) {
+function periodLabel({ month, from, to }: TransactionFilter): string {
+  if (month) return monthLabel(month);
+  return from && to ? monthRangeLabel(from, to) : "All months";
+}
+
+/**
+ * "October 2026 · 28 transactions · In +₱… · Out −₱…" over the table. With one
+ * category and no type, also "Spent ₱…": its expenses less its income.
+ */
+function Summary({ rows, filter }: { rows: ListRow[]; filter: TransactionFilter }) {
   const { incomeCents, expenseCents } = totalTransactions(rows);
+  const showsSpent =
+    filter.category !== undefined && filter.category !== UNASSIGNED_FILTER && !filter.type;
+  const spentCents = diffCents(expenseCents, incomeCents);
   return (
     <p className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-1 text-body text-muted-foreground">
-      <span className="font-medium text-foreground">
-        {month ? monthLabel(month) : "All months"}
-      </span>
+      <span className="font-medium text-foreground">{periodLabel(filter)}</span>
       <span>{countOf(rows.length, "transaction", "transactions")}</span>
       <span>
         In <Money {...totalKind("in", incomeCents)} cents={incomeCents} />
@@ -278,6 +288,11 @@ function Summary({ rows, month }: { rows: ListRow[]; month: string | undefined }
           className="text-foreground"
         />
       </span>
+      {showsSpent && (
+        <span>
+          Spent <Money kind="balance" cents={spentCents} className="text-foreground" />
+        </span>
+      )}
     </p>
   );
 }
