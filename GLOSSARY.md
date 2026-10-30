@@ -77,8 +77,12 @@ A named set of categories, such as Food containing Groceries and Restaurants. It
 _Avoid_: Parent category, section
 
 **Unassigned**:
-The part of an account's money not yet in any category. A transaction that names no category, income or expense, adds to or draws from it. An account's balance always equals its Unassigned plus its category money.
-_Avoid_: Ready to assign, free money
+The part of an account's money not yet in any category. A transaction that names no category, income or expense, adds to or draws from it. An account's balance always equals its Unassigned plus its category money. Ideally zero: money waits here until it is given a category.
+_Avoid_: To assign, ready to assign, free money
+
+**Distribute**:
+Giving one account's Unassigned to several categories in one step. Each line names a category, the account that will hold the money, and an amount; money for another account moves there as a transfer first. A category can take lines in several accounts.
+_Avoid_: Assign, budget (as a verb)
 
 **Allocation**:
 Moving money inside one account between its categories, its Card Payments and its Unassigned. It is not a transaction: the account balance does not change and nothing counts as income or spending.
@@ -113,7 +117,7 @@ Home's three steps for a new household: set starting balances, distribute them i
 _Avoid_: Onboarding, setup wizard
 
 **Review**:
-The list of things waiting for a member's attention: expenses without a category, open drafts on this device, and, for the owner, join requests. Its count is the number of those items, shown on Home and in the navigation.
+The list of things waiting for a member's attention: expenses without a category, open drafts on this device, Unassigned money that is not zero (one item however many accounts hold it), and, for the owner, join requests. Its count is the number of those items, shown on Home and in the navigation.
 _Avoid_: Inbox, notifications, to-do
 
 **Debt**:
