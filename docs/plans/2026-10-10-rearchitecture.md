@@ -154,6 +154,8 @@ Fix commits cluster in `src/lib/{sync,offline,debts}`.
 - **Reports' periods and month counts** (2026-10-30, #268): Month, 3 months, 6 months and Year are rolling windows of whole months; Year is the last 12 months, not the calendar year. A period ends on an end month, by default this month (all of its dates, also dates after today); prev/next arrows step the end month, next stops at this month, prev stops at the first month of data (October 2026). The previous period is the window of the same length just before; when the period ends on this month, it is cut at today's day of the month (clamped for short months). The change figure shows only when the previous period starts on or after the first day of data (2026-10-29), else nothing. The hero's monthly average divides by the period's months that have data (the partial month counts) and is hidden for Month. The pane and the sparklines both show 12 months ending on the end month (period months `chart`, earlier `chart-muted`), leaving out months before the first month of data. The pane's budget is the one in force in the end month, none if it has none. Months only, no weeks. Why: rolling windows keep the four periods alike, and the cut and the go-live gate stop a partial or empty month from reading as a drop. Revisit: if members ask for a calendar-year view or weeks.
 - **Reports build slices** (2026-10-30, #272): the spec is #273 with five `ready-for-agent` sub-issues: chart color roles #274, Transactions range/visibility/Spent #275, and the fold and worker #276 run in parallel; the list screen #277 waits on #274 and #276; the detail pane #278 waits on #275 and #277. Household / Mine is a `view` URL param; with none, Reports uses Home's remembered choice, and a change in Reports updates it. Nav entry after Budget, shortcut `g p` (`g r` is Review), not a phone tab. #276 first checks Dexie live queries in a worker; the fallback is a page `useLiveQuery` posting rows to the worker for the fold. Why: three independent slices let builds run in parallel, and one URL-held view keeps system back exact while Home and Reports agree. Revisit: if the worker check fails and the fallback is slow.
 - **The Obsidian knowledge base is refreshed when each milestone closes** (2026-10-29): the vault's `2 Areas/Household Hub/Knowledge Base/` (one note per concept, screen, system part and ADR, first written from `37f11c6`) gets its roadmap, concepts, screens, event types and ADR notes updated as part of closing a milestone, starting with M5. Why: a snapshot that drifts misleads more than no notes. Revisit: if refreshing costs more than the notes are read.
+- **Repo audit fixes** (2026-10-30, issues #291 to #297): a Personal event takes the sequence lock of its owner's current household (falling back to its own household id); `events.actor_user_id` becomes `on delete set null`, and deleting an Owner's auth user is refused ("Hand over ownership first"); a different user signing in wipes the local database with no export; the assistant Worker caps body size and message count and refuses users with no household, with a per-user daily limit deferred; amount parsers reject anything but digits with at most two decimals; `validateAmount` is deleted, and the chart formatters stay for Reports. Do #291 and #292 before continuing M5. Why: #291 stops a pull from skipping a Personal event forever, and #292 stops one member seeing another's Personal records on a shared phone. Revisit: the per-user daily limit if the shared allocation runs out from abuse.
+- **No block list for join requests** (2026-10-30): a declined requester can ask again at once; replacing the Household Code is the only remedy. Why: no abuse seen. Revisit: if an Owner reports repeated requests.
 - **Stale deploy and routing docs fixed** (2026-10-29): `src/routes/README.md` (described routes removed by #16) is deleted, and `DEPLOYMENT.md` is rewritten for the current CI, PR-only `main`, migrations applied by hand, and rollback without force pushes. Production is the `household-hub` Worker (Workers static assets, root `wrangler.jsonc`), deployed by Workers Builds on push to `main`, confirmed by the maintainer 2026-10-29; the docs that said Cloudflare Pages are fixed. Revisit: never.
 
 ## Go-live
@@ -164,6 +166,18 @@ Started: 2026-10-29 (#258). Anything that sends us back to the spreadsheet becom
 - [x] Finish the opening checklist (distribute, budgets)
 
 Friction issues: none yet.
+
+## Audit 2026-10-30
+
+Whole-repo audit after go-live. Hardening outside M5; decisions above. #291 and #292 go before M5 continues; the rest in any order.
+
+- [ ] #291 Server event order and shared history (migration; review before `supabase db push`)
+- [ ] #292 Wipe local data when a different user signs in
+- [ ] #293 Assistant request limits and household check
+- [ ] #294 Accept only real peso amounts
+- [ ] #295 Import: one match per card payment, flag over-limit lines
+- [ ] #296 One sync retry at a time, plus small cleanups
+- [ ] #297 Second audit pass over commands and statement parsers (`ready-for-human`)
 
 ## Milestone 4
 
