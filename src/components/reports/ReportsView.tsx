@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { EmptyState } from "@/components/app/EmptyState";
 import { FilterChip, FilterChips } from "@/components/app/FilterChips";
 import { HeroFigure } from "@/components/app/HeroFigure";
@@ -76,7 +75,6 @@ export function ReportsView({
   today: string;
   onSearchChange: (patch: ReportsSearch) => void;
 }) {
-  const [groupId, setGroupId] = useState<string | null>(null);
   const currentMonth = monthOfDate(today);
   const period = search.period ?? "month";
   const end = clampMonth(search.end ?? currentMonth, currentMonth);
@@ -104,7 +102,7 @@ export function ReportsView({
   const groups = [
     ...new Map(ranked.flatMap(({ group }) => (group ? [[group.id, group] as const] : []))).values(),
   ];
-  const shownGroupId = groups.some((group) => group.id === groupId) ? groupId : null;
+  const shownGroupId = groups.some((group) => group.id === search.group) ? search.group : null;
   const rows = ranked.filter(({ group }) => shownGroupId === null || group?.id === shownGroupId);
 
   function chooseView(next: FinanceView) {
@@ -165,7 +163,9 @@ export function ReportsView({
                 <FilterChip
                   key={group.id}
                   pressed={group.id === shownGroupId}
-                  onPressedChange={(pressed) => setGroupId(pressed ? group.id : null)}
+                  onPressedChange={(pressed) =>
+                    onSearchChange({ group: pressed ? group.id : undefined })
+                  }
                 >
                   {group.name}
                 </FilterChip>

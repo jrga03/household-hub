@@ -24,6 +24,7 @@ describe("useSpendingGrids", () => {
     expect(result.current).toBeUndefined();
     expect(watchSpending).toHaveBeenCalledWith(
       { userId: "user-me", todayDay: 12 },
+      expect.any(Function),
       expect.any(Function)
     );
 
@@ -33,5 +34,17 @@ describe("useSpendingGrids", () => {
 
     unmount();
     expect(stop).toHaveBeenCalled();
+  });
+
+  it("is null once the worker fails, so the screen can say so", () => {
+    let fail: () => void = () => {};
+    vi.mocked(watchSpending).mockImplementation((_request, _onGrids, onFailure) => {
+      fail = onFailure;
+      return () => {};
+    });
+
+    const { result } = renderHook(() => useSpendingGrids("user-me", "2026-11-12"));
+    act(() => fail());
+    expect(result.current).toBeNull();
   });
 });

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Notice } from "@/components/app/Notice";
 import { PageShell } from "@/components/layout/PageShell";
 import { ReportsView } from "@/components/reports/ReportsView";
 import { useCategoryList } from "@/hooks/useCategories";
@@ -29,6 +30,13 @@ function Reports({ userId }: { userId: string }) {
   const change = (patch: ReportsSearch) =>
     void navigate({ search: (previous) => ({ ...previous, ...patch }), resetScroll: false });
 
+  if (grids === null) {
+    return (
+      <PageShell.List>
+        <Notice tone="warning">Couldn’t add up Spending. Reload the page to try again.</Notice>
+      </PageShell.List>
+    );
+  }
   if (!grids || !categories) return null;
   return (
     <ReportsView
