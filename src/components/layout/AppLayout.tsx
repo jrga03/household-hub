@@ -125,7 +125,7 @@ export function AppLayout() {
           <BannerStack />
 
           {/* Main Content: with PageShell's own 2rem, the bottom inset clears the
-            tab bar and the FAB (4.5rem above it) on every route */}
+            tab bar, and the FAB (4.5rem above it) where a route floats it */}
           <main
             id="main-content"
             className={cn(
