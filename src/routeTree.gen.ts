@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountsRouteImport } from './routes/accounts'
+import { Route as AssignMoneyRouteImport } from './routes/assign-money'
 import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as BudgetRouteImport } from './routes/budget'
 import { Route as CategoriesRouteImport } from './routes/categories'
@@ -20,6 +21,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as PlanRouteImport } from './routes/plan'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as ReviewRouteImport } from './routes/review'
+import { Route as SetBudgetsRouteImport } from './routes/set-budgets'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as TransactionsRouteImport } from './routes/transactions'
@@ -32,6 +34,11 @@ const IndexRoute = IndexRouteImport.update({
 const AccountsRoute = AccountsRouteImport.update({
   id: '/accounts',
   path: '/accounts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AssignMoneyRoute = AssignMoneyRouteImport.update({
+  id: '/assign-money',
+  path: '/assign-money',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AssistantRoute = AssistantRouteImport.update({
@@ -79,6 +86,11 @@ const ReviewRoute = ReviewRouteImport.update({
   path: '/review',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SetBudgetsRoute = SetBudgetsRouteImport.update({
+  id: '/set-budgets',
+  path: '/set-budgets',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -98,6 +110,7 @@ const TransactionsRoute = TransactionsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
+  '/assign-money': typeof AssignMoneyRoute
   '/assistant': typeof AssistantRoute
   '/budget': typeof BudgetRoute
   '/categories': typeof CategoriesRoute
@@ -107,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/plan': typeof PlanRoute
   '/reports': typeof ReportsRoute
   '/review': typeof ReviewRoute
+  '/set-budgets': typeof SetBudgetsRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/transactions': typeof TransactionsRoute
@@ -114,6 +128,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
+  '/assign-money': typeof AssignMoneyRoute
   '/assistant': typeof AssistantRoute
   '/budget': typeof BudgetRoute
   '/categories': typeof CategoriesRoute
@@ -123,6 +138,7 @@ export interface FileRoutesByTo {
   '/plan': typeof PlanRoute
   '/reports': typeof ReportsRoute
   '/review': typeof ReviewRoute
+  '/set-budgets': typeof SetBudgetsRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/transactions': typeof TransactionsRoute
@@ -131,6 +147,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
+  '/assign-money': typeof AssignMoneyRoute
   '/assistant': typeof AssistantRoute
   '/budget': typeof BudgetRoute
   '/categories': typeof CategoriesRoute
@@ -140,6 +157,7 @@ export interface FileRoutesById {
   '/plan': typeof PlanRoute
   '/reports': typeof ReportsRoute
   '/review': typeof ReviewRoute
+  '/set-budgets': typeof SetBudgetsRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/transactions': typeof TransactionsRoute
@@ -149,6 +167,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/accounts'
+    | '/assign-money'
     | '/assistant'
     | '/budget'
     | '/categories'
@@ -158,6 +177,7 @@ export interface FileRouteTypes {
     | '/plan'
     | '/reports'
     | '/review'
+    | '/set-budgets'
     | '/settings'
     | '/signup'
     | '/transactions'
@@ -165,6 +185,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/accounts'
+    | '/assign-money'
     | '/assistant'
     | '/budget'
     | '/categories'
@@ -174,6 +195,7 @@ export interface FileRouteTypes {
     | '/plan'
     | '/reports'
     | '/review'
+    | '/set-budgets'
     | '/settings'
     | '/signup'
     | '/transactions'
@@ -181,6 +203,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/accounts'
+    | '/assign-money'
     | '/assistant'
     | '/budget'
     | '/categories'
@@ -190,6 +213,7 @@ export interface FileRouteTypes {
     | '/plan'
     | '/reports'
     | '/review'
+    | '/set-budgets'
     | '/settings'
     | '/signup'
     | '/transactions'
@@ -198,6 +222,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountsRoute: typeof AccountsRoute
+  AssignMoneyRoute: typeof AssignMoneyRoute
   AssistantRoute: typeof AssistantRoute
   BudgetRoute: typeof BudgetRoute
   CategoriesRoute: typeof CategoriesRoute
@@ -207,6 +232,7 @@ export interface RootRouteChildren {
   PlanRoute: typeof PlanRoute
   ReportsRoute: typeof ReportsRoute
   ReviewRoute: typeof ReviewRoute
+  SetBudgetsRoute: typeof SetBudgetsRoute
   SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
   TransactionsRoute: typeof TransactionsRoute
@@ -226,6 +252,13 @@ declare module '@tanstack/react-router' {
       path: '/accounts'
       fullPath: '/accounts'
       preLoaderRoute: typeof AccountsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/assign-money': {
+      id: '/assign-money'
+      path: '/assign-money'
+      fullPath: '/assign-money'
+      preLoaderRoute: typeof AssignMoneyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/assistant': {
@@ -291,6 +324,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/set-budgets': {
+      id: '/set-budgets'
+      path: '/set-budgets'
+      fullPath: '/set-budgets'
+      preLoaderRoute: typeof SetBudgetsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -318,6 +358,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountsRoute: AccountsRoute,
+  AssignMoneyRoute: AssignMoneyRoute,
   AssistantRoute: AssistantRoute,
   BudgetRoute: BudgetRoute,
   CategoriesRoute: CategoriesRoute,
@@ -327,6 +368,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlanRoute: PlanRoute,
   ReportsRoute: ReportsRoute,
   ReviewRoute: ReviewRoute,
+  SetBudgetsRoute: SetBudgetsRoute,
   SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,
   TransactionsRoute: TransactionsRoute,

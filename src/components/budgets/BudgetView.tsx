@@ -44,7 +44,7 @@ const figuresOf = (view: MonthView, categories: CategoryRow[]): MonthFigures =>
 /**
  * The month's budget, spent and left per category, view-only. Left is the
  * budget less what was spent, as Home's Budgets counts compare them; the
- * category's money is on Plan. `month` is "yyyy-MM"; `currentMonth` is this
+ * category's money is on Assign money. `month` is "yyyy-MM"; `currentMonth` is this
  * month on this device; `daysLeft` is given for this month only.
  */
 export function BudgetView({
@@ -92,7 +92,7 @@ export function BudgetView({
               </Link>
             }
           >
-            No categories yet. Set them up, then give each one a budget on the plan.
+            No categories yet. Set them up, then give each one a budget on Set budgets.
           </EmptyState>
         ) : (
           <>

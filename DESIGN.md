@@ -241,14 +241,14 @@ Every route renders `<PageShell variant="…">` (`src/components/layout/PageShel
 
 Home is the `supporting-pane` page. Inside either wide variant, `useTwoPanes()` (`src/components/layout/pane.ts`) says whether the two columns sit side by side; use it when the stacked order differs from the two-column one, and render one arrangement rather than hiding the other with CSS.
 
-| Route                                           | Variant now                         | Final variant (owner) |
-| ----------------------------------------------- | ----------------------------------- | --------------------- |
-| Transactions, Budget, Import, Accounts, Reports | `list-detail`                       | same                  |
-| Plan, Review, Categories, Assistant             | `single`                            | same                  |
-| Home                                            | `supporting-pane`                   | same                  |
-| Settings                                        | `list-detail`, one page below 840px | same                  |
-| Create or join                                  | `single`, narrowed with `max-w-md`  | same                  |
-| Login, signup                                   | `single`, narrowed with `max-w-md`  | same                  |
+| Route                                                    | Variant now                         | Final variant (owner) |
+| -------------------------------------------------------- | ----------------------------------- | --------------------- |
+| Transactions, Budget, Import, Accounts, Reports          | `list-detail`                       | same                  |
+| Set budgets, Assign money, Review, Categories, Assistant | `single`                            | same                  |
+| Home                                                     | `supporting-pane`                   | same                  |
+| Settings                                                 | `list-detail`, one page below 840px | same                  |
+| Create or join                                           | `single`, narrowed with `max-w-md`  | same                  |
+| Login, signup                                            | `single`, narrowed with `max-w-md`  | same                  |
 
 ### DetailPane
 
@@ -263,7 +263,7 @@ A `list-detail` page shows its open item with `DetailPane` (`src/components/layo
 
 ### A FormSheet opened from the URL
 
-When a search param opens a `FormSheet` (Plan's `?distribute=`), the URL entry is what back closes, as with `DetailPane`. Open it with a push and `state: { openPushed: true }`; close it with `backOnce` when that flag is set, and with a replace when a link opened it; pass `openInUrl` so the sheet adds no back entry of its own. `src/routes/plan.tsx` is the example.
+When a search param opens a `FormSheet` (Assign money's `?distribute=`), the URL entry is what back closes, as with `DetailPane`. Open it with a push and `state: { openPushed: true }`; close it with `backOnce` when that flag is set, and with a replace when a link opened it; pass `openInUrl` so the sheet adds no back entry of its own. `src/routes/assign-money.tsx` is the example.
 
 ## Enforcement
 

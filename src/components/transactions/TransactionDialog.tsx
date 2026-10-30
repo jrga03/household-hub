@@ -268,7 +268,7 @@ function TransactionForm({
                   label: "Distribute",
                   onClick: () =>
                     void navigate({
-                      to: "/plan",
+                      to: "/assign-money",
                       search: {
                         distribute: "income",
                         account: input.accountId,

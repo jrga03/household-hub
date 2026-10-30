@@ -55,7 +55,7 @@ export function OpeningChecklist({ householdId }: { householdId: string }) {
           description="Move each account’s starting money out of Unassigned."
           action={
             <Link
-              to="/plan"
+              to="/assign-money"
               search={{
                 distribute: "opening",
                 ...(steps.distributeAccountId && { account: steps.distributeAccountId }),
@@ -69,7 +69,7 @@ export function OpeningChecklist({ householdId }: { householdId: string }) {
           done={steps.budgets}
           title="Set budgets"
           description="Give each category a monthly target."
-          action={<Link to="/plan">Set budgets</Link>}
+          action={<Link to="/set-budgets">Set budgets</Link>}
         />
       </ol>
     </section>

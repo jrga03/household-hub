@@ -18,7 +18,7 @@ async function groceriesThisMonth(page: Page) {
   await page.getByRole("button", { name: "Use suggested categories" }).click();
   await expect(page.getByRole("list", { name: "Food categories" })).toContainText("Groceries");
 
-  await page.goto("/plan");
+  await page.goto("/assign-money");
   const move = page.getByRole("dialog", { name: "Move money" });
   await page.getByRole("button", { name: "Move money" }).click();
   await move.getByLabel("Amount (₱)").fill("8000");
