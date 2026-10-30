@@ -426,5 +426,20 @@ describe("ReportsView", () => {
       expect(rows.map((row) => row.textContent)).toEqual([expect.stringMatching(/^Market/)]);
       expect(rows[0]).toHaveAttribute("href", `/transactions?open=${market.id}`);
     });
+
+    it("links Mine's months to Personal transactions", async () => {
+      await renderReports({
+        grids: {
+          household: EMPTY,
+          mine: grid({ "2026-10": { groceries: "100" }, "2026-11": { groceries: "200" } }),
+        },
+        url: "/reports?view=mine&open=groceries",
+      });
+
+      expect(within(await pane()).getByRole("link", { name: /^November 2026/ })).toHaveAttribute(
+        "href",
+        "/transactions?month=2026-11&category=groceries&visibility=personal"
+      );
+    });
   });
 });

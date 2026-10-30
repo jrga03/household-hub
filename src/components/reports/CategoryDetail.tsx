@@ -10,7 +10,7 @@ import { useBudgets } from "@/hooks/useBudgets";
 import { useCategoryTransactions } from "@/hooks/useTransactions";
 import { budgetInForce } from "@/lib/budgets/inForce";
 import { diffCents, ZERO_CENTS, type Cents } from "@/lib/currency";
-import type { FinanceView } from "@/lib/finances/view";
+import { VIEW_VISIBILITY, type FinanceView } from "@/lib/finances/view";
 import { monthsEnding } from "@/lib/reports/period";
 import type { SpendingGrid } from "@/lib/reports/spending";
 import { transactionLabel } from "@/lib/transactions/events";
@@ -18,9 +18,6 @@ import { formatMonth, parseLocalDate } from "@/lib/utils/dates";
 import { MonthBars, type MonthBar } from "./MonthBars";
 
 const BAR_MONTHS = 12;
-
-/** The Transactions visibility filter matching a view, so its Spent sum matches Reports. */
-const VISIBILITY = { household: "household", mine: "personal" } as const;
 
 /** One category in Reports' pane: its Spending over the period and its months. */
 export function CategoryDetail({
@@ -55,7 +52,7 @@ export function CategoryDetail({
   const transactions = useCategoryTransactions(categoryId, from, end, view, userId);
   const budget = budgets && budgetInForce(budgets, categoryId, end);
   const endSpent = grid.get(end)?.get(categoryId)?.spent ?? ZERO_CENTS;
-  const visibility = VISIBILITY[view];
+  const visibility = VIEW_VISIBILITY[view];
   const bars = monthsEnding(end, BAR_MONTHS).map((month): MonthBar => ({
     month,
     cents: grid.get(month)?.get(categoryId)?.spent ?? ZERO_CENTS,

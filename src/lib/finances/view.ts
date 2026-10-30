@@ -1,4 +1,4 @@
-import type { Ownership } from "@/lib/events/ownership";
+import type { Ownership, Visibility } from "@/lib/events/ownership";
 
 export type FinanceView = "household" | "mine";
 
@@ -26,3 +26,9 @@ export const shownIn = (view: FinanceView, userId: string) => (owned: Ownership)
   view === "household"
     ? owned.visibility === "household"
     : owned.visibility === "personal" && owned.ownerUserId === userId;
+
+/** The Transactions visibility filter for a view, so its Spent sum matches the view's figures. */
+export const VIEW_VISIBILITY: Record<FinanceView, Visibility> = {
+  household: "household",
+  mine: "personal",
+};
