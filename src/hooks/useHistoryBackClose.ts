@@ -53,7 +53,10 @@ import type { RegisteredRouter, RouterHistory } from "@tanstack/react-router";
  *   replaced URL instead of rolling back the user's changes; the pre-change
  *   entry stays in the stack (again one extra back press). A hardware back
  *   while it is still open closes it AND reverts to the pre-change URL
- *   (back-as-undo).
+ *   (back-as-undo). When the URL itself opens the overlay, that pre-change
+ *   entry reopens it on every back, a loop: give such a sheet
+ *   FormSheet's `openInUrl` instead (DESIGN.md, "A FormSheet opened from
+ *   the URL").
  * - A navigation that commits while a consuming back() traversal is already
  *   IN FLIGHT (cross-task: e.g. an after-save callback navigating right as
  *   a sheet closes) still gets popped by that traversal — queued browser
