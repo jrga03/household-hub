@@ -48,7 +48,6 @@ function Reports({ userId }: { userId: string }) {
       categories={categories}
       search={search}
       today={today}
-      userId={userId}
       onSearchChange={change}
     />
   );

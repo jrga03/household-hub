@@ -68,7 +68,6 @@ export function ReportsView({
   categories,
   search,
   today,
-  userId,
   onSearchChange,
 }: {
   grids: SpendingGrids;
@@ -76,7 +75,6 @@ export function ReportsView({
   search: ReportsSearch;
   /** "yyyy-MM-dd". */
   today: string;
-  userId: string;
   onSearchChange: (patch: ReportsSearch) => void;
 }) {
   const { openId, open } = useOpenItem();
@@ -230,7 +228,6 @@ export function ReportsView({
             spent={totals.get(category.id) ?? ZERO_CENTS}
             thinHistory={thinHistory}
             view={view}
-            userId={userId}
           />
         )}
       </DetailPane>

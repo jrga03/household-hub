@@ -94,7 +94,6 @@ function createReportsRouter(
             categories={categories}
             search={search}
             today={today}
-            userId={MEMBER.userId}
             onSearchChange={(patch) =>
               void navigate({
                 search: (previous) => ({ ...previous, ...patch }),

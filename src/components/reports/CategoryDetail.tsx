@@ -31,7 +31,6 @@ export function CategoryDetail({
   spent,
   thinHistory,
   view,
-  userId,
 }: {
   categoryId: string;
   categoryName: string;
@@ -45,14 +44,13 @@ export function CategoryDetail({
   /** Fewer than two months with spending, so the bars wait. */
   thinHistory: boolean;
   view: FinanceView;
-  userId: string;
 }) {
   const budgets = useBudgets();
   const accounts = useAccountNames();
-  const transactions = useCategoryTransactions(categoryId, from, end, view, userId);
+  const visibility = VIEW_VISIBILITY[view];
+  const transactions = useCategoryTransactions(categoryId, from, end, visibility);
   const budget = budgets && budgetInForce(budgets, categoryId, end);
   const endSpent = grid.get(end)?.get(categoryId)?.spent ?? ZERO_CENTS;
-  const visibility = VIEW_VISIBILITY[view];
   const bars = monthsEnding(end, BAR_MONTHS).map((month): MonthBar => ({
     month,
     cents: grid.get(month)?.get(categoryId)?.spent ?? ZERO_CENTS,
