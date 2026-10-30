@@ -49,12 +49,12 @@ export function previousPeriod(period: Period, end: string, today: string): Peri
   };
 }
 
-/** Each category's Spending over the months, by category ID; null is Unassigned. */
+/** Each category's Spending over the months, by category ID. */
 export function spendingOver(
   grid: SpendingGrid,
   { months, cutToToday }: PeriodMonths
-): Map<string | null, Cents> {
-  const totals = new Map<string | null, Cents>();
+): Map<string, Cents> {
+  const totals = new Map<string, Cents>();
   const lastMonth = months.at(-1);
   for (const month of months) {
     for (const [categoryId, cell] of grid.get(month) ?? []) {

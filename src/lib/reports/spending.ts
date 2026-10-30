@@ -1,7 +1,10 @@
 /**
  * Reports' Spending: each category's expenses less its income, by month,
  * folded from the transaction projection on every read. Transfers live in
- * their own projection, so they never count. Order-independent by construction.
+ * their own projection, so they never count. Unassigned never counts either:
+ * an expense without a category waits in Review until it gets one, and
+ * netting it against uncategorized income would hide it. Order-independent
+ * by construction.
  */
 
 import { diffCents, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
@@ -15,21 +18,23 @@ export interface MonthSpending {
   spentToDay: Cents;
 }
 
-/** By month ("yyyy-MM"), then by category ID; null is Unassigned. */
-export type SpendingGrid = Map<string, Map<string | null, MonthSpending>>;
+/** By month ("yyyy-MM"), then by category ID. */
+export type SpendingGrid = Map<string, Map<string, MonthSpending>>;
 
 export type SpendingGrids = Record<FinanceView, SpendingGrid>;
 
 function foldView(transactions: TransactionRow[], todayDay: number): SpendingGrid {
   const grid: SpendingGrid = new Map();
   for (const transaction of transactions) {
+    const { categoryId } = transaction;
+    if (categoryId === null) continue;
     const month = monthOfDate(transaction.date);
     let categories = grid.get(month);
     if (!categories) {
       categories = new Map();
       grid.set(month, categories);
     }
-    const cell = categories.get(transaction.categoryId) ?? {
+    const cell = categories.get(categoryId) ?? {
       spent: ZERO_CENTS,
       spentToDay: ZERO_CENTS,
     };
@@ -37,7 +42,7 @@ function foldView(transactions: TransactionRow[], todayDay: number): SpendingGri
       transaction.type === "expense"
         ? sumCents([total, transaction.amountCents])
         : diffCents(total, transaction.amountCents);
-    categories.set(transaction.categoryId, {
+    categories.set(categoryId, {
       spent: add(cell.spent),
       spentToDay:
         parseLocalDate(transaction.date).getDate() <= todayDay
@@ -48,7 +53,7 @@ function foldView(transactions: TransactionRow[], todayDay: number): SpendingGri
   return grid;
 }
 
-/** Household and Mine never blend, so each view keeps its own Unassigned. */
+/** Household and Mine never blend. */
 export function foldSpending(
   transactions: TransactionRow[],
   userId: string,

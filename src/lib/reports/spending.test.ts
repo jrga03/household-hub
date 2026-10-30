@@ -60,18 +60,19 @@ describe("foldSpending", () => {
     expect(grids.mine.get("2026-11")?.get(GROCERIES)?.spent).toBe(700);
   });
 
-  it("keeps Unassigned apart for each view", () => {
+  it("leaves out Unassigned, so uncategorized income never hides an uncategorized expense", () => {
     const grids = foldSpending(
       [
-        row({ categoryId: null, amountCents: cents(400) }),
-        row({ categoryId: null, visibility: "personal", ownerUserId: ME, amountCents: cents(900) }),
+        row({ categoryId: null, amountCents: cents(1000) }),
+        row({ categoryId: null, type: "income", amountCents: cents(1000) }),
+        row({ categoryId: null, visibility: "personal", ownerUserId: ME }),
       ],
       ME,
       30
     );
 
-    expect(grids.household.get("2026-11")?.get(null)?.spent).toBe(400);
-    expect(grids.mine.get("2026-11")?.get(null)?.spent).toBe(900);
+    expect(grids.household.size).toBe(0);
+    expect(grids.mine.size).toBe(0);
   });
 
   it("leaves out a removed transaction", () => {

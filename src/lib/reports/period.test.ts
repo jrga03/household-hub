@@ -58,13 +58,14 @@ describe("previousPeriod", () => {
 
 describe("spendingOver", () => {
   const GROCERIES = "groceries";
+  const RENT = "rent";
   const grid: SpendingGrid = new Map([
     ["2027-01", new Map([[GROCERIES, { spent: cents(1000), spentToDay: cents(400) }]])],
     [
       "2027-02",
       new Map([
         [GROCERIES, { spent: cents(2000), spentToDay: cents(500) }],
-        [null, { spent: cents(300), spentToDay: cents(300) }],
+        [RENT, { spent: cents(300), spentToDay: cents(300) }],
       ]),
     ],
   ]);
@@ -73,7 +74,7 @@ describe("spendingOver", () => {
     expect(spendingOver(grid, { months: ["2027-01", "2027-02"], cutToToday: false })).toEqual(
       new Map([
         [GROCERIES, 3000],
-        [null, 300],
+        [RENT, 300],
       ])
     );
   });
