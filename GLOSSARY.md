@@ -96,6 +96,10 @@ _Avoid_: Outflow, expenses (when refunds are netted)
 The screen for understanding patterns over time: spending by group and category, months compared, trends, and each figure opening the transactions behind it. Transfers never appear in it.
 _Avoid_: Analytics, insights, dashboard (that is Home's Finances section)
 
+**Period**:
+The run of whole months Reports looks at: one month, or the last 3, 6 or 12 months, ending on a chosen month. The previous period is the run of the same length just before it.
+_Avoid_: Range, window, timeframe
+
 **Ledger**:
 A category's month record by record: every transaction, transfer and allocation touching it, in date order, with a running balance from its money at the start of the month to its money at the end, and its budget history beneath.
 _Avoid_: Statement, history
