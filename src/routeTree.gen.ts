@@ -18,6 +18,7 @@ import { Route as CreateOrJoinRouteImport } from './routes/create-or-join'
 import { Route as ImportRouteImport } from './routes/import'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PlanRouteImport } from './routes/plan'
+import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SignupRouteImport } from './routes/signup'
@@ -68,6 +69,11 @@ const PlanRoute = PlanRouteImport.update({
   path: '/plan',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReviewRoute = ReviewRouteImport.update({
   id: '/review',
   path: '/review',
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/import': typeof ImportRoute
   '/login': typeof LoginRoute
   '/plan': typeof PlanRoute
+  '/reports': typeof ReportsRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/import': typeof ImportRoute
   '/login': typeof LoginRoute
   '/plan': typeof PlanRoute
+  '/reports': typeof ReportsRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/import': typeof ImportRoute
   '/login': typeof LoginRoute
   '/plan': typeof PlanRoute
+  '/reports': typeof ReportsRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
@@ -147,6 +156,7 @@ export interface FileRouteTypes {
     | '/import'
     | '/login'
     | '/plan'
+    | '/reports'
     | '/review'
     | '/settings'
     | '/signup'
@@ -162,6 +172,7 @@ export interface FileRouteTypes {
     | '/import'
     | '/login'
     | '/plan'
+    | '/reports'
     | '/review'
     | '/settings'
     | '/signup'
@@ -177,6 +188,7 @@ export interface FileRouteTypes {
     | '/import'
     | '/login'
     | '/plan'
+    | '/reports'
     | '/review'
     | '/settings'
     | '/signup'
@@ -193,6 +205,7 @@ export interface RootRouteChildren {
   ImportRoute: typeof ImportRoute
   LoginRoute: typeof LoginRoute
   PlanRoute: typeof PlanRoute
+  ReportsRoute: typeof ReportsRoute
   ReviewRoute: typeof ReviewRoute
   SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
@@ -264,6 +277,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlanRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/review': {
       id: '/review'
       path: '/review'
@@ -305,6 +325,7 @@ const rootRouteChildren: RootRouteChildren = {
   ImportRoute: ImportRoute,
   LoginRoute: LoginRoute,
   PlanRoute: PlanRoute,
+  ReportsRoute: ReportsRoute,
   ReviewRoute: ReviewRoute,
   SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,

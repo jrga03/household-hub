@@ -241,14 +241,14 @@ Every route renders `<PageShell variant="…">` (`src/components/layout/PageShel
 
 Home is the `supporting-pane` page. Inside either wide variant, `useTwoPanes()` (`src/components/layout/pane.ts`) says whether the two columns sit side by side; use it when the stacked order differs from the two-column one, and render one arrangement rather than hiding the other with CSS.
 
-| Route                                  | Variant now                         | Final variant (owner) |
-| -------------------------------------- | ----------------------------------- | --------------------- |
-| Transactions, Budget, Import, Accounts | `list-detail`                       | same                  |
-| Plan, Review, Categories, Assistant    | `single`                            | same                  |
-| Home                                   | `supporting-pane`                   | same                  |
-| Settings                               | `list-detail`, one page below 840px | same                  |
-| Create or join                         | `single`, narrowed with `max-w-md`  | same                  |
-| Login, signup                          | `single`, narrowed with `max-w-md`  | same                  |
+| Route                                           | Variant now                         | Final variant (owner) |
+| ----------------------------------------------- | ----------------------------------- | --------------------- |
+| Transactions, Budget, Import, Accounts, Reports | `list-detail`                       | same                  |
+| Plan, Review, Categories, Assistant             | `single`                            | same                  |
+| Home                                            | `supporting-pane`                   | same                  |
+| Settings                                        | `list-detail`, one page below 840px | same                  |
+| Create or join                                  | `single`, narrowed with `max-w-md`  | same                  |
+| Login, signup                                   | `single`, narrowed with `max-w-md`  | same                  |
 
 ### DetailPane
 

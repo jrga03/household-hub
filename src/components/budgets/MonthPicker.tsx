@@ -3,12 +3,16 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/app/Button";
 import { monthLabel, parseLocalDate, shiftMonth } from "@/lib/utils/dates";
 
-/** The header's month stepper; `month` is "yyyy-MM". */
+/** The header's month stepper; `month`, `min` and `max` are "yyyy-MM". */
 export function MonthPicker({
   month,
+  min,
+  max,
   onChange,
 }: {
   month: string;
+  min?: string;
+  max?: string;
   onChange: (month: string) => void;
 }) {
   return (
@@ -17,6 +21,7 @@ export function MonthPicker({
         variant="ghost"
         size="icon"
         aria-label="Previous month"
+        disabled={min !== undefined && month <= min}
         onClick={() => onChange(shiftMonth(month, -1))}
       >
         <ChevronLeft />
@@ -29,6 +34,7 @@ export function MonthPicker({
         variant="ghost"
         size="icon"
         aria-label="Next month"
+        disabled={max !== undefined && month >= max}
         onClick={() => onChange(shiftMonth(month, 1))}
       >
         <ChevronRight />
