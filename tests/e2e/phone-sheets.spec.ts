@@ -87,6 +87,8 @@ async function openAddTransaction(page: Page, slot = "drawer-content", accountNa
   await addAccount.getByRole("button", { name: "Add account" }).click();
   await expect(page.getByRole("list", { name: "Accounts" })).toContainText(accountName);
 
+  // A phone floats Add transaction on Home and Transactions only
+  await navigateTo(page, "Home");
   await page.getByRole("button", { name: "Add transaction" }).click();
   const sheet = page.getByRole("dialog", { name: "Add transaction" });
   await expect(sheet).toHaveAttribute("data-slot", slot);
@@ -278,11 +280,13 @@ test.describe("phone forms", () => {
   test("the transfer sheet's header is its title alone", async ({ page }) => {
     const sheet = await openAddTransaction(page);
     await sheet.getByRole("button", { name: "Close" }).click();
+    await navigateTo(page, "Accounts");
     const addAccount = page.getByRole("form", { name: "Add an account" });
     await addAccount.getByLabel("Account name").fill("GCash");
     await addAccount.getByRole("button", { name: "Add account" }).click();
     await expect(page.getByRole("list", { name: "Accounts" })).toContainText("GCash");
 
+    await navigateTo(page, "Home");
     await page.getByRole("button", { name: "Add transaction" }).click();
     const add = page.getByRole("dialog", { name: "Add transaction" });
     await add.getByLabel("Amount (₱)").fill("500");

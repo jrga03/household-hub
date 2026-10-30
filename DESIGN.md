@@ -201,12 +201,12 @@ Why: one shared model (Material 3 window size classes) keeps navigation, columns
 
 Global chrome switches on the window width. `useWindowClass()` (`src/hooks/useMediaQuery.ts`) returns the class; the Tailwind breakpoints `medium:`, `expanded:` and `large:` (`src/index.css`) match it in classes.
 
-| Class    | Width       | Navigation                                                         | Add transaction |
-| -------- | ----------- | ------------------------------------------------------------------ | --------------- |
-| Compact  | below 600   | Tab bar (Home, Transactions) and the drawer for the rest           | Floating button |
-| Medium   | 600-839     | Collapsed rail; the menu icon opens it as a modal expanded rail    | Header          |
-| Expanded | 840-1199    | Collapsed rail by default; it expands to a standard rail beside it | Header          |
-| Large    | 1200 and up | Expanded rail by default                                           | Header          |
+| Class    | Width       | Navigation                                                         | Add transaction                                                     |
+| -------- | ----------- | ------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| Compact  | below 600   | Tab bar (Home, Transactions) and the drawer for the rest           | Floating button on Home and Transactions (`staticData.floatingAdd`) |
+| Medium   | 600-839     | Collapsed rail; the menu icon opens it as a modal expanded rail    | Header                                                              |
+| Expanded | 840-1199    | Collapsed rail by default; it expands to a standard rail beside it | Header                                                              |
+| Large    | 1200 and up | Expanded rail by default                                           | Header                                                              |
 
 - The sidebar cookie (the person's rail toggle) wins over the class default, from expanded up. The medium modal rail ignores it.
 - The tab bar and the rail never show together.

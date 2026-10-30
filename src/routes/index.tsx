@@ -6,7 +6,7 @@ import { useHousehold } from "@/hooks/useHousehold";
 import { useAuthStore } from "@/stores/authStore";
 
 export const Route = createFileRoute("/")({
-  staticData: { title: "Home" },
+  staticData: { title: "Home", floatingAdd: true },
   component: HomePage,
 });
 
