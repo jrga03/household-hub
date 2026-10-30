@@ -7,6 +7,7 @@ import type { SpendingRequest, SpendingResponse } from "./watch-spending";
 const db = new Dexie("household-hub");
 
 const reply = (response: SpendingResponse) => self.postMessage(response);
+const fail = (error: unknown) => reply({ ok: false, detail: String(error) });
 
 self.addEventListener(
   "message",
@@ -16,9 +17,9 @@ self.addEventListener(
         liveQuery(() => db.table<TransactionRow>("transactions").toArray()).subscribe({
           next: (transactions) =>
             reply({ ok: true, grids: foldSpending(transactions, userId, todayDay) }),
-          error: (error: unknown) => reply({ ok: false, detail: String(error) }),
+          error: fail,
         }),
-      (error: unknown) => reply({ ok: false, detail: String(error) })
+      fail
     );
   }
 );

@@ -6,13 +6,13 @@ export type Period = "month" | "3m" | "6m" | "year";
 
 const PERIOD_LENGTH: Record<Period, number> = { month: 1, "3m": 3, "6m": 6, year: 12 };
 
-/** The first month of data, where Reports' arrows and bars stop. */
-export const FIRST_MONTH = "2026-10";
-
 /** The first day of data: a previous period starting earlier has no change figure. */
 const GO_LIVE = "2026-10-29";
 
-export interface SpendingWindow {
+/** The first month of data, where Reports' arrows and bars stop. */
+export const FIRST_MONTH = monthOfDate(GO_LIVE);
+
+export interface PeriodMonths {
   /** Oldest first. */
   months: string[];
   /** Whether the last month counts only up to today's day of the month. */
@@ -29,17 +29,17 @@ export const monthsEnding = (end: string, count: number) =>
  * The period's months, which are also the months with data that the monthly
  * average divides by: the go-live month and a partial current month count.
  */
-export const periodWindow = (period: Period, end: string): SpendingWindow => ({
+export const periodMonths = (period: Period, end: string): PeriodMonths => ({
   months: monthsEnding(end, PERIOD_LENGTH[period]),
   cutToToday: false,
 });
 
 /**
- * The window of the same length just before the period. When the period ends
+ * The months of the same length just before the period. When the period ends
  * on this month, it is cut at today's day, so a partial month compares with a
  * partial month. Null when it starts before go-live.
  */
-export function previousWindow(period: Period, end: string, today: string): SpendingWindow | null {
+export function previousPeriod(period: Period, end: string, today: string): PeriodMonths | null {
   const length = PERIOD_LENGTH[period];
   const previousEnd = shiftMonth(end, -length);
   if (`${shiftMonth(previousEnd, 1 - length)}-01` < GO_LIVE) return null;
@@ -49,10 +49,10 @@ export function previousWindow(period: Period, end: string, today: string): Spen
   };
 }
 
-/** Each category's Spending over the window, by category ID; null is Unassigned. */
+/** Each category's Spending over the months, by category ID; null is Unassigned. */
 export function spendingOver(
   grid: SpendingGrid,
-  { months, cutToToday }: SpendingWindow
+  { months, cutToToday }: PeriodMonths
 ): Map<string | null, Cents> {
   const totals = new Map<string | null, Cents>();
   const lastMonth = months.at(-1);

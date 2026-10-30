@@ -93,4 +93,10 @@ describe("foldSpending", () => {
 
     expect(household.get("2026-11")?.get(GROCERIES)).toEqual({ spent: 700, spentToDay: 300 });
   });
+
+  it("counts all of a short month when today's day is past its end", () => {
+    const { household } = foldSpending([row({ date: "2027-02-28" })], ME, 31);
+
+    expect(household.get("2027-02")?.get(GROCERIES)?.spentToDay).toBe(10000);
+  });
 });

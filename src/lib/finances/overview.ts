@@ -13,10 +13,8 @@ import { db } from "@/lib/dexie/db";
 import { newestFirst, totalTransactions, type ListRow } from "@/lib/transactions/filter";
 import { readMoneyRecords, sumAccountMoney } from "@/lib/transactions/money";
 import { monthOfDate } from "@/lib/utils/dates";
-import { shownIn } from "./view";
+import { shownIn, type FinanceView } from "./view";
 import { byName } from "@/lib/utils/sort";
-
-export type FinanceView = "household" | "mine";
 
 /** Categories with a budget this month, by how much of it is spent: close from 80%, over past 100%. */
 export type BudgetStatusCounts = Record<BudgetStatus, number>;

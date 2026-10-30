@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { cents } from "@/test/cents";
-import { monthsEnding, periodWindow, previousWindow, spendingOver } from "./period";
+import { monthsEnding, periodMonths, previousPeriod, spendingOver } from "./period";
 import type { SpendingGrid } from "./spending";
 
-describe("periodWindow", () => {
+describe("periodMonths", () => {
   it("is the whole months ending on the end month", () => {
-    expect(periodWindow("3m", "2027-02")).toEqual({
+    expect(periodMonths("3m", "2027-02")).toEqual({
       months: ["2026-12", "2027-01", "2027-02"],
       cutToToday: false,
     });
   });
 
   it("is the last 12 months for Year", () => {
-    expect(periodWindow("year", "2027-12").months).toEqual([
+    expect(periodMonths("year", "2027-12").months).toEqual([
       "2027-01",
       "2027-02",
       "2027-03",
@@ -29,30 +29,30 @@ describe("periodWindow", () => {
   });
 
   it("leaves out months before the first month of data", () => {
-    expect(periodWindow("6m", "2026-11").months).toEqual(["2026-10", "2026-11"]);
+    expect(periodMonths("6m", "2026-11").months).toEqual(["2026-10", "2026-11"]);
     expect(monthsEnding("2026-11", 12)).toEqual(["2026-10", "2026-11"]);
   });
 });
 
-describe("previousWindow", () => {
+describe("previousPeriod", () => {
   it("is the same length just before, whole, when the period ends on a full month", () => {
-    expect(previousWindow("3m", "2027-06", "2027-08-15")).toEqual({
+    expect(previousPeriod("3m", "2027-06", "2027-08-15")).toEqual({
       months: ["2027-01", "2027-02", "2027-03"],
       cutToToday: false,
     });
   });
 
   it("is cut at today's day of the month when the period ends on this month", () => {
-    expect(previousWindow("month", "2027-03", "2027-03-31")).toEqual({
+    expect(previousPeriod("month", "2027-03", "2027-03-31")).toEqual({
       months: ["2027-02"],
       cutToToday: true,
     });
   });
 
   it("is missing when it starts before go-live on 2026-10-29", () => {
-    expect(previousWindow("month", "2026-11", "2026-11-20")).toBeNull();
-    expect(previousWindow("3m", "2027-03", "2027-03-01")).toBeNull();
-    expect(previousWindow("month", "2026-12", "2026-12-01")).not.toBeNull();
+    expect(previousPeriod("month", "2026-11", "2026-11-20")).toBeNull();
+    expect(previousPeriod("3m", "2027-03", "2027-03-01")).toBeNull();
+    expect(previousPeriod("month", "2026-12", "2026-12-01")).not.toBeNull();
   });
 });
 
@@ -69,7 +69,7 @@ describe("spendingOver", () => {
     ],
   ]);
 
-  it("sums each category over the window's months", () => {
+  it("sums each category over the period's months", () => {
     expect(spendingOver(grid, { months: ["2027-01", "2027-02"], cutToToday: false })).toEqual(
       new Map([
         [GROCERIES, 3000],
@@ -78,7 +78,7 @@ describe("spendingOver", () => {
     );
   });
 
-  it("counts only up to today's day in the last month of a cut window", () => {
+  it("counts only up to today's day in the last month of a cut previous period", () => {
     expect(
       spendingOver(grid, { months: ["2027-01", "2027-02"], cutToToday: true }).get(GROCERIES)
     ).toBe(1000 + 500);

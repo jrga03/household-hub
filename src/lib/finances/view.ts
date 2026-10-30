@@ -1,5 +1,6 @@
 import type { Ownership } from "@/lib/events/ownership";
-import type { FinanceView } from "./overview";
+
+export type FinanceView = "household" | "mine";
 
 const VIEW_KEY = "household-hub-finances-view";
 

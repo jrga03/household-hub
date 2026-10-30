@@ -1,5 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { readFinanceOverview, type FinanceView } from "@/lib/finances/overview";
+import { readFinanceOverview } from "@/lib/finances/overview";
+import type { FinanceView } from "@/lib/finances/view";
 
 /** The current month's Finances for Household or Mine; undefined while loading. */
 export function useFinanceOverview(view: FinanceView, userId: string, currentMonth: string) {

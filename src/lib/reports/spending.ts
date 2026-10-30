@@ -5,8 +5,7 @@
  */
 
 import { diffCents, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
-import type { FinanceView } from "@/lib/finances/overview";
-import { shownIn } from "@/lib/finances/view";
+import { shownIn, type FinanceView } from "@/lib/finances/view";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import { monthOfDate, parseLocalDate } from "@/lib/utils/dates";
 
