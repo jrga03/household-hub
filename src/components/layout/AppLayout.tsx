@@ -24,7 +24,8 @@ import { AddTransactionButton, QuickEntryDialog } from "@/components/transaction
  * arrow on pushed screens, the route's actions and the sync status.
  *
  * Navigation follows the window size class (useWindowClass):
- * - Compact: menu button + drawer, bottom tab bar, floating Add transaction
+ * - Compact: menu button + drawer, bottom tab bar, and floating Add
+ *   transaction on routes that set `staticData.floatingAdd`
  * - Medium: collapsed rail; the menu button opens it expanded as a modal
  * - Expanded: rail collapsed by default
  * - Large: rail expanded by default
@@ -50,6 +51,8 @@ declare module "@tanstack/react-router" {
   interface StaticDataRouteOption {
     /** `false` drops the phone's tab bar and Add button, and main's bottom inset for them. */
     bottomChrome?: false;
+    /** Shows the phone's floating Add transaction button. */
+    floatingAdd?: true;
   }
 }
 
@@ -79,7 +82,8 @@ export function AppLayout() {
   // mount (login, signup) would loop against the household gate's redirect.
   const currentPath = (router.resolvedLocation ?? router.location).pathname;
   const isAuthRoute = NO_NAV_ROUTES.includes(currentPath);
-  const hasBottomChrome = router.matches.at(-1)?.staticData.bottomChrome !== false;
+  const routeData = router.matches.at(-1)?.staticData;
+  const hasBottomChrome = routeData?.bottomChrome !== false;
 
   // Auth pages and create-or-join render without navigation
   if (isAuthRoute) {
@@ -137,7 +141,7 @@ export function AppLayout() {
           {hasBottomChrome && (
             <PhoneBottomChrome>
               <BottomTabBar />
-              <AddTransactionButton floating />
+              {routeData?.floatingAdd && <AddTransactionButton floating />}
             </PhoneBottomChrome>
           )}
           <QuickEntryDialog />

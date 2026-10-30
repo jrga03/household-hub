@@ -13,7 +13,7 @@ import { AppLayout } from "./AppLayout";
 const { mockPathname, mockResolvedPathname, mockStaticData } = vi.hoisted(() => ({
   mockPathname: vi.fn((): string => "/"),
   mockResolvedPathname: vi.fn((): string | undefined => undefined),
-  mockStaticData: vi.fn((): { bottomChrome?: false } => ({})),
+  mockStaticData: vi.fn((): { bottomChrome?: false; floatingAdd?: true } => ({})),
 }));
 
 vi.mock("@tanstack/react-router", () => ({
@@ -100,6 +100,7 @@ afterEach(() => {
 describe("AppLayout navigation per window size class", () => {
   it("gives a compact window the tab bar, the drawer and the floating Add button, and no rail", () => {
     setViewportWidth(COMPACT);
+    mockStaticData.mockReturnValue({ floatingAdd: true });
     render(<AppLayout />);
 
     expect(tabBar()).toBeInTheDocument();
@@ -233,7 +234,7 @@ describe("AppLayout routes without navigation", () => {
   });
 
   it("leaves out the tab bar and the Add button on a compact window when the route turns bottom chrome off", () => {
-    mockStaticData.mockReturnValue({ bottomChrome: false });
+    mockStaticData.mockReturnValue({ bottomChrome: false, floatingAdd: true });
 
     render(<AppLayout />);
 
@@ -243,12 +244,20 @@ describe("AppLayout routes without navigation", () => {
     expect(screen.getByRole("main")).not.toHaveClass("pb-[calc(3.5rem+var(--bottom-chrome))]");
   });
 
-  it("keeps the tab bar, the Add button and the bottom inset on other compact routes", () => {
+  it("keeps the tab bar, the Add button and the bottom inset on compact routes that float Add", () => {
+    mockStaticData.mockReturnValue({ floatingAdd: true });
     render(<AppLayout />);
 
     expect(tabBar()).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add transaction" })).toBeInTheDocument();
     expect(screen.getByRole("main")).toHaveClass("pb-[calc(3.5rem+var(--bottom-chrome))]");
+  });
+
+  it("leaves out only the floating Add button on compact routes that do not ask for it", () => {
+    render(<AppLayout />);
+
+    expect(tabBar()).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add transaction" })).not.toBeInTheDocument();
   });
 
   it("keeps the header Add button from medium up when the route turns bottom chrome off", () => {

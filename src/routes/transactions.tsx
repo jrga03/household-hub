@@ -9,7 +9,7 @@ import { readTransactionFilter, type TransactionFilter } from "@/lib/transaction
 import { useAuthStore } from "@/stores/authStore";
 
 export const Route = createFileRoute("/transactions")({
-  staticData: { title: "Transactions" },
+  staticData: { title: "Transactions", floatingAdd: true },
   validateSearch: (search: Record<string, unknown>) => ({
     ...readTransactionFilter(search),
     ...readOpenItem(search),
