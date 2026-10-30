@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { BackToThisMonth, MonthPicker } from "@/components/budgets/MonthPicker";
 import { PlanView } from "@/components/budgets/PlanView";
+import { backOnce } from "@/components/layout/DetailPane";
 import { HeaderActions } from "@/components/layout/HeaderActions";
 import { PageShell } from "@/components/layout/PageShell";
 import { useHousehold } from "@/hooks/useHousehold";
@@ -42,16 +43,25 @@ function PlanPage() {
   const userId = useAuthStore((state) => state.user?.id);
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const router = useRouter();
   const currentMonth = localMonth(new Date());
   const month = search.month ?? currentMonth;
   const monthOnly = (next: string) => (next === currentMonth ? {} : { month: next });
   const setMonth = (next: string) =>
     void navigate({ search: { ...search, ...monthOnly(next) }, replace: true });
-  const setDistribute = (mode: DistributeMode | null) =>
-    void navigate({
-      search: mode ? { ...monthOnly(month), distribute: mode } : monthOnly(month),
-      replace: true,
-    });
+  // Opening pushes an entry, so back closes the sheet; one opened by a link closes in place.
+  const setDistribute = (mode: DistributeMode | null) => {
+    if (mode) {
+      void navigate({
+        search: { ...monthOnly(month), distribute: mode },
+        state: { openPushed: true },
+      });
+    } else if (router.state.location.state.openPushed) {
+      backOnce(router.history);
+    } else {
+      void navigate({ search: monthOnly(month), replace: true });
+    }
+  };
 
   return (
     <>

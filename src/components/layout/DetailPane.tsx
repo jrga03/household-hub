@@ -42,7 +42,7 @@ const backInFlight = new WeakSet<RouterHistory>();
  * Goes back once until the pop lands: a second close meanwhile (the editor's
  * onClose, then the item vanishing) must not leave the page too.
  */
-function backOnce(history: RouterHistory) {
+export function backOnce(history: RouterHistory) {
   if (backInFlight.has(history)) return;
   backInFlight.add(history);
   const unsubscribe = history.subscribe(() => {

@@ -22,6 +22,8 @@ interface FormSheetProps {
   title: ReactNode;
   description?: ReactNode;
   onClose: () => void;
+  /** The page keeps this sheet open in its URL, so that entry, not the sheet, closes it on back. */
+  openInUrl?: boolean;
   children: ReactNode;
 }
 
@@ -35,6 +37,9 @@ export function FormSheet(props: FormSheetProps) {
 }
 
 const closeOn = (onClose: () => void) => (open: boolean) => !open && onClose();
+
+// Drawer and Dialog add a back-close history entry only when controlled.
+const openProps = (openInUrl = false) => (openInUrl ? { defaultOpen: true } : { open: true });
 
 /**
  * Keeps a bottom sheet's fields above the on-screen keyboard: put `ref` and
@@ -73,10 +78,10 @@ function focusSheet(event: Event) {
   if (sheet instanceof HTMLElement && !sheet.contains(document.activeElement)) sheet.focus();
 }
 
-function PhoneSheet({ title, description, onClose, children }: FormSheetProps) {
+function PhoneSheet({ title, description, onClose, openInUrl, children }: FormSheetProps) {
   const aboveKeyboard = useSheetAboveKeyboard();
   return (
-    <Drawer open onOpenChange={closeOn(onClose)} repositionInputs={false}>
+    <Drawer {...openProps(openInUrl)} onOpenChange={closeOn(onClose)} repositionInputs={false}>
       <DrawerContent {...aboveKeyboard} className="outline-none" onOpenAutoFocus={focusSheet}>
         <DrawerHeader>
           <DrawerTitle>{title}</DrawerTitle>
@@ -88,9 +93,9 @@ function PhoneSheet({ title, description, onClose, children }: FormSheetProps) {
   );
 }
 
-function WideDialog({ title, description, onClose, children }: FormSheetProps) {
+function WideDialog({ title, description, onClose, openInUrl, children }: FormSheetProps) {
   return (
-    <Dialog open onOpenChange={closeOn(onClose)}>
+    <Dialog {...openProps(openInUrl)} onOpenChange={closeOn(onClose)}>
       <DialogContent
         className="@container max-h-[90dvh] overflow-y-auto"
         {...(!description && { "aria-describedby": undefined })}
