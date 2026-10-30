@@ -43,6 +43,7 @@ function colorOn(theme: Theme, token: string, surface: string) {
 }
 
 const PAGE_SURFACES = ["background", "card", "popover", "muted"];
+const CHART_SURFACES = ["background", "card"];
 
 /** Text that must reach WCAG 2 AA body contrast, 4.5:1. */
 const textPairs: Array<[text: string, surface: string]> = [
@@ -76,14 +77,20 @@ const textPairs: Array<[text: string, surface: string]> = [
 ];
 
 /** Controls and indicators that must reach WCAG 2 AA non-text contrast, 3:1. */
-const uiPairs: Array<[ui: string, surface: string]> = PAGE_SURFACES.flatMap(
-  (surface): Array<[string, string]> => [
+const uiPairs: Array<[ui: string, surface: string]> = [
+  ...PAGE_SURFACES.flatMap((surface): Array<[string, string]> => [
     ["input", surface],
     ["ring", surface],
     ["primary", surface],
     ["destructive", surface],
-  ]
-);
+  ]),
+  ...CHART_SURFACES.flatMap((surface): Array<[string, string]> => [
+    ["chart", surface],
+    ["chart-muted", surface],
+    ["income", surface],
+    ["shortfall", surface],
+  ]),
+];
 
 /** A ProgressBar's fill on its translucent track, over the page surfaces. */
 const PROGRESS_TRACK_ALPHA = 0.2;

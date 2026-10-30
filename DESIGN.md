@@ -42,6 +42,8 @@ Use only these roles _(lint: unknown classes, arbitrary colors, color literals, 
 | `ring`                                   | Focus rings.                                                                                  |
 | `income`                                 | Money coming in.                                                                              |
 | `shortfall`                              | Money that is short. See [Money](#money).                                                     |
+| `chart`                                  | The series in a chart, such as bars, points and lines.                                        |
+| `chart-muted`                            | A comparison series, such as earlier months.                                                  |
 | `warning` / `warning-surface`            | Something needs attention but nothing is broken.                                              |
 | `success` / `success-foreground`         | A finished or confirmed state, as a badge.                                                    |
 | `scrim`                                  | The dimmed layer behind a dialog or sheet. It carries its own alpha; add no opacity modifier. |
@@ -51,7 +53,7 @@ Use only these roles _(lint: unknown classes, arbitrary colors, color literals, 
 - `destructive` is for actions and blocking errors only. A status (a flag, a badge, a sync state) is never `destructive`: use `warning` for something to check, `success` for done, `secondary` or `outline` for neutral.
 - Inline warning text is `text-warning`. A boxed warning is `border-warning/50 bg-warning-surface` with normal text inside.
 - The `sidebar-*` colors alias the base roles. They exist for the shadcn sidebar; use the base roles in new code.
-- Charts have no color roles yet. They get their own session; do not invent chart colors.
+- Charts use `chart` and `chart-muted` only, with no per-category hues. A label names every bar and point. Gridlines are `border`, axis text is `muted-foreground`, over budget is `shortfall` with its 'over' text, and the bar the drilldown shows is `primary`.
 - Contrast is a test, not a guess. `src/theme-contrast.test.ts` holds every declared text-on-surface pair to WCAG 2 AA in both themes, and `muted-foreground` and `shortfall` to APCA Lc 60. When you put a role on a surface it has not been paired with, add the pair to that test.
 
 ## Money
