@@ -259,6 +259,10 @@ A `list-detail` page shows its open item with `DetailPane` (`src/components/layo
 - Crossing 840 moves the open item between sheet and pane; it stays open. A stale id (the item was removed or synced away) closes it.
 - The sheet's header is the title alone. The `description` shows only in the pane.
 
+### A FormSheet opened from the URL
+
+When a search param opens a `FormSheet` (Plan's `?distribute=`), the URL entry is what back closes, as with `DetailPane`. Open it with a push and `state: { openPushed: true }`; close it with `backOnce` when that flag is set, and with a replace when a link opened it; pass `openInUrl` so the sheet adds no back entry of its own. `src/routes/plan.tsx` is the example.
+
 ## Enforcement
 
 Why: an agent that skips this doc still cannot ship an off-system class.
