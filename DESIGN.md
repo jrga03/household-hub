@@ -225,7 +225,7 @@ Inside the shell, panes, rails and sheets, use container queries (`@[600px]:`), 
 - 840: a second pane may show.
 - 1200: the fixed detail pane widens from 360 to 412px.
 - Use only these three thresholds for page layout. Never add a third pane.
-- One more threshold, 480, lives inside a form or a narrow pane: a form grid goes to two (or three) columns, `FormFooter` lays its buttons in a row, and a `DataTable` column can `hideBelow` it. Span a field across a two-column form grid with `FULL_ROW` (`src/components/app/FormSheet.tsx`); never retype the class.
+- One more threshold, 480, lives inside a form or a narrow pane: a form grid goes to two (or three) columns, `FormFooter` lays its buttons in a row, a `DataTable` column can `hideBelow` it, and a `ListRow`'s trailing sparkline (Reports) shows from it. Span a field across a two-column form grid with `FULL_ROW` (`src/components/app/FormSheet.tsx`); never retype the class.
 
 At 1366 with the expanded rail the shell is about 1110px, so the detail pane is 360px; it reaches 412px when the rail is collapsed.
 
@@ -241,14 +241,14 @@ Every route renders `<PageShell variant="…">` (`src/components/layout/PageShel
 
 Home is the `supporting-pane` page. Inside either wide variant, `useTwoPanes()` (`src/components/layout/pane.ts`) says whether the two columns sit side by side; use it when the stacked order differs from the two-column one, and render one arrangement rather than hiding the other with CSS.
 
-| Route                                  | Variant now                         | Final variant (owner) |
-| -------------------------------------- | ----------------------------------- | --------------------- |
-| Transactions, Budget, Import, Accounts | `list-detail`                       | same                  |
-| Plan, Review, Categories, Assistant    | `single`                            | same                  |
-| Home                                   | `supporting-pane`                   | same                  |
-| Settings                               | `list-detail`, one page below 840px | same                  |
-| Create or join                         | `single`, narrowed with `max-w-md`  | same                  |
-| Login, signup                          | `single`, narrowed with `max-w-md`  | same                  |
+| Route                                           | Variant now                         | Final variant (owner) |
+| ----------------------------------------------- | ----------------------------------- | --------------------- |
+| Transactions, Budget, Import, Accounts, Reports | `list-detail`                       | same                  |
+| Plan, Review, Categories, Assistant             | `single`                            | same                  |
+| Home                                            | `supporting-pane`                   | same                  |
+| Settings                                        | `list-detail`, one page below 840px | same                  |
+| Create or join                                  | `single`, narrowed with `max-w-md`  | same                  |
+| Login, signup                                   | `single`, narrowed with `max-w-md`  | same                  |
 
 ### DetailPane
 

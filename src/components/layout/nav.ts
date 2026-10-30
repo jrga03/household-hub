@@ -1,5 +1,6 @@
 import { useRouterState } from "@tanstack/react-router";
 import {
+  BarChart3,
   ClipboardCheck,
   FileUp,
   Home,
@@ -32,6 +33,7 @@ export const DAILY_NAV: NavItem[] = [
   { to: "/", label: "Home", icon: Home, shortcut: "g h", tab: true },
   { to: "/transactions", label: "Transactions", icon: Receipt, shortcut: "g t", tab: true },
   { to: "/budget", label: "Budget", icon: PiggyBank, shortcut: "g b" },
+  { to: "/reports", label: "Reports", icon: BarChart3, shortcut: "g p" },
   { to: "/review", label: "Review", icon: ClipboardCheck, shortcut: "g r", reviewCount: true },
   ...(ASSISTANT_URL ? [{ to: "/assistant", label: "Assistant", icon: Sparkles } as const] : []),
 ];
