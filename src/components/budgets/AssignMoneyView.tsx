@@ -111,7 +111,7 @@ export function AssignMoneyHelp() {
       <PopoverContent className="space-y-2 text-body">
         <p>Unassigned is money in your accounts not yet in a category.</p>
         <p>Move money moves it between categories.</p>
-        <p>Distribute shares income across categories by their budgets.</p>
+        <p>Distribute shares this month’s income across categories by their budgets.</p>
       </PopoverContent>
     </Popover>
   );

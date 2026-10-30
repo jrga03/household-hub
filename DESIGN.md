@@ -211,7 +211,7 @@ Global chrome switches on the window width. `useWindowClass()` (`src/hooks/useMe
 - The sidebar cookie (the person's rail toggle) wins over the class default, from expanded up. The medium modal rail ignores it.
 - The tab bar and the rail never show together.
 - Give every collapsed rail link an `aria-label`, since only its icon shows.
-- Use `medium:`, `expanded:` and `large:` only for global chrome (`AppLayout`, the header, the rail). Page content uses container queries. Tailwind's `sm:`, `md:`, `lg:`, `xl:` and `2xl:` fail in app code _(lint: restricted classes)_; they stay in the theme only for the shadcn primitives.
+- Use `medium:`, `expanded:` and `large:` only for global chrome (`AppLayout`, the header, the rail). Page content uses container queries. The one exception is page content that stands in for a header control on narrow windows (Budget's links, Set budgets' month picker): it flips on the same window class as the header. Tailwind's `sm:`, `md:`, `lg:`, `xl:` and `2xl:` fail in app code _(lint: restricted classes)_; they stay in the theme only for the shadcn primitives.
 - There is no larger class. Wide windows cap content at `max-w-7xl` instead.
 - Pin bottom-edge elements with the `--bottom-chrome` offset so nothing lands under the tab bar. It is the tab bar's height at compact and the safe area elsewhere.
 - Pin sticky content below the app header with the `--app-header` offset (`SectionHeader sticky` does this). Never hard-code the header's height.

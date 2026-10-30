@@ -127,6 +127,6 @@ describe("AssignMoneyView", () => {
     const help = await screen.findByRole("dialog");
     expect(help).toHaveTextContent(/Unassigned is money in your accounts not yet in a category/);
     expect(help).toHaveTextContent(/Move money moves it between categories/);
-    expect(help).toHaveTextContent(/Distribute shares income/);
+    expect(help).toHaveTextContent(/Distribute shares this month’s income/);
   });
 });
