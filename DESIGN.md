@@ -225,7 +225,7 @@ Inside the shell, panes, rails and sheets, use container queries (`@[600px]:`), 
 - 840: a second pane may show.
 - 1200: the fixed detail pane widens from 360 to 412px.
 - Use only these three thresholds for page layout. Never add a third pane.
-- One more threshold, 480, lives inside a form or a narrow pane: a form grid goes to two (or three) columns, `FormFooter` lays its buttons in a row, and a `DataTable` column can `hideBelow` it. Span a field across a two-column form grid with `FULL_ROW` (`src/components/app/FormSheet.tsx`); never retype the class.
+- One more threshold, 480, lives inside a form or a narrow pane: a form grid goes to two (or three) columns, `FormFooter` lays its buttons in a row, a `DataTable` column can `hideBelow` it, and a `ListRow`'s trailing sparkline (Reports) shows from it. Span a field across a two-column form grid with `FULL_ROW` (`src/components/app/FormSheet.tsx`); never retype the class.
 
 At 1366 with the expanded rail the shell is about 1110px, so the detail pane is 360px; it reaches 412px when the rail is collapsed.
 

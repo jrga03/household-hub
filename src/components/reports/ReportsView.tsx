@@ -7,6 +7,7 @@ import { Money } from "@/components/app/Money";
 import { SectionHeader } from "@/components/app/SectionHeader";
 import { SegmentedControl } from "@/components/app/SegmentedControl";
 import { MonthPicker } from "@/components/budgets/MonthPicker";
+import { VIEW_OPTIONS } from "@/components/finances/FinancesSection";
 import { HeaderActions } from "@/components/layout/HeaderActions";
 import { PageShell } from "@/components/layout/PageShell";
 import type { CategoryList, CategoryRow, GroupRow } from "@/lib/categories/projection";
@@ -31,11 +32,6 @@ const PERIOD_OPTIONS = [
   { value: "6m", label: "6 months" },
   { value: "year", label: "Year" },
 ] as const satisfies readonly { value: Period; label: string }[];
-
-const VIEW_OPTIONS = [
-  { value: "household", label: "Household" },
-  { value: "mine", label: "Mine" },
-] as const;
 
 const SPARKLINE_MONTHS = 12;
 
@@ -91,10 +87,9 @@ export function ReportsView({
   const previous = previousPeriod(period, end, today);
   const totals = spendingOver(grid, current);
   const before = previous && spendingOver(grid, previous);
-  const total = sumCents(totals.values());
-  const thin = monthsWithSpending(grid) < 2;
+  const thinHistory = monthsWithSpending(grid) < 2;
   const sparkMonths = monthsEnding(end, SPARKLINE_MONTHS);
-  const range = monthRangeLabel(current.months[0] ?? end, end);
+  const periodLabel = monthRangeLabel(current.months[0] ?? end, end);
 
   const byId = categoriesById(categories);
   const ranked = [...totals]
@@ -104,6 +99,8 @@ export function ReportsView({
       return found ? [{ ...found, cents }] : [];
     })
     .sort((a, b) => b.cents - a.cents);
+  // Over the listed categories, so the hero always matches its rows.
+  const total = sumCents(ranked.map(({ cents }) => cents));
   const groups = [
     ...new Map(ranked.flatMap(({ group }) => (group ? [[group.id, group] as const] : []))).values(),
   ];
@@ -143,7 +140,7 @@ export function ReportsView({
         </div>
 
         <HeroFigure
-          label={`Spending, ${range}`}
+          label={`Spending, ${periodLabel}`}
           value={<Money kind="balance" cents={total} />}
           caption={
             period !== "month" && (
@@ -157,7 +154,7 @@ export function ReportsView({
 
         <section className="space-y-3">
           <SectionHeader title="Categories" />
-          {thin && ranked.length > 0 && (
+          {thinHistory && ranked.length > 0 && (
             <p className="text-body text-muted-foreground">
               Trends show once a second month has spending.
             </p>
@@ -176,7 +173,7 @@ export function ReportsView({
             </FilterChips>
           )}
           {rows.length === 0 ? (
-            <EmptyState>No spending in {range}.</EmptyState>
+            <EmptyState>No spending in {periodLabel}.</EmptyState>
           ) : (
             <ul aria-label="Categories" className="divide-y border-y">
               {rows.map(({ category, group, cents }) => (
@@ -196,7 +193,7 @@ export function ReportsView({
                     }
                     amount={<Money kind="balance" cents={cents} />}
                     trailing={
-                      thin || sparkMonths.length < 2 ? undefined : (
+                      thinHistory || sparkMonths.length < 2 ? undefined : (
                         <Sparkline
                           values={sparkMonths.map(
                             (month) => grid.get(month)?.get(category.id)?.spent ?? ZERO_CENTS
@@ -220,16 +217,17 @@ export function ReportsView({
 function Change({ now, before }: { now: Cents; before: Cents }) {
   if (before <= 0) return null;
   const percent = Math.round(((now - before) / before) * 100);
-  const spoken =
+  const size = `${Math.abs(percent)}%`;
+  const [shown, spoken] =
     percent === 0
-      ? "the same as the previous period"
-      : `${percent > 0 ? "up" : "down"} ${Math.abs(percent)}% on the previous period`;
+      ? ["No change", "the same as the previous period"]
+      : percent > 0
+        ? [`↑ ${size}`, `up ${size} on the previous period`]
+        : [`↓ ${size}`, `down ${size} on the previous period`];
   return (
     <>
       {" · "}
-      <span aria-hidden>
-        {percent === 0 ? "No change" : `${percent > 0 ? "↑" : "↓"} ${Math.abs(percent)}%`}
-      </span>
+      <span aria-hidden>{shown}</span>
       <span className="sr-only">{spoken}</span>
     </>
   );

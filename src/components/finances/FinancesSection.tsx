@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 import { daysLeftInMonth, localMonth, monthLabel, parseLocalDate } from "@/lib/utils/dates";
 import { AttentionFeed } from "./AttentionFeed";
 
-const VIEW_OPTIONS = [
+export const VIEW_OPTIONS = [
   { value: "household", label: "Household" },
   { value: "mine", label: "Mine" },
 ] as const;
