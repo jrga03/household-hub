@@ -7,6 +7,7 @@ import {
   FilterChip,
   FilterChips,
   FilterChipSelect,
+  FilterCombobox,
   FilterSelect,
   type FilterChoiceGroup,
 } from "@/components/app/FilterChips";
@@ -54,6 +55,7 @@ interface FilterChoices {
   anyLabel: string;
   groups: FilterChoiceGroup[];
   read: (value: string | undefined) => TransactionFilter;
+  searchable?: boolean;
 }
 
 interface TransactionFiltersProps {
@@ -134,6 +136,7 @@ export function TransactionFilters({
         ...categoryGroups(categories),
       ],
       read: (category) => ({ category }),
+      searchable: true,
     },
     {
       key: "visibility",
@@ -223,6 +226,7 @@ export function TransactionFilters({
               anyLabel={choice.anyLabel}
               value={choice.value}
               groups={choice.groups}
+              searchable={choice.searchable}
               onChange={(value) => mergeFilter(choice.read(value))}
             />
           ))}
@@ -243,18 +247,29 @@ export function TransactionFilters({
       {search}
       {choices.map((choice) => (
         <Field key={choice.key} label={choice.label}>
-          {(control) => (
-            <FilterSelect
-              anyLabel={choice.anyLabel}
-              value={choice.value}
-              groups={choice.groups}
-              onChange={(value) => mergeFilter(choice.read(value))}
-            >
-              <SelectTrigger {...control} className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-            </FilterSelect>
-          )}
+          {(control) =>
+            choice.searchable ? (
+              <FilterCombobox
+                {...control}
+                className="w-full"
+                anyLabel={choice.anyLabel}
+                value={choice.value}
+                groups={choice.groups}
+                onChange={(value) => mergeFilter(choice.read(value))}
+              />
+            ) : (
+              <FilterSelect
+                anyLabel={choice.anyLabel}
+                value={choice.value}
+                groups={choice.groups}
+                onChange={(value) => mergeFilter(choice.read(value))}
+              >
+                <SelectTrigger {...control} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+              </FilterSelect>
+            )
+          }
         </Field>
       ))}
       <div className="flex items-center gap-2">

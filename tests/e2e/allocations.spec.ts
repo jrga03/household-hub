@@ -120,7 +120,10 @@ test.describe("on a laptop", () => {
     await page.keyboard.press("Enter");
     await expect(page.getByRole("listbox")).toBeVisible();
     await page.keyboard.type("Groc");
-    await expect(page.getByRole("option", { name: "Groceries · ₱0.00" })).toBeFocused();
+    await expect(page.getByRole("option", { name: "Groceries · ₱0.00" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
     await page.keyboard.press("Enter");
     await expect(move.getByLabel("To")).toContainText("Groceries");
     await move.getByLabel("Amount (₱)").focus();

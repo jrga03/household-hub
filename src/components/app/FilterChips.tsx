@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { Combobox } from "./Combobox";
 import {
   Select,
   SelectContent,
@@ -75,20 +76,27 @@ const ANY = "all";
  */
 export function FilterChipSelect({
   label,
+  searchable,
   ...select
-}: Omit<FilterSelectProps, "children"> & { label: string }) {
+}: Omit<FilterSelectProps, "children"> & {
+  label: string;
+  /** Adds a search field, for long lists. */
+  searchable?: boolean;
+}) {
   const chosen = select.groups
     .flatMap((group) => group.choices)
     .find((choice) => choice.value === select.value);
-  return (
+  const trigger = {
+    "data-slot": "filter-chip",
+    "aria-label": chosen ? `${label}: ${chosen.label}` : label,
+    className: cn(chipClasses(chosen !== undefined), "h-8 py-0 shadow-none"),
+    children: <span>{chosen?.label ?? label}</span>,
+  };
+  return searchable ? (
+    <FilterCombobox {...select} {...trigger} />
+  ) : (
     <FilterSelect {...select}>
-      <SelectTrigger
-        data-slot="filter-chip"
-        aria-label={chosen ? `${label}: ${chosen.label}` : label}
-        className={cn(chipClasses(chosen !== undefined), "h-8 py-0 shadow-none")}
-      >
-        <span>{chosen?.label ?? label}</span>
-      </SelectTrigger>
+      <SelectTrigger {...trigger} />
     </FilterSelect>
   );
 }
@@ -100,6 +108,30 @@ interface FilterSelectProps {
   onChange: (value: string | undefined) => void;
   /** The trigger. */
   children: ReactNode;
+}
+
+const withAny = (anyLabel: string, groups: FilterChoiceGroup[]) => [
+  { options: [{ value: ANY, label: anyLabel }] },
+  ...groups.map((group) => ({ label: group.label, options: group.choices })),
+];
+
+/** `FilterSelect` with a search field, for long lists. The trigger takes the props of a `Field`'s control. */
+export function FilterCombobox({
+  anyLabel,
+  value,
+  groups,
+  onChange,
+  ...trigger
+}: Omit<FilterSelectProps, "children"> &
+  Omit<ComponentProps<typeof Combobox>, "value" | "onValueChange" | "groups">) {
+  return (
+    <Combobox
+      {...trigger}
+      value={value ?? ANY}
+      onValueChange={(next) => onChange(next === ANY ? undefined : next)}
+      groups={withAny(anyLabel, groups)}
+    />
+  );
 }
 
 /** A Select over grouped choices, led by `anyLabel`, the choice that clears it. */

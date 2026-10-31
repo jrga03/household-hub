@@ -1,16 +1,7 @@
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/app/Select";
+import { Combobox } from "@/components/app/Combobox";
 import type { AccountRow } from "@/lib/accounts/projection";
 import { canHoldMoneyIn, type CategoryList, type CategoryRow } from "@/lib/categories/projection";
 
-// Radix Select can't hold an empty value.
 export const UNASSIGNED = "unassigned";
 
 export interface CategoryChoiceGroup {
@@ -50,11 +41,8 @@ export const isCategoryChoice = (choices: CategoryChoiceGroup[], id: string | nu
  * Inside a `Field`, spread its control props onto it.
  */
 export function CategorySelect({
-  name,
   choices,
-  value,
-  onValueChange,
-  ...trigger
+  ...combobox
 }: {
   id: string;
   "aria-describedby"?: string;
@@ -65,23 +53,19 @@ export function CategorySelect({
   onValueChange: (value: string) => void;
 }) {
   return (
-    <Select name={name} value={value} onValueChange={onValueChange}>
-      <SelectTrigger {...trigger} className="w-full">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-        {choices.map((group) => (
-          <SelectGroup key={group.label}>
-            <SelectLabel>{group.label}</SelectLabel>
-            {group.categories.map((category) => (
-              <SelectItem key={category.id} value={category.id}>
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        ))}
-      </SelectContent>
-    </Select>
+    <Combobox
+      {...combobox}
+      className="w-full"
+      groups={[
+        { options: [{ value: UNASSIGNED, label: "Unassigned" }] },
+        ...choices.map((group) => ({
+          label: group.label,
+          options: group.categories.map((category) => ({
+            value: category.id,
+            label: category.name,
+          })),
+        })),
+      ]}
+    />
   );
 }

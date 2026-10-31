@@ -112,7 +112,10 @@ test.describe("with a keyboard", () => {
     await page.keyboard.press("Enter");
     await expect(page.getByRole("listbox")).toBeVisible();
     await page.keyboard.type("Food");
-    await expect(page.getByRole("option", { name: "Food" })).toBeFocused();
+    await expect(page.getByRole("option", { name: "Food" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
     await page.keyboard.press("Enter");
     await expect(addCategory.getByLabel("Group")).toHaveText("Food");
     await page.keyboard.press("Tab");
@@ -131,7 +134,10 @@ test.describe("with a keyboard", () => {
     await page.keyboard.press("Enter");
     await expect(page.getByRole("listbox")).toBeVisible();
     await page.keyboard.type("Bills");
-    await expect(page.getByRole("option", { name: "Bills" })).toBeFocused();
+    await expect(page.getByRole("option", { name: "Bills" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
     await page.keyboard.press("Enter");
     await expect(edit.getByLabel("Group")).toHaveText("Bills");
     await page.keyboard.press("Tab");

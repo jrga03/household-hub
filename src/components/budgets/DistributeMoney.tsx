@@ -3,6 +3,7 @@ import { useActionState, useState } from "react";
 import { toast } from "sonner";
 import { categoryNames } from "@/components/allocations/envelopes";
 import { ActionForm } from "@/components/app/ActionForm";
+import { Combobox } from "@/components/app/Combobox";
 import { CurrencyInput } from "@/components/app/CurrencyInput";
 import { EmptyState } from "@/components/app/EmptyState";
 import { Field } from "@/components/app/Field";
@@ -318,24 +319,24 @@ function LinesForm({
       {unlisted.length > 0 && (
         <Field label="Add a category">
           {(control) => (
-            <Select
+            <Combobox
+              {...control}
+              className="w-full @[480px]:w-64"
+              placeholder="Choose a category"
               value=""
               onValueChange={(categoryId) => {
                 const category = unlisted.find((choice) => choice.id === categoryId);
                 if (category) addLine(category);
               }}
-            >
-              <SelectTrigger {...control} className="w-full @[480px]:w-64">
-                <SelectValue placeholder="Choose a category" />
-              </SelectTrigger>
-              <SelectContent>
-                {unlisted.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    {category.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              groups={[
+                {
+                  options: unlisted.map((category) => ({
+                    value: category.id,
+                    label: category.name,
+                  })),
+                },
+              ]}
+            />
           )}
         </Field>
       )}

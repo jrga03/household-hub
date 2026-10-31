@@ -101,7 +101,8 @@ describe("ProposalCard", () => {
 
     await screen.findByLabelText("Account");
     await chooseOption("Account", "BPI");
-    await chooseOption("Category", "Groceries");
+    fireEvent.click(screen.getByLabelText("Category"));
+    fireEvent.click(await screen.findByRole("option", { name: "Groceries" }));
     fireEvent.change(screen.getByLabelText("Date"), { target: { value: "2026-10-15" } });
     fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
 

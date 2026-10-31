@@ -1,10 +1,5 @@
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/app/Select";
+import { useState } from "react";
+import { Combobox } from "@/components/app/Combobox";
 import type { GroupRow } from "@/lib/categories/projection";
 
 const groupLabel = (group: GroupRow) =>
@@ -22,18 +17,16 @@ export function GroupSelect({
   groups: GroupRow[];
   defaultValue?: string;
 }) {
+  const [groupId, setGroupId] = useState(defaultValue ?? "");
   return (
-    <Select name="groupId" defaultValue={defaultValue}>
-      <SelectTrigger {...trigger} className="w-full">
-        <SelectValue placeholder="Choose a group" />
-      </SelectTrigger>
-      <SelectContent>
-        {groups.map((group) => (
-          <SelectItem key={group.id} value={group.id}>
-            {groupLabel(group)}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <Combobox
+      {...trigger}
+      name="groupId"
+      className="w-full"
+      placeholder="Choose a group"
+      value={groupId}
+      onValueChange={setGroupId}
+      groups={[{ options: groups.map((group) => ({ value: group.id, label: groupLabel(group) })) }]}
+    />
   );
 }
