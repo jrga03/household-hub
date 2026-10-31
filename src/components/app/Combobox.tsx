@@ -26,7 +26,11 @@ export interface ComboboxGroup {
   options: ComboboxOption[];
 }
 
-type ComboboxProps = Omit<ComponentProps<"button">, "value" | "defaultValue" | "onChange"> & {
+// Only what both the button and the phone's text field can take.
+type ComboboxProps = Pick<
+  ComponentProps<"button">,
+  "id" | "aria-label" | "aria-describedby" | "aria-invalid" | "disabled" | "className"
+> & {
   value: string;
   onValueChange: (value: string) => void;
   groups: ComboboxGroup[];
