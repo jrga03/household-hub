@@ -12,7 +12,10 @@ function mockInsets(insets: { top: string; right: string; bottom: string; left: 
 }
 
 describe("safeAreaPadding", () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    window.dispatchEvent(new Event("resize"));
+  });
 
   it("keeps popups clear of an iPhone Dynamic Island and home indicator", () => {
     mockInsets({ top: "59px", right: "0px", bottom: "34px", left: "0px" });
@@ -24,5 +27,14 @@ describe("safeAreaPadding", () => {
     mockInsets({ top: "", right: "", bottom: "", left: "" });
 
     expect(safeAreaPadding()).toEqual({ top: 8, right: 8, bottom: 8, left: 8 });
+  });
+
+  it("measures again after a rotation moves the island to a side", () => {
+    mockInsets({ top: "59px", right: "0px", bottom: "34px", left: "0px" });
+    safeAreaPadding();
+    mockInsets({ top: "0px", right: "59px", bottom: "21px", left: "59px" });
+    window.dispatchEvent(new Event("resize"));
+
+    expect(safeAreaPadding()).toEqual({ top: 8, right: 67, bottom: 29, left: 67 });
   });
 });
