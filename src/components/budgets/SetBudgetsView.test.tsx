@@ -14,19 +14,23 @@ import { setBudget } from "@/lib/commands/budgets";
 import { addTransaction } from "@/lib/commands/transactions";
 import { categoryMonth, readMonthView } from "@/lib/budgets/month";
 import { parsePHP } from "@/lib/currency";
+import { useCollapsedGroupsStore } from "@/stores/collapsedGroupsStore";
+import { BudgetView } from "./BudgetView";
 import { SetBudgetsView } from "./SetBudgetsView";
 import { HOUSEHOLD } from "@/test/events";
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 const MONTH = "2026-10";
 
-function renderSetBudgets() {
+function renderSetBudgets(
+  view = <SetBudgetsView actor={MEMBER} month={MONTH} currentMonth={MONTH} />
+) {
   const rootRoute = createRootRoute();
   const routes = ["/set-budgets", "/categories"].map((path) =>
     createRoute({
       getParentRoute: () => rootRoute,
       path,
-      component: () => <SetBudgetsView actor={MEMBER} month={MONTH} currentMonth={MONTH} />,
+      component: () => view,
     })
   );
   const router = createRouter({
@@ -45,7 +49,7 @@ async function groceries() {
   });
   const food = await createGroup(MEMBER, { name: "Food" });
   const category = await createCategory(MEMBER, { name: "Groceries", groupId: food.id });
-  return { bpi, category };
+  return { bpi, food, category };
 }
 
 const budgetIn = async (month: string, categoryId: string) =>
@@ -53,6 +57,8 @@ const budgetIn = async (month: string, categoryId: string) =>
 
 beforeEach(async () => {
   await resetLocalDatabase();
+  localStorage.clear();
+  useCollapsedGroupsStore.setState({ collapsedGroupIds: [] });
 });
 
 describe("SetBudgetsView", () => {
@@ -122,5 +128,68 @@ describe("SetBudgetsView", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Groceries budget details" }));
     expect(await screen.findByRole("dialog", { name: "Budget for Groceries" })).toBeInTheDocument();
+  });
+
+  it("leaves out a collapsed group's rows and keeps its budget total", async () => {
+    const { bpi, category } = await groceries();
+    await setBudget(MEMBER, {
+      categoryId: category.id,
+      fromMonth: MONTH,
+      amountCents: parsePHP("8000"),
+      accountId: bpi.id,
+    });
+    renderSetBudgets();
+
+    const header = await screen.findByRole("button", { name: "Food" });
+    expect(header).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(header);
+
+    expect(header).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("textbox", { name: "Groceries" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Food" })).toHaveTextContent("₱8,000.00 budgeted");
+  });
+
+  it("starts with the groups this device collapsed, on Budget or before a reload", async () => {
+    const { food } = await groceries();
+    localStorage.setItem(
+      "collapsed-groups",
+      JSON.stringify({ state: { collapsedGroupIds: [food.id] }, version: 0 })
+    );
+    await useCollapsedGroupsStore.persist.rehydrate();
+    renderSetBudgets();
+
+    expect(await screen.findByRole("button", { name: "Food" })).toHaveAttribute(
+      "aria-expanded",
+      "false"
+    );
+    expect(screen.queryByRole("textbox", { name: "Groceries" })).not.toBeInTheDocument();
+  });
+
+  it("collapses a group on Set budgets that was collapsed on Budget", async () => {
+    await groceries();
+    const budget = renderSetBudgets(
+      <BudgetView actor={MEMBER} month={MONTH} currentMonth={MONTH} />
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Food" }));
+    budget.unmount();
+    renderSetBudgets();
+
+    expect(await screen.findByRole("button", { name: "Food" })).toHaveAttribute(
+      "aria-expanded",
+      "false"
+    );
+    expect(screen.queryByRole("textbox", { name: "Groceries" })).not.toBeInTheDocument();
+  });
+
+  it("offers done on the last shown amount when the groups after it are collapsed", async () => {
+    await groceries();
+    const savings = await createGroup(MEMBER, { name: "Savings" });
+    await createCategory(MEMBER, { name: "Retirement", groupId: savings.id });
+    renderSetBudgets();
+
+    const amount = await screen.findByRole("textbox", { name: "Groceries" });
+    expect(amount).toHaveAttribute("enterkeyhint", "next");
+    fireEvent.click(screen.getByRole("button", { name: "Savings" }));
+    expect(amount).toHaveAttribute("enterkeyhint", "done");
   });
 });
