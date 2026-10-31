@@ -44,9 +44,11 @@ export interface CategoryLedger {
   datedLater: Cents;
 }
 
-function categoryMoney(categoryId: string, records: MoneyRecords): Cents {
-  return sumCategoryMoney(sumAccountMoney(records)).get(categoryId)?.total ?? ZERO_CENTS;
-}
+const moneyOfCategory = (categoryId: string, records: MoneyRecords) =>
+  sumCategoryMoney(sumAccountMoney(records)).get(categoryId);
+
+const categoryMoney = (categoryId: string, records: MoneyRecords): Cents =>
+  moneyOfCategory(categoryId, records)?.total ?? ZERO_CENTS;
 
 const datedWhere = (
   { accounts, transactions, allocations, transfers, corrections }: MoneyRecords,
@@ -116,9 +118,10 @@ export function categoryLedger(
       return { ...entry, change, balance };
     });
 
-  const atEnd = sumCategoryMoney(
-    sumAccountMoney(datedWhere(records, (record) => record.date.slice(0, 7) <= month))
-  ).get(categoryId)?.byAccount;
+  const atEnd = moneyOfCategory(
+    categoryId,
+    datedWhere(records, (record) => record.date <= `${month}-31`)
+  )?.byAccount;
   const closingByAccount = new Map([...(atEnd ?? [])].filter(([, cents]) => cents !== 0));
 
   const now = categoryMoney(categoryId, records);
