@@ -7,6 +7,16 @@ export function refuseRetired(record: { name: string; retired: boolean }): void 
   if (record.retired) throw new Error(`${record.name} is retired. Choose one in use.`);
 }
 
+const conjunction = new Intl.ListFormat("en", { type: "conjunction" });
+
+/** Only a retired record that nothing ever used can be deleted; `history` says what used it. */
+export function refuseDelete(record: { name: string; retired: boolean }, history: string[]): void {
+  if (!record.retired) throw new Error(`Retire ${record.name} before deleting it.`);
+  if (history.length > 0) {
+    throw new Error(`${record.name} has ${conjunction.format(history)}, so it stays retired.`);
+  }
+}
+
 export async function requireAccount(accountId: string): Promise<AccountRow> {
   const account = await getAccount(accountId);
   if (!account) throw new Error("That account no longer exists.");

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { orders } from "@/test/permutations";
+import { loggedEvent } from "@/test/events";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { receiveEvents } from "@/lib/events/log";
 import { readCategoryList } from "./projection";
@@ -55,4 +56,84 @@ describe("retiring", () => {
     ]);
     expect(list.retiredGroups).toEqual([]);
   });
+});
+
+describe("deleting", () => {
+  const food = groupEvent("e-food", FOOD, "category_group.created", 1000, { name: "Food" });
+  const groceries = groceriesEvent("e-groceries", "category.created", 2000, {
+    name: "Groceries",
+    groupId: FOOD,
+  });
+  const retired = groceriesEvent("e-retired", "category.retired", 3000);
+  const deleted = groceriesEvent("e-deleted", "category.deleted", 4000);
+  // Another device spent from Groceries before it saw the delete.
+  const spent = loggedEvent({
+    id: "e-spent",
+    entityType: "transaction",
+    entityId: "dddddddd-0000-4000-8000-000000000001",
+    eventType: "transaction.created",
+    millis: 3500,
+    payload: {
+      date: "2026-10-12",
+      type: "expense",
+      amountCents: 25000,
+      accountId: "aaaaaaaa-0000-4000-8000-000000000001",
+      categoryId: GROCERIES,
+      description: "Lunch",
+      notes: "",
+      status: "cleared",
+    },
+  });
+
+  const retiredNames = async () =>
+    (await readCategoryList()).retiredCategories.map((category) => category.name);
+
+  it("hides a deleted category from every list", async () => {
+    await receiveEvents([food, groceries, retired, deleted], 0);
+
+    const list = await readCategoryList();
+    expect(list.groups).toMatchObject([{ id: FOOD, categories: [] }]);
+    expect(list.retiredCategories).toEqual([]);
+  });
+
+  it.each(orders([groceries, retired, deleted, spent, deleted]))(
+    "keeps a deleted category with history as retired in the order %j",
+    async (_ids, order) => {
+      await receiveEvents([food], 0);
+      for (const event of order) await receiveEvents([event], 0);
+
+      expect(await retiredNames()).toEqual(["Groceries"]);
+    }
+  );
+
+  it.each(
+    orders([groceries, retired, deleted, groceriesEvent("e-restored", "category.restored", 5000)])
+  )("restores a deleted category as retired in the order %j", async (_ids, order) => {
+    await receiveEvents([food], 0);
+    for (const event of order) await receiveEvents([event], 0);
+
+    expect(await retiredNames()).toEqual(["Groceries"]);
+  });
+
+  const foodRetired = groupEvent("e-food-retired", FOOD, "category_group.retired", 1500);
+  const foodDeleted = groupEvent("e-food-deleted", FOOD, "category_group.deleted", 1600);
+  const retiredGroupIds = async () =>
+    (await readCategoryList()).retiredGroups.map((group) => group.id);
+
+  it("hides a deleted group", async () => {
+    await receiveEvents([food, foodRetired, foodDeleted], 0);
+
+    expect(await retiredGroupIds()).toEqual([]);
+  });
+
+  // Another device added and retired Groceries in Food before it saw the delete.
+  it.each(orders([foodRetired, foodDeleted, groceries, retired, foodDeleted]))(
+    "keeps a deleted group holding a category as retired in the order %j",
+    async (_ids, order) => {
+      await receiveEvents([food], 0);
+      for (const event of order) await receiveEvents([event], 0);
+
+      expect(await retiredGroupIds()).toEqual([FOOD]);
+    }
+  );
 });

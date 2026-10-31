@@ -2,8 +2,10 @@ import { isVisibility, VISIBILITY_LABELS, type Ownership } from "@/lib/events/ow
 import { requestSync } from "@/lib/sync/triggers";
 import {
   ACCOUNT_CREATED,
+  ACCOUNT_DELETED,
   ACCOUNT_EDITED,
   ACCOUNT_ENTITY,
+  ACCOUNT_RESTORED,
   ACCOUNT_RETIRED,
   ACCOUNT_UNRETIRED,
   ACCOUNT_VERSIONS,
@@ -15,7 +17,9 @@ import {
 import { payingAccountChoices } from "@/lib/accounts/paying-account";
 import { getAccount, listAccounts, type AccountRow } from "@/lib/accounts/projection";
 import type { Cents } from "@/lib/currency";
+import { readAccountHistory } from "@/lib/history/history";
 import { appenderFor } from "./append";
+import { refuseDelete } from "./records";
 
 export interface Actor {
   householdId: string;
@@ -143,4 +147,18 @@ export async function unretireAccount(actor: Actor, accountId: string): Promise<
     );
   }
   await appendAccountChange(actor, account, ACCOUNT_UNRETIRED, {});
+}
+
+/** Gone from every list, unless another device records history in it. */
+export async function deleteAccount(actor: Actor, accountId: string): Promise<void> {
+  const account = await requireAccount(accountId);
+  refuseDelete(account, await readAccountHistory(account));
+  await appendAccountChange(actor, account, ACCOUNT_DELETED, {});
+}
+
+/** Undoes a delete; the account comes back retired. */
+export async function restoreAccount(actor: Actor, accountId: string): Promise<void> {
+  const account = await requireAccount(accountId);
+  if (!account.deleted) return;
+  await appendAccountChange(actor, account, ACCOUNT_RESTORED, {});
 }

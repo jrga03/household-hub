@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { ActionForm } from "@/components/app/ActionForm";
 import { Button } from "@/components/app/Button";
+import { deleteWithUndo } from "@/components/app/withUndo";
 import { EmptyState } from "@/components/app/EmptyState";
 import { Fact, Facts } from "@/components/app/Facts";
 import { FormError } from "@/components/app/FormError";
@@ -21,7 +22,13 @@ import { useAccountNames, useAccounts, useRetiredAccounts } from "@/hooks/useAcc
 import { useAccountMoney } from "@/hooks/useTransactions";
 import { ACCOUNT_TYPES, isCreditCard, type AccountType } from "@/lib/accounts/events";
 import type { AccountListItem } from "@/lib/accounts/projection";
-import { createAccount, unretireAccount, type Actor } from "@/lib/commands/accounts";
+import {
+  createAccount,
+  deleteAccount,
+  restoreAccount,
+  unretireAccount,
+  type Actor,
+} from "@/lib/commands/accounts";
 import { sumCents } from "@/lib/currency";
 import { VISIBILITY_LABELS, type Visibility } from "@/lib/events/ownership";
 import type { AccountMoney } from "@/lib/transactions/money";
@@ -234,7 +241,10 @@ function AccountDetail({
       </Facts>
       <div className="flex flex-wrap items-center gap-2">
         {retired ? (
-          <UnretireButton actor={actor} account={account} />
+          <>
+            <UnretireButton actor={actor} account={account} />
+            <DeleteButton actor={actor} account={account} />
+          </>
         ) : (
           <>
             {card && <Button onClick={() => setDialog("pay")}>Pay {account.name}</Button>}
@@ -301,6 +311,28 @@ function UnretireButton({ actor, account }: { actor: Actor; account: AccountList
   return (
     <Button disabled={unretiring} onClick={unretire}>
       Unretire {account.name}
+    </Button>
+  );
+}
+
+function DeleteButton({ actor, account }: { actor: Actor; account: AccountListItem }) {
+  const [deleting, startDeleting] = useTransition();
+  const remove = () =>
+    startDeleting(() =>
+      deleteWithUndo(
+        account.name,
+        () => deleteAccount(actor, account.id),
+        () => restoreAccount(actor, account.id)
+      )
+    );
+  return (
+    <Button
+      variant="ghost"
+      className="text-destructive hover:text-destructive active:text-destructive"
+      disabled={deleting}
+      onClick={remove}
+    >
+      Delete {account.name}
     </Button>
   );
 }

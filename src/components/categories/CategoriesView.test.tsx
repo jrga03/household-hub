@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { readCategoryList } from "@/lib/categories/projection";
-import { createCategory, createGroup } from "@/lib/commands/categories";
+import { createCategory, createGroup, retireCategory } from "@/lib/commands/categories";
 import { CategoriesView } from "./CategoriesView";
 
 const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
@@ -61,5 +61,19 @@ describe("CategoriesView", () => {
     const group = await within(form).findByRole("combobox", { name: "Group" });
     await waitFor(() => expect(group).toHaveAttribute("aria-invalid", "true"));
     expect(group).toHaveAccessibleDescription("Choose a group.");
+  });
+
+  it("deletes a retired category with one press, without asking first", async () => {
+    const { groceries } = await foodWithGroceries();
+    await retireCategory(MEMBER, groceries.id);
+    render(<CategoriesView actor={MEMBER} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Show retired (1)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete Groceries" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /Show retired/ })).not.toBeInTheDocument()
+    );
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 });

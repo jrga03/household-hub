@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell } from "@/components/layout/PageShell";
 import { Button } from "@/components/app/Button";
+import { deleteWithUndo } from "@/components/app/withUndo";
 import { EmptyState } from "@/components/app/EmptyState";
 import { ListRow } from "@/components/app/ListRow";
 import { SectionHeader } from "@/components/app/SectionHeader";
@@ -19,7 +20,15 @@ import {
   type GroupRow,
 } from "@/lib/categories/projection";
 import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
-import { seedDefaultCategories, unretireCategory, unretireGroup } from "@/lib/commands/categories";
+import {
+  deleteCategory,
+  deleteGroup,
+  restoreCategory,
+  restoreGroup,
+  seedDefaultCategories,
+  unretireCategory,
+  unretireGroup,
+} from "@/lib/commands/categories";
 import type { Actor } from "@/lib/commands/accounts";
 import { errorMessage } from "@/lib/utils";
 import { AddCategoryForm, AddGroupForm } from "./AddCategoryForms";
@@ -215,13 +224,13 @@ function SuggestedCategories({ actor }: { actor: Actor }) {
 
 function RetiredCategories({ actor, list }: { actor: Actor; list: CategoryList }) {
   const [shown, setShown] = useState(false);
-  const [unretiring, startUnretiring] = useTransition();
+  const [busy, startAction] = useTransition();
   const count = list.retiredGroups.length + list.retiredCategories.length;
 
   if (count === 0) return null;
 
   const unretire = (name: string, action: () => Promise<void>) =>
-    startUnretiring(async () => {
+    startAction(async () => {
       try {
         await action();
         toast.success(`${name} is back in use`);
@@ -252,9 +261,18 @@ function RetiredCategories({ actor, list }: { actor: Actor; list: CategoryList }
               key={group.id}
               record={group}
               detail="Group"
-              unretireLabel={`Unretire group ${group.name}`}
-              disabled={unretiring}
+              recordLabel={`group ${group.name}`}
+              disabled={busy}
               onUnretire={() => unretire(group.name, () => unretireGroup(actor, group.id))}
+              onDelete={() =>
+                startAction(() =>
+                  deleteWithUndo(
+                    group.name,
+                    () => deleteGroup(actor, group.id),
+                    () => restoreGroup(actor, group.id)
+                  )
+                )
+              }
             />
           ))}
           {list.retiredCategories.map((category) => (
@@ -262,9 +280,18 @@ function RetiredCategories({ actor, list }: { actor: Actor; list: CategoryList }
               key={category.id}
               record={category}
               detail={category.group ? `In ${category.group.name}` : "Group not on this device yet"}
-              unretireLabel={`Unretire ${category.name}`}
-              disabled={unretiring}
+              recordLabel={category.name}
+              disabled={busy}
               onUnretire={() => unretire(category.name, () => unretireCategory(actor, category.id))}
+              onDelete={() =>
+                startAction(() =>
+                  deleteWithUndo(
+                    category.name,
+                    () => deleteCategory(actor, category.id),
+                    () => restoreCategory(actor, category.id)
+                  )
+                )
+              }
             />
           ))}
         </ul>
@@ -276,15 +303,18 @@ function RetiredCategories({ actor, list }: { actor: Actor; list: CategoryList }
 function RetiredItem({
   record,
   detail,
-  unretireLabel,
+  recordLabel,
   disabled,
   onUnretire,
+  onDelete,
 }: {
   record: GroupRow;
   detail: string;
-  unretireLabel: string;
+  /** What the buttons name for a screen reader: "group Food" or "Groceries". */
+  recordLabel: string;
   disabled: boolean;
   onUnretire: () => void;
+  onDelete: () => void;
 }) {
   return (
     <li className="flex items-center justify-between gap-3 px-4 py-2">
@@ -292,15 +322,27 @@ function RetiredItem({
         <RecordName record={record} />
         <p className="truncate text-muted-foreground">{detail}</p>
       </div>
-      <Button
-        variant="outline"
-        size="sm"
-        aria-label={unretireLabel}
-        disabled={disabled}
-        onClick={onUnretire}
-      >
-        Unretire
-      </Button>
+      <div className="flex shrink-0 gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-destructive hover:text-destructive active:text-destructive"
+          aria-label={`Delete ${recordLabel}`}
+          disabled={disabled}
+          onClick={onDelete}
+        >
+          Delete
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          aria-label={`Unretire ${recordLabel}`}
+          disabled={disabled}
+          onClick={onUnretire}
+        >
+          Unretire
+        </Button>
+      </div>
     </li>
   );
 }
