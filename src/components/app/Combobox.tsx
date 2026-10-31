@@ -245,7 +245,7 @@ function ComboboxField({
   // Leaving never saves text that names no option: it goes back to the last choice.
   const leave = () => {
     if (!editing) return setOpen(false);
-    if (fold(text) === "" && empty) return pick(empty.value);
+    if (empty && (fold(text) === "" || fold(text) === fold(empty.label))) return pick(empty.value);
     const named = allOptions(groups).find((option) => fold(option.label) === fold(text));
     if (named) return pick(named.value);
     setEditing(false);
@@ -340,7 +340,9 @@ function ComboboxField({
         </PopoverAnchor>
         {name && <input type="hidden" name={name} value={value} />}
         <div aria-live="polite" className="sr-only">
-          {open && query.trim() ? `${allOptions(shown).length} results` : ""}
+          {open && query.trim()
+            ? `${allOptions(shown).length} ${allOptions(shown).length === 1 ? "result" : "results"}`
+            : ""}
         </div>
         <PopoverContent
           id={listId}

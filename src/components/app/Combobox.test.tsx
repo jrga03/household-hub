@@ -191,6 +191,16 @@ describe("Combobox on phones", () => {
     expect(submitted()).toBe("power");
   });
 
+  it("picks the empty choice when the text names it", () => {
+    renderOnPhone();
+    type("dining");
+    fireEvent.click(screen.getByRole("option", { name: "Dining out" }));
+    type("unassigned");
+    leave();
+    expect(field()).toHaveValue("");
+    expect(submitted()).toBe("unassigned");
+  });
+
   it("keeps a required choice when the text is emptied, and has no clear button", () => {
     renderOnPhone(true);
     expect(screen.queryByRole("button", { name: "Clear selection" })).not.toBeInTheDocument();

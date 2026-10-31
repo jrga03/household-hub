@@ -2076,12 +2076,7 @@ Expected: FAIL (TS/runtime: `"debts"` is not a `SyncTableName`; `schemas[table]`
 import type { Debt, DebtPayment, InternalDebt } from "@/types/debt";
 
 export type SyncTableName =
-  | "transactions"
-  | "accounts"
-  | "categories"
-  | "debts"
-  | "internal_debts"
-  | "debt_payments";
+  "transactions" | "accounts" | "categories" | "debts" | "internal_debts" | "debt_payments";
 
 const debtStatus = z.enum(["active", "paid_off", "archived"]);
 const debtEntityType = z.enum(["category", "account", "member"]);
@@ -2919,9 +2914,8 @@ describe.skipIf(!enabled)("debt sync against the local stack", () => {
     const { DEFAULT_HOUSEHOLD_ID } = await import("@/lib/household");
     const { createExternalDebt } = await import("@/lib/debts/crud");
     const { calculateDebtBalance } = await import("@/lib/debts/balance");
-    const { createOfflineTransaction, updateOfflineTransaction } = await import(
-      "@/lib/offline/transactions"
-    );
+    const { createOfflineTransaction, updateOfflineTransaction } =
+      await import("@/lib/offline/transactions");
     const { syncProcessor } = await import("@/lib/sync/processor");
     const { supabase } = await import("@/lib/supabase");
     const { asCents } = await import("@/lib/currency");

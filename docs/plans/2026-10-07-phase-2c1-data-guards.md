@@ -375,14 +375,7 @@ import type { Collection, IndexableType, Table, WhereClause } from "dexie";
 import { db, type HouseholdHubDB } from "./db";
 
 type CollectionRead =
-  | "toArray"
-  | "first"
-  | "last"
-  | "count"
-  | "sortBy"
-  | "each"
-  | "keys"
-  | "primaryKeys";
+  "toArray" | "first" | "last" | "count" | "sortBy" | "each" | "keys" | "primaryKeys";
 
 export type ReadCollection<T, TKey> = Pick<Collection<T, TKey>, CollectionRead> & {
   filter(fn: (row: T) => boolean): ReadCollection<T, TKey>;
@@ -413,8 +406,10 @@ export type ReadWhereClause<T, TKey> = {
   [M in WhereMethod]: (...args: Parameters<WhereClause<T, TKey>[M]>) => ReadCollection<T, TKey>;
 };
 
-export interface ReadTable<T, TKey>
-  extends Pick<Table<T, TKey>, "get" | "bulkGet" | "count" | "toArray" | "each"> {
+export interface ReadTable<T, TKey> extends Pick<
+  Table<T, TKey>,
+  "get" | "bulkGet" | "count" | "toArray" | "each"
+> {
   where(index: string | string[]): ReadWhereClause<T, TKey>;
   filter(fn: (row: T) => boolean): ReadCollection<T, TKey>;
   orderBy(index: string | string[]): ReadCollection<T, TKey>;
