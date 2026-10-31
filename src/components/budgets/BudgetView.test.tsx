@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -20,6 +20,7 @@ import { db } from "@/lib/dexie/db";
 import { addTransaction } from "@/lib/commands/transactions";
 import { readFinanceOverview } from "@/lib/finances/overview";
 import { parsePHP } from "@/lib/currency";
+import { useCollapsedGroupsStore } from "@/stores/collapsedGroupsStore";
 import { BudgetView } from "./BudgetView";
 import { HOUSEHOLD } from "@/test/events";
 
@@ -104,6 +105,8 @@ const barTone = (name: string) => {
 
 beforeEach(async () => {
   await resetLocalDatabase();
+  localStorage.clear();
+  useCollapsedGroupsStore.setState({ collapsedGroupIds: [] });
 });
 
 describe("BudgetView", () => {
@@ -265,6 +268,37 @@ describe("BudgetView", () => {
 
     renderBudget();
     expect(await screen.findByText(/No categories yet/)).toBeInTheDocument();
+  });
+
+  it("collapses a group from its header, keeping its name and left, and expands it again", async () => {
+    await foodThisMonth();
+    renderBudget();
+
+    const header = await screen.findByRole("button", { name: "Food" });
+    expect(header).toHaveAttribute("aria-expanded", "true");
+    const rowsId = header.getAttribute("aria-controls");
+    expect(rowsId && document.getElementById(rowsId)).toContainElement(await row("Groceries"));
+
+    fireEvent.click(header);
+    expect(header).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: "Groceries" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Food" })).toBeInTheDocument();
+    expect(await groupLeft("Food")).toHaveTextContent("₱9,000.00 left");
+
+    fireEvent.click(header);
+    expect(await row("Groceries")).toBeInTheDocument();
+  });
+
+  it("ignores a collapsed group that no longer exists", async () => {
+    useCollapsedGroupsStore.setState({ collapsedGroupIds: ["removed-group"] });
+    await foodThisMonth();
+    renderBudget();
+
+    expect(await screen.findByRole("button", { name: "Food" })).toHaveAttribute(
+      "aria-expanded",
+      "true"
+    );
+    expect(await row("Groceries")).toBeInTheDocument();
   });
 
   it("points to Categories when there are none", async () => {

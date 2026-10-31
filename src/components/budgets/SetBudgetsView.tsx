@@ -8,7 +8,6 @@ import { CurrencyInput } from "@/components/app/CurrencyInput";
 import { EmptyState } from "@/components/app/EmptyState";
 import { advanceOnEnter } from "@/components/app/FormSheet";
 import { Money } from "@/components/app/Money";
-import { SectionHeader } from "@/components/app/SectionHeader";
 import { RecordName } from "@/components/categories/RecordName";
 import { PageShell } from "@/components/layout/PageShell";
 import { useAccounts } from "@/hooks/useAccounts";
@@ -26,6 +25,8 @@ import { setBudget } from "@/lib/commands/budgets";
 import { ZERO_CENTS } from "@/lib/currency";
 import { errorMessage } from "@/lib/utils";
 import { parseLocalDate, shiftMonth } from "@/lib/utils/dates";
+import { CollapsibleGroup, UNGROUPED } from "./CollapsibleGroup";
+import { useCollapsedGroupsStore } from "@/stores/collapsedGroupsStore";
 import { SetBudgetDialog } from "./SetBudgetDialog";
 
 const shortMonth = (month: string) => format(parseLocalDate(`${month}-01`), "MMM");
@@ -48,9 +49,14 @@ export function SetBudgetsView({
   const inUse = list && categoriesInUse(list);
   const details = inUse?.find((category) => category.id === detailsId);
   useCloseWhenGone(detailsId, inUse && (details ?? null), () => setDetailsId(null));
+  const collapsedGroupIds = useCollapsedGroupsStore((state) => state.collapsedGroupIds);
 
   if (!list || !inUse || !accounts || !thisMonth || !lastMonth) return null;
-  const lastId = inUse.at(-1)?.id;
+  const shownGroups = list.groups.filter((group) => !collapsedGroupIds.includes(group.id));
+  const shownUngrouped = collapsedGroupIds.includes(UNGROUPED) ? [] : list.ungrouped;
+  const lastId = [...shownGroups.flatMap((group) => group.categories), ...shownUngrouped].at(
+    -1
+  )?.id;
 
   const rows = (categories: CategoryRow[]) =>
     categories.length === 0 ? (
@@ -103,26 +109,29 @@ export function SetBudgetsView({
           }}
         >
           {list.groups.map((group) => (
-            <section key={group.id} className="space-y-2">
-              <SectionHeader
-                title={<RecordName record={group} showRetired />}
-                action={budgeted(group.categories)}
-              />
+            <CollapsibleGroup
+              key={group.id}
+              groupId={group.id}
+              label={group.name}
+              title={<RecordName record={group} showRetired />}
+              action={budgeted(group.categories)}
+            >
               <ul aria-label={`${group.name} budgets`} className="divide-y border-y">
                 {rows(group.categories)}
               </ul>
-            </section>
+            </CollapsibleGroup>
           ))}
           {list.ungrouped.length > 0 && (
-            <section className="space-y-2">
-              <SectionHeader
-                title="Waiting for their group to reach this device"
-                action={budgeted(list.ungrouped)}
-              />
+            <CollapsibleGroup
+              groupId={UNGROUPED}
+              label="Ungrouped"
+              title="Waiting for their group to reach this device"
+              action={budgeted(list.ungrouped)}
+            >
               <ul aria-label="Ungrouped budgets" className="divide-y border-y">
                 {rows(list.ungrouped)}
               </ul>
-            </section>
+            </CollapsibleGroup>
           )}
         </form>
       )}
