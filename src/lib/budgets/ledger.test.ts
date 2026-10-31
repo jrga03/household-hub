@@ -175,6 +175,48 @@ describe("category ledger", () => {
     expect(await readLedgerRecord({ kind: "transaction", id })).toBeNull();
   });
 
+  it("splits the month's end by account, leaving out an account at zero and keeping one overspent", async () => {
+    const createEmpty = async (name: string, startingBalance: string) =>
+      (
+        await createAccount(MEMBER, {
+          name,
+          type: "e_wallet",
+          startingBalanceCents: peso(startingBalance),
+        })
+      ).id;
+    const mayaId = await createEmpty("Maya", "0");
+    const cashId = await createEmpty("Cash", "1000");
+    await allocateToGroceries("2026-10-01", "1000");
+    await addTransfer(MEMBER, {
+      date: "2026-10-02",
+      amountCents: peso("200"),
+      fromAccountId: bpiId,
+      toAccountId: gcashId,
+      envelope: { kind: "category", id: groceriesId },
+    });
+    await spendOnGroceries("2026-10-03", "300", mayaId);
+    await addAllocation(MEMBER, {
+      date: "2026-10-04",
+      accountId: cashId,
+      from: UNASSIGNED_ENVELOPE,
+      to: { kind: "category", id: groceriesId },
+      amountCents: peso("100"),
+    });
+    await spendOnGroceries("2026-10-05", "100", cashId);
+    await spendOnGroceries("2026-11-01", "50");
+
+    const ledger = await october();
+
+    expect(ledger.closing).toBe(peso("700"));
+    expect(ledger.closingByAccount).toEqual(
+      new Map([
+        [bpiId, peso("800")],
+        [gcashId, peso("200")],
+        [mayaId, -peso("300")],
+      ])
+    );
+  });
+
   it("shows a balance correction drawing from the category", async () => {
     await allocateToGroceries("2026-10-01", "1000");
     const correction = await recordBalanceCorrection(MEMBER, {

@@ -38,6 +38,8 @@ export interface CategoryLedger {
   rows: LedgerRow[];
   /** The category's money after the month's last day. */
   closing: Cents;
+  /** `closing` split by account, by account ID; accounts holding none left out. */
+  closingByAccount: Map<string, Cents>;
   /** What records dated after the month add; this month's figure in the month view includes it. */
   datedLater: Cents;
 }
@@ -45,6 +47,17 @@ export interface CategoryLedger {
 function categoryMoney(categoryId: string, records: MoneyRecords): Cents {
   return sumCategoryMoney(sumAccountMoney(records)).get(categoryId)?.total ?? ZERO_CENTS;
 }
+
+const datedWhere = (
+  { accounts, transactions, allocations, transfers, corrections }: MoneyRecords,
+  keep: (record: { date: string }) => boolean
+): MoneyRecords => ({
+  accounts,
+  transactions: transactions.filter(keep),
+  allocations: allocations.filter(keep),
+  transfers: transfers.filter(keep),
+  corrections: corrections.filter(keep),
+});
 
 function changeFrom(categoryId: string, accounts: AccountRow[], entry: LedgerRecord): Cents {
   return categoryMoney(categoryId, {
@@ -77,14 +90,10 @@ export function categoryLedger(
   records: MoneyRecords
 ): CategoryLedger {
   const { accounts, transactions, allocations, transfers, corrections } = records;
-  const isBefore = (record: { date: string }) => record.date < `${month}-01`;
-  const opening = categoryMoney(categoryId, {
-    accounts,
-    transactions: transactions.filter(isBefore),
-    allocations: allocations.filter(isBefore),
-    transfers: transfers.filter(isBefore),
-    corrections: corrections.filter(isBefore),
-  });
+  const opening = categoryMoney(
+    categoryId,
+    datedWhere(records, (record) => record.date < `${month}-01`)
+  );
 
   const entries: LedgerRecord[] = [
     ...transactions.map((record) => ({ kind: "transaction" as const, record })),
@@ -107,8 +116,19 @@ export function categoryLedger(
       return { ...entry, change, balance };
     });
 
+  const atEnd = sumCategoryMoney(
+    sumAccountMoney(datedWhere(records, (record) => record.date.slice(0, 7) <= month))
+  ).get(categoryId)?.byAccount;
+  const closingByAccount = new Map([...(atEnd ?? [])].filter(([, cents]) => cents !== 0));
+
   const now = categoryMoney(categoryId, records);
-  return { opening, rows, closing: balance, datedLater: diffCents(now, balance) };
+  return {
+    opening,
+    rows,
+    closing: balance,
+    closingByAccount,
+    datedLater: diffCents(now, balance),
+  };
 }
 
 export const readCategoryLedger = async (categoryId: string, month: string) =>

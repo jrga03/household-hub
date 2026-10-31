@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { readCategoryList } from "@/lib/categories/projection";
+import { createAccount } from "@/lib/commands/accounts";
+import { addAllocation } from "@/lib/commands/allocations";
 import { createCategory, createGroup, retireCategory } from "@/lib/commands/categories";
+import { UNASSIGNED_ENVELOPE } from "@/lib/allocations/events";
+import { parsePHP } from "@/lib/currency";
 import { CategoriesView } from "./CategoriesView";
 
 const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
@@ -18,14 +22,33 @@ async function foodWithGroceries() {
 }
 
 describe("CategoriesView", () => {
-  it("shows each group as a section headed by its name, with its categories as rows", async () => {
-    await foodWithGroceries();
+  it("shows each group as a section headed by its name, with its categories and their money as rows", async () => {
+    const { groceries } = await foodWithGroceries();
+    for (const [name, amount] of [
+      ["BDO Savings", "800"],
+      ["GCash", "200"],
+    ] as const) {
+      const account = await createAccount(MEMBER, {
+        name,
+        type: "bank",
+        startingBalanceCents: parsePHP(amount),
+      });
+      await addAllocation(MEMBER, {
+        date: "2026-10-01",
+        accountId: account.id,
+        from: UNASSIGNED_ENVELOPE,
+        to: { kind: "category", id: groceries.id },
+        amountCents: parsePHP(amount),
+      });
+    }
     render(<CategoriesView actor={MEMBER} />);
 
     const food = await screen.findByRole("region", { name: "Food" });
     expect(within(food).getByRole("heading", { name: "Food" })).toBeInTheDocument();
     const categories = within(food).getByRole("list", { name: "Food categories" });
-    expect(within(categories).getByRole("button", { name: "Edit Groceries" })).toBeInTheDocument();
+    expect(
+      within(categories).getByRole("button", { name: /^Edit Groceries\s*₱1,000\.00$/ })
+    ).toBeInTheDocument();
     expect(within(food).getByRole("button", { name: "Edit group Food" })).toBeInTheDocument();
   });
 
@@ -33,7 +56,7 @@ describe("CategoriesView", () => {
     const { groceries } = await foodWithGroceries();
     render(<CategoriesView actor={MEMBER} />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Edit Groceries" }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Edit Groceries/ }));
     const sheet = await screen.findByRole("dialog", { name: "Edit category" });
     const name = within(sheet).getByRole("textbox", { name: "Name" });
     fireEvent.change(name, { target: { value: "Market" } });

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
+import { ChevronRight } from "lucide-react";
 import { EmptyState } from "@/components/app/EmptyState";
 import { HeroFigure } from "@/components/app/HeroFigure";
 import { RowTargetElement } from "@/components/app/ListRow";
@@ -35,8 +36,8 @@ import type { Actor } from "@/lib/commands/accounts";
 import { cn, countOf } from "@/lib/utils";
 import { monthLabel } from "@/lib/utils/dates";
 
-/** Category, Budget, Spent and Left, from a list width of 600. */
-const COLUMNS = "@[600px]:grid-cols-[minmax(0,1fr)_7rem_7rem_8rem] @[600px]:gap-x-3";
+/** Category, Budget, Spent, Left and the chevron, from a list width of 600. */
+const COLUMNS = "@[600px]:grid-cols-[minmax(0,1fr)_7rem_7rem_8rem_1rem] @[600px]:gap-x-3";
 
 const figuresOf = (view: MonthView, categories: CategoryRow[]): MonthFigures =>
   sumMonthFigures(categories.map((category) => categoryMonth(view, category.id)));
@@ -249,6 +250,7 @@ function CategoryRows({
         <span className="text-right">Budget</span>
         <span className="text-right">Spent</span>
         <span className="text-right">Left</span>
+        <span />
       </div>
       <ul aria-label={label} className="divide-y border-y">
         {categories.map((category) => (
@@ -292,7 +294,7 @@ function BudgetRow({
       )}
     >
       <div className="flex items-center justify-between gap-3 @[600px]:contents">
-        <span className="flex min-w-0 items-center gap-2">
+        <span className="flex min-w-0 flex-1 items-center gap-2">
           <RowTargetElement onClick={onOpen} open={open} className="min-w-0 text-left">
             <RecordName record={category} showRetired />
           </RowTargetElement>
@@ -311,13 +313,14 @@ function BudgetRow({
         <span className="shrink-0 text-right tabular-nums">
           <LeftFigure figures={figures} inRow />
         </span>
+        <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
       </div>
       {progress && status && (
         <ProgressBar
           label={`${category.name} spent`}
           value={progress.percent}
           tone={BUDGET_STATUS_STYLE[status].bar}
-          className="h-1 @[600px]:col-span-4"
+          className="h-1 @[600px]:col-span-5"
         />
       )}
     </li>

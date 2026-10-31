@@ -6,9 +6,11 @@ import { Button } from "@/components/app/Button";
 import { deleteWithUndo } from "@/components/app/withUndo";
 import { EmptyState } from "@/components/app/EmptyState";
 import { ListRow } from "@/components/app/ListRow";
+import { Money } from "@/components/app/Money";
 import { SectionHeader } from "@/components/app/SectionHeader";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { useCategoryList } from "@/hooks/useCategories";
+import { useAccountMoney } from "@/hooks/useTransactions";
 import { DEFAULT_GROUPS } from "@/lib/categories/defaults";
 import type { RecordNoun } from "@/lib/categories/events";
 import {
@@ -30,6 +32,8 @@ import {
   unretireGroup,
 } from "@/lib/commands/categories";
 import type { Actor } from "@/lib/commands/accounts";
+import { sumCategoryMoney, type CategoryMoney } from "@/lib/transactions/money";
+import { ZERO_CENTS } from "@/lib/currency";
 import { errorMessage } from "@/lib/utils";
 import { AddCategoryForm, AddGroupForm } from "./AddCategoryForms";
 import { EditCategoryDialog, EditGroupDialog } from "./EditCategoryDialogs";
@@ -48,16 +52,18 @@ function findEditing(list: CategoryList, editing: Editing) {
   };
 }
 
-/** Setting up groups and categories; their money is on Budget, Set budgets and Assign money. */
+/** Setting up groups and categories, each with its money now across accounts. */
 export function CategoriesView({ actor }: { actor: Actor }) {
   const list = useCategoryList();
+  const accountMoney = useAccountMoney();
   const [editing, setEditing] = useState<Editing>(null);
   const found = list && findEditing(list, editing);
   useCloseWhenGone(editing, found && (found.group ?? found.category ?? null), () =>
     setEditing(null)
   );
 
-  if (!list || !found) return null;
+  if (!list || !found || !accountMoney) return null;
+  const money = sumCategoryMoney(accountMoney);
   const { group: editingGroup, category: editingCategory } = found;
   const groupsInUse = list.groups.filter((group) => !group.retired);
   const editCategory = (id: string) => setEditing({ kind: "category", id });
@@ -90,6 +96,7 @@ export function CategoriesView({ actor }: { actor: Actor }) {
                   <CategoryItems
                     label={`${group.name} categories`}
                     categories={group.categories}
+                    money={money}
                     onEdit={editCategory}
                   />
                 </section>
@@ -106,6 +113,7 @@ export function CategoriesView({ actor }: { actor: Actor }) {
             <CategoryItems
               label="Ungrouped categories"
               categories={list.ungrouped}
+              money={money}
               onEdit={editCategory}
             />
           </section>
@@ -165,10 +173,12 @@ function GroupActions({ group, onEdit }: { group: GroupListItem; onEdit: () => v
 function CategoryItems({
   label,
   categories,
+  money,
   onEdit,
 }: {
   label: string;
   categories: CategoryRow[];
+  money: Map<string, CategoryMoney>;
   onEdit: (id: string) => void;
 }) {
   if (categories.length === 0) {
@@ -185,6 +195,7 @@ function CategoryItems({
                 <span className="sr-only">Edit</span> <RecordName record={category} />
               </>
             }
+            amount={<Money kind="balance" cents={money.get(category.id)?.total ?? ZERO_CENTS} />}
             trailing={<ChevronRight aria-hidden="true" className="size-4 text-muted-foreground" />}
           />
         </li>
