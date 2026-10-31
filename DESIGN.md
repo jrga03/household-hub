@@ -216,6 +216,7 @@ Global chrome switches on the window width. `useWindowClass()` (`src/hooks/useMe
 - There is no larger class. Wide windows cap content at `max-w-7xl` instead.
 - Pin bottom-edge elements with the `--bottom-chrome` offset so nothing lands under the tab bar. It is the tab bar's height at compact and the safe area elsewhere.
 - Pin sticky content below the app header with the `--app-header` offset (`SectionHeader sticky` does this). Never hard-code the header's height.
+- Floating layers keep clear of the notch, the Dynamic Island and the home indicator. A new Radix popup wrapper in `src/components/ui` defaults `collisionPadding` to `safeAreaPadding()` (`safe-area.ts`), as Popover, Select and Tooltip do.
 
 ### Pane thresholds
 
