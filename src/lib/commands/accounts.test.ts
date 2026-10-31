@@ -3,7 +3,14 @@ import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { listUnpushed } from "@/lib/events/log";
 import { listAccounts, listRetiredAccounts } from "@/lib/accounts/projection";
 import { cents } from "@/test/cents";
-import { createAccount, editAccount, retireAccount, unretireAccount } from "./accounts";
+import {
+  createAccount,
+  deleteAccount,
+  editAccount,
+  restoreAccount,
+  retireAccount,
+  unretireAccount,
+} from "./accounts";
 import { HOUSEHOLD } from "@/test/events";
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
@@ -358,5 +365,48 @@ describe("credit cards", () => {
     await unretireAccount(MEMBER, bank.id);
     await unretireAccount(MEMBER, card.id);
     expect(await listAccounts()).toMatchObject([{ id: bank.id }, { id: card.id }]);
+  });
+});
+
+describe("deleteAccount and restoreAccount", () => {
+  it("deletes a retired account with no history, and restores it as retired", async () => {
+    const spare = await createAccount(MEMBER, {
+      name: "Spare wallet",
+      type: "cash",
+      startingBalanceCents: cents(0),
+    });
+    await expect(deleteAccount(MEMBER, spare.id)).rejects.toThrow(
+      "Retire Spare wallet before deleting it."
+    );
+    await retireAccount(MEMBER, spare.id);
+
+    await deleteAccount(MEMBER, spare.id);
+    expect(await listRetiredAccounts()).toEqual([]);
+
+    await restoreAccount(MEMBER, spare.id);
+    expect(await listRetiredAccounts()).toMatchObject([{ id: spare.id, retired: true }]);
+  });
+
+  it("keeps an account with a starting balance or a card paid from it", async () => {
+    const bank = await createAccount(MEMBER, {
+      name: "BPI",
+      type: "bank",
+      startingBalanceCents: cents(0),
+    });
+    const card = await createAccount(MEMBER, {
+      name: "BPI Gold",
+      type: "credit_card",
+      startingBalanceCents: cents(500),
+      payingAccountId: bank.id,
+    });
+    await retireAccount(MEMBER, card.id);
+    await retireAccount(MEMBER, bank.id);
+
+    await expect(deleteAccount(MEMBER, bank.id)).rejects.toThrow(
+      "BPI has 1 card paid from it, so it stays retired."
+    );
+    await expect(deleteAccount(MEMBER, card.id)).rejects.toThrow(
+      "BPI Gold has a starting balance, so it stays retired."
+    );
   });
 });

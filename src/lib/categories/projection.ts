@@ -2,6 +2,7 @@ import { db } from "@/lib/dexie/db";
 import type { LoggedEvent } from "@/lib/events/log";
 import { sameOwnership, type Ownership, type Visibility } from "@/lib/events/ownership";
 import type { EntityProjection } from "@/lib/events/projector";
+import { withoutDeletedCategories, withoutDeletedGroups } from "@/lib/history/history";
 import { byName } from "@/lib/utils/sort";
 import {
   CATEGORY_CREATED,
@@ -25,6 +26,8 @@ interface CategoryRecord extends Ownership {
   name: string;
   /** Hidden from the main list and pickers, kept under Retired; resolved apart from the name. */
   retired: boolean;
+  /** Retired and hidden everywhere unless something references it; absent until first deleted. */
+  deleted?: boolean;
 }
 
 export type GroupRow = CategoryRecord;
@@ -46,8 +49,8 @@ function foldRecord<Row extends CategoryRecord>(
   return (row: Row | null, event: LoggedEvent): Row | null => {
     if (!row) return event.eventType === creationType ? create(event) : null;
     if (event.eventType === creationType || !sameOwnership(event, row)) return row;
-    const retired = decodeRetirement(event);
-    return retired === null ? change(row, event) : { ...row, retired };
+    const retirement = decodeRetirement(event);
+    return retirement === null ? change(row, event) : { ...row, ...retirement };
   };
 }
 
@@ -171,9 +174,12 @@ export async function readCategoryList(): Promise<CategoryList> {
   return {
     groups: listed.filter((group) => !group.retired || group.categories.length > 0),
     ungrouped: inUse.filter((category) => groupOf(category) === null),
-    retiredGroups: listed.filter((group) => group.retired && group.categories.length === 0),
-    retiredCategories: categories
-      .filter((category) => category.retired)
+    retiredGroups: await withoutDeletedGroups(
+      listed.filter((group) => group.retired && group.categories.length === 0)
+    ),
+    retiredCategories: (
+      await withoutDeletedCategories(categories.filter((category) => category.retired))
+    )
       .sort(byName)
       .map((category) => ({ ...category, group: groupOf(category) })),
   };

@@ -12,16 +12,20 @@ import { addAllocation } from "./allocations";
 import {
   createCategory,
   createGroup,
+  deleteCategory,
+  deleteGroup,
   moveCategory,
   renameCategory,
   renameGroup,
+  restoreCategory,
+  restoreGroup,
   retireCategory,
   retireGroup,
   seedDefaultCategories,
   unretireCategory,
   unretireGroup,
 } from "./categories";
-import { addTransaction } from "./transactions";
+import { addTransaction, removeTransaction } from "./transactions";
 import { HOUSEHOLD } from "@/test/events";
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
@@ -344,5 +348,72 @@ describe("retiring a category that holds money", () => {
     ).rejects.toThrow("Choose another category to move Groceries' money into.");
     expect(await listUnpushed(100)).toHaveLength(before);
     expect(await moneyIn(groceriesId)).toEqual({ [bpiId]: 80000 });
+  });
+});
+
+describe("deleting", () => {
+  let foodId: string;
+  let groceriesId: string;
+
+  beforeEach(async () => {
+    foodId = (await createGroup(MEMBER, { name: "Food" })).id;
+    groceriesId = (await createCategory(MEMBER, { name: "Groceries", groupId: foodId })).id;
+  });
+
+  it("deletes a retired category with no history, and restores it as retired", async () => {
+    await retireCategory(MEMBER, groceriesId);
+
+    await deleteCategory(MEMBER, groceriesId);
+    expect((await readCategoryList()).retiredCategories).toEqual([]);
+
+    await restoreCategory(MEMBER, groceriesId);
+    expect((await readCategoryList()).retiredCategories).toMatchObject([
+      { id: groceriesId, retired: true },
+    ]);
+  });
+
+  it("keeps a category with history retired and says why, even once it's removed", async () => {
+    const bank = await createAccount(MEMBER, {
+      name: "BPI",
+      type: "bank",
+      startingBalanceCents: parsePHP("1000"),
+    });
+    const lunch = await addTransaction(MEMBER, {
+      date: "2026-10-05",
+      type: "expense",
+      amountCents: parsePHP("500"),
+      accountId: bank.id,
+      categoryId: groceriesId,
+      description: "Lunch",
+    });
+    await removeTransaction(MEMBER, lunch.id);
+    await retireCategory(MEMBER, groceriesId);
+
+    await expect(deleteCategory(MEMBER, groceriesId)).rejects.toThrow(
+      "Groceries has 1 transaction, so it stays retired."
+    );
+    expect((await readCategoryList()).retiredCategories).toMatchObject([{ id: groceriesId }]);
+  });
+
+  it("refuses a category in use", async () => {
+    await expect(deleteCategory(MEMBER, groceriesId)).rejects.toThrow(
+      "Retire Groceries before deleting it."
+    );
+  });
+
+  it("deletes a group once its categories are deleted", async () => {
+    await retireCategory(MEMBER, groceriesId);
+    await retireGroup(MEMBER, foodId);
+
+    await expect(deleteGroup(MEMBER, foodId)).rejects.toThrow(
+      "Food has 1 category, so it stays retired."
+    );
+
+    await deleteCategory(MEMBER, groceriesId);
+    await deleteGroup(MEMBER, foodId);
+    expect((await readCategoryList()).retiredGroups).toEqual([]);
+
+    await restoreGroup(MEMBER, foodId);
+    expect((await readCategoryList()).retiredGroups).toMatchObject([{ id: foodId }]);
   });
 });

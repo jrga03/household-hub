@@ -1,6 +1,7 @@
 import { asCents, formatPHP, MAX_AMOUNT_CENTS, ZERO_CENTS, type Cents } from "@/lib/currency";
 import type { LoggedEvent } from "@/lib/events/log";
 import type { EventVersions } from "@/lib/events/versions";
+import { DELETED, RESTORED, RETIRED, UNRETIRED, type Retirement } from "@/lib/events/retirement";
 
 export const ACCOUNT_TYPES = ["bank", "cash", "e_wallet", "investment", "credit_card"] as const;
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
@@ -14,9 +15,15 @@ export const ACCOUNT_CREATED = "account.created";
 export const ACCOUNT_EDITED = "account.edited";
 export const ACCOUNT_RETIRED = "account.retired";
 export const ACCOUNT_UNRETIRED = "account.unretired";
+export const ACCOUNT_DELETED = "account.deleted";
+export const ACCOUNT_RESTORED = "account.restored";
 
 export type AccountChangeType =
-  typeof ACCOUNT_EDITED | typeof ACCOUNT_RETIRED | typeof ACCOUNT_UNRETIRED;
+  | typeof ACCOUNT_EDITED
+  | typeof ACCOUNT_RETIRED
+  | typeof ACCOUNT_UNRETIRED
+  | typeof ACCOUNT_DELETED
+  | typeof ACCOUNT_RESTORED;
 
 /** The fields a member can edit after creating the account. */
 export interface AccountDetails {
@@ -88,6 +95,8 @@ export const ACCOUNT_VERSIONS = {
   },
   [ACCOUNT_RETIRED]: { current: 1, upcasts: {} },
   [ACCOUNT_UNRETIRED]: { current: 1, upcasts: {} },
+  [ACCOUNT_DELETED]: { current: 1, upcasts: {} },
+  [ACCOUNT_RESTORED]: { current: 1, upcasts: {} },
 } satisfies EventVersions;
 
 /** The details a create or edit sets (in its current version), or null for any other event. A card can't pay from itself. */
@@ -97,17 +106,24 @@ export function decodeAccountDetails(event: LoggedEvent): AccountDetails | null 
   return details && details.payingAccountId !== event.entityId ? details : null;
 }
 
-/** Whether a retire or unretire event leaves the account retired, or null for any other event. */
-export function decodeAccountRetirement(event: LoggedEvent): boolean | null {
-  if (event.eventType !== ACCOUNT_RETIRED && event.eventType !== ACCOUNT_UNRETIRED) return null;
-  return event.eventType === ACCOUNT_RETIRED;
-}
+const RETIREMENTS: Record<string, Retirement> = {
+  [ACCOUNT_RETIRED]: RETIRED,
+  [ACCOUNT_UNRETIRED]: UNRETIRED,
+  [ACCOUNT_DELETED]: DELETED,
+  [ACCOUNT_RESTORED]: RESTORED,
+};
+
+/** Where a retire, unretire, delete or restore event leaves the account, or null for any other event. */
+export const decodeAccountRetirement = (event: LoggedEvent): Retirement | null =>
+  RETIREMENTS[event.eventType] ?? null;
 
 const ACTION_LABELS: Record<string, string> = {
   [ACCOUNT_CREATED]: "Add account",
   [ACCOUNT_EDITED]: "Edit account",
   [ACCOUNT_RETIRED]: "Retire account",
   [ACCOUNT_UNRETIRED]: "Unretire account",
+  [ACCOUNT_DELETED]: "Delete account",
+  [ACCOUNT_RESTORED]: "Restore account",
 };
 
 /**

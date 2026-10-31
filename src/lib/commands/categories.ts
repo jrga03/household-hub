@@ -6,17 +6,21 @@ import { readAccountMoney, sumCategoryMoney } from "@/lib/transactions/money";
 import { requestSync } from "@/lib/sync/triggers";
 import {
   CATEGORY_CREATED,
+  CATEGORY_DELETED,
   CATEGORY_ENTITY,
   CATEGORY_MOVED,
   CATEGORY_RENAMED,
+  CATEGORY_RESTORED,
   CATEGORY_RETIRED,
   CATEGORY_UNRETIRED,
   CATEGORY_VERSIONS,
   checkCategoryName,
   type RecordNoun,
   GROUP_CREATED,
+  GROUP_DELETED,
   GROUP_ENTITY,
   GROUP_RENAMED,
+  GROUP_RESTORED,
   GROUP_RETIRED,
   GROUP_UNRETIRED,
   GROUP_VERSIONS,
@@ -33,7 +37,8 @@ import {
 import type { Actor } from "./accounts";
 import { addAllocation } from "./allocations";
 import { appenderFor } from "./append";
-import { requireCategory } from "./records";
+import { readCategoryHistory, readGroupHistory } from "@/lib/history/history";
+import { refuseDelete, requireCategory } from "./records";
 
 const HOUSEHOLD: Ownership = { visibility: "household", ownerUserId: null };
 
@@ -125,6 +130,22 @@ export async function retireGroup(actor: Actor, groupId: string): Promise<void> 
 export async function unretireGroup(actor: Actor, groupId: string): Promise<void> {
   const group = await requireGroup(groupId);
   await appendGroupEvent(actor, group, GROUP_UNRETIRED, {});
+  requestSync();
+}
+
+/** Gone from every list, unless another device records history in it. */
+export async function deleteGroup(actor: Actor, groupId: string): Promise<void> {
+  const group = await requireGroup(groupId);
+  refuseDelete(group, await readGroupHistory(group));
+  await appendGroupEvent(actor, group, GROUP_DELETED, {});
+  requestSync();
+}
+
+/** Undoes a delete; the group comes back retired. */
+export async function restoreGroup(actor: Actor, groupId: string): Promise<void> {
+  const group = await requireGroup(groupId);
+  if (!group.deleted) return;
+  await appendGroupEvent(actor, group, GROUP_RESTORED, {});
   requestSync();
 }
 
@@ -233,5 +254,21 @@ export async function unretireCategory(actor: Actor, categoryId: string): Promis
   const category = await requireCategory(categoryId);
   refuseRetired(await getGroup(category.groupId));
   await appendCategoryEvent(actor, category, CATEGORY_UNRETIRED, {});
+  requestSync();
+}
+
+/** Gone from every list, unless another device records history in it. */
+export async function deleteCategory(actor: Actor, categoryId: string): Promise<void> {
+  const category = await requireCategory(categoryId);
+  refuseDelete(category, await readCategoryHistory(category));
+  await appendCategoryEvent(actor, category, CATEGORY_DELETED, {});
+  requestSync();
+}
+
+/** Undoes a delete; the category comes back retired. */
+export async function restoreCategory(actor: Actor, categoryId: string): Promise<void> {
+  const category = await requireCategory(categoryId);
+  if (!category.deleted) return;
+  await appendCategoryEvent(actor, category, CATEGORY_RESTORED, {});
   requestSync();
 }

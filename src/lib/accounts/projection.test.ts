@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { permutations } from "@/test/permutations";
+import { orders, permutations } from "@/test/permutations";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { receiveEvents, type LoggedEvent } from "@/lib/events/log";
 import { hlcAt, loggedEvent, type EventFields } from "@/test/events";
@@ -560,5 +560,79 @@ describe("account projection", () => {
 
     await expect(receiveEvents([fromNewerApp], 0)).resolves.toBeUndefined();
     expect(await listAccounts()).toHaveLength(0);
+  });
+});
+
+describe("deleting an account", () => {
+  const spare = accountCreated({
+    id: "e-spare",
+    entityId: CASH_ID,
+    millis: 1000,
+    payload: { name: "Spare wallet", type: "cash", startingBalanceCents: 0 },
+  });
+  const retired = accountRetirement("account.retired", { id: "e-retired", millis: 2000 });
+  const deleted = loggedEvent({
+    id: "e-deleted",
+    entityType: "account",
+    entityId: CASH_ID,
+    eventType: "account.deleted",
+    millis: 3000,
+  });
+  // Another device recorded a transfer out of it before it saw the delete.
+  const moved = loggedEvent({
+    id: "e-moved",
+    entityType: "transfer",
+    entityId: "dddddddd-0000-4000-8000-000000000001",
+    eventType: "transfer.created",
+    millis: 2500,
+    payload: {
+      date: "2026-10-12",
+      amountCents: 10000,
+      fromAccountId: CASH_ID,
+      toAccountId: BANK_ID,
+      envelope: { kind: "unassigned" },
+      description: "",
+      notes: "",
+      status: "cleared",
+    },
+  });
+  const restored = {
+    ...deleted,
+    id: "e-restored",
+    eventType: "account.restored",
+    hlc: hlcAt(4000),
+  };
+  const retiredNames = async () => (await listRetiredAccounts()).map((account) => account.name);
+
+  it("hides a deleted account from every list", async () => {
+    await receiveEvents([spare, retired, deleted], 0);
+
+    expect(await listAccounts()).toEqual([]);
+    expect(await listRetiredAccounts()).toEqual([]);
+  });
+
+  it.each(orders([spare, retired, deleted, moved, deleted]))(
+    "keeps a deleted account with history as retired in the order %j",
+    async (_ids, order) => {
+      await receiveEvents([bank], 0);
+      for (const event of order) await receiveEvents([event], 0);
+
+      expect(await retiredNames()).toEqual(["Spare wallet"]);
+    }
+  );
+
+  it.each(orders([spare, retired, deleted, restored]))(
+    "restores a deleted account as retired in the order %j",
+    async (_ids, order) => {
+      for (const event of order) await receiveEvents([event], 0);
+
+      expect(await retiredNames()).toEqual(["Spare wallet"]);
+    }
+  );
+
+  it("keeps an account with a starting balance as retired", async () => {
+    await receiveEvents([cash, retired, deleted], 0);
+
+    expect(await retiredNames()).toEqual(["Cash"]);
   });
 });

@@ -2,6 +2,7 @@ import { db } from "@/lib/dexie/db";
 import type { LoggedEvent } from "@/lib/events/log";
 import type { Visibility } from "@/lib/events/ownership";
 import type { EntityProjection } from "@/lib/events/projector";
+import { withoutDeletedAccounts } from "@/lib/history/history";
 import { byName } from "@/lib/utils/sort";
 import {
   ACCOUNT_CREATED,
@@ -23,6 +24,8 @@ export interface AccountRow extends AccountDetails {
   ownerUserId: string | null;
   /** Hidden from the main list, kept under Retired; resolved apart from the details. */
   retired: boolean;
+  /** Retired and hidden everywhere unless something references it; absent until first deleted. */
+  deleted?: boolean;
 }
 
 function applyAccountEvent(account: AccountRow | null, event: LoggedEvent): AccountRow | null {
@@ -47,8 +50,8 @@ function applyAccountEvent(account: AccountRow | null, event: LoggedEvent): Acco
     // A card stays a card and nothing else becomes one, as the earliest create decided.
     return isCreditCard(details) === isCreditCard(account) ? { ...account, ...details } : account;
   }
-  const retired = decodeAccountRetirement(event);
-  return retired === null ? account : { ...account, retired };
+  const retirement = decodeAccountRetirement(event);
+  return retirement === null ? account : { ...account, ...retirement };
 }
 
 export const accountProjection: EntityProjection<AccountRow> = {
@@ -87,7 +90,7 @@ async function listByRetirement(retired: boolean): Promise<AccountListItem[]> {
 
 export const listAccounts = () => listByRetirement(false);
 
-export const listRetiredAccounts = () => listByRetirement(true);
+export const listRetiredAccounts = async () => withoutDeletedAccounts(await listByRetirement(true));
 
 /** Every account's name on this device, retired ones included, by account ID. */
 export async function readAccountNames(): Promise<Map<string, string>> {

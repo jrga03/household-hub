@@ -1,5 +1,6 @@
 import type { LoggedEvent } from "@/lib/events/log";
 import type { EventVersions } from "@/lib/events/versions";
+import { DELETED, RESTORED, RETIRED, UNRETIRED, type Retirement } from "@/lib/events/retirement";
 
 export const CATEGORY_NAME_MAX_LENGTH = 40;
 
@@ -8,6 +9,8 @@ export const GROUP_CREATED = "category_group.created";
 export const GROUP_RENAMED = "category_group.renamed";
 export const GROUP_RETIRED = "category_group.retired";
 export const GROUP_UNRETIRED = "category_group.unretired";
+export const GROUP_DELETED = "category_group.deleted";
+export const GROUP_RESTORED = "category_group.restored";
 
 export const CATEGORY_ENTITY = "category";
 export const CATEGORY_CREATED = "category.created";
@@ -15,12 +18,16 @@ export const CATEGORY_RENAMED = "category.renamed";
 export const CATEGORY_MOVED = "category.moved";
 export const CATEGORY_RETIRED = "category.retired";
 export const CATEGORY_UNRETIRED = "category.unretired";
+export const CATEGORY_DELETED = "category.deleted";
+export const CATEGORY_RESTORED = "category.restored";
 
 export const GROUP_VERSIONS = {
   [GROUP_CREATED]: { current: 1, upcasts: {} },
   [GROUP_RENAMED]: { current: 1, upcasts: {} },
   [GROUP_RETIRED]: { current: 1, upcasts: {} },
   [GROUP_UNRETIRED]: { current: 1, upcasts: {} },
+  [GROUP_DELETED]: { current: 1, upcasts: {} },
+  [GROUP_RESTORED]: { current: 1, upcasts: {} },
 } satisfies EventVersions;
 
 export const CATEGORY_VERSIONS = {
@@ -29,6 +36,8 @@ export const CATEGORY_VERSIONS = {
   [CATEGORY_MOVED]: { current: 1, upcasts: {} },
   [CATEGORY_RETIRED]: { current: 1, upcasts: {} },
   [CATEGORY_UNRETIRED]: { current: 1, upcasts: {} },
+  [CATEGORY_DELETED]: { current: 1, upcasts: {} },
+  [CATEGORY_RESTORED]: { current: 1, upcasts: {} },
 } satisfies EventVersions;
 
 export type RecordNoun = "group" | "category";
@@ -80,15 +89,21 @@ export function decodeCategoryMoved(event: LoggedEvent): string | null {
   return event.eventType === CATEGORY_MOVED ? decodeGroupId(event) : null;
 }
 
-/** Whether a retire or unretire event leaves the record retired, or null for any other event. */
-export function decodeRetirement(event: LoggedEvent): boolean | null {
+/** Where a retire, unretire, delete or restore event leaves the record, or null for any other event. */
+export function decodeRetirement(event: LoggedEvent): Retirement | null {
   switch (event.eventType) {
     case GROUP_RETIRED:
     case CATEGORY_RETIRED:
-      return true;
+      return RETIRED;
     case GROUP_UNRETIRED:
     case CATEGORY_UNRETIRED:
-      return false;
+      return UNRETIRED;
+    case GROUP_DELETED:
+    case CATEGORY_DELETED:
+      return DELETED;
+    case GROUP_RESTORED:
+    case CATEGORY_RESTORED:
+      return RESTORED;
     default:
       return null;
   }
@@ -99,11 +114,15 @@ const ACTION_LABELS: Record<string, string> = {
   [GROUP_RENAMED]: "Rename group",
   [GROUP_RETIRED]: "Retire group",
   [GROUP_UNRETIRED]: "Unretire group",
+  [GROUP_DELETED]: "Delete group",
+  [GROUP_RESTORED]: "Restore group",
   [CATEGORY_CREATED]: "Add category",
   [CATEGORY_RENAMED]: "Rename category",
   [CATEGORY_MOVED]: "Move category",
   [CATEGORY_RETIRED]: "Retire category",
   [CATEGORY_UNRETIRED]: "Unretire category",
+  [CATEGORY_DELETED]: "Delete category",
+  [CATEGORY_RESTORED]: "Restore category",
 };
 
 /**
