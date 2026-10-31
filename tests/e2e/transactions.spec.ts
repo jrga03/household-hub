@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import {
   chooseOption,
+  expectChosen,
   closeSheet,
   signUpNewPerson,
   navigateTo,
@@ -44,10 +45,10 @@ test("transactions recorded offline move the balance, and a removal can be undon
   await expect(bankItem(page)).toContainText("Unassigned ₱1,000.00");
 
   await page.keyboard.press("n");
-  await expect(dialog.getByLabel("Category")).toHaveText("Groceries");
+  await expectChosen(dialog.getByLabel("Category"), "Groceries");
   await dialog.getByLabel("Amount (₱)").fill("1000");
   await dialog.getByRole("radio", { name: "Income" }).check();
-  await expect(dialog.getByLabel("Category")).toHaveText("Unassigned");
+  await expectChosen(dialog.getByLabel("Category"), "Unassigned");
   await dialog.getByRole("radio", { name: "Pending" }).check();
   await dialog.getByLabel("Description", { exact: true }).fill("Salary");
   await dialog.getByRole("button", { name: "Add transaction" }).click();

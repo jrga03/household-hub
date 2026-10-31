@@ -37,7 +37,7 @@ export const isCategoryChoice = (choices: CategoryChoiceGroup[], id: string | nu
   choices.some((group) => group.categories.some((category) => category.id === id));
 
 /**
- * Unassigned, then the choices by group. `value` is a category id or UNASSIGNED.
+ * The choices by group; an empty field is Unassigned. `value` is a category id or UNASSIGNED.
  * Inside a `Field`, spread its control props onto it.
  */
 export function CategorySelect({
@@ -56,16 +56,14 @@ export function CategorySelect({
     <Combobox
       {...combobox}
       className="w-full"
-      groups={[
-        { options: [{ value: UNASSIGNED, label: "Unassigned" }] },
-        ...choices.map((group) => ({
-          label: group.label,
-          options: group.categories.map((category) => ({
-            value: category.id,
-            label: category.name,
-          })),
+      empty={{ value: UNASSIGNED, label: "Unassigned" }}
+      groups={choices.map((group) => ({
+        label: group.label,
+        options: group.categories.map((category) => ({
+          value: category.id,
+          label: category.name,
         })),
-      ]}
+      }))}
     />
   );
 }

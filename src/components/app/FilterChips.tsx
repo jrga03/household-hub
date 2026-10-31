@@ -110,11 +110,6 @@ interface FilterSelectProps {
   children: ReactNode;
 }
 
-const withAny = (anyLabel: string, groups: FilterChoiceGroup[]) => [
-  { options: [{ value: ANY, label: anyLabel }] },
-  ...groups.map((group) => ({ label: group.label, options: group.choices })),
-];
-
 /** `FilterSelect` with a search field, for long lists. The trigger takes the props of a `Field`'s control. */
 export function FilterCombobox({
   anyLabel,
@@ -129,7 +124,8 @@ export function FilterCombobox({
       {...trigger}
       value={value ?? ANY}
       onValueChange={(next) => onChange(next === ANY ? undefined : next)}
-      groups={withAny(anyLabel, groups)}
+      empty={{ value: ANY, label: anyLabel }}
+      groups={groups.map((group) => ({ label: group.label, options: group.choices }))}
     />
   );
 }

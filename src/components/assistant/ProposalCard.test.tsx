@@ -87,7 +87,7 @@ describe("ProposalCard", () => {
     expect(card).toHaveTextContent("Expense");
     expect(card).toHaveTextContent("Jollibee");
     expect(await within(card).findByLabelText("Account")).toHaveTextContent("GCash");
-    expect(within(card).getByLabelText("Category")).toHaveTextContent("Dining");
+    expect(within(card).getByLabelText("Category (optional)")).toHaveTextContent("Dining");
     expect(within(card).getByLabelText("Date")).toHaveValue("2026-10-16");
     expect(await listTransactions()).toEqual([]);
   });
@@ -101,7 +101,7 @@ describe("ProposalCard", () => {
 
     await screen.findByLabelText("Account");
     await chooseOption("Account", "BPI");
-    fireEvent.click(screen.getByLabelText("Category"));
+    fireEvent.click(screen.getByLabelText("Category (optional)"));
     fireEvent.click(await screen.findByRole("option", { name: "Groceries" }));
     fireEvent.change(screen.getByLabelText("Date"), { target: { value: "2026-10-15" } });
     fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
@@ -190,7 +190,7 @@ describe("ProposalCard", () => {
 
     await screen.findByLabelText("Account");
     await chooseOption("Account", "My wallet (Personal)");
-    expect(screen.getByLabelText("Category")).toHaveTextContent("Unassigned");
+    expect(screen.getByLabelText("Category (optional)")).toHaveTextContent("Unassigned");
   });
 
   it("records nothing when dismissed", async () => {

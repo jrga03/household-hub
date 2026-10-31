@@ -164,7 +164,7 @@ function ProposalForm({
             </Select>
           )}
         </Field>
-        <Field label="Category">
+        <Field label="Category (optional)">
           {(control) => (
             <CategorySelect
               {...control}

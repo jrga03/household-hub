@@ -68,7 +68,7 @@ test("filters combine, and the search follows them", async ({ page, isMobile }) 
   await addTransaction(page, { amount: "120.50", description: "Bakery", category: "Groceries" });
   await addTransaction(page, { amount: "250", description: "Dinner", category: "Restaurants" });
   await addTransaction(page, { amount: "1000", description: "Salary", income: true });
-  await addTransaction(page, { amount: "80", description: "Parking", category: "Unassigned" });
+  await addTransaction(page, { amount: "80", description: "Parking" });
 
   const rows = transactionRows(page);
   const filters = page.getByRole("search", { name: "Filter transactions" });

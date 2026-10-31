@@ -167,7 +167,9 @@ function isTypedField(element: Element): element is HTMLInputElement | HTMLTextA
   const typed =
     element instanceof HTMLTextAreaElement ||
     (element instanceof HTMLInputElement && TEXT_INPUT_TYPES.has(element.type));
-  return typed && !element.disabled && !element.readOnly;
+  // A combobox's Enter opens or picks from its list.
+  const combobox = element.getAttribute("role") === "combobox";
+  return typed && !combobox && !element.disabled && !element.readOnly;
 }
 
 /**

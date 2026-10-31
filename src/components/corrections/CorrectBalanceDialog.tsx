@@ -163,7 +163,7 @@ function CorrectBalanceForm({
           />
         </Field>
         <div className={FULL_ROW}>
-          <Field label="Category">
+          <Field label="Category (optional)">
             {(control) => (
               <CategorySelect
                 {...control}
