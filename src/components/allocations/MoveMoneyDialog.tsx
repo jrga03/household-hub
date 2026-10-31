@@ -5,6 +5,7 @@ import { CurrencyInput } from "@/components/app/CurrencyInput";
 import { Field } from "@/components/app/Field";
 import { FormFooter, FormSheet, FULL_ROW } from "@/components/app/FormSheet";
 import { FormError } from "@/components/app/FormError";
+import { changeWithUndo } from "@/components/app/withUndo";
 import { Input } from "@/components/app/Input";
 import { Money } from "@/components/app/Money";
 import { Notice } from "@/components/app/Notice";
@@ -28,10 +29,17 @@ import { sameEnvelope, type Envelope } from "@/lib/allocations/events";
 import type { AllocationRow } from "@/lib/allocations/projection";
 import { canHoldMoneyIn, type CategoryList, type CategoryRow } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
-import { addAllocation, editAllocation, type AllocationInput } from "@/lib/commands/allocations";
+import {
+  addAllocation,
+  editAllocation,
+  removeAllocation,
+  restoreAllocation,
+  type AllocationInput,
+} from "@/lib/commands/allocations";
 import {
   AMOUNT_PROBLEM,
   diffCents,
+  formatPHP,
   isAmount,
   parsePHPSafe,
   PESO_SIGN,
@@ -42,7 +50,6 @@ import { sameOwnership } from "@/lib/events/ownership";
 import { moneyIn, type AccountMoney, type Envelopes } from "@/lib/transactions/money";
 import { errorMessage } from "@/lib/utils";
 import { envelopeFromKey, envelopeKey } from "./envelopes";
-import { removeAllocationWithUndo } from "./removeAllocationWithUndo";
 import { todayLocalDate } from "@/lib/utils/dates";
 
 interface EnvelopeChoice {
@@ -265,7 +272,13 @@ function MoveMoneyForm({
   const remove = () => {
     if (!allocation) return;
     onClose();
-    void removeAllocationWithUndo(actor, allocation);
+    void changeWithUndo({
+      change: () => removeAllocation(actor, allocation.id),
+      undo: () => restoreAllocation(actor, allocation.id),
+      done: `Removed the ${formatPHP(allocation.amountCents)} allocation`,
+      failed: "Couldn't remove the allocation.",
+      undoFailed: "Couldn't restore the allocation.",
+    });
   };
 
   return (

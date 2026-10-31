@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { ActionForm } from "@/components/app/ActionForm";
 import { Field } from "@/components/app/Field";
 import { FormError } from "@/components/app/FormError";
+import { changeWithUndo } from "@/components/app/withUndo";
 import { FormFooter, FormSheet, FULL_ROW } from "@/components/app/FormSheet";
 import { Input } from "@/components/app/Input";
 import {
@@ -72,22 +73,13 @@ export async function removeTransferWithUndo(
   name: string
 ): Promise<boolean> {
   if (!(await confirmRemoval(name, transfer.amountCents))) return false;
-  try {
-    await removeTransfer(actor, transfer.id);
-  } catch (caught) {
-    toast.error(errorMessage(caught, "Couldn't remove the transfer."));
-    return false;
-  }
-  toast.success(`Removed ${name || transferLabel(transfer)}`, {
-    action: {
-      label: "Undo",
-      onClick: () =>
-        void restoreTransfer(actor, transfer.id).catch((caught: unknown) =>
-          toast.error(errorMessage(caught, "Couldn't restore the transfer."))
-        ),
-    },
+  return changeWithUndo({
+    change: () => removeTransfer(actor, transfer.id),
+    undo: () => restoreTransfer(actor, transfer.id),
+    done: `Removed ${name || transferLabel(transfer)}`,
+    failed: "Couldn't remove the transfer.",
+    undoFailed: "Couldn't restore the transfer.",
   });
-  return true;
 }
 
 export function TransferDialog({

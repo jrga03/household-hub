@@ -2,6 +2,7 @@
  * What references an account, group or category, read from the projections.
  * A deleted record is hidden only while this is empty, so history recorded on
  * another device brings it back as retired, in whatever order events arrive.
+ * A removed record still counts; a reference edited away does not (#286).
  */
 
 import { db } from "@/lib/dexie/db";

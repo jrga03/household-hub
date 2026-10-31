@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { ActionForm } from "@/components/app/ActionForm";
 import { Button } from "@/components/app/Button";
-import { deleteWithUndo } from "@/components/app/deleteWithUndo";
+import { deleteWithUndo } from "@/components/app/withUndo";
 import { EmptyState } from "@/components/app/EmptyState";
 import { Fact, Facts } from "@/components/app/Facts";
 import { FormError } from "@/components/app/FormError";

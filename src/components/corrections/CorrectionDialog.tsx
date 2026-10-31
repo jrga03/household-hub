@@ -1,6 +1,6 @@
 import { format } from "date-fns";
-import { toast } from "sonner";
 import { FormFooter, FormSheet } from "@/components/app/FormSheet";
+import { changeWithUndo } from "@/components/app/withUndo";
 import { categoryNames } from "@/components/allocations/envelopes";
 import { useAccountNames } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
@@ -9,7 +9,6 @@ import type { Actor } from "@/lib/commands/accounts";
 import { removeBalanceCorrection, restoreBalanceCorrection } from "@/lib/commands/corrections";
 import { CORRECTION_LABEL, isMoneyIn } from "@/lib/corrections/events";
 import type { BalanceCorrectionRow } from "@/lib/corrections/projection";
-import { errorMessage } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
 import { confirmRemoval } from "@/components/transactions/confirmRemoval";
 import { Money } from "@/components/app/Money";
@@ -20,22 +19,13 @@ export async function removeCorrectionWithUndo(
   correction: BalanceCorrectionRow
 ): Promise<boolean> {
   if (!(await confirmRemoval(CORRECTION_LABEL, correction.amountCents))) return false;
-  try {
-    await removeBalanceCorrection(actor, correction.id);
-  } catch (caught) {
-    toast.error(errorMessage(caught, "Couldn't remove the correction."));
-    return false;
-  }
-  toast.success("Removed the balance correction", {
-    action: {
-      label: "Undo",
-      onClick: () =>
-        void restoreBalanceCorrection(actor, correction.id).catch((caught: unknown) =>
-          toast.error(errorMessage(caught, "Couldn't restore the correction."))
-        ),
-    },
+  return changeWithUndo({
+    change: () => removeBalanceCorrection(actor, correction.id),
+    undo: () => restoreBalanceCorrection(actor, correction.id),
+    done: "Removed the balance correction",
+    failed: "Couldn't remove the correction.",
+    undoFailed: "Couldn't restore the correction.",
   });
-  return true;
 }
 
 export function CorrectionDialog({

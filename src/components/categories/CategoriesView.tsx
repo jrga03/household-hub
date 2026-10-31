@@ -3,7 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell } from "@/components/layout/PageShell";
 import { Button } from "@/components/app/Button";
-import { deleteWithUndo } from "@/components/app/deleteWithUndo";
+import { deleteWithUndo } from "@/components/app/withUndo";
 import { EmptyState } from "@/components/app/EmptyState";
 import { ListRow } from "@/components/app/ListRow";
 import { SectionHeader } from "@/components/app/SectionHeader";

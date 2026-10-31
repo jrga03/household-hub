@@ -1,9 +1,8 @@
-import { toast } from "sonner";
+import { changeWithUndo } from "@/components/app/withUndo";
 import type { Actor } from "@/lib/commands/accounts";
 import { removeTransaction, restoreTransaction } from "@/lib/commands/transactions";
 import { transactionLabel } from "@/lib/transactions/events";
 import type { TransactionRow } from "@/lib/transactions/projection";
-import { errorMessage } from "@/lib/utils";
 import { confirmRemoval } from "./confirmRemoval";
 
 /**
@@ -12,20 +11,11 @@ import { confirmRemoval } from "./confirmRemoval";
  */
 export async function removeWithUndo(actor: Actor, transaction: TransactionRow): Promise<boolean> {
   if (!(await confirmRemoval(transaction.description, transaction.amountCents))) return false;
-  try {
-    await removeTransaction(actor, transaction.id);
-  } catch (caught) {
-    toast.error(errorMessage(caught, "Couldn't remove the transaction."));
-    return false;
-  }
-  toast.success(`Removed ${transactionLabel(transaction)}`, {
-    action: {
-      label: "Undo",
-      onClick: () =>
-        void restoreTransaction(actor, transaction.id).catch((caught: unknown) =>
-          toast.error(errorMessage(caught, "Couldn't restore the transaction."))
-        ),
-    },
+  return changeWithUndo({
+    change: () => removeTransaction(actor, transaction.id),
+    undo: () => restoreTransaction(actor, transaction.id),
+    done: `Removed ${transactionLabel(transaction)}`,
+    failed: "Couldn't remove the transaction.",
+    undoFailed: "Couldn't restore the transaction.",
   });
-  return true;
 }
