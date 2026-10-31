@@ -5,12 +5,12 @@ import { HeroFigure } from "@/components/app/HeroFigure";
 import { RowTargetElement } from "@/components/app/ListRow";
 import { Money } from "@/components/app/Money";
 import { ProgressBar } from "@/components/app/ProgressBar";
-import { SectionHeader } from "@/components/app/SectionHeader";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { categoryNames } from "@/components/allocations/envelopes";
 import { MoveMoneyDialog } from "@/components/allocations/MoveMoneyDialog";
 import { CategoryLedger } from "@/components/categories/CategoryLedger";
 import { BUDGET_STATUS_STYLE } from "./budgetStatusStyle";
+import { CollapsibleGroup, UNGROUPED } from "./CollapsibleGroup";
 import { CorrectionDialog } from "@/components/corrections/CorrectionDialog";
 import { RecordName } from "@/components/categories/RecordName";
 import { DetailPane, resolveOpenItem, useOpenItem } from "@/components/layout/DetailPane";
@@ -98,11 +98,13 @@ export function BudgetView({
           <>
             <Overall figures={figuresOf(monthView, allCategories)} daysLeft={daysLeft} />
             {rows.groups.map(({ group, categories }) => (
-              <section key={group.id} aria-label={group.name} className="space-y-2">
-                <SectionHeader
-                  title={<RecordName record={group} showRetired />}
-                  action={<LeftFigure figures={figuresOf(monthView, categories)} />}
-                />
+              <CollapsibleGroup
+                key={group.id}
+                groupId={group.id}
+                label={group.name}
+                title={<RecordName record={group} showRetired />}
+                action={<LeftFigure figures={figuresOf(monthView, categories)} />}
+              >
                 {categories.length === 0 ? (
                   <EmptyState className="py-2">No categories in use.</EmptyState>
                 ) : (
@@ -112,16 +114,15 @@ export function BudgetView({
                     {...rowProps}
                   />
                 )}
-              </section>
+              </CollapsibleGroup>
             ))}
             {rows.ungrouped.length > 0 && (
-              <section aria-label="Ungrouped" className="space-y-2">
-                <SectionHeader title="Ungrouped" />
+              <CollapsibleGroup groupId={UNGROUPED} label="Ungrouped" title="Ungrouped">
                 <p className="text-body text-muted-foreground">
                   Waiting for their group to reach this device
                 </p>
                 <CategoryRows label="Ungrouped budget" categories={rows.ungrouped} {...rowProps} />
-              </section>
+              </CollapsibleGroup>
             )}
           </>
         )}
