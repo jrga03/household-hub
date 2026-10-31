@@ -53,6 +53,9 @@ test.describe("wide screens", () => {
     await expect(pane).toContainText("+₱8,000.00");
     await expect(pane).toContainText("−₱1,200.00");
     await expect(pane).toContainText(/End of .*₱6,800\.00/);
+    await expect(pane.getByRole("list", { name: "Groceries by account" })).toContainText(
+      /^BPI₱6,800\.00/
+    );
     await page.screenshot({ path: test.info().outputPath("ledger-pane.png") });
 
     await page.reload();
@@ -67,6 +70,14 @@ test.describe("wide screens", () => {
       .click();
     await expect(page.getByRole("dialog", { name: "Edit transaction" })).toBeVisible();
   });
+
+  test("shows each category's money on Categories", async ({ page }) => {
+    await groceriesThisMonth(page);
+
+    await page.goto("/categories");
+    await expect(page.getByRole("button", { name: /^Edit Groceries\s*₱6,800\.00$/ })).toBeVisible();
+    await page.screenshot({ path: test.info().outputPath("categories-list.png") });
+  });
 });
 
 test.describe("phones", () => {
@@ -74,6 +85,8 @@ test.describe("phones", () => {
 
   test("opens the ledger in a sheet", async ({ page }) => {
     await groceriesThisMonth(page);
+    await expect(page.getByRole("button", { name: "Groceries", exact: true })).toBeVisible();
+    await page.screenshot({ path: test.info().outputPath("budget-rows.png") });
 
     await page.getByRole("button", { name: "Groceries", exact: true }).click();
     const sheet = page.getByRole("dialog", { name: "Groceries" });

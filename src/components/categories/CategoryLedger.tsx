@@ -129,6 +129,19 @@ export function CategoryLedger({
           </ul>
         )}
         <Balance label={`End of ${monthLabel(month)}`} cents={ledger.closing} />
+        {ledger.closingByAccount.size > 0 && (
+          <ul aria-label={`${categoryName} by account`}>
+            {[...ledger.closingByAccount].map(([accountId, cents]) => (
+              <li
+                key={accountId}
+                className="flex items-center justify-between gap-3 px-4 py-1 text-body text-muted-foreground"
+              >
+                <span className="min-w-0 truncate">{accountName(names, accountId)}</span>
+                <Money kind="balance" cents={cents} />
+              </li>
+            ))}
+          </ul>
+        )}
         {isCurrentMonth && ledger.datedLater !== 0 && (
           <div className="flex items-center justify-between gap-3 px-4 py-2 text-body text-muted-foreground">
             <span>Dated later</span>
