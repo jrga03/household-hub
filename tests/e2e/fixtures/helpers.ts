@@ -1,4 +1,4 @@
-import type { Locator, Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import { testUsers } from "./test-users";
 
 export async function login(page: Page, userKey: "primary" | "secondary" = "primary") {
@@ -40,6 +40,20 @@ export function transactionRows(page: Page): Locator {
         .getByRole("row")
         .filter({ has: page.getByRole("cell") })
     );
+}
+
+/** A picker shows `name`: a button's text, or on phones its text field's value or placeholder. */
+export async function expectChosen(field: Locator, name: string) {
+  await expect
+    .poll(() =>
+      field.evaluate((element) => {
+        const input = element as { value?: string; placeholder?: string };
+        return element.tagName === "INPUT"
+          ? input.value || input.placeholder
+          : element.textContent?.trim();
+      })
+    )
+    .toBe(name);
 }
 
 /** Opens a select field and picks the option with exactly that name. */

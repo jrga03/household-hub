@@ -1,6 +1,7 @@
 import { useActionState, useState } from "react";
 import { toast } from "sonner";
 import { ActionForm } from "@/components/app/ActionForm";
+import { Combobox } from "@/components/app/Combobox";
 import { CurrencyInput } from "@/components/app/CurrencyInput";
 import { Field } from "@/components/app/Field";
 import { FormFooter, FormSheet, FULL_ROW } from "@/components/app/FormSheet";
@@ -11,9 +12,7 @@ import { Notice } from "@/components/app/Notice";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/app/Select";
@@ -375,29 +374,37 @@ function EnvelopeSelect({
   return (
     <Field label={label} error={error}>
       {(control) => (
-        <Select name={side} value={value} onValueChange={onChange}>
-          <SelectTrigger {...control} className="w-full">
-            <SelectValue placeholder="Choose" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="unassigned">
-              Unassigned · {amount({ kind: "unassigned" })}
-            </SelectItem>
-            {groups.map((group) => (
-              <SelectGroup key={group.label}>
-                <SelectLabel>{group.label}</SelectLabel>
-                {group.choices.map((choice) => (
-                  <SelectItem
-                    key={envelopeKey(choice.envelope)}
-                    value={envelopeKey(choice.envelope)}
-                  >
+        <Combobox
+          {...control}
+          name={side}
+          className="w-full"
+          placeholder="Choose"
+          value={value}
+          onValueChange={onChange}
+          groups={[
+            {
+              options: [
+                {
+                  value: "unassigned",
+                  label: "Unassigned",
+                  content: <>Unassigned · {amount({ kind: "unassigned" })}</>,
+                },
+              ],
+            },
+            ...groups.map((group) => ({
+              label: group.label,
+              options: group.choices.map((choice) => ({
+                value: envelopeKey(choice.envelope),
+                label: choice.label,
+                content: (
+                  <>
                     {choice.label} · {amount(choice.envelope)}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            ))}
-          </SelectContent>
-        </Select>
+                  </>
+                ),
+              })),
+            })),
+          ]}
+        />
       )}
     </Field>
   );

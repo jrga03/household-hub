@@ -228,8 +228,8 @@ describe("DistributeMoney", () => {
     const bpi = await householdAccount();
     renderDistribute("income", bpi.id);
     await screen.findByLabelText("Add a category");
-    fireEvent.keyDown(screen.getByLabelText("Add a category"), { key: "Enter" });
-    fireEvent.keyDown(await screen.findByRole("option", { name: "Groceries" }), { key: "Enter" });
+    fireEvent.click(screen.getByLabelText("Add a category"));
+    fireEvent.click(await screen.findByRole("option", { name: "Groceries" }));
     fireEvent.change(await screen.findByLabelText("Groceries"), { target: { value: "500" } });
 
     fireEvent.change(screen.getByLabelText("Date"), { target: { value: "2026-10-20" } });

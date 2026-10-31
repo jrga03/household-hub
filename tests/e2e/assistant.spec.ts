@@ -1,5 +1,11 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
-import { chooseOption, navigateTo, signUpNewPerson, transactionRows } from "./fixtures/helpers";
+import {
+  chooseOption,
+  expectChosen,
+  navigateTo,
+  signUpNewPerson,
+  transactionRows,
+} from "./fixtures/helpers";
 
 // Set by the pretest:e2e scripts; nothing answers there except the stub below.
 const ASSISTANT_URL = "https://assistant.e2e.test/";
@@ -95,7 +101,7 @@ test("a line typed to the assistant is recorded after Confirm", async ({ page, i
   const card = page.getByRole("form", { name: "Confirm transaction" });
   await expect(card).toContainText("₱250.00");
   await expect(card.getByLabel("Account")).toHaveText("GCash");
-  await expect(card.getByLabel("Category")).toHaveText("Restaurants");
+  await expectChosen(card.getByLabel("Category"), "Restaurants");
   await chooseOption(page, card.getByLabel("Category"), "Groceries");
   await card.getByRole("button", { name: "Confirm" }).click();
   await expect(card).toContainText("Recorded");

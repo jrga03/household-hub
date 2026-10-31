@@ -264,6 +264,7 @@
     }
 
     [data-slot="select-trigger"],
+    [data-slot="combobox-trigger"],
     [data-slot="filter-chip"],
     [data-slot="segmented-control-option"] {
       min-height: 44px;
