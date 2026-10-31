@@ -409,4 +409,24 @@ describe("deleteAccount and restoreAccount", () => {
       "BPI Gold has a starting balance, so it stays retired."
     );
   });
+
+  it("deletes a Paying Account once its card is deleted", async () => {
+    const bank = await createAccount(MEMBER, {
+      name: "BPI",
+      type: "bank",
+      startingBalanceCents: cents(0),
+    });
+    const card = await createAccount(MEMBER, {
+      name: "BPI Gold",
+      type: "credit_card",
+      startingBalanceCents: cents(0),
+      payingAccountId: bank.id,
+    });
+    await retireAccount(MEMBER, card.id);
+    await retireAccount(MEMBER, bank.id);
+
+    await deleteAccount(MEMBER, card.id);
+    await deleteAccount(MEMBER, bank.id);
+    expect(await listRetiredAccounts()).toEqual([]);
+  });
 });

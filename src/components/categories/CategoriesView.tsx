@@ -261,7 +261,7 @@ function RetiredCategories({ actor, list }: { actor: Actor; list: CategoryList }
               key={group.id}
               record={group}
               detail="Group"
-              labelSuffix={`group ${group.name}`}
+              recordLabel={`group ${group.name}`}
               disabled={busy}
               onUnretire={() => unretire(group.name, () => unretireGroup(actor, group.id))}
               onDelete={() =>
@@ -280,7 +280,7 @@ function RetiredCategories({ actor, list }: { actor: Actor; list: CategoryList }
               key={category.id}
               record={category}
               detail={category.group ? `In ${category.group.name}` : "Group not on this device yet"}
-              labelSuffix={category.name}
+              recordLabel={category.name}
               disabled={busy}
               onUnretire={() => unretire(category.name, () => unretireCategory(actor, category.id))}
               onDelete={() =>
@@ -303,7 +303,7 @@ function RetiredCategories({ actor, list }: { actor: Actor; list: CategoryList }
 function RetiredItem({
   record,
   detail,
-  labelSuffix,
+  recordLabel,
   disabled,
   onUnretire,
   onDelete,
@@ -311,7 +311,7 @@ function RetiredItem({
   record: GroupRow;
   detail: string;
   /** What the buttons name for a screen reader: "group Food" or "Groceries". */
-  labelSuffix: string;
+  recordLabel: string;
   disabled: boolean;
   onUnretire: () => void;
   onDelete: () => void;
@@ -327,7 +327,7 @@ function RetiredItem({
           variant="ghost"
           size="sm"
           className="text-destructive hover:text-destructive active:text-destructive"
-          aria-label={`Delete ${labelSuffix}`}
+          aria-label={`Delete ${recordLabel}`}
           disabled={disabled}
           onClick={onDelete}
         >
@@ -336,7 +336,7 @@ function RetiredItem({
         <Button
           variant="outline"
           size="sm"
-          aria-label={`Unretire ${labelSuffix}`}
+          aria-label={`Unretire ${recordLabel}`}
           disabled={disabled}
           onClick={onUnretire}
         >

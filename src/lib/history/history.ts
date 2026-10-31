@@ -74,11 +74,8 @@ function countByNoun(nouns: string[]): string[] {
   return [...counts].flatMap(([noun, count]) => counted(count, noun));
 }
 
-/** "12 transactions", "a starting balance": empty when nothing ever used the account. */
-function accountHistory(account: AccountRow, records: HistoryRecords): string[] {
-  const cards = records.accounts.filter(
-    (card) => card.payingAccountId === account.id && !card.deleted
-  );
+/** Everything but the cards paid from it; a card is never paid from a card. */
+function ownAccountHistory(account: AccountRow, records: HistoryRecords): string[] {
   return [
     ...(account.startingBalanceCents === 0 ? [] : ["a starting balance"]),
     ...countByNoun(
@@ -86,6 +83,18 @@ function accountHistory(account: AccountRow, records: HistoryRecords): string[] 
         .filter((reference) => reference.accountIds.includes(account.id))
         .map((reference) => reference.noun)
     ),
+  ];
+}
+
+/** "12 transactions", "a starting balance": empty when nothing ever used the account. */
+function accountHistory(account: AccountRow, records: HistoryRecords): string[] {
+  const cards = records.accounts.filter(
+    (card) =>
+      card.payingAccountId === account.id &&
+      !(card.deleted && ownAccountHistory(card, records).length === 0)
+  );
+  return [
+    ...ownAccountHistory(account, records),
     ...counted(cards.length, "card paid from it", "cards paid from it"),
   ];
 }

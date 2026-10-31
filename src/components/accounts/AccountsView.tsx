@@ -315,7 +315,6 @@ function UnretireButton({ actor, account }: { actor: Actor; account: AccountList
   );
 }
 
-/** Closes the pane once the account is gone, since its open id goes stale. */
 function DeleteButton({ actor, account }: { actor: Actor; account: AccountListItem }) {
   const [deleting, startDeleting] = useTransition();
   const remove = () =>
