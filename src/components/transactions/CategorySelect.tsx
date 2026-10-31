@@ -1,4 +1,4 @@
-import { Combobox } from "@/components/app/Combobox";
+import { PickerPrototype } from "@/components/app/PickerPrototype";
 import type { AccountRow } from "@/lib/accounts/projection";
 import { canHoldMoneyIn, type CategoryList, type CategoryRow } from "@/lib/categories/projection";
 
@@ -53,11 +53,11 @@ export function CategorySelect({
   onValueChange: (value: string) => void;
 }) {
   return (
-    <Combobox
+    <PickerPrototype
       {...combobox}
       className="w-full"
+      empty={{ value: UNASSIGNED, label: "Unassigned" }}
       groups={[
-        { options: [{ value: UNASSIGNED, label: "Unassigned" }] },
         ...choices.map((group) => ({
           label: group.label,
           options: group.categories.map((category) => ({

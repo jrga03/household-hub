@@ -1,3 +1,4 @@
+import { usePickerVariant } from "@/components/app/PickerPrototype";
 import { useActionState, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -218,6 +219,7 @@ function TransactionForm({
   onDirectionChange?: (direction: EntryDirection, amount: Cents | undefined) => void;
   onClose: () => void;
 }) {
+  const pickerVariant = usePickerVariant();
   const { lastUsed, setLastUsed } = useQuickEntryStore();
   const navigate = useNavigate();
   const lastAccount = accounts.find((account) => account.id === lastUsed.accountId);
@@ -350,7 +352,7 @@ function TransactionForm({
             </Select>
           )}
         </Field>
-        <Field label="Category">
+        <Field label={pickerVariant === "A" ? "Category" : "Category (optional)"}>
           {(control) => (
             <CategorySelect
               {...control}

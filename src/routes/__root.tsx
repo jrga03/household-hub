@@ -8,6 +8,7 @@ import { PageShell } from "@/components/layout/PageShell";
 import { Button } from "@/components/app/Button";
 import { EmptyState } from "@/components/app/EmptyState";
 import { SectionHeader } from "@/components/app/SectionHeader";
+import { PrototypeSwitcher } from "@/components/app/PickerPrototype";
 
 function RootComponent() {
   useEventSync();
@@ -16,6 +17,7 @@ function RootComponent() {
     <>
       <AppLayout />
       {import.meta.env.DEV && <TanStackRouterDevtools />}
+      {import.meta.env.DEV && <PrototypeSwitcher />}
     </>
   );
 }

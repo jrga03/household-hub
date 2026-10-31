@@ -1,3 +1,4 @@
+import { usePickerVariant } from "@/components/app/PickerPrototype";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ActionForm } from "@/components/app/ActionForm";
@@ -76,6 +77,7 @@ function ProposalForm({
   categories: CategoryList;
   onDecide: Decide;
 }) {
+  const pickerVariant = usePickerVariant();
   const { callId, transactionId, proposal, decision } = item;
   // Once confirmed, the card shows what was recorded, also after leaving the screen and coming back.
   const shown = decision?.outcome === "recorded" ? decision.recorded : proposal;
@@ -164,7 +166,7 @@ function ProposalForm({
             </Select>
           )}
         </Field>
-        <Field label="Category">
+        <Field label={pickerVariant === "A" ? "Category" : "Category (optional)"}>
           {(control) => (
             <CategorySelect
               {...control}

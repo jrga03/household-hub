@@ -1,6 +1,8 @@
 import type { ComponentProps, ReactNode } from "react";
+import { ChevronDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Combobox } from "./Combobox";
+import { ChipPrototype } from "./PickerPrototype";
 import {
   Select,
   SelectContent,
@@ -93,7 +95,26 @@ export function FilterChipSelect({
     children: <span>{chosen?.label ?? label}</span>,
   };
   return searchable ? (
-    <FilterCombobox {...select} {...trigger} />
+    <ChipPrototype
+      aria-label={label.toLowerCase()}
+      value={select.value ?? ANY}
+      onValueChange={(next) => select.onChange(next === ANY ? undefined : next)}
+      empty={{ value: ANY, label: select.anyLabel }}
+      groups={select.groups.map((group) => ({ label: group.label, options: group.choices }))}
+      chip={(open) => (
+        <button
+          type="button"
+          data-slot="filter-chip"
+          aria-label={trigger["aria-label"]}
+          className={trigger.className}
+          onClick={open}
+        >
+          {trigger.children}
+          <ChevronDownIcon className="size-4 opacity-50" />
+        </button>
+      )}
+      fallback={<FilterCombobox {...select} {...trigger} />}
+    />
   ) : (
     <FilterSelect {...select}>
       <SelectTrigger {...trigger} />
