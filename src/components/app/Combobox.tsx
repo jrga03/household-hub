@@ -92,7 +92,7 @@ export function Combobox({
           if (openedByTouch.current) event.preventDefault();
         }}
       >
-        <Command filter={matchKeywords} defaultValue={value}>
+        <Command label="Search" filter={matchKeywords} defaultValue={value}>
           <CommandInput placeholder="Search…" />
           <CommandList>
             <CommandEmpty>No matches</CommandEmpty>

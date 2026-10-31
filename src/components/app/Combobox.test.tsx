@@ -37,6 +37,7 @@ describe("Combobox", () => {
   it("narrows the list to the categories a query names", () => {
     render(<CategoryPicker />);
     open();
+    expect(screen.getByRole("combobox", { name: "Search" })).toBeVisible();
     search("groc");
     expect(optionNames()).toEqual(["Groceries"]);
   });
