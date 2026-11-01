@@ -93,6 +93,39 @@ describe("distributeMoney", () => {
     expect(await unassignedIn(gcash)).toBe(0);
   });
 
+  it("splits one category across accounts: an allocation per line, one transfer per other account", async () => {
+    await payroll("2026-10-15");
+
+    await distributeMoney(MEMBER, {
+      sourceAccountId: bpi,
+      date: "2026-10-15",
+      lines: [
+        { categoryId: groceries, accountId: bpi, amountCents: peso("800") },
+        { categoryId: groceries, accountId: gcash, amountCents: peso("200") },
+      ],
+    });
+
+    expect(await listTransfers()).toMatchObject([
+      { fromAccountId: bpi, toAccountId: gcash, amountCents: 20000 },
+    ]);
+    const allocations = await listAllocations();
+    expect(allocations).toHaveLength(2);
+    expect(allocations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          accountId: bpi,
+          to: { kind: "category", id: groceries },
+          amountCents: 80000,
+        }),
+        expect.objectContaining({
+          accountId: gcash,
+          to: { kind: "category", id: groceries },
+          amountCents: 20000,
+        }),
+      ])
+    );
+  });
+
   it("prefills nothing on the second payday once the budgets are met", async () => {
     await setBudget(MEMBER, budget(groceries, "8000", bpi));
     await setBudget(MEMBER, budget(transportation, "3000", gcash));
