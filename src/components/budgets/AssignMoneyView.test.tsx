@@ -18,9 +18,11 @@ import { HOUSEHOLD } from "@/test/events";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 function renderAssignMoney({
+  accountId,
   distribute = null,
   onDistribute = () => {},
 }: {
+  accountId?: string;
   distribute?: DistributeRequest | null;
   onDistribute?: (mode: string | null) => void;
 } = {}) {
@@ -30,7 +32,12 @@ function renderAssignMoney({
       getParentRoute: () => rootRoute,
       path,
       component: () => (
-        <AssignMoneyView actor={MEMBER} distribute={distribute} onDistribute={onDistribute} />
+        <AssignMoneyView
+          actor={MEMBER}
+          accountId={accountId}
+          distribute={distribute}
+          onDistribute={onDistribute}
+        />
       ),
     })
   );
@@ -105,6 +112,20 @@ describe("AssignMoneyView", () => {
 
     const dialog = await screen.findByRole("dialog", { name: "Edit allocation" });
     expect(within(dialog).getByLabelText("Amount (₱)")).toHaveDisplayValue(/^8,?000\.00$/);
+  });
+
+  it("starts Move money on the account chosen on Accounts", async () => {
+    await groceries();
+    const gcash = await createAccount(MEMBER, {
+      name: "GCash",
+      type: "e_wallet",
+      startingBalanceCents: parsePHP("1500"),
+    });
+    renderAssignMoney({ accountId: gcash.id });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Move money" }));
+    const dialog = await screen.findByRole("dialog", { name: "Move money" });
+    expect(within(dialog).getByRole("combobox", { name: "Account" })).toHaveTextContent("GCash");
   });
 
   it("puts a missing amount's problem on the Move money amount field", async () => {

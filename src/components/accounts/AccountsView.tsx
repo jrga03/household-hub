@@ -1,4 +1,4 @@
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useState, useTransition, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { ActionForm } from "@/components/app/ActionForm";
@@ -29,7 +29,7 @@ import {
   unretireAccount,
   type Actor,
 } from "@/lib/commands/accounts";
-import { sumCents } from "@/lib/currency";
+import { sumCents, type Cents } from "@/lib/currency";
 import { VISIBILITY_LABELS, type Visibility } from "@/lib/events/ownership";
 import type { AccountMoney } from "@/lib/transactions/money";
 import { errorMessage } from "@/lib/utils";
@@ -172,7 +172,7 @@ function AccountRows({
               amount={
                 accountMoney && <Money kind="balance" owed={card} cents={accountMoney.balance} />
               }
-              detail={<RowDetail account={account} money={accountMoney} />}
+              detail={rowDetail(account, accountMoney)}
             />
           </li>
         );
@@ -186,10 +186,14 @@ function payingAccountSummary({ payingAccount }: AccountListItem): string {
   return `Paid from ${payingAccount.name}${payingAccount.retired ? " (retired)" : ""}`;
 }
 
-/** A card's Paying Account; any other account's Unassigned, the money it can still give a job. */
-function RowDetail({ account, money }: { account: AccountListItem; money?: AccountMoney }) {
+/**
+ * A card's Paying Account; any other account's Unassigned, the money it can
+ * still give a job. Nothing at zero, so the row is one line.
+ */
+function rowDetail(account: AccountListItem, money?: AccountMoney): ReactNode {
   if (isCreditCard(account)) return payingAccountSummary(account);
   if (!money?.envelopes) return ACCOUNT_TYPE_LABELS[account.type];
+  if (money.envelopes.unassigned === 0) return undefined;
   return (
     <>
       Unassigned <Money kind="balance" cents={money.envelopes.unassigned} />
@@ -248,7 +252,10 @@ function AccountDetail({
         ) : (
           <>
             {card && <Button onClick={() => setDialog("pay")}>Pay {account.name}</Button>}
-            <Button variant={card ? "outline" : "default"} onClick={() => setDialog("edit")}>
+            {money?.envelopes && (
+              <AssignButton accountId={account.id} unassigned={money.envelopes.unassigned} />
+            )}
+            <Button variant="outline" onClick={() => setDialog("edit")}>
               Edit
             </Button>
             <Button variant="outline" onClick={() => setDialog("correct")}>
@@ -294,6 +301,18 @@ function Envelopes({ envelopes }: { envelopes: NonNullable<AccountMoney["envelop
           </Fact>
         ))}
     </>
+  );
+}
+
+/** Opens Assign money with this account as Move money's and Distribute's source. */
+function AssignButton({ accountId, unassigned }: { accountId: string; unassigned: Cents }) {
+  if (unassigned === 0) return <Button disabled>Assign</Button>;
+  return (
+    <Button asChild>
+      <Link to="/assign-money" search={{ account: accountId }}>
+        Assign
+      </Link>
+    </Button>
   );
 }
 

@@ -53,14 +53,12 @@ function renderAccounts(initialEntry = "/accounts") {
       </PageShell>
     ),
   });
-  const transactionsRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: "/transactions",
-    component: () => null,
-  });
+  const linkedRoutes = ["/transactions", "/assign-money"].map((path) =>
+    createRoute({ getParentRoute: () => rootRoute, path, component: () => null })
+  );
   const history = createMemoryHistory({ initialEntries: [initialEntry] });
   const router = createRouter({
-    routeTree: rootRoute.addChildren([accountsRoute, transactionsRoute]),
+    routeTree: rootRoute.addChildren([accountsRoute, ...linkedRoutes]),
     history,
   });
   render(<RouterProvider router={router} />);
@@ -136,6 +134,52 @@ describe("AccountsView", () => {
     expect(total.parentElement).toHaveClass("text-shortfall");
   });
 
+  it("shows a row's Unassigned only when it isn't zero", async () => {
+    await createAccount(MEMBER, {
+      name: "BPI",
+      type: "bank",
+      startingBalanceCents: parsePHP("500"),
+    });
+    await createAccount(MEMBER, {
+      name: "Wallet",
+      type: "cash",
+      startingBalanceCents: parsePHP("0"),
+    });
+    renderAccounts();
+
+    expect(await screen.findByRole("button", { name: /^BPI/ })).toHaveAccessibleName(
+      /Unassigned ₱500\.00$/
+    );
+    expect(screen.getByRole("button", { name: /^Wallet/ })).toHaveAccessibleName(
+      /^Wallet\s*₱0\.00$/
+    );
+  });
+
+  it("assigns an open account's Unassigned on Assign money, from that account", async () => {
+    const { bank } = await bankAndCard();
+    const history = renderAccounts();
+
+    fireEvent.click(await screen.findByRole("button", { name: /^BPI/ }));
+    const details = await screen.findByRole("dialog", { name: "BPI" });
+    fireEvent.click(await within(details).findByRole("link", { name: "Assign" }));
+
+    await waitFor(() => expect(history.location.pathname).toBe("/assign-money"));
+    expect(history.location.search).toBe(`?account=${bank.id}`);
+  });
+
+  it("can't assign an account with nothing Unassigned", async () => {
+    await createAccount(MEMBER, {
+      name: "Wallet",
+      type: "cash",
+      startingBalanceCents: parsePHP("0"),
+    });
+    renderAccounts();
+
+    fireEvent.click(await screen.findByRole("button", { name: /^Wallet/ }));
+    const details = await screen.findByRole("dialog", { name: "Wallet" });
+    expect(await within(details).findByRole("button", { name: "Assign" })).toBeDisabled();
+  });
+
   it("opens an account's details and pays its card from there", async () => {
     const { card } = await bankAndCard();
     await record(card.id, "800");
@@ -145,6 +189,7 @@ describe("AccountsView", () => {
     await waitFor(() => expect(history.location.search).toContain("open="));
     const details = await screen.findByRole("dialog", { name: "Visa" });
     expect(within(details).getByText("BPI")).toBeInTheDocument();
+    expect(within(details).queryByRole("button", { name: "Assign" })).toBeNull();
 
     fireEvent.click(within(details).getByRole("button", { name: "Pay Visa" }));
     const form = await screen.findByRole("form", { name: "Pay Visa" });
