@@ -116,7 +116,15 @@ function checkOutOfPocket(
   if (paidByUserId !== actor.userId) {
     throw new Error("You can only record your own out-of-pocket expense.");
   }
+  checkOutOfPocketType(details);
+  checkOutOfPocketAccount(account);
+}
+
+function checkOutOfPocketType(details: TransactionDetails): void {
   if (details.type !== "expense") throw new Error("Only an expense can be out-of-pocket.");
+}
+
+function checkOutOfPocketAccount(account: AccountRow): void {
   if (!canBeOutOfPocket(account)) {
     throw new Error("Choose a Household account that isn't a credit card.");
   }
@@ -131,7 +139,8 @@ async function requireTransaction(transactionId: string): Promise<TransactionRow
 /**
  * Any detail, including the account, within the same visibility (ADR 0002).
  * A transaction on a retired account or category stays editable; only a move
- * onto a retired one is refused.
+ * onto a retired one is refused. An out-of-pocket expense keeps its payer and
+ * stays an expense on a Household account that isn't a card (ADR 0012).
  */
 export async function editTransaction(
   actor: Actor,
@@ -153,9 +162,12 @@ async function appendEdit(
   const details = { ...entered, payingAccountId: transaction.payingAccountId };
   // A re-sent unchanged edit would carry a later HLC and undo another device's edit.
   if (sameDetails(details, transaction)) return;
+  const outOfPocket = transaction.paidByUserId !== null;
+  if (outOfPocket) checkOutOfPocketType(details);
   if (accountChanged || details.categoryId !== transaction.categoryId) {
     const account = await requireAccount(details.accountId);
     if (accountChanged) {
+      if (outOfPocket) checkOutOfPocketAccount(account);
       checkMove(account, transaction);
       details.payingAccountId = payingAccountOf(account);
     }
@@ -240,4 +252,25 @@ export const restoreTransactions = (actor: Actor, transactionIds: string[]) =>
     transactionIds,
     (transaction) => !transaction.removed,
     (transaction) => restoreTransaction(actor, transaction.id)
+  );
+
+/** Paying back an Out-of-pocket expense is marking it cleared (ADR 0012). */
+export const markPaidBack = (actor: Actor, transactionIds: string[]) =>
+  changeEachTransaction(
+    transactionIds,
+    (transaction) => transaction.status === "cleared",
+    async (transaction) => {
+      if (transaction.paidByUserId === null) {
+        throw new Error("Only an out-of-pocket expense can be paid back.");
+      }
+      await setTransactionStatus(actor, transaction.id, "cleared");
+    }
+  );
+
+/** Undoes Mark paid back: the expenses are owed again. */
+export const markOwedAgain = (actor: Actor, transactionIds: string[]) =>
+  changeEachTransaction(
+    transactionIds,
+    (transaction) => transaction.status === "pending",
+    (transaction) => setTransactionStatus(actor, transaction.id, "pending")
   );

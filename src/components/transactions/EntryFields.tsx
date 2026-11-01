@@ -135,15 +135,20 @@ const STATUSES_WITH_OUT_OF_POCKET = [
   { value: OUT_OF_POCKET, label: "Out-of-pocket" },
 ] as const satisfies readonly { value: StatusChoiceValue; label: string }[];
 
-/** Cleared or Pending, and Out-of-pocket where it's offered, submitted as `status`. */
+/**
+ * Cleared or Pending, and Out-of-pocket where it's offered, submitted as `status`.
+ * `hint` shows a fixed fact under it, such as who paid an out-of-pocket expense.
+ */
 export function StatusChoice({
   value,
   onChange,
   withOutOfPocket = false,
+  hint,
 }: {
   value: StatusChoiceValue;
   onChange: (status: StatusChoiceValue) => void;
   withOutOfPocket?: boolean;
+  hint?: string;
 }) {
   return (
     <div className="space-y-2">
@@ -159,6 +164,7 @@ export function StatusChoice({
         onChange={onChange}
         className={cn("grid w-full", withOutOfPocket ? "grid-cols-3" : "grid-cols-2")}
       />
+      {hint && <p className="text-caption text-muted-foreground">{hint}</p>}
     </div>
   );
 }
