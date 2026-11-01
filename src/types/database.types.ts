@@ -25,13 +25,13 @@ export type Database = {
           Tables: {
             "events": {
                   Row: {
-                    "actor_user_id": string,"device_id": string,"entity_id": string,"entity_type": string,"event_type": string,"event_version": number,"hlc": string,"household_id": string,"id": string,"owner_user_id": string | null,"payload": NonNullable<Json>,"received_at": string,"sequence": number,"visibility": string
+                    "actor_user_id": string | null,"device_id": string,"entity_id": string,"entity_type": string,"event_type": string,"event_version": number,"hlc": string,"household_id": string,"id": string,"owner_user_id": string | null,"payload": NonNullable<Json>,"received_at": string,"sequence": number,"visibility": string
                   }
                   Insert: {
-                    "actor_user_id"?: string,"device_id": string,"entity_id": string,"entity_type": string,"event_type": string,"event_version": number,"hlc": string,"household_id": string,"id": string,"owner_user_id"?: string | null,"payload": NonNullable<Json>,"received_at"?: string,"sequence"?: number,"visibility": string
+                    "actor_user_id"?: string | null,"device_id": string,"entity_id": string,"entity_type": string,"event_type": string,"event_version": number,"hlc": string,"household_id": string,"id": string,"owner_user_id"?: string | null,"payload": NonNullable<Json>,"received_at"?: string,"sequence"?: number,"visibility": string
                   }
                   Update: {
-                    "actor_user_id"?: string,"device_id"?: string,"entity_id"?: string,"entity_type"?: string,"event_type"?: string,"event_version"?: number,"hlc"?: string,"household_id"?: string,"id"?: string,"owner_user_id"?: string | null,"payload"?: NonNullable<Json>,"received_at"?: string,"sequence"?: number,"visibility"?: string
+                    "actor_user_id"?: string | null,"device_id"?: string,"entity_id"?: string,"entity_type"?: string,"event_type"?: string,"event_version"?: number,"hlc"?: string,"household_id"?: string,"id"?: string,"owner_user_id"?: string | null,"payload"?: NonNullable<Json>,"received_at"?: string,"sequence"?: number,"visibility"?: string
                   }
                   Relationships: [
                     
@@ -159,6 +159,9 @@ isOneToOne: false
         isOneToOne: true
         isSetofReturn: false
       } },
+"lock_household_events":
+{ Args: { "household_id": string }; Returns: undefined
+                           },
 "lock_my_household":
 { Args: Record<PropertyKey, never>; Returns: {
               "code": string,
@@ -195,7 +198,7 @@ isOneToOne: false
       } },
 "pull_events":
 { Args: { "after_sequence": number,"batch_size": number }; Returns: {
-              "actor_user_id": string,
+              "actor_user_id": string | null,
 "device_id": string,
 "entity_id": string,
 "entity_type": string,

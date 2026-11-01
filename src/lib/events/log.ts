@@ -32,7 +32,7 @@ export interface LoggedEvent {
   eventVersion: number;
   hlc: string;
   deviceId: string;
-  actorUserId: string;
+  actorUserId: string | null;
   payload: Record<string, unknown>;
 }
 

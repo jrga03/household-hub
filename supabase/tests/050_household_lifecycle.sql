@@ -24,7 +24,7 @@ language sql as $$
           case when owner_label is null then 'household' else 'personal' end,
           case when owner_label is null then null else tests.id('user_' || owner_label) end,
           'account', tests.id('entity_' || event_label), 'account.created', 1,
-          '000001760000000:00000:device', 'device',
+          '000001760000000-000000-device', 'device',
           '{"name": "Cash", "type": "cash", "startingBalanceCents": 0}'::jsonb)
 $$;
 grant execute on function tests.add_account(text, text) to authenticated;
