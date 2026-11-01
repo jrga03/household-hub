@@ -133,8 +133,6 @@ function matchesFilter(row: ListRow, filter: TransactionFilter): boolean {
   return true;
 }
 
-const AMOUNT_QUERY = /^₱?\s*(\d{1,3}(,\d{3})*|\d+)(\.\d{0,2})?$/;
-
 const NO_TYPOS = { intraIns: 0, intraSub: 0, intraTrn: 0, intraDel: 0 } as const;
 const ONE_TYPO = { intraIns: 1, intraSub: 1, intraTrn: 1, intraDel: 1 } as const;
 
@@ -186,7 +184,7 @@ function textMatches(rows: ListRow[], query: string): Set<number> {
 function searchRows<Row extends ListRow>(rows: Row[], query: string): Row[] {
   const text = query.trim().toLowerCase();
   if (text === "") return rows;
-  const amount: Cents | null = AMOUNT_QUERY.test(text) ? parsePHPUnbounded(text) : null;
+  const amount: Cents | null = parsePHPUnbounded(text);
   const matched = textMatches(rows, text);
   return rows.filter((row, index) => row.amountCents === amount || matched.has(index));
 }

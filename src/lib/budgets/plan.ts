@@ -19,7 +19,13 @@ export function planChange(
 ): PlanChange {
   const trimmed = text.trim();
   const parsed = parsePHPSafe(trimmed === "" ? "0" : trimmed);
-  if (!parsed.success) return { kind: "problem", message: parsed.error.message };
+  if (!parsed.success) {
+    const message =
+      parsed.error.code === "NEGATIVE_AMOUNT"
+        ? "Enter a budget of 0 or more."
+        : parsed.error.message;
+    return { kind: "problem", message };
+  }
   const amountCents = parsed.value;
 
   if (amountCents === 0) {

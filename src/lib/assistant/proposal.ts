@@ -26,7 +26,7 @@ import { listUsableAccounts, onlyAccount, type AssistantSession } from "./sessio
 
 export type TransactionProposal = Required<TransactionInput>;
 
-// parsePHP would read "1e3" as 1,000 and round "250.555"; nobody sees the model's string before the card does.
+// Stricter than parsePHP (no spaces, no bare trailing point): nobody sees the model's string before the card does.
 const DECIMAL_PHP = /^₱?(\d{1,3}(,\d{3})+|\d+)(\.\d{1,2})?$/;
 
 function readAmount(args: ToolArguments) {
