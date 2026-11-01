@@ -70,6 +70,10 @@ _Avoid_: Card reserve, float
 Whether a transaction has gone through at the bank (cleared) or is committed but not yet final (pending).
 _Avoid_: Posted, reconciled
 
+**Out-of-pocket**:
+A household expense a member paid with their own money. It is recorded on the household account that will pay them back, names the member who paid, and stays pending until they are paid back; then it is cleared. It counts as spending on the date it was bought. The member's own money it came from is never recorded.
+_Avoid_: Advance, IOU, loan
+
 ## Tracking
 
 **Category**:
