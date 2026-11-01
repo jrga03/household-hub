@@ -15,12 +15,14 @@ export function SegmentedControl<Value extends string>({
   value,
   onChange,
   className,
+  "aria-describedby": describedBy,
 }: {
   label: string;
   options: readonly { value: Value; label: string }[];
   value: Value;
   onChange: (value: Value) => void;
   className?: string;
+  "aria-describedby"?: string;
 }) {
   const radios = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -47,6 +49,7 @@ export function SegmentedControl<Value extends string>({
     <div
       role="radiogroup"
       aria-label={label}
+      aria-describedby={describedBy}
       className={cn("inline-flex rounded-md border p-0.5", className)}
     >
       {options.map((option, index) => {

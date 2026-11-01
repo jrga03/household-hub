@@ -29,6 +29,7 @@ const transaction = (overrides: Partial<TransactionRow> = {}): TransactionRow =>
   removed: false,
   recordedHlc: "hlc-1",
   importKey: null,
+  paidByUserId: null,
   ...overrides,
 });
 
@@ -91,6 +92,27 @@ describe("rowDisplay", () => {
     expect(rowDisplay(transfer(), names, "bpi")).toMatchObject({
       amount: { kind: "transfer", leg: "out" },
     });
+  });
+
+  it("names who paid an open out-of-pocket expense", () => {
+    const withPayers = { ...names, payerName: (userId: string) => `name of ${userId}` };
+    const outOfPocket = transaction({ status: "pending", paidByUserId: "user-b" });
+
+    expect(rowDisplay(outOfPocket, withPayers)).toMatchObject({
+      payer: "Paid by name of user-b",
+      detail: "Paid by name of user-b · Groceries · BPI",
+    });
+    expect(rowDisplay(transaction({ status: "pending" }), withPayers).payer).toBeUndefined();
+  });
+
+  it("says a paid-back out-of-pocket expense was paid back by the household", () => {
+    const paidBack = transaction({ status: "cleared", paidByUserId: "user-b" });
+
+    expect(rowDisplay(paidBack, names)).toMatchObject({
+      payer: "Paid back by household",
+      detail: "Paid back by household · Groceries · BPI",
+    });
+    expect(rowDisplay(transaction({ status: "cleared" }), names).payer).toBeUndefined();
   });
 
   it("says when an account or category isn't on this device yet", () => {

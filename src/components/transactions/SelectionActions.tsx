@@ -15,6 +15,8 @@ import { canHoldMoneyIn, type CategoryList, type CategoryRow } from "@/lib/categ
 import type { Actor } from "@/lib/commands/accounts";
 import {
   changeTransactionsCategory,
+  markOwedAgain,
+  markPaidBack,
   removeTransactions,
   restoreTransactions,
 } from "@/lib/commands/transactions";
@@ -23,6 +25,7 @@ import { removeTransfers, restoreTransfers } from "@/lib/commands/transfers";
 import { removeBalanceCorrections, restoreBalanceCorrections } from "@/lib/commands/corrections";
 import { confirm } from "@/lib/confirm";
 import { isCorrection, isTransaction, isTransfer, type ListRow } from "@/lib/transactions/filter";
+import { isOpenOutOfPocket } from "@/lib/transactions/owed";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import { countOf, errorMessage } from "@/lib/utils";
 
@@ -101,7 +104,7 @@ interface SelectionActionsProps {
   onDone: () => void;
 }
 
-/** What can be done to the selected rows: change their category, or remove them. */
+/** What can be done to the selected rows: change their category, mark them paid back, or remove them. */
 export function SelectionActions({
   actor,
   selected,
@@ -181,6 +184,28 @@ export function SelectionActions({
     );
   };
 
+  const payBack = () =>
+    runBulk(
+      () => markPaidBack(actor, transactionIds),
+      (result) =>
+        toast.success(`Marked ${countOf(result.changed.length, "expense", "expenses")} paid back`, {
+          action: {
+            label: "Undo",
+            onClick: () =>
+              void markOwedAgain(actor, result.changed).then(
+                (owed) => reportFailures(owed, selected),
+                (caught: unknown) =>
+                  toast.error(errorMessage(caught, "Couldn't mark them owed again."))
+              ),
+          },
+        }),
+      "They're already paid back."
+    );
+  const allOwed =
+    selected.length > 0 &&
+    transactions.length === selected.length &&
+    transactions.every(isOpenOutOfPocket);
+
   const choices = categories ? categoriesFittingAll(categories, transactions, accountsById) : [];
 
   return (
@@ -212,6 +237,11 @@ export function SelectionActions({
           ))}
         </SelectContent>
       </Select>
+      {allOwed && (
+        <Button variant="secondary" disabled={acting} onClick={payBack}>
+          Mark paid back
+        </Button>
+      )}
       <Button
         variant="destructive"
         disabled={acting || selected.length === 0}

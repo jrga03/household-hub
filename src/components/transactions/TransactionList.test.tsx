@@ -1,5 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider, queryOptions } from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -22,6 +23,14 @@ import { TransactionList } from "./TransactionList";
 import { HOUSEHOLD } from "@/test/events";
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
+
+vi.mock("@/lib/household-members", () => ({
+  householdMembersQueryOptions: (householdId: string) =>
+    queryOptions({
+      queryKey: ["household-members", householdId],
+      queryFn: () => Promise.resolve([]),
+    }),
+}));
 
 let shellWidth = 393;
 const observers = new Set<FakeResizeObserver>();
@@ -85,7 +94,11 @@ function renderTransactions(initialEntry: string) {
   });
   const history = createMemoryHistory({ initialEntries: [initialEntry] });
   const router = createRouter({ routeTree: rootRoute.addChildren([transactionsRoute]), history });
-  render(<RouterProvider router={router} />);
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
+  );
   return history;
 }
 
@@ -185,6 +198,33 @@ describe("TransactionList", () => {
     expect(history.location.search).toBe("");
   });
 
+  it("shows whose out-of-pocket expenses the list is narrowed to, and removes only that", async () => {
+    await recordMarket();
+    const history = renderTransactions("/transactions?owedTo=user-a&visibility=household");
+
+    const chip = await screen.findByRole("button", { name: "Paid by you" });
+    expect(chip).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(chip);
+    await waitFor(() => expect(history.location.search).toBe("?visibility=household"));
+    expect(screen.queryByRole("button", { name: /^Paid by/ })).toBeNull();
+  });
+
+  it("names a payer it doesn't know as a member in the chip", async () => {
+    await recordMarket();
+    renderTransactions("/transactions?owedTo=user-gone");
+
+    expect(await screen.findByRole("button", { name: "Paid by a member" })).toBeVisible();
+  });
+
+  it("shows the payer chip in the laptop's filter rail too", async () => {
+    shellWidth = 1100;
+    await recordMarket();
+    renderTransactions("/transactions?owedTo=user-a");
+
+    const rail = await screen.findByRole("search", { name: "Filter transactions" });
+    expect(within(rail).getByRole("button", { name: "Paid by you" })).toBeVisible();
+  });
+
   describe("beside the detail pane", () => {
     beforeEach(() => {
       shellWidth = 1100;
@@ -274,5 +314,31 @@ describe("TransactionList", () => {
     });
     expect(await screen.findByRole("table", { name: "Transactions" })).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Transactions" })).toBeNull();
+  });
+
+  it("names who paid an open out-of-pocket expense, in the list and the table", async () => {
+    await recordMarket();
+    const bpi = (await listTransactions())[0]?.accountId ?? "";
+    await addTransaction(MEMBER, {
+      date: localDate(new Date()),
+      type: "expense",
+      amountCents: parsePHP("300"),
+      accountId: bpi,
+      categoryId: null,
+      description: "Rice",
+      paidByUserId: MEMBER.userId,
+    });
+    renderTransactions("/transactions");
+
+    const list = await screen.findByRole("list", { name: "Transactions" });
+    await waitFor(() => expect(within(list).getByText(/Paid by you/)).toBeInTheDocument());
+    expect(within(list).getAllByText(/Paid by/)).toHaveLength(1);
+
+    shellWidth = 1100;
+    act(() => {
+      for (const observer of observers) observer.notify();
+    });
+    const table = await screen.findByRole("table", { name: "Transactions" });
+    expect(within(table).getByText("Paid by you")).toBeInTheDocument();
   });
 });

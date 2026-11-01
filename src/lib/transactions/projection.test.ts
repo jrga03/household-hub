@@ -185,3 +185,70 @@ describe("import key", () => {
     expect(await listTransactions()).toMatchObject([{ importKey: null }]);
   });
 });
+
+describe("payer", () => {
+  const PAYER = "user-a";
+  const outOfPocketCreate = {
+    ...transactionEvent("e-oop", "transaction.created", 1000, {
+      ...lunchDetails,
+      payingAccountId: null,
+      status: "pending",
+      importKey: null,
+      paidByUserId: PAYER,
+    }),
+    eventVersion: 4,
+  };
+  const edited = {
+    ...transactionEvent("e-edited", "transaction.edited", 2000, {
+      ...lunchDetails,
+      payingAccountId: null,
+      paidByUserId: "user-b",
+      description: "Renamed",
+    }),
+    eventVersion: 2,
+  };
+  const cleared = transactionEvent("e-cleared", "transaction.marked_cleared", 3000);
+  const pending = transactionEvent("e-pending", "transaction.marked_pending", 4000);
+
+  it.each(orders([outOfPocketCreate, edited, cleared, pending]))(
+    "keeps the create's payer through edits and status changes in the order %j",
+    async (_ids, order) => {
+      for (const event of order) await receiveEvents([event], 0);
+      await receiveEvents(order, 0);
+
+      expect(await listTransactions()).toMatchObject([
+        { description: "Renamed", status: "pending", paidByUserId: PAYER },
+      ]);
+    }
+  );
+
+  // One device marks it owed again while another, later, marks it paid back.
+  const paidBack = transactionEvent("e-paid-back", "transaction.marked_cleared", 5000);
+
+  it.each(orders([outOfPocketCreate, pending, paidBack]))(
+    "keeps the later of two devices' status changes in the order %j",
+    async (_ids, order) => {
+      for (const event of order) await receiveEvents([event], 0);
+
+      expect(await listTransactions()).toMatchObject([{ status: "cleared", paidByUserId: PAYER }]);
+    }
+  );
+
+  it.each([
+    ["v1", 1, {}],
+    ["v2", 2, { payingAccountId: null }],
+    ["v3", 3, { payingAccountId: null, importKey: null }],
+  ])("reads a %s create as paid by the household", async (_name, eventVersion, extra) => {
+    const old = {
+      ...transactionEvent("e-old", "transaction.created", 1000, {
+        ...lunchDetails,
+        ...extra,
+        status: "pending",
+      }),
+      eventVersion,
+    };
+    await receiveEvents([old], 0);
+
+    expect(await listTransactions()).toMatchObject([{ paidByUserId: null }]);
+  });
+});

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, queryOptions } from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -14,11 +14,20 @@ import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { createAccount } from "@/lib/commands/accounts";
 import { createCategory, createGroup } from "@/lib/commands/categories";
 import { setBudget } from "@/lib/commands/budgets";
-import { addTransaction } from "@/lib/commands/transactions";
+import { addTransaction, markPaidBack } from "@/lib/commands/transactions";
+import { rememberFinanceView } from "@/lib/finances/view";
 import { parsePHP } from "@/lib/currency";
 import { localMonth } from "@/lib/utils/dates";
 import { FinancesSection } from "./FinancesSection";
 import { HOUSEHOLD } from "@/test/events";
+
+vi.mock("@/lib/household-members", () => ({
+  householdMembersQueryOptions: (householdId: string) =>
+    queryOptions({
+      queryKey: ["household-members", householdId],
+      queryFn: () => Promise.resolve([{ userId: "user-b", email: "ana@example.com" }]),
+    }),
+}));
 
 vi.mock("@/hooks/useHousehold", () => ({
   useHousehold: () => ({ household: null, isOwner: false, isKnown: true }),
@@ -49,7 +58,7 @@ function renderHome() {
       path,
       component: () => (
         <PageShell variant="supporting-pane">
-          <FinancesSection userId={MEMBER.userId} />
+          <FinancesSection actor={MEMBER} />
         </PageShell>
       ),
     })
@@ -248,6 +257,62 @@ describe("FinancesSection", () => {
       "true"
     );
     expect(await shownAccounts()).toEqual([expect.stringContaining("Wallet")]);
+  });
+
+  it("shows Owed to you in Mine from the current member's open out-of-pocket expenses only", async () => {
+    const outOfPocket = (amount: string, member = MEMBER) =>
+      addTransaction(member, {
+        date: today(),
+        type: "expense",
+        amountCents: parsePHP(amount),
+        accountId: bpiId,
+        categoryId: null,
+        description: "Groceries",
+        paidByUserId: member.userId,
+      });
+    await outOfPocket("300");
+    const { id: paidBack } = await outOfPocket("200");
+    await markPaidBack(MEMBER, [paidBack]);
+    await outOfPocket("900", { ...MEMBER, userId: "user-b" });
+    renderHome();
+
+    await screen.findByRole("list", { name: "Balances" });
+    expect(screen.queryByText("Owed to you")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Mine" }));
+    expect(await screen.findByRole("link", { name: /Wallet/ })).toHaveTextContent("₱500.00");
+    const month = screen.getByRole("region", { name: "This month" });
+    await waitFor(() => expect(month).toHaveTextContent(/Owed to you₱300\.00/));
+    expect(screen.getByRole("region", { name: "Left this month" })).toHaveTextContent("₱0.00");
+  });
+
+  it("names who paid each open out-of-pocket expense in Latest", async () => {
+    const outOfPocket = (description: string, member: typeof MEMBER) =>
+      addTransaction(member, {
+        date: today(),
+        type: "expense",
+        amountCents: parsePHP("300"),
+        accountId: bpiId,
+        categoryId: null,
+        description,
+        paidByUserId: member.userId,
+      });
+    await outOfPocket("Rice", MEMBER);
+    await outOfPocket("Eggs", { ...MEMBER, userId: "user-b" });
+    renderHome();
+
+    const latest = await screen.findByRole("list", { name: "Latest transactions" });
+    const row = (name: string) => within(latest).getByRole("link", { name: new RegExp(name) });
+    await waitFor(() => expect(row("Eggs")).toHaveTextContent("Paid by ana@example.com"));
+    expect(row("Rice")).toHaveTextContent("Paid by you");
+  });
+
+  it("hides Owed to you in Mine when nothing is owed", async () => {
+    rememberFinanceView("mine");
+    renderHome();
+
+    expect(await shownAccounts()).toEqual([expect.stringContaining("Wallet")]);
+    expect(screen.queryByText("Owed to you")).not.toBeInTheDocument();
   });
 
   it("still shows Household and switches when storage is blocked", async () => {

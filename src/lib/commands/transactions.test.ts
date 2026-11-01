@@ -3,6 +3,7 @@ import type { Cents } from "@/lib/currency";
 import { parsePHP } from "@/lib/currency";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { listUnpushed, receiveEvents, type LoggedEvent } from "@/lib/events/log";
+import { readAccountMoney } from "@/lib/transactions/money";
 import { listTransactions } from "@/lib/transactions/projection";
 import { createAccount, editAccount, retireAccount } from "./accounts";
 import { createCategory, createGroup, retireCategory } from "./categories";
@@ -10,6 +11,8 @@ import {
   addTransaction,
   changeTransactionsCategory,
   editTransaction,
+  markOwedAgain,
+  markPaidBack,
   removeTransaction,
   removeTransactions,
   restoreTransaction,
@@ -73,6 +76,153 @@ beforeEach(async () => {
   ).id;
   const food = await createGroup(MEMBER, { name: "Food" });
   groceriesId = (await createCategory(MEMBER, { name: "Groceries", groupId: food.id })).id;
+});
+
+describe("addTransaction, out-of-pocket", () => {
+  const outOfPocket = (overrides: Partial<TransactionInput> = {}) => ({
+    ...expense(overrides),
+    paidByUserId: MEMBER.userId,
+  });
+
+  it("records a pending expense naming the member who paid", async () => {
+    await addTransaction(MEMBER, { ...outOfPocket(), status: "cleared" });
+
+    expect(await listTransactions()).toMatchObject([
+      { status: "pending", paidByUserId: MEMBER.userId, categoryId: groceriesId },
+    ]);
+    expect((await readAccountMoney()).get(bankId)).toMatchObject({
+      balance: peso("750"),
+      cleared: peso("1000"),
+    });
+  });
+
+  it("records no payer on an ordinary expense", async () => {
+    await addTransaction(MEMBER, expense());
+
+    expect(await listTransactions()).toMatchObject([{ paidByUserId: null }]);
+  });
+
+  it("refuses a payer other than the member recording it", async () => {
+    await expect(
+      addTransaction(MEMBER, { ...expense(), paidByUserId: OTHER_MEMBER.userId })
+    ).rejects.toThrow("You can only record your own out-of-pocket expense.");
+  });
+
+  it("refuses income", async () => {
+    await expect(
+      addTransaction(MEMBER, outOfPocket({ type: "income", categoryId: null }))
+    ).rejects.toThrow("Only an expense can be out-of-pocket.");
+  });
+
+  it("refuses a Personal account", async () => {
+    const wallet = await createAccount(MEMBER, {
+      name: "My wallet",
+      type: "cash",
+      startingBalanceCents: peso("0"),
+      visibility: "personal",
+    });
+
+    await expect(
+      addTransaction(MEMBER, outOfPocket({ accountId: wallet.id, categoryId: null }))
+    ).rejects.toThrow("Choose a Household account that isn't a credit card.");
+  });
+
+  it("refuses a credit card", async () => {
+    const visa = await createAccount(MEMBER, {
+      name: "Visa",
+      type: "credit_card",
+      startingBalanceCents: peso("0"),
+      payingAccountId: bankId,
+    });
+
+    await expect(addTransaction(MEMBER, outOfPocket({ accountId: visa.id }))).rejects.toThrow(
+      "Choose a Household account that isn't a credit card."
+    );
+  });
+});
+
+describe("editTransaction, out-of-pocket", () => {
+  const HOUSEHOLD_ACCOUNT_ONLY = "Choose a Household account that isn't a credit card.";
+  let id: string;
+
+  beforeEach(async () => {
+    ({ id } = await addTransaction(MEMBER, { ...expense(), paidByUserId: MEMBER.userId }));
+  });
+
+  it("keeps who paid when another member fixes its details and account", async () => {
+    const cash = await createAccount(MEMBER, {
+      name: "Cash box",
+      type: "cash",
+      startingBalanceCents: peso("500"),
+    });
+
+    await editTransaction(
+      OTHER_MEMBER,
+      id,
+      expense({ accountId: cash.id, amountCents: peso("300"), date: "2026-10-13" })
+    );
+
+    expect(await listTransactions()).toMatchObject([
+      {
+        accountId: cash.id,
+        amountCents: peso("300"),
+        status: "pending",
+        paidByUserId: MEMBER.userId,
+      },
+    ]);
+  });
+
+  it("refuses a move to a Personal account", async () => {
+    const wallet = await createAccount(MEMBER, {
+      name: "My wallet",
+      type: "cash",
+      startingBalanceCents: peso("0"),
+      visibility: "personal",
+    });
+
+    await expect(
+      editTransaction(MEMBER, id, expense({ accountId: wallet.id, categoryId: null }))
+    ).rejects.toThrow(HOUSEHOLD_ACCOUNT_ONLY);
+  });
+
+  it("refuses a move to a credit card", async () => {
+    const visa = await createAccount(MEMBER, {
+      name: "Visa",
+      type: "credit_card",
+      startingBalanceCents: peso("0"),
+      payingAccountId: bankId,
+    });
+
+    await expect(editTransaction(MEMBER, id, expense({ accountId: visa.id }))).rejects.toThrow(
+      HOUSEHOLD_ACCOUNT_ONLY
+    );
+    expect(await listTransactions()).toMatchObject([{ accountId: bankId }]);
+  });
+
+  it("refuses a change to income", async () => {
+    await expect(
+      editTransaction(MEMBER, id, expense({ type: "income", categoryId: null }))
+    ).rejects.toThrow("Only an expense can be out-of-pocket.");
+  });
+
+  it("still moves between open and paid back", async () => {
+    await setTransactionStatus(MEMBER, id, "cleared");
+    await setTransactionStatus(OTHER_MEMBER, id, "pending");
+
+    expect(await listTransactions()).toMatchObject([
+      { status: "pending", paidByUserId: MEMBER.userId },
+    ]);
+  });
+
+  it("never gives an ordinary expense a payer", async () => {
+    const ordinary = await addTransaction(MEMBER, expense({ description: "Rice" }));
+
+    await editTransaction(MEMBER, ordinary.id, expense({ description: "Rice", notes: "5 kg" }));
+
+    expect((await listTransactions()).find((row) => row.id === ordinary.id)).toMatchObject({
+      paidByUserId: null,
+    });
+  });
 });
 
 describe("addTransaction", () => {
@@ -462,5 +612,30 @@ describe("bulk actions", () => {
     expect(await listTransactions()).toHaveLength(3);
     expect(await eventsOf("transaction.removed")).toHaveLength(2);
     expect(await eventsOf("transaction.restored")).toHaveLength(2);
+  });
+
+  it("marks out-of-pocket expenses paid back and owed again, refusing other expenses", async () => {
+    const outOfPocket = (description: string) =>
+      addTransaction(MEMBER, { ...expense({ description }), paidByUserId: MEMBER.userId });
+    const ids = [(await outOfPocket("Market")).id, (await outOfPocket("Bakery")).id];
+    const { id: ordinary } = await addTransaction(MEMBER, { ...expense(), status: "pending" });
+
+    expect(await markPaidBack(MEMBER, [...ids, ordinary])).toEqual({
+      changed: ids,
+      failed: [{ id: ordinary, reason: "Only an out-of-pocket expense can be paid back." }],
+    });
+    const statusOf = async () =>
+      new Map((await listTransactions()).map((row) => [row.id, row.status]));
+    expect(await statusOf()).toEqual(
+      new Map([
+        [ids[0], "cleared"],
+        [ids[1], "cleared"],
+        [ordinary, "pending"],
+      ])
+    );
+    expect((await readAccountMoney()).get(bankId)).toMatchObject({ cleared: peso("500") });
+
+    expect(await markOwedAgain(MEMBER, ids)).toEqual({ changed: ids, failed: [] });
+    expect([...(await statusOf()).values()]).toEqual(["pending", "pending", "pending"]);
   });
 });

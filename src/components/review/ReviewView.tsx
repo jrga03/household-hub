@@ -1,16 +1,20 @@
 import type { ReactNode } from "react";
 import type { LinkOptions } from "@tanstack/react-router";
+import { useLiveQuery } from "dexie-react-hooks";
 import { CircleCheck } from "lucide-react";
 import { ListRow } from "@/components/app/ListRow";
+import { Money } from "@/components/app/Money";
 import { Notice } from "@/components/app/Notice";
 import { SectionHeader } from "@/components/app/SectionHeader";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { JoinRequestRow } from "@/components/households/JoinRequestsCard";
 import { useHousehold } from "@/hooks/useHousehold";
 import { usePendingJoinRequests } from "@/hooks/useJoinRequests";
+import { useMemberNames } from "@/hooks/useMemberNames";
 import { useReviewCounts } from "@/hooks/useReviewCount";
-import { REVIEW_KINDS, totalReviewItems, type ReviewKind } from "@/lib/review/count";
+import { readOwed, REVIEW_KINDS, totalReviewItems, type ReviewKind } from "@/lib/review/count";
 import { countOf } from "@/lib/utils";
+import { useAuthStore } from "@/stores/authStore";
 
 /** Everything waiting for a member, one section per kind; each hides when empty. */
 export function ReviewView() {
@@ -44,6 +48,7 @@ function useJoinRequestsUnread() {
 
 const SECTIONS: Record<ReviewKind, (props: { count: number }) => ReactNode> = {
   uncategorized: UncategorizedSection,
+  payBack: PayBackSection,
   drafts: DraftsSection,
   joinRequests: JoinRequestsSection,
 };
@@ -92,6 +97,32 @@ function UncategorizedSection({ count }: { count: number }) {
         detail={`${countOf(count, "expense has", "expenses have")} no category yet.`}
         link={{ to: "/transactions", search: { needsCategory: true } }}
       />
+    </ReviewSection>
+  );
+}
+
+/** One row per member the household owes; works offline, naming them once members load. */
+function PayBackSection({ count }: { count: number }) {
+  const { household } = useHousehold();
+  const userId = useAuthStore((state) => state.user?.id);
+  const nameOf = useMemberNames(household?.id ?? "", userId);
+  const owed = useLiveQuery(readOwed, []);
+  if (!owed) return null;
+
+  return (
+    <ReviewSection title="Out-of-pocket expenses" count={count}>
+      <ul className="-mx-4 divide-y border-y">
+        {[...owed].map(([payer, { totalCents, count: expenses }]) => (
+          <li key={payer}>
+            <ListRow
+              link={{ to: "/transactions", search: { owedTo: payer } }}
+              label={payer === userId ? "Owed to you" : `Pay back ${nameOf(payer)}`}
+              amount={<Money kind="balance" cents={totalCents} />}
+              detail={countOf(expenses, "expense", "expenses")}
+            />
+          </li>
+        ))}
+      </ul>
     </ReviewSection>
   );
 }

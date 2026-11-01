@@ -1,4 +1,4 @@
-import { useEffect, type RefObject } from "react";
+import { useEffect, useId, type RefObject } from "react";
 import { CurrencyInput } from "@/components/app/CurrencyInput";
 import { Field } from "@/components/app/Field";
 import { FULL_ROW } from "@/components/app/FormSheet";
@@ -121,19 +121,27 @@ export function DirectionChoice({
   );
 }
 
-const STATUSES = [
+export const STATUSES = [
   { value: "cleared", label: "Cleared" },
   { value: "pending", label: "Pending" },
 ] as const satisfies readonly { value: TransactionStatus; label: string }[];
 
-/** Cleared or Pending, submitted as `status`. */
-export function StatusChoice({
+/**
+ * One of `options`, submitted as `status`; Cleared or Pending unless a form adds more.
+ * `hint` shows a fixed fact under it, such as who paid an out-of-pocket expense.
+ */
+export function StatusChoice<Status extends string>({
   value,
   onChange,
+  options,
+  hint,
 }: {
-  value: TransactionStatus;
-  onChange: (status: TransactionStatus) => void;
+  value: Status;
+  onChange: (status: Status) => void;
+  options: readonly { value: Status; label: string }[];
+  hint?: string;
 }) {
+  const hintId = useId();
   return (
     <div className="space-y-2">
       {/* The control names itself; this is the visible label. */}
@@ -141,13 +149,19 @@ export function StatusChoice({
         Status
       </p>
       <input type="hidden" name="status" value={value} />
-      <SegmentedControl<TransactionStatus>
+      <SegmentedControl<Status>
         label="Status"
-        options={STATUSES}
+        options={options}
         value={value}
         onChange={onChange}
-        className="grid w-full grid-cols-2"
+        className={cn("grid w-full", options.length === 3 ? "grid-cols-3" : "grid-cols-2")}
+        aria-describedby={hint && hintId}
       />
+      {hint && (
+        <p id={hintId} className="text-caption text-muted-foreground">
+          {hint}
+        </p>
+      )}
     </div>
   );
 }

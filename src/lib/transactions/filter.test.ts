@@ -33,6 +33,7 @@ function row(overrides: Partial<TransactionRow> = {}): TransactionRow {
     removed: false,
     recordedHlc: `hlc-${nextId}`,
     importKey: null,
+    paidByUserId: null,
     ...overrides,
   };
 }
@@ -159,6 +160,20 @@ describe("filterTransactions", () => {
     expect(ids(filterTransactions(rows, { needsCategory: true }))).toEqual([
       uncategorizedExpense.id,
     ]);
+  });
+
+  it("keeps one payer's open out-of-pocket expenses", () => {
+    const owedToAna = row({ status: "pending", paidByUserId: "ana" });
+    const rows = [
+      owedToAna,
+      row({ status: "cleared", paidByUserId: "ana" }),
+      row({ status: "pending", paidByUserId: "ana", removed: true }),
+      row({ status: "pending", paidByUserId: "ben" }),
+      row({ status: "pending" }),
+      transferRow({ status: "pending" }),
+    ];
+
+    expect(ids(filterTransactions(rows, { owedTo: "ana" }))).toEqual([owedToAna.id]);
   });
 });
 
@@ -524,6 +539,7 @@ describe("readTransactionFilter", () => {
         type: "expense",
         status: "pending",
         needsCategory: true,
+        owedTo: "ana",
         query: "250",
       })
     ).toEqual({
@@ -533,6 +549,7 @@ describe("readTransactionFilter", () => {
       type: "expense",
       status: "pending",
       needsCategory: true,
+      owedTo: "ana",
       query: "250",
     });
   });
@@ -568,6 +585,7 @@ describe("readTransactionFilter", () => {
         type: "refund",
         status: "void",
         needsCategory: "yes",
+        owedTo: "",
         query: "",
         visibility: "shared",
         other: "x",

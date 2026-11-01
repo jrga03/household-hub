@@ -72,13 +72,13 @@ function columnsFor(actor: Actor): DataTableColumn<DisplayedRow>[] {
       id: "status",
       header: "Status",
       hideBelow: 600,
-      cell: ({ row }) =>
+      cell: ({ row, display }) =>
         pendingOf(row) ? (
           <StatusBadge tone="outline" icon={Info}>
-            Pending
+            {display.payer ?? "Pending"}
           </StatusBadge>
         ) : (
-          <span className="text-caption text-muted-foreground">Cleared</span>
+          <span className="text-caption text-muted-foreground">{display.payer ?? "Cleared"}</span>
         ),
     },
     {

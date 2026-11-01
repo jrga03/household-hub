@@ -164,5 +164,7 @@ describe("account money", () => {
     expect(money.size).toBe(2);
     expect(categoryMoney.size).toBe(2);
     expect(medianMs(sumForCategories)).toBeLessThan(50);
-  });
+    // Seeding 11,000 events into fake IndexedDB takes ~2 s alone and over 10 s while
+    // pre-push runs lint and tsc beside the suite; the 50 ms budget is on the sum only.
+  }, 60_000);
 });

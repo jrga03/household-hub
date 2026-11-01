@@ -2,7 +2,9 @@ import { categoryNames } from "@/components/allocations/envelopes";
 import type { MoneyKind } from "@/components/app/Money";
 import { useAccountNames } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
+import { useMemberNames } from "@/hooks/useMemberNames";
 import { envelopeLabel } from "@/lib/allocations/envelope";
+import type { Actor } from "@/lib/commands/accounts";
 import type { Cents } from "@/lib/currency";
 import { CORRECTION_LABEL, isMoneyIn } from "@/lib/corrections/events";
 import { transactionLabel } from "@/lib/transactions/events";
@@ -25,20 +27,28 @@ export interface RowDisplay {
   account: string;
   /** A transfer's accounts, so a table can break the route only at the arrow. */
   route?: { from: string; to: string };
+  /** An Out-of-pocket expense's "Paid by …", or "Paid back by household" once cleared (ADR 0012). */
+  payer?: string;
 }
 
 export interface RowNames {
   categories: Map<string, string>;
   accounts: Map<string, string>;
+  /** Who a member is, for an Out-of-pocket expense's payer; rows name no payer without it. */
+  payerName?: (userId: string) => string;
 }
 
-/** Every category and account name on this device, retired ones included; empty while loading. */
-export function useRowNames(): RowNames {
+/**
+ * Every category and account name on this device, retired ones included; empty
+ * while loading. Payers are named from `actor`'s view: "you" is them.
+ */
+export function useRowNames(actor: Actor): RowNames {
   const categories = useCategoryList();
   const accounts = useAccountNames();
   return {
     categories: categories ? categoryNames(categories) : new Map<string, string>(),
     accounts: accounts ?? new Map<string, string>(),
+    payerName: useMemberNames(actor.householdId, actor.userId),
   };
 }
 
@@ -80,11 +90,17 @@ export function rowDisplay(row: ListRow, names: RowNames, filteredAccount?: stri
       ? "Unassigned"
       : (names.categories.get(row.categoryId) ?? "Category not on this device yet");
   const account = accountNameOf(row.accountId);
+  const payer = !row.paidByUserId
+    ? undefined
+    : row.status === "cleared"
+      ? "Paid back by household"
+      : names.payerName && `Paid by ${names.payerName(row.paidByUserId)}`;
   return {
     label: transactionLabel(row),
-    detail: `${categoryName} · ${account}`,
+    detail: [payer, categoryName, account].filter(Boolean).join(" · "),
     amount: { kind: row.type === "income" ? "income" : "expense" },
     category: categoryName,
     account,
+    ...(payer && { payer }),
   };
 }

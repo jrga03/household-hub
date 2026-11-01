@@ -10,6 +10,7 @@ import {
   type TransactionStatus,
   type TransactionType,
 } from "./events";
+import { isOpenOutOfPocket } from "./owed";
 import type { TransactionRow } from "./projection";
 
 /** The category filter's value for transactions in no category. */
@@ -58,6 +59,8 @@ export interface TransactionFilter {
   type?: ListType;
   status?: TransactionStatus;
   needsCategory?: boolean;
+  /** A payer's user ID: their open out-of-pocket expenses. */
+  owedTo?: string;
   /** Fuzzy-matches every word in the description or notes, or the exact amount when it's a number. */
   query?: string;
 }
@@ -93,6 +96,8 @@ export function readTransactionFilter(search: Record<string, unknown>): Transact
   if (isListType(search.type)) filter.type = search.type;
   if (isTransactionStatus(search.status)) filter.status = search.status;
   if (search.needsCategory === true) filter.needsCategory = true;
+  const owedTo = nonEmpty(search.owedTo);
+  if (owedTo) filter.owedTo = owedTo;
   // The router parses a bare number in the URL as a number.
   const query = typeof search.query === "number" ? String(search.query) : nonEmpty(search.query);
   if (query) filter.query = query;
@@ -101,6 +106,9 @@ export function readTransactionFilter(search: Record<string, unknown>): Transact
 
 export const needsCategory = (row: ListRow) =>
   isTransaction(row) && row.type === "expense" && row.categoryId === null;
+
+const isOwedTo = (row: ListRow, payer: string) =>
+  isTransaction(row) && isOpenOutOfPocket(row) && row.paidByUserId === payer;
 
 /** The category filter's value a row matches, or null for a Card Payment transfer. */
 function categoryKey(row: ListRow): string | null {
@@ -130,6 +138,7 @@ function matchesFilter(row: ListRow, filter: TransactionFilter): boolean {
   if (filter.type !== undefined && typeOf(row) !== filter.type) return false;
   if (filter.status !== undefined && statusOf(row) !== filter.status) return false;
   if (filter.needsCategory && !needsCategory(row)) return false;
+  if (filter.owedTo !== undefined && !isOwedTo(row, filter.owedTo)) return false;
   return true;
 }
 

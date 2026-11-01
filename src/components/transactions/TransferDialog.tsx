@@ -57,6 +57,7 @@ import {
   NO_PROBLEMS,
   readEntryBasics,
   StatusChoice,
+  STATUSES,
   useFocusNewEntry,
   type EntryProblems,
 } from "./EntryFields";
@@ -441,7 +442,7 @@ export function TransferForm({
         />
       </Field>
 
-      <StatusChoice value={statusChoice} onChange={setStatusChoice} />
+      <StatusChoice value={statusChoice} onChange={setStatusChoice} options={STATUSES} />
 
       <FormError>{problems.form}</FormError>
       <FormFooter destructive={transfer && { label: "Remove", onClick: () => void remove() }}>

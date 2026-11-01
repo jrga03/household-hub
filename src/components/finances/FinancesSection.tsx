@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link, type LinkOptions } from "@tanstack/react-router";
 import { format } from "date-fns";
+import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronRight } from "lucide-react";
 import { EmptyState } from "@/components/app/EmptyState";
 import { BUDGET_STATUS_STYLE } from "@/components/budgets/budgetStatusStyle";
@@ -16,9 +17,12 @@ import { rowDisplay, totalKind, useRowNames } from "@/components/transactions/ro
 import { useFinanceOverview } from "@/hooks/useFinanceOverview";
 import { useReviewCounts } from "@/hooks/useReviewCount";
 import { isCreditCard } from "@/lib/accounts/events";
+import type { Actor } from "@/lib/commands/accounts";
+import type { Cents } from "@/lib/currency";
 import { attentionFeed } from "@/lib/finances/attention";
 import type { BudgetStatusCounts, FinanceOverview } from "@/lib/finances/overview";
 import { readFinanceView, rememberFinanceView, type FinanceView } from "@/lib/finances/view";
+import { readOwed } from "@/lib/review/count";
 import { statusOf, type ListRow as TransactionRow } from "@/lib/transactions/filter";
 import { cn } from "@/lib/utils";
 import { daysLeftInMonth, localMonth, monthLabel, parseLocalDate } from "@/lib/utils/dates";
@@ -29,19 +33,21 @@ export const VIEW_OPTIONS = [
   { value: "mine", label: "Mine" },
 ] as const;
 
-const NOTHING_TO_REVIEW = { uncategorized: 0, drafts: 0, joinRequests: 0 };
+const NOTHING_TO_REVIEW = { uncategorized: 0, payBack: 0, drafts: 0, joinRequests: 0 };
 
 /**
  * Home: the month's hero and what needs attention in the main column, Balances
  * and Latest beside it from 840. Below 840 it is one stack, with Budgets added.
  * `children` (the opening checklist) leads the main column.
  */
-export function FinancesSection({ userId, children }: { userId: string; children?: ReactNode }) {
+export function FinancesSection({ actor, children }: { actor: Actor; children?: ReactNode }) {
+  const { userId } = actor;
   const [view, setView] = useState(readFinanceView);
   const now = new Date();
   const currentMonth = localMonth(now);
   const overview = useFinanceOverview(view, userId, currentMonth);
   const reviewCounts = useReviewCounts();
+  const owedToYou = useLiveQuery(readOwed, [])?.get(userId)?.totalCents;
   const twoColumns = useTwoPanes();
 
   function choose(next: FinanceView) {
@@ -65,7 +71,11 @@ export function FinancesSection({ userId, children }: { userId: string; children
       </div>
       {overview && (
         <>
-          <MonthFigures overview={overview} daysLeft={daysLeftInMonth(now)} />
+          <MonthFigures
+            overview={overview}
+            daysLeft={daysLeftInMonth(now)}
+            owedToYou={view === "mine" ? owedToYou : undefined}
+          />
           <AttentionFeed
             items={attentionFeed({
               budgets: overview.budgetLines,
@@ -89,7 +99,7 @@ export function FinancesSection({ userId, children }: { userId: string; children
         <PageShell.Main className="space-y-8">{main}</PageShell.Main>
         <PageShell.Side className="space-y-8">
           <Balances overview={overview} view={view} />
-          <Latest rows={overview.latest} />
+          <Latest actor={actor} rows={overview.latest} />
         </PageShell.Side>
       </>
     );
@@ -98,14 +108,21 @@ export function FinancesSection({ userId, children }: { userId: string; children
   return (
     <PageShell.Main className="space-y-8">
       {main}
-      <Latest rows={overview.latest} />
+      <Latest actor={actor} rows={overview.latest} />
       <Budgets counts={overview.budgets} />
       <Balances overview={overview} view={view} />
     </PageShell.Main>
   );
 }
 
-function MonthFigures({ overview, daysLeft }: { overview: FinanceOverview; daysLeft: number }) {
+interface MonthFiguresProps {
+  overview: FinanceOverview;
+  daysLeft: number;
+  /** Mine only: what the household owes the member; kept out of the totals (ADR 0012). */
+  owedToYou?: Cents;
+}
+
+function MonthFigures({ overview, daysLeft, owedToYou }: MonthFiguresProps) {
   return (
     <section
       aria-label="This month"
@@ -124,6 +141,11 @@ function MonthFigures({ overview, daysLeft }: { overview: FinanceOverview; daysL
             {daysLeft}
           </span>
         </Figure>
+        {owedToYou !== undefined && (
+          <Figure label="Owed to you">
+            <Money kind="balance" cents={owedToYou} />
+          </Figure>
+        )}
       </dl>
     </section>
   );
@@ -213,8 +235,8 @@ function Count({ label, count, className }: { label: string; count: number; clas
   );
 }
 
-function Latest({ rows }: { rows: TransactionRow[] }) {
-  const names = useRowNames();
+function Latest({ actor, rows }: { actor: Actor; rows: TransactionRow[] }) {
+  const names = useRowNames(actor);
 
   return (
     <section className="space-y-2">
@@ -227,7 +249,7 @@ function Latest({ rows }: { rows: TransactionRow[] }) {
       ) : (
         <ul aria-label="Latest transactions" className="divide-y border-y">
           {rows.map((row) => {
-            const { label, amount } = rowDisplay(row, names);
+            const { label, amount, payer } = rowDisplay(row, names);
             const pending = statusOf(row) === "pending";
             return (
               <li key={row.id}>
@@ -240,6 +262,7 @@ function Latest({ rows }: { rows: TransactionRow[] }) {
                     </span>
                   }
                   label={label}
+                  detail={payer}
                   muted={pending}
                   amount={
                     <span className="flex items-center gap-2">

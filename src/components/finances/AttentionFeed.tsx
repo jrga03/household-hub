@@ -37,6 +37,11 @@ const REVIEW_COPY: Record<
     detail: "Give each one a category on Review",
     link: { to: "/review" },
   },
+  payBack: {
+    sentence: (count) => `The household owes ${countOf(count, "member", "members")}`,
+    detail: "Pay them back from Review",
+    link: { to: "/review" },
+  },
   drafts: {
     sentence: (count) => countOf(count, "imported draft waits", "imported drafts wait"),
     detail: "Check and save them on Import",
