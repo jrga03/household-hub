@@ -196,6 +196,10 @@ export function sumAccountMoney({
   return money;
 }
 
+/** The accounts' Unassigned added up; a card holds no envelopes, so it adds nothing. */
+export const sumUnassigned = (accounts: { id: string }[], money: Map<string, AccountMoney>) =>
+  sumCents(accounts.map((account) => money.get(account.id)?.envelopes?.unassigned ?? ZERO_CENTS));
+
 /** Every account's money on this device, retired ones included, by account ID. */
 export const readAccountMoney = async (): Promise<Map<string, AccountMoney>> =>
   sumAccountMoney(await readMoneyRecords());

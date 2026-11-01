@@ -15,6 +15,7 @@ import { Money } from "@/components/app/Money";
 import { SectionHeader } from "@/components/app/SectionHeader";
 import { StatusBadge, type StatusTone } from "@/components/app/StatusBadge";
 import type { AttentionItem } from "@/lib/finances/attention";
+import { UnassignedSentence } from "@/components/review/UnassignedSentence";
 import type { ReviewKind } from "@/lib/review/count";
 import { cn, countOf } from "@/lib/utils";
 
@@ -29,7 +30,7 @@ interface FeedRow {
 }
 
 const REVIEW_COPY: Record<
-  ReviewKind,
+  Exclude<ReviewKind, "unassigned">,
   { sentence: (count: number) => string; detail: string; link: LinkOptions }
 > = {
   uncategorized: {
@@ -109,6 +110,16 @@ function feedRow(item: AttentionItem): FeedRow {
           </>
         ),
         badge: BUDGET_STATUS_STYLE.close.badge,
+      };
+    case "unassigned":
+      return {
+        key: "review-unassigned",
+        link: { to: "/assign-money" },
+        icon: ClipboardCheck,
+        iconClass: "text-muted-foreground",
+        sentence: <UnassignedSentence unassigned={item.cents} />,
+        detail: "Give it a category on Assign money",
+        badge: { tone: "neutral", text: "Review" },
       };
     case "review": {
       const { sentence, detail, link } = REVIEW_COPY[item.review];

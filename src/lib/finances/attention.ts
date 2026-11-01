@@ -27,7 +27,8 @@ export type AttentionItem =
   | { kind: "over"; categoryId: string; name: string; budget: Cents; spent: Cents; over: Cents }
   | { kind: "short"; accountId: string; name: string; balance: Cents }
   | { kind: "close"; categoryId: string; name: string; budget: Cents; left: Cents }
-  | { kind: "review"; review: ReviewKind; count: number };
+  | { kind: "review"; review: Exclude<ReviewKind, "unassigned">; count: number }
+  | { kind: "unassigned"; cents: Cents };
 
 export function attentionFeed({ budgets, balances, review }: AttentionInput): AttentionItem[] {
   const over = budgets
@@ -57,11 +58,11 @@ export function attentionFeed({ budgets, balances, review }: AttentionInput): At
     // Compared by share spent without dividing cents: the least left for its size first.
     .sort((a, b) => a.left * b.budget - b.left * a.budget);
 
-  const toReview = REVIEW_KINDS.filter((kind) => review[kind] > 0).map((kind) => ({
-    kind: "review" as const,
-    review: kind,
-    count: review[kind],
-  }));
+  const toReview = REVIEW_KINDS.filter((kind) => review[kind] > 0).map((kind): AttentionItem =>
+    kind === "unassigned"
+      ? { kind: "unassigned", cents: review.unassignedCents }
+      : { kind: "review", review: kind, count: review[kind] }
+  );
 
   return [...over, ...short, ...close, ...toReview];
 }

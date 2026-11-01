@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider, queryOptions } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -8,6 +8,9 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
+import { createAccount } from "@/lib/commands/accounts";
+import { addAllocation } from "@/lib/commands/allocations";
+import { createCategory, createGroup } from "@/lib/commands/categories";
 import { parsePHP } from "@/lib/currency";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { receiveEvents } from "@/lib/events/log";
@@ -122,7 +125,7 @@ function renderReview() {
   const rootRoute = createRootRoute({ component: ReviewView });
   const router = createRouter({
     routeTree: rootRoute.addChildren(
-      ["/transactions", "/import"].map((path) =>
+      ["/transactions", "/import", "/assign-money"].map((path) =>
         createRoute({ getParentRoute: () => rootRoute, path, component: () => null })
       )
     ),
@@ -165,6 +168,53 @@ describe("ReviewView", () => {
       "/transactions?needsCategory=true"
     );
     expect(screen.queryByRole("heading", { name: "All clear" })).not.toBeInTheDocument();
+  });
+
+  it("lists Unassigned money as one item, linking to Assign money", async () => {
+    const owner = { householdId: HOUSEHOLD, userId: members.me };
+    await createAccount(owner, {
+      name: "BPI",
+      type: "bank",
+      startingBalanceCents: parsePHP("3000"),
+    });
+    await createAccount(owner, {
+      name: "GCash",
+      type: "e_wallet",
+      startingBalanceCents: parsePHP("2000"),
+    });
+
+    renderReview();
+
+    const section = await screen.findByRole("region", { name: "Unassigned money" });
+    expect(within(section).getByText("1 to review")).toBeInTheDocument();
+    const row = within(section).getByRole("link", { name: /^Assign money/ });
+    expect(row).toHaveAttribute("href", "/assign-money");
+    await waitFor(() => expect(row).toHaveTextContent("₱5,000.00 waits to be assigned"));
+  });
+
+  it("says how much more is assigned than the accounts hold", async () => {
+    const owner = { householdId: HOUSEHOLD, userId: members.me };
+    const bpi = await createAccount(owner, {
+      name: "BPI",
+      type: "bank",
+      startingBalanceCents: parsePHP("0"),
+    });
+    const food = await createGroup(owner, { name: "Food" });
+    const groceries = await createCategory(owner, { name: "Groceries", groupId: food.id });
+    await addAllocation(owner, {
+      date: "2026-10-05",
+      accountId: bpi.id,
+      from: { kind: "unassigned" },
+      to: { kind: "category", id: groceries.id },
+      amountCents: parsePHP("200"),
+    });
+
+    renderReview();
+
+    const section = await screen.findByRole("region", { name: "Unassigned money" });
+    const sentence = await within(section).findByText(/more assigned than you have/);
+    expect(sentence).toHaveTextContent("₱200.00 more assigned than you have");
+    expect(sentence).toHaveClass("text-shortfall");
   });
 
   it("lists one item per member the household owes, linking to their expenses", async () => {

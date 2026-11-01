@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { PageShell } from "@/components/layout/PageShell";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { createAccount } from "@/lib/commands/accounts";
+import { addAllocation } from "@/lib/commands/allocations";
 import { createCategory, createGroup } from "@/lib/commands/categories";
 import { setBudget } from "@/lib/commands/budgets";
 import { addTransaction, markPaidBack } from "@/lib/commands/transactions";
@@ -52,7 +53,15 @@ function stubShellWidth(width: number) {
 
 function renderHome() {
   const rootRoute = createRootRoute();
-  const routes = ["/", "/transactions", "/budget", "/accounts", "/review", "/import"].map((path) =>
+  const routes = [
+    "/",
+    "/transactions",
+    "/budget",
+    "/accounts",
+    "/review",
+    "/import",
+    "/assign-money",
+  ].map((path) =>
     createRoute({
       getParentRoute: () => rootRoute,
       path,
@@ -112,6 +121,7 @@ async function budgetedCategory(name: string, budget: string, spent: string) {
 }
 
 let bpiId: string;
+let walletId: string;
 
 beforeEach(async () => {
   await resetLocalDatabase();
@@ -124,12 +134,14 @@ beforeEach(async () => {
       startingBalanceCents: parsePHP("40000"),
     })
   ).id;
-  await createAccount(MEMBER, {
-    name: "Wallet",
-    type: "cash",
-    startingBalanceCents: parsePHP("500"),
-    visibility: "personal",
-  });
+  walletId = (
+    await createAccount(MEMBER, {
+      name: "Wallet",
+      type: "cash",
+      startingBalanceCents: parsePHP("500"),
+      visibility: "personal",
+    })
+  ).id;
 });
 
 afterEach(() => {
@@ -158,7 +170,7 @@ describe("FinancesSection", () => {
     renderHome();
 
     const feed = await screen.findByRole("list", { name: "Needs attention" });
-    await waitFor(() => expect(within(feed).getAllByRole("link")).toHaveLength(4));
+    await waitFor(() => expect(within(feed).getAllByRole("link")).toHaveLength(5));
     const items = within(feed).getAllByRole("link");
     expect(items[0]).toHaveAccessibleName(/^Dining out is ₱1,230\.00 over/);
     expect(items[1]).toHaveAccessibleName(/^BPI is at minus ₱6,230\.00/);
@@ -169,10 +181,26 @@ describe("FinancesSection", () => {
     expect(items[0]).toHaveAttribute("href", `/budget?open=${diningId}`);
     expect(items[1]).toHaveAttribute("href", `/accounts?open=${bpiId}`);
     expect(items[3]).toHaveAttribute("href", "/review");
+    await waitFor(() => expect(items[4]).toHaveAccessibleName(/^₱20,500\.00 waits to be assigned/));
+    expect(items[4]).toHaveAttribute("href", "/assign-money");
     expect(screen.getByText("1 budget is fine.")).toBeInTheDocument();
   });
 
   it("says nothing needs attention when all is well", async () => {
+    for (const [accountId, pesos, visibility] of [
+      [bpiId, "40000", "household"],
+      [walletId, "500", "personal"],
+    ] as const) {
+      const group = await createGroup(MEMBER, { name: `Goals ${visibility}`, visibility });
+      const savings = await createCategory(MEMBER, { name: "Savings", groupId: group.id });
+      await addAllocation(MEMBER, {
+        date: "2026-10-05",
+        accountId,
+        from: { kind: "unassigned" },
+        to: { kind: "category", id: savings.id },
+        amountCents: parsePHP(pesos),
+      });
+    }
     renderHome();
     expect(await screen.findByText("Nothing needs attention.")).toBeInTheDocument();
   });

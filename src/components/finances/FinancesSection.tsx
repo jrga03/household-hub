@@ -18,7 +18,7 @@ import { useFinanceOverview } from "@/hooks/useFinanceOverview";
 import { useReviewCounts } from "@/hooks/useReviewCount";
 import { isCreditCard } from "@/lib/accounts/events";
 import type { Actor } from "@/lib/commands/accounts";
-import type { Cents } from "@/lib/currency";
+import { ZERO_CENTS, type Cents } from "@/lib/currency";
 import { attentionFeed } from "@/lib/finances/attention";
 import type { BudgetStatusCounts, FinanceOverview } from "@/lib/finances/overview";
 import { readFinanceView, rememberFinanceView, type FinanceView } from "@/lib/finances/view";
@@ -33,7 +33,14 @@ export const VIEW_OPTIONS = [
   { value: "mine", label: "Mine" },
 ] as const;
 
-const NOTHING_TO_REVIEW = { uncategorized: 0, payBack: 0, drafts: 0, joinRequests: 0 };
+const NOTHING_TO_REVIEW = {
+  uncategorized: 0,
+  payBack: 0,
+  drafts: 0,
+  unassigned: 0,
+  joinRequests: 0,
+  unassignedCents: ZERO_CENTS,
+};
 
 /**
  * Home: the month's hero and what needs attention in the main column, Balances

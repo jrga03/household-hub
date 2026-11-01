@@ -12,7 +12,9 @@ import { useHousehold } from "@/hooks/useHousehold";
 import { usePendingJoinRequests } from "@/hooks/useJoinRequests";
 import { useMemberNames } from "@/hooks/useMemberNames";
 import { useReviewCounts } from "@/hooks/useReviewCount";
+import { UnassignedSentence } from "./UnassignedSentence";
 import { readOwed, REVIEW_KINDS, totalReviewItems, type ReviewKind } from "@/lib/review/count";
+import type { Cents } from "@/lib/currency";
 import { countOf } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -31,7 +33,7 @@ export function ReviewView() {
           const count = counts[kind];
           if (count === 0) return null;
           const Section = SECTIONS[kind];
-          return <Section key={kind} count={count} />;
+          return <Section key={kind} count={count} unassigned={counts.unassignedCents} />;
         })
       )}
       {joinRequestsUnread && <Notice>Join requests show when you&apos;re online.</Notice>}
@@ -46,10 +48,16 @@ function useJoinRequestsUnread() {
   return isOwner && data === undefined && (isError || fetchStatus === "paused");
 }
 
-const SECTIONS: Record<ReviewKind, (props: { count: number }) => ReactNode> = {
+interface SectionProps {
+  count: number;
+  unassigned: Cents;
+}
+
+const SECTIONS: Record<ReviewKind, (props: SectionProps) => ReactNode> = {
   uncategorized: UncategorizedSection,
   payBack: PayBackSection,
   drafts: DraftsSection,
+  unassigned: UnassignedSection,
   joinRequests: JoinRequestsSection,
 };
 
@@ -79,7 +87,7 @@ function ReviewLinkRow({
   link,
 }: {
   label: string;
-  detail: string;
+  detail: ReactNode;
   link: LinkOptions;
 }) {
   return (
@@ -134,6 +142,18 @@ function DraftsSection({ count }: { count: number }) {
         label="Review drafts"
         detail={`${countOf(count, "draft waits", "drafts wait")} on this device.`}
         link={{ to: "/import" }}
+      />
+    </ReviewSection>
+  );
+}
+
+function UnassignedSection({ count, unassigned }: SectionProps) {
+  return (
+    <ReviewSection title="Unassigned money" count={count}>
+      <ReviewLinkRow
+        label="Assign money"
+        detail={<UnassignedSentence unassigned={unassigned} />}
+        link={{ to: "/assign-money" }}
       />
     </ReviewSection>
   );
