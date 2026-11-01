@@ -26,14 +26,16 @@ export async function changeWithUndo({
     toast.error(errorMessage(caught, failed));
     return false;
   }
-  toast.success(done, {
-    action: {
-      label: "Undo",
-      onClick: () =>
-        void undo().catch((caught: unknown) => toast.error(errorMessage(caught, undoFailed))),
-    },
-  });
+  undoToast(
+    done,
+    () => void undo().catch((caught: unknown) => toast.error(errorMessage(caught, undoFailed)))
+  );
   return true;
+}
+
+/** A success toast with Undo, up long enough to reach it on a phone. */
+export function undoToast(message: string, onUndo: () => void) {
+  toast.success(message, { duration: 10_000, action: { label: "Undo", onClick: onUndo } });
 }
 
 /** Deletes a retired record; one with history isn't deleted, and the toast says why. */

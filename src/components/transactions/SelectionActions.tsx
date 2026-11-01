@@ -1,6 +1,7 @@
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/app/Button";
+import { undoToast } from "@/components/app/withUndo";
 import {
   Select,
   SelectContent,
@@ -162,24 +163,22 @@ export function SelectionActions({
           corrections: (some) => removeBalanceCorrections(actor, some),
         }),
       (result) =>
-        toast.success(`Removed ${rowsCount(result.changed, selected)}`, {
-          action: {
-            label: "Undo",
-            onClick: () =>
-              void splitByKind(
-                selected.filter((row) => result.changed.includes(row.id)),
-                {
-                  transactions: (some) => restoreTransactions(actor, some),
-                  transfers: (some) => restoreTransfers(actor, some),
-                  corrections: (some) => restoreBalanceCorrections(actor, some),
-                }
-              ).then(
-                (restored) => reportFailures(restored, selected),
-                (caught: unknown) =>
-                  toast.error(errorMessage(caught, "Couldn't restore the transactions."))
-              ),
-          },
-        }),
+        undoToast(
+          `Removed ${rowsCount(result.changed, selected)}`,
+          () =>
+            void splitByKind(
+              selected.filter((row) => result.changed.includes(row.id)),
+              {
+                transactions: (some) => restoreTransactions(actor, some),
+                transfers: (some) => restoreTransfers(actor, some),
+                corrections: (some) => restoreBalanceCorrections(actor, some),
+              }
+            ).then(
+              (restored) => reportFailures(restored, selected),
+              (caught: unknown) =>
+                toast.error(errorMessage(caught, "Couldn't restore the transactions."))
+            )
+        ),
       "They're already removed."
     );
   };
@@ -188,17 +187,15 @@ export function SelectionActions({
     runBulk(
       () => markPaidBack(actor, transactionIds),
       (result) =>
-        toast.success(`Marked ${countOf(result.changed.length, "expense", "expenses")} paid back`, {
-          action: {
-            label: "Undo",
-            onClick: () =>
-              void markOwedAgain(actor, result.changed).then(
-                (owed) => reportFailures(owed, selected),
-                (caught: unknown) =>
-                  toast.error(errorMessage(caught, "Couldn't mark them owed again."))
-              ),
-          },
-        }),
+        undoToast(
+          `Marked ${countOf(result.changed.length, "expense", "expenses")} paid back`,
+          () =>
+            void markOwedAgain(actor, result.changed).then(
+              (owed) => reportFailures(owed, selected),
+              (caught: unknown) =>
+                toast.error(errorMessage(caught, "Couldn't mark them owed again."))
+            )
+        ),
       "They're already paid back."
     );
   const allOwed =

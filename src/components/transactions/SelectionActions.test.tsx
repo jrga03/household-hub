@@ -65,6 +65,7 @@ describe("Mark paid back", () => {
     await waitFor(async () => expect(await statuses()).toEqual(["cleared", "cleared"]));
     const [message, options] = vi.mocked(toast.success).mock.calls[0] ?? [];
     expect(message).toBe("Marked 2 expenses paid back");
+    expect(options?.duration).toBe(10_000);
     const action = options?.action as { label: string; onClick: () => void } | undefined;
     expect(action?.label).toBe("Undo");
 
