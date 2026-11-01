@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider, queryOptions } from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -23,7 +24,13 @@ import { HOUSEHOLD } from "@/test/events";
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
-vi.mock("@/hooks/useMemberNames", () => ({ useMemberNames: () => new Map() }));
+vi.mock("@/lib/household-members", () => ({
+  householdMembersQueryOptions: (householdId: string) =>
+    queryOptions({
+      queryKey: ["household-members", householdId],
+      queryFn: () => Promise.resolve([]),
+    }),
+}));
 
 let shellWidth = 393;
 const observers = new Set<FakeResizeObserver>();
@@ -87,7 +94,11 @@ function renderTransactions(initialEntry: string) {
   });
   const history = createMemoryHistory({ initialEntries: [initialEntry] });
   const router = createRouter({ routeTree: rootRoute.addChildren([transactionsRoute]), history });
-  render(<RouterProvider router={router} />);
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
+  );
   return history;
 }
 

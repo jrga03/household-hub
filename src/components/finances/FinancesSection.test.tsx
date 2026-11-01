@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, queryOptions } from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -20,6 +20,14 @@ import { parsePHP } from "@/lib/currency";
 import { localMonth } from "@/lib/utils/dates";
 import { FinancesSection } from "./FinancesSection";
 import { HOUSEHOLD } from "@/test/events";
+
+vi.mock("@/lib/household-members", () => ({
+  householdMembersQueryOptions: (householdId: string) =>
+    queryOptions({
+      queryKey: ["household-members", householdId],
+      queryFn: () => Promise.resolve([{ userId: "user-b", email: "ana@example.com" }]),
+    }),
+}));
 
 vi.mock("@/hooks/useHousehold", () => ({
   useHousehold: () => ({ household: null, isOwner: false, isKnown: true }),
@@ -50,7 +58,7 @@ function renderHome() {
       path,
       component: () => (
         <PageShell variant="supporting-pane">
-          <FinancesSection userId={MEMBER.userId} />
+          <FinancesSection actor={MEMBER} />
         </PageShell>
       ),
     })
@@ -276,6 +284,27 @@ describe("FinancesSection", () => {
     const month = screen.getByRole("region", { name: "This month" });
     await waitFor(() => expect(month).toHaveTextContent(/Owed to you₱300\.00/));
     expect(screen.getByRole("region", { name: "Left this month" })).toHaveTextContent("₱0.00");
+  });
+
+  it("names who paid each open out-of-pocket expense in Latest", async () => {
+    const outOfPocket = (description: string, member: typeof MEMBER) =>
+      addTransaction(member, {
+        date: today(),
+        type: "expense",
+        amountCents: parsePHP("300"),
+        accountId: bpiId,
+        categoryId: null,
+        description,
+        paidByUserId: member.userId,
+      });
+    await outOfPocket("Rice", MEMBER);
+    await outOfPocket("Eggs", { ...MEMBER, userId: "user-b" });
+    renderHome();
+
+    const latest = await screen.findByRole("list", { name: "Latest transactions" });
+    const row = (name: string) => within(latest).getByRole("link", { name: new RegExp(name) });
+    await waitFor(() => expect(row("Eggs")).toHaveTextContent("Paid by ana@example.com"));
+    expect(row("Rice")).toHaveTextContent("Paid by you");
   });
 
   it("hides Owed to you in Mine when nothing is owed", async () => {

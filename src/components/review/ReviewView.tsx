@@ -14,6 +14,7 @@ import { useMemberNames } from "@/hooks/useMemberNames";
 import { useReviewCounts } from "@/hooks/useReviewCount";
 import { readOwed, REVIEW_KINDS, totalReviewItems, type ReviewKind } from "@/lib/review/count";
 import { countOf } from "@/lib/utils";
+import { useAuthStore } from "@/stores/authStore";
 
 /** Everything waiting for a member, one section per kind; each hides when empty. */
 export function ReviewView() {
@@ -103,7 +104,8 @@ function UncategorizedSection({ count }: { count: number }) {
 /** One row per member the household owes; works offline, naming them once members load. */
 function PayBackSection({ count }: { count: number }) {
   const { household } = useHousehold();
-  const names = useMemberNames(household?.id ?? "");
+  const userId = useAuthStore((state) => state.user?.id);
+  const nameOf = useMemberNames(household?.id ?? "", userId);
   const owed = useLiveQuery(readOwed, []);
   if (!owed) return null;
 
@@ -114,7 +116,7 @@ function PayBackSection({ count }: { count: number }) {
           <li key={payer}>
             <ListRow
               link={{ to: "/transactions", search: { owedTo: payer } }}
-              label={`Pay back ${names.get(payer) ?? "a member"}`}
+              label={`Owed to ${nameOf(payer)}`}
               amount={<Money kind="balance" cents={totalCents} />}
               detail={countOf(expenses, "expense", "expenses")}
             />

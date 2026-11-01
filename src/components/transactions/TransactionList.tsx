@@ -31,7 +31,6 @@ import { cn, countOf } from "@/lib/utils";
 import { monthLabel, monthOfDate, monthRangeLabel } from "@/lib/utils/dates";
 import { SelectionActions } from "./SelectionActions";
 import { rowDisplay, totalKind, useRowNames, type RowDisplay } from "./rowDisplay";
-import { useMemberNames } from "@/hooks/useMemberNames";
 import { TransactionDetail } from "./TransactionDetail";
 import { TransactionItem } from "./TransactionItem";
 import { TransactionFilters } from "./TransactionFilters";
@@ -69,12 +68,7 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
   const rows = useTransactionListRows();
   const accounts = useAllAccounts();
   const categories = useCategoryList();
-  const memberNames = useMemberNames(actor.householdId);
-  const names = {
-    ...useRowNames(),
-    payerName: (userId: string) =>
-      userId === actor.userId ? "you" : (memberNames.get(userId) ?? "a member"),
-  };
+  const names = useRowNames(actor);
   const twoPanes = useTwoPanes();
   const { openId, open, close } = useOpenItem();
   const [selecting, setSelecting] = useState(false);

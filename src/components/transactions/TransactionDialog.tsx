@@ -230,11 +230,9 @@ function TransactionForm({
 }) {
   const { lastUsed, setLastUsed } = useQuickEntryStore();
   const navigate = useNavigate();
-  const memberNames = useMemberNames(actor.householdId);
+  const nameOf = useMemberNames(actor.householdId, actor.userId);
   const payer = transaction?.paidByUserId;
-  const payerHint = payer
-    ? `Out-of-pocket, paid by ${payer === actor.userId ? "you" : (memberNames.get(payer) ?? "a member")}`
-    : undefined;
+  const payerHint = payer ? `Out-of-pocket, paid by ${nameOf(payer)}` : undefined;
   const lastAccount = accounts.find((account) => account.id === lastUsed.accountId);
   const [type, setType] = useState<TransactionType>(transaction?.type ?? initialType);
   const [amount, setAmount] = useState(transaction?.amountCents ?? draftAmount);

@@ -19,7 +19,7 @@ import { ReviewView } from "./ReviewView";
 const BANK = "aaaaaaaa-0000-4000-8000-000000000001";
 
 const membership = vi.hoisted(() => ({ isOwner: true }));
-const memberNames = vi.hoisted(() => ({ names: new Map<string, string>() }));
+const members = vi.hoisted(() => ({ emails: new Map<string, string>(), me: "user-me" }));
 const server = vi.hoisted(() => ({ requests: [] as PendingJoinRequest[], reachable: true }));
 
 vi.mock("@/hooks/useHousehold", () => ({
@@ -30,7 +30,19 @@ vi.mock("@/hooks/useHousehold", () => ({
   }),
 }));
 
-vi.mock("@/hooks/useMemberNames", () => ({ useMemberNames: () => memberNames.names }));
+vi.mock("@/stores/authStore", () => ({
+  useAuthStore: <T,>(select: (state: { user: { id: string } }) => T) =>
+    select({ user: { id: members.me } }),
+}));
+
+vi.mock("@/lib/household-members", () => ({
+  householdMembersQueryOptions: (householdId: string) =>
+    queryOptions({
+      queryKey: ["household-members", householdId],
+      queryFn: () =>
+        Promise.resolve([...members.emails].map(([userId, email]) => ({ userId, email }))),
+    }),
+}));
 
 vi.mock("@/lib/join-requests", () => ({
   pendingJoinRequestsQueryOptions: (householdId: string) =>
@@ -129,7 +141,7 @@ beforeEach(async () => {
   membership.isOwner = true;
   server.requests = [];
   server.reachable = true;
-  memberNames.names = new Map();
+  members.emails = new Map();
 });
 
 describe("ReviewView", () => {
@@ -156,7 +168,7 @@ describe("ReviewView", () => {
   });
 
   it("lists one item per member the household owes, linking to their expenses", async () => {
-    memberNames.names = new Map([
+    members.emails = new Map([
       ["user-ana", "ana@example.com"],
       ["user-ben", "ben@example.com"],
     ]);
@@ -173,11 +185,11 @@ describe("ReviewView", () => {
 
     const section = await screen.findByRole("region", { name: "Out-of-pocket expenses" });
     expect(within(section).getByText("2 to review")).toBeInTheDocument();
-    const ana = within(section).getByRole("link", { name: /^Pay back ana@example.com/ });
+    const ana = within(section).getByRole("link", { name: /^Owed to ana@example.com/ });
     expect(ana).toHaveAttribute("href", "/transactions?owedTo=user-ana");
     expect(ana).toHaveTextContent("₱3,000.00");
     expect(ana).toHaveTextContent("2 expenses");
-    const ben = within(section).getByRole("link", { name: /^Pay back ben@example.com/ });
+    const ben = within(section).getByRole("link", { name: /^Owed to ben@example.com/ });
     expect(ben).toHaveAttribute("href", "/transactions?owedTo=user-ben");
     expect(ben).toHaveTextContent("₱500.00");
     expect(ben).toHaveTextContent("1 expense");
@@ -188,9 +200,21 @@ describe("ReviewView", () => {
 
     renderReview();
 
-    expect(await screen.findByRole("link", { name: /^Pay back a member/ })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: /^Owed to a member/ })).toHaveAttribute(
       "href",
       "/transactions?owedTo=user-gone"
+    );
+  });
+
+  it("names the current member's own row as you", async () => {
+    members.emails = new Map([["user-me", "me@example.com"]]);
+    await receiveEvents([outOfPocketExpense("t-1", "user-me", 100000)], 0);
+
+    renderReview();
+
+    expect(await screen.findByRole("link", { name: /^Owed to you/ })).toHaveAttribute(
+      "href",
+      "/transactions?owedTo=user-me"
     );
   });
 

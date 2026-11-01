@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider, queryOptions } from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -19,8 +20,12 @@ import { HOUSEHOLD } from "@/test/events";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 const OTHER_MEMBER = { householdId: HOUSEHOLD, userId: "user-b" };
 
-vi.mock("@/hooks/useMemberNames", () => ({
-  useMemberNames: () => new Map([["user-b", "ana@example.com"]]),
+vi.mock("@/lib/household-members", () => ({
+  householdMembersQueryOptions: (householdId: string) =>
+    queryOptions({
+      queryKey: ["household-members", householdId],
+      queryFn: () => Promise.resolve([{ userId: "user-b", email: "ana@example.com" }]),
+    }),
 }));
 
 function renderEditor(onClose: () => void, transaction?: TransactionRow) {
@@ -36,7 +41,11 @@ function renderEditor(onClose: () => void, transaction?: TransactionRow) {
     routeTree: rootRoute.addChildren([route]),
     history: createMemoryHistory({ initialEntries: ["/transactions"] }),
   });
-  return render(<RouterProvider router={router} />);
+  return render(
+    <QueryClientProvider client={new QueryClient()}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
+  );
 }
 
 beforeEach(async () => {
@@ -225,6 +234,9 @@ describe("TransactionEditor", () => {
         renderEditor(onClose, await recorded(OTHER_MEMBER.userId));
 
         expect(await screen.findByText("Out-of-pocket, paid by ana@example.com")).toBeVisible();
+        expect(screen.getByRole("radiogroup", { name: "Status" })).toHaveAccessibleDescription(
+          "Out-of-pocket, paid by ana@example.com"
+        );
         expect(outOfPocket()).toBeNull();
         fireEvent.click(screen.getByRole("radio", { name: "Cleared" }));
         fireEvent.click(screen.getByRole("button", { name: "Save" }));

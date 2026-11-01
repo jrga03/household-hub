@@ -2,7 +2,9 @@ import { categoryNames } from "@/components/allocations/envelopes";
 import type { MoneyKind } from "@/components/app/Money";
 import { useAccountNames } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
+import { useMemberNames } from "@/hooks/useMemberNames";
 import { envelopeLabel } from "@/lib/allocations/envelope";
+import type { Actor } from "@/lib/commands/accounts";
 import type { Cents } from "@/lib/currency";
 import { CORRECTION_LABEL, isMoneyIn } from "@/lib/corrections/events";
 import { transactionLabel } from "@/lib/transactions/events";
@@ -36,13 +38,17 @@ export interface RowNames {
   payerName?: (userId: string) => string;
 }
 
-/** Every category and account name on this device, retired ones included; empty while loading. */
-export function useRowNames(): RowNames {
+/**
+ * Every category and account name on this device, retired ones included; empty
+ * while loading. Payers are named from `actor`'s view: "you" is them.
+ */
+export function useRowNames(actor: Actor): RowNames {
   const categories = useCategoryList();
   const accounts = useAccountNames();
   return {
     categories: categories ? categoryNames(categories) : new Map<string, string>(),
     accounts: accounts ?? new Map<string, string>(),
+    payerName: useMemberNames(actor.householdId, actor.userId),
   };
 }
 

@@ -17,7 +17,7 @@ function HomePage() {
   return (
     <PageShell variant="supporting-pane">
       {household && userId && (
-        <FinancesSection userId={userId}>
+        <FinancesSection actor={{ householdId: household.id, userId }}>
           <OpeningChecklist key={household.id} householdId={household.id} />
         </FinancesSection>
       )}
