@@ -14,7 +14,6 @@ import {
   formatPHP,
   parsePHP,
   parsePHPUnbounded,
-  validateAmount,
   parsePHPSafe,
   parseSignedPHPSafe,
   formatPHPAxisTick,
@@ -189,6 +188,24 @@ describe("parsePHP", () => {
       expect(parsePHP("₱₱₱")).toBe(0);
     });
 
+    it.each(["12abc", "1.2.3", "5-3", "1,00", "1.005", "1e3", ".5"])(
+      "refuses %s instead of reading a prefix of it",
+      (input) => {
+        expect(() => parsePHP(input)).toThrow("Invalid amount");
+        expect(parsePHPUnbounded(input)).toBeNull();
+      }
+    );
+
+    it.each([
+      ["₱1,000.50", 100050],
+      [" 1000.5 ", 100050],
+      ["0.01", 1],
+      ["1.", 100],
+    ])("parses %s", (input, cents) => {
+      expect(parsePHP(input)).toBe(cents);
+      expect(parsePHPUnbounded(input)).toBe(cents);
+    });
+
     it("throws error for negative string amounts", () => {
       expect(() => parsePHP("-100")).toThrow("Negative amounts not allowed");
       expect(() => parsePHP("₱-1,500.50")).toThrow("Negative amounts not allowed");
@@ -218,36 +235,6 @@ describe("parsePHP", () => {
       expect(parsePHP("9,999,999.99")).toBe(MAX_AMOUNT_CENTS);
       expect(parsePHP(9999999.99)).toBe(MAX_AMOUNT_CENTS);
     });
-  });
-});
-
-describe("validateAmount", () => {
-  it("accepts valid amounts", () => {
-    expect(validateAmount(0)).toBe(true);
-    expect(validateAmount(1)).toBe(true);
-    expect(validateAmount(150050)).toBe(true);
-    expect(validateAmount(MAX_AMOUNT_CENTS)).toBe(true);
-  });
-
-  it("rejects negative amounts", () => {
-    expect(validateAmount(-1)).toBe(false);
-    expect(validateAmount(-150050)).toBe(false);
-  });
-
-  it("rejects amounts exceeding maximum", () => {
-    expect(validateAmount(MAX_AMOUNT_CENTS + 1)).toBe(false);
-    expect(validateAmount(1000000000)).toBe(false);
-  });
-
-  it("rejects non-integer amounts", () => {
-    expect(validateAmount(1500.5)).toBe(false);
-    expect(validateAmount(0.5)).toBe(false);
-  });
-
-  it("rejects NaN and Infinity", () => {
-    expect(validateAmount(NaN)).toBe(false);
-    expect(validateAmount(Infinity)).toBe(false);
-    expect(validateAmount(-Infinity)).toBe(false);
   });
 });
 
@@ -326,6 +313,10 @@ describe("formatPHPAxisTick", () => {
     expect(formatPHPAxisTick(asCents(100000000))).toBe("₱1M");
     expect(formatPHPAxisTick(asCents(150000000))).toBe("₱1.5M");
     expect(formatPHPAxisTick(asCents(MAX_AMOUNT_CENTS))).toBe("₱10M");
+  });
+
+  it("rounds just under a million up to ₱1M instead of printing ₱1000k", () => {
+    expect(formatPHPAxisTick(asCents(99995000))).toBe("₱1M");
   });
 
   it("takes CENTS, not pesos (the 100x consolidation trap)", () => {
@@ -473,13 +464,15 @@ describe("formatPHPChartValue", () => {
 
 describe("parsers return branded cents", () => {
   it("parsePHPUnbounded returns an over-max value for amounts past the safe-integer range", () => {
-    expect(parsePHPUnbounded("1e300")).toBe(MAX_AMOUNT_CENTS + 1);
     expect(parsePHPUnbounded("99999999999999999")).toBe(MAX_AMOUNT_CENTS + 1);
   });
 
-  it.each(["", "abc", "-5", "Infinity"])("parsePHPUnbounded returns null for %j", (input) => {
-    expect(parsePHPUnbounded(input)).toBeNull();
-  });
+  it.each(["", "abc", "-5", "Infinity", "1e300"])(
+    "parsePHPUnbounded returns null for %j",
+    (input) => {
+      expect(parsePHPUnbounded(input)).toBeNull();
+    }
+  );
 });
 
 describe("parseSignedPHPSafe", () => {

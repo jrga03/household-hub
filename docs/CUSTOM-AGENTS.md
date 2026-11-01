@@ -829,17 +829,17 @@ formatPHP(-50000)  → "-₱500.00"
 parsePHP("₱1,500.50")  → 150050
 parsePHP("1,500.50")   → 150050
 parsePHP(1500.50)      → 150050
-parsePHP("invalid")    → 0
+parsePHP("invalid")    → throws; so do "12abc", "1,00" and "1.005"
 ```
 
-### 3. validateAmount(cents: number): boolean
+### 3. isAmount(value: unknown): value is number
 
 ```typescript
-// Validates amount is within safe range
-validateAmount(150050)      → true
-validateAmount(-100)        → false (negative)
-validateAmount(1000000000)  → false (exceeds max)
-validateAmount(1500.5)      → false (not integer)
+// An amount a record can hold
+isAmount(150050)      → true
+isAmount(0)           → false (must be more than zero)
+isAmount(1000000000)  → false (exceeds max)
+isAmount(1500.5)      → false (not integer)
 ```
 
 ### 4. calculateRunningBalance

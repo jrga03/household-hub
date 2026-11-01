@@ -120,6 +120,18 @@ export function formatPHPInput(cents: Cents): string {
   return cents === 0 ? "" : formatPHP(cents).replace(PESO_SIGN, "");
 }
 
+/** Pesos, optionally grouped by thousands, then at most two decimals. The whole input must match. */
+const PESO_AMOUNT = /^(\d{1,3}(,\d{3})*|\d+)(\.\d{0,2})?$/;
+
+const withoutPesoSign = (input: string) => input.replace(/[₱\s]/g, "");
+
+/** Exact cents once the peso sign and whitespace are gone, null if it isn't a peso amount. */
+function centsOf(cleaned: string): number | null {
+  if (!PESO_AMOUNT.test(cleaned)) return null;
+  const [pesos = "", centavos = ""] = cleaned.replace(/,/g, "").split(".");
+  return Number(pesos) * 100 + Number(centavos.padEnd(2, "0"));
+}
+
 /**
  * Parses user input into integer cents with validation.
  *
@@ -143,6 +155,7 @@ export function formatPHPInput(cents: Cents): string {
  * parsePHP(1500.50)        // 150050
  * parsePHP("")             // 0 (empty input)
  * parsePHP("invalid")      // throws Error
+ * parsePHP("12abc")        // throws Error (the whole input must be an amount)
  * parsePHP("-100")         // throws Error
  * parsePHP("10000000")     // throws Error (exceeds max)
  */
@@ -169,30 +182,19 @@ export function parsePHP(input: string | number): Cents {
     return ZERO_CENTS;
   }
 
-  // Clean input: remove currency symbols, thousand separators, and whitespace
-  const cleaned = input.replace(/[₱,\s]/g, "");
-
-  // Return 0 for empty/whitespace-only input
+  const cleaned = withoutPesoSign(input);
   if (cleaned === "") {
     return ZERO_CENTS;
   }
 
-  // Parse as float (handles decimal point)
-  const parsed = parseFloat(cleaned);
-
-  // Throw for non-numeric input instead of silently returning 0
-  if (isNaN(parsed)) {
-    throw new Error(`Invalid amount: "${input}" is not a valid number`);
-  }
-
-  // Convert to cents and round to handle floating-point precision
-  const cents = Math.round(parsed * 100);
-
-  // Validate range
-  if (cents < 0) {
+  if (cleaned.startsWith("-") && PESO_AMOUNT.test(cleaned.slice(1))) {
     throw new Error(
       "Negative amounts not allowed. Use transaction type field to indicate income/expense."
     );
+  }
+  const cents = centsOf(cleaned);
+  if (cents === null) {
+    throw new Error(`Invalid amount: "${input}" is not a valid number`);
   }
   if (cents > MAX_AMOUNT_CENTS) {
     throw new Error(`Amount exceeds maximum (max: ${formatPHP(asCents(MAX_AMOUNT_CENTS))})`);
@@ -204,42 +206,14 @@ export function parsePHP(input: string | number): Cents {
 /**
  * Parses peso input to cents WITHOUT the MAX_AMOUNT_CENTS check, so a
  * currency input can commit an over-max value for the schema's .max() rule
- * to reject instead of silently truncating it. Returns null for empty,
- * non-numeric, negative, or non-finite input. Amounts too large for a safe
+ * to reject instead of silently truncating it. Returns null for empty input
+ * or anything that isn't a peso amount. Amounts too large for a safe
  * integer of cents come back as MAX_AMOUNT_CENTS + 1 so they still fail the max rule.
  */
 export function parsePHPUnbounded(input: string): Cents | null {
-  const cleaned = input.replace(/[₱,\s]/g, "");
-  if (cleaned === "") return null;
-
-  const pesos = parseFloat(cleaned);
-  if (!Number.isFinite(pesos) || pesos < 0) return null;
-
-  const cents = Math.round(pesos * 100);
+  const cents = centsOf(withoutPesoSign(input));
+  if (cents === null) return null;
   return asCents(Number.isSafeInteger(cents) ? cents : MAX_AMOUNT_CENTS + 1);
-}
-
-/**
- * Validates that an amount is within safe range for currency operations.
- *
- * Checks that the amount:
- * - Is an integer (no decimal cents)
- * - Is non-negative (use transaction type for direction)
- * - Does not exceed MAX_AMOUNT_CENTS
- *
- * @param cents - Amount to validate (in integer cents)
- * @returns true if amount is valid, false otherwise
- *
- * @example
- * validateAmount(150050)        // true
- * validateAmount(0)             // true
- * validateAmount(999999999)     // true (max amount)
- * validateAmount(-100)          // false (negative)
- * validateAmount(1000000000)    // false (exceeds max)
- * validateAmount(1500.5)        // false (not integer)
- */
-export function validateAmount(cents: number): boolean {
-  return Number.isInteger(cents) && cents >= 0 && cents <= MAX_AMOUNT_CENTS;
 }
 
 /**
@@ -323,11 +297,13 @@ export function formatPHPAxisTick(cents: Cents): string {
   // Trim a redundant ".0" so round values render as "₱12k", not "₱12.0k"
   const trim = (value: string): string => value.replace(/\.0$/, "");
 
-  if (pesos >= 1_000_000) {
+  const thousands = trim((pesos / 1_000).toFixed(1));
+  // 999,950 pesos rounds to "1000" thousands, which reads better as ₱1M
+  if (pesos >= 1_000_000 || thousands === "1000") {
     return `${sign}${PESO_SIGN}${trim((pesos / 1_000_000).toFixed(1))}M`;
   }
   if (pesos >= 1_000) {
-    return `${sign}${PESO_SIGN}${trim((pesos / 1_000).toFixed(1))}k`;
+    return `${sign}${PESO_SIGN}${thousands}k`;
   }
   return `${sign}${PESO_SIGN}${Number.isInteger(pesos) ? pesos.toLocaleString("en-PH") : pesos.toFixed(2)}`;
 }

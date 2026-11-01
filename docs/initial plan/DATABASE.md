@@ -1120,69 +1120,22 @@ formatPHP(cents: number): string {
 
 Converts user input to integer cents with validation.
 
+The whole input must be an amount: an optional peso sign, digits with optional thousands commas, and at most two decimals. The parser converts it to cents without float math. See `src/lib/currency.ts`.
+
 ```typescript
-// Implementation specification
-parsePHP(input: string | number): number {
-  // Accepts: "1,500.50", "₱1,500.50", "1500.50", 1500.50
-  // Output: 150050 (integer cents)
-
-  if (typeof input === 'number') {
-    return Math.round(input * 100);
-  }
-
-  if (!input || typeof input !== 'string') {
-    return 0;
-  }
-
-  // Remove currency symbol and whitespace
-  let cleaned = input.replace(/[₱,\s]/g, '');
-
-  // Parse as float
-  const parsed = parseFloat(cleaned);
-
-  if (isNaN(parsed)) {
-    return 0;
-  }
-
-  // Convert to cents and round
-  const cents = Math.round(parsed * 100);
-
-  // Validate range
-  if (cents < 0 || cents > MAX_AMOUNT_CENTS) {
-    throw new Error(`Amount out of range: ${cents} cents`);
-  }
-
-  return cents;
-}
-
 // Test cases:
 // parsePHP("1,500.50") → 150050
 // parsePHP("₱1,500.50") → 150050
 // parsePHP("1500.50") → 150050
 // parsePHP(1500.50) → 150050
-// parsePHP("invalid") → 0
+// parsePHP("invalid") → throws; so do "12abc", "1,00" and "1.005"
 // parsePHP("") → 0
 // parsePHP(null) → 0
 ```
 
-#### validateAmount(cents: number): boolean
+#### isAmount(value: unknown): value is number
 
-Validates amount is within safe range.
-
-```typescript
-const MAX_AMOUNT_CENTS = 999999999; // PHP 9,999,999.99
-
-function validateAmount(cents: number): boolean {
-  return Number.isInteger(cents) && cents >= 0 && cents <= MAX_AMOUNT_CENTS;
-}
-
-// Test cases:
-// validateAmount(150050) → true
-// validateAmount(0) → true
-// validateAmount(-100) → false
-// validateAmount(1000000000) → false (exceeds max)
-// validateAmount(1500.5) → false (not integer)
-```
+An amount a record can hold: a whole number of cents, more than zero, at most `MAX_AMOUNT_CENTS` (999,999,999). See `src/lib/currency.ts`.
 
 ### JavaScript Number Safety
 

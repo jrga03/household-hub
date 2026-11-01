@@ -102,6 +102,17 @@ describe("CurrencyInput", () => {
     expect(input.value).toBe("123.45");
   });
 
+  it("commits nothing for an amount with trailing junk", () => {
+    const onChange = vi.fn();
+    render(<CurrencyInput value={cents(12345)} onChange={onChange} />);
+
+    const input = getInput();
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "12abc" } });
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it("commits the over-max cents value instead of leaving a truncated prefix committed", () => {
     const onChange = vi.fn();
     render(<ControlledCurrencyInput onChangeSpy={onChange} />);

@@ -46,6 +46,13 @@ describe("planChange", () => {
     expect(planChange("lots", null, [BPI])).toMatchObject({ kind: "problem" });
   });
 
+  it("asks for a budget of zero or more when the amount is negative", () => {
+    expect(planChange("-500", null, [BPI])).toEqual({
+      kind: "problem",
+      message: "Enter a budget of 0 or more.",
+    });
+  });
+
   it("refuses a budget no account can fund", () => {
     expect(planChange("500", null, [])).toEqual({
       kind: "problem",

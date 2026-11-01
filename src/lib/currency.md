@@ -55,13 +55,15 @@ parsePHP(1500.50)     → 150050
 
 ## Validation
 
-Use `validateAmount(cents)` before storage:
+Parsers accept only real peso amounts: digits, optional thousands commas, and at most two decimals. They refuse anything else, such as "12abc", "1,00" or "1.005".
+
+Use `isAmount(cents)` to check a value a record can hold:
 
 ```typescript
-validateAmount(150050)      → true
-validateAmount(-100)        → false
-validateAmount(1000000000)  → false
-validateAmount(150.5)       → false (must be integer)
+isAmount(150050)      → true
+isAmount(0)           → false (must be more than zero)
+isAmount(1000000000)  → false (exceeds max)
+isAmount(150.5)       → false (must be integer)
 ```
 
 ## React Hook Form Integration

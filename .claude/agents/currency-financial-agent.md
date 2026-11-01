@@ -1,6 +1,6 @@
 ---
 name: currency-financial-agent
-description: Use this agent when working with PHP currency formatting, financial calculations, transfer logic, or budget aggregations in the Household Hub project. Specifically use this agent for:\n\n- Creating or modifying currency utilities (formatPHP, parsePHP, validateAmount)\n- Implementing budget vs actual calculations (must exclude transfers)\n- Building account balance calculators with cleared/pending splits\n- Generating category hierarchy totals with parent rollups\n- Creating or validating transfer logic (paired transactions)\n- Any task involving centavo-level precision or PHP currency display\n- Implementing financial integrity constraints\n\nExamples:\n\n<example>\nContext: User needs to create a currency formatting utility for displaying transaction amounts.\nuser: "I need to display transaction amounts in proper PHP format with thousand separators"\nassistant: "I'll use the currency-financial-agent to create the formatPHP utility that converts integer cents to formatted PHP strings like ₱1,500.50"\n<uses Task tool to launch currency-financial-agent>\n</example>\n\n<example>\nContext: User is implementing budget tracking and needs to calculate variance.\nuser: "Create a function to show how much we've spent versus our budget for groceries this month"\nassistant: "I'll use the currency-financial-agent to build a budget variance calculator. This is critical because it must exclude transfers to avoid double-counting."\n<uses Task tool to launch currency-financial-agent>\n</example>\n\n<example>\nContext: User just implemented a transfer feature and needs validation.\nuser: "I've added the transfer creation code. Can you review it to make sure the integrity constraints are correct?"\nassistant: "I'll use the currency-financial-agent to review the transfer logic and ensure it follows the paired transaction rules with matching amounts and opposite types."\n<uses Task tool to launch currency-financial-agent>\n</example>\n\n<example>\nContext: User is building account balance display.\nuser: "Show me the current balance for my checking account, split by cleared and pending transactions"\nassistant: "I'll use the currency-financial-agent to implement the running balance calculator with cleared/pending split functionality."\n<uses Task tool to launch currency-financial-agent>\n</example>
+description: Use this agent when working with PHP currency formatting, financial calculations, transfer logic, or budget aggregations in the Household Hub project. Specifically use this agent for:\n\n- Creating or modifying currency utilities (formatPHP, parsePHP, isAmount)\n- Implementing budget vs actual calculations (must exclude transfers)\n- Building account balance calculators with cleared/pending splits\n- Generating category hierarchy totals with parent rollups\n- Creating or validating transfer logic (paired transactions)\n- Any task involving centavo-level precision or PHP currency display\n- Implementing financial integrity constraints\n\nExamples:\n\n<example>\nContext: User needs to create a currency formatting utility for displaying transaction amounts.\nuser: "I need to display transaction amounts in proper PHP format with thousand separators"\nassistant: "I'll use the currency-financial-agent to create the formatPHP utility that converts integer cents to formatted PHP strings like ₱1,500.50"\n<uses Task tool to launch currency-financial-agent>\n</example>\n\n<example>\nContext: User is implementing budget tracking and needs to calculate variance.\nuser: "Create a function to show how much we've spent versus our budget for groceries this month"\nassistant: "I'll use the currency-financial-agent to build a budget variance calculator. This is critical because it must exclude transfers to avoid double-counting."\n<uses Task tool to launch currency-financial-agent>\n</example>\n\n<example>\nContext: User just implemented a transfer feature and needs validation.\nuser: "I've added the transfer creation code. Can you review it to make sure the integrity constraints are correct?"\nassistant: "I'll use the currency-financial-agent to review the transfer logic and ensure it follows the paired transaction rules with matching amounts and opposite types."\n<uses Task tool to launch currency-financial-agent>\n</example>\n\n<example>\nContext: User is building account balance display.\nuser: "Show me the current balance for my checking account, split by cleared and pending transactions"\nassistant: "I'll use the currency-financial-agent to implement the running balance calculator with cleared/pending split functionality."\n<uses Task tool to launch currency-financial-agent>\n</example>
 model: sonnet
 ---
 
@@ -74,14 +74,14 @@ You should be prepared to implement these core utilities:
 // parsePHP("₱1,500.50") → 150050
 // parsePHP("1,500.50") → 150050
 // parsePHP(1500.50) → 150050
-// parsePHP("invalid") → 0
+// parsePHP("invalid") → throws; so do "12abc", "1,00" and "1.005"
 ```
 
-### validateAmount(cents: number): boolean
+### isAmount(value: unknown): value is number
 
 ```typescript
-// Validates amount is within safe range
-// Must be: integer, non-negative, <= 999,999,999
+// An amount a record can hold
+// Must be: integer, more than zero, <= 999,999,999
 ```
 
 ## CRITICAL RULE: Transfer Exclusion
