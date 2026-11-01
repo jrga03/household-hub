@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link, type LinkOptions } from "@tanstack/react-router";
 import { format } from "date-fns";
+import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronRight } from "lucide-react";
 import { EmptyState } from "@/components/app/EmptyState";
 import { BUDGET_STATUS_STYLE } from "@/components/budgets/budgetStatusStyle";
@@ -16,8 +17,10 @@ import { rowDisplay, totalKind, useRowNames } from "@/components/transactions/ro
 import { useFinanceOverview } from "@/hooks/useFinanceOverview";
 import { useReviewCounts } from "@/hooks/useReviewCount";
 import { isCreditCard } from "@/lib/accounts/events";
+import type { Cents } from "@/lib/currency";
 import { attentionFeed } from "@/lib/finances/attention";
 import type { BudgetStatusCounts, FinanceOverview } from "@/lib/finances/overview";
+import { readOwed } from "@/lib/review/count";
 import { readFinanceView, rememberFinanceView, type FinanceView } from "@/lib/finances/view";
 import { statusOf, type ListRow as TransactionRow } from "@/lib/transactions/filter";
 import { cn } from "@/lib/utils";
@@ -42,6 +45,7 @@ export function FinancesSection({ userId, children }: { userId: string; children
   const currentMonth = localMonth(now);
   const overview = useFinanceOverview(view, userId, currentMonth);
   const reviewCounts = useReviewCounts();
+  const owedToYou = useLiveQuery(readOwed, [])?.get(userId)?.totalCents;
   const twoColumns = useTwoPanes();
 
   function choose(next: FinanceView) {
@@ -65,7 +69,11 @@ export function FinancesSection({ userId, children }: { userId: string; children
       </div>
       {overview && (
         <>
-          <MonthFigures overview={overview} daysLeft={daysLeftInMonth(now)} />
+          <MonthFigures
+            overview={overview}
+            daysLeft={daysLeftInMonth(now)}
+            owedToYou={view === "mine" ? owedToYou : undefined}
+          />
           <AttentionFeed
             items={attentionFeed({
               budgets: overview.budgetLines,
@@ -105,7 +113,14 @@ export function FinancesSection({ userId, children }: { userId: string; children
   );
 }
 
-function MonthFigures({ overview, daysLeft }: { overview: FinanceOverview; daysLeft: number }) {
+interface MonthFiguresProps {
+  overview: FinanceOverview;
+  daysLeft: number;
+  /** Mine only: what the household owes the member; kept out of the totals (ADR 0012). */
+  owedToYou?: Cents;
+}
+
+function MonthFigures({ overview, daysLeft, owedToYou }: MonthFiguresProps) {
   return (
     <section
       aria-label="This month"
@@ -124,6 +139,11 @@ function MonthFigures({ overview, daysLeft }: { overview: FinanceOverview; daysL
             {daysLeft}
           </span>
         </Figure>
+        {owedToYou !== undefined && (
+          <Figure label="Owed to you">
+            <Money kind="balance" cents={owedToYou} />
+          </Figure>
+        )}
       </dl>
     </section>
   );

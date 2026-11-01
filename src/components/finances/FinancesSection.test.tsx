@@ -14,7 +14,8 @@ import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { createAccount } from "@/lib/commands/accounts";
 import { createCategory, createGroup } from "@/lib/commands/categories";
 import { setBudget } from "@/lib/commands/budgets";
-import { addTransaction } from "@/lib/commands/transactions";
+import { addTransaction, markPaidBack } from "@/lib/commands/transactions";
+import { rememberFinanceView } from "@/lib/finances/view";
 import { parsePHP } from "@/lib/currency";
 import { localMonth } from "@/lib/utils/dates";
 import { FinancesSection } from "./FinancesSection";
@@ -248,6 +249,41 @@ describe("FinancesSection", () => {
       "true"
     );
     expect(await shownAccounts()).toEqual([expect.stringContaining("Wallet")]);
+  });
+
+  it("shows Owed to you in Mine from the current member's open out-of-pocket expenses only", async () => {
+    const outOfPocket = (amount: string, member = MEMBER) =>
+      addTransaction(member, {
+        date: today(),
+        type: "expense",
+        amountCents: parsePHP(amount),
+        accountId: bpiId,
+        categoryId: null,
+        description: "Groceries",
+        paidByUserId: member.userId,
+      });
+    await outOfPocket("300");
+    const { id: paidBack } = await outOfPocket("200");
+    await markPaidBack(MEMBER, [paidBack]);
+    await outOfPocket("900", { ...MEMBER, userId: "user-b" });
+    renderHome();
+
+    await screen.findByRole("list", { name: "Balances" });
+    expect(screen.queryByText("Owed to you")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Mine" }));
+    expect(await screen.findByRole("link", { name: /Wallet/ })).toHaveTextContent("₱500.00");
+    const month = screen.getByRole("region", { name: "This month" });
+    await waitFor(() => expect(month).toHaveTextContent(/Owed to you₱300\.00/));
+    expect(screen.getByRole("region", { name: "Left this month" })).toHaveTextContent("₱0.00");
+  });
+
+  it("hides Owed to you in Mine when nothing is owed", async () => {
+    rememberFinanceView("mine");
+    renderHome();
+
+    expect(await shownAccounts()).toEqual([expect.stringContaining("Wallet")]);
+    expect(screen.queryByText("Owed to you")).not.toBeInTheDocument();
   });
 
   it("still shows Household and switches when storage is blocked", async () => {
