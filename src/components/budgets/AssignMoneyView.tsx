@@ -38,16 +38,16 @@ export interface DistributeRequest {
 
 /**
  * Where Unassigned money is given a job, with Move money and Distribute.
- * `accountId`, chosen on Accounts, is where a new move starts.
+ * `initialAccountId`, chosen on Accounts, is where a new move starts.
  */
 export function AssignMoneyView({
   actor,
-  accountId,
+  initialAccountId,
   distribute,
   onDistribute,
 }: {
   actor: Actor;
-  accountId?: string;
+  initialAccountId?: string;
   distribute: DistributeRequest | null;
   onDistribute: (mode: DistributeMode | null) => void;
 }) {
@@ -76,7 +76,7 @@ export function AssignMoneyView({
         <MoveMoneyDialog
           actor={actor}
           allocation={moving === "new" ? undefined : moving}
-          initialAccountId={accountId}
+          initialAccountId={initialAccountId}
           onClose={() => setMoving(null)}
         />
       )}

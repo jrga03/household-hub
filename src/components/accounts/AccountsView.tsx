@@ -306,11 +306,11 @@ function Envelopes({ envelopes }: { envelopes: NonNullable<AccountMoney["envelop
 
 /** Opens Assign money with this account as Move money's and Distribute's source. */
 function AssignButton({ accountId, unassigned }: { accountId: string; unassigned: Cents }) {
-  if (unassigned === 0) return <Button disabled>Assign</Button>;
+  if (unassigned === 0) return <Button disabled>Assign money</Button>;
   return (
     <Button asChild>
       <Link to="/assign-money" search={{ account: accountId }}>
-        Assign
+        Assign money
       </Link>
     </Button>
   );

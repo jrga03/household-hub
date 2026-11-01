@@ -18,11 +18,11 @@ import { HOUSEHOLD } from "@/test/events";
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 function renderAssignMoney({
-  accountId,
+  initialAccountId,
   distribute = null,
   onDistribute = () => {},
 }: {
-  accountId?: string;
+  initialAccountId?: string;
   distribute?: DistributeRequest | null;
   onDistribute?: (mode: string | null) => void;
 } = {}) {
@@ -34,7 +34,7 @@ function renderAssignMoney({
       component: () => (
         <AssignMoneyView
           actor={MEMBER}
-          accountId={accountId}
+          initialAccountId={initialAccountId}
           distribute={distribute}
           onDistribute={onDistribute}
         />
@@ -121,7 +121,7 @@ describe("AssignMoneyView", () => {
       type: "e_wallet",
       startingBalanceCents: parsePHP("1500"),
     });
-    renderAssignMoney({ accountId: gcash.id });
+    renderAssignMoney({ initialAccountId: gcash.id });
 
     fireEvent.click(await screen.findByRole("button", { name: "Move money" }));
     const dialog = await screen.findByRole("dialog", { name: "Move money" });

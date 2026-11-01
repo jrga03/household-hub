@@ -68,7 +68,7 @@ function AssignMoneyPage() {
         {household && userId && (
           <AssignMoneyView
             actor={{ householdId: household.id, userId }}
-            accountId={search.account}
+            initialAccountId={search.account}
             distribute={
               search.distribute
                 ? {

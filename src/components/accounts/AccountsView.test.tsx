@@ -135,6 +135,12 @@ describe("AccountsView", () => {
   });
 
   it("shows a row's Unassigned only when it isn't zero", async () => {
+    const short = await createAccount(MEMBER, {
+      name: "Short",
+      type: "bank",
+      startingBalanceCents: parsePHP("0"),
+    });
+    await record(short.id, "100");
     await createAccount(MEMBER, {
       name: "BPI",
       type: "bank",
@@ -150,6 +156,9 @@ describe("AccountsView", () => {
     expect(await screen.findByRole("button", { name: /^BPI/ })).toHaveAccessibleName(
       /Unassigned ₱500\.00$/
     );
+    expect(screen.getByRole("button", { name: /^Short/ })).toHaveAccessibleName(
+      /Unassigned minus ₱100\.00$/
+    );
     expect(screen.getByRole("button", { name: /^Wallet/ })).toHaveAccessibleName(
       /^Wallet\s*₱0\.00$/
     );
@@ -161,7 +170,7 @@ describe("AccountsView", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /^BPI/ }));
     const details = await screen.findByRole("dialog", { name: "BPI" });
-    fireEvent.click(await within(details).findByRole("link", { name: "Assign" }));
+    fireEvent.click(await within(details).findByRole("link", { name: "Assign money" }));
 
     await waitFor(() => expect(history.location.pathname).toBe("/assign-money"));
     expect(history.location.search).toBe(`?account=${bank.id}`);
@@ -177,7 +186,7 @@ describe("AccountsView", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /^Wallet/ }));
     const details = await screen.findByRole("dialog", { name: "Wallet" });
-    expect(await within(details).findByRole("button", { name: "Assign" })).toBeDisabled();
+    expect(await within(details).findByRole("button", { name: "Assign money" })).toBeDisabled();
   });
 
   it("opens an account's details and pays its card from there", async () => {
@@ -189,7 +198,7 @@ describe("AccountsView", () => {
     await waitFor(() => expect(history.location.search).toContain("open="));
     const details = await screen.findByRole("dialog", { name: "Visa" });
     expect(within(details).getByText("BPI")).toBeInTheDocument();
-    expect(within(details).queryByRole("button", { name: "Assign" })).toBeNull();
+    expect(within(details).queryByRole("button", { name: "Assign money" })).toBeNull();
 
     fireEvent.click(within(details).getByRole("button", { name: "Pay Visa" }));
     const form = await screen.findByRole("form", { name: "Pay Visa" });
