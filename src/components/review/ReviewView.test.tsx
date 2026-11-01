@@ -185,11 +185,11 @@ describe("ReviewView", () => {
 
     const section = await screen.findByRole("region", { name: "Out-of-pocket expenses" });
     expect(within(section).getByText("2 to review")).toBeInTheDocument();
-    const ana = within(section).getByRole("link", { name: /^Owed to ana@example.com/ });
+    const ana = within(section).getByRole("link", { name: /^Pay back ana@example.com/ });
     expect(ana).toHaveAttribute("href", "/transactions?owedTo=user-ana");
     expect(ana).toHaveTextContent("₱3,000.00");
     expect(ana).toHaveTextContent("2 expenses");
-    const ben = within(section).getByRole("link", { name: /^Owed to ben@example.com/ });
+    const ben = within(section).getByRole("link", { name: /^Pay back ben@example.com/ });
     expect(ben).toHaveAttribute("href", "/transactions?owedTo=user-ben");
     expect(ben).toHaveTextContent("₱500.00");
     expect(ben).toHaveTextContent("1 expense");
@@ -200,7 +200,7 @@ describe("ReviewView", () => {
 
     renderReview();
 
-    expect(await screen.findByRole("link", { name: /^Owed to a member/ })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: /^Pay back a member/ })).toHaveAttribute(
       "href",
       "/transactions?owedTo=user-gone"
     );

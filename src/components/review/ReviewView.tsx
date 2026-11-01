@@ -116,7 +116,7 @@ function PayBackSection({ count }: { count: number }) {
           <li key={payer}>
             <ListRow
               link={{ to: "/transactions", search: { owedTo: payer } }}
-              label={`Owed to ${nameOf(payer)}`}
+              label={payer === userId ? "Owed to you" : `Pay back ${nameOf(payer)}`}
               amount={<Money kind="balance" cents={totalCents} />}
               detail={countOf(expenses, "expense", "expenses")}
             />
