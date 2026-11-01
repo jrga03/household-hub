@@ -23,7 +23,7 @@ language sql as $$
   insert into public.events
     (id, household_id, visibility, entity_type, entity_id, event_type, event_version, hlc, device_id, payload)
   values (tests.id(event_label), tests.household_of(household_label), 'household', 'account',
-          tests.id('entity_' || event_label), 'account.created', 1, '000001760000000:00000:device',
+          tests.id('entity_' || event_label), 'account.created', 1, '000001760000000-000000-device',
           'device', '{"name": "Cash", "type": "cash", "startingBalanceCents": 0}'::jsonb)
   on conflict (id) do nothing
 $$;
