@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { decryptOfficeFile } from "./office-encryption";
 import { StatementParseError, type StatementParseProblem } from "./statement";
 import { unionBankCreditCardXlsx } from "./unionbank-xlsx";
+import * as xlsx from "./xlsx";
 import { readFirstSheet, type Cell } from "./xlsx";
 
 const FIXTURES = "tests/fixtures/statements";
@@ -14,6 +15,18 @@ function readFixture(name: string): ArrayBuffer {
 }
 
 describe("UnionBank credit card XLSX", () => {
+  it("reads a number cell with float noise as its two-decimal amount", async () => {
+    vi.spyOn(xlsx, "readFirstSheet").mockResolvedValueOnce([
+      ["DATE", "DESCRIPTION", "CURRENCY", "AMOUNT"],
+      ["07/05/2026", "GROCERY", "PHP", 1264.0400000000002],
+    ]);
+    const lines = await unionBankCreditCardXlsx.parse(
+      readFixture("unionbank-credit-card.xlsx"),
+      FIXTURE_PASSWORD
+    );
+    expect(lines).toMatchObject([{ amount: 126404, type: "expense" }]);
+  });
+
   it("reads every purchase, refund and payment line", async () => {
     const lines = await unionBankCreditCardXlsx.parse(
       readFixture("unionbank-credit-card.xlsx"),

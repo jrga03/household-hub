@@ -1120,41 +1120,9 @@ formatPHP(cents: number): string {
 
 Converts user input to integer cents with validation.
 
+The whole input must be an amount: an optional peso sign, digits with optional thousands commas, and at most two decimals. The parser converts it to cents without float math. See `src/lib/currency.ts`.
+
 ```typescript
-// Implementation specification
-parsePHP(input: string | number): number {
-  // Accepts: "1,500.50", "₱1,500.50", "1500.50", 1500.50
-  // Output: 150050 (integer cents)
-
-  if (typeof input === 'number') {
-    return Math.round(input * 100);
-  }
-
-  if (!input || typeof input !== 'string') {
-    return 0;
-  }
-
-  // Remove currency symbol and whitespace
-  let cleaned = input.replace(/[₱,\s]/g, '');
-
-  // Parse as float
-  const parsed = parseFloat(cleaned);
-
-  if (isNaN(parsed)) {
-    return 0;
-  }
-
-  // Convert to cents and round
-  const cents = Math.round(parsed * 100);
-
-  // Validate range
-  if (cents < 0 || cents > MAX_AMOUNT_CENTS) {
-    throw new Error(`Amount out of range: ${cents} cents`);
-  }
-
-  return cents;
-}
-
 // Test cases:
 // parsePHP("1,500.50") → 150050
 // parsePHP("₱1,500.50") → 150050

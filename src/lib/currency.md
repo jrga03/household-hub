@@ -55,7 +55,7 @@ parsePHP(1500.50)     → 150050
 
 ## Validation
 
-Parsers accept only whole peso amounts: digits, optional thousands commas, and at most two decimals. They refuse anything else, such as "12abc", "1,00" or "1.005".
+Parsers accept only real peso amounts: digits, optional thousands commas, and at most two decimals. They refuse anything else, such as "12abc", "1,00" or "1.005".
 
 Use `isAmount(cents)` to check a value a record can hold:
 

@@ -31,7 +31,9 @@ const isTransactionHeader = (row: Cell[]) =>
  */
 function readTransaction([dateCell, descriptionCell, , amountCell]: Cell[]): StatementLine | null {
   const date = toLocalDate(dateCell);
-  const signed = text(amountCell).replace(/,/g, "");
+  // A number cell can carry float noise (1264.0400000000002); the parser refuses a third decimal
+  const amountText = typeof amountCell === "number" ? amountCell.toFixed(2) : text(amountCell);
+  const signed = amountText.replace(/,/g, "");
   if (!date || signed === "") return null;
 
   const isCredit = signed.startsWith("-");

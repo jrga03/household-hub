@@ -123,7 +123,9 @@ export function formatPHPInput(cents: Cents): string {
 /** Pesos, optionally grouped by thousands, then at most two decimals. The whole input must match. */
 const PESO_AMOUNT = /^(\d{1,3}(,\d{3})*|\d+)(\.\d{0,2})?$/;
 
-/** Exact cents for text without the peso sign or whitespace, null if it isn't a peso amount. */
+const withoutPesoSign = (input: string) => input.replace(/[₱\s]/g, "");
+
+/** Exact cents once the peso sign and whitespace are gone, null if it isn't a peso amount. */
 function centsOf(cleaned: string): number | null {
   if (!PESO_AMOUNT.test(cleaned)) return null;
   const [pesos = "", centavos = ""] = cleaned.replace(/,/g, "").split(".");
@@ -180,7 +182,7 @@ export function parsePHP(input: string | number): Cents {
     return ZERO_CENTS;
   }
 
-  const cleaned = input.replace(/[₱\s]/g, "");
+  const cleaned = withoutPesoSign(input);
   if (cleaned === "") {
     return ZERO_CENTS;
   }
@@ -209,7 +211,7 @@ export function parsePHP(input: string | number): Cents {
  * integer of cents come back as MAX_AMOUNT_CENTS + 1 so they still fail the max rule.
  */
 export function parsePHPUnbounded(input: string): Cents | null {
-  const cents = centsOf(input.replace(/[₱\s]/g, ""));
+  const cents = centsOf(withoutPesoSign(input));
   if (cents === null) return null;
   return asCents(Number.isSafeInteger(cents) ? cents : MAX_AMOUNT_CENTS + 1);
 }
