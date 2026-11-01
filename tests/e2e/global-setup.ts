@@ -76,7 +76,12 @@ async function globalSetup() {
   }
 
   // Before ensureTestUsers: a deleted household may have held a fixture user.
-  await deleteStaleSignUps(creds.apiUrl, creds.serviceRoleKey);
+  try {
+    await deleteStaleSignUps(creds.apiUrl, creds.serviceRoleKey);
+  } catch (error) {
+    // Leftovers only cost disk space, so a failed cleanup must not block the run.
+    console.warn(`[global-setup] skipped deleting stale E2E sign-ups: ${String(error)}`);
+  }
   await ensureTestUsers(creds.apiUrl, creds.serviceRoleKey);
 }
 

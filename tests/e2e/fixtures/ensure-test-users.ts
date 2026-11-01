@@ -10,6 +10,7 @@ const SIGN_UP_EMAIL = /^test-\d+-[a-z0-9]+@example\.com$/;
 // Longer than a whole run, so another worktree's run keeps its people.
 const STALE_AFTER_MS = 60 * 60 * 1000;
 const DELETE_BATCH_SIZE = 50;
+const LIST_PAGE_SIZE = 1000;
 
 function hostnameOf(url: string): string | null {
   try {
@@ -47,10 +48,13 @@ export async function deleteStaleSignUps(supabaseUrl: string, serviceRoleKey: st
   const now = Date.now();
   const staleIds: string[] = [];
   for (let page = 1; ; page++) {
-    const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 });
+    const { data, error } = await adminClient.auth.admin.listUsers({
+      page,
+      perPage: LIST_PAGE_SIZE,
+    });
     if (error) throw new Error(`Failed to list E2E sign-ups: ${error.message}`);
     staleIds.push(...data.users.filter((user) => isStaleSignUp(user, now)).map((user) => user.id));
-    if (data.users.length < 1000) break;
+    if (data.users.length < LIST_PAGE_SIZE) break;
   }
 
   for (let start = 0; start < staleIds.length; start += DELETE_BATCH_SIZE) {
