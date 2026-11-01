@@ -121,33 +121,24 @@ export function DirectionChoice({
   );
 }
 
-export const OUT_OF_POCKET = "out-of-pocket";
-/** A status, or Out-of-pocket: pending, paid by the member recording it (ADR 0012). */
-export type StatusChoiceValue = TransactionStatus | typeof OUT_OF_POCKET;
-
-const STATUSES = [
+export const STATUSES = [
   { value: "cleared", label: "Cleared" },
   { value: "pending", label: "Pending" },
-] as const satisfies readonly { value: StatusChoiceValue; label: string }[];
-
-const STATUSES_WITH_OUT_OF_POCKET = [
-  ...STATUSES,
-  { value: OUT_OF_POCKET, label: "Out-of-pocket" },
-] as const satisfies readonly { value: StatusChoiceValue; label: string }[];
+] as const satisfies readonly { value: TransactionStatus; label: string }[];
 
 /**
- * Cleared or Pending, and Out-of-pocket where it's offered, submitted as `status`.
+ * One of `options`, submitted as `status`; Cleared or Pending unless a form adds more.
  * `hint` shows a fixed fact under it, such as who paid an out-of-pocket expense.
  */
-export function StatusChoice({
+export function StatusChoice<Status extends string>({
   value,
   onChange,
-  withOutOfPocket = false,
+  options,
   hint,
 }: {
-  value: StatusChoiceValue;
-  onChange: (status: StatusChoiceValue) => void;
-  withOutOfPocket?: boolean;
+  value: Status;
+  onChange: (status: Status) => void;
+  options: readonly { value: Status; label: string }[];
   hint?: string;
 }) {
   const hintId = useId();
@@ -158,12 +149,12 @@ export function StatusChoice({
         Status
       </p>
       <input type="hidden" name="status" value={value} />
-      <SegmentedControl<StatusChoiceValue>
+      <SegmentedControl<Status>
         label="Status"
-        options={withOutOfPocket ? STATUSES_WITH_OUT_OF_POCKET : STATUSES}
+        options={options}
         value={value}
         onChange={onChange}
-        className={cn("grid w-full", withOutOfPocket ? "grid-cols-3" : "grid-cols-2")}
+        className={cn("grid w-full", options.length === 3 ? "grid-cols-3" : "grid-cols-2")}
         aria-describedby={hint && hintId}
       />
       {hint && (

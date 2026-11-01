@@ -49,16 +49,24 @@ import {
   hasFieldProblems,
   NO_PROBLEMS,
   readEntryBasics,
-  OUT_OF_POCKET,
   StatusChoice,
+  STATUSES,
   useFocusNewEntry,
   type EntryProblems,
-  type StatusChoiceValue,
 } from "./EntryFields";
 import { categoryChoices, CategorySelect, isCategoryChoice, UNASSIGNED } from "./CategorySelect";
 import { removeWithUndo } from "./removeWithUndo";
 import { TransferForm } from "./TransferDialog";
 import { useFocusFirstProblem } from "@/hooks/useFocusFirstProblem";
+
+const OUT_OF_POCKET = "out-of-pocket";
+/** A status, or Out-of-pocket: pending, paid by the member recording it (ADR 0012). */
+type StatusChoiceValue = TransactionStatus | typeof OUT_OF_POCKET;
+
+const STATUSES_WITH_OUT_OF_POCKET = [
+  ...STATUSES,
+  { value: OUT_OF_POCKET, label: "Out-of-pocket" },
+] as const satisfies readonly { value: StatusChoiceValue; label: string }[];
 
 /** Add when `transaction` is left out; edit otherwise. */
 export function TransactionDialog({
@@ -405,7 +413,7 @@ function TransactionForm({
       <StatusChoice
         value={statusChoice}
         onChange={setStatusChoice}
-        withOutOfPocket={offerOutOfPocket}
+        options={offerOutOfPocket ? STATUSES_WITH_OUT_OF_POCKET : STATUSES}
         hint={payerHint}
       />
 
