@@ -29,7 +29,7 @@ export function startSyncTriggers(
   const runSync = () => {
     clearTimeout(retryTimer);
     const attempt = sync();
-    // A trigger during a sync joins it; its outcome is already handled.
+    // The engine hands a trigger during a sync the same promise; its outcome is already handled.
     if (attempt === inFlight) return;
     inFlight = attempt;
     attempt.then(
