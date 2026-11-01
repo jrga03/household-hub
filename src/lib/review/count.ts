@@ -1,8 +1,8 @@
 import { listAccounts, listRetiredAccounts } from "@/lib/accounts/projection";
-import { sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
+import type { Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import { needsCategory } from "@/lib/transactions/filter";
-import { readAccountMoney } from "@/lib/transactions/money";
+import { readAccountMoney, sumUnassigned } from "@/lib/transactions/money";
 import { owedByPayer } from "@/lib/transactions/owed";
 
 /** Every kind of item the Review screen lists, in its section order. */
@@ -33,11 +33,7 @@ export async function readUnassigned(): Promise<Cents> {
     listRetiredAccounts(),
     readAccountMoney(),
   ]);
-  return sumCents(
-    [...accounts, ...retired].map(
-      (account) => money.get(account.id)?.envelopes?.unassigned ?? ZERO_CENTS
-    )
-  );
+  return sumUnassigned([...accounts, ...retired], money);
 }
 
 export async function countLocalReviewItems(): Promise<LocalReviewCounts> {

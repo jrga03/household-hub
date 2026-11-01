@@ -22,8 +22,8 @@ import type { AccountRow } from "@/lib/accounts/projection";
 import type { AllocationRow } from "@/lib/allocations/projection";
 import type { DistributeMode } from "@/lib/budgets/distribute";
 import type { Actor } from "@/lib/commands/accounts";
-import { sumCents, ZERO_CENTS } from "@/lib/currency";
-import type { AccountMoney } from "@/lib/transactions/money";
+import { ZERO_CENTS } from "@/lib/currency";
+import { sumUnassigned, type AccountMoney } from "@/lib/transactions/money";
 import { cn } from "@/lib/utils";
 import { todayLocalDate } from "@/lib/utils/dates";
 import { DistributeMoney } from "./DistributeMoney";
@@ -155,9 +155,7 @@ function UnassignedMoney({
     );
   });
   const listed = [...inUse, ...retiredHoldingMoney];
-  const unassigned = sumCents(
-    listed.map((account) => accountMoney.get(account.id)?.envelopes?.unassigned ?? ZERO_CENTS)
-  );
+  const unassigned = sumUnassigned(listed, accountMoney);
 
   return (
     <div className="space-y-4">
