@@ -253,3 +253,24 @@ export const restoreTransactions = (actor: Actor, transactionIds: string[]) =>
     (transaction) => !transaction.removed,
     (transaction) => restoreTransaction(actor, transaction.id)
   );
+
+/** Paying back an Out-of-pocket expense is marking it cleared (ADR 0012). */
+export const markPaidBack = (actor: Actor, transactionIds: string[]) =>
+  changeEachTransaction(
+    transactionIds,
+    (transaction) => transaction.status === "cleared",
+    async (transaction) => {
+      if (transaction.paidByUserId === null) {
+        throw new Error("Only an out-of-pocket expense can be paid back.");
+      }
+      await setTransactionStatus(actor, transaction.id, "cleared");
+    }
+  );
+
+/** Undoes Mark paid back: the expenses are owed again. */
+export const markOwedAgain = (actor: Actor, transactionIds: string[]) =>
+  changeEachTransaction(
+    transactionIds,
+    (transaction) => transaction.status === "pending",
+    (transaction) => setTransactionStatus(actor, transaction.id, "pending")
+  );

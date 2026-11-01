@@ -105,6 +105,16 @@ describe("rowDisplay", () => {
     expect(rowDisplay(transaction({ status: "pending" }), withPayers).payer).toBeUndefined();
   });
 
+  it("says a paid-back out-of-pocket expense was paid back by the household", () => {
+    const paidBack = transaction({ status: "cleared", paidByUserId: "user-b" });
+
+    expect(rowDisplay(paidBack, names)).toMatchObject({
+      payer: "Paid back by household",
+      detail: "Paid back by household · Groceries · BPI",
+    });
+    expect(rowDisplay(transaction({ status: "cleared" }), names).payer).toBeUndefined();
+  });
+
   it("says when an account or category isn't on this device yet", () => {
     const row = transaction({ accountId: "elsewhere", categoryId: "unknown" });
     expect(rowDisplay(row, names).detail).toBe(

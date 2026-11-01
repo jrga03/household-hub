@@ -11,6 +11,8 @@ import {
   addTransaction,
   changeTransactionsCategory,
   editTransaction,
+  markOwedAgain,
+  markPaidBack,
   removeTransaction,
   removeTransactions,
   restoreTransaction,
@@ -610,5 +612,30 @@ describe("bulk actions", () => {
     expect(await listTransactions()).toHaveLength(3);
     expect(await eventsOf("transaction.removed")).toHaveLength(2);
     expect(await eventsOf("transaction.restored")).toHaveLength(2);
+  });
+
+  it("marks out-of-pocket expenses paid back and owed again, refusing other expenses", async () => {
+    const outOfPocket = (description: string) =>
+      addTransaction(MEMBER, { ...expense({ description }), paidByUserId: MEMBER.userId });
+    const ids = [(await outOfPocket("Market")).id, (await outOfPocket("Bakery")).id];
+    const { id: ordinary } = await addTransaction(MEMBER, { ...expense(), status: "pending" });
+
+    expect(await markPaidBack(MEMBER, [...ids, ordinary])).toEqual({
+      changed: ids,
+      failed: [{ id: ordinary, reason: "Only an out-of-pocket expense can be paid back." }],
+    });
+    const statusOf = async () =>
+      new Map((await listTransactions()).map((row) => [row.id, row.status]));
+    expect(await statusOf()).toEqual(
+      new Map([
+        [ids[0], "cleared"],
+        [ids[1], "cleared"],
+        [ordinary, "pending"],
+      ])
+    );
+    expect((await readAccountMoney()).get(bankId)).toMatchObject({ cleared: peso("500") });
+
+    expect(await markOwedAgain(MEMBER, ids)).toEqual({ changed: ids, failed: [] });
+    expect([...(await statusOf()).values()]).toEqual(["pending", "pending", "pending"]);
   });
 });

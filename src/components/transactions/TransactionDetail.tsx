@@ -64,7 +64,7 @@ export function TransactionDetail({
               {display.payer ?? "Pending"}
             </StatusBadge>
           ) : (
-            "Cleared"
+            (display.payer ?? "Cleared")
           )}
         </Fact>
       </Facts>

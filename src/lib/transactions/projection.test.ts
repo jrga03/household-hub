@@ -222,6 +222,18 @@ describe("payer", () => {
     }
   );
 
+  // One device marks it owed again while another, later, marks it paid back.
+  const paidBack = transactionEvent("e-paid-back", "transaction.marked_cleared", 5000);
+
+  it.each(orders([outOfPocketCreate, pending, paidBack]))(
+    "keeps the later of two devices' status changes in the order %j",
+    async (_ids, order) => {
+      for (const event of order) await receiveEvents([event], 0);
+
+      expect(await listTransactions()).toMatchObject([{ status: "cleared", paidByUserId: PAYER }]);
+    }
+  );
+
   it.each([
     ["v1", 1, {}],
     ["v2", 2, { payingAccountId: null }],
