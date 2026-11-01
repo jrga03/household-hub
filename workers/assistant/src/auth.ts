@@ -114,3 +114,27 @@ export async function verifyAccessToken(token: string, options: VerifyOptions): 
     return false;
   }
 }
+
+interface HouseholdCheckOptions {
+  supabaseUrl: string;
+  /** The project's public anon key; the API gateway refuses a request without one. */
+  apiKey: string;
+  fetchFn: typeof fetch;
+}
+
+/** Fails closed: a Supabase error counts as no household. */
+export async function hasHousehold(
+  token: string,
+  { supabaseUrl, apiKey, fetchFn }: HouseholdCheckOptions
+): Promise<boolean> {
+  try {
+    const response = await fetchFn(`${supabaseUrl}/rest/v1/rpc/current_household_id`, {
+      method: "POST",
+      headers: { apikey: apiKey, authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return false;
+    return typeof (await response.json()) === "string";
+  } catch {
+    return false;
+  }
+}

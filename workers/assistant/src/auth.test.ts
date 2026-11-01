@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createKeyLookup, verifyAccessToken } from "./auth";
+import { createKeyLookup, hasHousehold, verifyAccessToken } from "./auth";
 
 const ISSUER = "https://project.supabase.co/auth/v1";
 const NOW_SECONDS = 1_800_000_000;
@@ -154,5 +154,33 @@ describe("createKeyLookup", () => {
     const lookupKey = createKeyLookup(jwksUrl, { fetchFn, nowMs: () => 0 });
 
     expect(await lookupKey("key-1")).toBeUndefined();
+  });
+});
+
+describe("hasHousehold", () => {
+  const SUPABASE_URL = "https://project.supabase.co";
+  const check = (fetchFn: typeof fetch) =>
+    hasHousehold("member-token", { supabaseUrl: SUPABASE_URL, apiKey: "anon-key", fetchFn });
+
+  it("asks Supabase for the caller's household with their token", async () => {
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(Response.json("household-1"));
+
+    expect(await check(fetchFn)).toBe(true);
+    const [url, init] = fetchFn.mock.calls[0] ?? [];
+    expect(url).toBe(`${SUPABASE_URL}/rest/v1/rpc/current_household_id`);
+    expect(new Headers(init?.headers).get("authorization")).toBe("Bearer member-token");
+    expect(new Headers(init?.headers).get("apikey")).toBe("anon-key");
+  });
+
+  it("finds none for a user with no household", async () => {
+    expect(await check(vi.fn<typeof fetch>().mockResolvedValue(Response.json(null)))).toBe(false);
+  });
+
+  it("finds none when Supabase refuses or cannot be reached", async () => {
+    const refused = vi.fn<typeof fetch>().mockResolvedValue(new Response("", { status: 401 }));
+    const unreachable = vi.fn<typeof fetch>().mockRejectedValue(new TypeError("fetch failed"));
+
+    expect(await check(refused)).toBe(false);
+    expect(await check(unreachable)).toBe(false);
   });
 });

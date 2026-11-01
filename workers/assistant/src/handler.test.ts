@@ -4,6 +4,7 @@ import { handleRequest, MODEL, type AiBinding } from "./handler";
 const APP_ORIGIN = "https://app.example.com";
 const ALLOWED_ORIGINS = `${APP_ORIGIN},http://localhost:3000`;
 const VALID_TOKEN = "valid-token";
+const NO_HOUSEHOLD_TOKEN = "no-household-token";
 
 const sseStream = () =>
   new ReadableStream({
@@ -32,7 +33,8 @@ function setup(
   const sleep = vi.fn<(ms: number) => Promise<void>>().mockResolvedValue(undefined);
   const clock = { nowMs: Date.UTC(2026, 9, 15, 13, 30) };
   const deps = {
-    authorize: async (token: string) => token === VALID_TOKEN,
+    authorize: async (token: string) => token === VALID_TOKEN || token === NO_HOUSEHOLD_TOKEN,
+    isMember: vi.fn(async (token: string) => token === VALID_TOKEN),
     sleep,
     nowMs: () => clock.nowMs,
     fetch: groq,
@@ -40,7 +42,7 @@ function setup(
   };
   const env = { AI: ai, ALLOWED_ORIGINS, GROQ_API_KEY: groqApiKey };
   const send = (request: Request) => handleRequest(request, env, deps);
-  return { ai, sleep, send, groq, clock };
+  return { ai, sleep, send, groq, clock, isMember: deps.isMember };
 }
 
 function chatRequest({
@@ -102,6 +104,42 @@ describe("handleRequest", () => {
     expect(invalid.status).toBe(401);
     expect(invalid.headers.get("access-control-allow-origin")).toBe(APP_ORIGIN);
     expect(ai.run).not.toHaveBeenCalled();
+  });
+
+  it("refuses a signed-in user with no household", async () => {
+    const { ai, send } = setup();
+
+    const response = await send(chatRequest({ token: NO_HOUSEHOLD_TOKEN }));
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: "no_household" });
+    expect(response.headers.get("access-control-allow-origin")).toBe(APP_ORIGIN);
+    expect(ai.run).not.toHaveBeenCalled();
+  });
+
+  it("refuses a body over 64 KB without reading the household", async () => {
+    const { ai, send, isMember } = setup();
+    const content = "x".repeat(64 * 1024);
+
+    const response = await send(chatRequest({ body: { messages: [{ role: "user", content }] } }));
+
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({ error: "too_large" });
+    expect(isMember).not.toHaveBeenCalled();
+    expect(ai.run).not.toHaveBeenCalled();
+  });
+
+  it("refuses more than 40 messages", async () => {
+    const { ai, send } = setup();
+    const message = { role: "user", content: "Hi" };
+
+    const atCap = await send(chatRequest({ body: { messages: Array(40).fill(message) } }));
+    const overCap = await send(chatRequest({ body: { messages: Array(41).fill(message) } }));
+
+    expect(atCap.status).toBe(200);
+    expect(overCap.status).toBe(400);
+    expect(await overCap.json()).toEqual({ error: "too_many_messages" });
+    expect(ai.run).toHaveBeenCalledTimes(1);
   });
 
   it("streams the model's reply for rebuilt messages and the client's tools", async () => {
