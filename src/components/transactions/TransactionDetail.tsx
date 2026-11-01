@@ -61,7 +61,7 @@ export function TransactionDetail({
         <Fact term="Status">
           {pending ? (
             <StatusBadge tone="outline" icon={Info}>
-              Pending
+              {display.payer ?? "Pending"}
             </StatusBadge>
           ) : (
             "Cleared"

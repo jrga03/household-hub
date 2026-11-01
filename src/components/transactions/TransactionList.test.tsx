@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import {
   createMemoryHistory,
@@ -22,6 +22,8 @@ import { TransactionList } from "./TransactionList";
 import { HOUSEHOLD } from "@/test/events";
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
+
+vi.mock("@/hooks/useMemberNames", () => ({ useMemberNames: () => new Map() }));
 
 let shellWidth = 393;
 const observers = new Set<FakeResizeObserver>();
@@ -274,5 +276,31 @@ describe("TransactionList", () => {
     });
     expect(await screen.findByRole("table", { name: "Transactions" })).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Transactions" })).toBeNull();
+  });
+
+  it("names who paid an open out-of-pocket expense, in the list and the table", async () => {
+    await recordMarket();
+    const bpi = (await listTransactions())[0]?.accountId ?? "";
+    await addTransaction(MEMBER, {
+      date: localDate(new Date()),
+      type: "expense",
+      amountCents: parsePHP("300"),
+      accountId: bpi,
+      categoryId: null,
+      description: "Rice",
+      paidByUserId: MEMBER.userId,
+    });
+    renderTransactions("/transactions");
+
+    const list = await screen.findByRole("list", { name: "Transactions" });
+    await waitFor(() => expect(within(list).getByText(/Paid by you/)).toBeInTheDocument());
+    expect(within(list).getAllByText(/Paid by/)).toHaveLength(1);
+
+    shellWidth = 1100;
+    act(() => {
+      for (const observer of observers) observer.notify();
+    });
+    const table = await screen.findByRole("table", { name: "Transactions" });
+    expect(within(table).getByText("Paid by you")).toBeInTheDocument();
   });
 });

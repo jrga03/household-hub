@@ -17,6 +17,7 @@ import { SubmitButton } from "@/components/app/SubmitButton";
 import { Textarea } from "@/components/app/Textarea";
 import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
+import { canBeOutOfPocket } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { CategoryList } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
@@ -47,9 +48,11 @@ import {
   hasFieldProblems,
   NO_PROBLEMS,
   readEntryBasics,
+  OUT_OF_POCKET,
   StatusChoice,
   useFocusNewEntry,
   type EntryProblems,
+  type StatusChoiceValue,
 } from "./EntryFields";
 import { categoryChoices, CategorySelect, isCategoryChoice, UNASSIGNED } from "./CategorySelect";
 import { removeWithUndo } from "./removeWithUndo";
@@ -171,15 +174,15 @@ function NewEntryForm({
 }
 
 type ReadForm =
-  | { input: TransactionInput; status: TransactionStatus; problems: null }
-  | { input: null; status: null; problems: EntryProblems };
+  | { input: TransactionInput; status: TransactionStatus; outOfPocket: boolean; problems: null }
+  | { input: null; status: null; outOfPocket: null; problems: EntryProblems };
 
 function readTransactionForm(formData: FormData): ReadForm {
   const { amountCents, date, fields } = readEntryBasics(formData);
   const description = String(formData.get("description") ?? "");
   if (description.trim() === "") fields.description = "Add a description.";
   if (hasFieldProblems(fields)) {
-    return { input: null, status: null, problems: { fields, form: null } };
+    return { input: null, status: null, outOfPocket: null, problems: { fields, form: null } };
   }
   const categoryId = String(formData.get("categoryId") ?? UNASSIGNED);
   const status = formData.get("status");
@@ -193,7 +196,8 @@ function readTransactionForm(formData: FormData): ReadForm {
       description,
       notes: String(formData.get("notes") ?? ""),
     },
-    status: isTransactionStatus(status) ? status : "cleared",
+    status: status === OUT_OF_POCKET ? "pending" : isTransactionStatus(status) ? status : "cleared",
+    outOfPocket: status === OUT_OF_POCKET,
     problems: null,
   };
 }
@@ -223,7 +227,7 @@ function TransactionForm({
   const lastAccount = accounts.find((account) => account.id === lastUsed.accountId);
   const [type, setType] = useState<TransactionType>(transaction?.type ?? initialType);
   const [amount, setAmount] = useState(transaction?.amountCents ?? draftAmount);
-  const [statusChoice, setStatusChoice] = useState<TransactionStatus>(
+  const [statusChoice, setStatusChoice] = useState<StatusChoiceValue>(
     transaction?.status ?? "cleared"
   );
   const amountRef = useRef<HTMLInputElement>(null);
@@ -232,6 +236,9 @@ function TransactionForm({
     transaction?.accountId ?? lastAccount?.id ?? accounts[0]?.id ?? ""
   );
   const account = accounts.find((choice) => choice.id === accountId);
+  const offerOutOfPocket =
+    !transaction && type === "expense" && account !== undefined && canBeOutOfPocket(account);
+  if (statusChoice === OUT_OF_POCKET && !offerOutOfPocket) setStatusChoice("pending");
   const choices = categoryChoices(categories, account, transaction?.categoryId ?? null);
   const isChoice = (id: string | null) => isCategoryChoice(choices, id);
   const [categoryId, setCategoryId] = useState(() => {
@@ -249,7 +256,7 @@ function TransactionForm({
 
   const [problems, saveAction] = useActionState(
     async (_previous: EntryProblems, formData: FormData) => {
-      const { input, status, problems: readProblems } = readTransactionForm(formData);
+      const { input, status, outOfPocket, problems: readProblems } = readTransactionForm(formData);
       if (readProblems !== null) return readProblems;
       try {
         if (transaction) {
@@ -259,7 +266,11 @@ function TransactionForm({
           }
           toast.success("Transaction saved");
         } else {
-          await addTransaction(actor, { ...input, status });
+          await addTransaction(actor, {
+            ...input,
+            status,
+            paidByUserId: outOfPocket ? actor.userId : null,
+          });
           setLastUsed({ accountId: input.accountId, categoryId: input.categoryId });
           // Income into Unassigned is a payday: offer to split it across the budgets.
           const distribute =
@@ -382,7 +393,11 @@ function TransactionForm({
         />
       </Field>
 
-      <StatusChoice value={statusChoice} onChange={setStatusChoice} />
+      <StatusChoice
+        value={statusChoice}
+        onChange={setStatusChoice}
+        withOutOfPocket={offerOutOfPocket}
+      />
 
       <FormError>{problems.form}</FormError>
       <FormFooter destructive={transaction && { label: "Remove", onClick: () => void remove() }}>

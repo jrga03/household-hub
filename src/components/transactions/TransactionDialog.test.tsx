@@ -120,4 +120,69 @@ describe("TransactionEditor", () => {
       status: "pending",
     });
   });
+
+  describe("Out-of-pocket", () => {
+    const outOfPocket = () => screen.queryByRole("radio", { name: "Out-of-pocket" });
+
+    async function chooseAccount(name: string) {
+      fireEvent.keyDown(await screen.findByLabelText("Account"), { key: "Enter" });
+      fireEvent.keyDown(await screen.findByRole("option", { name }), { key: "Enter" });
+    }
+
+    it("records an expense on a Household account as pending, paid by the member", async () => {
+      await createAccount(MEMBER, {
+        name: "BPI",
+        type: "bank",
+        startingBalanceCents: parsePHP("0"),
+      });
+      const onClose = vi.fn();
+      renderEditor(onClose);
+
+      fireEvent.change(await screen.findByLabelText(/Amount/), { target: { value: "300" } });
+      fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Groceries" } });
+      fireEvent.click(await screen.findByRole("radio", { name: "Out-of-pocket" }));
+      fireEvent.click(screen.getByRole("button", { name: "Add transaction" }));
+
+      await waitFor(() => expect(onClose).toHaveBeenCalled());
+      expect(await listTransactions()).toMatchObject([
+        { status: "pending", paidByUserId: MEMBER.userId },
+      ]);
+    });
+
+    it("drops back to Pending on a card, a Personal account or income", async () => {
+      const bpi = await createAccount(MEMBER, {
+        name: "BPI",
+        type: "bank",
+        startingBalanceCents: parsePHP("0"),
+      });
+      await createAccount(MEMBER, {
+        name: "Visa",
+        type: "credit_card",
+        startingBalanceCents: parsePHP("0"),
+        payingAccountId: bpi.id,
+      });
+      await createAccount(MEMBER, {
+        name: "Wallet",
+        type: "cash",
+        startingBalanceCents: parsePHP("0"),
+        visibility: "personal",
+      });
+      renderEditor(vi.fn());
+
+      for (const leaveEligible of [
+        () => chooseAccount("Visa"),
+        () => chooseAccount("Wallet (Personal)"),
+        async () => fireEvent.click(screen.getByRole("radio", { name: "Income" })),
+      ]) {
+        await chooseAccount("BPI");
+        fireEvent.click(screen.getByRole("radio", { name: "Expense" }));
+        fireEvent.click(await screen.findByRole("radio", { name: "Out-of-pocket" }));
+
+        await leaveEligible();
+
+        await waitFor(() => expect(outOfPocket()).toBeNull());
+        expect(screen.getByRole("radio", { name: "Pending" })).toBeChecked();
+      }
+    });
+  });
 });

@@ -121,18 +121,29 @@ export function DirectionChoice({
   );
 }
 
+export const OUT_OF_POCKET = "out-of-pocket";
+/** A status, or Out-of-pocket: pending, paid by the member recording it (ADR 0012). */
+export type StatusChoiceValue = TransactionStatus | typeof OUT_OF_POCKET;
+
 const STATUSES = [
   { value: "cleared", label: "Cleared" },
   { value: "pending", label: "Pending" },
-] as const satisfies readonly { value: TransactionStatus; label: string }[];
+] as const satisfies readonly { value: StatusChoiceValue; label: string }[];
 
-/** Cleared or Pending, submitted as `status`. */
+const STATUSES_WITH_OUT_OF_POCKET = [
+  ...STATUSES,
+  { value: OUT_OF_POCKET, label: "Out-of-pocket" },
+] as const satisfies readonly { value: StatusChoiceValue; label: string }[];
+
+/** Cleared or Pending, and Out-of-pocket where it's offered, submitted as `status`. */
 export function StatusChoice({
   value,
   onChange,
+  withOutOfPocket = false,
 }: {
-  value: TransactionStatus;
-  onChange: (status: TransactionStatus) => void;
+  value: StatusChoiceValue;
+  onChange: (status: StatusChoiceValue) => void;
+  withOutOfPocket?: boolean;
 }) {
   return (
     <div className="space-y-2">
@@ -141,12 +152,12 @@ export function StatusChoice({
         Status
       </p>
       <input type="hidden" name="status" value={value} />
-      <SegmentedControl<TransactionStatus>
+      <SegmentedControl<StatusChoiceValue>
         label="Status"
-        options={STATUSES}
+        options={withOutOfPocket ? STATUSES_WITH_OUT_OF_POCKET : STATUSES}
         value={value}
         onChange={onChange}
-        className="grid w-full grid-cols-2"
+        className={cn("grid w-full", withOutOfPocket ? "grid-cols-3" : "grid-cols-2")}
       />
     </div>
   );

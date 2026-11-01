@@ -56,6 +56,7 @@ import {
   hasFieldProblems,
   NO_PROBLEMS,
   readEntryBasics,
+  OUT_OF_POCKET,
   StatusChoice,
   useFocusNewEntry,
   type EntryProblems,
@@ -441,7 +442,10 @@ export function TransferForm({
         />
       </Field>
 
-      <StatusChoice value={statusChoice} onChange={setStatusChoice} />
+      <StatusChoice
+        value={statusChoice}
+        onChange={(status) => status !== OUT_OF_POCKET && setStatusChoice(status)}
+      />
 
       <FormError>{problems.form}</FormError>
       <FormFooter destructive={transfer && { label: "Remove", onClick: () => void remove() }}>
