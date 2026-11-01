@@ -1,5 +1,5 @@
 import { listAccounts, listRetiredAccounts } from "@/lib/accounts/projection";
-import { absCents, formatPHP, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
+import { sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import { needsCategory } from "@/lib/transactions/filter";
 import { readAccountMoney } from "@/lib/transactions/money";
@@ -39,11 +39,6 @@ export async function readUnassigned(): Promise<Cents> {
     )
   );
 }
-
-export const unassignedSentence = (unassigned: Cents) =>
-  unassigned < 0
-    ? `${formatPHP(absCents(unassigned))} more assigned than you have`
-    : `${formatPHP(unassigned)} waits to be assigned`;
 
 export async function countLocalReviewItems(): Promise<LocalReviewCounts> {
   const [uncategorized, owed, drafts, unassigned] = await Promise.all([

@@ -8,13 +8,7 @@ import { createAccount, retireAccount } from "@/lib/commands/accounts";
 import { addAllocation } from "@/lib/commands/allocations";
 import { createCategory, createGroup } from "@/lib/commands/categories";
 import { HOUSEHOLD } from "@/test/events";
-import {
-  countLocalReviewItems,
-  readOwed,
-  readUnassigned,
-  totalReviewItems,
-  unassignedSentence,
-} from "./count";
+import { countLocalReviewItems, readOwed, readUnassigned, totalReviewItems } from "./count";
 
 const BANK = "aaaaaaaa-0000-4000-8000-000000000001";
 const GROCERIES = "cccccccc-0000-4000-8000-000000000001";
@@ -201,15 +195,8 @@ describe("Unassigned money", () => {
       amountCents: parsePHP("200"),
     });
 
-    expect(await readUnassigned()).toBe(-parsePHP("200"));
+    expect(await readUnassigned()).toBe(negateCents(parsePHP("200")));
     expect((await countLocalReviewItems()).unassigned).toBe(1);
-  });
-
-  it("says how much waits, or how much is over-assigned", () => {
-    expect(unassignedSentence(parsePHP("5000"))).toBe("₱5,000.00 waits to be assigned");
-    expect(unassignedSentence(negateCents(parsePHP("200")))).toBe(
-      "₱200.00 more assigned than you have"
-    );
   });
 });
 

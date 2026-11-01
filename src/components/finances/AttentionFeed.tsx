@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import type { LinkOptions } from "@tanstack/react-router";
-import { useLiveQuery } from "dexie-react-hooks";
 import {
   ChevronRight,
   CircleAlert,
@@ -16,7 +15,8 @@ import { Money } from "@/components/app/Money";
 import { SectionHeader } from "@/components/app/SectionHeader";
 import { StatusBadge, type StatusTone } from "@/components/app/StatusBadge";
 import type { AttentionItem } from "@/lib/finances/attention";
-import { readUnassigned, unassignedSentence, type ReviewKind } from "@/lib/review/count";
+import { UnassignedSentence } from "@/components/review/UnassignedSentence";
+import type { ReviewKind } from "@/lib/review/count";
 import { cn, countOf } from "@/lib/utils";
 
 interface FeedRow {
@@ -59,11 +59,6 @@ const REVIEW_COPY: Record<
     link: { to: "/review" },
   },
 };
-
-function UnassignedSentence() {
-  const unassigned = useLiveQuery(readUnassigned, []);
-  return unassigned === undefined ? null : unassignedSentence(unassigned);
-}
 
 function feedRow(item: AttentionItem): FeedRow {
   switch (item.kind) {
