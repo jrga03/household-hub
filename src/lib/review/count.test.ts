@@ -44,10 +44,15 @@ const created = (
 const ANA = "user-ana";
 const BEN = "user-ben";
 
-const outOfPocket = (entityId: string, paidByUserId: string, amountCents: number) => ({
+const outOfPocket = (
+  entityId: string,
+  paidByUserId: string,
+  amountCents: number,
+  type: "expense" | "income" = "expense"
+) => ({
   ...transactionEvent(entityId, "transaction.created", {
     date: "2026-10-12",
-    type: "expense",
+    type,
     amountCents,
     accountId: BANK,
     categoryId: GROCERIES,
@@ -174,6 +179,12 @@ describe("readOwed", () => {
 
     expect((await readOwed()).size).toBe(0);
     expect((await countLocalReviewItems()).payBack).toBe(0);
+  });
+
+  it("owes nothing for an income that names a payer", async () => {
+    await receiveEvents([outOfPocket("t-1", ANA, 100000, "income")], 0);
+
+    expect((await readOwed()).size).toBe(0);
   });
 
   it("owes an expense again once it is marked pending again", async () => {

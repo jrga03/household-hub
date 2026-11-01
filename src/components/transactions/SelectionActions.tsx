@@ -25,6 +25,7 @@ import { removeTransfers, restoreTransfers } from "@/lib/commands/transfers";
 import { removeBalanceCorrections, restoreBalanceCorrections } from "@/lib/commands/corrections";
 import { confirm } from "@/lib/confirm";
 import { isCorrection, isTransaction, isTransfer, type ListRow } from "@/lib/transactions/filter";
+import { isOpenOutOfPocket } from "@/lib/transactions/owed";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import { countOf, errorMessage } from "@/lib/utils";
 
@@ -203,7 +204,7 @@ export function SelectionActions({
   const allOwed =
     selected.length > 0 &&
     transactions.length === selected.length &&
-    transactions.every((row) => row.paidByUserId !== null && row.status === "pending");
+    transactions.every(isOpenOutOfPocket);
 
   const choices = categories ? categoriesFittingAll(categories, transactions, accountsById) : [];
 
