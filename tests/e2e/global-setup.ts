@@ -1,7 +1,11 @@
 import { existsSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { ensureTestUsers, isLocalSupabaseUrl } from "./fixtures/ensure-test-users";
+import {
+  deleteStaleSignUps,
+  ensureTestUsers,
+  isLocalSupabaseUrl,
+} from "./fixtures/ensure-test-users";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 
@@ -71,6 +75,13 @@ async function globalSetup() {
     console.log("[global-setup] .env.test created");
   }
 
+  // Before ensureTestUsers: a deleted household may have held a fixture user.
+  try {
+    await deleteStaleSignUps(creds.apiUrl, creds.serviceRoleKey);
+  } catch (error) {
+    // Leftovers only cost disk space, so a failed cleanup must not block the run.
+    console.warn(`[global-setup] skipped deleting stale E2E sign-ups: ${String(error)}`);
+  }
   await ensureTestUsers(creds.apiUrl, creds.serviceRoleKey);
 }
 

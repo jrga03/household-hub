@@ -179,12 +179,9 @@ test.beforeEach(async ({ page }) => {
 
 ### Cleanup
 
-```typescript
-test.afterEach(async () => {
-  // Clean up test data
-  await deleteTestData();
-});
-```
+Specs that call `signUpNewPerson` leave a fresh `test-<timestamp>-<id>@example.com` person on the local stack, and a spec that fails midway can leave their household or Join Request behind. Global setup deletes these sign-ups when they are more than an hour old (`deleteStaleSignUps` in `fixtures/ensure-test-users.ts`), with their households first, since `households.owner_user_id` does not cascade. Deleting the person cascades their membership and Join Requests. A failed cleanup logs a warning and the run goes on.
+
+Why setup and not teardown: setup runs even after a killed run, and the hour cutoff keeps the sign-ups of a run still going in another worktree on the shared stack. The fixture users (`test@`, `test2@`, `test-no-household@`) are never deleted. CI starts a fresh database, so it needs no cleanup, and pgTAP tests scope their checks to their own fixtures rather than rely on an empty table.
 
 ## Debugging E2E Tests
 
