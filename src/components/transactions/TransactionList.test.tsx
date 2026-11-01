@@ -198,6 +198,33 @@ describe("TransactionList", () => {
     expect(history.location.search).toBe("");
   });
 
+  it("shows whose out-of-pocket expenses the list is narrowed to, and removes only that", async () => {
+    await recordMarket();
+    const history = renderTransactions("/transactions?owedTo=user-a&visibility=household");
+
+    const chip = await screen.findByRole("button", { name: "Paid by you" });
+    expect(chip).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(chip);
+    await waitFor(() => expect(history.location.search).toBe("?visibility=household"));
+    expect(screen.queryByRole("button", { name: /^Paid by/ })).toBeNull();
+  });
+
+  it("names a payer it doesn't know as a member in the chip", async () => {
+    await recordMarket();
+    renderTransactions("/transactions?owedTo=user-gone");
+
+    expect(await screen.findByRole("button", { name: "Paid by a member" })).toBeVisible();
+  });
+
+  it("shows the payer chip in the laptop's filter rail too", async () => {
+    shellWidth = 1100;
+    await recordMarket();
+    renderTransactions("/transactions?owedTo=user-a");
+
+    const rail = await screen.findByRole("search", { name: "Filter transactions" });
+    expect(within(rail).getByRole("button", { name: "Paid by you" })).toBeVisible();
+  });
+
   describe("beside the detail pane", () => {
     beforeEach(() => {
       shellWidth = 1100;

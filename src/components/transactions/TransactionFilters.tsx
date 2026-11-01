@@ -68,6 +68,7 @@ interface TransactionFiltersProps {
   categories: CategoryList | undefined;
   /** A phone's row of chips, or the stacked fields of the laptop's rail. */
   layout: "chips" | "rail";
+  payerName: (userId: string) => string;
 }
 
 export function TransactionFilters({
@@ -77,6 +78,7 @@ export function TransactionFilters({
   accounts,
   categories,
   layout,
+  payerName,
 }: TransactionFiltersProps) {
   // The input keeps its own text: the URL catches up a render later while typing.
   const [query, setQuery] = useState(filter.query ?? "");
@@ -208,6 +210,12 @@ export function TransactionFilters({
       />
     </div>
   );
+  // Set only by a Review link, so it shows only while it narrows the list.
+  const owedTo = filter.owedTo && (
+    <FilterChip pressed onPressedChange={() => mergeFilter({ owedTo: undefined })}>
+      Paid by {payerName(filter.owedTo)}
+    </FilterChip>
+  );
   const clear = isFiltered && (
     <Button variant="ghost" size="sm" className="shrink-0" onClick={() => onChange({})}>
       Clear filters
@@ -236,6 +244,7 @@ export function TransactionFilters({
           >
             Needs a category
           </FilterChip>
+          {owedTo}
           {clear}
         </FilterChips>
       </div>
@@ -280,6 +289,7 @@ export function TransactionFilters({
         />
         <Label htmlFor="filter-needs-category">Needs a category</Label>
       </div>
+      {owedTo && <div className="flex">{owedTo}</div>}
       {clear}
     </div>
   );

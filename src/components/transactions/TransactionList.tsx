@@ -33,6 +33,7 @@ import { SelectionActions } from "./SelectionActions";
 import { rowDisplay, totalKind, useRowNames, type RowDisplay } from "./rowDisplay";
 import { TransactionDetail } from "./TransactionDetail";
 import { TransactionItem } from "./TransactionItem";
+import { useMemberNames } from "@/hooks/useMemberNames";
 import { TransactionFilters } from "./TransactionFilters";
 import { TransactionTable } from "./TransactionTable";
 import type { RevealedAction } from "./useRowGestures";
@@ -69,6 +70,7 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
   const accounts = useAllAccounts();
   const categories = useCategoryList();
   const names = useRowNames(actor);
+  const payerName = useMemberNames(actor.householdId, actor.userId);
   const twoPanes = useTwoPanes();
   const { openId, open, close } = useOpenItem();
   const [selecting, setSelecting] = useState(false);
@@ -153,6 +155,7 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
       accounts={accounts?.list ?? []}
       categories={categories}
       layout={layout}
+      payerName={payerName}
     />
   );
   const noMatch = <EmptyState>No transactions match these filters.</EmptyState>;
