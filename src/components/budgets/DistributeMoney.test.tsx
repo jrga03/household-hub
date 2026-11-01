@@ -245,7 +245,9 @@ describe("DistributeMoney", () => {
     }
 
     async function sendSecondLineTo(name: string) {
-      fireEvent.keyDown(screen.getAllByLabelText("Groceries goes to")[1]!, { key: "Enter" });
+      const accounts = screen.getAllByLabelText("Groceries goes to");
+      expect(accounts).toHaveLength(2);
+      fireEvent.keyDown(accounts[1]!, { key: "Enter" });
       fireEvent.keyDown(await screen.findByRole("option", { name }), { key: "Enter" });
     }
 
@@ -289,12 +291,33 @@ describe("DistributeMoney", () => {
       );
     });
 
+    it('shows the category\'s budget on a repeated line, not "No budget"', async () => {
+      const groceries = await householdCategory("Groceries");
+      const bpi = await householdAccount();
+      await secondHouseholdAccount();
+      await setBudget(MEMBER, {
+        categoryId: groceries.id,
+        fromMonth: "2026-10",
+        amountCents: parsePHP("3000"),
+        accountId: bpi.id,
+      });
+      renderDistribute("income", bpi.id);
+      await screen.findByLabelText("Groceries");
+
+      await addGroceries();
+
+      await waitFor(() => expect(screen.getAllByLabelText("Groceries")).toHaveLength(2));
+      expect(screen.queryByText("No budget")).not.toBeInTheDocument();
+    });
+
     it("flags the second line for the same account, refuses to submit, and clears on a new account", async () => {
       await twoGroceriesLines();
       await sendSecondLineTo("BPI");
 
       const error = await screen.findByText("Already on a line for this account");
-      const [firstAccount, secondAccount] = screen.getAllByLabelText("Groceries goes to");
+      const accounts = screen.getAllByLabelText("Groceries goes to");
+      expect(accounts).toHaveLength(2);
+      const [firstAccount, secondAccount] = accounts;
       expect(secondAccount).toHaveAttribute("aria-invalid", "true");
       expect(secondAccount).toHaveAccessibleDescription("Already on a line for this account");
       expect(firstAccount).not.toHaveAttribute("aria-invalid");

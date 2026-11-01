@@ -227,15 +227,11 @@ const toDraft = (line: DistributeLine): LineDraft => ({
 
 const DUPLICATE_LINE = "Already on a line for this account";
 
-/** A line repeating an earlier line's category and account. */
-const isDuplicate = (lines: LineDraft[], index: number) =>
-  lines
-    .slice(0, index)
-    .some(
-      (earlier) =>
-        earlier.categoryId === lines[index]?.categoryId &&
-        earlier.accountId === lines[index]?.accountId
-    );
+/** The line repeats an earlier line's category and account. */
+const isDuplicate = (earlier: LineDraft[], line: LineDraft) =>
+  earlier.some(
+    (other) => other.categoryId === line.categoryId && other.accountId === line.accountId
+  );
 
 /** An amount past the maximum is null. */
 const lineAmount = (line: LineDraft): Cents | null =>
@@ -269,7 +265,8 @@ function LinesForm({
     setLines((current) =>
       current.map((line) => (line.key === key ? { ...line, ...update } : line))
     );
-  // The new line goes to the first account this category has no line in yet.
+  // The new line goes to the first account this category has no line in yet. A category
+  // added by hand has no budget this month unless a prefilled line already shows it.
   const addLine = (category: CategoryRow) =>
     setLines((current) => {
       const taken = current.filter((line) => line.categoryId === category.id);
@@ -282,7 +279,7 @@ function LinesForm({
           categoryId: category.id,
           accountId: account?.id ?? source.id,
           amountCents: null,
-          budgetCents: null,
+          budgetCents: taken[0]?.budgetCents ?? null,
           fundingAccountRetired: false,
         }),
       ];
@@ -297,7 +294,7 @@ function LinesForm({
       const amountCents = lineAmount(line);
       const name = names.get(line.categoryId) ?? "a category";
       if (amountCents === null) return `Check the amount for ${name}.`;
-      if (isDuplicate(lines, index)) {
+      if (isDuplicate(lines.slice(0, index), line)) {
         return `Two ${name} lines go to the same account. Choose another account for one.`;
       }
       funded.push({ categoryId: line.categoryId, accountId: line.accountId, amountCents });
@@ -331,7 +328,7 @@ function LinesForm({
               line={line}
               name={names.get(line.categoryId) ?? "Category"}
               destinations={destinations}
-              error={isDuplicate(lines, index) ? DUPLICATE_LINE : undefined}
+              error={isDuplicate(lines.slice(0, index), line) ? DUPLICATE_LINE : undefined}
               onChange={(update) => change(line.key, update)}
             />
           ))}
@@ -447,7 +444,7 @@ function DistributeLineRow({
         </Select>
       </div>
       {error && (
-        <p id={errorId} className="text-caption text-destructive @[560px]:text-right">
+        <p id={errorId} className="text-caption text-destructive">
           {error}
         </p>
       )}
