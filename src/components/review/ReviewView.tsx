@@ -14,6 +14,7 @@ import { useMemberNames } from "@/hooks/useMemberNames";
 import { useReviewCounts } from "@/hooks/useReviewCount";
 import { UnassignedSentence } from "./UnassignedSentence";
 import { readOwed, REVIEW_KINDS, totalReviewItems, type ReviewKind } from "@/lib/review/count";
+import type { Cents } from "@/lib/currency";
 import { countOf } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -32,7 +33,7 @@ export function ReviewView() {
           const count = counts[kind];
           if (count === 0) return null;
           const Section = SECTIONS[kind];
-          return <Section key={kind} count={count} />;
+          return <Section key={kind} count={count} unassigned={counts.unassignedCents} />;
         })
       )}
       {joinRequestsUnread && <Notice>Join requests show when you&apos;re online.</Notice>}
@@ -47,7 +48,12 @@ function useJoinRequestsUnread() {
   return isOwner && data === undefined && (isError || fetchStatus === "paused");
 }
 
-const SECTIONS: Record<ReviewKind, (props: { count: number }) => ReactNode> = {
+interface SectionProps {
+  count: number;
+  unassigned: Cents;
+}
+
+const SECTIONS: Record<ReviewKind, (props: SectionProps) => ReactNode> = {
   uncategorized: UncategorizedSection,
   payBack: PayBackSection,
   drafts: DraftsSection,
@@ -141,12 +147,12 @@ function DraftsSection({ count }: { count: number }) {
   );
 }
 
-function UnassignedSection({ count }: { count: number }) {
+function UnassignedSection({ count, unassigned }: SectionProps) {
   return (
     <ReviewSection title="Unassigned money" count={count}>
       <ReviewLinkRow
         label="Assign money"
-        detail={<UnassignedSentence />}
+        detail={<UnassignedSentence unassigned={unassigned} />}
         link={{ to: "/assign-money" }}
       />
     </ReviewSection>

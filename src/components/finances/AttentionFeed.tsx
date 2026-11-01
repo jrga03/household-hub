@@ -30,8 +30,8 @@ interface FeedRow {
 }
 
 const REVIEW_COPY: Record<
-  ReviewKind,
-  { sentence: (count: number) => ReactNode; detail: string; link: LinkOptions }
+  Exclude<ReviewKind, "unassigned">,
+  { sentence: (count: number) => string; detail: string; link: LinkOptions }
 > = {
   uncategorized: {
     sentence: (count) => `${countOf(count, "expense needs", "expenses need")} a category`,
@@ -47,11 +47,6 @@ const REVIEW_COPY: Record<
     sentence: (count) => countOf(count, "imported draft waits", "imported drafts wait"),
     detail: "Check and save them on Import",
     link: { to: "/import" },
-  },
-  unassigned: {
-    sentence: () => <UnassignedSentence />,
-    detail: "Give it a category on Assign money",
-    link: { to: "/assign-money" },
   },
   joinRequests: {
     sentence: (count) => countOf(count, "join request waits", "join requests wait"),
@@ -115,6 +110,16 @@ function feedRow(item: AttentionItem): FeedRow {
           </>
         ),
         badge: BUDGET_STATUS_STYLE.close.badge,
+      };
+    case "unassigned":
+      return {
+        key: "review-unassigned",
+        link: { to: "/assign-money" },
+        icon: ClipboardCheck,
+        iconClass: "text-muted-foreground",
+        sentence: <UnassignedSentence unassigned={item.cents} />,
+        detail: "Give it a category on Assign money",
+        badge: { tone: "neutral", text: "Review" },
       };
     case "review": {
       const { sentence, detail, link } = REVIEW_COPY[item.review];

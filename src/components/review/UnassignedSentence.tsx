@@ -1,12 +1,8 @@
-import { useLiveQuery } from "dexie-react-hooks";
 import { Money } from "@/components/app/Money";
-import { absCents } from "@/lib/currency";
-import { readUnassigned } from "@/lib/review/count";
+import { absCents, type Cents } from "@/lib/currency";
 
-/** Review's and Home's sentence for Unassigned money; nothing while it loads. */
-export function UnassignedSentence() {
-  const unassigned = useLiveQuery(readUnassigned, []);
-  if (unassigned === undefined) return null;
+/** Review's and Home's sentence for Unassigned money. */
+export function UnassignedSentence({ unassigned }: { unassigned: Cents }) {
   if (unassigned >= 0) {
     return (
       <>

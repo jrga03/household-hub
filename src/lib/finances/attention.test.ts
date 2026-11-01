@@ -22,6 +22,7 @@ const NOTHING_TO_REVIEW = {
   drafts: 0,
   unassigned: 0,
   joinRequests: 0,
+  unassignedCents: ZERO_CENTS,
 };
 
 const feed = (input: Partial<AttentionInput>) =>
@@ -30,7 +31,14 @@ const feed = (input: Partial<AttentionInput>) =>
 describe("attentionFeed", () => {
   it("lists over budget, then negative balances, then close budgets, then review items", () => {
     const items = feed({
-      review: { uncategorized: 3, payBack: 0, drafts: 0, unassigned: 0, joinRequests: 0 },
+      review: {
+        uncategorized: 3,
+        payBack: 0,
+        drafts: 0,
+        unassigned: 0,
+        joinRequests: 0,
+        unassignedCents: ZERO_CENTS,
+      },
       balances: [account("Metrobank Payroll", negateCents(peso("1200")))],
       budgets: [budget("Groceries", "8000", "7000"), budget("Dining out", "3000", "4230")],
     });
@@ -88,10 +96,19 @@ describe("attentionFeed", () => {
         account("Wallet", negateCents(peso("50"))),
         account("BPI", negateCents(peso("900"))),
       ],
-      review: { uncategorized: 1, payBack: 2, drafts: 2, unassigned: 0, joinRequests: 1 },
+      review: {
+        uncategorized: 1,
+        payBack: 2,
+        drafts: 2,
+        unassigned: 0,
+        joinRequests: 1,
+        unassignedCents: ZERO_CENTS,
+      },
     });
 
-    expect(items.map((item) => ("name" in item ? item.name : item.review))).toEqual([
+    expect(
+      items.map((item) => ("review" in item ? item.review : "name" in item ? item.name : item.kind))
+    ).toEqual([
       "Dining out",
       "Fuel",
       "BPI",
@@ -107,7 +124,28 @@ describe("attentionFeed", () => {
 
   it("lists review items only while their count is above zero", () => {
     expect(
-      feed({ review: { uncategorized: 0, payBack: 0, drafts: 4, unassigned: 0, joinRequests: 0 } })
+      feed({
+        review: {
+          uncategorized: 0,
+          payBack: 0,
+          drafts: 4,
+          unassigned: 0,
+          joinRequests: 0,
+          unassignedCents: ZERO_CENTS,
+        },
+      })
     ).toEqual([{ kind: "review", review: "drafts", count: 4 }]);
+  });
+
+  it("lists Unassigned money as one item carrying its total", () => {
+    expect(
+      feed({
+        review: {
+          ...NOTHING_TO_REVIEW,
+          unassigned: 1,
+          unassignedCents: negateCents(parsePHP("200")),
+        },
+      })
+    ).toEqual([{ kind: "unassigned", cents: negateCents(parsePHP("200")) }]);
   });
 });

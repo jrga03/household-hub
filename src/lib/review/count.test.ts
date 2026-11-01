@@ -90,6 +90,7 @@ describe("countLocalReviewItems", () => {
       payBack: 0,
       drafts: 0,
       unassigned: 0,
+      unassignedCents: 0,
     });
   });
 
@@ -172,8 +173,10 @@ describe("Unassigned money", () => {
     await account("GCash", "e_wallet", "2000");
     await account("Visa", "credit_card", "700", bpi.id);
 
-    expect(await readUnassigned()).toBe(parsePHP("5000"));
-    expect((await countLocalReviewItems()).unassigned).toBe(1);
+    expect(await countLocalReviewItems()).toMatchObject({
+      unassigned: 1,
+      unassignedCents: parsePHP("5000"),
+    });
   });
 
   it("counts a retired account still holding money", async () => {
@@ -203,7 +206,14 @@ describe("Unassigned money", () => {
 describe("totalReviewItems", () => {
   it("adds up every kind", () => {
     expect(
-      totalReviewItems({ uncategorized: 2, payBack: 2, drafts: 3, joinRequests: 1, unassigned: 1 })
+      totalReviewItems({
+        uncategorized: 2,
+        payBack: 2,
+        drafts: 3,
+        joinRequests: 1,
+        unassigned: 1,
+        unassignedCents: parsePHP("5000"),
+      })
     ).toBe(9);
   });
 });

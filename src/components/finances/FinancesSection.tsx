@@ -18,7 +18,7 @@ import { useFinanceOverview } from "@/hooks/useFinanceOverview";
 import { useReviewCounts } from "@/hooks/useReviewCount";
 import { isCreditCard } from "@/lib/accounts/events";
 import type { Actor } from "@/lib/commands/accounts";
-import type { Cents } from "@/lib/currency";
+import { ZERO_CENTS, type Cents } from "@/lib/currency";
 import { attentionFeed } from "@/lib/finances/attention";
 import type { BudgetStatusCounts, FinanceOverview } from "@/lib/finances/overview";
 import { readFinanceView, rememberFinanceView, type FinanceView } from "@/lib/finances/view";
@@ -39,6 +39,7 @@ const NOTHING_TO_REVIEW = {
   drafts: 0,
   unassigned: 0,
   joinRequests: 0,
+  unassignedCents: ZERO_CENTS,
 };
 
 /**

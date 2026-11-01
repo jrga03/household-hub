@@ -14,7 +14,10 @@ export const REVIEW_KINDS = [
   "joinRequests",
 ] as const;
 export type ReviewKind = (typeof REVIEW_KINDS)[number];
-export type ReviewCounts = Record<ReviewKind, number>;
+export type ReviewCounts = Record<ReviewKind, number> & {
+  /** The total behind the one `unassigned` item. */
+  unassignedCents: Cents;
+};
 
 /** The kinds this device can count without a connection. */
 export type LocalReviewCounts = Omit<ReviewCounts, "joinRequests">;
@@ -45,7 +48,13 @@ export async function countLocalReviewItems(): Promise<LocalReviewCounts> {
     db.drafts.count(),
     readUnassigned(),
   ]);
-  return { uncategorized, payBack: owed.size, drafts, unassigned: unassigned === 0 ? 0 : 1 };
+  return {
+    uncategorized,
+    payBack: owed.size,
+    drafts,
+    unassigned: unassigned === 0 ? 0 : 1,
+    unassignedCents: unassigned,
+  };
 }
 
 export const totalReviewItems = (counts: ReviewCounts) =>
