@@ -1,6 +1,7 @@
+import { holdsAnotherMembersData } from "@/lib/events/log";
 import { db } from "./db";
 
-/** Deletes every local table and reopens an empty database (sign-out). */
+/** Deletes every local table and reopens an empty database. */
 export async function resetLocalDatabase(): Promise<void> {
   await db.delete();
   await db.open();
@@ -17,7 +18,9 @@ export function claimLocalData(userId: string): Promise<void> {
   const claim = claiming.then(async () => {
     const owner = (await db.meta.get("userId"))?.value;
     if (owner === userId) return;
-    if (owner !== undefined) await resetLocalDatabase();
+    if (owner !== undefined || (await holdsAnotherMembersData(userId))) {
+      await resetLocalDatabase();
+    }
     await db.meta.put({ key: "userId", value: userId });
   });
   claiming = claim.catch(() => undefined);

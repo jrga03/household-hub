@@ -75,6 +75,22 @@ describe("authStore", () => {
     });
   });
 
+  /**
+   * Runs initialize() and returns the onAuthStateChange callback the store
+   * registered, so tests can fire auth events directly.
+   */
+  async function initializeAndGetAuthCallback() {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    } as never);
+
+    await useAuthStore.getState().initialize();
+
+    const calls = vi.mocked(supabase.auth.onAuthStateChange).mock.calls;
+    return calls.at(-1)![0];
+  }
+
   describe("initial state", () => {
     it("has correct defaults", () => {
       const state = useAuthStore.getState();
@@ -295,22 +311,6 @@ describe("authStore", () => {
   });
 
   describe("session expiry UX (review C2)", () => {
-    /**
-     * Runs initialize() and returns the onAuthStateChange callback the store
-     * registered, so tests can fire auth events directly.
-     */
-    async function initializeAndGetAuthCallback() {
-      vi.mocked(supabase.auth.getSession).mockResolvedValue({
-        data: { session: null },
-        error: null,
-      } as never);
-
-      await useAuthStore.getState().initialize();
-
-      const calls = vi.mocked(supabase.auth.onAuthStateChange).mock.calls;
-      return calls.at(-1)![0];
-    }
-
     it("purges the query cache, toasts, and navigates to /login on a real signed-out transition", async () => {
       const authCallback = await initializeAndGetAuthCallback();
       useAuthStore.setState({ user: mockUser, session: mockSession });
@@ -442,12 +442,7 @@ describe("authStore", () => {
     });
 
     it("switches to a different member only after claiming the local data", async () => {
-      vi.mocked(supabase.auth.getSession).mockResolvedValue({
-        data: { session: null },
-        error: null,
-      } as never);
-      await useAuthStore.getState().initialize();
-      const authCallback = vi.mocked(supabase.auth.onAuthStateChange).mock.calls.at(-1)![0];
+      const authCallback = await initializeAndGetAuthCallback();
       useAuthStore.setState({ user: mockUser, session: mockSession });
       const userAtClaim = recordUserAtClaim();
       const otherUser = { id: "user-2", email: "other@example.com" } as User;
@@ -457,6 +452,18 @@ describe("authStore", () => {
       expect(useAuthStore.getState().user).toEqual(mockUser);
       await vi.waitFor(() => expect(useAuthStore.getState().user).toEqual(otherUser));
       expect(userAtClaim).toEqual(["user-1"]);
+    });
+
+    it("signs the tab out when the claim for a different member fails", async () => {
+      const authCallback = await initializeAndGetAuthCallback();
+      useAuthStore.setState({ user: mockUser, session: mockSession });
+      vi.mocked(claimLocalData).mockRejectedValue(new Error("IndexedDB blocked"));
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const otherUser = { id: "user-2", email: "other@example.com" } as User;
+
+      void authCallback("SIGNED_IN", { user: otherUser, access_token: "other" } as Session);
+
+      await vi.waitFor(() => expect(useAuthStore.getState().user).toBeNull());
     });
   });
 });

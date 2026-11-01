@@ -118,7 +118,10 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
           if (userId && userId !== useAuthStore.getState().user?.id) {
             claimLocalData(userId).then(
               () => set({ user: session.user, session }),
-              (error: unknown) => console.error("Failed to claim local data:", error)
+              (error: unknown) => {
+                console.error("Failed to claim local data:", error);
+                set({ user: null, session: null });
+              }
             );
             return;
           }

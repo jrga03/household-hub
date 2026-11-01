@@ -75,6 +75,18 @@ async function readClock(): Promise<Hlc> {
 
 const writeClock = (clock: Hlc) => db.meta.put({ key: "clock", value: formatHlc(clock) });
 
+/** Data from before owners were recorded: another member's Personal records or unsent changes. */
+export async function holdsAnotherMembersData(userId: string): Promise<boolean> {
+  const theirs = await db.events
+    .filter(
+      (event) =>
+        (event.ownerUserId !== null && event.ownerUserId !== userId) ||
+        (event.pushState !== "pushed" && event.actorUserId !== userId)
+    )
+    .count();
+  return theirs > 0;
+}
+
 async function readLeftHouseholdIds(): Promise<string[]> {
   const stored = await readMeta("leftHouseholdIds");
   return Array.isArray(stored) ? stored : [];
