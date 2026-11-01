@@ -33,9 +33,12 @@ export async function changeWithUndo({
   return true;
 }
 
-/** A success toast with Undo, up long enough to reach it on a phone. */
+/** Sonner's default 4 seconds is too short to reach Undo on a phone (#304). */
+const UNDO_TOAST_MS = 10_000;
+
+/** A success toast with Undo. */
 export function undoToast(message: string, onUndo: () => void) {
-  toast.success(message, { duration: 10_000, action: { label: "Undo", onClick: onUndo } });
+  toast.success(message, { duration: UNDO_TOAST_MS, action: { label: "Undo", onClick: onUndo } });
 }
 
 /** Deletes a retired record; one with history isn't deleted, and the toast says why. */
