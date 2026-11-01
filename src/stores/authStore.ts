@@ -3,7 +3,7 @@ import { isAuthRetryableFetchError, type User, type Session } from "@supabase/su
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { forgetStoredSession, readStoredSession } from "@/lib/auth-storage";
-import { resetLocalDatabase } from "@/lib/dexie/reset";
+import { claimLocalData, resetLocalDatabase } from "@/lib/dexie/reset";
 import { queryClient } from "@/lib/queryClient";
 import { forgetLastKnownHousehold } from "@/lib/households";
 import { forgetAllStatementPasswords } from "@/lib/import/remembered-passwords";
@@ -95,6 +95,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
         // Offline, getSession() can spend about 26 s retrying an expired token's refresh.
         let session = navigator.onLine ? null : readStoredSession();
         if (!session) session = await loadSession();
+        if (session) await claimLocalData(session.user.id);
         set({
           user: session?.user ?? null,
           session,
@@ -110,6 +111,20 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
           const hadUser = useAuthStore.getState().user !== null;
           // A refresh that failed offline reports no session; only SIGNED_OUT ends one.
           if (!session && event !== "SIGNED_OUT") return;
+
+          // A different member's sign-in (another tab, or a sign-in still in
+          // flight) waits for the claim, so no screen reads the last member's data.
+          const userId = session?.user.id;
+          if (userId && userId !== useAuthStore.getState().user?.id) {
+            claimLocalData(userId).then(
+              () => set({ user: session.user, session }),
+              (error: unknown) => {
+                console.error("Failed to claim local data:", error);
+                set({ user: null, session: null });
+              }
+            );
+            return;
+          }
 
           set({
             user: session?.user ?? null,
@@ -133,7 +148,8 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
           //
           // Local Dexie data is intentionally NOT cleared here: unsynced
           // offline changes must survive an unexpected expiry so they can
-          // sync after re-login. Deliberate sign-out clears it (below).
+          // sync after re-login. Deliberate sign-out clears it (below), and
+          // a different member's sign-in clears it (claimLocalData).
           if (event === "SIGNED_OUT" && hadUser && !deliberateSignOut) {
             queryClient.clear();
             // Statement passwords aren't changes to keep; whoever signs in next may be someone else.
@@ -161,6 +177,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
       });
 
       if (error) throw error;
+      if (data.user) await claimLocalData(data.user.id);
 
       set({
         user: data.user,
@@ -182,6 +199,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
       });
 
       if (error) throw error;
+      await claimLocalData(data.user.id);
 
       set({
         user: data.user,
