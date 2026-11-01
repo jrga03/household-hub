@@ -1,4 +1,4 @@
-import { useEffect, type RefObject } from "react";
+import { useEffect, useId, type RefObject } from "react";
 import { CurrencyInput } from "@/components/app/CurrencyInput";
 import { Field } from "@/components/app/Field";
 import { FULL_ROW } from "@/components/app/FormSheet";
@@ -150,6 +150,7 @@ export function StatusChoice({
   withOutOfPocket?: boolean;
   hint?: string;
 }) {
+  const hintId = useId();
   return (
     <div className="space-y-2">
       {/* The control names itself; this is the visible label. */}
@@ -163,8 +164,13 @@ export function StatusChoice({
         value={value}
         onChange={onChange}
         className={cn("grid w-full", withOutOfPocket ? "grid-cols-3" : "grid-cols-2")}
+        aria-describedby={hint && hintId}
       />
-      {hint && <p className="text-caption text-muted-foreground">{hint}</p>}
+      {hint && (
+        <p id={hintId} className="text-caption text-muted-foreground">
+          {hint}
+        </p>
+      )}
     </div>
   );
 }
