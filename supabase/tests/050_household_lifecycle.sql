@@ -163,7 +163,10 @@ select is_empty(
   $$ select id from public.events where visibility = 'household' and household_id = (select id from household) $$,
   'dissolving deletes the household''s Household events'
 );
-select is_empty($$ select id from public.join_requests $$, 'dissolving clears its join requests');
+select is_empty(
+  $$ select id from public.join_requests where household_id = (select id from household) $$,
+  'dissolving clears its join requests'
+);
 
 select tests.authenticate_as('c');
 select results_eq(
