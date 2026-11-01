@@ -4,7 +4,7 @@ import { receiveEvents } from "@/lib/events/log";
 import { loggedEvent } from "@/test/events";
 import { parsePHP } from "@/lib/currency";
 import { createImport } from "@/lib/import/drafts";
-import { countLocalReviewItems, totalReviewItems } from "./count";
+import { countLocalReviewItems, readOwed, totalReviewItems } from "./count";
 
 const BANK = "aaaaaaaa-0000-4000-8000-000000000001";
 const GROCERIES = "cccccccc-0000-4000-8000-000000000001";
@@ -41,6 +41,26 @@ const created = (
     ...details,
   });
 
+const ANA = "user-ana";
+const BEN = "user-ben";
+
+const outOfPocket = (entityId: string, paidByUserId: string, amountCents: number) => ({
+  ...transactionEvent(entityId, "transaction.created", {
+    date: "2026-10-12",
+    type: "expense",
+    amountCents,
+    accountId: BANK,
+    categoryId: GROCERIES,
+    payingAccountId: null,
+    description: "Groceries",
+    notes: "",
+    status: "pending",
+    importKey: null,
+    paidByUserId,
+  }),
+  eventVersion: 4,
+});
+
 beforeEach(async () => {
   await resetLocalDatabase();
 });
@@ -56,7 +76,7 @@ const statementLine = (description: string) => ({
 
 describe("countLocalReviewItems", () => {
   it("is zero with nothing recorded", async () => {
-    expect(await countLocalReviewItems()).toEqual({ uncategorized: 0, drafts: 0 });
+    expect(await countLocalReviewItems()).toEqual({ uncategorized: 0, payBack: 0, drafts: 0 });
   });
 
   it("counts expenses with no category", async () => {
@@ -85,6 +105,19 @@ describe("countLocalReviewItems", () => {
     expect((await countLocalReviewItems()).uncategorized).toBe(0);
   });
 
+  it("counts one item per member the household owes", async () => {
+    await receiveEvents(
+      [
+        outOfPocket("t-1", ANA, 100000),
+        outOfPocket("t-2", ANA, 200000),
+        outOfPocket("t-3", BEN, 50000),
+      ],
+      0
+    );
+
+    expect((await countLocalReviewItems()).payBack).toBe(2);
+  });
+
   it("counts every open draft, across imports", async () => {
     await createImport({
       formatId: "bdo-credit-card-pdf",
@@ -105,6 +138,54 @@ describe("countLocalReviewItems", () => {
 
 describe("totalReviewItems", () => {
   it("adds up every kind", () => {
-    expect(totalReviewItems({ uncategorized: 2, drafts: 3, joinRequests: 1 })).toBe(6);
+    expect(totalReviewItems({ uncategorized: 2, payBack: 2, drafts: 3, joinRequests: 1 })).toBe(8);
+  });
+});
+
+describe("readOwed", () => {
+  it("totals each payer's open out-of-pocket expenses and counts them", async () => {
+    await receiveEvents(
+      [
+        outOfPocket("t-1", ANA, 100000),
+        outOfPocket("t-2", ANA, 200050),
+        outOfPocket("t-3", BEN, 50000),
+      ],
+      0
+    );
+
+    const owed = await readOwed();
+
+    expect(owed.get(ANA)).toEqual({ totalCents: 300050, count: 2 });
+    expect(owed.get(BEN)).toEqual({ totalCents: 50000, count: 1 });
+  });
+
+  it("leaves out expenses paid back or removed, and pending ones nobody paid for", async () => {
+    await receiveEvents(
+      [
+        outOfPocket("t-1", ANA, 100000),
+        transactionEvent("t-1", "transaction.marked_cleared"),
+        outOfPocket("t-2", BEN, 50000),
+        transactionEvent("t-2", "transaction.removed"),
+        created("t-3", { type: "expense", categoryId: GROCERIES }),
+        transactionEvent("t-3", "transaction.marked_pending"),
+      ],
+      0
+    );
+
+    expect((await readOwed()).size).toBe(0);
+    expect((await countLocalReviewItems()).payBack).toBe(0);
+  });
+
+  it("owes an expense again once it is marked pending again", async () => {
+    await receiveEvents(
+      [
+        outOfPocket("t-1", ANA, 100000),
+        transactionEvent("t-1", "transaction.marked_cleared"),
+        transactionEvent("t-1", "transaction.marked_pending"),
+      ],
+      0
+    );
+
+    expect((await readOwed()).get(ANA)).toEqual({ totalCents: 100000, count: 1 });
   });
 });
