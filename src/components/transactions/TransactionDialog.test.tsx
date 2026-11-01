@@ -56,7 +56,8 @@ describe("TransactionEditor", () => {
     const amount = screen.getByLabelText(/Amount/);
     await waitFor(() => expect(amount).toHaveAttribute("aria-invalid", "true"));
     expect(amount).toHaveAccessibleDescription(/not a valid number/);
-    expect(amount).toHaveFocus();
+    // The focus moves in an effect, after aria-invalid is committed.
+    await waitFor(() => expect(amount).toHaveFocus());
     expect(screen.getByLabelText("Account")).toHaveTextContent("GCash");
     expect(screen.getByLabelText(/Amount/)).toHaveValue("abc");
     expect(screen.getByLabelText("Description")).toHaveValue("Jollibee");
