@@ -5,7 +5,7 @@ import { Button } from "@/components/app/Button";
 import { EmptyState } from "@/components/app/EmptyState";
 import { FormError } from "@/components/app/FormError";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { useVisibleArea } from "@/hooks/useVisibleArea";
+import { useVisibleAreaPart } from "@/hooks/useVisibleArea";
 import { isWaiting, type ChatItem } from "@/lib/assistant/conversation";
 import type { Actor } from "@/lib/commands/accounts";
 import { confirm } from "@/lib/confirm";
@@ -83,9 +83,9 @@ export function AssistantView({ actor }: { actor: Actor }) {
   const { items, replyText, busy, error, limitResetsAt, send } = useAssistantStore();
   const online = useOnlineStatus();
   const [prompt, setPrompt] = useState({ text: "", composerKey: 0 });
-  const { viewportHeight, keyboardHeight } = useVisibleArea();
+  const viewportHeight = useVisibleAreaPart((area) => area.viewportHeight);
   // Not the height itself: a scroll on every change would fight the reader.
-  const keyboardCoversPage = keyboardHeight > 0;
+  const keyboardCoversPage = useVisibleAreaPart((area) => area.keyboardHeight) > 0;
   useEffect(() => {
     // The newest message stays just above the pinned composer, also when the keyboard opens or a notice grows it.
     document.getElementById("main-content")?.scrollIntoView?.({ block: "end" });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 interface VisibleArea {
   /** How far down the page the visible area starts, in px. */
@@ -17,38 +17,41 @@ interface VisibleArea {
  * by as much. Where the browser shrinks the page for the keyboard instead
  * (`interactive-widget=resizes-content`), both stay 0.
  */
+export function readVisibleArea(): VisibleArea {
+  const viewport = window.visualViewport;
+  if (!viewport) {
+    return { top: 0, inset: 0, keyboardHeight: 0, viewportHeight: window.innerHeight };
+  }
+  const covered = Math.round(window.innerHeight - viewport.height - viewport.offsetTop);
+  // A pinch zoom shrinks and moves the visual viewport too; that isn't a keyboard.
+  const zoomed = viewport.scale > 1;
+  const inset = covered > 0 && !zoomed ? covered : 0;
+  const top = zoomed ? 0 : Math.max(0, Math.round(viewport.offsetTop));
+  return { top, inset, keyboardHeight: top + inset, viewportHeight: Math.round(viewport.height) };
+}
+
+/** Calls `onChange` whenever the visible area moves or resizes; returns the unsubscribe. */
+export function subscribeToVisibleArea(onChange: () => void) {
+  const viewport = window.visualViewport;
+  if (!viewport) return () => {};
+  viewport.addEventListener("resize", onChange);
+  viewport.addEventListener("scroll", onChange);
+  return () => {
+    viewport.removeEventListener("resize", onChange);
+    viewport.removeEventListener("scroll", onChange);
+  };
+}
+
+/** Re-renders only when the picked number changes, so a pan doesn't re-render a component that ignores `top`. */
+export function useVisibleAreaPart(pick: (area: VisibleArea) => number): number {
+  return useSyncExternalStore(subscribeToVisibleArea, () => pick(readVisibleArea()));
+}
+
 export function useVisibleArea(): VisibleArea {
-  const [area, setArea] = useState<VisibleArea>(() => ({
-    top: 0,
-    inset: 0,
-    keyboardHeight: 0,
-    viewportHeight: window.visualViewport?.height ?? window.innerHeight,
-  }));
-  useEffect(() => {
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-    const update = () => {
-      const covered = Math.round(window.innerHeight - viewport.height - viewport.offsetTop);
-      // A pinch zoom shrinks and moves the visual viewport too; that isn't a keyboard.
-      const zoomed = viewport.scale > 1;
-      const viewportHeight = Math.round(viewport.height);
-      const inset = covered > 0 && !zoomed ? covered : 0;
-      const top = zoomed ? 0 : Math.max(0, Math.round(viewport.offsetTop));
-      setArea((previous) =>
-        previous.top === top &&
-        previous.inset === inset &&
-        previous.viewportHeight === viewportHeight
-          ? previous
-          : { top, inset, keyboardHeight: top + inset, viewportHeight }
-      );
-    };
-    update();
-    viewport.addEventListener("resize", update);
-    viewport.addEventListener("scroll", update);
-    return () => {
-      viewport.removeEventListener("resize", update);
-      viewport.removeEventListener("scroll", update);
-    };
-  }, []);
-  return area;
+  return {
+    top: useVisibleAreaPart((area) => area.top),
+    inset: useVisibleAreaPart((area) => area.inset),
+    keyboardHeight: useVisibleAreaPart((area) => area.keyboardHeight),
+    viewportHeight: useVisibleAreaPart((area) => area.viewportHeight),
+  };
 }

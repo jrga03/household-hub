@@ -39,10 +39,9 @@ describe("ChatComposer", () => {
     const bar = input().closest("form");
 
     for (const offsetTop of [120, 300]) {
-      act(() => {
-        viewport.offsetTop = offsetTop;
-        viewport.dispatchEvent(new Event("scroll"));
-      });
+      // No act(): the move must land in the scroll event itself, not in a later React render.
+      viewport.offsetTop = offsetTop;
+      viewport.dispatchEvent(new Event("scroll"));
 
       expect(bar?.style.paddingBottom).toBe("calc(300px + 0.5rem)");
       expect(bar?.style.transform).toBe(`translateY(${offsetTop}px)`);
