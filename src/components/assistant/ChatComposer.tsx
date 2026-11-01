@@ -28,7 +28,8 @@ export function ChatComposer({
   onSend: (text: string) => Promise<boolean>;
 }) {
   const [text, setText] = useState(initialText);
-  const { inset } = useVisibleArea();
+  const { top, inset } = useVisibleArea();
+  const keyboard = inset + top;
   const blockedBecause = !online
     ? "The assistant needs a connection. Everything else works offline."
     : limitResetsAt
@@ -47,10 +48,15 @@ export function ChatComposer({
 
   return (
     // Pinned to the screen's bottom edge, above any bottom chrome; the conversation scrolls behind it.
+    // Over an iOS keyboard it reserves the whole keyboard and follows a pan with a transform, so scrolling never resizes the page.
     <form
       onSubmit={submit}
       className="sticky bottom-0 space-y-2 border-t bg-background pt-3 pb-[max(1rem,var(--bottom-chrome))]"
-      style={inset > 0 ? { paddingBottom: `calc(${inset}px + 0.5rem)` } : undefined}
+      style={
+        keyboard > 0
+          ? { paddingBottom: `calc(${keyboard}px + 0.5rem)`, transform: `translateY(${top}px)` }
+          : undefined
+      }
     >
       {blockedBecause && <p className="text-body text-muted-foreground">{blockedBecause}</p>}
       <div className="flex gap-2">

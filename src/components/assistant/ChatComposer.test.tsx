@@ -31,6 +31,24 @@ describe("ChatComposer", () => {
     expect(bar?.style.paddingBottom).toBe("calc(300px + 0.5rem)");
   });
 
+  it("keeps its height while iOS pans the page under the keyboard, and follows the pan", () => {
+    const viewport = Object.assign(new EventTarget(), { height: 500, offsetTop: 0, scale: 1 });
+    vi.stubGlobal("innerHeight", 800);
+    vi.stubGlobal("visualViewport", viewport);
+    render(<ChatComposer online limitResetsAt={null} busy={false} onSend={vi.fn()} />);
+    const bar = input().closest("form");
+
+    for (const offsetTop of [120, 300]) {
+      act(() => {
+        viewport.offsetTop = offsetTop;
+        viewport.dispatchEvent(new Event("scroll"));
+      });
+
+      expect(bar?.style.paddingBottom).toBe("calc(300px + 0.5rem)");
+      expect(bar?.style.transform).toBe(`translateY(${offsetTop}px)`);
+    }
+  });
+
   it("sends the typed message and clears the input", () => {
     const onSend = vi.fn(() => Promise.resolve(true));
     render(<ChatComposer online limitResetsAt={null} busy={false} onSend={onSend} />);

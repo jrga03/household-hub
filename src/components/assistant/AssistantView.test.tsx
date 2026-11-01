@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { HeaderSlotProvider, useHeaderSlot } from "@/components/layout/HeaderActions";
 import type { ChatItem } from "@/lib/assistant/conversation";
 import { loadChat, saveChat } from "@/lib/assistant/savedChat";
@@ -237,5 +237,36 @@ describe("AssistantView waiting card after a reload", () => {
     expect(await screen.findByText("Recorded")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Confirm" })).not.toBeInTheDocument();
     expect(await listTransactions()).toHaveLength(1);
+  });
+});
+
+describe("AssistantView keyboard", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("doesn't pull the reader back down while iOS pans the page under the keyboard", () => {
+    const viewport = Object.assign(new EventTarget(), { height: 500, offsetTop: 0, scale: 1 });
+    vi.stubGlobal("innerHeight", 800);
+    vi.stubGlobal("visualViewport", viewport);
+    const scrollIntoView = vi.fn();
+    render(
+      <main
+        id="main-content"
+        ref={(main) => {
+          if (main) main.scrollIntoView = scrollIntoView;
+        }}
+      >
+        <AssistantView actor={actor} />
+      </main>
+    );
+    scrollIntoView.mockClear();
+
+    for (const offsetTop of [120, 300]) {
+      act(() => {
+        viewport.offsetTop = offsetTop;
+        viewport.dispatchEvent(new Event("scroll"));
+      });
+    }
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
   });
 });
