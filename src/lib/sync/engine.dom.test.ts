@@ -364,6 +364,33 @@ describe("sync triggers", () => {
     stop();
   });
 
+  it("sets one retry when two triggers join the same failing sync", async () => {
+    let fail = (_error: Error) => {};
+    const failing = new Promise<void>((_resolve, reject) => (fail = reject));
+    // Like the engine, a call during a sync joins it.
+    const sync = vi.fn().mockReturnValueOnce(failing).mockReturnValueOnce(failing);
+    sync.mockRejectedValue(new Error("Failed to fetch"));
+    const stop = startSyncTriggers(sync, { retryBaseMs: 1000 });
+    window.dispatchEvent(new Event("online"));
+    fail(new Error("Failed to fetch"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(vi.getTimerCount()).toBe(1);
+
+    sync.mockClear();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(sync).toHaveBeenCalledTimes(1);
+
+    // One failure counted, so the next wait doubles once, to 2 s.
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(sync).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(sync).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(1);
+
+    stop();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("stops retrying once stopped", async () => {
     const sync = vi.fn().mockRejectedValue(new Error("Failed to fetch"));
     const stop = startSyncTriggers(sync, { retryBaseMs: 1000 });
