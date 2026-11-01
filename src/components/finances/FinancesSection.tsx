@@ -33,7 +33,13 @@ export const VIEW_OPTIONS = [
   { value: "mine", label: "Mine" },
 ] as const;
 
-const NOTHING_TO_REVIEW = { uncategorized: 0, payBack: 0, drafts: 0, joinRequests: 0 };
+const NOTHING_TO_REVIEW = {
+  uncategorized: 0,
+  payBack: 0,
+  drafts: 0,
+  unassigned: 0,
+  joinRequests: 0,
+};
 
 /**
  * Home: the month's hero and what needs attention in the main column, Balances

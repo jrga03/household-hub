@@ -2,9 +2,19 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { receiveEvents } from "@/lib/events/log";
 import { loggedEvent } from "@/test/events";
-import { parsePHP } from "@/lib/currency";
+import { negateCents, parsePHP } from "@/lib/currency";
 import { createImport } from "@/lib/import/drafts";
-import { countLocalReviewItems, readOwed, totalReviewItems } from "./count";
+import { createAccount, retireAccount } from "@/lib/commands/accounts";
+import { addAllocation } from "@/lib/commands/allocations";
+import { createCategory, createGroup } from "@/lib/commands/categories";
+import { HOUSEHOLD } from "@/test/events";
+import {
+  countLocalReviewItems,
+  readOwed,
+  readUnassigned,
+  totalReviewItems,
+  unassignedSentence,
+} from "./count";
 
 const BANK = "aaaaaaaa-0000-4000-8000-000000000001";
 const GROCERIES = "cccccccc-0000-4000-8000-000000000001";
@@ -81,7 +91,12 @@ const statementLine = (description: string) => ({
 
 describe("countLocalReviewItems", () => {
   it("is zero with nothing recorded", async () => {
-    expect(await countLocalReviewItems()).toEqual({ uncategorized: 0, payBack: 0, drafts: 0 });
+    expect(await countLocalReviewItems()).toEqual({
+      uncategorized: 0,
+      payBack: 0,
+      drafts: 0,
+      unassigned: 0,
+    });
   });
 
   it("counts expenses with no category", async () => {
@@ -141,9 +156,68 @@ describe("countLocalReviewItems", () => {
   });
 });
 
+describe("Unassigned money", () => {
+  const MEMBER = { householdId: HOUSEHOLD, userId: "user-me" };
+  const account = (name: string, type: string, pesos: string, payingAccountId?: string) =>
+    createAccount(MEMBER, {
+      name,
+      type,
+      startingBalanceCents: parsePHP(pesos),
+      payingAccountId,
+    });
+
+  it("is no item while every account's Unassigned is zero", async () => {
+    await account("BPI", "bank", "0");
+
+    expect(await readUnassigned()).toBe(0);
+    expect((await countLocalReviewItems()).unassigned).toBe(0);
+  });
+
+  it("is one item for money across accounts, and leaves out cards", async () => {
+    const bpi = await account("BPI", "bank", "3000");
+    await account("GCash", "e_wallet", "2000");
+    await account("Visa", "credit_card", "700", bpi.id);
+
+    expect(await readUnassigned()).toBe(parsePHP("5000"));
+    expect((await countLocalReviewItems()).unassigned).toBe(1);
+  });
+
+  it("counts a retired account still holding money", async () => {
+    const cash = await account("Cash", "cash", "400");
+    await retireAccount(MEMBER, cash.id);
+
+    expect(await readUnassigned()).toBe(parsePHP("400"));
+  });
+
+  it("is one item when more is assigned than the accounts hold", async () => {
+    const bpi = await account("BPI", "bank", "0");
+    const food = await createGroup(MEMBER, { name: "Food" });
+    const groceries = await createCategory(MEMBER, { name: "Groceries", groupId: food.id });
+    await addAllocation(MEMBER, {
+      date: "2026-10-05",
+      accountId: bpi.id,
+      from: { kind: "unassigned" },
+      to: { kind: "category", id: groceries.id },
+      amountCents: parsePHP("200"),
+    });
+
+    expect(await readUnassigned()).toBe(-parsePHP("200"));
+    expect((await countLocalReviewItems()).unassigned).toBe(1);
+  });
+
+  it("says how much waits, or how much is over-assigned", () => {
+    expect(unassignedSentence(parsePHP("5000"))).toBe("₱5,000.00 waits to be assigned");
+    expect(unassignedSentence(negateCents(parsePHP("200")))).toBe(
+      "₱200.00 more assigned than you have"
+    );
+  });
+});
+
 describe("totalReviewItems", () => {
   it("adds up every kind", () => {
-    expect(totalReviewItems({ uncategorized: 2, payBack: 2, drafts: 3, joinRequests: 1 })).toBe(8);
+    expect(
+      totalReviewItems({ uncategorized: 2, payBack: 2, drafts: 3, joinRequests: 1, unassigned: 1 })
+    ).toBe(9);
   });
 });
 

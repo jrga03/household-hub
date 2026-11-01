@@ -12,7 +12,14 @@ import { useHousehold } from "@/hooks/useHousehold";
 import { usePendingJoinRequests } from "@/hooks/useJoinRequests";
 import { useMemberNames } from "@/hooks/useMemberNames";
 import { useReviewCounts } from "@/hooks/useReviewCount";
-import { readOwed, REVIEW_KINDS, totalReviewItems, type ReviewKind } from "@/lib/review/count";
+import {
+  readOwed,
+  readUnassigned,
+  REVIEW_KINDS,
+  totalReviewItems,
+  unassignedSentence,
+  type ReviewKind,
+} from "@/lib/review/count";
 import { countOf } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -50,6 +57,7 @@ const SECTIONS: Record<ReviewKind, (props: { count: number }) => ReactNode> = {
   uncategorized: UncategorizedSection,
   payBack: PayBackSection,
   drafts: DraftsSection,
+  unassigned: UnassignedSection,
   joinRequests: JoinRequestsSection,
 };
 
@@ -134,6 +142,21 @@ function DraftsSection({ count }: { count: number }) {
         label="Review drafts"
         detail={`${countOf(count, "draft waits", "drafts wait")} on this device.`}
         link={{ to: "/import" }}
+      />
+    </ReviewSection>
+  );
+}
+
+function UnassignedSection({ count }: { count: number }) {
+  const unassigned = useLiveQuery(readUnassigned, []);
+  if (unassigned === undefined) return null;
+
+  return (
+    <ReviewSection title="Unassigned money" count={count}>
+      <ReviewLinkRow
+        label="Assign money"
+        detail={`${unassignedSentence(unassigned)}.`}
+        link={{ to: "/assign-money" }}
       />
     </ReviewSection>
   );

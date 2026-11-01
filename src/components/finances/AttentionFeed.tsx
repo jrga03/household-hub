@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { LinkOptions } from "@tanstack/react-router";
+import { useLiveQuery } from "dexie-react-hooks";
 import {
   ChevronRight,
   CircleAlert,
@@ -15,7 +16,7 @@ import { Money } from "@/components/app/Money";
 import { SectionHeader } from "@/components/app/SectionHeader";
 import { StatusBadge, type StatusTone } from "@/components/app/StatusBadge";
 import type { AttentionItem } from "@/lib/finances/attention";
-import type { ReviewKind } from "@/lib/review/count";
+import { readUnassigned, unassignedSentence, type ReviewKind } from "@/lib/review/count";
 import { cn, countOf } from "@/lib/utils";
 
 interface FeedRow {
@@ -30,7 +31,7 @@ interface FeedRow {
 
 const REVIEW_COPY: Record<
   ReviewKind,
-  { sentence: (count: number) => string; detail: string; link: LinkOptions }
+  { sentence: (count: number) => ReactNode; detail: string; link: LinkOptions }
 > = {
   uncategorized: {
     sentence: (count) => `${countOf(count, "expense needs", "expenses need")} a category`,
@@ -47,12 +48,22 @@ const REVIEW_COPY: Record<
     detail: "Check and save them on Import",
     link: { to: "/import" },
   },
+  unassigned: {
+    sentence: () => <UnassignedSentence />,
+    detail: "Give it a category on Assign money",
+    link: { to: "/assign-money" },
+  },
   joinRequests: {
     sentence: (count) => countOf(count, "join request waits", "join requests wait"),
     detail: "Approve or decline on Review",
     link: { to: "/review" },
   },
 };
+
+function UnassignedSentence() {
+  const unassigned = useLiveQuery(readUnassigned, []);
+  return unassigned === undefined ? null : unassignedSentence(unassigned);
+}
 
 function feedRow(item: AttentionItem): FeedRow {
   switch (item.kind) {

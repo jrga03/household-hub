@@ -16,7 +16,13 @@ const account = (name: string, balance: Cents, type: "bank" | "credit_card" = "b
   balance,
 });
 
-const NOTHING_TO_REVIEW = { uncategorized: 0, payBack: 0, drafts: 0, joinRequests: 0 };
+const NOTHING_TO_REVIEW = {
+  uncategorized: 0,
+  payBack: 0,
+  drafts: 0,
+  unassigned: 0,
+  joinRequests: 0,
+};
 
 const feed = (input: Partial<AttentionInput>) =>
   attentionFeed({ budgets: [], balances: [], review: NOTHING_TO_REVIEW, ...input });
@@ -24,7 +30,7 @@ const feed = (input: Partial<AttentionInput>) =>
 describe("attentionFeed", () => {
   it("lists over budget, then negative balances, then close budgets, then review items", () => {
     const items = feed({
-      review: { uncategorized: 3, payBack: 0, drafts: 0, joinRequests: 0 },
+      review: { uncategorized: 3, payBack: 0, drafts: 0, unassigned: 0, joinRequests: 0 },
       balances: [account("Metrobank Payroll", negateCents(peso("1200")))],
       budgets: [budget("Groceries", "8000", "7000"), budget("Dining out", "3000", "4230")],
     });
@@ -82,7 +88,7 @@ describe("attentionFeed", () => {
         account("Wallet", negateCents(peso("50"))),
         account("BPI", negateCents(peso("900"))),
       ],
-      review: { uncategorized: 1, payBack: 2, drafts: 2, joinRequests: 1 },
+      review: { uncategorized: 1, payBack: 2, drafts: 2, unassigned: 0, joinRequests: 1 },
     });
 
     expect(items.map((item) => ("name" in item ? item.name : item.review))).toEqual([
@@ -100,8 +106,8 @@ describe("attentionFeed", () => {
   });
 
   it("lists review items only while their count is above zero", () => {
-    expect(feed({ review: { uncategorized: 0, payBack: 0, drafts: 4, joinRequests: 0 } })).toEqual([
-      { kind: "review", review: "drafts", count: 4 },
-    ]);
+    expect(
+      feed({ review: { uncategorized: 0, payBack: 0, drafts: 4, unassigned: 0, joinRequests: 0 } })
+    ).toEqual([{ kind: "review", review: "drafts", count: 4 }]);
   });
 });
