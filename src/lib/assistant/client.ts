@@ -45,6 +45,10 @@ async function limitResetTime(response: Response): Promise<Date | null> {
 
 async function failureOf(response: Response): Promise<AssistantError> {
   if (response.status === 401) return new AssistantError(SIGN_IN_AGAIN);
+  // The history is resent each time, so trying again fails the same way.
+  if (response.status === 413) {
+    return new AssistantError("This chat is too long for the assistant. Start a new chat.");
+  }
   if (response.status === 503) {
     return new AssistantError("The assistant is busy. Try again in a moment.");
   }

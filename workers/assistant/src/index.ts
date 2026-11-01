@@ -26,7 +26,7 @@ export default {
     return handleRequest(request, env, {
       authorize: (token) =>
         verifyAccessToken(token, { lookupKey, issuer, nowSeconds: Math.floor(Date.now() / 1000) }),
-      isMember: (token) =>
+      hasHousehold: (token) =>
         hasHousehold(token, {
           supabaseUrl: env.SUPABASE_URL,
           apiKey: env.SUPABASE_ANON_KEY,

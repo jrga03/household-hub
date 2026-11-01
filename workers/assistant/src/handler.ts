@@ -7,7 +7,7 @@ const MAX_TOKENS = 2048;
 const CAPACITY_RETRY_DELAY_MS = 1000;
 const OUT_OF_CAPACITY = "3040";
 const DAILY_NEURONS_USED_UP = "3036";
-// The app sends about 2 KB of tools plus its recent history, well under both caps.
+// The app sends about 2 KB of tools and at most 20 history items; only many long lists reach 64 KB.
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_MESSAGES = 40;
 
@@ -25,7 +25,7 @@ export interface HandlerEnv {
 
 export interface HandlerDeps {
   authorize: (token: string) => Promise<boolean>;
-  isMember: (token: string) => Promise<boolean>;
+  hasHousehold: (token: string) => Promise<boolean>;
   sleep: (ms: number) => Promise<void>;
   nowMs: () => number;
   fetch: typeof fetch;
@@ -109,7 +109,7 @@ export async function handleRequest(
 
   const body = await readBody(request);
   if ("error" in body) return jsonResponse(body.status, { error: body.error }, requestOrigin);
-  if (!(await deps.isMember(token))) {
+  if (!(await deps.hasHousehold(token))) {
     return jsonResponse(403, { error: "no_household" }, requestOrigin);
   }
 

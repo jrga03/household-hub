@@ -34,7 +34,7 @@ function setup(
   const clock = { nowMs: Date.UTC(2026, 9, 15, 13, 30) };
   const deps = {
     authorize: async (token: string) => token === VALID_TOKEN || token === NO_HOUSEHOLD_TOKEN,
-    isMember: vi.fn(async (token: string) => token === VALID_TOKEN),
+    hasHousehold: vi.fn(async (token: string) => token === VALID_TOKEN),
     sleep,
     nowMs: () => clock.nowMs,
     fetch: groq,
@@ -42,7 +42,7 @@ function setup(
   };
   const env = { AI: ai, ALLOWED_ORIGINS, GROQ_API_KEY: groqApiKey };
   const send = (request: Request) => handleRequest(request, env, deps);
-  return { ai, sleep, send, groq, clock, isMember: deps.isMember };
+  return { ai, sleep, send, groq, clock, hasHousehold: deps.hasHousehold };
 }
 
 function chatRequest({
@@ -118,14 +118,14 @@ describe("handleRequest", () => {
   });
 
   it("refuses a body over 64 KB without reading the household", async () => {
-    const { ai, send, isMember } = setup();
+    const { ai, send, hasHousehold } = setup();
     const content = "x".repeat(64 * 1024);
 
     const response = await send(chatRequest({ body: { messages: [{ role: "user", content }] } }));
 
     expect(response.status).toBe(413);
     expect(await response.json()).toEqual({ error: "too_large" });
-    expect(isMember).not.toHaveBeenCalled();
+    expect(hasHousehold).not.toHaveBeenCalled();
     expect(ai.run).not.toHaveBeenCalled();
   });
 

@@ -87,7 +87,6 @@ The function returns `true` and reads no table. Of the client roles, only `anon`
 cd workers/keep-alive
 npx wrangler@4.149.0 secret put SUPABASE_URL
 npx wrangler@4.149.0 secret put SUPABASE_ANON_KEY
-npx wrangler@4.149.0 secret put SUPABASE_ANON_KEY
 npx wrangler@4.149.0 deploy
 ```
 
@@ -114,7 +113,7 @@ The Wrangler log prints `Supabase keep-alive succeeded`. A failed query logs `Su
 
 - **Token check:** ES256 against `<SUPABASE_URL>/auth/v1/.well-known/jwks.json` (held in memory, refetched for an unknown key id at most once a minute), with `exp`, `aud: "authenticated"` and `iss: <SUPABASE_URL>/auth/v1`. Anything else gets `401`.
 - **Household check:** the Worker calls `current_household_id` on Supabase with the member's token. A user with no household, or a failed call, gets `403 { "error": "no_household" }`.
-- **Request caps:** a body over 64 KB gets `413 { "error": "too_large" }`, and more than 40 messages get `400 { "error": "too_many_messages" }`, both before the household check and any model call. The app's history limit stays well under both.
+- **Request caps:** a body over 64 KB gets `413 { "error": "too_large" }`, and more than 40 messages get `400 { "error": "too_many_messages" }`, both before the household check and any model call. The app sends at most 20 history items, so only a chat with many long transaction lists reaches 64 KB; the app then asks for a new chat.
 - **CORS:** only the origins in `ALLOWED_ORIGINS` get CORS headers, and a request from any other origin gets `403`. A request with no `Origin` header (curl, a script) still needs a valid token; browsers always send `Origin` on the app's cross-origin calls.
 - **Limits:** on AiError 3040 (out of capacity) it retries once after 1 s, then answers `503 { "error": "busy" }`. On 3036 (daily neurons used up) it sends the same request to Groq `openai/gpt-oss-120b` and keeps doing so until 00:00 UTC (each isolate remembers this in memory). When Groq answers 429 too, or `GROQ_API_KEY` is unset, it answers `429 { "error": "daily_limit", "resetsAt": "…" }`: the next 00:00 UTC, or sooner if Groq's `retry-after` (a minute when it sends none) ends first. Other model failures answer `502 { "error": "upstream" }` and log only the error code or HTTP status.
 - **Groq:** used only with Zero Data Retention on (Groq console → Data Controls), per ADR 0010. Its free plan allows 8K tokens a minute and 200K a day for this model, so two members asking in the same minute can hit the per-minute limit.
@@ -150,6 +149,7 @@ To deploy from a terminal instead (check the account with `npx wrangler@4.149.0 
 ```bash
 cd workers/assistant
 npx wrangler@4.149.0 secret put SUPABASE_URL
+npx wrangler@4.149.0 secret put SUPABASE_ANON_KEY
 npx wrangler@4.149.0 secret put ALLOWED_ORIGINS
 npx wrangler@4.149.0 deploy
 ```
