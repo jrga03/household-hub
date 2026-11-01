@@ -19,6 +19,7 @@ import { ReviewView } from "./ReviewView";
 const BANK = "aaaaaaaa-0000-4000-8000-000000000001";
 
 const membership = vi.hoisted(() => ({ isOwner: true }));
+const memberNames = vi.hoisted(() => ({ names: new Map<string, string>() }));
 const server = vi.hoisted(() => ({ requests: [] as PendingJoinRequest[], reachable: true }));
 
 vi.mock("@/hooks/useHousehold", () => ({
@@ -28,6 +29,8 @@ vi.mock("@/hooks/useHousehold", () => ({
     isKnown: true,
   }),
 }));
+
+vi.mock("@/hooks/useMemberNames", () => ({ useMemberNames: () => memberNames.names }));
 
 vi.mock("@/lib/join-requests", () => ({
   pendingJoinRequestsQueryOptions: (householdId: string) =>
@@ -59,6 +62,31 @@ function uncategorizedExpense(entityId: string) {
       description: "Lunch",
       notes: "",
       status: "cleared",
+    },
+  });
+}
+
+function outOfPocketExpense(entityId: string, paidByUserId: string, amountCents: number) {
+  eventCount += 1;
+  return loggedEvent({
+    id: `e-${eventCount}`,
+    entityType: "transaction",
+    entityId,
+    eventType: "transaction.created",
+    eventVersion: 4,
+    millis: 1000 + eventCount,
+    payload: {
+      date: "2026-10-12",
+      type: "expense",
+      amountCents,
+      accountId: BANK,
+      categoryId: "groceries",
+      payingAccountId: null,
+      description: "Groceries",
+      notes: "",
+      status: "pending",
+      importKey: null,
+      paidByUserId,
     },
   });
 }
@@ -101,6 +129,7 @@ beforeEach(async () => {
   membership.isOwner = true;
   server.requests = [];
   server.reachable = true;
+  memberNames.names = new Map();
 });
 
 describe("ReviewView", () => {
@@ -124,6 +153,45 @@ describe("ReviewView", () => {
       "/transactions?needsCategory=true"
     );
     expect(screen.queryByRole("heading", { name: "All clear" })).not.toBeInTheDocument();
+  });
+
+  it("lists one item per member the household owes, linking to their expenses", async () => {
+    memberNames.names = new Map([
+      ["user-ana", "ana@example.com"],
+      ["user-ben", "ben@example.com"],
+    ]);
+    await receiveEvents(
+      [
+        outOfPocketExpense("t-1", "user-ana", 100000),
+        outOfPocketExpense("t-2", "user-ana", 200000),
+        outOfPocketExpense("t-3", "user-ben", 50000),
+      ],
+      0
+    );
+
+    renderReview();
+
+    const section = await screen.findByRole("region", { name: "Out-of-pocket expenses" });
+    expect(within(section).getByText("2 to review")).toBeInTheDocument();
+    const ana = within(section).getByRole("link", { name: /^Pay back ana@example.com/ });
+    expect(ana).toHaveAttribute("href", "/transactions?owedTo=user-ana");
+    expect(ana).toHaveTextContent("₱3,000.00");
+    expect(ana).toHaveTextContent("2 expenses");
+    const ben = within(section).getByRole("link", { name: /^Pay back ben@example.com/ });
+    expect(ben).toHaveAttribute("href", "/transactions?owedTo=user-ben");
+    expect(ben).toHaveTextContent("₱500.00");
+    expect(ben).toHaveTextContent("1 expense");
+  });
+
+  it("names a payer it doesn't know as a member", async () => {
+    await receiveEvents([outOfPocketExpense("t-1", "user-gone", 100000)], 0);
+
+    renderReview();
+
+    expect(await screen.findByRole("link", { name: /^Pay back a member/ })).toHaveAttribute(
+      "href",
+      "/transactions?owedTo=user-gone"
+    );
   });
 
   it("links open drafts to Import", async () => {
