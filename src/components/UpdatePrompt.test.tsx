@@ -161,6 +161,18 @@ describe("UpdatePrompt (apply the update in the background)", () => {
     expect(updateMock).toHaveBeenCalledTimes(1);
   });
 
+  it("starts the update only once, even when the app goes to the background again", () => {
+    setNeedRefresh(true);
+    render(<UpdatePrompt />);
+
+    lastToastOptions().action.onClick();
+    goTo("hidden");
+    goTo("visible");
+    goTo("hidden");
+
+    expect(updateMock).toHaveBeenCalledTimes(1);
+  });
+
   it("does not apply it while a dialog is open", () => {
     setNeedRefresh(true);
     render(<UpdatePrompt />);

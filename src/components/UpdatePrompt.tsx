@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useServiceWorker } from "@/hooks/useServiceWorker";
 import { usePwaPromptStore } from "@/stores/pwaPromptStore";
@@ -39,6 +39,14 @@ export function UpdatePrompt() {
     dismissRef.current = dismiss;
   });
 
+  // update() reloads only after a wait; a second call in that wait would queue a second reload.
+  const updateStartedRef = useRef(false);
+  const startUpdate = useCallback(() => {
+    if (updateStartedRef.current) return;
+    updateStartedRef.current = true;
+    void updateRef.current();
+  }, []);
+
   useEffect(() => {
     setUpdatePending(needRefresh);
 
@@ -56,29 +64,25 @@ export function UpdatePrompt() {
       description: "A new version of Household Hub is ready.",
       action: {
         label: "Reload",
-        onClick: () => {
-          void updateRef.current();
-        },
+        onClick: startUpdate,
       },
       onDismiss: () => {
         dismissRef.current();
       },
     });
-  }, [needRefresh, setUpdatePending]);
+  }, [needRefresh, setUpdatePending, startUpdate]);
 
   useEffect(() => {
     if (!needRefresh) return;
 
     const applyInBackground = () => {
       if (document.visibilityState !== "hidden") return;
-      const draftOpen =
-        document.querySelector('[role="dialog"]') !== null ||
-        usePwaPromptStore.getState().assistantDraftPending;
-      if (!draftOpen) void updateRef.current();
+      const dialogOpen = document.querySelector('[role="dialog"]') !== null;
+      if (!dialogOpen && !usePwaPromptStore.getState().assistantDraftPending) startUpdate();
     };
     document.addEventListener("visibilitychange", applyInBackground);
     return () => document.removeEventListener("visibilitychange", applyInBackground);
-  }, [needRefresh]);
+  }, [needRefresh, startUpdate]);
 
   return null;
 }

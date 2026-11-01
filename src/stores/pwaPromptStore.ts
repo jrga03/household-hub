@@ -4,7 +4,8 @@
  * UpdatePrompt (service-worker update toast) and PWAInstallPrompt (install
  * card) used to render at the identical fixed bottom position and overlapped
  * 100% when both were pending. UpdatePrompt is now a persistent sonner toast,
- * and this store is the coordination channel between the two:
+ * and this store is the coordination channel between it and the components
+ * that change what it does:
  *
  * - UpdatePrompt writes `updatePending` whenever the service worker's
  *   `needRefresh` flag changes (a new SW is waiting).
