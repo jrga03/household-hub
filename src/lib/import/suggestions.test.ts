@@ -3,7 +3,7 @@ import { cents } from "@/test/cents";
 import type { CategoryRow } from "@/lib/categories/projection";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import type { DraftRow } from "./drafts";
-import { historySuggester, normalizeDescription, type SuggestionContext } from "./suggestions";
+import { historySuggester, type SuggestionContext } from "./suggestions";
 
 function draft(id: string, description: string, isCardPayment = false): DraftRow {
   return {
@@ -62,12 +62,6 @@ const context = (
   transactions: TransactionRow[],
   usable = ["utilities", "groceries", "dining"]
 ): SuggestionContext => ({ transactions, categories: usable.map(category) });
-
-describe("normalizeDescription", () => {
-  it("uppercases, strips digits and squeezes spaces", () => {
-    expect(normalizeDescription("  Meralco  0123456 manila ")).toBe("MERALCO MANILA");
-  });
-});
 
 describe("historySuggester", () => {
   it("suggests the category of the most recent transaction with the same normalized description", async () => {

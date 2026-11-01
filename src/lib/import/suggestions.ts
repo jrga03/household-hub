@@ -27,7 +27,7 @@ export type DraftSuggester = (
 ) => Promise<Suggestion[]>;
 
 /** Uppercased, digits stripped, spaces squeezed: reference numbers change, merchants don't. */
-export const normalizeDescription = (description: string) =>
+const normalizeDescription = (description: string) =>
   description.toUpperCase().replace(/\d/g, "").replace(/\s+/g, " ").trim();
 
 const newestFirst = (a: TransactionRow, b: TransactionRow) =>

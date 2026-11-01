@@ -24,10 +24,15 @@ export function startSyncTriggers(
   let stopped = false;
   let failures = 0;
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
+  let inFlight: Promise<void> | undefined;
 
   const runSync = () => {
     clearTimeout(retryTimer);
-    sync().then(
+    const attempt = sync();
+    // The engine hands a trigger during a sync the same promise; its outcome is already handled.
+    if (attempt === inFlight) return;
+    inFlight = attempt;
+    attempt.then(
       () => {
         failures = 0;
       },

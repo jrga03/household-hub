@@ -37,6 +37,13 @@ describe("budgetProgress", () => {
     });
   });
 
+  it("floors the bar so it never shows 80% or 100% before the status does", () => {
+    expect(budgetStatus(peso("1000"), peso("796"))).toBe("fine");
+    expect(budgetProgress(peso("1000"), peso("796"))?.percent).toBe(79);
+    expect(budgetProgress(peso("1000"), peso("999.60"))?.percent).toBe(99);
+    expect(budgetProgress(peso("100"), peso("29"))?.percent).toBe(29);
+  });
+
   it("has nothing to show without a budget", () => {
     expect(budgetProgress(ZERO_CENTS, peso("300"))).toBeNull();
   });

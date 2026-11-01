@@ -29,6 +29,6 @@ export interface BudgetProgress {
 export function budgetProgress(budget: Cents, spent: Cents): BudgetProgress | null {
   if (budget <= 0) return null;
   const overspent = budgetStatus(budget, spent) === "over";
-  const percent = overspent ? 100 : Math.max(0, Math.round((spent / budget) * 100));
+  const percent = overspent ? 100 : Math.max(0, Math.floor((spent * 100) / budget));
   return { left: diffCents(budget, spent), percent, overspent };
 }

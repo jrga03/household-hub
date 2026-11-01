@@ -122,7 +122,7 @@ describe("BudgetView", () => {
     // Money's text repeats the amount for screen readers, so the caption is checked in parts.
     expect(hero).toHaveTextContent("of ₱9,000.00");
     expect(hero).toHaveTextContent("budget · 11 days left");
-    expect(bar("All budgets")).toHaveAttribute("aria-valuenow", "17");
+    expect(bar("All budgets")).toHaveAttribute("aria-valuenow", "16");
     expect(barTone("All budgets")).toBe("primary");
   });
 
