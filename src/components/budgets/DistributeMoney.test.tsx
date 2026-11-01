@@ -237,4 +237,102 @@ describe("DistributeMoney", () => {
 
     expect(screen.getByLabelText("Groceries")).toHaveValue("500.00");
   });
+
+  describe("one category in several accounts", () => {
+    async function addGroceries() {
+      fireEvent.click(screen.getByLabelText("Add a category"));
+      fireEvent.click(await screen.findByRole("option", { name: "Groceries" }));
+    }
+
+    async function sendSecondLineTo(name: string) {
+      const accounts = screen.getAllByLabelText("Groceries goes to");
+      expect(accounts).toHaveLength(2);
+      fireEvent.keyDown(accounts[1]!, { key: "Enter" });
+      fireEvent.keyDown(await screen.findByRole("option", { name }), { key: "Enter" });
+    }
+
+    async function twoGroceriesLines() {
+      const groceries = await householdCategory("Groceries");
+      const bpi = await householdAccount();
+      const bdo = await secondHouseholdAccount();
+      renderDistribute("income", bpi.id);
+      await screen.findByLabelText("Add a category");
+      await addGroceries();
+      await addGroceries();
+      await waitFor(() => expect(screen.getAllByLabelText("Groceries")).toHaveLength(2));
+      return { groceries, bpi, bdo };
+    }
+
+    it("keeps offering a category after it is on a line", async () => {
+      await twoGroceriesLines();
+
+      fireEvent.click(screen.getByLabelText("Add a category"));
+      expect(await screen.findByRole("option", { name: "Groceries" })).toBeInTheDocument();
+    });
+
+    it("submits two lines for one category in different accounts", async () => {
+      const { groceries, bpi, bdo } = await twoGroceriesLines();
+      const [first, second] = screen.getAllByLabelText("Groceries");
+      fireEvent.change(first!, { target: { value: "800" } });
+      fireEvent.change(second!, { target: { value: "200" } });
+      expect(screen.getAllByLabelText("Groceries goes to")[1]).toHaveTextContent("BDO");
+
+      fireEvent.click(screen.getByRole("button", { name: "Distribute" }));
+
+      await waitFor(() =>
+        expect(distributeMoney).toHaveBeenCalledWith(MEMBER, {
+          sourceAccountId: bpi.id,
+          date: "2026-10-13",
+          lines: [
+            { categoryId: groceries.id, accountId: bpi.id, amountCents: parsePHP("800") },
+            { categoryId: groceries.id, accountId: bdo.id, amountCents: parsePHP("200") },
+          ],
+        })
+      );
+    });
+
+    it('shows the category\'s budget on a repeated line, not "No budget"', async () => {
+      const groceries = await householdCategory("Groceries");
+      const bpi = await householdAccount();
+      await secondHouseholdAccount();
+      await setBudget(MEMBER, {
+        categoryId: groceries.id,
+        fromMonth: "2026-10",
+        amountCents: parsePHP("3000"),
+        accountId: bpi.id,
+      });
+      renderDistribute("income", bpi.id);
+      await screen.findByLabelText("Groceries");
+
+      await addGroceries();
+
+      await waitFor(() => expect(screen.getAllByLabelText("Groceries")).toHaveLength(2));
+      expect(screen.queryByText("No budget")).not.toBeInTheDocument();
+    });
+
+    it("flags the second line for the same account, refuses to submit, and clears on a new account", async () => {
+      await twoGroceriesLines();
+      await sendSecondLineTo("BPI");
+
+      const error = await screen.findByText("Already on a line for this account");
+      const accounts = screen.getAllByLabelText("Groceries goes to");
+      expect(accounts).toHaveLength(2);
+      const [firstAccount, secondAccount] = accounts;
+      expect(secondAccount).toHaveAttribute("aria-invalid", "true");
+      expect(secondAccount).toHaveAccessibleDescription("Already on a line for this account");
+      expect(firstAccount).not.toHaveAttribute("aria-invalid");
+      expect(error.closest("li")).toBe(secondAccount!.closest("li"));
+
+      fireEvent.change(screen.getAllByLabelText("Groceries")[0]!, { target: { value: "800" } });
+      fireEvent.click(screen.getByRole("button", { name: "Distribute" }));
+      await screen.findByText(/Two Groceries lines go to the same account/);
+      expect(distributeMoney).not.toHaveBeenCalled();
+
+      await sendSecondLineTo("BDO");
+      await waitFor(() =>
+        expect(screen.queryByText("Already on a line for this account")).not.toBeInTheDocument()
+      );
+      expect(screen.getAllByLabelText("Groceries goes to")[1]).not.toHaveAttribute("aria-invalid");
+    });
+  });
 });

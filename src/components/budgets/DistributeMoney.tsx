@@ -207,6 +207,7 @@ function NoCategories({ source, offerSuggested }: { source: AccountRow; offerSug
 }
 
 interface LineDraft {
+  key: string;
   categoryId: string;
   accountId: string;
   /** Zero when left blank. */
@@ -216,12 +217,21 @@ interface LineDraft {
 }
 
 const toDraft = (line: DistributeLine): LineDraft => ({
+  key: crypto.randomUUID(),
   categoryId: line.categoryId,
   accountId: line.accountId,
   amountCents: line.amountCents ?? ZERO_CENTS,
   budgetCents: line.budgetCents,
   fundingAccountRetired: line.fundingAccountRetired,
 });
+
+const DUPLICATE_LINE = "Already on a line for this account";
+
+/** The line repeats an earlier line's category and account. */
+const isDuplicate = (earlier: LineDraft[], line: LineDraft) =>
+  earlier.some(
+    (other) => other.categoryId === line.categoryId && other.accountId === line.accountId
+  );
 
 /** An amount past the maximum is null. */
 const lineAmount = (line: LineDraft): Cents | null =>
@@ -249,36 +259,44 @@ function LinesForm({
   const [lines, setLines] = useState(() => initialLines.map(toDraft));
   const names = categoryNames(categories);
   const destinations = accounts.filter((account) => canReceive(account, source));
-  const unlisted = categoriesHeldBy(categories, source).filter(
-    (category) => !lines.some((line) => line.categoryId === category.id)
-  );
+  const choices = categoriesHeldBy(categories, source);
 
-  const change = (categoryId: string, update: Partial<LineDraft>) =>
+  const change = (key: string, update: Partial<LineDraft>) =>
     setLines((current) =>
-      current.map((line) => (line.categoryId === categoryId ? { ...line, ...update } : line))
+      current.map((line) => (line.key === key ? { ...line, ...update } : line))
     );
-  // A category added by hand has no budget this month, or it would already be listed.
+  // The new line goes to the first account this category has no line in yet. A category
+  // added by hand has no budget this month unless a prefilled line already shows it.
   const addLine = (category: CategoryRow) =>
-    setLines((current) => [
-      ...current,
-      toDraft({
-        categoryId: category.id,
-        accountId: source.id,
-        amountCents: null,
-        budgetCents: null,
-        fundingAccountRetired: false,
-      }),
-    ]);
+    setLines((current) => {
+      const taken = current.filter((line) => line.categoryId === category.id);
+      const account = [source, ...destinations].find(
+        (choice) => !taken.some((line) => line.accountId === choice.id)
+      );
+      return [
+        ...current,
+        toDraft({
+          categoryId: category.id,
+          accountId: account?.id ?? source.id,
+          amountCents: null,
+          budgetCents: taken[0]?.budgetCents ?? null,
+          fundingAccountRetired: false,
+        }),
+      ];
+    });
 
   const total = sumCents(lines.map((line) => lineAmount(line) ?? ZERO_CENTS));
   const left = diffCents(available.cents, total);
 
   const [error, submit] = useActionState(async () => {
     const funded: DistributeLineInput[] = [];
-    for (const line of lines) {
+    for (const [index, line] of lines.entries()) {
       const amountCents = lineAmount(line);
       const name = names.get(line.categoryId) ?? "a category";
       if (amountCents === null) return `Check the amount for ${name}.`;
+      if (isDuplicate(lines.slice(0, index), line)) {
+        return `Two ${name} lines go to the same account. Choose another account for one.`;
+      }
       funded.push({ categoryId: line.categoryId, accountId: line.accountId, amountCents });
     }
     try {
@@ -304,19 +322,20 @@ function LinesForm({
         </p>
       ) : (
         <ul className="divide-y border-y">
-          {lines.map((line) => (
+          {lines.map((line, index) => (
             <DistributeLineRow
-              key={line.categoryId}
+              key={line.key}
               line={line}
               name={names.get(line.categoryId) ?? "Category"}
               destinations={destinations}
-              onChange={(update) => change(line.categoryId, update)}
+              error={isDuplicate(lines.slice(0, index), line) ? DUPLICATE_LINE : undefined}
+              onChange={(update) => change(line.key, update)}
             />
           ))}
         </ul>
       )}
 
-      {unlisted.length > 0 && (
+      {choices.length > 0 && (
         <Field label="Add a category">
           {(control) => (
             <Combobox
@@ -325,12 +344,12 @@ function LinesForm({
               placeholder="Choose a category"
               value=""
               onValueChange={(categoryId) => {
-                const category = unlisted.find((choice) => choice.id === categoryId);
+                const category = choices.find((choice) => choice.id === categoryId);
                 if (category) addLine(category);
               }}
               groups={[
                 {
-                  options: unlisted.map((category) => ({
+                  options: choices.map((category) => ({
                     value: category.id,
                     label: category.name,
                   })),
@@ -369,14 +388,17 @@ function DistributeLineRow({
   line,
   name,
   destinations,
+  error,
   onChange,
 }: {
   line: LineDraft;
   name: string;
   destinations: AccountRow[];
+  error: string | undefined;
   onChange: (update: Partial<LineDraft>) => void;
 }) {
-  const amountId = `distribute-${line.categoryId}-amount`;
+  const amountId = `distribute-${line.key}-amount`;
+  const errorId = `distribute-${line.key}-error`;
   return (
     <li className="@container px-4 py-2">
       <div className="grid grid-cols-1 gap-2 @[560px]:grid-cols-[minmax(0,1fr)_9rem_11rem] @[560px]:items-center">
@@ -404,7 +426,12 @@ function DistributeLineRow({
           onChange={(amountCents) => onChange({ amountCents })}
         />
         <Select value={line.accountId} onValueChange={(accountId) => onChange({ accountId })}>
-          <SelectTrigger aria-label={`${name} goes to`} className="w-full">
+          <SelectTrigger
+            aria-label={`${name} goes to`}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? errorId : undefined}
+            className="w-full"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -416,6 +443,11 @@ function DistributeLineRow({
           </SelectContent>
         </Select>
       </div>
+      {error && (
+        <p id={errorId} className="text-caption text-destructive">
+          {error}
+        </p>
+      )}
     </li>
   );
 }
