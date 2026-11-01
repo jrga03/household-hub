@@ -31,7 +31,7 @@ const MINUS_SIGN = "−";
  * Error class for currency-related validation failures.
  * Use this for domain-specific error handling in forms and APIs.
  */
-export class CurrencyError extends Error {
+class CurrencyError extends Error {
   constructor(
     message: string,
     public readonly code: "INVALID_FORMAT" | "NEGATIVE_AMOUNT" | "EXCEEDS_MAX" | "NOT_INTEGER"

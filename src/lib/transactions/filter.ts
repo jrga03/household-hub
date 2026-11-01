@@ -3,7 +3,7 @@ import { diffCents, parsePHPUnbounded, sumCents, type Cents } from "@/lib/curren
 import type { BalanceCorrectionRow } from "@/lib/corrections/projection";
 import { isVisibility, type Visibility } from "@/lib/events/ownership";
 import type { TransferRow } from "@/lib/transfers/projection";
-import { monthOfDate } from "@/lib/utils/dates";
+import { isLocalMonth, monthOfDate } from "@/lib/utils/dates";
 import {
   isTransactionStatus,
   isTransactionType,
@@ -65,14 +65,10 @@ export interface TransactionFilter {
   query?: string;
 }
 
-const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
-
-const isMonth = (value: unknown): value is string => typeof value === "string" && MONTH.test(value);
-
 const nonEmpty = (value: unknown) =>
   typeof value === "string" && value !== "" ? value : undefined;
 
-export const isEntryDirection = (value: unknown): value is EntryDirection =>
+const isEntryDirection = (value: unknown): value is EntryDirection =>
   value === TRANSFER_TYPE || isTransactionType(value);
 
 export const isListType = (value: unknown): value is ListType =>
@@ -81,8 +77,8 @@ export const isListType = (value: unknown): value is ListType =>
 /** The route's search params as a filter; anything unusable is left out. */
 export function readTransactionFilter(search: Record<string, unknown>): TransactionFilter {
   const filter: TransactionFilter = {};
-  if (isMonth(search.month)) filter.month = search.month;
-  else if (isMonth(search.from) && isMonth(search.to) && search.from <= search.to) {
+  if (isLocalMonth(search.month)) filter.month = search.month;
+  else if (isLocalMonth(search.from) && isLocalMonth(search.to) && search.from <= search.to) {
     filter.from = search.from;
     filter.to = search.to;
   }

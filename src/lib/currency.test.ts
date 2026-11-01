@@ -18,7 +18,6 @@ import {
   parseSignedPHPSafe,
   formatPHPAxisTick,
   MAX_AMOUNT_CENTS,
-  CurrencyError,
   asCents,
   ZERO_CENTS,
   sumCents,
@@ -251,7 +250,6 @@ describe("parsePHPSafe", () => {
     const result = parsePHPSafe("-100");
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toBeInstanceOf(CurrencyError);
       expect(result.error.code).toBe("NEGATIVE_AMOUNT");
       expect(result.error.message).toContain("Negative amounts not allowed");
     }
@@ -261,7 +259,6 @@ describe("parsePHPSafe", () => {
     const result = parsePHPSafe("10,000,000.00");
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toBeInstanceOf(CurrencyError);
       expect(result.error.code).toBe("EXCEEDS_MAX");
       expect(result.error.message).toContain("Amount exceeds maximum");
     }
@@ -283,7 +280,6 @@ describe("parsePHPSafe", () => {
     const result = parsePHPSafe("invalid");
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toBeInstanceOf(CurrencyError);
       expect(result.error.code).toBe("INVALID_FORMAT");
     }
   });
@@ -409,12 +405,7 @@ describe("asCents", () => {
   it.each([1.5, Number.NaN, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER + 1])(
     "throws NOT_INTEGER for %s",
     (value) => {
-      expect(() => asCents(value)).toThrow(CurrencyError);
-      try {
-        asCents(value);
-      } catch (error) {
-        expect(error instanceof CurrencyError && error.code).toBe("NOT_INTEGER");
-      }
+      expect(() => asCents(value)).toThrow(expect.objectContaining({ code: "NOT_INTEGER" }));
     }
   );
 
