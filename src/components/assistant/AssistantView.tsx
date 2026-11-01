@@ -5,7 +5,7 @@ import { Button } from "@/components/app/Button";
 import { EmptyState } from "@/components/app/EmptyState";
 import { FormError } from "@/components/app/FormError";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { useVisibleArea } from "@/hooks/useVisibleArea";
+import { useVisibleAreaPart } from "@/hooks/useVisibleArea";
 import { isWaiting, type ChatItem } from "@/lib/assistant/conversation";
 import type { Actor } from "@/lib/commands/accounts";
 import { confirm } from "@/lib/confirm";
@@ -83,9 +83,9 @@ export function AssistantView({ actor }: { actor: Actor }) {
   const { items, replyText, busy, error, limitResetsAt, send } = useAssistantStore();
   const online = useOnlineStatus();
   const [prompt, setPrompt] = useState({ text: "", composerKey: 0 });
-  const { viewportHeight, inset } = useVisibleArea();
-  // Not `inset` itself: iOS changes it while the reader pans, and the scroll would pull them back down.
-  const keyboardCoversPage = inset > 0;
+  const viewportHeight = useVisibleAreaPart((area) => area.viewportHeight);
+  // Not the height itself: a scroll on every change would fight the reader.
+  const keyboardCoversPage = useVisibleAreaPart((area) => area.keyboardHeight) > 0;
   useEffect(() => {
     // The newest message stays just above the pinned composer, also when the keyboard opens or a notice grows it.
     document.getElementById("main-content")?.scrollIntoView?.({ block: "end" });
@@ -93,7 +93,8 @@ export function AssistantView({ actor }: { actor: Actor }) {
 
   return (
     // Fills the screen below the header (3.5rem, its border and the page's 2rem top padding), so the composer starts at the bottom edge.
-    <div className="flex min-h-[calc(100dvh-5.5rem-1px-var(--safe-area-top))] flex-col gap-4">
+    // Clips the composer's shift down over an iOS keyboard, so the shift can't make the page longer.
+    <div className="flex overflow-y-clip min-h-[calc(100dvh-5.5rem-1px-var(--safe-area-top))] flex-col gap-4">
       {items.length > 0 && (
         <HeaderActions>
           <NewChatButton userId={actor.userId} />

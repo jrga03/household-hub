@@ -1,9 +1,13 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { format, isToday, isTomorrow } from "date-fns";
 import { SendHorizontal } from "lucide-react";
 import { Button } from "@/components/app/Button";
 import { Input } from "@/components/app/Input";
-import { useVisibleArea } from "@/hooks/useVisibleArea";
+import {
+  readVisibleArea,
+  subscribeToVisibleArea,
+  useVisibleAreaPart,
+} from "@/hooks/useVisibleArea";
 
 function resetTime(resetsAt: Date) {
   const time = format(resetsAt, "h:mm a");
@@ -28,7 +32,17 @@ export function ChatComposer({
   onSend: (text: string) => Promise<boolean>;
 }) {
   const [text, setText] = useState(initialText);
-  const { inset } = useVisibleArea();
+  const formRef = useRef<HTMLFormElement>(null);
+  const keyboardHeight = useVisibleAreaPart((area) => area.keyboardHeight);
+  useEffect(() => {
+    // Written in the event, not through React, so the move lands in the frame iOS panned in.
+    const followPan = () => {
+      const top = keyboardHeight > 0 ? readVisibleArea().top : 0;
+      formRef.current?.style.setProperty("transform", top > 0 ? `translateY(${top}px)` : "");
+    };
+    followPan();
+    return subscribeToVisibleArea(followPan);
+  }, [keyboardHeight]);
   const blockedBecause = !online
     ? "The assistant needs a connection. Everything else works offline."
     : limitResetsAt
@@ -47,10 +61,14 @@ export function ChatComposer({
 
   return (
     // Pinned to the screen's bottom edge, above any bottom chrome; the conversation scrolls behind it.
+    // Over an iOS keyboard it reserves the whole keyboard and follows a pan with a transform, so scrolling never resizes the page.
     <form
+      ref={formRef}
       onSubmit={submit}
-      className="sticky bottom-0 space-y-2 border-t bg-background pt-3 pb-[max(1rem,var(--bottom-chrome))]"
-      style={inset > 0 ? { paddingBottom: `calc(${inset}px + 0.5rem)` } : undefined}
+      className="sticky bottom-0 space-y-2 border-t bg-background pt-3 pb-[max(1rem,var(--bottom-chrome))] shadow-float"
+      style={
+        keyboardHeight > 0 ? { paddingBottom: `calc(${keyboardHeight}px + 0.5rem)` } : undefined
+      }
     >
       {blockedBecause && <p className="text-body text-muted-foreground">{blockedBecause}</p>}
       <div className="flex gap-2">
