@@ -32,6 +32,7 @@ export interface MetaRow {
     | "pullCursor"
     | "householdId"
     | "leftHouseholdIds"
+    | "userId"
     | `statementPassword:${string}`
     | `importCard:${string}`;
   value: string | number | string[] | null;
