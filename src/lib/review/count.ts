@@ -11,7 +11,8 @@ export type ReviewCounts = Record<ReviewKind, number>;
 export type LocalReviewCounts = Pick<ReviewCounts, "uncategorized" | "payBack" | "drafts">;
 
 /** What the household owes each member, from this device's transactions. */
-export const readOwed = async () => owedByPayer(await db.transactions.toArray());
+export const readOwed = async () =>
+  owedByPayer(await db.transactions.orderBy("paidByUserId").toArray());
 
 export async function countLocalReviewItems(): Promise<LocalReviewCounts> {
   const [uncategorized, owed, drafts] = await Promise.all([
