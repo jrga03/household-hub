@@ -11,6 +11,7 @@ This reuses what pending already means: the balance and the category's money dro
 
 ## Consequences
 
+- An out-of-pocket expense can't be edited to income (the edit command refuses it): only an expense can be owed back.
 - Paying back works on whole expenses only: three of five can be paid back, not ₱2,000 of one ₱3,000 expense.
 - Pending without a payer still means "not final at the bank"; readers that mean out-of-pocket check the payer.
 - A payback paid from another household account is an edit of the expense's account, then marking it paid back.
