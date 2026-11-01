@@ -17,6 +17,7 @@ import { SubmitButton } from "@/components/app/SubmitButton";
 import { Textarea } from "@/components/app/Textarea";
 import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
+import { useMemberNames } from "@/hooks/useMemberNames";
 import { canBeOutOfPocket } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { CategoryList } from "@/lib/categories/projection";
@@ -92,9 +93,14 @@ export function TransactionEditor({
   if (!accounts || !retiredAccounts || !categories) return null;
 
   // A transaction moves only within its visibility; its own account stays a choice even when retired.
+  // An out-of-pocket expense moves only to an account that can pay it back (ADR 0012).
   const accountChoices = transaction
     ? [
-        ...accounts.filter((account) => sameOwnership(account, transaction)),
+        ...accounts.filter(
+          (account) =>
+            sameOwnership(account, transaction) &&
+            (transaction.paidByUserId === null || canBeOutOfPocket(account))
+        ),
         ...retiredAccounts.filter((account) => account.id === transaction.accountId),
       ]
     : accounts;
@@ -224,6 +230,11 @@ function TransactionForm({
 }) {
   const { lastUsed, setLastUsed } = useQuickEntryStore();
   const navigate = useNavigate();
+  const memberNames = useMemberNames(actor.householdId);
+  const payer = transaction?.paidByUserId;
+  const payerHint = payer
+    ? `Out-of-pocket, paid by ${payer === actor.userId ? "you" : (memberNames.get(payer) ?? "a member")}`
+    : undefined;
   const lastAccount = accounts.find((account) => account.id === lastUsed.accountId);
   const [type, setType] = useState<TransactionType>(transaction?.type ?? initialType);
   const [amount, setAmount] = useState(transaction?.amountCents ?? draftAmount);
@@ -397,6 +408,7 @@ function TransactionForm({
         value={statusChoice}
         onChange={setStatusChoice}
         withOutOfPocket={offerOutOfPocket}
+        hint={payerHint}
       />
 
       <FormError>{problems.form}</FormError>

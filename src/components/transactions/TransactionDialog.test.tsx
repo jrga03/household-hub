@@ -9,20 +9,28 @@ import {
 } from "@tanstack/react-router";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { createAccount } from "@/lib/commands/accounts";
+import { addTransaction } from "@/lib/commands/transactions";
 import { parsePHP } from "@/lib/currency";
-import { listTransactions } from "@/lib/transactions/projection";
+import { listTransactions, type TransactionRow } from "@/lib/transactions/projection";
 import { listTransfers } from "@/lib/transfers/projection";
 import { TransactionEditor } from "./TransactionDialog";
 import { HOUSEHOLD } from "@/test/events";
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
+const OTHER_MEMBER = { householdId: HOUSEHOLD, userId: "user-b" };
 
-function renderEditor(onClose: () => void) {
+vi.mock("@/hooks/useMemberNames", () => ({
+  useMemberNames: () => new Map([["user-b", "ana@example.com"]]),
+}));
+
+function renderEditor(onClose: () => void, transaction?: TransactionRow) {
   const rootRoute = createRootRoute();
   const route = createRoute({
     getParentRoute: () => rootRoute,
     path: "/transactions",
-    component: () => <TransactionEditor actor={MEMBER} onClose={onClose} />,
+    component: () => (
+      <TransactionEditor actor={MEMBER} transaction={transaction} onClose={onClose} />
+    ),
   });
   const router = createRouter({
     routeTree: rootRoute.addChildren([route]),
@@ -183,6 +191,66 @@ describe("TransactionEditor", () => {
         await waitFor(() => expect(outOfPocket()).toBeNull());
         expect(screen.getByRole("radio", { name: "Pending" })).toBeChecked();
       }
+    });
+
+    describe("editing", () => {
+      async function recorded(paidByUserId: string | null) {
+        const bpi = await createAccount(MEMBER, {
+          name: "BPI",
+          type: "bank",
+          startingBalanceCents: parsePHP("0"),
+        });
+        await createAccount(MEMBER, {
+          name: "Visa",
+          type: "credit_card",
+          startingBalanceCents: parsePHP("0"),
+          payingAccountId: bpi.id,
+        });
+        const actor = paidByUserId === OTHER_MEMBER.userId ? OTHER_MEMBER : MEMBER;
+        await addTransaction(actor, {
+          date: "2026-10-12",
+          type: "expense",
+          amountCents: parsePHP("300"),
+          accountId: bpi.id,
+          categoryId: null,
+          description: "Groceries",
+          paidByUserId,
+        });
+        const [transaction] = await listTransactions();
+        return transaction;
+      }
+
+      it("shows who paid without offering to change it, and keeps it on save", async () => {
+        const onClose = vi.fn();
+        renderEditor(onClose, await recorded(OTHER_MEMBER.userId));
+
+        expect(await screen.findByText("Out-of-pocket, paid by ana@example.com")).toBeVisible();
+        expect(outOfPocket()).toBeNull();
+        fireEvent.click(screen.getByRole("radio", { name: "Cleared" }));
+        fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+        await waitFor(() => expect(onClose).toHaveBeenCalled());
+        expect(await listTransactions()).toMatchObject([
+          { status: "cleared", paidByUserId: OTHER_MEMBER.userId },
+        ]);
+      });
+
+      it("offers only Household accounts that aren't cards", async () => {
+        renderEditor(vi.fn(), await recorded(MEMBER.userId));
+
+        expect(await screen.findByText("Out-of-pocket, paid by you")).toBeVisible();
+        fireEvent.keyDown(screen.getByLabelText("Account"), { key: "Enter" });
+        expect(await screen.findByRole("option", { name: "BPI" })).toBeVisible();
+        expect(screen.queryByRole("option", { name: "Visa" })).toBeNull();
+      });
+
+      it("doesn't offer Out-of-pocket on an expense that wasn't one", async () => {
+        renderEditor(vi.fn(), await recorded(null));
+
+        expect(await screen.findByRole("radio", { name: "Pending" })).toBeVisible();
+        expect(outOfPocket()).toBeNull();
+        expect(screen.queryByText(/^Out-of-pocket/)).toBeNull();
+      });
     });
   });
 });
