@@ -20,6 +20,8 @@ const UPDATE_TOAST_ID = "sw-update-available";
  * - "Reload" action runs the existing update/reload logic from
  *   useServiceWorker (skipWaiting + controllerchange + reload).
  * - Close button / dismissal clears the service worker's needRefresh flag.
+ * - Applies the update when the app goes to the background, unless a dialog
+ *   or an Assistant draft is open; it checks again on the next background.
  * - Mirrors the pending state into pwaPromptStore so PWAInstallPrompt can
  *   suppress its install card while an update is waiting.
  */
@@ -63,6 +65,20 @@ export function UpdatePrompt() {
       },
     });
   }, [needRefresh, setUpdatePending]);
+
+  useEffect(() => {
+    if (!needRefresh) return;
+
+    const applyInBackground = () => {
+      if (document.visibilityState !== "hidden") return;
+      const draftOpen =
+        document.querySelector('[role="dialog"]') !== null ||
+        usePwaPromptStore.getState().assistantDraftPending;
+      if (!draftOpen) void updateRef.current();
+    };
+    document.addEventListener("visibilitychange", applyInBackground);
+    return () => document.removeEventListener("visibilitychange", applyInBackground);
+  }, [needRefresh]);
 
   return null;
 }

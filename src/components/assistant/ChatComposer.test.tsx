@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ChatComposer } from "./ChatComposer";
+import { usePwaPromptStore } from "@/stores/pwaPromptStore";
 
 const input = () => screen.getByRole("textbox", { name: "Message the assistant" });
 
@@ -129,5 +130,23 @@ describe("ChatComposer", () => {
     await act(async () => fail(false));
 
     expect(input()).toHaveValue("how much in gcash?");
+  });
+
+  it("marks a draft as pending while it has text, so an update waits", () => {
+    const { unmount } = render(
+      <ChatComposer online limitResetsAt={null} busy={false} onSend={vi.fn()} />
+    );
+    const draftPending = () => usePwaPromptStore.getState().assistantDraftPending;
+    expect(draftPending()).toBe(false);
+
+    fireEvent.change(input(), { target: { value: "How much on food?" } });
+    expect(draftPending()).toBe(true);
+
+    fireEvent.change(input(), { target: { value: "" } });
+    expect(draftPending()).toBe(false);
+
+    fireEvent.change(input(), { target: { value: "Again" } });
+    unmount();
+    expect(draftPending()).toBe(false);
   });
 });

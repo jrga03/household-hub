@@ -7,7 +7,7 @@
  *   suppress its install card while an update is waiting
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render } from "@testing-library/react";
 import { UpdatePrompt } from "./UpdatePrompt";
 import { usePwaPromptStore } from "@/stores/pwaPromptStore";
@@ -67,7 +67,7 @@ function lastToastOptions(): UpdateToastOptions {
 
 describe("UpdatePrompt (persistent update toast)", () => {
   beforeEach(() => {
-    usePwaPromptStore.setState({ updatePending: false });
+    usePwaPromptStore.setState({ updatePending: false, assistantDraftPending: false });
     setNeedRefresh(false);
   });
 
@@ -129,5 +129,75 @@ describe("UpdatePrompt (persistent update toast)", () => {
 
     expect(usePwaPromptStore.getState().updatePending).toBe(false);
     expect(toastDismissMock).toHaveBeenCalledWith("sw-update-available");
+  });
+});
+
+describe("UpdatePrompt (apply the update in the background)", () => {
+  let visibility: DocumentVisibilityState = "visible";
+
+  function goTo(state: DocumentVisibilityState) {
+    visibility = state;
+    document.dispatchEvent(new Event("visibilitychange"));
+  }
+
+  beforeEach(() => {
+    updateMock.mockClear();
+    usePwaPromptStore.setState({ updatePending: false, assistantDraftPending: false });
+    vi.spyOn(document, "visibilityState", "get").mockImplementation(() => visibility);
+    visibility = "visible";
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    document.body.innerHTML = "";
+  });
+
+  it("applies a waiting update once when the app goes to the background", () => {
+    setNeedRefresh(true);
+    render(<UpdatePrompt />);
+
+    goTo("hidden");
+
+    expect(updateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not apply it while a dialog is open", () => {
+    setNeedRefresh(true);
+    render(<UpdatePrompt />);
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    document.body.append(dialog);
+
+    goTo("hidden");
+
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("does not apply it while the Assistant composer has text", () => {
+    setNeedRefresh(true);
+    render(<UpdatePrompt />);
+    usePwaPromptStore.setState({ assistantDraftPending: true });
+
+    goTo("hidden");
+
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when no update is waiting", () => {
+    setNeedRefresh(false);
+    render(<UpdatePrompt />);
+
+    goTo("hidden");
+
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when the app comes back to the screen", () => {
+    setNeedRefresh(true);
+    render(<UpdatePrompt />);
+
+    goTo("visible");
+
+    expect(updateMock).not.toHaveBeenCalled();
   });
 });
