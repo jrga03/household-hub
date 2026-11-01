@@ -159,6 +159,9 @@ isOneToOne: false
         isOneToOne: true
         isSetofReturn: false
       } },
+"lock_household_events":
+{ Args: { "household_id": string }; Returns: undefined
+                           },
 "lock_my_household":
 { Args: Record<PropertyKey, never>; Returns: {
               "code": string,

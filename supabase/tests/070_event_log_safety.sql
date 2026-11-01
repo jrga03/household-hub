@@ -31,7 +31,7 @@ language sql as $$
           hlc, 'device', '{"name": "Cash", "type": "cash", "startingBalanceCents": 0}'::jsonb)
 $$;
 
--- Whether this transaction holds the event-sequence lock of a household.
+-- Whether this transaction holds public.lock_household_events for a household.
 create function tests.holds_event_lock(household_id uuid) returns boolean
 language sql as $$
   select exists (

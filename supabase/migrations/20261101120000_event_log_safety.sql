@@ -1,5 +1,17 @@
 -- Keeps the event log's order and shared history safe in four edge cases (#291).
 
+-- Pushes and dissolves in one household take this lock, held to commit.
+create function public.lock_household_events(household_id uuid)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  select pg_advisory_xact_lock(hashtextextended(household_id::text, 0))
+$$;
+
+revoke execute on function public.lock_household_events(uuid) from public, anon, authenticated;
+
 -- A Personal event can name a household its owner has left. Locking on that id
 -- would let it commit out of sequence order with the owner's current household's
 -- events, and a device whose cursor passed it would never pull it. So every
@@ -13,9 +25,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  perform pg_advisory_xact_lock(
-    hashtextextended(coalesce(public.current_household_id(), new.household_id)::text, 0)
-  );
+  perform public.lock_household_events(coalesce(public.current_household_id(), new.household_id));
   if new.visibility = 'household'
     and not exists (select 1 from public.households where id = new.household_id) then
     raise exception 'This household no longer exists';
@@ -83,7 +93,7 @@ begin
   ) then
     raise exception 'Hand ownership to another Member before leaving';
   end if;
-  perform pg_advisory_xact_lock(hashtextextended(household.id::text, 0));
+  perform public.lock_household_events(household.id);
   delete from public.events where household_id = household.id and visibility = 'household';
   delete from public.households where id = household.id;
 end
