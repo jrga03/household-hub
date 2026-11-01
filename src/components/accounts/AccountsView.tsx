@@ -1,4 +1,4 @@
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useState, useTransition, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { ActionForm } from "@/components/app/ActionForm";
@@ -172,7 +172,7 @@ function AccountRows({
               amount={
                 accountMoney && <Money kind="balance" owed={card} cents={accountMoney.balance} />
               }
-              detail={<RowDetail account={account} money={accountMoney} />}
+              detail={rowDetail(account, accountMoney)}
             />
           </li>
         );
@@ -186,10 +186,14 @@ function payingAccountSummary({ payingAccount }: AccountListItem): string {
   return `Paid from ${payingAccount.name}${payingAccount.retired ? " (retired)" : ""}`;
 }
 
-/** A card's Paying Account; any other account's Unassigned, the money it can still give a job. */
-function RowDetail({ account, money }: { account: AccountListItem; money?: AccountMoney }) {
+/**
+ * A card's Paying Account; any other account's Unassigned, the money it can
+ * still give a job. Nothing at zero, so the row is one line.
+ */
+function rowDetail(account: AccountListItem, money?: AccountMoney): ReactNode {
   if (isCreditCard(account)) return payingAccountSummary(account);
   if (!money?.envelopes) return ACCOUNT_TYPE_LABELS[account.type];
+  if (money.envelopes.unassigned === 0) return undefined;
   return (
     <>
       Unassigned <Money kind="balance" cents={money.envelopes.unassigned} />
@@ -248,7 +252,14 @@ function AccountDetail({
         ) : (
           <>
             {card && <Button onClick={() => setDialog("pay")}>Pay {account.name}</Button>}
-            <Button variant={card ? "outline" : "default"} onClick={() => setDialog("edit")}>
+            {money?.envelopes && money.envelopes.unassigned !== 0 && (
+              <Button asChild>
+                <Link to="/assign-money" search={{ account: account.id }}>
+                  Assign money
+                </Link>
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setDialog("edit")}>
               Edit
             </Button>
             <Button variant="outline" onClick={() => setDialog("correct")}>

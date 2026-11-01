@@ -119,10 +119,13 @@ function envelopeChoices(
 export function MoveMoneyDialog({
   actor,
   allocation,
+  initialAccountId,
   onClose,
 }: {
   actor: Actor;
   allocation?: AllocationRow;
+  /** A new move's account, when it's one of the choices; ignored by an edit. */
+  initialAccountId?: string;
   onClose: () => void;
 }) {
   const accounts = useAccounts();
@@ -155,6 +158,7 @@ export function MoveMoneyDialog({
         <MoveMoneyForm
           actor={actor}
           allocation={allocation}
+          initialAccountId={initialAccountId}
           accounts={accountChoices}
           cards={cards}
           categories={categories}
@@ -191,6 +195,7 @@ function moneyLeft(
 function MoveMoneyForm({
   actor,
   allocation,
+  initialAccountId,
   accounts,
   cards,
   categories,
@@ -199,13 +204,19 @@ function MoveMoneyForm({
 }: {
   actor: Actor;
   allocation?: AllocationRow;
+  initialAccountId?: string;
   accounts: AccountRow[];
   cards: AccountRow[];
   categories: CategoryList;
   money: Map<string, AccountMoney>;
   onClose: () => void;
 }) {
-  const [accountId, setAccountId] = useState(allocation?.accountId ?? accounts[0]?.id ?? "");
+  const [accountId, setAccountId] = useState(
+    allocation?.accountId ??
+      accounts.find((account) => account.id === initialAccountId)?.id ??
+      accounts[0]?.id ??
+      ""
+  );
   const [fromKey, setFromKey] = useState(allocation ? envelopeKey(allocation.from) : "unassigned");
   const [toKey, setToKey] = useState(allocation ? envelopeKey(allocation.to) : UNCHOSEN);
   const [amount, setAmount] = useState<Cents | undefined>(allocation?.amountCents);

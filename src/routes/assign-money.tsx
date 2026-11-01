@@ -14,7 +14,7 @@ interface AssignMoneySearch {
   month?: string;
   /** Opens Distribute money: after recording income, or for the opening balances. */
   distribute?: DistributeMode;
-  /** Distribute's source account; the first one that holds envelopes when left out. */
+  /** Move money's and Distribute's source account; the first one that holds envelopes when left out. */
   account?: string;
   /** The income to split, as typed ("40000.00"); the source's Unassigned when left out. */
   amount?: string;
@@ -43,15 +43,18 @@ function AssignMoneyPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const router = useRouter();
-  const month = search.month === undefined ? {} : { month: search.month };
+  const kept = {
+    ...(search.month !== undefined && { month: search.month }),
+    ...(search.account !== undefined && { account: search.account }),
+  };
   // Opening pushes an entry, so back closes the sheet; one opened by a link closes in place.
   const setDistribute = (mode: DistributeMode | null) => {
     if (mode) {
-      void navigate({ search: { ...month, distribute: mode }, state: { openPushed: true } });
+      void navigate({ search: { ...kept, distribute: mode }, state: { openPushed: true } });
     } else if (router.state.location.state.openPushed) {
       backOnce(router.history);
     } else {
-      void navigate({ search: month, replace: true });
+      void navigate({ search: kept, replace: true });
     }
   };
 
@@ -65,6 +68,7 @@ function AssignMoneyPage() {
         {household && userId && (
           <AssignMoneyView
             actor={{ householdId: household.id, userId }}
+            initialAccountId={search.account}
             distribute={
               search.distribute
                 ? {
