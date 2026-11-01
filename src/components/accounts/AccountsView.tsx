@@ -29,7 +29,7 @@ import {
   unretireAccount,
   type Actor,
 } from "@/lib/commands/accounts";
-import { sumCents, type Cents } from "@/lib/currency";
+import { sumCents } from "@/lib/currency";
 import { VISIBILITY_LABELS, type Visibility } from "@/lib/events/ownership";
 import type { AccountMoney } from "@/lib/transactions/money";
 import { errorMessage } from "@/lib/utils";
@@ -252,8 +252,12 @@ function AccountDetail({
         ) : (
           <>
             {card && <Button onClick={() => setDialog("pay")}>Pay {account.name}</Button>}
-            {money?.envelopes && (
-              <AssignButton accountId={account.id} unassigned={money.envelopes.unassigned} />
+            {money?.envelopes && money.envelopes.unassigned !== 0 && (
+              <Button asChild>
+                <Link to="/assign-money" search={{ account: account.id }}>
+                  Assign money
+                </Link>
+              </Button>
             )}
             <Button variant="outline" onClick={() => setDialog("edit")}>
               Edit
@@ -301,18 +305,6 @@ function Envelopes({ envelopes }: { envelopes: NonNullable<AccountMoney["envelop
           </Fact>
         ))}
     </>
-  );
-}
-
-/** Opens Assign money with this account as Move money's and Distribute's source. */
-function AssignButton({ accountId, unassigned }: { accountId: string; unassigned: Cents }) {
-  if (unassigned === 0) return <Button disabled>Assign money</Button>;
-  return (
-    <Button asChild>
-      <Link to="/assign-money" search={{ account: accountId }}>
-        Assign money
-      </Link>
-    </Button>
   );
 }
 

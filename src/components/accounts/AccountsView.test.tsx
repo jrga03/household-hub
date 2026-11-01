@@ -176,7 +176,7 @@ describe("AccountsView", () => {
     expect(history.location.search).toBe(`?account=${bank.id}`);
   });
 
-  it("can't assign an account with nothing Unassigned", async () => {
+  it("offers no Assign money on an account with nothing Unassigned", async () => {
     await createAccount(MEMBER, {
       name: "Wallet",
       type: "cash",
@@ -186,7 +186,8 @@ describe("AccountsView", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /^Wallet/ }));
     const details = await screen.findByRole("dialog", { name: "Wallet" });
-    expect(await within(details).findByRole("button", { name: "Assign money" })).toBeDisabled();
+    await within(details).findByText("Unassigned");
+    expect(within(details).queryByRole("link", { name: "Assign money" })).toBeNull();
   });
 
   it("opens an account's details and pays its card from there", async () => {
@@ -198,7 +199,7 @@ describe("AccountsView", () => {
     await waitFor(() => expect(history.location.search).toContain("open="));
     const details = await screen.findByRole("dialog", { name: "Visa" });
     expect(within(details).getByText("BPI")).toBeInTheDocument();
-    expect(within(details).queryByRole("button", { name: "Assign money" })).toBeNull();
+    expect(within(details).queryByRole("link", { name: "Assign money" })).toBeNull();
 
     fireEvent.click(within(details).getByRole("button", { name: "Pay Visa" }));
     const form = await screen.findByRole("form", { name: "Pay Visa" });
