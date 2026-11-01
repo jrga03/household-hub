@@ -1,5 +1,5 @@
 begin;
-select plan(9);
+select plan(11);
 
 -- a owns household A with Member m; b owns household B; d owns household D alone.
 select tests.create_users('a', 'b', 'd', 'm');
@@ -64,6 +64,20 @@ select public.leave_household();
 select ok(
   tests.holds_event_lock((select id from dissolved)),
   'dissolving a household takes its event lock'
+);
+
+select tests.clear_authentication();
+select throws_ok(
+  $$ select tests.add_account('orphan', (select id from dissolved), null, '000001760000000-000000-device') $$,
+  'P0001',
+  'This household no longer exists',
+  'a Household event for a dissolved household is refused'
+);
+select throws_ok(
+  $$ select tests.add_account('newline-hlc', tests.household_of('a'), null, E'000001760000000-000000-dev\nice') $$,
+  '23514',
+  null,
+  'an hlc with a line break is refused'
 );
 
 -- Deleting a user keeps the Household events they made

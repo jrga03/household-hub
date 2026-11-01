@@ -4,6 +4,8 @@
 -- would let it commit out of sequence order with the owner's current household's
 -- events, and a device whose cursor passed it would never pull it. So every
 -- push locks the caller's current household.
+-- A push that waited on a dissolve's lock still passes RLS on its older
+-- snapshot; this statement's fresh snapshot sees the household is gone.
 create or replace function public.events_assign_sequence()
 returns trigger
 language plpgsql
@@ -14,6 +16,10 @@ begin
   perform pg_advisory_xact_lock(
     hashtextextended(coalesce(public.current_household_id(), new.household_id)::text, 0)
   );
+  if new.visibility = 'household'
+    and not exists (select 1 from public.households where id = new.household_id) then
+    raise exception 'This household no longer exists';
+  end if;
   new.sequence := nextval('public.events_sequence_seq');
   return new;
 end
@@ -25,9 +31,9 @@ alter table public.events drop constraint events_actor_user_id_fkey;
 alter table public.events add constraint events_actor_user_id_fkey
   foreign key (actor_user_id) references auth.users (id) on delete set null;
 
--- Matches formatHlc in src/lib/events/hlc.ts.
+-- Matches HLC_PATTERN in src/lib/events/hlc.ts, where . never matches a line break.
 alter table public.events add constraint events_hlc_format
-  check (hlc ~ '^[0-9]{15}-[0-9]{6}-.+$');
+  check (hlc ~ '^[0-9]{15}-[0-9]{6}-[^\n\r]+$');
 
 -- Without this the delete fails on the household's owner key with a raw error.
 create function public.refuse_owner_deletion()
@@ -50,8 +56,9 @@ create trigger refuse_owner_deletion
   before delete on auth.users
   for each row execute function public.refuse_owner_deletion();
 
--- Takes the household's event lock before deleting its events, so a push racing
--- the dissolve can't commit an orphan Household event.
+-- The Owner hands over ownership first, unless they are the last Member: then
+-- leaving dissolves the household, keeping everyone's Personal events. The
+-- event lock comes before the delete, so a racing push can't leave an orphan.
 create or replace function public.leave_household()
 returns void
 language plpgsql
