@@ -51,6 +51,7 @@ function transaction(
     removed: false,
     recordedHlc: `hlc-${String(nextId).padStart(4, "0")}`,
     importKey: null,
+    paidByUserId: null,
     ...overrides,
   };
 }

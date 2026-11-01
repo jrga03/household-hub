@@ -3,6 +3,7 @@ import type { Cents } from "@/lib/currency";
 import { parsePHP } from "@/lib/currency";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { listUnpushed, receiveEvents, type LoggedEvent } from "@/lib/events/log";
+import { readAccountMoney } from "@/lib/transactions/money";
 import { listTransactions } from "@/lib/transactions/projection";
 import { createAccount, editAccount, retireAccount } from "./accounts";
 import { createCategory, createGroup, retireCategory } from "./categories";
@@ -73,6 +74,69 @@ beforeEach(async () => {
   ).id;
   const food = await createGroup(MEMBER, { name: "Food" });
   groceriesId = (await createCategory(MEMBER, { name: "Groceries", groupId: food.id })).id;
+});
+
+describe("addTransaction, out-of-pocket", () => {
+  const outOfPocket = (overrides: Partial<TransactionInput> = {}) => ({
+    ...expense(overrides),
+    paidByUserId: MEMBER.userId,
+  });
+
+  it("records a pending expense naming the member who paid", async () => {
+    await addTransaction(MEMBER, { ...outOfPocket(), status: "cleared" });
+
+    expect(await listTransactions()).toMatchObject([
+      { status: "pending", paidByUserId: MEMBER.userId, categoryId: groceriesId },
+    ]);
+    expect((await readAccountMoney()).get(bankId)).toMatchObject({
+      balance: peso("750"),
+      cleared: peso("1000"),
+    });
+  });
+
+  it("records no payer on an ordinary expense", async () => {
+    await addTransaction(MEMBER, expense());
+
+    expect(await listTransactions()).toMatchObject([{ paidByUserId: null }]);
+  });
+
+  it("refuses a payer other than the member recording it", async () => {
+    await expect(
+      addTransaction(MEMBER, { ...expense(), paidByUserId: OTHER_MEMBER.userId })
+    ).rejects.toThrow("You can only record your own out-of-pocket expense.");
+  });
+
+  it("refuses income", async () => {
+    await expect(
+      addTransaction(MEMBER, outOfPocket({ type: "income", categoryId: null }))
+    ).rejects.toThrow("Only an expense can be out-of-pocket.");
+  });
+
+  it("refuses a Personal account", async () => {
+    const wallet = await createAccount(MEMBER, {
+      name: "My wallet",
+      type: "cash",
+      startingBalanceCents: peso("0"),
+      visibility: "personal",
+    });
+
+    await expect(
+      addTransaction(MEMBER, outOfPocket({ accountId: wallet.id, categoryId: null }))
+    ).rejects.toThrow("Choose a Household account that isn't a credit card.");
+  });
+
+  it("refuses a credit card", async () => {
+    const visa = await createAccount(MEMBER, {
+      name: "Visa",
+      type: "credit_card",
+      startingBalanceCents: peso("0"),
+      payingAccountId: bankId,
+    });
+
+    await expect(addTransaction(MEMBER, outOfPocket({ accountId: visa.id }))).rejects.toThrow(
+      "Choose a Household account that isn't a credit card."
+    );
+  });
 });
 
 describe("addTransaction", () => {

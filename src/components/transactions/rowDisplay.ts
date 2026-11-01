@@ -25,11 +25,15 @@ export interface RowDisplay {
   account: string;
   /** A transfer's accounts, so a table can break the route only at the arrow. */
   route?: { from: string; to: string };
+  /** An open Out-of-pocket expense's "Paid by …" (ADR 0012). */
+  payer?: string;
 }
 
 export interface RowNames {
   categories: Map<string, string>;
   accounts: Map<string, string>;
+  /** Who a member is, for an Out-of-pocket expense's payer; rows name no payer without it. */
+  payerName?: (userId: string) => string;
 }
 
 /** Every category and account name on this device, retired ones included; empty while loading. */
@@ -80,11 +84,16 @@ export function rowDisplay(row: ListRow, names: RowNames, filteredAccount?: stri
       ? "Unassigned"
       : (names.categories.get(row.categoryId) ?? "Category not on this device yet");
   const account = accountNameOf(row.accountId);
+  const payer =
+    row.paidByUserId && row.status === "pending" && names.payerName
+      ? `Paid by ${names.payerName(row.paidByUserId)}`
+      : undefined;
   return {
     label: transactionLabel(row),
-    detail: `${categoryName} · ${account}`,
+    detail: [payer, categoryName, account].filter(Boolean).join(" · "),
     amount: { kind: row.type === "income" ? "income" : "expense" },
     category: categoryName,
     account,
+    ...(payer && { payer }),
   };
 }

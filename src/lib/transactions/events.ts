@@ -29,10 +29,13 @@ const withoutPayingAccount = (payload: Record<string, unknown>) => ({
 // v3 records the statement line a transaction was imported from; earlier ones were typed in.
 const withoutImportKey = (payload: Record<string, unknown>) => ({ ...payload, importKey: null });
 
+// v4 records who paid an Out-of-pocket expense (ADR 0012); earlier ones were paid by the household.
+const withoutPayer = (payload: Record<string, unknown>) => ({ ...payload, paidByUserId: null });
+
 export const TRANSACTION_VERSIONS = {
   [TRANSACTION_CREATED]: {
-    current: 3,
-    upcasts: { 1: withoutPayingAccount, 2: withoutImportKey },
+    current: 4,
+    upcasts: { 1: withoutPayingAccount, 2: withoutImportKey, 3: withoutPayer },
   },
   [TRANSACTION_EDITED]: { current: 2, upcasts: { 1: withoutPayingAccount } },
   [TRANSACTION_MARKED_CLEARED]: { current: 1, upcasts: {} },
@@ -152,6 +155,16 @@ export function decodeImportKey(event: LoggedEvent): string | null {
   if (event.eventType !== TRANSACTION_CREATED) return null;
   const { importKey } = event.payload;
   return typeof importKey === "string" && importKey !== "" ? importKey : null;
+}
+
+/**
+ * The member who paid an Out-of-pocket expense (ADR 0012), or null. Only the
+ * create carries it, so it never changes.
+ */
+export function decodePayer(event: LoggedEvent): string | null {
+  if (event.eventType !== TRANSACTION_CREATED) return null;
+  const { paidByUserId } = event.payload;
+  return typeof paidByUserId === "string" && paidByUserId !== "" ? paidByUserId : null;
 }
 
 /** Whether a remove or restore leaves the transaction removed, or null for any other event. */

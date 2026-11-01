@@ -100,6 +100,16 @@ export class HouseholdHubDB extends Dexie {
     this.version(11).stores({ balanceCorrections: "id, [date+recordedHlc]" });
     // One chat per member, kept on this device outside the event log (ADR 0010).
     this.version(12).stores({ assistantChats: "userId" });
+    this.version(13)
+      .stores({})
+      .upgrade((transaction) =>
+        transaction
+          .table("transactions")
+          .toCollection()
+          .modify((row: Record<string, unknown>) => {
+            row.paidByUserId ??= null;
+          })
+      );
   }
 }
 

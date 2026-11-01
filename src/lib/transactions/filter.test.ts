@@ -33,6 +33,7 @@ function row(overrides: Partial<TransactionRow> = {}): TransactionRow {
     removed: false,
     recordedHlc: `hlc-${nextId}`,
     importKey: null,
+    paidByUserId: null,
     ...overrides,
   };
 }

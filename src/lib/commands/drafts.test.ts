@@ -79,7 +79,7 @@ describe("saveDrafts", () => {
     const created = (await listUnpushed(100)).find(
       (event) => event.eventType === "transaction.created"
     );
-    expect(created).toMatchObject({ eventVersion: 3, payload: { importKey: market!.importKey } });
+    expect(created).toMatchObject({ eventVersion: 4, payload: { importKey: market!.importKey } });
   });
 
   it("deletes saved drafts, and the import once nothing is left", async () => {

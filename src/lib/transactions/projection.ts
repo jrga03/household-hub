@@ -4,6 +4,7 @@ import { sameOwnership, type Ownership } from "@/lib/events/ownership";
 import type { EntityProjection } from "@/lib/events/projector";
 import {
   decodeImportKey,
+  decodePayer,
   decodeRemoval,
   decodeTransactionDetails,
   decodeTransactionStatus,
@@ -25,6 +26,8 @@ export interface TransactionRow extends TransactionDetails, Ownership {
   recordedHlc: string;
   /** The statement line it was imported from (ADR 0008); null when typed in. */
   importKey: string | null;
+  /** The member who paid an Out-of-pocket expense (ADR 0012); null when the household paid. */
+  paidByUserId: string | null;
 }
 
 /**
@@ -50,6 +53,7 @@ function applyTransactionEvent(
       removed: false,
       recordedHlc: event.hlc,
       importKey: decodeImportKey(event),
+      paidByUserId: decodePayer(event),
     };
   }
   // Changes carry the transaction's own visibility and owner; anything else isn't a change to it.

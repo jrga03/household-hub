@@ -1,6 +1,6 @@
 import { appendTogether } from "@/lib/events/log";
 import { requestSync } from "@/lib/sync/triggers";
-import { isCreditCard } from "@/lib/accounts/events";
+import { canBeOutOfPocket, isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { Cents } from "@/lib/currency";
 import {
@@ -33,6 +33,8 @@ export interface NewTransactionInput extends TransactionInput {
   status?: string;
   /** The statement line a saved draft came from (ADR 0008). */
   importKey?: string;
+  /** The member recording an Out-of-pocket expense (ADR 0012); it is always pending. */
+  paidByUserId?: string | null;
 }
 
 export interface TransactionInput {
@@ -88,10 +90,12 @@ export async function addTransaction(
 async function appendCreated(actor: Actor, id: string, input: NewTransactionInput) {
   const details = checkedDetails(input);
   requireDescription(details);
-  const status = input.status ?? "cleared";
+  const paidByUserId = input.paidByUserId ?? null;
+  const status = paidByUserId ? "pending" : (input.status ?? "cleared");
   if (!isTransactionStatus(status)) throw new Error("Choose Cleared or Pending.");
   const account = await requireAccount(details.accountId);
   refuseRetired(account);
+  if (paidByUserId) checkOutOfPocket(actor, paidByUserId, details, account);
   await checkCategory(details.categoryId, account);
 
   await appendTransactionEvent(actor, { ...account, id }, TRANSACTION_CREATED, {
@@ -99,7 +103,23 @@ async function appendCreated(actor: Actor, id: string, input: NewTransactionInpu
     payingAccountId: payingAccountOf(account),
     status,
     importKey: input.importKey ?? null,
+    paidByUserId,
   });
+}
+
+function checkOutOfPocket(
+  actor: Actor,
+  paidByUserId: string,
+  details: TransactionDetails,
+  account: AccountRow
+): void {
+  if (paidByUserId !== actor.userId) {
+    throw new Error("You can only record your own out-of-pocket expense.");
+  }
+  if (details.type !== "expense") throw new Error("Only an expense can be out-of-pocket.");
+  if (!canBeOutOfPocket(account)) {
+    throw new Error("Choose a Household account that isn't a credit card.");
+  }
 }
 
 async function requireTransaction(transactionId: string): Promise<TransactionRow> {

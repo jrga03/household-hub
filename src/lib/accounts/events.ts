@@ -1,5 +1,6 @@
 import { asCents, formatPHP, MAX_AMOUNT_CENTS, ZERO_CENTS, type Cents } from "@/lib/currency";
 import type { LoggedEvent } from "@/lib/events/log";
+import type { Visibility } from "@/lib/events/ownership";
 import type { EventVersions } from "@/lib/events/versions";
 import { DELETED, RESTORED, RETIRED, UNRETIRED, type Retirement } from "@/lib/events/retirement";
 
@@ -42,6 +43,10 @@ export const isAccountType = (value: unknown): value is AccountType =>
 const rejected = (problem: string): DetailsCheck => ({ details: null, problem });
 
 export const isCreditCard = (account: { type: AccountType }) => account.type === CREDIT_CARD;
+
+/** Only a Household account that isn't a card can pay a member back (ADR 0012). */
+export const canBeOutOfPocket = (account: { type: AccountType; visibility: Visibility }) =>
+  account.visibility === "household" && !isCreditCard(account);
 
 /**
  * Validates account details from a form or from another device's event. Whether
