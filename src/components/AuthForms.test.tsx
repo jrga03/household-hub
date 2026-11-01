@@ -69,7 +69,7 @@ describe("LoginForm", () => {
     const password = screen.getByLabelText("Password");
     await vi.waitFor(() => expect(password).toHaveAttribute("aria-invalid", "true"));
     expect(password).toHaveAccessibleDescription("Enter your password.");
-    expect(password).toHaveFocus();
+    await vi.waitFor(() => expect(password).toHaveFocus());
     expect(signIn).not.toHaveBeenCalled();
   });
 });
@@ -89,7 +89,7 @@ describe("SignupForm", () => {
     const confirm = screen.getByLabelText("Confirm password");
     await vi.waitFor(() => expect(confirm).toHaveAttribute("aria-invalid", "true"));
     expect(confirm).toHaveAccessibleDescription("Passwords don’t match.");
-    expect(confirm).toHaveFocus();
+    await vi.waitFor(() => expect(confirm).toHaveFocus());
     expect(signUp).not.toHaveBeenCalled();
   });
 
