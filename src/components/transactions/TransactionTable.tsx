@@ -78,7 +78,7 @@ function columnsFor(actor: Actor): DataTableColumn<DisplayedRow>[] {
             {display.payer ?? "Pending"}
           </StatusBadge>
         ) : (
-          <span className="text-caption text-muted-foreground">Cleared</span>
+          <span className="text-caption text-muted-foreground">{display.payer ?? "Cleared"}</span>
         ),
     },
     {
