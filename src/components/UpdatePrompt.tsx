@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useServiceWorker } from "@/hooks/useServiceWorker";
 import { usePwaPromptStore } from "@/stores/pwaPromptStore";
@@ -20,6 +20,8 @@ const UPDATE_TOAST_ID = "sw-update-available";
  * - "Reload" action runs the existing update/reload logic from
  *   useServiceWorker (skipWaiting + controllerchange + reload).
  * - Close button / dismissal clears the service worker's needRefresh flag.
+ * - Applies the update when the app goes to the background, unless a dialog
+ *   or an Assistant draft is open; it checks again on the next background.
  * - Mirrors the pending state into pwaPromptStore so PWAInstallPrompt can
  *   suppress its install card while an update is waiting.
  */
@@ -36,6 +38,14 @@ export function UpdatePrompt() {
     updateRef.current = update;
     dismissRef.current = dismiss;
   });
+
+  // update() reloads only after a wait; a second call in that wait would queue a second reload.
+  const updateStartedRef = useRef(false);
+  const startUpdate = useCallback(() => {
+    if (updateStartedRef.current) return;
+    updateStartedRef.current = true;
+    void updateRef.current();
+  }, []);
 
   useEffect(() => {
     setUpdatePending(needRefresh);
@@ -54,15 +64,25 @@ export function UpdatePrompt() {
       description: "A new version of Household Hub is ready.",
       action: {
         label: "Reload",
-        onClick: () => {
-          void updateRef.current();
-        },
+        onClick: startUpdate,
       },
       onDismiss: () => {
         dismissRef.current();
       },
     });
-  }, [needRefresh, setUpdatePending]);
+  }, [needRefresh, setUpdatePending, startUpdate]);
+
+  useEffect(() => {
+    if (!needRefresh) return;
+
+    const applyInBackground = () => {
+      if (document.visibilityState !== "hidden") return;
+      const dialogOpen = document.querySelector('[role="dialog"]') !== null;
+      if (!dialogOpen && !usePwaPromptStore.getState().assistantDraftPending) startUpdate();
+    };
+    document.addEventListener("visibilitychange", applyInBackground);
+    return () => document.removeEventListener("visibilitychange", applyInBackground);
+  }, [needRefresh, startUpdate]);
 
   return null;
 }

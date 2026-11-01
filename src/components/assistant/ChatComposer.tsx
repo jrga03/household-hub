@@ -8,6 +8,7 @@ import {
   subscribeToVisibleArea,
   useVisibleAreaPart,
 } from "@/hooks/useVisibleArea";
+import { usePwaPromptStore } from "@/stores/pwaPromptStore";
 
 function resetTime(resetsAt: Date) {
   const time = format(resetsAt, "h:mm a");
@@ -33,6 +34,12 @@ export function ChatComposer({
 }) {
   const [text, setText] = useState(initialText);
   const formRef = useRef<HTMLFormElement>(null);
+  const hasDraft = text !== "";
+  const setDraftPending = usePwaPromptStore((state) => state.setAssistantDraftPending);
+  useEffect(() => {
+    setDraftPending(hasDraft);
+    return () => setDraftPending(false);
+  }, [hasDraft, setDraftPending]);
   const keyboardHeight = useVisibleAreaPart((area) => area.keyboardHeight);
   useEffect(() => {
     // Written in the event, not through React, so the move lands in the frame iOS panned in.

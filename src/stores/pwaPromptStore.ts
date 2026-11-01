@@ -4,7 +4,8 @@
  * UpdatePrompt (service-worker update toast) and PWAInstallPrompt (install
  * card) used to render at the identical fixed bottom position and overlapped
  * 100% when both were pending. UpdatePrompt is now a persistent sonner toast,
- * and this store is the coordination channel between the two:
+ * and this store is the coordination channel between it and the components
+ * that change what it does:
  *
  * - UpdatePrompt writes `updatePending` whenever the service worker's
  *   `needRefresh` flag changes (a new SW is waiting).
@@ -13,6 +14,9 @@
  *   own timers and dismissal bookkeeping (iOS 3s delay, 7-day re-prompt)
  *   keep running, so the card appears on its normal schedule once the update
  *   is applied or dismissed.
+ * - ChatComposer writes `assistantDraftPending` while its text is not empty,
+ *   so UpdatePrompt does not reload over it when the app goes to the
+ *   background.
  *
  * A zustand store (rather than a plain module variable) is used because the
  * two components live in different trees (App.tsx vs AppLayout) and the
@@ -29,9 +33,16 @@ interface PwaPromptStore {
 
   /** Set by UpdatePrompt when the service worker's needRefresh flag changes */
   setUpdatePending: (updatePending: boolean) => void;
+
+  /** True while the Assistant composer holds text that is not sent */
+  assistantDraftPending: boolean;
+
+  setAssistantDraftPending: (assistantDraftPending: boolean) => void;
 }
 
 export const usePwaPromptStore = create<PwaPromptStore>((set) => ({
   updatePending: false,
   setUpdatePending: (updatePending) => set({ updatePending }),
+  assistantDraftPending: false,
+  setAssistantDraftPending: (assistantDraftPending) => set({ assistantDraftPending }),
 }));
