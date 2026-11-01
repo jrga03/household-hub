@@ -48,7 +48,7 @@ const openProps = (openInUrl = false) => (openInUrl ? { defaultOpen: true } : { 
  */
 export function useSheetAboveKeyboard() {
   const sheetRef = useRef<HTMLDivElement>(null);
-  const { top, inset, viewportHeight } = useVisibleArea();
+  const { inset, keyboardHeight, viewportHeight } = useVisibleArea();
 
   // The keyboard opening (or the page shrinking for it) mustn't hide the field being typed in.
   useEffect(() => {
@@ -61,7 +61,7 @@ export function useSheetAboveKeyboard() {
   // The sheet runs on under the keyboard, its content padded above it: moving the sheet up instead leaves a seam at its edge.
   // Its top stays in the visible area, which iOS may have panned down the page.
   const style =
-    inset > 0 || top > 0
+    keyboardHeight > 0
       ? { paddingBottom: inset, maxHeight: `calc(${viewportHeight + inset}px - 1rem)` }
       : undefined;
   return { ref: sheetRef, style };

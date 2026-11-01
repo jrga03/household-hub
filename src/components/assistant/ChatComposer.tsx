@@ -28,8 +28,7 @@ export function ChatComposer({
   onSend: (text: string) => Promise<boolean>;
 }) {
   const [text, setText] = useState(initialText);
-  const { top, inset } = useVisibleArea();
-  const keyboard = inset + top;
+  const { top, keyboardHeight } = useVisibleArea();
   const blockedBecause = !online
     ? "The assistant needs a connection. Everything else works offline."
     : limitResetsAt
@@ -53,8 +52,11 @@ export function ChatComposer({
       onSubmit={submit}
       className="sticky bottom-0 space-y-2 border-t bg-background pt-3 pb-[max(1rem,var(--bottom-chrome))]"
       style={
-        keyboard > 0
-          ? { paddingBottom: `calc(${keyboard}px + 0.5rem)`, transform: `translateY(${top}px)` }
+        keyboardHeight > 0
+          ? {
+              paddingBottom: `calc(${keyboardHeight}px + 0.5rem)`,
+              transform: `translateY(${top}px)`,
+            }
           : undefined
       }
     >

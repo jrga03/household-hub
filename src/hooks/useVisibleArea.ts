@@ -5,6 +5,8 @@ interface VisibleArea {
   top: number;
   /** How much of the page bottom an on-screen keyboard covers, in px. */
   inset: number;
+  /** The keyboard's height (`top + inset`), which stays the same while iOS pans. */
+  keyboardHeight: number;
   viewportHeight: number;
 }
 
@@ -19,6 +21,7 @@ export function useVisibleArea(): VisibleArea {
   const [area, setArea] = useState<VisibleArea>(() => ({
     top: 0,
     inset: 0,
+    keyboardHeight: 0,
     viewportHeight: window.visualViewport?.height ?? window.innerHeight,
   }));
   useEffect(() => {
@@ -36,7 +39,7 @@ export function useVisibleArea(): VisibleArea {
         previous.inset === inset &&
         previous.viewportHeight === viewportHeight
           ? previous
-          : { top, inset, viewportHeight }
+          : { top, inset, keyboardHeight: top + inset, viewportHeight }
       );
     };
     update();
