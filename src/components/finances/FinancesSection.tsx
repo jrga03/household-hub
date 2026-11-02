@@ -18,7 +18,7 @@ import { useFinanceOverview } from "@/hooks/useFinanceOverview";
 import { useReviewCounts } from "@/hooks/useReviewCount";
 import { isCreditCard } from "@/lib/accounts/events";
 import type { Actor } from "@/lib/commands/accounts";
-import { ZERO_CENTS, type Cents } from "@/lib/currency";
+import type { Cents } from "@/lib/currency";
 import { attentionFeed } from "@/lib/finances/attention";
 import type { BudgetStatusCounts, FinanceOverview } from "@/lib/finances/overview";
 import { readFinanceView, rememberFinanceView, type FinanceView } from "@/lib/finances/view";
@@ -33,15 +33,6 @@ export const VIEW_OPTIONS = [
   { value: "mine", label: "Mine" },
 ] as const;
 
-const NOTHING_TO_REVIEW = {
-  uncategorized: 0,
-  payBack: 0,
-  drafts: 0,
-  unassigned: 0,
-  joinRequests: 0,
-  unassignedCents: ZERO_CENTS,
-};
-
 /**
  * Home: the month's hero and what needs attention in the main column, Balances
  * and Latest beside it from 840. Below 840 it is one stack, with Budgets added.
@@ -54,13 +45,17 @@ export function FinancesSection({ actor, children }: { actor: Actor; children?: 
   const currentMonth = localMonth(now);
   const overview = useFinanceOverview(view, userId, currentMonth);
   const reviewCounts = useReviewCounts();
-  const owedToYou = useLiveQuery(readOwed, [])?.get(userId)?.totalCents;
+  const owed = useLiveQuery(readOwed, []);
+  const owedToYou = owed?.get(userId)?.totalCents;
   const twoColumns = useTwoPanes();
 
   function choose(next: FinanceView) {
     rememberFinanceView(next);
     setView(next);
   }
+
+  // Everything shows at once: a section that arrived later would push the others down.
+  if (!overview || !reviewCounts || !owed) return null;
 
   const main = (
     <>
@@ -76,29 +71,21 @@ export function FinancesSection({ actor, children }: { actor: Actor; children?: 
           onChange={choose}
         />
       </div>
-      {overview && (
-        <>
-          <MonthFigures
-            overview={overview}
-            daysLeft={daysLeftInMonth(now)}
-            owedToYou={view === "mine" ? owedToYou : undefined}
-          />
-          <AttentionFeed
-            items={attentionFeed({
-              budgets: overview.budgetLines,
-              balances: overview.balances,
-              review: reviewCounts ?? NOTHING_TO_REVIEW,
-            })}
-            fineBudgets={overview.budgets.fine}
-          />
-        </>
-      )}
+      <MonthFigures
+        overview={overview}
+        daysLeft={daysLeftInMonth(now)}
+        owedToYou={view === "mine" ? owedToYou : undefined}
+      />
+      <AttentionFeed
+        items={attentionFeed({
+          budgets: overview.budgetLines,
+          balances: overview.balances,
+          review: reviewCounts,
+        })}
+        fineBudgets={overview.budgets.fine}
+      />
     </>
   );
-
-  if (!overview) {
-    return <PageShell.Main className="space-y-8">{main}</PageShell.Main>;
-  }
 
   if (twoColumns) {
     return (

@@ -70,16 +70,18 @@ export function AccountsView({ actor }: { actor: Actor }) {
   return (
     <>
       {/* A few rows and a form read best at the single column's width, pane or not. */}
-      <PageShell.List className="max-w-3xl space-y-8">
-        {accounts?.length === 0 && (
-          <EmptyState>No accounts yet. Add the first one below.</EmptyState>
-        )}
-        {accounts && accounts.length > 0 && (
-          <AccountSections accounts={accounts} money={money} openId={openId} onOpen={open} />
-        )}
-        <RetiredAccounts retired={retired} money={money} openId={openId} onOpen={open} />
-        <AddAccountForm actor={actor} />
-      </PageShell.List>
+      {/* The form waits for the lists above it, so it doesn't move down when they arrive. */}
+      {accounts && retired && (
+        <PageShell.List className="max-w-3xl space-y-8">
+          {accounts.length === 0 ? (
+            <EmptyState>No accounts yet. Add the first one below.</EmptyState>
+          ) : (
+            <AccountSections accounts={accounts} money={money} openId={openId} onOpen={open} />
+          )}
+          <RetiredAccounts retired={retired} money={money} openId={openId} onOpen={open} />
+          <AddAccountForm actor={actor} />
+        </PageShell.List>
+      )}
       <DetailPane
         title={openAccount?.name ?? ""}
         description={openAccount && ACCOUNT_TYPE_LABELS[openAccount.type]}
@@ -348,12 +350,9 @@ function DeleteButton({ actor, account }: { actor: Actor; account: AccountListIt
   );
 }
 
-function RetiredAccounts({
-  retired,
-  ...rows
-}: RowsProps & { retired: AccountListItem[] | undefined }) {
+function RetiredAccounts({ retired, ...rows }: RowsProps & { retired: AccountListItem[] }) {
   const [shown, setShown] = useState(false);
-  if (!retired || retired.length === 0) return null;
+  if (retired.length === 0) return null;
 
   return (
     <section className="space-y-2">

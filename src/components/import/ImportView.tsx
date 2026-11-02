@@ -12,6 +12,7 @@ import { SectionHeader } from "@/components/app/SectionHeader";
 import { useAllAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useImportReview } from "@/hooks/useImports";
+import { isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { saveDrafts } from "@/lib/commands/drafts";
@@ -63,7 +64,9 @@ export function ImportView({ actor }: { actor: Actor }) {
               Its lines wait below as drafts until you save or discard them.
             </p>
           </div>
-          <ReadStatement />
+          <ReadStatement
+            cards={accounts.list.filter((account) => isCreditCard(account) && !account.retired)}
+          />
         </section>
 
         {imports.length === 0 ? (

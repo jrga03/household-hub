@@ -15,9 +15,8 @@ import {
   SelectValue,
 } from "@/components/app/Select";
 import { SubmitButton } from "@/components/app/SubmitButton";
-import { useAccounts } from "@/hooks/useAccounts";
 import { useLastImportCard } from "@/hooks/useImports";
-import { isCreditCard } from "@/lib/accounts/events";
+import type { AccountListItem } from "@/lib/accounts/projection";
 import { createImport } from "@/lib/import/drafts";
 import { BDO_CREDIT_CARD_PDF, STATEMENT_FORMATS } from "@/lib/import/formats";
 import { parseStatement } from "@/lib/import/parse-statement";
@@ -40,9 +39,7 @@ interface ReadState {
  * held as an Import of drafts for review. The card starts as the one last
  * used with the format on this device.
  */
-export function ReadStatement() {
-  const accounts = useAccounts();
-  const cards = accounts?.filter(isCreditCard) ?? [];
+export function ReadStatement({ cards }: { cards: AccountListItem[] }) {
   const [formatId, setFormatId] = useState<StatementFormatId>(BDO_CREDIT_CARD_PDF.id);
   const [cardId, setCardId] = useState("");
   const lastCardId = useLastImportCard(formatId);
@@ -90,7 +87,6 @@ export function ReadStatement() {
     { error: null, readCount: 0 }
   );
 
-  if (!accounts) return null;
   if (cards.length === 0) {
     return (
       <p className="text-body text-muted-foreground">
