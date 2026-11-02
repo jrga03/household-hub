@@ -5,8 +5,9 @@
  *
  * Usage: npm run generate:icons
  *
- * Colors come from src/index.css: the light `--primary` tile and the light and dark
- * `--background` splash. Splash files are the ones index.html's
+ * Colors come from src/index.css: icons use the light `--primary` tile; the light and
+ * dark splash use each theme's `--background`, `--primary` and `--primary-foreground`,
+ * so they match the in-app start-up screen (LoadingScreen). Splash files are the ones index.html's
  * apple-touch-startup-image tags name, so the tags stay valid; to add a device,
  * add its tag there first.
  */
@@ -28,13 +29,15 @@ const css = read("src/index.css");
 const token = (block, name) =>
   match(new RegExp(`${block} \\{[^}]*?--${name}: ([^;]+);`), css, `--${name} in ${block}`);
 const primary = token(":root", "primary");
-const splashBackground = {
-  light: token(":root", "background"),
-  dark: token("\\.dark", "background"),
-};
+const splashColors = (block) => ({
+  background: token(block, "background"),
+  tile: token(block, "primary"),
+  mark: token(block, "primary-foreground"),
+});
+const splashTheme = { light: splashColors(":root"), dark: splashColors("\\.dark") };
 
-const mark = (scale) =>
-  `<svg viewBox="0 0 24 24" width="${scale}%" height="${scale}%" fill="#fff">` +
+const mark = (scale, fill = "#fff") =>
+  `<svg viewBox="0 0 24 24" width="${scale}%" height="${scale}%" fill="${fill}">` +
   `<path fill-rule="evenodd" d="${markPath}"/></svg>`;
 const glyph = (paths) =>
   `<svg viewBox="0 0 24 24" width="50%" height="50%" fill="none" stroke="#fff"
@@ -91,20 +94,20 @@ const images = [
   },
 ];
 
-const splashTile = (width, height) => {
+const splashTile = (width, height, colors) => {
   const tile = Math.round(Math.min(width, height) * 0.25);
-  return `<div style="width:${tile}px;height:${tile}px;border-radius:22%;background:${primary};
-    display:grid;place-items:center">${mark(60)}</div>`;
+  return `<div style="width:${tile}px;height:${tile}px;border-radius:22%;background:${colors.tile};
+    display:grid;place-items:center">${mark(60, colors.mark)}</div>`;
 };
 for (const [, file, dark, width, height] of read("index.html").matchAll(
   /href="\/(splash\/apple-splash-(dark-)?(\d+)-(\d+)\.png)"/g
 )) {
-  const background = dark ? splashBackground.dark : splashBackground.light;
+  const colors = dark ? splashTheme.dark : splashTheme.light;
   images.push({
     file,
     width: Number(width),
     height: Number(height),
-    html: htmlPage(background, splashTile(Number(width), Number(height))),
+    html: htmlPage(colors.background, splashTile(Number(width), Number(height), colors)),
   });
 }
 

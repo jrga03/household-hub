@@ -1,38 +1,37 @@
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppMark } from "@/components/app/AppMark";
 
+const SLOW_START_MS = 1000;
+
 /**
- * Full-screen loading component
- *
- * Shows during:
- * - Initial auth state check
- * - Route transitions while checking auth
- * - Any async operations that need full-screen loading
- *
- * Features branded loading with app logo and spinner
+ * The start-up screen. It draws the same frame as the iOS splash
+ * (scripts/generate-icons.mjs: a tile 25% of the short side, centered), so
+ * the handoff from splash to app does not move. A spinner shows only on a slow start.
  */
 export function LoadingScreen() {
+  const [isSlow, setIsSlow] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsSlow(true), SLOW_START_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-4">
-        <AppMark size="xl" />
-
-        {/* App Name */}
-        <h1 className="text-title">Household Hub</h1>
-
-        {/* Loading Spinner (carries the role="status" announcement) */}
-        <LoadingSpinner
-          size="large"
-          className="text-muted-foreground"
-          label="Loading Household Hub"
-        />
-
-        {/* Visible loading text; hidden from screen readers so the spinner's
-            status announcement isn't duplicated */}
-        <p className="text-body text-muted-foreground" aria-hidden="true">
-          Loading...
-        </p>
+    <div className="grid min-h-dvh place-items-center bg-background">
+      <div className="relative">
+        {/* eslint-disable-next-line better-tailwindcss/no-restricted-classes -- the splash image's radius, so the tile does not change shape */}
+        <AppMark className="size-[25vmin] rounded-[22%]" />
+        <span role="status" className="sr-only">
+          Loading Household Hub
+        </span>
+        {isSlow && (
+          <Loader2
+            aria-hidden="true"
+            className="absolute top-full left-1/2 mt-6 size-8 -translate-x-1/2 animate-spin text-muted-foreground"
+          />
+        )}
       </div>
     </div>
   );
