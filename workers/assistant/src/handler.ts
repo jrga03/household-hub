@@ -7,6 +7,9 @@ const MAX_TOKENS = 2048;
 const CAPACITY_RETRY_DELAY_MS = 1000;
 const OUT_OF_CAPACITY = "3040";
 const DAILY_NEURONS_USED_UP = "3036";
+// The app sends about 2 KB of tools and at most 20 history items; only many long lists reach 64 KB.
+const MAX_BODY_BYTES = 64 * 1024;
+const MAX_MESSAGES = 40;
 
 export interface AiBinding {
   run(model: string, input: ChatRequest & { stream: true; max_tokens: number }): Promise<unknown>;
@@ -22,6 +25,7 @@ export interface HandlerEnv {
 
 export interface HandlerDeps {
   authorize: (token: string) => Promise<boolean>;
+  hasHousehold: (token: string) => Promise<boolean>;
   sleep: (ms: number) => Promise<void>;
   nowMs: () => number;
   fetch: typeof fetch;
@@ -50,15 +54,25 @@ function aiErrorCode(error: unknown): string | undefined {
   return /^(\d{4}):/.exec(message)?.[1];
 }
 
-async function readBody(request: Request) {
+type BodyRefusal = { status: number; error: string };
+
+async function readBody(request: Request): Promise<ChatRequest | BodyRefusal> {
+  const tooLarge = { status: 413, error: "too_large" };
+  if (Number(request.headers.get("content-length")) > MAX_BODY_BYTES) return tooLarge;
+  const invalid = { status: 400, error: "invalid_request" };
   try {
-    const body: unknown = await request.json();
-    if (!isObject(body)) return undefined;
+    const bytes = await request.arrayBuffer();
+    if (bytes.byteLength > MAX_BODY_BYTES) return tooLarge;
+    const body: unknown = JSON.parse(new TextDecoder().decode(bytes));
+    if (!isObject(body)) return invalid;
+    if (Array.isArray(body.messages) && body.messages.length > MAX_MESSAGES) {
+      return { status: 400, error: "too_many_messages" };
+    }
     const messages = rebuildMessages(body.messages);
     const tools = rebuildTools(body.tools);
-    return messages && tools ? { messages, tools } : undefined;
+    return messages && tools ? { messages, tools } : invalid;
   } catch {
-    return undefined;
+    return invalid;
   }
 }
 
@@ -94,7 +108,10 @@ export async function handleRequest(
   }
 
   const body = await readBody(request);
-  if (!body) return jsonResponse(400, { error: "invalid_request" }, requestOrigin);
+  if ("error" in body) return jsonResponse(body.status, { error: body.error }, requestOrigin);
+  if (!(await deps.hasHousehold(token))) {
+    return jsonResponse(403, { error: "no_household" }, requestOrigin);
+  }
 
   const nowMs = deps.nowMs();
   const workersAiResetMs = nextUtcMidnightMs(nowMs);

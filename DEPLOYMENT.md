@@ -109,21 +109,24 @@ The Wrangler log prints `Supabase keep-alive succeeded`. A failed query logs `Su
 
 ## Assistant Worker
 
-`workers/assistant` is the in-app assistant's only server part. It accepts `POST` with `Authorization: Bearer <Supabase access token>` and `{ messages, tools }` in the OpenAI chat shape, verifies the token, and streams `@cf/openai/gpt-oss-120b` back as server-sent events through the `AI` binding. The app defines the tools; the Worker only forwards them. It keeps no conversation and never logs message content.
+`workers/assistant` is the in-app assistant's only server part. It accepts `POST` with `Authorization: Bearer <Supabase access token>` and `{ messages, tools }` in the OpenAI chat shape, verifies the token and that its user is in a household, and streams `@cf/openai/gpt-oss-120b` back as server-sent events through the `AI` binding. The app defines the tools; the Worker only forwards them. It keeps no conversation and never logs message content.
 
 - **Token check:** ES256 against `<SUPABASE_URL>/auth/v1/.well-known/jwks.json` (held in memory, refetched for an unknown key id at most once a minute), with `exp`, `aud: "authenticated"` and `iss: <SUPABASE_URL>/auth/v1`. Anything else gets `401`.
+- **Household check:** the Worker calls `current_household_id` on Supabase with the member's token. A user with no household, or a failed call, gets `403 { "error": "no_household" }`.
+- **Request caps:** a body over 64 KB gets `413 { "error": "too_large" }`, and more than 40 messages get `400 { "error": "too_many_messages" }`, both before the household check and any model call. The app sends at most 20 history items, so only a chat with many long transaction lists reaches 64 KB; the app then asks for a new chat.
 - **CORS:** only the origins in `ALLOWED_ORIGINS` get CORS headers, and a request from any other origin gets `403`. A request with no `Origin` header (curl, a script) still needs a valid token; browsers always send `Origin` on the app's cross-origin calls.
 - **Limits:** on AiError 3040 (out of capacity) it retries once after 1 s, then answers `503 { "error": "busy" }`. On 3036 (daily neurons used up) it sends the same request to Groq `openai/gpt-oss-120b` and keeps doing so until 00:00 UTC (each isolate remembers this in memory). When Groq answers 429 too, or `GROQ_API_KEY` is unset, it answers `429 { "error": "daily_limit", "resetsAt": "…" }`: the next 00:00 UTC, or sooner if Groq's `retry-after` (a minute when it sends none) ends first. Other model failures answer `502 { "error": "upstream" }` and log only the error code or HTTP status.
 - **Groq:** used only with Zero Data Retention on (Groq console → Data Controls), per ADR 0010. Its free plan allows 8K tokens a minute and 200K a day for this model, so two members asking in the same minute can hit the per-minute limit.
 
 ### Settings
 
-| Setting           | Kind    | Value                                                                        |
-| ----------------- | ------- | ---------------------------------------------------------------------------- |
-| `AI`              | Binding | Workers AI, declared in `wrangler.jsonc`                                     |
-| `SUPABASE_URL`    | Secret  | Production Supabase project URL, no trailing slash                           |
-| `ALLOWED_ORIGINS` | Secret  | Comma-separated app origins, e.g. the app Worker's URL and any custom domain |
-| `GROQ_API_KEY`    | Secret  | Groq API key for the fallback, from an organisation with ZDR on. Optional    |
+| Setting                    | Kind    | Value                                                                                                              |
+| -------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------ |
+| `AI`                       | Binding | Workers AI, declared in `wrangler.jsonc`                                                                           |
+| `SUPABASE_URL`             | Secret  | Production Supabase project URL, no trailing slash                                                                 |
+| `SUPABASE_PUBLISHABLE_KEY` | Secret  | The project's publishable key (`sb_publishable_…`), for the household check. Never the secret key, which skips RLS |
+| `ALLOWED_ORIGINS`          | Secret  | Comma-separated app origins, e.g. the app Worker's URL and any custom domain                                       |
+| `GROQ_API_KEY`             | Secret  | Groq API key for the fallback, from an organisation with ZDR on. Optional                                          |
 
 Set the secrets in the assistant Worker's **Settings → Variables and Secrets** (not the app Worker, whose `VITE_*` build variables end up in the public bundle, and not GitHub) as type **Secret**: a plain variable set in the dashboard is replaced by the next deploy, a secret is kept.
 
@@ -146,6 +149,7 @@ To deploy from a terminal instead (check the account with `npx wrangler@4.149.0 
 ```bash
 cd workers/assistant
 npx wrangler@4.149.0 secret put SUPABASE_URL
+npx wrangler@4.149.0 secret put SUPABASE_PUBLISHABLE_KEY
 npx wrangler@4.149.0 secret put ALLOWED_ORIGINS
 npx wrangler@4.149.0 deploy
 ```
@@ -265,7 +269,7 @@ Each Worker keeps its versions. In the Worker's **Deployments** tab, roll back t
 - **The Workers build fails**: read the build log in the dashboard. Common causes are a missing `VITE_*` variable, a type error, or a Node version mismatch. Reproduce with `npm ci && npm run build`.
 - **Blank page**: check the browser console, then the `VITE_SUPABASE_*` build variables on the `household-hub` Worker.
 - **Sync stops for everyone**: check the Supabase dashboard. A paused project refuses every request; restore it, then check the [Keep-alive Worker](#keep-alive-worker)'s last runs.
-- **The Assistant answers 401 or 403**: check `SUPABASE_URL` and `ALLOWED_ORIGINS` on the Assistant Worker.
+- **The Assistant answers 401 or 403**: check `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` and `ALLOWED_ORIGINS` on the Assistant Worker.
 
 ---
 

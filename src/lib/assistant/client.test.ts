@@ -52,6 +52,18 @@ describe("createProxyClient", () => {
       "Sign in again to use the assistant.",
     ],
     [
+      Response.json({ error: "too_large" }, { status: 413 }),
+      "This chat is too long for the assistant. Start a new chat.",
+    ],
+    [
+      Response.json({ error: "too_many_messages" }, { status: 400 }),
+      "This chat is too long for the assistant. Start a new chat.",
+    ],
+    [
+      Response.json({ error: "invalid_request" }, { status: 400 }),
+      "Couldn't reach the assistant. Try again.",
+    ],
+    [
       Response.json({ error: "upstream" }, { status: 502 }),
       "Couldn't reach the assistant. Try again.",
     ],
