@@ -17,10 +17,16 @@ import { chromium } from "@playwright/test";
 
 const root = path.resolve(import.meta.dirname, "..");
 const read = (file) => readFileSync(path.join(root, file), "utf8");
+const match = (pattern, text, what) => {
+  const found = pattern.exec(text)?.[1];
+  if (!found) throw new Error(`Found no ${what}.`);
+  return found;
+};
 
-const markPath = /\sd="([^"]+)"/.exec(read("src/assets/app-mark.svg"))[1];
+const markPath = match(/\sd="([^"]+)"/, read("src/assets/app-mark.svg"), "path in app-mark.svg");
 const css = read("src/index.css");
-const token = (block, name) => new RegExp(`${block} \\{[^}]*?--${name}: ([^;]+);`).exec(css)[1];
+const token = (block, name) =>
+  match(new RegExp(`${block} \\{[^}]*?--${name}: ([^;]+);`), css, `--${name} in ${block}`);
 const primary = token(":root", "primary");
 const splashBackground = {
   light: token(":root", "background"),
@@ -34,7 +40,7 @@ const glyph = (paths) =>
   `<svg viewBox="0 0 24 24" width="50%" height="50%" fill="none" stroke="#fff"
      stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
      ${paths.map((d) => `<path d="${d}"/>`).join("")}</svg>`;
-const page = (background, body) =>
+const htmlPage = (background, body) =>
   `<body style="margin:0;height:100vh;display:grid;place-items:center;background:${background}">
      ${body}</body>`;
 
@@ -43,7 +49,7 @@ const fullBleed = (size, file) => ({
   file,
   width: size,
   height: size,
-  html: page(primary, mark(60)),
+  html: htmlPage(primary, mark(60)),
 });
 
 const images = [
@@ -57,14 +63,14 @@ const images = [
     file: "icons/icon-maskable-512x512.png",
     width: 512,
     height: 512,
-    html: page(primary, mark(50)),
+    html: htmlPage(primary, mark(50)),
   },
   // Android draws the notification badge from its alpha channel alone.
   {
     file: "icons/badge-72x72.png",
     width: 72,
     height: 72,
-    html: page("transparent", mark(100)),
+    html: htmlPage("transparent", mark(100)),
     transparent: true,
   },
   // Lucide's plus and chart-column, the app's own icon set.
@@ -72,13 +78,16 @@ const images = [
     file: "icons/shortcut-add.png",
     width: 96,
     height: 96,
-    html: page(primary, glyph(["M5 12h14", "M12 5v14"])),
+    html: htmlPage(primary, glyph(["M5 12h14", "M12 5v14"])),
   },
   {
     file: "icons/shortcut-dashboard.png",
     width: 96,
     height: 96,
-    html: page(primary, glyph(["M3 3v16a2 2 0 0 0 2 2h16", "M18 17V9", "M13 17V5", "M8 17v-3"])),
+    html: htmlPage(
+      primary,
+      glyph(["M3 3v16a2 2 0 0 0 2 2h16", "M18 17V9", "M13 17V5", "M8 17v-3"])
+    ),
   },
 ];
 
@@ -95,16 +104,16 @@ for (const [, file, dark, width, height] of read("index.html").matchAll(
     file,
     width: Number(width),
     height: Number(height),
-    html: page(background, splashTile(Number(width), Number(height))),
+    html: htmlPage(background, splashTile(Number(width), Number(height))),
   });
 }
 
 const browser = await chromium.launch();
-const tab = await browser.newPage();
+const page = await browser.newPage();
 for (const { file, width, height, html, transparent = false } of images) {
-  await tab.setViewportSize({ width, height });
-  await tab.setContent(html);
-  await tab.screenshot({ path: path.join(root, "public", file), omitBackground: transparent });
+  await page.setViewportSize({ width, height });
+  await page.setContent(html);
+  await page.screenshot({ path: path.join(root, "public", file), omitBackground: transparent });
 }
 await browser.close();
 console.log(`Wrote ${images.length} images to public/.`);
