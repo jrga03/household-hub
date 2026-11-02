@@ -5,6 +5,7 @@ import { Info } from "lucide-react";
 import { Button } from "@/components/app/Button";
 import { EmptyState } from "@/components/app/EmptyState";
 import { ListRow } from "@/components/app/ListRow";
+import { Skeleton } from "@/components/app/Skeleton";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import {
@@ -17,9 +18,11 @@ import { errorMessage } from "@/lib/utils";
 
 /** Settings → Join requests, for the Owner only; RLS shows other Members no requests. */
 export function JoinRequestsList({ householdId }: { householdId: string }) {
-  const { data: requests, isError } = useQuery(
-    pendingJoinRequestsQueryOptions(householdId, { poll: true })
-  );
+  const {
+    data: requests,
+    isError,
+    isFetching,
+  } = useQuery(pendingJoinRequestsQueryOptions(householdId, { poll: true }));
 
   if (isError && !requests) {
     return <EmptyState className="py-0">Join requests show when you&apos;re online.</EmptyState>;
@@ -27,7 +30,7 @@ export function JoinRequestsList({ householdId }: { householdId: string }) {
   if (requests?.length === 0) {
     return <EmptyState className="py-0">No pending requests.</EmptyState>;
   }
-  if (!requests) return null;
+  if (!requests) return isFetching ? <Skeleton aria-hidden className="h-5.5 w-40" /> : null;
   return (
     <ul aria-label="Join requests" className="-mx-4 divide-y border-y">
       {requests.map((request) => (

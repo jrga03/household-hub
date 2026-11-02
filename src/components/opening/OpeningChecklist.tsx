@@ -3,15 +3,20 @@ import { Link } from "@tanstack/react-router";
 import { CheckCircle2, Circle, X } from "lucide-react";
 import { Button } from "@/components/app/Button";
 import { SectionHeader } from "@/components/app/SectionHeader";
-import { useOpeningSteps } from "@/hooks/useOpeningSteps";
 import { dismissOpeningChecklist, isOpeningChecklistDismissed } from "@/lib/opening/dismissal";
+import type { OpeningSteps } from "@/lib/opening/steps";
 
 /** Shown on home until every step is done or the member dismisses it on this device. */
-export function OpeningChecklist({ householdId }: { householdId: string }) {
-  const steps = useOpeningSteps();
+export function OpeningChecklist({
+  householdId,
+  steps,
+}: {
+  householdId: string;
+  steps: OpeningSteps;
+}) {
   const [dismissed, setDismissed] = useState(() => isOpeningChecklistDismissed(householdId));
 
-  if (dismissed || !steps) return null;
+  if (dismissed) return null;
   if (steps.startingBalances && steps.distributed && steps.budgets) return null;
 
   function dismiss() {

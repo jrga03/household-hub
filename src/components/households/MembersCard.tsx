@@ -4,6 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/app/Button";
 import { ListRow } from "@/components/app/ListRow";
+import { Skeleton } from "@/components/app/Skeleton";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { confirm } from "@/lib/confirm";
@@ -27,7 +28,11 @@ interface MembersListProps {
 export function MembersList({ householdId, userId, isOwner }: MembersListProps) {
   const isOnline = useOnlineStatus();
   const [isBusy, setIsBusy] = useState(false);
-  const { data: members, isError } = useQuery(householdMembersQueryOptions(householdId));
+  const {
+    data: members,
+    isError,
+    isFetching,
+  } = useQuery(householdMembersQueryOptions(householdId));
   const disabled = !isOnline || isBusy;
 
   async function runAction(action: () => Promise<void>, failure: string) {
@@ -45,6 +50,15 @@ export function MembersList({ householdId, userId, isOwner }: MembersListProps) 
     <div className="space-y-4">
       {isError && !members && (
         <p className="text-body text-muted-foreground">Members show when you&apos;re online.</p>
+      )}
+      {/* The size of one member (you) and the Leave button, so later sections don't move. */}
+      {!members && !isError && isFetching && (
+        <>
+          <div aria-hidden className="-mx-4 border-y px-4 py-2">
+            <Skeleton className="h-6 w-48" />
+          </div>
+          <Skeleton aria-hidden className="h-9 w-36" />
+        </>
       )}
       {members && (
         <ul aria-label="Members" className="-mx-4 divide-y border-y">
