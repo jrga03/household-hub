@@ -57,7 +57,7 @@ declare module "@tanstack/react-router" {
 }
 
 // Routes that should not show navigation
-const NO_NAV_ROUTES = ["/login", "/signup", CREATE_OR_JOIN_PATH];
+const NO_NAV_ROUTES = ["/login", "/signup", CREATE_OR_JOIN_PATH, "/prototype/app-mark"];
 
 export function AppLayout() {
   const router = useRouterState();

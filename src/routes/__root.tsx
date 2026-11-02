@@ -45,7 +45,7 @@ function NotFoundComponent() {
 }
 
 /** Routes reachable without a session */
-const PUBLIC_ROUTES = ["/login", "/signup"];
+const PUBLIC_ROUTES = ["/login", "/signup", "/prototype/app-mark"];
 
 export const Route = createRootRoute({
   // Pre-render auth guard: every protected route is checked here BEFORE its
