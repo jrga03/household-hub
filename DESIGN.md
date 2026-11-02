@@ -140,6 +140,7 @@ Why: everyone in the household must be able to use every screen by touch, keyboa
 - Prefer undo over a confirm dialog for removals the event log can reverse. Confirm only what cannot be undone.
 - Keep the URL in step with what is shown (filters, the selected item) so back and refresh work.
 - Show loading only when it lasts long enough to notice. Keep the layout stable: no jumps when data arrives.
+- The start-up screen (`LoadingScreen`) draws the same frame as the iOS splash: only the `AppMark` tile, 25% of the short side, centered on the app background. Its status is announced once from the start; a spinner shows under the tile only after 1 s. If you change the tile, change `scripts/generate-icons.mjs` with it.
 - Underline links inside running text. Color alone fails contrast against the surrounding text (axe `link-in-text-block`).
 - Use the ellipsis character (…) and curly quotes in copy.
 - Contrast: WCAG 2 AA in both themes. 4.5:1 for text, 3:1 for large text and UI such as field outlines (see Color roles).
