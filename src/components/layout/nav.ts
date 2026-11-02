@@ -23,7 +23,7 @@ export interface NavItem {
   icon: LucideIcon;
   /** Gmail-style "g then x" shortcut, shown in the sidebar. */
   shortcut?: string;
-  /** On the phone's bottom tab bar instead of in the drawer. */
+  /** Also on the phone's bottom tab bar. */
   tab?: boolean;
   /** Shows how many items wait for review. */
   reviewCount?: boolean;
@@ -47,8 +47,8 @@ export const MANAGE_NAV: NavItem[] = [
 
 export const TAB_NAV = [...DAILY_NAV, ...MANAGE_NAV].filter((item) => item.tab);
 
-/** The drawer holds everything off the tab bar, daily first. */
-export const DRAWER_NAV = [...DAILY_NAV, ...MANAGE_NAV].filter((item) => !item.tab);
+/** The drawer lists every destination, daily first. */
+export const DRAWER_NAV = [...DAILY_NAV, ...MANAGE_NAV];
 
 const matchesPath = (to: string, pathname: string) =>
   to === "/" ? pathname === to : pathname === to || pathname.startsWith(to + "/");
