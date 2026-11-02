@@ -9,6 +9,9 @@ export const Route = createFileRoute("/login")({
   // The key is genuinely optional so plain <Link to="/login"> still typechecks.
   validateSearch: (search: Record<string, unknown>): { redirect?: string } =>
     typeof search.redirect === "string" ? { redirect: search.redirect } : {},
+  // Sign-out lands here, maybe offline before the service worker caches chunks.
+  // A failed chunk load makes the router reload the page, which shows a browser error (#359).
+  codeSplitGroupings: [],
   component: Login,
 });
 
