@@ -1,5 +1,6 @@
 import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
+import { pendingOptions } from "@/components/layout/PendingBar";
 
 /**
  * Router singleton.
@@ -27,6 +28,7 @@ import { routeTree } from "./routeTree.gen";
  *   is best-effort when their content loads asynchronously.
  */
 export const router = createRouter({
+  ...pendingOptions,
   routeTree,
   scrollRestoration: true,
 });

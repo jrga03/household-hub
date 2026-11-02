@@ -123,7 +123,7 @@ Why: motion should explain a change, never make a person wait.
 - Animate transform and opacity, or colors for a state change. Name the properties: `transition-transform`, `transition-opacity`, `transition-colors` _(lint: restricted classes bans `transition-all`)_.
 - Motion is interruptible. A tap during an animation acts at once.
 - Reduced motion is handled in `src/index.css`. Prefer fades for anything new so it degrades cleanly.
-- No motion on page load and no decorative loops.
+- No motion on page load and no decorative loops. The one loop is `PendingBar`'s segment, which shows work in progress; with reduced motion it stays still.
 
 ## Interaction and accessibility
 
@@ -141,6 +141,7 @@ Why: everyone in the household must be able to use every screen by touch, keyboa
 - Keep the URL in step with what is shown (filters, the selected item) so back and refresh work.
 - Show loading only when it lasts long enough to notice. Keep the layout stable: no jumps when data arrives.
 - The start-up screen (`LoadingScreen`) draws the same frame as the iOS splash: only the `AppMark` tile, 25% of the short side with a 22% radius, centered on the app background. Its status is announced once from the start; a spinner shows under the tile only after 1 s. If you change the tile, change `scripts/generate-icons.mjs` with it.
+- When a page's code is slow to download, the router shows `PendingBar` after 500 ms: a thin indeterminate bar at the top of the content area, announced as "Loading page". Navigation and the header stay, and focus does not move. Pages do not set their own pending UI; change the timing in `pendingOptions` (`src/components/layout/PendingBar.tsx`).
 - Underline links inside running text. Color alone fails contrast against the surrounding text (axe `link-in-text-block`).
 - Use the ellipsis character (…) and curly quotes in copy.
 - Contrast: WCAG 2 AA in both themes. 4.5:1 for text, 3:1 for large text and UI such as field outlines (see Color roles).

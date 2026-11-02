@@ -30,6 +30,17 @@
      movement names duration-move. */
   --default-transition-duration: var(--transition-duration-quick);
   --default-transition-timing-function: var(--ease-out);
+
+  /* PendingBar's segment, a third of the track, crosses it from edge to edge. */
+  --animate-indeterminate: indeterminate 1.2s ease-in-out infinite;
+  @keyframes indeterminate {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(300%);
+    }
+  }
 }
 
 /* Window size classes for global chrome: medium:, expanded: and large:
