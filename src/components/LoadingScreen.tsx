@@ -23,13 +23,15 @@ export function LoadingScreen() {
       <div className="relative">
         {/* eslint-disable-next-line better-tailwindcss/no-restricted-classes -- the splash image's radius, so the tile does not change shape */}
         <AppMark className="size-[25vmin] rounded-[22%]" />
-        <span
-          role="status"
-          className="absolute top-full left-1/2 mt-6 -translate-x-1/2 text-muted-foreground"
-        >
-          <span className="sr-only">Loading Household Hub</span>
-          {isSlow && <Loader2 aria-hidden="true" className="size-8 animate-spin" />}
+        <span role="status" className="sr-only">
+          Loading Household Hub
         </span>
+        {isSlow && (
+          <Loader2
+            aria-hidden="true"
+            className="absolute top-full left-1/2 mt-6 size-8 -translate-x-1/2 animate-spin text-muted-foreground"
+          />
+        )}
       </div>
     </div>
   );
