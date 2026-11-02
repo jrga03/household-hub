@@ -45,10 +45,10 @@ export const MANAGE_NAV: NavItem[] = [
   { to: "/settings", label: "Settings", icon: Settings, shortcut: "g s" },
 ];
 
-export const TAB_NAV = [...DAILY_NAV, ...MANAGE_NAV].filter((item) => item.tab);
-
 /** The drawer lists every destination, daily first. */
 export const DRAWER_NAV = [...DAILY_NAV, ...MANAGE_NAV];
+
+export const TAB_NAV = DRAWER_NAV.filter((item) => item.tab);
 
 const matchesPath = (to: string, pathname: string) =>
   to === "/" ? pathname === to : pathname === to || pathname.startsWith(to + "/");

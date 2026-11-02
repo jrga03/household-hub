@@ -143,6 +143,7 @@ describe("MobileNav drawer", () => {
 
     expect(screen.getByRole("link", { name: "Home" })).toHaveClass("bg-accent");
     fireEvent.click(screen.getByRole("link", { name: "Transactions" }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
 
     await screen.findByTestId("route-/transactions");
     expect(screen.getByRole("link", { name: "Transactions" })).toHaveClass("bg-accent");
