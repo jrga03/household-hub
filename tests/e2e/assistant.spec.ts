@@ -5,9 +5,10 @@ import {
   navigateTo,
   signUpNewPerson,
   transactionRows,
+  SAFARI_TAB_SKIPS_CONTROLS,
 } from "./fixtures/helpers";
 
-// Set by the pretest:e2e scripts; nothing answers there except the stub below.
+// Set by the Playwright webServer; nothing answers there except the stub below.
 const ASSISTANT_URL = "https://assistant.e2e.test/";
 
 // page.route misses requests that pass through the PWA's service worker once it takes control.
@@ -194,7 +195,8 @@ test("a waiting proposal survives a reload and records once after Confirm", asyn
   await expect(transactionRows(page).filter({ hasText: "Jollibee" })).toHaveCount(1);
 });
 
-test("a proposal is dismissed and confirmed by keyboard alone", async ({ page }) => {
+test("a proposal is dismissed and confirmed by keyboard alone", async ({ page, browserName }) => {
+  test.skip(browserName === "webkit", SAFARI_TAB_SKIPS_CONTROLS);
   await setUpHousehold(page, "Assistant keyboard home");
   await stubAssistant(page);
   await navigateTo(page, "Assistant");

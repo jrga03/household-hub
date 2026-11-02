@@ -12,8 +12,6 @@ End-to-end tests using **Playwright** to verify complete user workflows in real 
 - **`sync.spec.ts`** - Multi-device sync scenarios
 - **`pwa.spec.ts`** - PWA install, updates, notifications
 - **`accessibility.spec.ts`** - WCAG 2.1 AA compliance (axe-core)
-- **`keyboard-nav.spec.ts`** - Keyboard navigation and shortcuts
-- **`performance.spec.ts`** - Performance budgets and metrics
 
 ### Fixtures Directory
 
@@ -56,8 +54,7 @@ npm run test:e2e -- --debug
 
 ```bash
 npm run test:e2e -- --project=chromium
-npm run test:e2e -- --project=firefox
-npm run test:e2e -- --project=webkit
+npm run test:e2e -- --project="Mobile Chrome"
 ```
 
 ## Test Pattern

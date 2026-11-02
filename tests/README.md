@@ -41,8 +41,6 @@ Browser-based tests using Playwright:
 - **`sync.spec.ts`** - Multi-device sync scenarios
 - **`pwa.spec.ts`** - PWA features (install, update, notifications)
 - **`accessibility.spec.ts`** - Accessibility compliance (WCAG 2.1 AA)
-- **`keyboard-nav.spec.ts`** - Keyboard navigation and shortcuts
-- **`performance.spec.ts`** - Performance metrics and budgets
 
 - **`fixtures/`** - Test helpers and mock data
   - `helpers.ts` - Common test utilities
@@ -203,8 +201,8 @@ npm test -- vector-clock-integration
 
 **Key settings:**
 
-- Browsers: Chromium, Firefox, WebKit
-- Base URL: `http://localhost:3000`
+- Browsers: Chromium, WebKit
+- Base URL: `http://localhost:4173` (a fresh `vite build`, served by `vite preview`)
 - Screenshot on failure
 - Video on retry
 - Trace on first retry
@@ -212,8 +210,6 @@ npm test -- vector-clock-integration
 **Projects:**
 
 - Desktop Chrome
-- Desktop Firefox
-- Desktop Safari
 - Mobile Chrome
 - Mobile Safari
 

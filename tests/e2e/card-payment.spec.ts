@@ -5,6 +5,7 @@ import {
   signUpNewPerson,
   navigateTo,
   openAccount,
+  SAFARI_TAB_SKIPS_CONTROLS,
 } from "./fixtures/helpers";
 
 // Anchored: a card's row also names its Paying Account.
@@ -94,7 +95,8 @@ async function tabTo(page: Page, target: Locator, key: "Tab" | "Shift+Tab" = "Ta
   throw new Error("Tab never reached the target");
 }
 
-test("a card is paid and a balance corrected by keyboard alone", async ({ page }) => {
+test("a card is paid and a balance corrected by keyboard alone", async ({ page, browserName }) => {
+  test.skip(browserName === "webkit", SAFARI_TAB_SKIPS_CONTROLS);
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Keyboard home");
   await page.getByRole("button", { name: "Create household" }).click();

@@ -123,6 +123,19 @@ describe("a saved assistant chat", () => {
     expect(after.getState().items.at(-1)).toMatchObject({ decision: { outcome: "dismissed" } });
   });
 
+  it("shows a decision only once it is saved, so a reload right after keeps it", async () => {
+    const store = await loadStore();
+    await store.getState().open(USER);
+    replies.push(propose());
+    await store.getState().send("jollibee 250 gcash", USER);
+
+    const deciding = store.getState().decide("call-1", { outcome: "dismissed", content: "{}" });
+    expect(store.getState().items.at(-1)).toMatchObject({ decision: null });
+    await deciding;
+
+    expect(store.getState().items.at(-1)).toMatchObject({ decision: { outcome: "dismissed" } });
+  });
+
   it("starts fresh when opened 12 hours after it last changed", async () => {
     const before = await loadStore();
     await before.getState().open(USER);

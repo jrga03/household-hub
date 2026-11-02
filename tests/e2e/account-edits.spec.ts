@@ -62,6 +62,9 @@ test("two devices rename the same account offline and both end on the later edit
   const details = await openAccount(pageA, "Wallet on B");
   await details.getByRole("button", { name: "Edit", exact: true }).click();
   await pageA.getByRole("button", { name: "Retire account" }).click();
+  await expect(pageA.getByRole("form", { name: "Edit account" })).toBeHidden();
+  // A phone keeps the account's sheet open, now offering Unretire; it covers the list.
+  await closeSheet(pageA);
   await expect(details).toBeHidden();
   await expect(accountsList(pageA)).toHaveCount(0);
   await expectAfterSync(pageB, () =>
