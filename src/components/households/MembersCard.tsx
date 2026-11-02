@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Skeleton } from "@/components/app/Skeleton";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/app/Button";
 import { ListRow } from "@/components/app/ListRow";
+import { Skeleton } from "@/components/app/Skeleton";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { confirm } from "@/lib/confirm";
@@ -52,7 +52,7 @@ export function MembersList({ householdId, userId, isOwner }: MembersListProps) 
         <p className="text-body text-muted-foreground">Members show when you&apos;re online.</p>
       )}
       {/* The size of one member (you) and the Leave button, so later sections don't move. */}
-      {!members && isFetching && (
+      {!members && !isError && isFetching && (
         <>
           <div aria-hidden className="-mx-4 border-y px-4 py-2">
             <Skeleton className="h-6 w-48" />

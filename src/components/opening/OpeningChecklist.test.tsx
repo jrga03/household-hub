@@ -16,8 +16,8 @@ import { HOUSEHOLD } from "@/test/events";
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
-// Says when the steps have loaded, so a test can wait for them.
-function Checklist() {
+// Loads the steps, then says so, so a test can wait for them.
+function LoadedChecklist() {
   const steps = useOpeningSteps();
   if (!steps) return null;
   return (
@@ -34,7 +34,7 @@ function renderHome() {
     createRoute({
       getParentRoute: () => rootRoute,
       path,
-      component: Checklist,
+      component: LoadedChecklist,
     })
   );
   const router = createRouter({
