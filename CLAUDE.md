@@ -65,7 +65,6 @@ Check here before debugging a test or CLI failure you did not cause. A failure i
 - **Worktrees share the e2e preview port** (seen 2026-10-12): `reuseExistingServer` makes Playwright reuse whatever `vite preview` already holds port 4173, often another worktree's build. Check `lsof -nP -iTCP:4173 -sTCP:LISTEN` before trusting a run; if another checkout owns it, run with a throwaway config on another port.
 - **Mobile Safari e2e is not a trusted project** (seen 2026-10-14 on `main`): its layout baselines fail on a navigation interrupted by the `/create-or-join` redirect, and `transactions` "recorded offline move the balance, and a removal can be undone" times out. Run phone-sheets on it; judge everything else on chromium and Mobile Chrome.
 - **Assistant e2e needs `VITE_ASSISTANT_URL`** (seen 2026-10-18 on `main`, `28c030d`): without it in `.env.local` the Assistant link never renders, so the three `assistant` specs time out on chromium and Mobile Chrome.
-- **sync-status "signing out with unsynced changes…" flakes on chromium** (seen 2026-10-21 on `feat/222-page-migration`, `3ee6e90`): 2 of 4 runs end on `chrome-error://chromewebdata/` instead of `/login` after the offline sign-out. Mobile Chrome passes. Judge it per run, not as a regression.
 - **PWA update handoff** can cause one unexpected reload when a code-split route is tapped during the update window. Known and self-healing; no fix needed.
 - Rules: do not root-cause a listed issue mid-task. Log a new pre-existing failure here in the same commit as any workaround; delete an entry when it is fixed.
 

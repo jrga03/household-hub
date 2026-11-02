@@ -86,28 +86,34 @@ test("a refused change is held as stuck until retried or discarded", async ({ pa
   await expect(accountsList(page)).toContainText("Maya");
 });
 
-test("signing out with unsynced changes warns first and can export them", async ({
-  page,
-  context,
-}) => {
-  await startHousehold(page);
-  await context.setOffline(true);
-  await addAccount(page, "GCash");
+test.describe("before the service worker controls the page", () => {
+  // The first visit has no service worker yet, so only chunks already in memory load offline.
+  test.use({ serviceWorkers: "block" });
 
-  await clickSignOut(page);
-  const warning = page.getByRole("alertdialog");
-  await expect(warning).toContainText("1 change on this device");
-  await warning.getByRole("button", { name: "Cancel" }).click();
-  await expect(accountsList(page)).toContainText("GCash");
+  test("signing out with unsynced changes warns first and can export them", async ({
+    page,
+    context,
+  }) => {
+    await startHousehold(page);
+    await context.setOffline(true);
+    await addAccount(page, "GCash");
 
-  await clickSignOut(page);
-  const download = page.waitForEvent("download");
-  await warning.getByRole("button", { name: "Export and sign out" }).click();
-  const exported = await download;
-  expect(exported.suggestedFilename()).toMatch(/^household-hub-unsynced-.*\.json$/);
-  const { events } = JSON.parse(await readFile(await exported.path(), "utf8"));
-  expect(events).toEqual([
-    expect.objectContaining({ eventType: "account.created", pushState: "waiting" }),
-  ]);
-  await expect(page).toHaveURL(/\/login/);
+    await clickSignOut(page);
+    const warning = page.getByRole("alertdialog");
+    await expect(warning).toContainText("1 change on this device");
+    await warning.getByRole("button", { name: "Cancel" }).click();
+    await expect(accountsList(page)).toContainText("GCash");
+
+    await clickSignOut(page);
+    const download = page.waitForEvent("download");
+    await warning.getByRole("button", { name: "Export and sign out" }).click();
+    const exported = await download;
+    expect(exported.suggestedFilename()).toMatch(/^household-hub-unsynced-.*\.json$/);
+    const { events } = JSON.parse(await readFile(await exported.path(), "utf8"));
+    expect(events).toEqual([
+      expect.objectContaining({ eventType: "account.created", pushState: "waiting" }),
+    ]);
+    await expect(page.getByText("Log in to Household Hub")).toBeVisible();
+    await expect(page).toHaveURL(/\/login/);
+  });
 });
