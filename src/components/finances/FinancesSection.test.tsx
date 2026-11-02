@@ -162,7 +162,7 @@ describe("FinancesSection", () => {
     expect(month).toHaveTextContent(/Days left\d+/);
   });
 
-  it("lists what needs attention, most urgent first, closed by the budgets that are fine", async () => {
+  it("lists what needs attention, most urgent first, with no line for the budgets that are fine", async () => {
     const diningId = await budgetedCategory("Dining out", "3000", "4230");
     await budgetedCategory("Groceries", "8000", "7000");
     await budgetedCategory("Rent", "15000", "15000");
@@ -183,7 +183,7 @@ describe("FinancesSection", () => {
     expect(items[3]).toHaveAttribute("href", "/review");
     await waitFor(() => expect(items[4]).toHaveAccessibleName(/^₱20,500\.00 waits to be assigned/));
     expect(items[4]).toHaveAttribute("href", "/assign-money");
-    expect(screen.getByText("1 budget is fine.")).toBeInTheDocument();
+    expect(screen.queryByText(/budgets? (is|are) fine/)).not.toBeInTheDocument();
   });
 
   it("says nothing needs attention when all is well", async () => {
