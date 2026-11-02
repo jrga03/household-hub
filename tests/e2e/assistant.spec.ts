@@ -7,7 +7,7 @@ import {
   transactionRows,
 } from "./fixtures/helpers";
 
-// Set by the pretest:e2e scripts; nothing answers there except the stub below.
+// Set by the Playwright webServer; nothing answers there except the stub below.
 const ASSISTANT_URL = "https://assistant.e2e.test/";
 
 // page.route misses requests that pass through the PWA's service worker once it takes control.

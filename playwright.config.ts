@@ -10,7 +10,7 @@ export default defineConfig({
   // Tests isolate their data via the [E2E] prefix + service-role cleanup, so
   // they can run in parallel; 1 worker serialized the whole suite (TEST-01).
   workers: process.env.CI ? 3 : undefined,
-  reporter: "html",
+  reporter: [["html", { open: "never" }]],
 
   use: {
     baseURL: "http://localhost:4173", // Preview server
@@ -42,8 +42,11 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: "npm run preview",
+    // Builds every run, so no test sees a stale dist/ or one built without the assistant.
+    command: "vite build && vite preview --port 4173 --strictPort",
+    env: { VITE_ASSISTANT_URL: "https://assistant.e2e.test" },
     port: 4173,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
+    timeout: 120_000,
   },
 });

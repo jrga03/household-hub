@@ -139,8 +139,6 @@ jobs:
         run: npx playwright install chromium
       - name: Smoke tests
         run: npm run test:e2e:smoke
-        env:
-          PW_TEST_HTML_REPORT_OPEN: never
       - name: Upload smoke report
         if: failure()
         uses: actions/upload-artifact@v7
