@@ -142,10 +142,10 @@ export const useAssistantStore = create<AssistantStore>()((set, get) => {
     },
 
     decide: async (callId, decision) => {
-      const items = decideProposal(get().items, callId, decision);
       const updatedAt = new Date();
-      set({ items, updatedAt });
-      if (owner) await saveQuietly(owner, items, updatedAt);
+      // Saved before it shows, so a reload right after Confirm never offers the card again.
+      if (owner) await saveQuietly(owner, decideProposal(get().items, callId, decision), updatedAt);
+      set({ items: decideProposal(get().items, callId, decision), updatedAt });
     },
 
     open: async (userId) => {
