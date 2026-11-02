@@ -12,7 +12,7 @@ import { ReviewCountBadge, ReviewDot, reviewLabel } from "./ReviewCount";
 import { AppMark } from "@/components/app/AppMark";
 
 /**
- * Mobile navigation drawer: every destination off the BottomTabBar, with the
+ * Mobile navigation drawer: every destination, BottomTabBar ones too, with the
  * signed-in person and sign out pinned to the bottom.
  *
  * @see src/components/layout/AppLayout.tsx - Parent layout component

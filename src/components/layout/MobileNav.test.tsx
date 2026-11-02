@@ -1,7 +1,7 @@
 /**
- * MobileNav drawer tests. Home and Transactions live in the BottomTabBar; the
- * drawer holds every other destination, with the profile and sign out at the
- * bottom. The menu button carries a dot while anything waits for review.
+ * MobileNav drawer tests. The drawer lists every destination, Home and
+ * Transactions too (they are also on the BottomTabBar), with the profile and
+ * sign out at the bottom. The menu button carries a dot while anything waits for review.
  *
  * Rendered inside a real memory-history RouterProvider because the
  * controlled Sheet wrapper engages the history-back-close hook (review R37).
@@ -118,11 +118,13 @@ describe("MobileNav drawer", () => {
     expect(screen.getByText("test@example.com")).toBeInTheDocument();
   });
 
-  it("links to the destinations off the tab bar, and closes on navigation", async () => {
+  it("links to every destination, and closes on navigation", async () => {
     await renderDrawer();
 
     const links = screen.getAllByRole("link");
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/",
+      "/transactions",
       "/budget",
       "/reports",
       "/review",
@@ -134,6 +136,18 @@ describe("MobileNav drawer", () => {
 
     fireEvent.click(links[0]!);
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("highlights Home or Transactions when it is the current page", async () => {
+    await renderDrawer();
+
+    expect(screen.getByRole("link", { name: "Home" })).toHaveClass("bg-accent");
+    fireEvent.click(screen.getByRole("link", { name: "Transactions" }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+
+    await screen.findByTestId("route-/transactions");
+    expect(screen.getByRole("link", { name: "Transactions" })).toHaveClass("bg-accent");
+    expect(screen.getByRole("link", { name: "Home" })).not.toHaveClass("bg-accent");
   });
 
   it("shows the review count on the Review entry", async () => {
