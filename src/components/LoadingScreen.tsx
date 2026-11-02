@@ -1,5 +1,6 @@
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AppMark } from "@/components/app/AppMark";
 
 /**
  * Full-screen loading component
@@ -15,10 +16,7 @@ export function LoadingScreen() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4">
-        {/* App Logo */}
-        <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <span className="text-title font-bold">HH</span>
-        </div>
+        <AppMark size="xl" />
 
         {/* App Name */}
         <h1 className="text-title">Household Hub</h1>
