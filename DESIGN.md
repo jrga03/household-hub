@@ -209,7 +209,7 @@ Global chrome switches on the window width. `useWindowClass()` (`src/hooks/useMe
 
 | Class    | Width       | Navigation                                                         | Add transaction                                                     |
 | -------- | ----------- | ------------------------------------------------------------------ | ------------------------------------------------------------------- |
-| Compact  | below 600   | Tab bar (Home, Transactions) and the drawer for the rest           | Floating button on Home and Transactions (`staticData.floatingAdd`) |
+| Compact  | below 600   | Tab bar (Home, Transactions) and a drawer with every destination   | Floating button on Home and Transactions (`staticData.floatingAdd`) |
 | Medium   | 600-839     | Collapsed rail; the menu icon opens it as a modal expanded rail    | Header                                                              |
 | Expanded | 840-1199    | Collapsed rail by default; it expands to a standard rail beside it | Header                                                              |
 | Large    | 1200 and up | Expanded rail by default                                           | Header                                                              |

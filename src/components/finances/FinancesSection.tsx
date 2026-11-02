@@ -82,7 +82,6 @@ export function FinancesSection({ actor, children }: { actor: Actor; children?: 
           balances: overview.balances,
           review: reviewCounts,
         })}
-        fineBudgets={overview.budgets.fine}
       />
     </>
   );

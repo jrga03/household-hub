@@ -10,7 +10,7 @@ npm run build              # tsc -b + vite build
 npm run lint               # eslint .
 npm run knip               # unused files, exports, deps; stale ignores fail (knip.jsonc)
 npx vitest run             # unit tests (bare `npm test` is watch mode)
-npm run test:e2e:smoke     # chromium smoke; rebuilds dist/ first
+npm run test:e2e:smoke     # chromium smoke; Playwright builds dist/ before every run
 npm run size               # bundle budget (378 KB gz)
 npx tsc --noEmit -p tsconfig.tests.json    # tests/, playwright config, workers/
 npm run gen:types          # regenerate src/types/database.types.ts (commit with each migration)
@@ -59,12 +59,7 @@ Always ask: what happens offline, and what happens when two devices edit the sam
 
 Check here before debugging a test or CLI failure you did not cause. A failure is yours only if it passes on `main` (stash or check out `main` and re-run).
 
-- **E2E has pre-existing failures.** After #16 stripped the app (2026-10-10, chromium and Mobile Chrome), these fail on both projects and predate #16 (they are ✘ in the older per-test baseline `docs/plans/2026-10-02-phase-1b-e2e-baseline.txt`): `keyboard-nav` "navigate main menu" (expects `data-nav` attributes), `performance` "acceptable bundle size", and `pwa` "work offline after caching". Compare per test, not by totals. Only chromium and Mobile Chrome layout baselines are trustworthy; firefox/webkit abort with `NS_BINDING_ABORTED`.
-- **E2E needs** the local stack running (`supabase start`), `PW_TEST_HTML_REPORT_OPEN=never` for non-interactive runs, and a fresh `dist/` (`npm run test:e2e*` rebuild it; a bare `npx playwright test` does not).
 - **Scripts** must parse `supabase status -o env`, never the human-readable output.
-- **Worktrees share the e2e preview port** (seen 2026-10-12): `reuseExistingServer` makes Playwright reuse whatever `vite preview` already holds port 4173, often another worktree's build. Check `lsof -nP -iTCP:4173 -sTCP:LISTEN` before trusting a run; if another checkout owns it, run with a throwaway config on another port.
-- **Mobile Safari e2e is not a trusted project** (seen 2026-10-14 on `main`): its layout baselines fail on a navigation interrupted by the `/create-or-join` redirect, and `transactions` "recorded offline move the balance, and a removal can be undone" times out. Run phone-sheets on it; judge everything else on chromium and Mobile Chrome.
-- **Assistant e2e needs `VITE_ASSISTANT_URL`** (seen 2026-10-18 on `main`, `28c030d`): without it in `.env.local` the Assistant link never renders, so the three `assistant` specs time out on chromium and Mobile Chrome.
 - **PWA update handoff** can cause one unexpected reload when a code-split route is tapped during the update window. Known and self-healing; no fix needed.
 - Rules: do not root-cause a listed issue mid-task. Log a new pre-existing failure here in the same commit as any workaround; delete an entry when it is fixed.
 

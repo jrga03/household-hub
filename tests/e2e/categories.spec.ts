@@ -1,5 +1,10 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
-import { signUpNewPerson } from "./fixtures/helpers";
+import {
+  navigateTo,
+  openSettingsSection,
+  SAFARI_TAB_SKIPS_CONTROLS,
+  signUpNewPerson,
+} from "./fixtures/helpers";
 
 // Fresh people per run: membership is one household per person, and events are append-only.
 async function newPerson(browser: Browser) {
@@ -17,7 +22,8 @@ test("suggested categories reach every member; a Personal category reaches only 
   const owner = await newPerson(browser);
   await owner.page.getByLabel("Household name").fill("Category home");
   await owner.page.getByRole("button", { name: "Create household" }).click();
-  await owner.page.goto("/settings?open=household");
+  await navigateTo(owner.page, "Settings");
+  await openSettingsSection(owner.page, "Household");
   const code = await owner.page.getByTestId("household-code").textContent();
   if (!code) throw new Error("The Owner sees no Household Code");
 
@@ -43,8 +49,7 @@ test("suggested categories reach every member; a Personal category reaches only 
     .getByRole("button", { name: "Accept" })
     .click();
   await expect(member.page).toHaveURL((url) => url.pathname === "/", { timeout: 15_000 });
-
-  await member.page.goto("/categories");
+  await navigateTo(member.page, "Categories");
   await expect(async () => {
     await member.page.reload();
     await expect(groupsList(member.page)).toContainText("Getting Around", { timeout: 2_000 });
@@ -88,6 +93,7 @@ test("suggested categories reach every member; a Personal category reaches only 
 // A phone sheet doesn't take focus when it opens (see the plan doc), so this runs where FormSheet is a dialog.
 test.describe("with a keyboard", () => {
   test.use({ viewport: { width: 1024, height: 768 } });
+  test.skip(({ browserName }) => browserName === "webkit", SAFARI_TAB_SKIPS_CONTROLS);
 
   test("adding, renaming and moving a category work by keyboard alone", async ({ page }) => {
     await signUpNewPerson(page);

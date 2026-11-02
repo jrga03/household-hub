@@ -13,7 +13,12 @@ export async function loginAs(page: Page, user: { email: string; password: strin
 
   // Wait for redirect away from /login to the home page
   await page.waitForURL((url) => !url.pathname.startsWith("/login"));
+  // A goto during the household gate or route chunk loads fails on WebKit ("Frame load interrupted").
+  await page.waitForLoadState("networkidle");
 }
+
+export const SAFARI_TAB_SKIPS_CONTROLS =
+  'Safari\'s Tab skips links and buttons unless "Press Tab to highlight each item" is on';
 
 /** Signs up a fresh person, who belongs to no household. */
 export async function signUpNewPerson(page: Page) {

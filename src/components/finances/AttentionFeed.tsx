@@ -1,13 +1,6 @@
 import type { ReactNode } from "react";
 import type { LinkOptions } from "@tanstack/react-router";
-import {
-  ChevronRight,
-  CircleAlert,
-  CircleCheck,
-  ClipboardCheck,
-  Clock,
-  type LucideIcon,
-} from "lucide-react";
+import { ChevronRight, CircleAlert, ClipboardCheck, Clock, type LucideIcon } from "lucide-react";
 import { EmptyState } from "@/components/app/EmptyState";
 import { ListRow } from "@/components/app/ListRow";
 import { BUDGET_STATUS_STYLE } from "@/components/budgets/budgetStatusStyle";
@@ -137,13 +130,7 @@ function feedRow(item: AttentionItem): FeedRow {
 }
 
 /** Needs attention: one plain sentence per problem, most urgent first, each linking to its fix. */
-export function AttentionFeed({
-  items,
-  fineBudgets,
-}: {
-  items: AttentionItem[];
-  fineBudgets: number;
-}) {
+export function AttentionFeed({ items }: { items: AttentionItem[] }) {
   return (
     <section className="space-y-2">
       <SectionHeader title="Needs attention" />
@@ -155,12 +142,6 @@ export function AttentionFeed({
             <AttentionRow key={row.key} row={row} />
           ))}
         </ul>
-      )}
-      {fineBudgets > 0 && (
-        <p className="flex items-center gap-2 text-body text-muted-foreground">
-          <CircleCheck aria-hidden className="size-4 text-success" />
-          {countOf(fineBudgets, "budget is", "budgets are")} fine.
-        </p>
       )}
     </section>
   );

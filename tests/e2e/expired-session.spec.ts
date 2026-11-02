@@ -27,6 +27,7 @@ async function openOfflineWithExpiredToken(page: Page, context: BrowserContext, 
     window.localStorage.setItem(key, JSON.stringify(session));
   }, AUTH_STORAGE_KEY);
 
+  await page.waitForLoadState("networkidle");
   await context.setOffline(true);
   await page.reload();
   return person;

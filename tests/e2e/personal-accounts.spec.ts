@@ -1,5 +1,5 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
-import { navigateTo, signUpNewPerson } from "./fixtures/helpers";
+import { navigateTo, openSettingsSection, signUpNewPerson } from "./fixtures/helpers";
 
 // Fresh people per run: membership is one household per person, and events
 // are append-only, so accounts made by the fixture users would pile up.
@@ -26,7 +26,8 @@ test("a member's Personal account never reaches another member; their Household 
   const owner = await newPerson(browser);
   await owner.page.getByLabel("Household name").fill("Visibility home");
   await owner.page.getByRole("button", { name: "Create household" }).click();
-  await owner.page.goto("/settings?open=household");
+  await navigateTo(owner.page, "Settings");
+  await openSettingsSection(owner.page, "Household");
   const code = await owner.page.getByTestId("household-code").textContent();
   if (!code) throw new Error("The Owner sees no Household Code");
 

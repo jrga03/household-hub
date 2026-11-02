@@ -1,5 +1,5 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
-import { navigateTo, signUpNewPerson } from "./fixtures/helpers";
+import { navigateTo, openSettingsSection, signUpNewPerson } from "./fixtures/helpers";
 
 async function startHousehold(page: Page, name: string) {
   await signUpNewPerson(page);
@@ -22,14 +22,13 @@ async function addUncategorizedExpense(page: Page, description: string) {
   await expect(dialog).toBeHidden();
 }
 
-test("Review is all clear, then counts an expense without a category everywhere", async ({
-  page,
-  isMobile,
-}) => {
+test("Review counts an expense without a category everywhere", async ({ page, isMobile }) => {
   await startHousehold(page, "Review home");
 
-  await page.goto("/review");
-  await expect(page.getByRole("heading", { name: "All clear" })).toBeVisible();
+  // The starting balance waits in Unassigned, which Review lists too.
+  await navigateTo(page, "Review");
+  await expect(page.getByRole("region", { name: "Unassigned money" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Expenses without a category" })).toHaveCount(0);
 
   await addUncategorizedExpense(page, "Lunch");
 
@@ -40,17 +39,17 @@ test("Review is all clear, then counts an expense without a category everywhere"
   await expect(banner).toBeVisible();
 
   if (isMobile) {
-    const menu = page.getByRole("button", { name: "Open navigation menu, 1 to review" });
+    const menu = page.getByRole("button", { name: "Open navigation menu, 2 to review" });
     await expect(menu.getByTestId("review-dot")).toBeVisible();
     await menu.click();
     await expect(
-      page.getByRole("dialog").getByRole("link", { name: "Review, 1 to review" })
+      page.getByRole("dialog").getByRole("link", { name: "Review, 2 to review" })
     ).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toBeHidden();
   } else {
     await expect(
-      page.getByRole("link", { name: "Review, 1 to review", exact: true })
+      page.getByRole("link", { name: "Review, 2 to review", exact: true })
     ).toBeVisible();
   }
 
@@ -76,7 +75,8 @@ test("an Owner answers a Join Request from Review", async ({ page, browser }) =>
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Review join home");
   await page.getByRole("button", { name: "Create household" }).click();
-  await page.goto("/settings?open=household");
+  await navigateTo(page, "Settings");
+  await openSettingsSection(page, "Household");
   const code = await page.getByTestId("household-code").textContent();
   if (!code) throw new Error("The Owner sees no Household Code");
 

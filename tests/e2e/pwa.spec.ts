@@ -68,6 +68,7 @@ test("a member opening the app offline sees their household without waiting on r
     .poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null))
     .toBe(true);
 
+  await page.waitForLoadState("networkidle");
   await context.setOffline(true);
   await page.reload();
   // Well under the ~7 s that request retries would hold the route gate.

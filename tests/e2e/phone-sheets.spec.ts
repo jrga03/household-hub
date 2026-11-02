@@ -418,6 +418,8 @@ test.describe("phone forms", () => {
     await body.evaluate((element) => {
       element.scrollTop = 0;
     });
+    // WebKit's mouse drag selected text, and the sheet won't drag while text is selected.
+    await page.evaluate(() => window.getSelection()?.removeAllRanges());
     await page.waitForTimeout(300);
     await swipeDown(page, context, browserName, sheet.getByText("Amount (₱)"), 300);
 
