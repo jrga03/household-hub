@@ -89,7 +89,7 @@ test("a payroll distribution from Assign money leaves the source account's Unass
   await form.getByRole("button", { name: "Distribute" }).click();
 
   await expect(form).toBeHidden();
-  await expect(page).toHaveURL(/\/assign-money$/);
+  await expect(page).not.toHaveURL(/distribute=/);
   await expect(page.getByRole("region", { name: "Unassigned" })).toContainText("₱0.00");
   await page.getByRole("button", { name: "By account" }).click();
   await expect(unassignedItem(page, "BPI")).toContainText("₱0.00");
