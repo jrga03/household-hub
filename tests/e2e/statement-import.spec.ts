@@ -5,6 +5,12 @@ const SYNTHETIC_BDO = "tests/fixtures/statements/bdo-credit-card.pdf";
 const SYNTHETIC_UNIONBANK = "tests/fixtures/statements/unionbank-credit-card.xlsx";
 const FIXTURE_PASSWORD = "fixture-password";
 
+/** The "lines read" toast can cover a draft row, and stays open while the pointer rests on it. */
+async function waitForReadToast(page: Page) {
+  await page.mouse.move(0, 0);
+  await expect(page.getByText(/lines read from/)).toBeHidden({ timeout: 10_000 });
+}
+
 /** A new household with one credit card, installed and offline, on /import. */
 async function openImportOffline(page: Page, context: BrowserContext, cardName: string) {
   await signUpNewPerson(page);
@@ -63,11 +69,7 @@ test("a BDO statement is read offline, and its password can be remembered", asyn
     "−₱549.00"
   );
 
-  // The toast can cover the row, and a pointer resting on it holds it open.
-  await page.mouse.move(0, 0);
-  await expect(page.getByText("7 lines read from bdo-credit-card.pdf")).toBeHidden({
-    timeout: 10_000,
-  });
+  await waitForReadToast(page);
   // The open draft lives in the URL, so a reload shows it again.
   await drafts.getByRole("button", { name: /^STREAMING SVC/ }).click();
   await expect(page).toHaveURL(/[?&]open=/);
@@ -127,6 +129,7 @@ test("BDO drafts are saved in bulk offline, and a re-import is recognised", asyn
   // Every purchase starts selected; the card payment waits for its own decision.
   const drafts = page.getByRole("region", { name: "Import bdo-credit-card.pdf" });
   await expect(drafts.getByRole("listitem")).toHaveCount(7);
+  await waitForReadToast(page);
 
   // A draft without a description holds back the save until it gets one.
   await drafts.getByRole("button", { name: /STREAMING SVC/ }).click();
@@ -141,10 +144,6 @@ test("BDO drafts are saved in bulk offline, and a re-import is recognised", asyn
     drafts.getByText("1 selected draft needs a description before saving.")
   ).toBeVisible();
   await expect(drafts.getByRole("button", { name: "Save 6 drafts" })).toBeDisabled();
-  // On phones the "lines read" toast can sit over this row at the page's end, and
-  // stays open while the pointer rests on it.
-  await page.mouse.move(0, 0);
-  await expect(page.getByText(/lines read from/)).toBeHidden();
   await drafts.getByRole("button", { name: /Needs a description/ }).click();
   await description.fill("Streaming");
   await description.press("Enter");

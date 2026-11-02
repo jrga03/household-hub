@@ -59,8 +59,6 @@ Always ask: what happens offline, and what happens when two devices edit the sam
 
 Check here before debugging a test or CLI failure you did not cause. A failure is yours only if it passes on `main` (stash or check out `main` and re-run).
 
-- **E2E has pre-existing failures** (seen 2026-11-02 on `main`, `f551f57e`): `review` "Review is all clear…" (all projects), `account-edits` "two devices rename the same account offline…" (Mobile Chrome, Mobile Safari), `statement-import` "BDO drafts are saved in bulk offline…" (Mobile Chrome), and `phone-sheets` "swiping a scrolled sheet body…" (Mobile Safari). Compare per test, not by totals.
-- **`assistant` "a waiting proposal survives a reload…" is flaky on Mobile Safari** (seen 2026-11-02): it failed once in a full run (Confirm did not record) and passed 8 of 8 alone. Cause not found.
 - **Scripts** must parse `supabase status -o env`, never the human-readable output.
 - **PWA update handoff** can cause one unexpected reload when a code-split route is tapped during the update window. Known and self-healing; no fix needed.
 - Rules: do not root-cause a listed issue mid-task. Log a new pre-existing failure here in the same commit as any workaround; delete an entry when it is fixed.
