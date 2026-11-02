@@ -401,7 +401,7 @@ function DistributeLineRow({
   const errorId = `distribute-${line.key}-error`;
   return (
     <li className="@container px-4 py-2">
-      <div className="grid grid-cols-1 gap-2 @[560px]:grid-cols-[minmax(0,1fr)_9rem_11rem] @[560px]:items-center">
+      <div className="grid grid-cols-1 gap-2 @[480px]:grid-cols-[minmax(0,1fr)_9rem_11rem] @[480px]:items-center">
         <div>
           <Label htmlFor={amountId} className="font-medium">
             {name}
