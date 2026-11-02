@@ -26,6 +26,42 @@ const edge = (x1: number, y1: number, x2: number, y2: number, width: number) => 
   ]);
 };
 
+type Satellite = { angle: number; distance: number; r: number };
+
+// One closed outline for a hub circle, its links and its satellite circles, so an evenodd
+// cut-out never overlaps itself. Satellites must be sorted by angle (degrees, clockwise from +x).
+const hubNetwork = (cx: number, cy: number, hubR: number, sats: Satellite[], linkWidth: number) => {
+  const half = linkWidth / 2;
+  const at = (x: number, y: number, r: number, radians: number) =>
+    `${n(x + r * Math.cos(radians))} ${n(y + r * Math.sin(radians))}`;
+  const hubSpread = Math.asin(half / hubR);
+  const spokes = sats.map((sat) => ({ ...sat, theta: (sat.angle * Math.PI) / 180 }));
+  const parts: string[] = [];
+  spokes.forEach((sat, index) => {
+    const sx = cx + sat.distance * Math.cos(sat.theta);
+    const sy = cy + sat.distance * Math.sin(sat.theta);
+    const satSpread = Math.asin(half / sat.r);
+    const start = sat.theta - hubSpread;
+    parts.push(
+      index === 0
+        ? `M${at(cx, cy, hubR, start)}`
+        : `A${hubR} ${hubR} 0 0 1 ${at(cx, cy, hubR, start)}`
+    );
+    parts.push(`L${at(sx, sy, sat.r, sat.theta + Math.PI + satSpread)}`);
+    parts.push(`A${sat.r} ${sat.r} 0 1 1 ${at(sx, sy, sat.r, sat.theta + Math.PI - satSpread)}`);
+    parts.push(`L${at(cx, cy, hubR, sat.theta + hubSpread)}`);
+  });
+  const first = spokes[0];
+  const last = spokes[spokes.length - 1];
+  if (first && last) {
+    const span = first.theta + 2 * Math.PI - last.theta - 2 * hubSpread;
+    parts.push(
+      `A${hubR} ${hubR} 0 ${span > Math.PI ? 1 : 0} 1 ${at(cx, cy, hubR, first.theta - hubSpread)}`
+    );
+  }
+  return `${parts.join(" ")} Z`;
+};
+
 const HOUSE = poly([
   [12, 3],
   [21, 10.5],
@@ -55,6 +91,47 @@ const VARIANTS: Variant[] = [
     key: "A2",
     name: "Solid house, hub cut-out",
     paths: [{ d: `${HOUSE} ${circle(12, 14.5, 3)}`, evenOdd: true }],
+  },
+  {
+    key: "A5",
+    name: "Solid house, hub with 3 satellites",
+    paths: [
+      {
+        d: `${HOUSE} ${hubNetwork(
+          12,
+          14,
+          2.5,
+          [
+            { angle: -90, distance: 5.5, r: 1.25 },
+            { angle: 30, distance: 5.5, r: 1.5 },
+            { angle: 160, distance: 5.5, r: 1 },
+          ],
+          1
+        )}`,
+        evenOdd: true,
+      },
+    ],
+  },
+  {
+    key: "A6",
+    name: "Solid house, hub with 4 satellites",
+    paths: [
+      {
+        d: `${HOUSE} ${hubNetwork(
+          12,
+          14.5,
+          2.75,
+          [
+            { angle: -100, distance: 6, r: 1.5 },
+            { angle: -20, distance: 5.5, r: 1 },
+            { angle: 50, distance: 5, r: 1.25 },
+            { angle: 150, distance: 5.5, r: 1.75 },
+          ],
+          1.25
+        )}`,
+        evenOdd: true,
+      },
+    ],
   },
   {
     key: "A3",
