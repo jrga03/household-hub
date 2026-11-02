@@ -6,44 +6,21 @@ The scripts directory contains **utility scripts** for development tasks like ge
 
 ## Scripts
 
-### `generate-icons.js`
+### `generate-icons.mjs`
 
-**Purpose:** Generate PWA icon set from a placeholder
-
-**Usage:**
-
-```bash
-node scripts/generate-icons.js
-```
-
-**Output:** Creates icon files in `/public/icons/`:
-
-- `icon-192x192.png` - Android Chrome
-- `icon-512x512.png` - Android Chrome splash
-- `apple-touch-icon.png` - iOS home screen
-
-**Dependencies:** `canvas` npm package
-
-**Note:** Replace placeholder with actual app icon for production
-
-### `generate-splash.mjs`
-
-**Purpose:** Generate the iOS splash screen set (paired light/dark) from the app icon
+**Purpose:** Draw every icon, badge, shortcut icon and iOS splash image from the app mark (`src/assets/app-mark.svg`)
 
 **Usage:**
 
 ```bash
-npm run generate:splash
+npm run generate:icons
 ```
 
-**Output:** ~92 PNGs in `/public/splash/` (`apple-splash-*.png` light on #ffffff,
-`apple-splash-dark-*.png` dark on #0a0a0a), one per device size/orientation
+**Output:** `/public/icons/` (favicons, apple-touch icon, `any` and maskable manifest icons, notification badge, shortcut icons) and `/public/splash/` (light and dark sets)
 
-**Dependencies:** `pwa-asset-generator` via npx (needs a local Chrome/Chromium)
+**Dependencies:** Playwright's Chromium (already installed for e2e)
 
-**Note:** The matching `<link rel="apple-touch-startup-image">` tags live in
-`index.html`; re-run after icon changes, and update the index.html block if the
-tool's device list changes
+**Note:** Colors come from `src/index.css`. The splash files are the ones `index.html`'s `apple-touch-startup-image` tags name; to add a device, add its tag first
 
 ### `read-excel-categories.cjs`
 
@@ -211,9 +188,9 @@ COMMIT;
 
 **Steps:**
 
-1. Update source icon (high-res PNG)
-2. Run `node scripts/generate-icons.js`
-3. Verify icons in `/public/icons/`
+1. Update `src/assets/app-mark.svg`
+2. Run `npm run generate:icons`
+3. Verify icons in `/public/icons/` and `/public/splash/`
 4. Test PWA install on mobile
 
 ### Seeding Categories
@@ -262,5 +239,4 @@ COMMIT;
 ## Further Reading
 
 - [Node.js Scripts](https://nodejs.org/docs/latest/api/) - Node.js API
-- [Canvas API](https://github.com/Automattic/node-canvas) - Image generation
 - [xlsx Package](https://www.npmjs.com/package/xlsx) - Excel parsing

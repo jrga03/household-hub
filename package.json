@@ -27,7 +27,7 @@
     "test:all": "npm run test:unit -- run && npm run test:e2e",
     "lighthouse": "npx @lhci/cli autorun",
     "size": "node scripts/check-bundle-size.mjs",
-    "generate:splash": "node scripts/generate-splash.mjs",
+    "generate:icons": "node scripts/generate-icons.mjs",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
@@ -63,7 +63,6 @@
     "@typescript-eslint/parser": "^8.46.1",
     "@typescript/native": "npm:typescript@^7.0.2",
     "@vitejs/plugin-react-swc": "^4.3.3",
-    "canvas": "^3.2.3",
     "eslint": "^10.12.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-better-tailwindcss": "^4.10.0",
@@ -142,7 +141,6 @@
     "zustand": "^5.0.15"
   },
   "allowScripts": {
-    "canvas@3.2.3": true,
     "@swc/core": false,
     "@tailwindcss/oxide": false,
     "esbuild": false,

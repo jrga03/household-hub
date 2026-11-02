@@ -1,9 +1,10 @@
+/// <reference types="vitest/config" />
 import { readFile, writeFile } from "node:fs/promises";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import { TanStackRouterVite } from "@tanstack/router-vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
-import { VitePWA } from "vite-plugin-pwa";
+import { VitePWA, type ManifestOptions } from "vite-plugin-pwa";
 import path from "path";
 
 /**
@@ -45,6 +46,42 @@ const jsdomTests = [
   "**/*.dom.test.ts",
 ];
 
+export const pwaManifest = {
+  name: "Household Hub",
+  short_name: "Household Hub",
+  description: "Offline-first hub for running a household",
+  theme_color: "#f9f6f2",
+  background_color: "#f9f6f2",
+  display: "standalone",
+  display_override: ["window-controls-overlay", "standalone", "minimal-ui"],
+  orientation: "any",
+  lang: "en-US",
+  dir: "ltr",
+  scope: "/",
+  start_url: "/?source=pwa",
+  categories: ["finance", "productivity"],
+  icons: [
+    {
+      src: "/icons/icon-192x192.png",
+      sizes: "192x192",
+      type: "image/png",
+      purpose: "any",
+    },
+    {
+      src: "/icons/icon-512x512.png",
+      sizes: "512x512",
+      type: "image/png",
+      purpose: "any",
+    },
+    {
+      src: "/icons/icon-maskable-512x512.png",
+      sizes: "512x512",
+      type: "image/png",
+      purpose: "maskable",
+    },
+  ],
+} satisfies Partial<ManifestOptions>;
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -68,41 +105,7 @@ export default defineConfig({
       // worker), so precaching the ~1.5MB splash set would only bloat SW
       // install. See the matching globIgnores below.
       includeAssets: ["icons/*.png"],
-      manifest: {
-        name: "Household Hub",
-        short_name: "HouseholdHub",
-        description: "Offline-first hub for running a household",
-        theme_color: "#f9f6f2",
-        background_color: "#f9f6f2",
-        display: "standalone",
-        display_override: ["window-controls-overlay", "standalone", "minimal-ui"],
-        orientation: "any",
-        lang: "en-US",
-        dir: "ltr",
-        scope: "/",
-        start_url: "/?source=pwa",
-        categories: ["finance", "productivity"],
-        icons: [
-          {
-            src: "/icons/icon-192x192.png",
-            sizes: "192x192",
-            type: "image/png",
-            purpose: "any",
-          },
-          {
-            src: "/icons/icon-512x512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any",
-          },
-          {
-            src: "/icons/icon-512x512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "maskable",
-          },
-        ],
-      },
+      manifest: pwaManifest,
       // injectManifest configuration (custom SW in src/sw.ts handles caching)
       injectManifest: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,woff,woff2}"],
