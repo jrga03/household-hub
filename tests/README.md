@@ -41,8 +41,6 @@ Browser-based tests using Playwright:
 - **`sync.spec.ts`** - Multi-device sync scenarios
 - **`pwa.spec.ts`** - PWA features (install, update, notifications)
 - **`accessibility.spec.ts`** - Accessibility compliance (WCAG 2.1 AA)
-- **`keyboard-nav.spec.ts`** - Keyboard navigation and shortcuts
-- **`performance.spec.ts`** - Performance metrics and budgets
 
 - **`fixtures/`** - Test helpers and mock data
   - `helpers.ts` - Common test utilities

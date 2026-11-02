@@ -39,7 +39,6 @@ This document serves as the master QA test plan for the Household Hub applicatio
 | **Account Balance**   | accountBalance.test.ts (existing)                            | —                                        | —                    |
 | **PWA**               | —                                                            | pwa.spec.ts (existing)                   | —                    |
 | **Accessibility**     | —                                                            | accessibility.spec.ts (existing)         | —                    |
-| **Keyboard Nav**      | —                                                            | keyboard-nav.spec.ts (existing)          | —                    |
 
 ### Unit Test Files (New)
 

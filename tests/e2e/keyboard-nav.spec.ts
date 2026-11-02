@@ -1,24 +1,23 @@
 import { test, expect } from "@playwright/test";
+import { login } from "./fixtures/helpers";
 
-test.describe("Keyboard Navigation", () => {
-  test("should navigate main menu with keyboard only", async ({ page }) => {
-    await page.goto("/login");
-    await page.fill('[name="email"]', "test@example.com");
-    await page.fill('[name="password"]', "TestPassword123!");
-    await page.click('button[type="submit"]');
+test("the main navigation works by keyboard alone", async ({ page, isMobile }) => {
+  test.skip(isMobile, "phones navigate by touch, so the tab bar has no keyboard path to test");
+  await login(page);
+  await expect(page.getByRole("link", { name: /^Home/ })).toBeVisible();
 
-    await page.goto("/");
-
-    // Tab through main navigation
+  const focused = page.locator(":focus");
+  const focusedText = () => page.evaluate(() => document.activeElement?.textContent?.trim() ?? "");
+  for (let presses = 0; presses < 10 && !(await focusedText()).startsWith("Home"); presses++) {
     await page.keyboard.press("Tab");
-    const firstNav = await page.evaluate(() => document.activeElement?.getAttribute("data-nav"));
-    expect(firstNav).toBeTruthy();
+  }
+  await expect(focused).toHaveAccessibleName(/^Home/);
 
-    await page.keyboard.press("Tab");
-    const secondNav = await page.evaluate(() => document.activeElement?.getAttribute("data-nav"));
-    expect(secondNav).toBeTruthy();
+  await page.keyboard.press("Tab");
+  await expect(focused).toHaveAccessibleName(/^Transactions/);
+  await page.keyboard.press("Tab");
+  await expect(focused).toHaveAccessibleName(/^Budget/);
 
-    // Verify we can navigate with keyboard
-    expect(firstNav).not.toBe(secondNav);
-  });
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/budget$/);
 });
