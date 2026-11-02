@@ -8,10 +8,9 @@ export function PendingBar() {
   );
 }
 
-/** The app router's pending options; tests use them so timing stays in one place. */
 export const pendingOptions = {
   defaultPendingComponent: PendingBar,
   defaultPendingMs: 500,
-  // Holding a ready page back to keep a thin bar on screen would cost more than a flash.
+  // The router's 500 ms minimum would hold a ready page back to keep a thin bar on screen.
   defaultPendingMinMs: 0,
 };

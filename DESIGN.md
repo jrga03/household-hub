@@ -123,7 +123,7 @@ Why: motion should explain a change, never make a person wait.
 - Animate transform and opacity, or colors for a state change. Name the properties: `transition-transform`, `transition-opacity`, `transition-colors` _(lint: restricted classes bans `transition-all`)_.
 - Motion is interruptible. A tap during an animation acts at once.
 - Reduced motion is handled in `src/index.css`. Prefer fades for anything new so it degrades cleanly.
-- No motion on page load and no decorative loops.
+- No motion on page load and no decorative loops. The one loop is `PendingBar`'s segment, which shows work in progress; with reduced motion it stays still.
 
 ## Interaction and accessibility
 
