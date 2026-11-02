@@ -4,6 +4,7 @@ import { PageShell } from "@/components/layout/PageShell";
 import { Button } from "@/components/app/Button";
 import { signOutWithToast } from "@/lib/sign-out";
 import { useAuthStore } from "@/stores/authStore";
+import { AppMark } from "@/components/app/AppMark";
 
 export const Route = createFileRoute("/create-or-join")({
   component: CreateOrJoinPage,
@@ -16,12 +17,7 @@ function CreateOrJoinPage() {
     <PageShell className="flex min-h-dvh max-w-md flex-col gap-6 pt-[calc(1.5rem+var(--safe-area-top))] pr-[calc(1rem+var(--safe-area-right))] pb-[calc(0.5rem+var(--safe-area-bottom))] pl-[calc(1rem+var(--safe-area-left))]">
       <PageShell.Main className="flex-1 space-y-6">
         <div className="flex items-center gap-3">
-          <div
-            aria-hidden="true"
-            className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground"
-          >
-            <span className="text-caption font-bold">HH</span>
-          </div>
+          <AppMark />
           <h1 className="text-title">Welcome to Household Hub</h1>
         </div>
 

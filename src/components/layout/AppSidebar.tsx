@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { DAILY_NAV, useIsNavItemActive, MANAGE_NAV, type NavItem } from "./nav";
 import { ReviewCountBadge, ReviewDot, reviewLabel } from "./ReviewCount";
 import { useReviewCount } from "@/hooks/useReviewCount";
+import { AppMark } from "@/components/app/AppMark";
 
 /**
  * The rail from the medium window class up: the daily and manage
@@ -99,9 +100,7 @@ function SidebarBody() {
       <SidebarHeader className="border-b">
         <div className="flex items-center justify-between px-2">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <span className="text-body font-bold">HH</span>
-            </div>
+            <AppMark size="sm" label={open ? undefined : "Household Hub"} />
             {open && <span className="text-body font-semibold">Household Hub</span>}
           </div>
 

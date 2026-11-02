@@ -20,6 +20,7 @@ import { X, Download, Share } from "lucide-react";
 import { Button } from "@/components/app/Button";
 import { usePwaPromptStore } from "@/stores/pwaPromptStore";
 import { reportError } from "@/lib/sentry";
+import { AppMark } from "@/components/app/AppMark";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -203,12 +204,7 @@ function InstallCard({
       className="fixed right-[calc(1rem+var(--safe-area-right))] bottom-[calc(1rem+var(--bottom-chrome))] left-[calc(1rem+var(--safe-area-left))] z-50 space-y-4 rounded-lg border bg-popover p-4 text-body text-popover-foreground shadow-float medium:left-auto medium:w-96"
     >
       <div className="flex items-start gap-3">
-        <div
-          aria-hidden="true"
-          className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground"
-        >
-          <span className="text-body font-bold">HH</span>
-        </div>
+        <AppMark size="lg" className="rounded-md" />
         <div className="min-w-0 flex-1">
           <h2 id={titleId} className="text-heading">
             Install Household Hub
