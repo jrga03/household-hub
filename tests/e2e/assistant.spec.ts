@@ -5,6 +5,7 @@ import {
   navigateTo,
   signUpNewPerson,
   transactionRows,
+  SAFARI_TAB_SKIPS_CONTROLS,
 } from "./fixtures/helpers";
 
 // Set by the Playwright webServer; nothing answers there except the stub below.
@@ -194,7 +195,8 @@ test("a waiting proposal survives a reload and records once after Confirm", asyn
   await expect(transactionRows(page).filter({ hasText: "Jollibee" })).toHaveCount(1);
 });
 
-test("a proposal is dismissed and confirmed by keyboard alone", async ({ page }) => {
+test("a proposal is dismissed and confirmed by keyboard alone", async ({ page, browserName }) => {
+  test.skip(browserName === "webkit", SAFARI_TAB_SKIPS_CONTROLS);
   await setUpHousehold(page, "Assistant keyboard home");
   await stubAssistant(page);
   await navigateTo(page, "Assistant");

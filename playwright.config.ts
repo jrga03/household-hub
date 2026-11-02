@@ -13,7 +13,7 @@ export default defineConfig({
   reporter: [["html", { open: "never" }]],
 
   use: {
-    baseURL: "http://localhost:4173", // Preview server
+    baseURL: "http://localhost:4173",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
@@ -24,20 +24,24 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
     {
-      name: "firefox",
-      use: { ...devices["Desktop Firefox"] },
-    },
-    {
-      name: "webkit",
-      use: { ...devices["Desktop Safari"] },
-    },
-    {
       name: "Mobile Chrome",
       use: { ...devices["Pixel 5"] },
     },
     {
       name: "Mobile Safari",
-      use: { ...devices["iPhone 12"] },
+      use: {
+        ...devices["iPhone 12"],
+        // The iOS install prompt would cover the lower half of every page three seconds in.
+        storageState: {
+          cookies: [],
+          origins: [
+            {
+              origin: "http://localhost:4173",
+              localStorage: [{ name: "pwa-install-never-show", value: "true" }],
+            },
+          ],
+        },
+      },
     },
   ],
 

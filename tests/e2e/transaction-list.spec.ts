@@ -299,6 +299,7 @@ test.describe("on a wide screen", () => {
     }
 
     const table = page.getByRole("table", { name: "Transactions" });
+    await expect(table.getByRole("button", { name: "Item 12", exact: true })).toBeVisible();
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     const row = table.getByRole("button", { name: "Item 1", exact: true });
     await expect(row).toBeInViewport();
@@ -410,6 +411,8 @@ test.describe("the open transaction", () => {
     for (let index = 1; index <= count; index++) {
       await addTransaction(page, { amount: `${index}00`, description: `Item ${index}` });
     }
+    // Scroll only once the newest row is in, or it pushes the list down afterwards.
+    await expect(rowOf(page, count)).toBeVisible();
     return page;
   }
   // "Item 1" in the table, "Item 1 minus ₱100.00 …" in the phone list.

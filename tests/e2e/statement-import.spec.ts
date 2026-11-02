@@ -28,6 +28,7 @@ async function openImportOffline(page: Page, context: BrowserContext, cardName: 
   await expect
     .poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null))
     .toBe(true);
+  await page.waitForLoadState("networkidle");
   await context.setOffline(true);
   await page.goto("/import");
 
@@ -62,6 +63,11 @@ test("a BDO statement is read offline, and its password can be remembered", asyn
     "−₱549.00"
   );
 
+  // The toast can cover the row, and a pointer resting on it holds it open.
+  await page.mouse.move(0, 0);
+  await expect(page.getByText("7 lines read from bdo-credit-card.pdf")).toBeHidden({
+    timeout: 10_000,
+  });
   // The open draft lives in the URL, so a reload shows it again.
   await drafts.getByRole("button", { name: /^STREAMING SVC/ }).click();
   await expect(page).toHaveURL(/[?&]open=/);

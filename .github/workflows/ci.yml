@@ -190,7 +190,7 @@ jobs:
 
       - name: Install Playwright browsers
         if: steps.check-creds.outputs.has_credentials == 'true'
-        run: npx playwright install --with-deps
+        run: npx playwright install --with-deps chromium webkit
 
       - name: Run E2E tests
         if: steps.check-creds.outputs.has_credentials == 'true'

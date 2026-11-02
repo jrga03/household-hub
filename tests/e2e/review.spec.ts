@@ -1,5 +1,5 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
-import { navigateTo, signUpNewPerson } from "./fixtures/helpers";
+import { navigateTo, openSettingsSection, signUpNewPerson } from "./fixtures/helpers";
 
 async function startHousehold(page: Page, name: string) {
   await signUpNewPerson(page);
@@ -76,7 +76,8 @@ test("an Owner answers a Join Request from Review", async ({ page, browser }) =>
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill("Review join home");
   await page.getByRole("button", { name: "Create household" }).click();
-  await page.goto("/settings?open=household");
+  await navigateTo(page, "Settings");
+  await openSettingsSection(page, "Household");
   const code = await page.getByTestId("household-code").textContent();
   if (!code) throw new Error("The Owner sees no Household Code");
 

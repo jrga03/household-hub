@@ -74,6 +74,7 @@ test.describe("wide screens", () => {
   test("shows each category's money on Categories", async ({ page }) => {
     await groceriesThisMonth(page);
 
+    await page.waitForLoadState("networkidle");
     await page.goto("/categories");
     await expect(page.getByRole("button", { name: /^Edit Groceries\s*₱6,800\.00$/ })).toBeVisible();
     await page.screenshot({ path: test.info().outputPath("categories-list.png") });

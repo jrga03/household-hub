@@ -54,8 +54,7 @@ npm run test:e2e -- --debug
 
 ```bash
 npm run test:e2e -- --project=chromium
-npm run test:e2e -- --project=firefox
-npm run test:e2e -- --project=webkit
+npm run test:e2e -- --project="Mobile Chrome"
 ```
 
 ## Test Pattern

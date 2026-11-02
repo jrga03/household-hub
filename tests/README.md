@@ -201,8 +201,8 @@ npm test -- vector-clock-integration
 
 **Key settings:**
 
-- Browsers: Chromium, Firefox, WebKit
-- Base URL: `http://localhost:3000`
+- Browsers: Chromium, WebKit
+- Base URL: `http://localhost:4173` (a fresh `vite build`, served by `vite preview`)
 - Screenshot on failure
 - Video on retry
 - Trace on first retry
@@ -210,8 +210,6 @@ npm test -- vector-clock-integration
 **Projects:**
 
 - Desktop Chrome
-- Desktop Firefox
-- Desktop Safari
 - Mobile Chrome
 - Mobile Safari
 

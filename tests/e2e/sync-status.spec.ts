@@ -41,49 +41,56 @@ test("changes made offline wait, then go out on reconnect", async ({ page, conte
   await expect(syncStatus(page)).toHaveAccessibleName("Sync status: Synced", { timeout: 15_000 });
 });
 
-test("a refused change is held as stuck until retried or discarded", async ({ page }) => {
-  await startHousehold(page);
-  // The server refuses every push, as row-level security would.
-  await page.route("**/rest/v1/events*", (route) =>
-    route.request().method() === "POST"
-      ? route.fulfill({
-          status: 403,
-          contentType: "application/json",
-          body: JSON.stringify({
-            code: "42501",
-            message: 'new row violates row-level security policy for table "events"',
-            details: null,
-            hint: null,
-          }),
-        })
-      : route.continue()
-  );
+test.describe("a refused change", () => {
+  // page.route misses requests that pass through the PWA's service worker once it takes control.
+  test.use({ serviceWorkers: "block" });
 
-  await addAccount(page, "BPI Savings");
-  await addAccount(page, "Maya");
-  await expect(syncStatus(page)).toHaveAccessibleName("Sync status: 2 stuck", { timeout: 15_000 });
+  test("a refused change is held as stuck until retried or discarded", async ({ page }) => {
+    await startHousehold(page);
+    // The server refuses every push, as row-level security would.
+    await page.route("**/rest/v1/events*", (route) =>
+      route.request().method() === "POST"
+        ? route.fulfill({
+            status: 403,
+            contentType: "application/json",
+            body: JSON.stringify({
+              code: "42501",
+              message: 'new row violates row-level security policy for table "events"',
+              details: null,
+              hint: null,
+            }),
+          })
+        : route.continue()
+    );
 
-  await syncStatus(page).click();
-  const stuck = page.getByRole("list", { name: "Stuck changes" });
-  await expect(stuck.getByRole("listitem")).toHaveText([
-    /Add account: BPI Savings/,
-    /Add account: Maya/,
-  ]);
+    await addAccount(page, "BPI Savings");
+    await addAccount(page, "Maya");
+    await expect(syncStatus(page)).toHaveAccessibleName("Sync status: 2 stuck", {
+      timeout: 15_000,
+    });
 
-  await page.unroute("**/rest/v1/events*");
-  await stuck
-    .getByRole("listitem")
-    .filter({ hasText: "Maya" })
-    .getByRole("button", { name: "Retry" })
-    .click();
-  await expect(stuck.getByRole("listitem")).toHaveText([/Add account: BPI Savings/]);
+    await syncStatus(page).click();
+    const stuck = page.getByRole("list", { name: "Stuck changes" });
+    await expect(stuck.getByRole("listitem")).toHaveText([
+      /Add account: BPI Savings/,
+      /Add account: Maya/,
+    ]);
 
-  await stuck.getByRole("button", { name: "Discard" }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Discard" }).click();
+    await page.unroute("**/rest/v1/events*");
+    await stuck
+      .getByRole("listitem")
+      .filter({ hasText: "Maya" })
+      .getByRole("button", { name: "Retry" })
+      .click();
+    await expect(stuck.getByRole("listitem")).toHaveText([/Add account: BPI Savings/]);
 
-  await expect(syncStatus(page)).toHaveAccessibleName("Sync status: Synced");
-  await expect(accountsList(page)).not.toContainText("BPI Savings");
-  await expect(accountsList(page)).toContainText("Maya");
+    await stuck.getByRole("button", { name: "Discard" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Discard" }).click();
+
+    await expect(syncStatus(page)).toHaveAccessibleName("Sync status: Synced");
+    await expect(accountsList(page)).not.toContainText("BPI Savings");
+    await expect(accountsList(page)).toContainText("Maya");
+  });
 });
 
 test.describe("before the service worker controls the page", () => {
