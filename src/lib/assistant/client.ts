@@ -32,29 +32,28 @@ export interface AssistantClient {
 const SIGN_IN_AGAIN = "Sign in again to use the assistant.";
 const UNREACHABLE = "Couldn't reach the assistant. Try again.";
 
-async function limitResetTime(response: Response): Promise<Date | null> {
+async function errorBody(response: Response): Promise<{ error?: unknown; resetsAt?: unknown }> {
   try {
     const body: unknown = await response.json();
-    if (typeof body !== "object" || body === null || !("resetsAt" in body)) return null;
-    const resetsAt = new Date(String(body.resetsAt));
-    return Number.isNaN(resetsAt.getTime()) ? null : resetsAt;
+    return typeof body === "object" && body !== null ? body : {};
   } catch {
-    return null;
+    return {};
   }
 }
 
 async function failureOf(response: Response): Promise<AssistantError> {
   if (response.status === 401) return new AssistantError(SIGN_IN_AGAIN);
-  // The history is resent each time, so trying again fails the same way.
-  if (response.status === 413) {
-    return new AssistantError("This chat is too long for the assistant. Start a new chat.");
-  }
   if (response.status === 503) {
     return new AssistantError("The assistant is busy. Try again in a moment.");
   }
+  const body = await errorBody(response);
+  // The history is resent each time, so trying again fails the same way.
+  if (response.status === 413 || body.error === "too_many_messages") {
+    return new AssistantError("This chat is too long for the assistant. Start a new chat.");
+  }
   if (response.status === 429) {
-    const resetsAt = await limitResetTime(response);
-    if (resetsAt) return new LimitReachedError(resetsAt);
+    const resetsAt = new Date(String(body.resetsAt));
+    if (!Number.isNaN(resetsAt.getTime())) return new LimitReachedError(resetsAt);
   }
   return new AssistantError(UNREACHABLE);
 }

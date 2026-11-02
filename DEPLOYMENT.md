@@ -120,13 +120,13 @@ The Wrangler log prints `Supabase keep-alive succeeded`. A failed query logs `Su
 
 ### Settings
 
-| Setting             | Kind    | Value                                                                        |
-| ------------------- | ------- | ---------------------------------------------------------------------------- |
-| `AI`                | Binding | Workers AI, declared in `wrangler.jsonc`                                     |
-| `SUPABASE_URL`      | Secret  | Production Supabase project URL, no trailing slash                           |
-| `SUPABASE_ANON_KEY` | Secret  | The project's anon key, for the household check                              |
-| `ALLOWED_ORIGINS`   | Secret  | Comma-separated app origins, e.g. the app Worker's URL and any custom domain |
-| `GROQ_API_KEY`      | Secret  | Groq API key for the fallback, from an organisation with ZDR on. Optional    |
+| Setting                    | Kind    | Value                                                                                                              |
+| -------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------ |
+| `AI`                       | Binding | Workers AI, declared in `wrangler.jsonc`                                                                           |
+| `SUPABASE_URL`             | Secret  | Production Supabase project URL, no trailing slash                                                                 |
+| `SUPABASE_PUBLISHABLE_KEY` | Secret  | The project's publishable key (`sb_publishable_…`), for the household check. Never the secret key, which skips RLS |
+| `ALLOWED_ORIGINS`          | Secret  | Comma-separated app origins, e.g. the app Worker's URL and any custom domain                                       |
+| `GROQ_API_KEY`             | Secret  | Groq API key for the fallback, from an organisation with ZDR on. Optional                                          |
 
 Set the secrets in the assistant Worker's **Settings → Variables and Secrets** (not the app Worker, whose `VITE_*` build variables end up in the public bundle, and not GitHub) as type **Secret**: a plain variable set in the dashboard is replaced by the next deploy, a secret is kept.
 
@@ -149,7 +149,7 @@ To deploy from a terminal instead (check the account with `npx wrangler@4.149.0 
 ```bash
 cd workers/assistant
 npx wrangler@4.149.0 secret put SUPABASE_URL
-npx wrangler@4.149.0 secret put SUPABASE_ANON_KEY
+npx wrangler@4.149.0 secret put SUPABASE_PUBLISHABLE_KEY
 npx wrangler@4.149.0 secret put ALLOWED_ORIGINS
 npx wrangler@4.149.0 deploy
 ```
@@ -269,7 +269,7 @@ Each Worker keeps its versions. In the Worker's **Deployments** tab, roll back t
 - **The Workers build fails**: read the build log in the dashboard. Common causes are a missing `VITE_*` variable, a type error, or a Node version mismatch. Reproduce with `npm ci && npm run build`.
 - **Blank page**: check the browser console, then the `VITE_SUPABASE_*` build variables on the `household-hub` Worker.
 - **Sync stops for everyone**: check the Supabase dashboard. A paused project refuses every request; restore it, then check the [Keep-alive Worker](#keep-alive-worker)'s last runs.
-- **The Assistant answers 401 or 403**: check `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `ALLOWED_ORIGINS` on the Assistant Worker.
+- **The Assistant answers 401 or 403**: check `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` and `ALLOWED_ORIGINS` on the Assistant Worker.
 
 ---
 

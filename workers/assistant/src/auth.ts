@@ -117,7 +117,7 @@ export async function verifyAccessToken(token: string, options: VerifyOptions): 
 
 interface HouseholdCheckOptions {
   supabaseUrl: string;
-  /** The project's public anon key; the API gateway refuses a request without one. */
+  /** The project's publishable key (`sb_publishable_…`); the API gateway refuses a request without one. */
   apiKey: string;
   fetchFn: typeof fetch;
 }

@@ -3,7 +3,7 @@ import { handleRequest, type HandlerEnv } from "./handler";
 
 interface AssistantEnv extends HandlerEnv {
   SUPABASE_URL: string;
-  SUPABASE_ANON_KEY: string;
+  SUPABASE_PUBLISHABLE_KEY: string;
 }
 
 // Kept for the isolate's lifetime, so most requests verify without fetching the key set.
@@ -29,7 +29,7 @@ export default {
       hasHousehold: (token) =>
         hasHousehold(token, {
           supabaseUrl: env.SUPABASE_URL,
-          apiKey: env.SUPABASE_ANON_KEY,
+          apiKey: env.SUPABASE_PUBLISHABLE_KEY,
           fetchFn,
         }),
       sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
