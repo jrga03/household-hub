@@ -14,11 +14,16 @@ import { SectionHeader } from "@/components/app/SectionHeader";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { SubmitButton } from "@/components/app/SubmitButton";
 import { VisibilityField } from "@/components/app/VisibilityField";
-import { namedAmounts } from "@/components/allocations/envelopes";
+import {
+  categoryNames,
+  namedAmountsLargestFirst,
+  namedAmounts,
+} from "@/components/allocations/envelopes";
 import { CorrectBalanceDialog } from "@/components/corrections/CorrectBalanceDialog";
 import { DetailPane, resolveOpenItem, useOpenItem } from "@/components/layout/DetailPane";
 import { PageShell } from "@/components/layout/PageShell";
 import { useAccountNames, useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
+import { useCategoryList } from "@/hooks/useCategories";
 import { useAccountMoney } from "@/hooks/useTransactions";
 import { ACCOUNT_TYPES, isCreditCard, type AccountType } from "@/lib/accounts/events";
 import type { AccountListItem } from "@/lib/accounts/projection";
@@ -31,7 +36,7 @@ import {
 } from "@/lib/commands/accounts";
 import { sumCents } from "@/lib/currency";
 import { VISIBILITY_LABELS, type Visibility } from "@/lib/events/ownership";
-import type { AccountMoney } from "@/lib/transactions/money";
+import type { AccountMoney, Envelopes } from "@/lib/transactions/money";
 import { errorMessage } from "@/lib/utils";
 import {
   ACCOUNT_TYPE_LABELS,
@@ -59,11 +64,17 @@ export function AccountsView({ actor }: { actor: Actor }) {
   const accounts = useAccounts();
   const retired = useRetiredAccounts();
   const money = useAccountMoney();
+  const accountNames = useAccountNames();
+  const categoryList = useCategoryList();
+  const names = accountNames &&
+    categoryList && { accounts: accountNames, categories: categoryNames(categoryList) };
   const { openId, open } = useOpenItem();
+  // The pane waits for the names its breakdown shows, so the breakdown doesn't push its facts down.
   const openAccount = resolveOpenItem(
     openId,
     accounts &&
       retired &&
+      names &&
       ((id) => accounts.find((account) => account.id === id) ?? retired.find((a) => a.id === id))
   );
 
@@ -87,15 +98,18 @@ export function AccountsView({ actor }: { actor: Actor }) {
         description={openAccount && ACCOUNT_TYPE_LABELS[openAccount.type]}
         item={openAccount}
       >
-        {(account) => (
-          // Keyed, so an open dialog doesn't follow a newly picked account.
-          <AccountDetail
-            key={account.id}
-            actor={actor}
-            account={account}
-            money={money?.get(account.id)}
-          />
-        )}
+        {(account) =>
+          names && (
+            // Keyed, so an open dialog doesn't follow a newly picked account.
+            <AccountDetail
+              key={account.id}
+              actor={actor}
+              account={account}
+              money={money?.get(account.id)}
+              names={names}
+            />
+          )
+        }
       </DetailPane>
     </>
   );
@@ -208,10 +222,12 @@ function AccountDetail({
   actor,
   account,
   money,
+  names,
 }: {
   actor: Actor;
   account: AccountListItem;
   money: AccountMoney | undefined;
+  names: BreakdownNames;
 }) {
   const { close } = useOpenItem();
   const [dialog, setDialog] = useState<"edit" | "pay" | "correct" | null>(null);
@@ -227,6 +243,7 @@ function AccountDetail({
           <Money kind="balance" owed={card} cents={money.balance} className="block text-heading" />
         </div>
       )}
+      {money?.envelopes && <Breakdown envelopes={money.envelopes} names={names} />}
       <Facts>
         {card && (
           <Fact term="Paid from">{account.payingAccount?.name ?? "Not on this device yet"}</Fact>
@@ -241,7 +258,6 @@ function AccountDetail({
             </Fact>
           </>
         )}
-        {money?.envelopes && <Envelopes envelopes={money.envelopes} />}
         <Fact term="Who sees it">{VISIBILITY_LABELS[account.visibility]}</Fact>
         {retired && <Fact term="Status">Retired</Fact>}
       </Facts>
@@ -292,21 +308,68 @@ function AccountDetail({
   );
 }
 
-/** The account's Unassigned and the Card Payment it holds for each card paid from it. */
-function Envelopes({ envelopes }: { envelopes: NonNullable<AccountMoney["envelopes"]> }) {
-  const names = useAccountNames();
+interface BreakdownNames {
+  accounts: Map<string, string>;
+  categories: Map<string, string>;
+}
+
+/**
+ * Where the balance sits: the Card Payment for each card paid from it, its
+ * Unassigned, and its money in each category, collapsed until asked for.
+ */
+function Breakdown({ envelopes, names }: { envelopes: Envelopes; names: BreakdownNames }) {
+  const [categoriesShown, setCategoriesShown] = useState(false);
+  const cardPayments = namedAmounts(envelopes.cardPayments, names.accounts);
+  const categories = namedAmountsLargestFirst(envelopes.categories, names.categories, "A category");
+  if (cardPayments.length === 0 && envelopes.unassigned === 0 && categories.length === 0) {
+    return null;
+  }
+
   return (
-    <>
-      <Fact term="Unassigned">
-        <Money kind="balance" cents={envelopes.unassigned} />
-      </Fact>
-      {names &&
-        namedAmounts(envelopes.cardPayments, names).map(({ id, cents, name }) => (
+    <section aria-label="Where the balance is" className="space-y-3">
+      <Facts>
+        {cardPayments.map(({ id, cents, name }) => (
           <Fact key={id} term={`Card Payment · ${name}`}>
             <Money kind="balance" cents={cents} />
           </Fact>
         ))}
-    </>
+        {envelopes.unassigned !== 0 && (
+          <Fact term="Unassigned">
+            <Money kind="balance" cents={envelopes.unassigned} />
+          </Fact>
+        )}
+      </Facts>
+      {categories.length > 0 && (
+        <Button
+          variant="link"
+          className="h-auto p-0"
+          aria-expanded={categoriesShown}
+          onClick={() => setCategoriesShown(!categoriesShown)}
+        >
+          {categoriesShown ? "Hide categories" : `Show categories (${categories.length})`}
+        </Button>
+      )}
+      {categoriesShown && (
+        <Facts>
+          {categories.map(({ id, cents, name }) => (
+            <Fact
+              key={id}
+              term={
+                <Link
+                  to="/categories"
+                  search={{ open: id }}
+                  className="text-body font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  {name}
+                </Link>
+              }
+            >
+              <Money kind="balance" cents={cents} />
+            </Fact>
+          ))}
+        </Facts>
+      )}
+    </section>
   );
 }
 

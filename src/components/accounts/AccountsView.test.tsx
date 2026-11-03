@@ -11,7 +11,10 @@ import { format } from "date-fns";
 import { readOpenItem } from "@/components/layout/DetailPane";
 import { PageShell } from "@/components/layout/PageShell";
 import { createAccount } from "@/lib/commands/accounts";
+import { addAllocation } from "@/lib/commands/allocations";
+import { createCategory, createGroup } from "@/lib/commands/categories";
 import { addTransaction } from "@/lib/commands/transactions";
+import { UNASSIGNED_ENVELOPE } from "@/lib/allocations/events";
 import { parsePHP } from "@/lib/currency";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { listTransfers } from "@/lib/transfers/projection";
@@ -53,7 +56,7 @@ function renderAccounts(initialEntry = "/accounts") {
       </PageShell>
     ),
   });
-  const linkedRoutes = ["/transactions", "/assign-money"].map((path) =>
+  const linkedRoutes = ["/transactions", "/assign-money", "/categories"].map((path) =>
     createRoute({ getParentRoute: () => rootRoute, path, component: () => null })
   );
   const history = createMemoryHistory({ initialEntries: [initialEntry] });
@@ -186,7 +189,7 @@ describe("AccountsView", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /^Wallet/ }));
     const details = await screen.findByRole("dialog", { name: "Wallet" });
-    await within(details).findByText("Unassigned");
+    await within(details).findByText("Balance");
     expect(within(details).queryByRole("link", { name: "Assign money" })).toBeNull();
   });
 
@@ -207,6 +210,53 @@ describe("AccountsView", () => {
     fireEvent.submit(form);
 
     await waitFor(async () => expect(await listTransfers()).toHaveLength(1));
+  });
+
+  it("breaks an open account's balance down, its categories collapsed and largest first", async () => {
+    const { bank, card } = await bankAndCard();
+    const food = await createGroup(MEMBER, { name: "Food" });
+    const rent = await createCategory(MEMBER, { name: "Rent", groupId: food.id });
+    const groceries = await createCategory(MEMBER, { name: "Groceries", groupId: food.id });
+    for (const [category, amount] of [
+      [rent, "100"],
+      [groceries, "600"],
+    ] as const) {
+      await addAllocation(MEMBER, {
+        date: today(),
+        accountId: bank.id,
+        from: UNASSIGNED_ENVELOPE,
+        to: { kind: "category", id: category.id },
+        amountCents: parsePHP(amount),
+      });
+    }
+    await record(card.id, "200");
+    renderAccounts();
+
+    fireEvent.click(await screen.findByRole("button", { name: /^BPI/ }));
+    const details = await screen.findByRole("dialog", { name: "BPI" });
+    const breakdown = await within(details).findByRole("region", { name: "Where the balance is" });
+    expect(breakdown).toHaveTextContent(/Card Payment · Visa\s*₱200\.00/);
+    expect(breakdown).toHaveTextContent(/Unassigned\s*₱100\.00/);
+    expect(within(details).queryByRole("link", { name: "Groceries" })).toBeNull();
+
+    fireEvent.click(within(details).getByRole("button", { name: "Show categories (2)" }));
+    const lines = within(details).getAllByRole("link", { name: /^(Groceries|Rent)$/ });
+    expect(lines.map((line) => line.textContent)).toEqual(["Groceries", "Rent"]);
+    expect(lines[0]).toHaveAttribute("href", `/categories?open=${groceries.id}`);
+
+    fireEvent.click(within(details).getByRole("button", { name: "Hide categories" }));
+    expect(within(details).queryByRole("link", { name: "Groceries" })).toBeNull();
+  });
+
+  it("shows no breakdown for a credit card", async () => {
+    const { card } = await bankAndCard();
+    await record(card.id, "200");
+    renderAccounts();
+
+    fireEvent.click(await screen.findByRole("button", { name: /^Visa/ }));
+    const details = await screen.findByRole("dialog", { name: "Visa" });
+    await within(details).findByText("Amount owed");
+    expect(within(details).queryByRole("region", { name: "Where the balance is" })).toBeNull();
   });
 
   it("puts an invalid correction's error under the field", async () => {

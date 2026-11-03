@@ -126,7 +126,8 @@ test("a payroll distribution from Assign money leaves the source account's Unass
   await expense.getByRole("button", { name: "Add transaction" }).click();
   await expect(expense).toBeHidden();
   await page.goto("/categories");
-  await page.getByRole("button", { name: "Edit Restaurants" }).click();
+  await page.getByRole("button", { name: /^Restaurants/ }).click();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByRole("button", { name: "Retire category" }).click();
   const retire = page.getByRole("dialog", { name: "Retire Restaurants" });
   await chooseOption(page, retire.getByLabel("Move its money into"), "Delivery");
