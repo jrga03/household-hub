@@ -27,6 +27,7 @@ export type Database = {
                   Row: {
                     "actor_user_id": string | null,"device_id": string,"entity_id": string,"entity_type": string,"event_type": string,"event_version": number,"hlc": string,"household_id": string,"id": string,"owner_user_id": string | null,"payload": NonNullable<Json>,"received_at": string,"sequence": number,"visibility": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "actor_user_id"?: string | null,"device_id": string,"entity_id": string,"entity_type": string,"event_type": string,"event_version": number,"hlc": string,"household_id": string,"id": string,"owner_user_id"?: string | null,"payload": NonNullable<Json>,"received_at"?: string,"sequence"?: number,"visibility": string
                   }
@@ -40,6 +41,7 @@ export type Database = {
                   Row: {
                     "household_id": string,"joined_at": string,"user_id": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "household_id": string,"joined_at"?: string,"user_id": string
                   }
@@ -59,6 +61,7 @@ isOneToOne: false
                   Row: {
                     "code": string,"created_at": string,"id": string,"name": string,"owner_user_id": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "code": string,"created_at"?: string,"id"?: string,"name": string,"owner_user_id": string
                   }
@@ -78,6 +81,7 @@ isOneToOne: false
                   Row: {
                     "created_at": string,"household_id": string,"id": string,"requester_email": string,"requester_user_id": string,"status": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "created_at"?: string,"household_id": string,"id"?: string,"requester_email": string,"requester_user_id": string,"status"?: string
                   }
