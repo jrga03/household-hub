@@ -48,11 +48,12 @@ const htmlPage = (background, body) =>
      ${body}</body>`;
 
 // Install icons are full-bleed: the OS masks them to its own shape.
+// The path fills 18 of its 24 viewBox units, so mark(84) shows the house at about 63%.
 const fullBleed = (size, file) => ({
   file,
   width: size,
   height: size,
-  html: htmlPage(primary, mark(60)),
+  html: htmlPage(primary, mark(84)),
 });
 
 const images = [
@@ -61,12 +62,13 @@ const images = [
   fullBleed(180, "icons/apple-touch-icon.png"),
   fullBleed(192, "icons/icon-192x192.png"),
   fullBleed(512, "icons/icon-512x512.png"),
-  // The mark's corners stay inside the maskable safe zone, a circle of 80% diameter.
+  // The mark's bottom corners stay inside the maskable safe zone, a circle of 80% diameter;
+  // past mark(75) they cross it.
   {
     file: "icons/icon-maskable-512x512.png",
     width: 512,
     height: 512,
-    html: htmlPage(primary, mark(50)),
+    html: htmlPage(primary, mark(74)),
   },
   // Android draws the notification badge from its alpha channel alone.
   {
