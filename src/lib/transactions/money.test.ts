@@ -7,7 +7,8 @@ import { listAccounts } from "@/lib/accounts/projection";
 import { listAllocations } from "@/lib/allocations/projection";
 import { listTransfers } from "@/lib/transfers/projection";
 import { listTransactions } from "./projection";
-import { readAccountMoney, sumAccountMoney, sumCategoryMoney } from "./money";
+import { negateCents, parsePHP } from "@/lib/currency";
+import { readAccountMoney, sumAccountMoney, sumCategoryMoney, sumGroupMoney } from "./money";
 import {
   BANK,
   CARD,
@@ -167,4 +168,31 @@ describe("account money", () => {
     // Seeding 11,000 events into fake IndexedDB takes ~2 s alone and over 10 s while
     // pre-push runs lint and tsc beside the suite; the 50 ms budget is on the sum only.
   }, 60_000);
+});
+
+describe("group money", () => {
+  it("adds up its categories' money per account, keeping a negative line", () => {
+    const categoryMoney = new Map([
+      [GROCERIES, { total: parsePHP("2000"), byAccount: new Map([[BANK, parsePHP("2000")]]) }],
+      [
+        RENT,
+        {
+          total: parsePHP("0"),
+          byAccount: new Map([
+            [BANK, negateCents(parsePHP("500"))],
+            [WALLET, parsePHP("500")],
+          ]),
+        },
+      ],
+      ["outside", { total: parsePHP("900"), byAccount: new Map([[WALLET, parsePHP("900")]]) }],
+    ]);
+
+    expect(sumGroupMoney(categoryMoney, [GROCERIES, RENT, "not-on-device"])).toEqual({
+      total: parsePHP("2000"),
+      byAccount: new Map([
+        [BANK, parsePHP("1500")],
+        [WALLET, parsePHP("500")],
+      ]),
+    });
+  });
 });

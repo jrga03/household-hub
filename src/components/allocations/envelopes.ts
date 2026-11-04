@@ -27,3 +27,15 @@ export function namedAmounts(byId: Map<string, Cents> | undefined, names: Map<st
     .map(([id, cents]) => ({ id, cents, name: names.get(id) ?? "A card" }))
     .sort(byName);
 }
+
+/** Non-zero amounts by ID, named and sorted largest first (name breaks ties). */
+export function namedAmountsLargestFirst(
+  byId: Map<string, Cents>,
+  names: Map<string, string>,
+  unknown: string
+) {
+  return [...byId]
+    .filter(([, cents]) => cents !== 0)
+    .map(([id, cents]) => ({ id, cents, name: names.get(id) ?? unknown }))
+    .sort((a, b) => b.cents - a.cents || byName(a, b));
+}

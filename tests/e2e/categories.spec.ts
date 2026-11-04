@@ -129,7 +129,9 @@ test.describe("with a keyboard", () => {
     await page.keyboard.press("Enter");
     await expect(page.getByRole("list", { name: "Food categories" })).toContainText("Snacks");
 
-    await page.getByRole("button", { name: "Edit Snacks" }).focus();
+    await page.getByRole("button", { name: /^Snacks/ }).focus();
+    await page.keyboard.press("Enter");
+    await page.getByRole("button", { name: "Edit", exact: true }).focus();
     await page.keyboard.press("Enter");
     const edit = page.getByRole("dialog", { name: "Edit category" });
     await expect(edit.getByLabel("Name")).toBeFocused();

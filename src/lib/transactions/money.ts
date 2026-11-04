@@ -253,3 +253,19 @@ export function sumCategoryMoney(money: Map<string, AccountMoney>): Map<string, 
   }
   return byCategory;
 }
+
+/** A group's money: its categories' money added up in each account. */
+export function sumGroupMoney(
+  categoryMoney: Map<string, CategoryMoney>,
+  categoryIds: string[]
+): CategoryMoney {
+  const group: CategoryMoney = { total: ZERO_CENTS, byAccount: new Map() };
+  for (const categoryId of categoryIds) {
+    const category = categoryMoney.get(categoryId);
+    if (!category) continue;
+    group.total = sumCents([group.total, category.total]);
+    for (const [accountId, cents] of category.byAccount)
+      addToTotal(group.byAccount, accountId, cents);
+  }
+  return group;
+}

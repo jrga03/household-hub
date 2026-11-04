@@ -10,7 +10,7 @@ export function Facts({ className, children }: { className?: string; children: R
   );
 }
 
-export function Fact({ term, children }: { term: string; children: ReactNode }) {
+export function Fact({ term, children }: { term: ReactNode; children: ReactNode }) {
   return (
     <div className="contents">
       <dt className="text-muted-foreground">{term}</dt>

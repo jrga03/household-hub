@@ -76,7 +76,7 @@ test.describe("wide screens", () => {
 
     await page.waitForLoadState("networkidle");
     await page.goto("/categories");
-    await expect(page.getByRole("button", { name: /^Edit Groceries\s*₱6,800\.00$/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Groceries\s*₱6,800\.00$/ })).toBeVisible();
     await page.screenshot({ path: test.info().outputPath("categories-list.png") });
   });
 });
