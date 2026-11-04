@@ -28,7 +28,7 @@ export function AppMark({ size = "md", label, className }: AppMarkProps) {
         className
       )}
     >
-      <svg viewBox="0 0 24 24" fill="currentColor" className="size-[60%]">
+      <svg viewBox="0 0 24 24" fill="currentColor" className="size-[84%]">
         <path fillRule="evenodd" d={MARK_PATH} />
       </svg>
     </div>
