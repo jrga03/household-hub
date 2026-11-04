@@ -99,7 +99,7 @@ const images = [
 const splashTile = (width, height, colors) => {
   const tile = Math.round(Math.min(width, height) * 0.25);
   return `<div style="width:${tile}px;height:${tile}px;border-radius:22%;background:${colors.tile};
-    display:grid;place-items:center">${mark(60, colors.mark)}</div>`;
+    display:grid;place-items:center">${mark(84, colors.mark)}</div>`;
 };
 for (const [, file, dark, width, height] of read("index.html").matchAll(
   /href="\/(splash\/apple-splash-(dark-)?(\d+)-(\d+)\.png)"/g
