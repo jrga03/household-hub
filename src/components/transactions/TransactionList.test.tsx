@@ -8,7 +8,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
 import { readOpenItem } from "@/components/layout/DetailPane";
 import { PageShell } from "@/components/layout/PageShell";
 import { createAccount } from "@/lib/commands/accounts";
@@ -129,30 +129,12 @@ describe("TransactionList", () => {
     await waitFor(() => expect(history.location.search).toBe(""));
   });
 
-  it("shows each day's net in its header: + when more came in, − when more went out", async () => {
-    const account = await createAccount(MEMBER, {
-      name: "BPI",
-      type: "bank",
-      startingBalanceCents: parsePHP("1000"),
-    });
-    const entry = (date: Date, type: "income" | "expense", amount: string, description: string) =>
-      addTransaction(MEMBER, {
-        date: localDate(date),
-        type,
-        amountCents: parsePHP(amount),
-        accountId: account.id,
-        categoryId: null,
-        description,
-      });
-    await entry(new Date(), "income", "1000", "Salary");
-    await entry(new Date(), "expense", "250", "Lunch");
-    await entry(subDays(new Date(), 1), "expense", "100", "Parking");
+  it("shows only the date in each date heading, no amount", async () => {
+    await recordMarket();
     renderTransactions("/transactions");
 
     const today = (await screen.findByRole("heading", { name: "Today" })).parentElement;
-    const yesterday = screen.getByRole("heading", { name: "Yesterday" }).parentElement;
-    expect(today).toHaveTextContent("+₱750.00");
-    expect(yesterday).toHaveTextContent("−₱100.00");
+    expect(today).toHaveTextContent(/^Today$/);
   });
 
   it("names a month range in the Month chip, the year once when both ends share it", async () => {
@@ -282,6 +264,21 @@ describe("TransactionList", () => {
       history.push("/transactions");
       expect(await screen.findByRole("table", { name: "Transactions" })).toBeVisible();
       expect(screen.queryByText("Spent", { exact: false })).toBeNull();
+    });
+
+    it("shows the summary only while a filter is set", async () => {
+      await recordMarket();
+      const history = renderTransactions("/transactions");
+
+      expect(await screen.findByRole("table", { name: "Transactions" })).toBeVisible();
+      expect(screen.queryByText("1 transaction")).toBeNull();
+
+      for (const search of ["type=expense", "query=Market", "status=cleared"]) {
+        history.push(`/transactions?${search}`);
+        expect(await screen.findByText("1 transaction")).toBeVisible();
+        history.push("/transactions");
+        await waitFor(() => expect(screen.queryByText("1 transaction")).toBeNull());
+      }
     });
 
     it("folds the filter rail into a Filters button while the detail is open", async () => {

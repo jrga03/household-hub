@@ -98,9 +98,7 @@ test("filters combine, and the search follows them", async ({ page, isMobile }) 
   await expect(rows).toContainText("Parking");
 });
 
-test("rows sit under their date with its net, and a pending one is marked by an icon", async ({
-  page,
-}) => {
+test("rows sit under their date, and a pending one is marked by an icon", async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 851 });
   await startHousehold(page);
   await navigateTo(page, "Transactions");
@@ -110,8 +108,7 @@ test("rows sit under their date with its net, and a pending one is marked by an 
   const list = page.getByRole("list", { name: "Transactions" });
   const today = list.getByRole("heading", { name: "Today" });
   await expect(today).toBeVisible();
-  // The day's net: income less expenses, signed.
-  await expect(today.locator("..")).toContainText("+₱750.00");
+  await expect(today.locator("..")).toHaveText("Today");
   const lunch = list.getByRole("listitem").filter({ hasText: "Lunch" });
   // An expense reads with a minus sign and is announced as minus.
   await expect(lunch).toContainText("−₱250.00");

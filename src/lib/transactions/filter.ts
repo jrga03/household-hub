@@ -100,6 +100,9 @@ export function readTransactionFilter(search: Record<string, unknown>): Transact
   return filter;
 }
 
+/** True when any filter is set; an empty filter shows every row. */
+export const isFiltered = (filter: TransactionFilter) => Object.keys(filter).length > 0;
+
 export const needsCategory = (row: ListRow) =>
   isTransaction(row) && row.type === "expense" && row.categoryId === null;
 

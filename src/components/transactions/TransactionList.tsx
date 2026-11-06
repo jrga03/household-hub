@@ -15,11 +15,12 @@ import { useAllAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useTransactionListRows } from "@/hooks/useTransactions";
 import type { Actor } from "@/lib/commands/accounts";
-import { diffCents, ZERO_CENTS, type Cents } from "@/lib/currency";
+import { diffCents } from "@/lib/currency";
 import { dateHeading, groupByDate, type DateGroupItem } from "@/lib/transactions/date-groups";
 import {
   filterTransactions,
   isCorrection,
+  isFiltered,
   totalTransactions,
   UNASSIGNED_FILTER,
   type ListRow,
@@ -43,13 +44,6 @@ const HEADING_HEIGHT_ESTIMATE = 41;
 
 /** "yyyy-MM" months holding transactions or transfers, newest first (the list is newest first). */
 const monthsOf = (rows: ListRow[]) => [...new Set(rows.map((row) => monthOfDate(row.date)))];
-
-/** Each date's income less its expenses; transfers and corrections count for neither. */
-function netByDate(rows: ListRow[]): Map<string, Cents> {
-  const byDate = new Map<string, ListRow[]>();
-  for (const row of rows) byDate.set(row.date, [...(byDate.get(row.date) ?? []), row]);
-  return new Map([...byDate].map(([date, dayRows]) => [date, totalTransactions(dayRows).netCents]));
-}
 
 interface TransactionListProps {
   actor: Actor;
@@ -85,7 +79,6 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
 
   const shown = useMemo(() => (rows ? filterTransactions(rows, filter) : []), [rows, filter]);
   const items = useMemo(() => groupByDate(shown), [shown]);
-  const dayNets = useMemo(() => netByDate(shown), [shown]);
   const selected = useMemo(
     () => shown.filter((row) => selectedIds.has(row.id)),
     [shown, selectedIds]
@@ -193,10 +186,12 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
           <div className="flex gap-6">
             {!railFolded && <div className="w-56 shrink-0">{filters("rail")}</div>}
             <div className="min-w-0 flex-1 space-y-4">
-              <div className="flex items-center gap-3">
-                <Summary rows={shown} filter={filter} />
-                {railFolded && <FiltersButton>{filters("rail")}</FiltersButton>}
-              </div>
+              {(isFiltered(filter) || railFolded) && (
+                <div className="flex items-center gap-3">
+                  {isFiltered(filter) && <Summary rows={shown} filter={filter} />}
+                  {railFolded && <FiltersButton>{filters("rail")}</FiltersButton>}
+                </div>
+              )}
               {shown.length === 0 ? (
                 noMatch
               ) : (
@@ -217,7 +212,6 @@ export function TransactionList({ actor, filter, onFilterChange }: TransactionLi
             ) : (
               <VirtualTransactionRows
                 items={items}
-                dayNets={dayNets}
                 renderRow={(row) => (
                   <TransactionItem
                     actor={actor}
@@ -319,7 +313,6 @@ function FiltersButton({ children }: { children: ReactNode }) {
 
 interface VirtualTransactionRowsProps {
   items: DateGroupItem<ListRow>[];
-  dayNets: Map<string, Cents>;
   renderRow: (row: ListRow) => ReactNode;
 }
 
@@ -327,7 +320,7 @@ interface VirtualTransactionRowsProps {
  * Renders only the items near the viewport; the page itself scrolls. The
  * heading of the date in view sticks under the shell header.
  */
-function VirtualTransactionRows({ items, dayNets, renderRow }: VirtualTransactionRowsProps) {
+function VirtualTransactionRows({ items, renderRow }: VirtualTransactionRowsProps) {
   const listRef = useRef<HTMLUListElement>(null);
   const [listTop, setListTop] = useState(0);
   // How far below the top of the window the headings stick: the shell header's height.
@@ -418,11 +411,7 @@ function VirtualTransactionRows({ items, dayNets, renderRow }: VirtualTransactio
               )}
               style={stuck ? undefined : placed}
             >
-              <SectionHeader
-                title={dateHeading(item.date, today)}
-                action={<Money kind="net" cents={dayNets.get(item.date) ?? ZERO_CENTS} />}
-                className="px-4 pb-1 pt-3"
-              />
+              <SectionHeader title={dateHeading(item.date, today)} className="px-4 pb-1 pt-3" />
             </li>
           );
         }

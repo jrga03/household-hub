@@ -19,6 +19,7 @@ import type { AccountRow } from "@/lib/accounts/projection";
 import type { CategoryList } from "@/lib/categories/projection";
 import { CORRECTION_LABEL } from "@/lib/corrections/events";
 import {
+  isFiltered,
   isListType,
   TRANSFER_TYPE,
   CORRECTION_TYPE,
@@ -90,7 +91,6 @@ export function TransactionFilters({
   }
 
   const mergeFilter = (next: TransactionFilter) => onChange({ ...filter, ...next });
-  const isFiltered = Object.keys(filter).length > 0;
 
   const thisMonth = format(new Date(), "yyyy-MM");
   const monthChoices = [
@@ -216,7 +216,7 @@ export function TransactionFilters({
       Paid by {payerName(filter.owedTo)}
     </FilterChip>
   );
-  const clear = isFiltered && (
+  const clear = isFiltered(filter) && (
     <Button variant="ghost" size="sm" className="shrink-0" onClick={() => onChange({})}>
       Clear filters
     </Button>
