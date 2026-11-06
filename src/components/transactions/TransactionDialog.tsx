@@ -435,13 +435,13 @@ function TransactionForm({
       <FormError>{problems.form}</FormError>
       {transaction ? (
         <FormFooter destructive={{ label: "Remove", onClick: () => void remove() }}>
-          <SubmitButton pendingText="Saving...">Save</SubmitButton>
+          <SubmitButton pendingText="Saving…">Save</SubmitButton>
         </FormFooter>
       ) : (
         // One row on phones too: the icon button beside a primary that fills the rest.
         <FormFooter className="flex-row">
           <AddAnotherButton onClick={() => (startAnother.current = true)} />
-          <SubmitButton pendingText="Saving..." className="flex-1 @[480px]:flex-none">
+          <SubmitButton pendingText="Saving…" className="flex-1 @[480px]:flex-none">
             Add transaction
           </SubmitButton>
         </FormFooter>

@@ -72,6 +72,15 @@ describe("searchOptions", () => {
     ]);
   });
 
+  it("matches a group label by prefix or substring only", () => {
+    const groups: ComboboxGroup[] = [
+      { label: "Food", options: [{ value: "dining", label: "Dining out" }] },
+    ];
+    expect(searchOptions(groups, "oo")).toHaveLength(1);
+    expect(searchOptions(groups, "fd")).toEqual([]);
+    expect(searchOptions(groups, "fod")).toEqual([]);
+  });
+
   it("ignores case and accents", () => {
     expect(found(flat("Niño fund"), "  NINO ")).toEqual(["Niño fund"]);
   });

@@ -70,7 +70,9 @@ function match(text: string, query: string): Match | null {
 export function searchOptions(groups: ComboboxGroup[], query: string): SearchResult[] {
   const search = fold(query.trim());
   const found = groups.flatMap((group) => {
-    const byGroup = group.label ? match(group.label, search) : null;
+    // A group name lists its options on a prefix or substring only, so "fd" can't pull in all of Food.
+    const groupMatch = group.label ? match(group.label, search) : null;
+    const byGroup = groupMatch && groupMatch.tier <= 1 ? groupMatch : null;
     return group.options.flatMap((option) => {
       const byLabel = match(option.label, search);
       const best = byGroup && (!byLabel || byGroup.tier < byLabel.tier) ? byGroup : byLabel;
