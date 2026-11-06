@@ -50,9 +50,10 @@ function Button({
 
   return (
     <Comp
-      data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
+      // Last, so an asChild trigger can't replace it: the touch-target floor in index.css selects by it.
+      data-slot="button"
     />
   );
 }
