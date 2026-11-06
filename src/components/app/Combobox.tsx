@@ -12,6 +12,7 @@ import {
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useIsCompact } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
+import { fold, searchOptions, type SearchResult } from "./comboboxSearch";
 
 export interface ComboboxOption {
   value: string;
@@ -42,72 +43,79 @@ type ComboboxProps = Pick<
   children?: ReactNode;
 };
 
-const fold = (text: string) => text.trim().toLowerCase();
-
-// Substring, not cmdk's fuzzy score: "food" should not match "Fuel and oil".
-function filterGroups(groups: ComboboxGroup[], query: string): ComboboxGroup[] {
-  const search = fold(query);
-  if (!search) return groups;
-  return groups
-    .map((group) => ({
-      ...group,
-      options:
-        group.label && fold(group.label).includes(search)
-          ? group.options
-          : group.options.filter((option) => fold(option.label).includes(search)),
-    }))
-    .filter((group) => group.options.length > 0);
-}
-
 const allOptions = (groups: ComboboxGroup[]) => groups.flatMap((group) => group.options);
 
-function Highlight({ text, query }: { text: string; query: string }) {
-  const start = query.trim() ? fold(text).indexOf(fold(query)) : -1;
-  if (start < 0) return text;
-  const end = start + query.trim().length;
+function Highlight({ text, bold }: { text: string; bold: number[] }) {
+  if (bold.length === 0) return text;
+  const boldAt = new Set(bold);
+  const runs: { text: string; bold: boolean }[] = [];
+  for (const [index, char] of text.split("").entries()) {
+    const last = runs.at(-1);
+    if (last?.bold === boldAt.has(index)) last.text += char;
+    else runs.push({ text: char, bold: boldAt.has(index) });
+  }
   return (
     <span>
-      {text.slice(0, start)}
-      <strong className="font-semibold">{text.slice(start, end)}</strong>
-      {text.slice(end)}
+      {runs.map((run, index) =>
+        run.bold ? (
+          <strong key={index} className="font-semibold">
+            {run.text}
+          </strong>
+        ) : (
+          run.text
+        )
+      )}
     </span>
   );
 }
 
+/** Empty search: the grouped list. While typing: one flat list, best match first. */
 function Results({
   groups,
-  query,
+  results,
   value,
   emptyValue,
   onPick,
 }: {
   groups: ComboboxGroup[];
-  query: string;
+  results: SearchResult[] | null;
   value: string;
   emptyValue?: string;
   onPick: (value: string) => void;
 }) {
+  const item = (option: ComboboxOption, label: ReactNode, group?: ReactNode) => (
+    <CommandItem
+      key={option.value}
+      value={option.value}
+      className={cn(option.value === emptyValue && "text-muted-foreground")}
+      onSelect={() => onPick(option.value)}
+    >
+      {option.content ?? label}
+      {group && (
+        <>
+          {" "}
+          <span className="text-muted-foreground truncate">{group}</span>
+        </>
+      )}
+      {option.value === value && <CheckIcon className="ml-auto" aria-hidden />}
+    </CommandItem>
+  );
   return (
     <CommandList>
       <CommandEmpty>No matches</CommandEmpty>
-      {groups.map((group, index) => (
-        <CommandGroup
-          key={group.label ?? index}
-          heading={group.label && <Highlight text={group.label} query={query} />}
-        >
-          {group.options.map((option) => (
-            <CommandItem
-              key={option.value}
-              value={option.value}
-              className={cn(option.value === emptyValue && "text-muted-foreground")}
-              onSelect={() => onPick(option.value)}
-            >
-              {option.content ?? <Highlight text={option.label} query={query} />}
-              {option.value === value && <CheckIcon className="ml-auto" aria-hidden />}
-            </CommandItem>
+      {results
+        ? results.map((result) =>
+            item(
+              result.option,
+              <Highlight text={result.option.label} bold={result.labelBold} />,
+              result.group && <Highlight text={result.group} bold={result.groupBold} />
+            )
+          )
+        : groups.map((group, index) => (
+            <CommandGroup key={group.label ?? index} heading={group.label}>
+              {group.options.map((option) => item(option, option.label))}
+            </CommandGroup>
           ))}
-        </CommandGroup>
-      ))}
     </CommandList>
   );
 }
@@ -192,8 +200,8 @@ function ComboboxButton({
         <Command label="Search" shouldFilter={false} defaultValue={value}>
           <CommandInput placeholder="Search…" value={query} onValueChange={setQuery} />
           <Results
-            groups={filterGroups(choices, query)}
-            query={query}
+            groups={choices}
+            results={searchOptions(choices, query)}
             value={value}
             emptyValue={empty?.value}
             onPick={(next) => {
@@ -239,7 +247,11 @@ function ComboboxField({
       ? ""
       : (allOptions(groups).find((option) => option.value === value)?.label ?? "");
   const query = editing ? text : "";
-  const shown = filterGroups(groups, query);
+  // The empty choice ranks with the matches, but the full list leaves it to the × button.
+  const choicesFor = (search: string) =>
+    empty && search.trim() ? [{ options: [empty] }, ...groups] : groups;
+  const choices = choicesFor(query);
+  const results = searchOptions(choices, query);
 
   const pick = (next: string) => {
     onValueChange(next);
@@ -249,8 +261,9 @@ function ComboboxField({
   // Leaving never saves text that names no option: it goes back to the last choice.
   const leave = () => {
     if (!editing) return setOpen(false);
-    if (empty && (fold(text) === "" || fold(text) === fold(empty.label))) return pick(empty.value);
-    const named = allOptions(groups).find((option) => fold(option.label) === fold(text));
+    const typed = fold(text.trim());
+    if (empty && (typed === "" || typed === fold(empty.label))) return pick(empty.value);
+    const named = allOptions(groups).find((option) => fold(option.label) === typed);
     if (named) return pick(named.value);
     setEditing(false);
     setOpen(false);
@@ -292,9 +305,9 @@ function ComboboxField({
                 setText(event.target.value);
                 setEditing(true);
                 setOpen(true);
-                setHighlighted(
-                  allOptions(filterGroups(groups, event.target.value))[0]?.value ?? ""
-                );
+                const search = event.target.value;
+                const next = searchOptions(choicesFor(search), search);
+                setHighlighted((next ? next[0]?.option : allOptions(groups)[0])?.value ?? "");
               }}
               onClick={() => setOpen(true)}
               onFocus={(event) => {
@@ -344,8 +357,8 @@ function ComboboxField({
         </PopoverAnchor>
         {name && <input type="hidden" name={name} value={value} />}
         <div aria-live="polite" className="sr-only">
-          {open && query.trim()
-            ? `${allOptions(shown).length} ${allOptions(shown).length === 1 ? "result" : "results"}`
+          {open && results
+            ? `${results.length} ${results.length === 1 ? "result" : "results"}`
             : ""}
         </div>
         <PopoverContent
@@ -363,7 +376,13 @@ function ComboboxField({
               event.preventDefault();
           }}
         >
-          <Results groups={shown} query={query} value={value} onPick={pick} />
+          <Results
+            groups={choices}
+            results={results}
+            value={value}
+            emptyValue={empty?.value}
+            onPick={pick}
+          />
         </PopoverContent>
       </Command>
     </Popover>

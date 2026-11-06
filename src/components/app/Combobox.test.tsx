@@ -52,19 +52,39 @@ describe("Combobox on wider screens", () => {
     expect(optionNames()).toEqual(["Unassigned", "Groceries", "Dining out", "Electricity"]);
   });
 
-  it("narrows the list to the categories a query names, in bold", () => {
+  it("narrows the list to the categories a query names, in bold, each with its group", () => {
     render(<CategoryPicker />);
     open();
     search("groc");
-    expect(optionNames()).toEqual(["Groceries"]);
+    expect(optionNames()).toEqual(["Groceries Food"]);
     expect(within(screen.getByRole("option")).getByText("Groc").tagName).toBe("STRONG");
+  });
+
+  it("lists one flat list while searching, closest match first", () => {
+    render(<CategoryPicker />);
+    open();
+    search("e");
+    expect(screen.queryByRole("group")).not.toBeInTheDocument();
+    expect(optionNames()).toEqual(["Electricity Bills", "Groceries Food", "Unassigned"]);
+  });
+
+  it("bolds each letter of an in-order match, and nothing in a typo match", () => {
+    render(<CategoryPicker />);
+    open();
+    search("elcty");
+    expect(
+      [...screen.getByRole("option").querySelectorAll("strong")].map((bold) => bold.textContent)
+    ).toEqual(["El", "ct", "y"]);
+    search("dinnig");
+    expect(optionNames()).toEqual(["Dining out Food"]);
+    expect(screen.getByRole("option").querySelector("strong")).toBeNull();
   });
 
   it("lists every category in a group the query names, and hides the other groups", () => {
     render(<CategoryPicker />);
     open();
     search("food");
-    expect(optionNames()).toEqual(["Groceries", "Dining out"]);
+    expect(optionNames()).toEqual(["Groceries Food", "Dining out Food"]);
     expect(screen.queryByText("Bills")).not.toBeInTheDocument();
   });
 
@@ -153,7 +173,7 @@ describe("Combobox on phones", () => {
     fireEvent.click(field());
     expect(optionNames()).toEqual(["Groceries", "Dining out", "Electricity"]);
     type("food");
-    expect(optionNames()).toEqual(["Groceries", "Dining out"]);
+    expect(optionNames()).toEqual(["Groceries Food", "Dining out Food"]);
     type("groc");
     expect(within(screen.getByRole("option")).getByText("Groc").tagName).toBe("STRONG");
   });
@@ -161,7 +181,7 @@ describe("Combobox on phones", () => {
   it("picks a tapped option", () => {
     renderOnPhone();
     type("dining");
-    fireEvent.click(screen.getByRole("option", { name: "Dining out" }));
+    fireEvent.click(screen.getByRole("option", { name: "Dining out Food" }));
     expect(field()).toHaveValue("Dining out");
     expect(submitted()).toBe("dining");
   });
@@ -169,7 +189,7 @@ describe("Combobox on phones", () => {
   it("empties to the empty choice with the clear button", () => {
     renderOnPhone();
     type("groc");
-    fireEvent.click(screen.getByRole("option", { name: "Groceries" }));
+    fireEvent.click(screen.getByRole("option", { name: "Groceries Food" }));
     fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
     expect(field()).toHaveValue("");
     expect(submitted()).toBe("unassigned");
@@ -194,7 +214,7 @@ describe("Combobox on phones", () => {
   it("picks the empty choice when the text names it", () => {
     renderOnPhone();
     type("dining");
-    fireEvent.click(screen.getByRole("option", { name: "Dining out" }));
+    fireEvent.click(screen.getByRole("option", { name: "Dining out Food" }));
     type("unassigned");
     leave();
     expect(field()).toHaveValue("");
@@ -216,6 +236,21 @@ describe("Combobox on phones", () => {
     fireEvent.keyDown(field(), { key: "Enter" });
     expect(field()).toHaveAttribute("aria-expanded", "true");
     expect(submit).not.toHaveBeenCalled();
+  });
+
+  it("lists the empty choice among the matches while typing", () => {
+    renderOnPhone();
+    type("una");
+    expect(optionNames()).toEqual(["Unassigned"]);
+  });
+
+  it("picks the best match with Enter", () => {
+    renderOnPhone();
+    type("it");
+    expect(optionNames()).toEqual(["Electricity Bills", "Dining out Food"]);
+    fireEvent.keyDown(field(), { key: "Enter" });
+    expect(field()).toHaveValue("Electricity");
+    expect(submitted()).toBe("power");
   });
 
   it("picks the highlighted option with Enter", () => {

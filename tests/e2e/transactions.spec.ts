@@ -45,7 +45,7 @@ test("transactions recorded offline move the balance, and a removal can be undon
   await expect(bankItem(page)).toContainText("Unassigned ₱1,000.00");
 
   await page.keyboard.press("n");
-  await expectChosen(dialog.getByLabel("Category"), "Groceries");
+  await expectChosen(dialog.getByLabel("Category"), "Unassigned");
   await dialog.getByLabel("Amount (₱)").fill("1000");
   await dialog.getByRole("radio", { name: "Income" }).check();
   await expectChosen(dialog.getByLabel("Category"), "Unassigned");
