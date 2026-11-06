@@ -1,7 +1,9 @@
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { ActionForm } from "@/components/app/ActionForm";
+import { ListPlusIcon } from "lucide-react";
+import { ActionForm, useActionFormPending } from "@/components/app/ActionForm";
+import { Button } from "@/components/app/Button";
 import { Field } from "@/components/app/Field";
 import { FormError } from "@/components/app/FormError";
 import { FormFooter, FormSheet, FULL_ROW } from "@/components/app/FormSheet";
@@ -15,6 +17,7 @@ import {
 } from "@/components/app/Select";
 import { SubmitButton } from "@/components/app/SubmitButton";
 import { Textarea } from "@/components/app/Textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/app/Tooltip";
 import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useMemberNames } from "@/hooks/useMemberNames";
@@ -249,6 +252,12 @@ function TransactionForm({
   );
   const amountRef = useRef<HTMLInputElement>(null);
   useFocusNewEntry(amountRef, !transaction);
+  // Each "Add and start another" save remounts the cleared fields.
+  const startAnother = useRef(false);
+  const [entryCount, setEntryCount] = useState(0);
+  useEffect(() => {
+    if (entryCount > 0) amountRef.current?.focus();
+  }, [entryCount]);
   const [accountId, setAccountId] = useState(
     transaction?.accountId ?? lastAccount?.id ?? accounts[0]?.id ?? ""
   );
@@ -269,6 +278,8 @@ function TransactionForm({
 
   const [problems, saveAction] = useActionState(
     async (_previous: EntryProblems, formData: FormData) => {
+      const another = startAnother.current;
+      startAnother.current = false;
       const { input, status, outOfPocket, problems: readProblems } = readTransactionForm(formData);
       if (readProblems !== null) return readProblems;
       try {
@@ -303,6 +314,11 @@ function TransactionForm({
                 }
               : undefined;
           toast.success("Transaction added", { action: distribute });
+          if (another) {
+            setAmount(undefined);
+            setEntryCount((count) => count + 1);
+            return NO_PROBLEMS;
+          }
         }
         onClose();
         return NO_PROBLEMS;
@@ -329,6 +345,7 @@ function TransactionForm({
       {/* The amount comes first, so the dialog opens with it focused. */}
       <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
         <AmountField
+          key={entryCount}
           value={amount}
           onChange={setAmount}
           error={problems.fields.amount}
@@ -389,6 +406,7 @@ function TransactionForm({
 
       <Field label="Description" error={problems.fields.description}>
         <Input
+          key={entryCount}
           name="description"
           required
           maxLength={DESCRIPTION_MAX_LENGTH}
@@ -399,6 +417,7 @@ function TransactionForm({
       </Field>
       <Field label="Notes (optional)">
         <Textarea
+          key={entryCount}
           name="notes"
           maxLength={NOTES_MAX_LENGTH}
           rows={2}
@@ -414,11 +433,45 @@ function TransactionForm({
       />
 
       <FormError>{problems.form}</FormError>
-      <FormFooter destructive={transaction && { label: "Remove", onClick: () => void remove() }}>
-        <SubmitButton pendingText="Saving...">
-          {transaction ? "Save" : "Add transaction"}
-        </SubmitButton>
-      </FormFooter>
+      {transaction ? (
+        <FormFooter destructive={{ label: "Remove", onClick: () => void remove() }}>
+          <SubmitButton pendingText="Saving...">Save</SubmitButton>
+        </FormFooter>
+      ) : (
+        // One row on phones too: the icon button beside a primary that fills the rest.
+        <FormFooter className="flex-row">
+          <AddAnotherButton onClick={() => (startAnother.current = true)} />
+          <SubmitButton pendingText="Saving..." className="flex-1 @[480px]:flex-none">
+            Add transaction
+          </SubmitButton>
+        </FormFooter>
+      )}
     </ActionForm>
+  );
+}
+
+/** Saves like the submit button but keeps the sheet open. Not a submit button, so Enter skips it. */
+function AddAnotherButton({ onClick }: { onClick: () => void }) {
+  const pending = useActionFormPending();
+  const label = "Add and start another";
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label={label}
+          disabled={pending}
+          onClick={(event) => {
+            onClick();
+            event.currentTarget.form?.requestSubmit();
+          }}
+        >
+          <ListPlusIcon aria-hidden />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 }

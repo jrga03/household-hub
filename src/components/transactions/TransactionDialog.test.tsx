@@ -120,6 +120,86 @@ describe("TransactionEditor", () => {
     expect(screen.getByLabelText("Account")).toHaveTextContent("GCash");
   });
 
+  describe("Add and start another", () => {
+    const addAnother = () => screen.queryByRole("button", { name: "Add and start another" });
+
+    it("saves, keeps the sheet open, and clears only the amount, description and notes", async () => {
+      await createAccount(MEMBER, {
+        name: "BPI",
+        type: "bank",
+        startingBalanceCents: parsePHP("0"),
+      });
+      const onClose = vi.fn();
+      renderEditor(onClose);
+
+      fireEvent.change(await screen.findByLabelText(/Amount/), { target: { value: "125" } });
+      fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Market" } });
+      fireEvent.change(screen.getByLabelText("Notes (optional)"), { target: { value: "Cash" } });
+      fireEvent.change(screen.getByLabelText("Date"), { target: { value: "2026-10-12" } });
+      fireEvent.click(screen.getByRole("radio", { name: "Pending" }));
+      fireEvent.click(screen.getByRole("button", { name: "Add and start another" }));
+
+      await waitFor(async () => expect(await listTransactions()).toHaveLength(1));
+      await waitFor(() => expect(screen.getByLabelText(/Amount/)).toHaveFocus());
+      expect(onClose).not.toHaveBeenCalled();
+      expect(screen.getByLabelText(/Amount/)).toHaveValue("");
+      expect(screen.getByLabelText("Description")).toHaveValue("");
+      expect(screen.getByLabelText("Notes (optional)")).toHaveValue("");
+      expect(screen.getByLabelText("Date")).toHaveValue("2026-10-12");
+      expect(screen.getByRole("radio", { name: "Pending" })).toBeChecked();
+      expect(await listTransactions()).toMatchObject([
+        { amountCents: parsePHP("125"), description: "Market", notes: "Cash", status: "pending" },
+      ]);
+    });
+
+    it("keeps everything on a validation error", async () => {
+      await createAccount(MEMBER, {
+        name: "BPI",
+        type: "bank",
+        startingBalanceCents: parsePHP("0"),
+      });
+      renderEditor(vi.fn());
+
+      fireEvent.change(await screen.findByLabelText(/Amount/), { target: { value: "125" } });
+      fireEvent.click(screen.getByRole("button", { name: "Add and start another" }));
+
+      await waitFor(() => expect(screen.getByLabelText("Description")).toHaveFocus());
+      expect(screen.getByLabelText(/Amount/)).toHaveValue("125.00");
+      expect(await listTransactions()).toHaveLength(0);
+    });
+
+    it("is not offered for a transfer or an edit", async () => {
+      const bpi = await createAccount(MEMBER, {
+        name: "BPI",
+        type: "bank",
+        startingBalanceCents: parsePHP("0"),
+      });
+      await createAccount(MEMBER, {
+        name: "GCash",
+        type: "e_wallet",
+        startingBalanceCents: parsePHP("0"),
+      });
+      const view = renderEditor(vi.fn());
+      fireEvent.click(await screen.findByRole("radio", { name: "Transfer" }));
+      expect(await screen.findByRole("form", { name: "Add transfer" })).toBeInTheDocument();
+      expect(addAnother()).toBeNull();
+      view.unmount();
+
+      await addTransaction(MEMBER, {
+        date: "2026-10-12",
+        type: "expense",
+        amountCents: parsePHP("300"),
+        accountId: bpi.id,
+        categoryId: null,
+        description: "Groceries",
+      });
+      const [transaction] = await listTransactions();
+      renderEditor(vi.fn(), transaction);
+      expect(await screen.findByRole("button", { name: "Save" })).toBeVisible();
+      expect(addAnother()).toBeNull();
+    });
+  });
+
   it("ties a missing description to its field and moves focus there", async () => {
     await createAccount(MEMBER, { name: "BPI", type: "bank", startingBalanceCents: parsePHP("0") });
     renderEditor(vi.fn());
