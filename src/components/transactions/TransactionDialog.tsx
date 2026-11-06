@@ -258,14 +258,10 @@ function TransactionForm({
   if (statusChoice === OUT_OF_POCKET && !offerOutOfPocket) setStatusChoice("pending");
   const choices = categoryChoices(categories, account, transaction?.categoryId ?? null);
   const isChoice = (id: string | null) => isCategoryChoice(choices, id);
+  // A new transaction lands in Unassigned unless the member names a category.
   const [categoryId, setCategoryId] = useState(() => {
-    // New money lands in Unassigned unless the member names a category.
-    const preferred = transaction
-      ? transaction.categoryId
-      : type === "income"
-        ? null
-        : lastUsed.categoryId;
-    return preferred !== null && isChoice(preferred) ? preferred : UNASSIGNED;
+    const own = transaction?.categoryId ?? null;
+    return own !== null && isChoice(own) ? own : UNASSIGNED;
   });
   // A category of another visibility can't follow the account change.
   const shownCategoryId =
@@ -288,7 +284,7 @@ function TransactionForm({
             status,
             paidByUserId: outOfPocket ? actor.userId : null,
           });
-          setLastUsed({ accountId: input.accountId, categoryId: input.categoryId });
+          setLastUsed({ accountId: input.accountId });
           // Income into Unassigned is a payday: offer to split it across the budgets.
           const distribute =
             input.type === "income" && input.categoryId === null

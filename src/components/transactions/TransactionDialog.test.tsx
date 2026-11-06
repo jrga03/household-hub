@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-router";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { createAccount } from "@/lib/commands/accounts";
+import { createCategory, createGroup } from "@/lib/commands/categories";
 import { addTransaction } from "@/lib/commands/transactions";
 import { parsePHP } from "@/lib/currency";
 import { listTransactions, type TransactionRow } from "@/lib/transactions/projection";
@@ -89,6 +90,34 @@ describe("TransactionEditor", () => {
       amountCents: parsePHP("125"),
       description: "Jollibee",
     });
+  });
+
+  it("starts the next transaction in Unassigned, on the last account", async () => {
+    await createAccount(MEMBER, { name: "BPI", type: "bank", startingBalanceCents: parsePHP("0") });
+    await createAccount(MEMBER, {
+      name: "GCash",
+      type: "e_wallet",
+      startingBalanceCents: parsePHP("0"),
+    });
+    const { id: groupId } = await createGroup(MEMBER, { name: "Food" });
+    await createCategory(MEMBER, { name: "Groceries", groupId });
+    const onClose = vi.fn();
+    const first = renderEditor(onClose);
+
+    fireEvent.keyDown(await screen.findByLabelText("Account"), { key: "Enter" });
+    fireEvent.keyDown(await screen.findByRole("option", { name: "GCash" }), { key: "Enter" });
+    fireEvent.click(screen.getByLabelText("Category (optional)"));
+    fireEvent.click(await screen.findByRole("option", { name: "Groceries" }));
+    fireEvent.change(screen.getByLabelText(/Amount/), { target: { value: "125" } });
+    fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Market" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add transaction" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(await listTransactions()).toMatchObject([{ categoryId: expect.any(String) }]);
+    first.unmount();
+
+    renderEditor(vi.fn());
+    expect(await screen.findByLabelText("Category (optional)")).toHaveTextContent("Unassigned");
+    expect(screen.getByLabelText("Account")).toHaveTextContent("GCash");
   });
 
   it("ties a missing description to its field and moves focus there", async () => {

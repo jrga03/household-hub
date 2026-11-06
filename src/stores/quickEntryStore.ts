@@ -3,7 +3,6 @@ import { persist } from "zustand/middleware";
 
 interface LastUsed {
   accountId: string | null;
-  categoryId: string | null;
 }
 
 interface QuickEntryStore {
@@ -20,7 +19,7 @@ export const useQuickEntryStore = create<QuickEntryStore>()(
     (set) => ({
       open: false,
       setOpen: (open) => set({ open }),
-      lastUsed: { accountId: null, categoryId: null },
+      lastUsed: { accountId: null },
       setLastUsed: (lastUsed) => set({ lastUsed }),
     }),
     {
