@@ -26,6 +26,8 @@ function Tooltip({ ...props }: React.ComponentProps<typeof TooltipPrimitive.Root
 }
 
 function TooltipTrigger({ ...props }: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
+  // An asChild child keeps its own slot: the touch-target floor in index.css selects by it.
+  if (props.asChild) return <TooltipPrimitive.Trigger {...props} />;
   return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
 }
 
