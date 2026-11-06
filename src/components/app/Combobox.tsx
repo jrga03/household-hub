@@ -12,7 +12,7 @@ import {
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useIsCompact } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
-import { fold, searchOptions } from "./comboboxSearch";
+import { fold, searchOptions, type SearchResult } from "./comboboxSearch";
 
 export interface ComboboxOption {
   value: string;
@@ -72,13 +72,13 @@ function Highlight({ text, bold }: { text: string; bold: number[] }) {
 /** Empty search: the grouped list. While typing: one flat list, best match first. */
 function Results({
   groups,
-  query,
+  results,
   value,
   emptyValue,
   onPick,
 }: {
   groups: ComboboxGroup[];
-  query: string;
+  results: SearchResult[] | null;
   value: string;
   emptyValue?: string;
   onPick: (value: string) => void;
@@ -103,8 +103,8 @@ function Results({
   return (
     <CommandList>
       <CommandEmpty>No matches</CommandEmpty>
-      {query.trim()
-        ? searchOptions(groups, query).map((result) =>
+      {results
+        ? results.map((result) =>
             item(
               result.option,
               <Highlight text={result.option.label} bold={result.labelBold} />,
@@ -201,7 +201,7 @@ function ComboboxButton({
           <CommandInput placeholder="Search…" value={query} onValueChange={setQuery} />
           <Results
             groups={choices}
-            query={query}
+            results={searchOptions(choices, query)}
             value={value}
             emptyValue={empty?.value}
             onPick={(next) => {
@@ -251,7 +251,7 @@ function ComboboxField({
   const choicesFor = (search: string) =>
     empty && search.trim() ? [{ options: [empty] }, ...groups] : groups;
   const choices = choicesFor(query);
-  const matchCount = searchOptions(choices, query).length;
+  const results = searchOptions(choices, query);
 
   const pick = (next: string) => {
     onValueChange(next);
@@ -306,10 +306,8 @@ function ComboboxField({
                 setEditing(true);
                 setOpen(true);
                 const search = event.target.value;
-                const first = search.trim()
-                  ? searchOptions(choicesFor(search), search)[0]?.option
-                  : allOptions(groups)[0];
-                setHighlighted(first?.value ?? "");
+                const next = searchOptions(choicesFor(search), search);
+                setHighlighted((next ? next[0]?.option : allOptions(groups)[0])?.value ?? "");
               }}
               onClick={() => setOpen(true)}
               onFocus={(event) => {
@@ -359,7 +357,9 @@ function ComboboxField({
         </PopoverAnchor>
         {name && <input type="hidden" name={name} value={value} />}
         <div aria-live="polite" className="sr-only">
-          {open && query.trim() ? `${matchCount} ${matchCount === 1 ? "result" : "results"}` : ""}
+          {open && results
+            ? `${results.length} ${results.length === 1 ? "result" : "results"}`
+            : ""}
         </div>
         <PopoverContent
           id={listId}
@@ -378,7 +378,7 @@ function ComboboxField({
         >
           <Results
             groups={choices}
-            query={query}
+            results={results}
             value={value}
             emptyValue={empty?.value}
             onPick={pick}

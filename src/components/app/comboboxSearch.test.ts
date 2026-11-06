@@ -6,7 +6,7 @@ const flat = (...labels: string[]): ComboboxGroup[] => [
   { options: labels.map((label) => ({ value: label, label })) },
 ];
 const found = (groups: ComboboxGroup[], query: string) =>
-  searchOptions(groups, query).map((result) => result.option.label);
+  searchOptions(groups, query)?.map((result) => result.option.label);
 
 describe("searchOptions", () => {
   it("finds a prefix and bolds its letters", () => {
@@ -79,6 +79,10 @@ describe("searchOptions", () => {
     expect(searchOptions(groups, "oo")).toHaveLength(1);
     expect(searchOptions(groups, "fd")).toEqual([]);
     expect(searchOptions(groups, "fod")).toEqual([]);
+  });
+
+  it("returns nothing to rank for an empty query", () => {
+    expect(searchOptions(flat("Groceries"), "  ")).toBeNull();
   });
 
   it("ignores case and accents", () => {

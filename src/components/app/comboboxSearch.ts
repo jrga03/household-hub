@@ -66,9 +66,13 @@ function match(text: string, query: string): Match | null {
   return typo ? { tier: 3, bold: [] } : null;
 }
 
-/** Every option the query matches, by its label or its group's, best match first. */
-export function searchOptions(groups: ComboboxGroup[], query: string): SearchResult[] {
+/**
+ * Every option the query matches, by its label or its group's, best match first.
+ * Null for an empty query, which shows the grouped list instead.
+ */
+export function searchOptions(groups: ComboboxGroup[], query: string): SearchResult[] | null {
   const search = fold(query.trim());
+  if (!search) return null;
   const found = groups.flatMap((group) => {
     // A group name lists its options on a prefix or substring only, so "fd" can't pull in all of Food.
     const groupMatch = group.label ? match(group.label, search) : null;
