@@ -1,6 +1,7 @@
 import { useActionState, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ActionForm } from "@/components/app/ActionForm";
+import { Combobox, type ComboboxGroup, type ComboboxOption } from "@/components/app/Combobox";
 import { Field } from "@/components/app/Field";
 import { FormError } from "@/components/app/FormError";
 import { changeWithUndo } from "@/components/app/withUndo";
@@ -9,9 +10,7 @@ import { Input } from "@/components/app/Input";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/app/Select";
@@ -128,15 +127,10 @@ export function TransferEditor({
 const accountLabel = (account: AccountRow) =>
   `${account.name}${account.visibility === "personal" ? " (Personal)" : ""}${account.retired ? " (retired)" : ""}`;
 
-interface EnvelopeChoiceGroup {
-  label: string;
-  choices: { key: string; label: string }[];
-}
-
 /**
- * Unassigned and the categories in use the account's people hold money in, plus
- * the envelope the transfer already has (a retired category or a Card Payment).
- * Into a card, only its own Card Payment: that is paying it.
+ * Unassigned (the empty choice) and the categories in use the account's people hold
+ * money in, plus the envelope the transfer already has (a retired category or a Card
+ * Payment). Into a card, only its own Card Payment: that is paying it.
  */
 function envelopeChoices(
   list: CategoryList,
@@ -144,41 +138,42 @@ function envelopeChoices(
   to: AccountRow | undefined,
   current: Envelope | undefined,
   accountNames: Map<string, string>
-): EnvelopeChoiceGroup[] {
+): { empty?: ComboboxOption; groups: ComboboxGroup[] } {
   if (to && isCreditCard(to)) {
     const cardPayment: Envelope = { kind: "card_payment", id: to.id };
     const label = envelopeLabel(cardPayment, new Map(), accountNames);
-    return [{ label: "Card Payment", choices: [{ key: envelopeKey(cardPayment), label }] }];
+    return {
+      groups: [{ label: "Card Payment", options: [{ value: envelopeKey(cardPayment), label }] }],
+    };
   }
+  const empty = { value: envelopeKey(UNASSIGNED_ENVELOPE), label: "Unassigned" };
   const fits = (category: CategoryRow) => from !== undefined && canHoldMoneyIn(category, from);
-  const toChoice = (category: CategoryRow) => ({
-    key: envelopeKey({ kind: "category", id: category.id }),
+  const toOption = (category: CategoryRow) => ({
+    value: envelopeKey({ kind: "category", id: category.id }),
     label: category.name,
   });
   const groups = [
-    {
-      label: "Unassigned",
-      choices: [{ key: envelopeKey(UNASSIGNED_ENVELOPE), label: "Unassigned" }],
-    },
     ...list.groups.map((group) => ({
       label: group.name,
-      choices: group.categories.filter(fits).map(toChoice),
+      options: group.categories.filter(fits).map(toOption),
     })),
-    { label: "Ungrouped", choices: list.ungrouped.filter(fits).map(toChoice) },
+    { label: "Ungrouped", options: list.ungrouped.filter(fits).map(toOption) },
   ];
-  const offered = new Set(groups.flatMap((group) => group.choices.map((choice) => choice.key)));
+  const offered = new Set(
+    [empty, ...groups.flatMap((group) => group.options)].map((option) => option.value)
+  );
   if (current && !offered.has(envelopeKey(current))) {
     groups.push({
       label: "Current",
-      choices: [
+      options: [
         {
-          key: envelopeKey(current),
+          value: envelopeKey(current),
           label: envelopeLabel(current, categoryNames(list), accountNames),
         },
       ],
     });
   }
-  return groups.filter((group) => group.choices.length > 0);
+  return { empty, groups: groups.filter((group) => group.options.length > 0) };
 }
 
 type ReadForm =
@@ -284,15 +279,16 @@ export function TransferForm({
     : (toChoices[0]?.id ?? "");
   const to = allAccounts.find((account) => account.id === shownToId);
 
-  const envelopeGroups = envelopeChoices(categories, from, to, transfer?.envelope, accountNames);
+  const envelopes = envelopeChoices(categories, from, to, transfer?.envelope, accountNames);
   const [envelope, setEnvelope] = useState(
     transfer ? envelopeKey(transfer.envelope) : envelopeKey(UNASSIGNED_ENVELOPE)
   );
   const isEnvelopeChoice = (key: string) =>
-    envelopeGroups.some((group) => group.choices.some((choice) => choice.key === key));
+    key === envelopes.empty?.value ||
+    envelopes.groups.some((group) => group.options.some((option) => option.value === key));
   const shownEnvelope = isEnvelopeChoice(envelope)
     ? envelope
-    : (envelopeGroups[0]?.choices[0]?.key ?? "");
+    : (envelopes.empty?.value ?? envelopes.groups[0]?.options[0]?.value ?? "");
 
   const [problems, saveAction] = useActionState(
     async (_previous: EntryProblems, formData: FormData) => {
@@ -403,23 +399,15 @@ export function TransferForm({
         </Field>
         <Field label="Category">
           {(control) => (
-            <Select name="envelope" value={shownEnvelope} onValueChange={setEnvelope}>
-              <SelectTrigger {...control} className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {envelopeGroups.map((group) => (
-                  <SelectGroup key={group.label}>
-                    {group.label !== "Unassigned" && <SelectLabel>{group.label}</SelectLabel>}
-                    {group.choices.map((choice) => (
-                      <SelectItem key={choice.key} value={choice.key}>
-                        {choice.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
+            <Combobox
+              {...control}
+              name="envelope"
+              className="w-full"
+              value={shownEnvelope}
+              onValueChange={setEnvelope}
+              empty={envelopes.empty}
+              groups={envelopes.groups}
+            />
           )}
         </Field>
       </div>
