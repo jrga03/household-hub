@@ -15,3 +15,7 @@ Each saved draft stamps its transaction with an `importKey`: a hash of the state
 - Drafts can't be reviewed on another device, and they're lost if the device is wiped before they're saved. The sign-out warning counts unsaved drafts.
 - An exact key match on a transaction that isn't removed reads "Already imported" and is discarded by default. The ±3-day, same-amount match is only a hint, and only against transactions without a key (ones typed by hand).
 - Editing a draft's description before saving doesn't change its key, since the key comes from the raw line.
+
+## Amendment (2026-11-10): statement text on the transaction
+
+Learned import suggestions (#390) need the statement text on every device, so `transaction.created` v4 adds `statementText` and `pinned` (v1 to v3 upcast to `null` and `false`). Only the normalized text travels: uppercased, digits removed, spaces squeezed, so card and reference numbers never reach the server. The raw line still stays on the device. A later match rule can normalize further but can't recover the digits.

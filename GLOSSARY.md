@@ -156,6 +156,22 @@ _Avoid_: Batch, upload
 **Import Key**:
 A fingerprint of a statement line, recorded on the transaction it became, so the same line is recognized as already imported on any device.
 
+**Statement Text**:
+A statement line's merchant text with the numbers removed, recorded on the transaction it became. Saved transactions with the same statement text teach the household a description and a category for it.
+_Avoid_: Raw description, merchant key
+
+**Pin**:
+A member's strong vote, made while saving a draft, for that line's description and category. Newer saves can still outvote it.
+_Avoid_: Rule, always use
+
+**Break Apart**:
+Saving one statement line as several transactions, each with its own amount, description and category. The transactions are not linked once saved.
+_Avoid_: Split, split transaction
+
+**Part**:
+One of the transactions a statement line is broken apart into, before it is saved.
+_Avoid_: Sub-transaction, split
+
 ## Assistant
 
 **Assistant**:
