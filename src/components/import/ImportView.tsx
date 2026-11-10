@@ -27,6 +27,7 @@ import {
 import { cn, countOf } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
 import { DraftDetail } from "./DraftDetail";
+import { PrototypeBar } from "./PinPrototype";
 import { FlagBadge, isSuggested, SuggestedBadge } from "./DraftLabels";
 import { ReadStatement } from "./ReadStatement";
 import { useDraftAction } from "./useDraftAction";
@@ -102,6 +103,7 @@ export function ImportView({ actor }: { actor: Actor }) {
           />
         )}
       </DetailPane>
+      <PrototypeBar />
     </>
   );
 }

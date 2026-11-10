@@ -25,7 +25,8 @@ import { needsDescription, type DraftFlag, type ReviewedDraft } from "@/lib/impo
 import { DESCRIPTION_MAX_LENGTH, isTransactionType } from "@/lib/transactions/events";
 import { cn, errorMessage } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
-import { isSuggested, SuggestedBadge } from "./DraftLabels";
+import { isSuggested } from "./DraftLabels";
+import { NextTimeSection, PinCheckbox, SourceBadge, usePin, usePrototype } from "./PinPrototype";
 import { useDraftAction } from "./useDraftAction";
 
 const longDate = (date: string) => format(parseLocalDate(date), "MMM d, yyyy");
@@ -47,6 +48,8 @@ export function DraftDetail({
   const [keepAnyway, setKeepAnyway] = useState(false);
   const { busy, run } = useDraftAction();
   const [paying, setPaying] = useState(false);
+  const { variant } = usePrototype();
+  const [, setPinned] = usePin(draft.id);
   const { line, flag } = draft;
   const isCardPayment = flag?.kind === "card-payment";
   const blockedAsImported = flag?.kind === "already-imported" && !keepAnyway;
@@ -87,6 +90,11 @@ export function DraftDetail({
 
       {!isCardPayment && <DraftFields draft={draft} card={card} categories={categories} />}
 
+      {!isCardPayment && variant === "A" && (
+        <PinCheckbox draftId={draft.id} statementText={line.description} />
+      )}
+      {!isCardPayment && variant === "C" && <NextTimeSection draftId={draft.id} />}
+
       <div className="flex flex-wrap gap-2">
         {isCardPayment ? (
           flag.transfer === null &&
@@ -108,6 +116,23 @@ export function DraftDetail({
             }
           >
             Save as transaction
+          </Button>
+        )}
+        {!isCardPayment && variant === "B" && (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy || blockedAsImported || needsDescription(draft)}
+            onClick={() => {
+              setPinned(true);
+              void act(
+                () => saveDrafts(actor, [draft.id]),
+                "Saved. Next time this statement text gets these details.",
+                "Couldn't save the draft."
+              );
+            }}
+          >
+            Save and remember
           </Button>
         )}
         <Button
@@ -196,7 +221,7 @@ function DraftFields({
       <div className={cn("space-y-2", FULL_ROW)}>
         <Label htmlFor="draft-description" className="flex items-center gap-2">
           Description
-          {isSuggested(draft.descriptionSource) && <SuggestedBadge />}
+          <SourceBadge realSuggested={isSuggested(draft.descriptionSource)} />
         </Label>
         <Input
           // Remounts when a suggestion arrives or another edit lands.
@@ -231,7 +256,7 @@ function DraftFields({
       <div className="space-y-2">
         <Label htmlFor="draft-category" className="flex items-center gap-2">
           Category
-          {isSuggested(draft.categorySource) && <SuggestedBadge />}
+          <SourceBadge realSuggested={isSuggested(draft.categorySource)} />
         </Label>
         <CategorySelect
           id="draft-category"
