@@ -164,6 +164,14 @@ _Avoid_: Raw description, merchant key
 A member's strong vote, made while saving a draft, for that line's description and category. Newer saves can still outvote it.
 _Avoid_: Rule, always use
 
+**Break Apart**:
+Saving one statement line as several transactions, each with its own amount, description and category. The transactions are not linked once saved.
+_Avoid_: Split, split transaction
+
+**Part**:
+One of the transactions a statement line is broken apart into, before it is saved.
+_Avoid_: Sub-transaction, split
+
 ## Assistant
 
 **Assistant**:
