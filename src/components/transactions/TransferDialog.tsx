@@ -397,7 +397,7 @@ export function TransferForm({
             </Select>
           )}
         </Field>
-        <Field label="Category">
+        <Field label={envelopes.empty ? "Category (optional)" : "Category"}>
           {(control) => (
             <Combobox
               {...control}

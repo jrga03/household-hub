@@ -262,7 +262,7 @@ describe("TransactionEditor", () => {
 
     fireEvent.change(await screen.findByLabelText(/Amount/), { target: { value: "500" } });
     fireEvent.click(screen.getByRole("radio", { name: "Transfer" }));
-    const category = await screen.findByLabelText("Category");
+    const category = await screen.findByLabelText("Category (optional)");
     expect(category).toHaveTextContent("Unassigned");
     fireEvent.click(category);
     fireEvent.change(await screen.findByRole("combobox", { name: "Search" }), {
