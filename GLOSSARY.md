@@ -161,7 +161,7 @@ A statement line's merchant text with the numbers removed, recorded on the trans
 _Avoid_: Raw description, merchant key
 
 **Pin**:
-A member's strong vote, made while saving a draft, for that line's description and category. Newer saves can still outvote it.
+A member's strong vote, made while saving a draft, for that line's description and category. A newer pin replaces it, and newer saves can still outvote it.
 _Avoid_: Rule, always use
 
 **Break Apart**:
