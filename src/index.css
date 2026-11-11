@@ -162,8 +162,8 @@
      1px bottom border included). Sticky content pins below --app-header. */
   --app-header-height: 3.5rem;
   --app-header: calc(var(--app-header-height) + var(--safe-area-top) + 1px);
-  /* Toast clearance: the FAB-clearing offset applies below 600px, where the
-     tab bar and the FAB show (sonner's own mobile breakpoint is also 600px).
+  /* Toast clearance: below 600px it clears the tab bar, and the FAB where a
+     route shows it (sonner's own mobile breakpoint is also 600px).
      Wider windows keep ~sonner's 32px default. Overridden alongside
      --bottom-chrome below. */
   --toast-bottom: calc(2rem + var(--bottom-chrome));
@@ -242,8 +242,10 @@
 @media (max-width: 599px) {
   :root {
     --bottom-chrome: calc(var(--tab-bar-height) + var(--safe-area-bottom));
-    /* Clear the raised FAB (bottom 1.5rem+chrome, 3.5rem tall) too, not just
-       the tab bar — matches the mobileOffset clearance. */
+  }
+  /* Clear the raised FAB (bottom 1.5rem+chrome, 3.5rem tall) too, on routes
+     that show it. AppLayout sets the attribute; the Toaster mounts outside it. */
+  :root[data-floating-add] {
     --toast-bottom: calc(6.5rem + var(--bottom-chrome));
   }
 }
