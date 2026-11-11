@@ -27,6 +27,7 @@ import { cn, errorMessage } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
 import { isSuggested, SuggestedBadge } from "./DraftLabels";
 import { useDraftAction } from "./useDraftAction";
+import { BreakApartSheet, useVariant } from "./BreakApartPrototype";
 
 const longDate = (date: string) => format(parseLocalDate(date), "MMM d, yyyy");
 
@@ -47,6 +48,8 @@ export function DraftDetail({
   const [keepAnyway, setKeepAnyway] = useState(false);
   const { busy, run } = useDraftAction();
   const [paying, setPaying] = useState(false);
+  const [breaking, setBreaking] = useState(false);
+  const variant = useVariant();
   const { line, flag } = draft;
   const isCardPayment = flag?.kind === "card-payment";
   const blockedAsImported = flag?.kind === "already-imported" && !keepAnyway;
@@ -65,8 +68,17 @@ export function DraftDetail({
         <dt className="text-muted-foreground">Posted</dt>
         <dd>{longDate(line.postingDate)}</dd>
         <dt className="text-muted-foreground">Amount</dt>
-        <dd>
+        <dd className="flex items-baseline gap-3">
           <Money kind={line.type} cents={line.amount} />
+          {variant === "B" && !isCardPayment && (
+            <button
+              type="button"
+              className="text-body font-medium text-primary underline"
+              onClick={() => setBreaking(true)}
+            >
+              Break apart
+            </button>
+          )}
         </dd>
       </dl>
 
@@ -110,6 +122,11 @@ export function DraftDetail({
             Save as transaction
           </Button>
         )}
+        {variant === "A" && !isCardPayment && (
+          <Button type="button" variant="outline" onClick={() => setBreaking(true)}>
+            Break apart…
+          </Button>
+        )}
         <Button
           type="button"
           variant="outline"
@@ -121,6 +138,8 @@ export function DraftDetail({
           Discard
         </Button>
       </div>
+
+      {breaking && <BreakApartSheet draft={draft} card={card} onClose={() => setBreaking(false)} />}
 
       {paying && card && (
         <PayCardDialog

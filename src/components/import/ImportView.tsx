@@ -30,6 +30,7 @@ import { DraftDetail } from "./DraftDetail";
 import { FlagBadge, isSuggested, SuggestedBadge } from "./DraftLabels";
 import { ReadStatement } from "./ReadStatement";
 import { useDraftAction } from "./useDraftAction";
+import { BreakApartSheet, PrototypeSwitcher, useVariant } from "./BreakApartPrototype";
 
 const draftsLabel = (count: number) => countOf(count, "draft", "drafts");
 
@@ -77,6 +78,7 @@ export function ImportView({ actor }: { actor: Actor }) {
               key={statement.id}
               actor={actor}
               statement={statement}
+              card={accountsById.get(statement.accountId)}
               cardName={cardLabel(accountsById.get(statement.accountId))}
               categoryNames={names}
               openId={openId}
@@ -102,6 +104,7 @@ export function ImportView({ actor }: { actor: Actor }) {
           />
         )}
       </DetailPane>
+      <PrototypeSwitcher />
     </>
   );
 }
@@ -119,6 +122,7 @@ function findDraft(imports: ReviewedImport[], draftId: string) {
 function ImportSection({
   actor,
   statement,
+  card,
   cardName,
   categoryNames,
   openId,
@@ -126,6 +130,7 @@ function ImportSection({
 }: {
   actor: Actor;
   statement: ReviewedImport;
+  card: AccountRow | undefined;
   cardName: string;
   categoryNames: Map<string, string>;
   openId: string | null;
@@ -142,6 +147,10 @@ function ImportSection({
   const alreadyRecorded = drafts.filter((draft) => discardedByDefault(draft.flag));
   const undescribed = savable.filter(needsDescription);
   const allSelected = selected.length === drafts.length;
+  const variant = useVariant();
+  const [breaking, setBreaking] = useState<ReviewedDraft | null>(null);
+  const breakable =
+    selected.length === 1 && selected[0]?.flag?.kind !== "card-payment" ? selected[0] : undefined;
 
   const choose = (entries: [string, boolean][]) =>
     setChoices((current) => new Map([...current, ...entries]));
@@ -197,6 +206,16 @@ function ImportSection({
         >
           Discard {draftsLabel(selected.length)}
         </Button>
+        {variant === "C" && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!breakable}
+            onClick={() => breakable && setBreaking(breakable)}
+          >
+            Break apart
+          </Button>
+        )}
         {alreadyRecorded.length > 0 && (
           <Button
             size="sm"
@@ -229,6 +248,9 @@ function ImportSection({
           />
         ))}
       </ul>
+      {breaking && (
+        <BreakApartSheet draft={breaking} card={card} onClose={() => setBreaking(null)} />
+      )}
     </section>
   );
 }
