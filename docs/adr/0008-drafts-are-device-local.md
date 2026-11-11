@@ -19,3 +19,7 @@ Each saved draft stamps its transaction with an `importKey`: a hash of the state
 ## Amendment (2026-11-10): statement text on the transaction
 
 Learned import suggestions (#390) need the statement text on every device, so `transaction.created` v4 adds `statementText` and `pinned` (v1 to v3 upcast to `null` and `false`). Only the normalized text travels: uppercased, digits removed, spaces squeezed, so card and reference numbers never reach the server. The raw line still stays on the device. A later match rule can normalize further but can't recover the digits.
+
+## Amendment (2026-11-11): a broken-apart line
+
+A line broken apart (#393, #394) stamps its one import key on every part; the key is a fingerprint, not a link between the parts. The line reads "Already imported" while any part is not removed, and the notice names the part count. When the kept parts no longer total the line's amount (a part was removed or edited), the notice says so. Two devices saving the same line before they sync still count it twice, as before.

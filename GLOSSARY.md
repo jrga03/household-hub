@@ -154,7 +154,7 @@ The drafts read from one statement file, all belonging to one account. It is kep
 _Avoid_: Batch, upload
 
 **Import Key**:
-A fingerprint of a statement line, recorded on the transaction it became, so the same line is recognized as already imported on any device.
+A fingerprint of a statement line, recorded on the transaction it became (on every part when the line is broken apart), so the same line is recognized as already imported on any device.
 
 **Statement Text**:
 A statement line's merchant text with the numbers removed, recorded on the transaction it became. Saved transactions with the same statement text teach the household a description and a category for it.
