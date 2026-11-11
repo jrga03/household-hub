@@ -247,6 +247,39 @@ describe("TransactionEditor", () => {
     });
   });
 
+  it("files a transfer under a category found by search", async () => {
+    await createAccount(MEMBER, { name: "BPI", type: "bank", startingBalanceCents: parsePHP("0") });
+    await createAccount(MEMBER, {
+      name: "GCash",
+      type: "e_wallet",
+      startingBalanceCents: parsePHP("0"),
+    });
+    const { id: groupId } = await createGroup(MEMBER, { name: "Food" });
+    await createCategory(MEMBER, { name: "Dining out", groupId });
+    const groceries = await createCategory(MEMBER, { name: "Groceries", groupId });
+    const onClose = vi.fn();
+    renderEditor(onClose);
+
+    fireEvent.change(await screen.findByLabelText(/Amount/), { target: { value: "500" } });
+    fireEvent.click(screen.getByRole("radio", { name: "Transfer" }));
+    const category = await screen.findByLabelText("Category (optional)");
+    expect(category).toHaveTextContent("Unassigned");
+    fireEvent.click(category);
+    fireEvent.change(await screen.findByRole("combobox", { name: "Search" }), {
+      target: { value: "groc" },
+    });
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "Groceries Food",
+    ]);
+    fireEvent.click(screen.getByRole("option"));
+    expect(category).toHaveTextContent("Groceries");
+    fireEvent.click(screen.getByRole("button", { name: "Add transfer" }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    const [saved] = await listTransfers();
+    expect(saved?.envelope).toEqual({ kind: "category", id: groceries.id });
+  });
+
   describe("Out-of-pocket", () => {
     const outOfPocket = () => screen.queryByRole("radio", { name: "Out-of-pocket" });
 
