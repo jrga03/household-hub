@@ -30,6 +30,15 @@ import { DraftDetail } from "./DraftDetail";
 import { FlagBadge, isSuggested, SuggestedBadge } from "./DraftLabels";
 import { ReadStatement } from "./ReadStatement";
 import { useDraftAction } from "./useDraftAction";
+import {
+  BottomSelectionBar,
+  MoreMenu,
+  MoveToAccountRow,
+  PaidFromRowLabel,
+  PrototypeSwitcher,
+  useGroupsByPaidFrom,
+  useVariant,
+} from "./PaidFromPrototype";
 
 const draftsLabel = (count: number) => countOf(count, "draft", "drafts");
 
@@ -77,6 +86,7 @@ export function ImportView({ actor }: { actor: Actor }) {
               key={statement.id}
               actor={actor}
               statement={statement}
+              card={accountsById.get(statement.accountId)}
               cardName={cardLabel(accountsById.get(statement.accountId))}
               categoryNames={names}
               openId={openId}
@@ -102,6 +112,7 @@ export function ImportView({ actor }: { actor: Actor }) {
           />
         )}
       </DetailPane>
+      <PrototypeSwitcher />
     </>
   );
 }
@@ -119,6 +130,7 @@ function findDraft(imports: ReviewedImport[], draftId: string) {
 function ImportSection({
   actor,
   statement,
+  card,
   cardName,
   categoryNames,
   openId,
@@ -126,6 +138,7 @@ function ImportSection({
 }: {
   actor: Actor;
   statement: ReviewedImport;
+  card: AccountRow | undefined;
   cardName: string;
   categoryNames: Map<string, string>;
   openId: string | null;
@@ -142,6 +155,8 @@ function ImportSection({
   const alreadyRecorded = drafts.filter((draft) => discardedByDefault(draft.flag));
   const undescribed = savable.filter(needsDescription);
   const allSelected = selected.length === drafts.length;
+  const variant = useVariant();
+  const groups = useGroupsByPaidFrom(drafts, card);
 
   const choose = (entries: [string, boolean][]) =>
     setChoices((current) => new Map([...current, ...entries]));
@@ -182,32 +197,64 @@ function ImportSection({
             Select all
           </label>
         </div>
-        <Button
-          size="sm"
-          disabled={busy || savable.length === 0 || undescribed.length > 0}
-          onClick={() => void save()}
-        >
-          Save {draftsLabel(savable.length)}
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={busy || selected.length === 0}
-          onClick={() => void discard(selected)}
-        >
-          Discard {draftsLabel(selected.length)}
-        </Button>
-        {alreadyRecorded.length > 0 && (
+        {variant !== "B" && (
           <Button
             size="sm"
-            variant="outline"
-            disabled={busy}
-            onClick={() => void discard(alreadyRecorded)}
+            disabled={busy || savable.length === 0 || undescribed.length > 0}
+            onClick={() => void save()}
           >
-            Discard {alreadyRecorded.length} already recorded
+            Save {draftsLabel(savable.length)}
           </Button>
         )}
+        {variant === "A" ? (
+          <MoreMenu
+            selectedIds={ids(selected)}
+            card={card}
+            discardItems={[
+              {
+                label: `Discard ${draftsLabel(selected.length)}`,
+                disabled: busy || selected.length === 0,
+                onClick: () => void discard(selected),
+              },
+              ...(alreadyRecorded.length > 0
+                ? [
+                    {
+                      label: `Discard ${alreadyRecorded.length} already recorded`,
+                      disabled: busy,
+                      onClick: () => void discard(alreadyRecorded),
+                    },
+                  ]
+                : []),
+            ]}
+          />
+        ) : (
+          <>
+            {variant === "C" && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy || selected.length === 0}
+                onClick={() => void discard(selected)}
+              >
+                Discard {draftsLabel(selected.length)}
+              </Button>
+            )}
+            {alreadyRecorded.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                onClick={() => void discard(alreadyRecorded)}
+              >
+                Discard {alreadyRecorded.length} already recorded
+              </Button>
+            )}
+          </>
+        )}
       </div>
+      {variant === "C" && selected.length > 0 && (
+        <MoveToAccountRow selectedIds={ids(selected)} card={card} />
+      )}
 
       {undescribed.length > 0 && (
         <p className="text-body text-warning">
@@ -216,25 +263,62 @@ function ImportSection({
         </p>
       )}
 
-      <ul aria-label="Drafts" className="-mx-4 border-y">
-        {drafts.map((draft) => (
-          <DraftItem
-            key={draft.id}
-            draft={draft}
-            categoryName={draft.categoryId ? categoryNames.get(draft.categoryId) : undefined}
-            selected={isSelected(draft)}
-            open={draft.id === openId}
-            onSelect={(next) => choose([[draft.id, next]])}
-            onOpen={() => onOpen(draft.id)}
-          />
-        ))}
-      </ul>
+      {variant === "C" ? (
+        groups.map((group) => (
+          <div key={group.accountId} className="space-y-1">
+            <h3 className="text-label font-medium text-muted-foreground">
+              {group.title} · {draftsLabel(group.drafts.length)}
+            </h3>
+            <ul aria-label={group.title} className="-mx-4 border-y">
+              {group.drafts.map((draft) => (
+                <DraftItem
+                  key={draft.id}
+                  draft={draft}
+                  card={card}
+                  categoryName={draft.categoryId ? categoryNames.get(draft.categoryId) : undefined}
+                  selected={isSelected(draft)}
+                  open={draft.id === openId}
+                  onSelect={(next) => choose([[draft.id, next]])}
+                  onOpen={() => onOpen(draft.id)}
+                />
+              ))}
+            </ul>
+          </div>
+        ))
+      ) : (
+        <ul aria-label="Drafts" className="-mx-4 border-y">
+          {drafts.map((draft) => (
+            <DraftItem
+              key={draft.id}
+              draft={draft}
+              card={card}
+              categoryName={draft.categoryId ? categoryNames.get(draft.categoryId) : undefined}
+              selected={isSelected(draft)}
+              open={draft.id === openId}
+              onSelect={(next) => choose([[draft.id, next]])}
+              onOpen={() => onOpen(draft.id)}
+            />
+          ))}
+        </ul>
+      )}
+      {variant === "B" && (
+        <BottomSelectionBar
+          selectedIds={ids(selected)}
+          card={card}
+          saveLabel={`Save ${draftsLabel(savable.length)}`}
+          saveDisabled={busy || savable.length === 0 || undescribed.length > 0}
+          onSave={() => void save()}
+          discardLabel={`Discard ${draftsLabel(selected.length)}`}
+          onDiscard={() => void discard(selected)}
+        />
+      )}
     </section>
   );
 }
 
 function DraftItem({
   draft,
+  card,
   categoryName,
   selected,
   open,
@@ -242,6 +326,7 @@ function DraftItem({
   onOpen,
 }: {
   draft: ReviewedDraft;
+  card: AccountRow | undefined;
   categoryName: string | undefined;
   selected: boolean;
   open: boolean;
@@ -280,6 +365,7 @@ function DraftItem({
             {flag?.kind !== "card-payment" && (
               <CategoryLabel draft={draft} categoryName={categoryName} />
             )}
+            {flag?.kind !== "card-payment" && <PaidFromRowLabel draftId={draft.id} card={card} />}
           </span>
         }
       />

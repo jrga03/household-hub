@@ -27,6 +27,7 @@ import { cn, errorMessage } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
 import { isSuggested, SuggestedBadge } from "./DraftLabels";
 import { useDraftAction } from "./useDraftAction";
+import { PaidFromFact, PaidFromGridField, PaidFromPicker, useVariant } from "./PaidFromPrototype";
 
 const longDate = (date: string) => format(parseLocalDate(date), "MMM d, yyyy");
 
@@ -50,6 +51,7 @@ export function DraftDetail({
   const { line, flag } = draft;
   const isCardPayment = flag?.kind === "card-payment";
   const blockedAsImported = flag?.kind === "already-imported" && !keepAnyway;
+  const variant = useVariant();
 
   const act = async (action: () => Promise<void>, done: string, failed: string) => {
     if (await run(action, done, failed)) onDone();
@@ -68,6 +70,7 @@ export function DraftDetail({
         <dd>
           <Money kind={line.type} cents={line.amount} />
         </dd>
+        {variant === "B" && !isCardPayment && <PaidFromFact draftId={draft.id} card={card} />}
       </dl>
 
       {flag && <FlagNote flag={flag} />}
@@ -86,6 +89,7 @@ export function DraftDetail({
       )}
 
       {!isCardPayment && <DraftFields draft={draft} card={card} categories={categories} />}
+      {variant === "C" && !isCardPayment && <PaidFromPicker draftId={draft.id} card={card} />}
 
       <div className="flex flex-wrap gap-2">
         {isCardPayment ? (
@@ -182,6 +186,7 @@ function DraftFields({
   card: AccountRow | undefined;
   categories: CategoryList;
 }) {
+  const variant = useVariant();
   const choices = categoryChoices(categories, card, draft.categoryId);
   const shownCategoryId = isCategoryChoice(choices, draft.categoryId)
     ? (draft.categoryId ?? UNASSIGNED)
@@ -240,6 +245,7 @@ function DraftFields({
           onValueChange={(value) => edit({ categoryId: value === UNASSIGNED ? null : value })}
         />
       </div>
+      {variant === "A" && <PaidFromGridField draftId={draft.id} card={card} />}
       {draft.type === "expense" && draft.categoryId === null && (
         <p className={cn("text-body text-muted-foreground", FULL_ROW)}>
           Needs a category. It can be saved to Unassigned and given one later.

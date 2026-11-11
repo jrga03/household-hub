@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { readVariant } from "@/components/import/PaidFromPrototype";
 import { readOpenItem } from "@/components/layout/DetailPane";
 import { PageShell } from "@/components/layout/PageShell";
 import { ImportView } from "@/components/import/ImportView";
@@ -7,7 +8,10 @@ import { useAuthStore } from "@/stores/authStore";
 
 export const Route = createFileRoute("/import")({
   staticData: { title: "Import statement" },
-  validateSearch: readOpenItem,
+  validateSearch: (search: Record<string, unknown>) => ({
+    ...readOpenItem(search),
+    ...readVariant(search),
+  }),
   component: ImportPage,
 });
 

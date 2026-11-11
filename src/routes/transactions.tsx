@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/app/Button";
 import { HeaderActions, useHeaderSlot } from "@/components/layout/HeaderActions";
+import { readVariant } from "@/components/import/PaidFromPrototype";
 import { readOpenItem } from "@/components/layout/DetailPane";
 import { PageShell } from "@/components/layout/PageShell";
 import { TransactionList } from "@/components/transactions/TransactionList";
@@ -13,6 +14,7 @@ export const Route = createFileRoute("/transactions")({
   validateSearch: (search: Record<string, unknown>) => ({
     ...readTransactionFilter(search),
     ...readOpenItem(search),
+    ...readVariant(search),
   }),
   component: TransactionsPage,
 });

@@ -19,6 +19,7 @@ import { SubmitButton } from "@/components/app/SubmitButton";
 import { Textarea } from "@/components/app/Textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/app/Tooltip";
 import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
+import { PaidFromEditField } from "@/components/import/PaidFromPrototype";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useMemberNames } from "@/hooks/useMemberNames";
 import { canBeOutOfPocket } from "@/lib/accounts/events";
@@ -391,6 +392,7 @@ function TransactionForm({
             </Select>
           )}
         </Field>
+        <PaidFromEditField account={account} />
         <Field label="Category (optional)">
           {(control) => (
             <CategorySelect
