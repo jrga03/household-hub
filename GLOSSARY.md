@@ -59,7 +59,7 @@ An account whose balance is an amount owed. It holds no category money.
 _Avoid_: Card account, liability account
 
 **Paying Account**:
-The account a credit card's bill is normally paid from: a non-card account of the same visibility, chosen when the card is added and changeable by editing the card or when paying.
+The account a credit card's bill is normally paid from: a non-card account of the same visibility, chosen when the card is added and changeable by editing the card or when paying. A single card transaction can name a different one.
 _Avoid_: Source account
 
 **Card Payment**:
