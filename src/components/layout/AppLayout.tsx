@@ -84,6 +84,12 @@ export function AppLayout() {
   const isAuthRoute = NO_NAV_ROUTES.includes(currentPath);
   const routeData = router.matches.at(-1)?.staticData;
   const hasBottomChrome = routeData?.bottomChrome !== false;
+  const showsFloatingAdd = !isAuthRoute && hasBottomChrome && routeData?.floatingAdd === true;
+
+  useEffect(() => {
+    document.documentElement.toggleAttribute("data-floating-add", showsFloatingAdd);
+    return () => document.documentElement.removeAttribute("data-floating-add");
+  }, [showsFloatingAdd]);
 
   // Auth pages and create-or-join render without navigation
   if (isAuthRoute) {
