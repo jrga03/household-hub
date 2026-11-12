@@ -1,4 +1,5 @@
 import { differenceInCalendarDays } from "date-fns";
+import { formatPHP, sumCents, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import type { TransferRow } from "@/lib/transfers/projection";
@@ -9,7 +10,8 @@ import { listImports, type DraftRow, type ImportRow } from "./drafts";
 const MATCH_WINDOW_DAYS = 3;
 
 export type DraftFlag =
-  | { kind: "already-imported"; transaction: TransactionRow }
+  /** Every kept transaction with the line's import key: one for a whole line, more for its parts. */
+  | { kind: "already-imported"; transactions: [TransactionRow, ...TransactionRow[]] }
   | { kind: "might-be-recorded"; transaction: TransactionRow }
   /** Discarded on this device within the last 6 months. */
   | { kind: "discarded-before" }
@@ -41,11 +43,13 @@ export function draftFlagger(
   discardedKeys: ReadonlySet<string>
 ): (draft: DraftRow) => DraftFlag | null {
   const kept = transactions.filter((transaction) => !transaction.removed);
-  const byImportKey = new Map(
-    kept.flatMap((transaction) =>
-      transaction.importKey === null ? [] : [[transaction.importKey, transaction] as const]
-    )
-  );
+  const byImportKey = new Map<string, [TransactionRow, ...TransactionRow[]]>();
+  for (const transaction of kept) {
+    if (transaction.importKey === null) continue;
+    const parts = byImportKey.get(transaction.importKey);
+    if (parts) parts.push(transaction);
+    else byImportKey.set(transaction.importKey, [transaction]);
+  }
   const typedIn = kept.filter(
     (transaction) => transaction.importKey === null && transaction.accountId === accountId
   );
@@ -64,7 +68,7 @@ export function draftFlagger(
         : { kind: "card-payment", transfer };
     }
     const imported = byImportKey.get(draft.importKey);
-    if (imported) return { kind: "already-imported", transaction: imported };
+    if (imported) return { kind: "already-imported", transactions: imported };
     if (discarded) return { kind: "discarded-before" };
     const lookAlike = closest(
       purchaseDate,
@@ -74,6 +78,14 @@ export function draftFlagger(
     );
     return lookAlike ? { kind: "might-be-recorded", transaction: lookAlike } : null;
   };
+}
+
+/** Says what is kept of an already-imported line when its parts, or its edited amount, no longer total the line. */
+export function keptTotalNote(transactions: TransactionRow[], lineAmount: Cents): string | null {
+  const kept = sumCents(transactions.map((transaction) => transaction.amountCents));
+  return kept === lineAmount
+    ? null
+    : `The kept parts total ${formatPHP(kept)} of this line's ${formatPHP(lineAmount)}.`;
 }
 
 /** A line already imported or discarded before, or a card payment already recorded, is discarded unless kept on purpose. */

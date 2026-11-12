@@ -23,7 +23,13 @@ import type { Actor } from "@/lib/commands/accounts";
 import { saveDrafts } from "@/lib/commands/drafts";
 import { deleteDrafts, discardDrafts, editDraft, type DraftChanges } from "@/lib/import/drafts";
 import { normalizeStatementText } from "@/lib/import/statement";
-import { needsDescription, type DraftFlag, type ReviewedDraft } from "@/lib/import/review";
+import type { Cents } from "@/lib/currency";
+import {
+  keptTotalNote,
+  needsDescription,
+  type DraftFlag,
+  type ReviewedDraft,
+} from "@/lib/import/review";
 import { DESCRIPTION_MAX_LENGTH, isTransactionType } from "@/lib/transactions/events";
 import { cn, errorMessage } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
@@ -89,7 +95,7 @@ export function DraftDetail({
         {!isCardPayment && <PaidFromFact draft={draft} card={card} />}
       </dl>
 
-      {flag && <FlagNote flag={flag} />}
+      {flag && <FlagNote flag={flag} lineAmount={line.amount} />}
 
       {flag?.kind === "already-imported" && (
         <div className="flex items-center gap-2">
@@ -183,18 +189,22 @@ export function DraftDetail({
   );
 }
 
-function FlagNote({ flag }: { flag: DraftFlag }) {
+function FlagNote({ flag, lineAmount }: { flag: DraftFlag; lineAmount: Cents }) {
   switch (flag.kind) {
-    case "already-imported":
+    case "already-imported": {
+      const [first, ...others] = flag.transactions;
+      const keptNote = keptTotalNote(flag.transactions, lineAmount);
       return (
         <Notice tone="warning" title="Already imported">
           As{" "}
-          {flag.transaction.description || (
-            <Money kind={flag.transaction.type} cents={flag.transaction.amountCents} />
-          )}{" "}
-          on {longDate(flag.transaction.date)}. Saving it again would count it twice.
+          {others.length > 0
+            ? `${flag.transactions.length} parts`
+            : first.description || <Money kind={first.type} cents={first.amountCents} />}{" "}
+          on {longDate(first.date)}. Saving it again would count it twice.
+          {keptNote && ` ${keptNote}`}
         </Notice>
       );
+    }
     case "discarded-before":
       return (
         <Notice tone="warning" title="Discarded before">
