@@ -1,7 +1,7 @@
 /**
- * MobileNav drawer tests. The drawer lists every destination, the
- * BottomTabBar ones too, with the profile and
- * sign out at the bottom. The menu button carries a dot while anything waits for review.
+ * MobileNav drawer tests. The drawer lists every destination, the BottomTabBar
+ * ones too, with the profile and sign out at the bottom. The menu button
+ * carries a dot while anything waits for review.
  *
  * Rendered inside a real memory-history RouterProvider because the
  * controlled Sheet wrapper engages the history-back-close hook (review R37).

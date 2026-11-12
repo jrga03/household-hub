@@ -3,7 +3,8 @@ import { TAB_NAV } from "./nav";
 
 /**
  * Fixed bottom tab bar for the mobile layout branch: Home, Transactions,
- * Accounts and Categories, below the floating Add button. Everything else is in the MobileNav drawer.
+ * Accounts and Categories, below the floating Add button. Everything else is
+ * in the MobileNav drawer.
  *
  * Geometry: the content row is `--tab-bar-height` tall plus the iOS
  * home-indicator safe area. Everything else pinned to the bottom edge
