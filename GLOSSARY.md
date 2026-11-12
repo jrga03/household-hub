@@ -47,8 +47,8 @@ One thing that happened to money in one account on one date: an amount, always p
 _Avoid_: Entry, record, line item, event
 
 **Transfer**:
-One record of money moving between two accounts of the same visibility, shown as two legs: out of one account, into the other. It carries one envelope (a category, Unassigned, or a Card Payment), the same on both sides. It doesn't count as income, spending, or against a budget. Money crossing between a personal and a household account is not a transfer: it is household income or spending.
-_Avoid_: Internal transaction, move
+One record of money moving between two accounts of the same visibility, shown as two legs: out of one account, into the other. It leaves one envelope in the first account and arrives in one envelope in the second (a category, Unassigned, or a Card Payment); usually both are the same, and a different arrival envelope changes the money's account and its category in one step. It doesn't count as income, spending, or against a budget. Money crossing between a personal and a household account is not a transfer: it is household income or spending.
+_Avoid_: Internal transaction, move (a move is the wider idea)
 
 **Balance Correction**:
 One record of the difference between an account's cleared balance at the end of a date and the balance a member saw at the bank that day, so the logged balance matches the real one without rewriting the past. It carries one envelope (a category or Unassigned) that takes the difference; on a credit card, the difference moves between that envelope and the card's Card Payment in its Paying Account, as a purchase or refund would. It is never edited, only removed and recorded again. It doesn't count as income, spending, or against a budget.
@@ -95,6 +95,10 @@ _Avoid_: Assign, budget (as a verb)
 **Allocation**:
 Moving money inside one account between its categories, its Card Payments and its Unassigned. It is not a transaction: the account balance does not change and nothing counts as income or spending.
 _Avoid_: Budgeting, assignment, reallocation
+
+**Move**:
+Changing where money sits: its account, its category, or both. A move between accounts is a transfer, whichever envelope it arrives in; a move inside one account is an allocation.
+_Avoid_: Transfer (for a change of category)
 
 **Budget**:
 A monthly target amount for a category, compared against what was spent that month, naming its funding account. Set from a month, it stands until a later month replaces it, so a category keeps a budget history. It never goes down as money is spent; the category's money does.

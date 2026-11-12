@@ -4,7 +4,7 @@ A transfer is its own entity (`transfer`: created, edited, removed, restored), n
 
 We chose this because a pair of transactions can drift apart. Two offline devices can edit each leg, one device can remove one leg while another edits the other, and every projection would have to rejoin the pair and decide which leg wins. One record cannot be half applied, so the account sums stay order-independent with no cross-record rule.
 
-The transfer carries one envelope, the same on both sides: a category, Unassigned, or Card Payment. Money that should land in a different category is a transfer plus an allocation, so a transfer never changes what the money is for. Its accounts must differ and share visibility (ADR 0002). Paying a credit card is a transfer from the paying account's Card Payment for that card into the card.
+(Superseded by ADR 0013: a transfer can arrive in a different envelope.) The transfer carries one envelope, the same on both sides: a category, Unassigned, or Card Payment. Money that should land in a different category is a transfer plus an allocation, so a transfer never changes what the money is for. Its accounts must differ and share visibility (ADR 0002). Paying a credit card is a transfer from the paying account's Card Payment for that card into the card.
 
 ## Considered options
 
