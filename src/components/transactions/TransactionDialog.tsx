@@ -21,7 +21,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/app/Toolti
 import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useMemberNames } from "@/hooks/useMemberNames";
-import { canBeOutOfPocket } from "@/lib/accounts/events";
+import { canBeOutOfPocket, isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { CategoryList } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
@@ -58,6 +58,7 @@ import {
   type EntryProblems,
 } from "./EntryFields";
 import { categoryChoices, CategorySelect, isCategoryChoice, UNASSIGNED } from "./CategorySelect";
+import { PaidFromLine } from "./PaidFromSelect";
 import { removeWithUndo } from "./removeWithUndo";
 import { TransferForm } from "./TransferDialog";
 import { useFocusFirstProblem } from "@/hooks/useFocusFirstProblem";
@@ -203,6 +204,7 @@ function readTransactionForm(formData: FormData): ReadForm {
   }
   const categoryId = String(formData.get("categoryId") ?? UNASSIGNED);
   const status = formData.get("status");
+  const payingAccountId = formData.get("payingAccountId");
   return {
     input: {
       date,
@@ -212,6 +214,7 @@ function readTransactionForm(formData: FormData): ReadForm {
       categoryId: categoryId === UNASSIGNED ? null : categoryId,
       description,
       notes: String(formData.get("notes") ?? ""),
+      payingAccountId: typeof payingAccountId === "string" ? payingAccountId : undefined,
     },
     status: status === OUT_OF_POCKET ? "pending" : isTransactionStatus(status) ? status : "cleared",
     outOfPocket: status === OUT_OF_POCKET,
@@ -262,6 +265,16 @@ function TransactionForm({
     transaction?.accountId ?? lastAccount?.id ?? accounts[0]?.id ?? ""
   );
   const account = accounts.find((choice) => choice.id === accountId);
+  // Paid from, chosen for one card; another card starts at its own usual account.
+  const [paidFrom, setPaidFrom] = useState<{ cardId: string; accountId: string }>();
+  const card = transaction && account && isCreditCard(account) ? account : undefined;
+  const paidFromId = !card
+    ? null
+    : paidFrom?.cardId === card.id
+      ? paidFrom.accountId
+      : card.id === transaction?.accountId
+        ? transaction.payingAccountId
+        : card.payingAccountId;
   const offerOutOfPocket =
     !transaction && type === "expense" && account !== undefined && canBeOutOfPocket(account);
   if (statusChoice === OUT_OF_POCKET && !offerOutOfPocket) setStatusChoice("pending");
@@ -391,6 +404,14 @@ function TransactionForm({
             </Select>
           )}
         </Field>
+        {card && (
+          <PaidFromLine
+            card={card}
+            value={paidFromId}
+            onChange={(chosen) => setPaidFrom({ cardId: card.id, accountId: chosen })}
+            className={FULL_ROW}
+          />
+        )}
         <Field label="Category (optional)">
           {(control) => (
             <CategorySelect

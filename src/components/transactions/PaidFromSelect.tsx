@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { Button } from "@/components/app/Button";
+import { Label } from "@/components/app/Label";
 import {
   Select,
   SelectContent,
@@ -52,5 +55,55 @@ export function PaidFromSelect({
         ))}
       </SelectContent>
     </Select>
+  );
+}
+
+/** The edit form's line under Account for a card transaction: "Paid from <account> (usual) · Change". */
+export function PaidFromLine({
+  card,
+  value,
+  onChange,
+  className,
+}: {
+  card: AccountRow;
+  value: string | null;
+  onChange: (accountId: string) => void;
+  className?: string;
+}) {
+  const { usualId, nameOf } = usePaidFrom(card);
+  const [changing, setChanging] = useState(false);
+  return (
+    <div className={className}>
+      {value !== null && <input type="hidden" name="payingAccountId" value={value} />}
+      {changing ? (
+        <div className="space-y-2">
+          <Label htmlFor="transaction-paid-from">Paid from</Label>
+          <PaidFromSelect
+            id="transaction-paid-from"
+            card={card}
+            value={value ?? undefined}
+            onChange={(accountId) => {
+              onChange(accountId);
+              setChanging(false);
+            }}
+          />
+        </div>
+      ) : (
+        <p className="flex items-center gap-1 text-body text-muted-foreground">
+          Paid from {nameOf(value)}
+          {value === usualId && " (usual)"}
+          <span aria-hidden>·</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="link"
+            className="h-auto p-0"
+            onClick={() => setChanging(true)}
+          >
+            Change
+          </Button>
+        </p>
+      )}
+    </div>
   );
 }
