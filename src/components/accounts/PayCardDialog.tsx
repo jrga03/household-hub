@@ -1,11 +1,13 @@
 import { useActionState, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ActionForm } from "@/components/app/ActionForm";
+import { Checkbox } from "@/components/app/Checkbox";
 import { CurrencyInput } from "@/components/app/CurrencyInput";
 import { Field } from "@/components/app/Field";
 import { FormError } from "@/components/app/FormError";
 import { FormFooter, FormSheet, FULL_ROW } from "@/components/app/FormSheet";
 import { Input } from "@/components/app/Input";
+import { Label } from "@/components/app/Label";
 import { Money } from "@/components/app/Money";
 import {
   Select,
@@ -116,6 +118,7 @@ function PayCardForm({
     prefilledAmount > 0 ? prefilledAmount : undefined
   );
   const payer = payers.find((choice) => choice.id === payerId);
+  const [coverShortfall, setCoverShortfall] = useState(true);
 
   const [problems, payAction] = useActionState(
     async (_previous: EntryProblems, formData: FormData): Promise<EntryProblems> => {
@@ -127,6 +130,7 @@ function PayCardForm({
           fromAccountId: String(formData.get("fromAccountId") ?? ""),
           amountCents,
           date,
+          coverShortfall,
         });
         toast.success(`Paid ${formatPHP(amountCents)} to ${card.name}`);
         onPaid();
@@ -199,6 +203,8 @@ function PayCardForm({
           reserved={reserved}
           amount={amount}
           money={money}
+          coverShortfall={coverShortfall}
+          onCoverShortfallChange={setCoverShortfall}
         />
       )}
 
@@ -218,6 +224,8 @@ function PaymentNote({
   reserved,
   amount,
   money,
+  coverShortfall,
+  onCoverShortfallChange,
 }: {
   card: AccountRow;
   payer: AccountRow;
@@ -225,20 +233,48 @@ function PaymentNote({
   reserved: Cents;
   amount: Cents;
   money: Map<string, AccountMoney>;
+  coverShortfall: boolean;
+  onCoverShortfallChange: (cover: boolean) => void;
 }) {
+  const unassigned = moneyIn(money.get(payer.id)?.envelopes, UNASSIGNED_ENVELOPE);
   if (payer.id === payingAccount?.id) {
     const left = diffCents(reserved, amount);
     if (left >= 0) return null;
+    const shortfall = diffCents(amount, reserved);
+    const unassignedLeft = diffCents(unassigned, shortfall);
     return (
-      <p className="text-body text-shortfall" aria-live="polite">
-        This leaves Card Payment · {card.name} in {payer.name} at{" "}
-        <Money kind="balance" cents={left} />. You can still pay; it shows in red until money comes
-        in.
-      </p>
+      <div className="space-y-1 text-body" aria-live="polite">
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="pay-card-cover-shortfall"
+            checked={coverShortfall}
+            onCheckedChange={(checked) => onCoverShortfallChange(checked === true)}
+          />
+          <Label htmlFor="pay-card-cover-shortfall" className="font-normal">
+            Move the other <Money kind="balance" cents={shortfall} /> from {payer.name}&apos;s
+            Unassigned first
+          </Label>
+        </div>
+        {coverShortfall ? (
+          unassignedLeft < 0 && (
+            <p className="text-shortfall">
+              This leaves {payer.name}&apos;s Unassigned at{" "}
+              <Money kind="balance" cents={unassignedLeft} />. You can still pay; it shows in red
+              until money comes in.
+            </p>
+          )
+        ) : (
+          <p className="text-shortfall">
+            This leaves Card Payment · {card.name} in {payer.name} at{" "}
+            <Money kind="balance" cents={left} />. You can still pay; it shows in red until money
+            comes in.
+          </p>
+        )}
+      </div>
     );
   }
   const freed = reservationFreed(reserved, amount);
-  const left = diffCents(moneyIn(money.get(payer.id)?.envelopes, UNASSIGNED_ENVELOPE), amount);
+  const left = diffCents(unassigned, amount);
   return (
     <div className="space-y-1 text-body" aria-live="polite">
       {payingAccount && freed > 0 && (

@@ -78,6 +78,50 @@ describe("payCard from the Paying Account", () => {
   });
 });
 
+describe("payCard from the Paying Account, covering the shortfall", () => {
+  it("moves only the shortfall from Unassigned first, leaving Card Payment at ₱0.00", async () => {
+    const before = (await listUnpushed(1000)).length;
+
+    await payCard(MEMBER, payment({ amountCents: peso("7000"), coverShortfall: true }));
+
+    const written = (await listUnpushed(1000)).slice(before);
+    expect(written.map((event) => [event.eventType, event.payload.amountCents])).toEqual([
+      ["allocation.created", peso("2000")],
+      ["transfer.created", peso("7000")],
+    ]);
+    expect(await cardPayment(bpiId)).toBe(peso("0"));
+    expect(await unassigned(bpiId)).toBe(peso("13000"));
+    expect((await moneyOf(bpiId)).balance).toBe(peso("13000"));
+  });
+
+  it("moves nothing when Card Payment holds enough", async () => {
+    const before = (await listUnpushed(1000)).length;
+
+    await payCard(MEMBER, payment({ coverShortfall: true }));
+
+    const written = (await listUnpushed(1000)).slice(before);
+    expect(written.map((event) => event.eventType)).toEqual(["transfer.created"]);
+  });
+
+  it("without the option, lets Card Payment go negative as before", async () => {
+    const before = (await listUnpushed(1000)).length;
+
+    await payCard(MEMBER, payment({ amountCents: peso("7000") }));
+
+    const written = (await listUnpushed(1000)).slice(before);
+    expect(written.map((event) => event.eventType)).toEqual(["transfer.created"]);
+    expect(await cardPayment(bpiId)).toBe(negateCents(peso("2000")));
+    expect(await unassigned(bpiId)).toBe(peso("15000"));
+  });
+
+  it("still pays when Unassigned holds less than the shortfall", async () => {
+    await payCard(MEMBER, payment({ amountCents: peso("30000"), coverShortfall: true }));
+
+    expect(await cardPayment(bpiId)).toBe(peso("0"));
+    expect(await unassigned(bpiId)).toBe(negateCents(peso("10000")));
+  });
+});
+
 describe("payCard from another account", () => {
   it("moves the reservation there first, then pays: two allocations and the transfer", async () => {
     await payCard(MEMBER, payment());
