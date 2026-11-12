@@ -3,7 +3,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/app/Button";
 import { undoToast } from "@/components/app/withUndo";
 import { Combobox } from "@/components/app/Combobox";
-import { UNASSIGNED } from "@/components/transactions/CategorySelect";
+import {
+  categoryComboboxChoices,
+  UNASSIGNED,
+  type CategoryChoiceGroup,
+} from "@/components/transactions/CategorySelect";
 import type { AccountRow } from "@/lib/accounts/projection";
 import { canHoldMoneyIn, type CategoryList, type CategoryRow } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
@@ -66,7 +70,7 @@ function categoriesFittingAll(
   list: CategoryList,
   selected: TransactionRow[],
   accountsById: Map<string, AccountRow>
-): { label: string; categories: CategoryRow[] }[] {
+): CategoryChoiceGroup[] {
   const accounts = selected.map((transaction) => accountsById.get(transaction.accountId));
   const fits = (category: CategoryRow) =>
     accounts.every((account) => account !== undefined && canHoldMoneyIn(category, account));
@@ -208,14 +212,7 @@ export function SelectionActions({
         disabled={acting || transactions.length === 0}
         value=""
         onValueChange={changeCategory}
-        empty={{ value: UNASSIGNED, label: "Unassigned" }}
-        groups={choices.map((group) => ({
-          label: group.label,
-          options: group.categories.map((category) => ({
-            value: category.id,
-            label: category.name,
-          })),
-        }))}
+        {...categoryComboboxChoices(choices)}
       >
         <span className="truncate">Category</span>
       </Combobox>
