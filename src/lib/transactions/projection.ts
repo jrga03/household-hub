@@ -5,7 +5,9 @@ import type { EntityProjection } from "@/lib/events/projector";
 import {
   decodeImportKey,
   decodePayer,
+  decodePin,
   decodeRemoval,
+  decodeStatementText,
   decodeTransactionDetails,
   decodeTransactionStatus,
   describeTransactionEvent,
@@ -28,6 +30,10 @@ export interface TransactionRow extends TransactionDetails, Ownership {
   importKey: string | null;
   /** The member who paid an Out-of-pocket expense (ADR 0012); null when the household paid. */
   paidByUserId: string | null;
+  /** The saved draft's Statement Text; null when typed in, a card payment, or saved before v5. */
+  statementText: string | null;
+  /** Whether the save was a Pin (GLOSSARY). */
+  pinned: boolean;
 }
 
 /**
@@ -54,6 +60,8 @@ function applyTransactionEvent(
       recordedHlc: event.hlc,
       importKey: decodeImportKey(event),
       paidByUserId: decodePayer(event),
+      statementText: decodeStatementText(event),
+      pinned: decodePin(event),
     };
   }
   // Changes carry the transaction's own visibility and owner; anything else isn't a change to it.

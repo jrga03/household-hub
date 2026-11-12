@@ -8,8 +8,9 @@ import { addTransaction } from "./transactions";
  * Works offline. Each draft becomes a cleared transaction on its purchase
  * date, stamped with its import key (ADR 0008), and the drafts are deleted,
  * all as one change: if any is refused, nothing is saved and every draft stays.
+ * The pin is one draft's vote, so a bulk save never pins.
  */
-export function saveDrafts(actor: Actor, draftIds: string[]): Promise<void> {
+export function saveDrafts(actor: Actor, draftIds: string[], pinned = false): Promise<void> {
   return appendTogether(async () => {
     for (const draftId of draftIds) {
       const draft = await db.drafts.get(draftId);
@@ -30,6 +31,8 @@ export function saveDrafts(actor: Actor, draftIds: string[]): Promise<void> {
         description: draft.description,
         status: "cleared",
         importKey: draft.importKey,
+        statementLine: draft.line.description,
+        pinned: pinned && draftIds.length === 1,
       });
     }
     await deleteDrafts(draftIds);

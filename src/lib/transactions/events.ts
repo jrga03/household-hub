@@ -32,10 +32,22 @@ const withoutImportKey = (payload: Record<string, unknown>) => ({ ...payload, im
 // v4 records who paid an Out-of-pocket expense (ADR 0012); earlier ones were paid by the household.
 const withoutPayer = (payload: Record<string, unknown>) => ({ ...payload, paidByUserId: null });
 
+// v5 records a saved draft's Statement Text and Pin; earlier ones teach no learned suggestion.
+const withoutStatementText = (payload: Record<string, unknown>) => ({
+  ...payload,
+  statementText: null,
+  pinned: false,
+});
+
 export const TRANSACTION_VERSIONS = {
   [TRANSACTION_CREATED]: {
-    current: 4,
-    upcasts: { 1: withoutPayingAccount, 2: withoutImportKey, 3: withoutPayer },
+    current: 5,
+    upcasts: {
+      1: withoutPayingAccount,
+      2: withoutImportKey,
+      3: withoutPayer,
+      4: withoutStatementText,
+    },
   },
   [TRANSACTION_EDITED]: { current: 2, upcasts: { 1: withoutPayingAccount } },
   [TRANSACTION_MARKED_CLEARED]: { current: 1, upcasts: {} },
@@ -166,6 +178,20 @@ export function decodePayer(event: LoggedEvent): string | null {
   const { paidByUserId } = event.payload;
   return typeof paidByUserId === "string" && paidByUserId !== "" ? paidByUserId : null;
 }
+
+/**
+ * The Statement Text a saved draft records, or null. Only the create carries
+ * it, so it never changes.
+ */
+export function decodeStatementText(event: LoggedEvent): string | null {
+  if (event.eventType !== TRANSACTION_CREATED) return null;
+  const { statementText } = event.payload;
+  return typeof statementText === "string" && statementText !== "" ? statementText : null;
+}
+
+/** Whether a create was saved as a Pin. Only the create carries it. */
+export const decodePin = (event: LoggedEvent): boolean =>
+  event.eventType === TRANSACTION_CREATED && event.payload.pinned === true;
 
 /** Whether a remove or restore leaves the transaction removed, or null for any other event. */
 export function decodeRemoval(event: LoggedEvent): boolean | null {

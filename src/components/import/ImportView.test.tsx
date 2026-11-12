@@ -15,6 +15,7 @@ import { parsePHP } from "@/lib/currency";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { createImport } from "@/lib/import/drafts";
 import { readImportReview } from "@/lib/import/review";
+import { listTransactions } from "@/lib/transactions/projection";
 import { ImportView } from "./ImportView";
 
 const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
@@ -120,6 +121,28 @@ describe("ImportView", () => {
     const badge = await within(drafts).findByText("Already imported");
     expect(badge).toHaveClass("bg-warning-surface");
     expect(badge).not.toHaveClass("bg-destructive");
+  });
+
+  it("saves the draft as a pin when the member ticks Use these details next time", async () => {
+    const card = await addCard();
+    await importStatement(card.id);
+    renderImport("/import");
+
+    const drafts = await screen.findByRole("list", { name: "Drafts" });
+    fireEvent.click(within(drafts).getByRole("button", { name: /^MERALCO/ }));
+    const pane = await screen.findByRole("region", { name: "MERALCO" });
+
+    expect(
+      within(pane).getByText(
+        "The next “MERALCO” gets this description and category, until newer saves differ."
+      )
+    ).toBeInTheDocument();
+    fireEvent.click(within(pane).getByRole("checkbox", { name: "Use these details next time" }));
+    fireEvent.click(within(pane).getByRole("button", { name: "Save as transaction" }));
+
+    await waitFor(async () =>
+      expect(await listTransactions()).toMatchObject([{ statementText: "MERALCO", pinned: true }])
+    );
   });
 
   it("says when no imports are open", async () => {
