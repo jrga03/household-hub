@@ -3,13 +3,13 @@ import { Plus, X } from "lucide-react";
 import { Button } from "@/components/app/Button";
 import { CurrencyInput } from "@/components/app/CurrencyInput";
 import { FormFooter, FormSheet } from "@/components/app/FormSheet";
+import { Field } from "@/components/app/Field";
 import { Input } from "@/components/app/Input";
-import { Label } from "@/components/app/Label";
 import { Money } from "@/components/app/Money";
 import {
   categoryChoices,
   CategorySelect,
-  isCategoryChoice,
+  shownCategory,
   UNASSIGNED,
 } from "@/components/transactions/CategorySelect";
 import { PaidFromSelect, usePaidFrom } from "@/components/transactions/PaidFromSelect";
@@ -151,49 +151,42 @@ function PartFields({
   categories: CategoryList;
   onChange: (changes: Partial<DraftPart>) => void;
 }) {
-  const id = (field: string) => `part-${part.key}-${field}`;
   const choices = categoryChoices(categories, card, part.categoryId);
   return (
     <div className="grid grid-cols-1 gap-3 @[480px]:grid-cols-2">
-      <div className="space-y-2">
-        <Label htmlFor={id("amount")}>Amount</Label>
+      <Field label="Amount">
         <CurrencyInput
-          id={id("amount")}
           value={part.amountCents}
           onChange={(amountCents) => onChange({ amountCents })}
         />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={id("description")}>Description</Label>
+      </Field>
+      <Field label="Description">
         <Input
-          id={id("description")}
           maxLength={DESCRIPTION_MAX_LENGTH}
           value={part.description}
           onChange={(event) => onChange({ description: event.target.value })}
         />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={id("category")}>Category</Label>
-        <CategorySelect
-          id={id("category")}
-          choices={choices}
-          value={
-            isCategoryChoice(choices, part.categoryId)
-              ? (part.categoryId ?? UNASSIGNED)
-              : UNASSIGNED
-          }
-          onValueChange={(value) => onChange({ categoryId: value === UNASSIGNED ? null : value })}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={id("paid-from")}>Paid from</Label>
-        <PaidFromSelect
-          id={id("paid-from")}
-          card={card}
-          value={part.paidFromId}
-          onChange={(paidFromId) => onChange({ paidFromId })}
-        />
-      </div>
+      </Field>
+      <Field label="Category">
+        {(control) => (
+          <CategorySelect
+            {...control}
+            choices={choices}
+            value={shownCategory(choices, part.categoryId)}
+            onValueChange={(value) => onChange({ categoryId: value === UNASSIGNED ? null : value })}
+          />
+        )}
+      </Field>
+      <Field label="Paid from">
+        {(control) => (
+          <PaidFromSelect
+            {...control}
+            card={card}
+            value={part.paidFromId}
+            onChange={(paidFromId) => onChange({ paidFromId })}
+          />
+        )}
+      </Field>
     </div>
   );
 }

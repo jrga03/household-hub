@@ -175,6 +175,6 @@ test("BDO drafts are saved in bulk offline, and a re-import is recognised", asyn
   await expect(again.getByRole("button", { name: "Save 0 drafts" })).toBeDisabled();
 
   await again.getByRole("button", { name: "More actions" }).click();
-  await page.getByRole("button", { name: "Discard 7 already recorded" }).click();
+  await page.getByRole("menuitem", { name: "Discard 7 already recorded" }).click();
   await expect(page.getByText("No open imports.")).toBeVisible();
 });

@@ -113,7 +113,17 @@ export class HouseholdHubDB extends Dexie {
           })
       );
     // Discarded statement lines stay on this device, outside the event log (ADR 0008).
-    this.version(14).stores({ discards: "importKey, discardedAt" });
+    this.version(14)
+      .stores({ discards: "importKey, discardedAt" })
+      .upgrade((transaction) =>
+        transaction
+          .table("transactions")
+          .toCollection()
+          .modify((row: Record<string, unknown>) => {
+            row.statementText ??= null;
+            row.pinned ??= false;
+          })
+      );
   }
 }
 

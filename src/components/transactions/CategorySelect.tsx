@@ -45,6 +45,10 @@ export const categoryComboboxChoices = (choices: CategoryChoiceGroup[]) => ({
 export const isCategoryChoice = (choices: CategoryChoiceGroup[], id: string | null) =>
   choices.some((group) => group.categories.some((category) => category.id === id));
 
+/** The select's value for a category id: UNASSIGNED when it isn't among the choices. */
+export const shownCategory = (choices: CategoryChoiceGroup[], id: string | null) =>
+  id !== null && isCategoryChoice(choices, id) ? id : UNASSIGNED;
+
 /**
  * The choices by group; an empty field is Unassigned. `value` is a category id or UNASSIGNED.
  * Inside a `Field`, spread its control props onto it.

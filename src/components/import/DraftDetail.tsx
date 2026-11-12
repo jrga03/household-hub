@@ -12,11 +12,11 @@ import { Notice } from "@/components/app/Notice";
 import {
   categoryChoices,
   CategorySelect,
-  isCategoryChoice,
+  shownCategory,
   UNASSIGNED,
 } from "@/components/transactions/CategorySelect";
 import { DirectionChoice } from "@/components/transactions/EntryFields";
-import { PaidFromSelect, usePaidFrom } from "@/components/transactions/PaidFromSelect";
+import { PaidFromToggle, usePaidFrom } from "@/components/transactions/PaidFromSelect";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { CategoryList } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
@@ -244,39 +244,17 @@ const editOrWarn = (draftId: string, changes: DraftChanges) =>
 
 /** The account that pays the line; a choice applies at once, like the other draft fields. */
 function PaidFromFact({ draft, card }: { draft: ReviewedDraft; card: AccountRow | undefined }) {
-  const { usualId, nameOf } = usePaidFrom(card);
-  const [changing, setChanging] = useState(false);
-  const paidFromId = draft.paidFromId ?? usualId;
+  const { usualId } = usePaidFrom(card);
   return (
     <>
       <dt className="self-center text-muted-foreground">Paid from</dt>
-      <dd className="flex min-w-0 items-center gap-2">
-        {changing ? (
-          <PaidFromSelect
-            card={card}
-            value={paidFromId ?? undefined}
-            onChange={(accountId) => {
-              editOrWarn(draft.id, { paidFromId: accountId });
-              setChanging(false);
-            }}
-          />
-        ) : (
-          <>
-            <span>
-              {nameOf(paidFromId)}
-              {paidFromId === usualId && <span className="text-muted-foreground"> (usual)</span>}
-            </span>
-            <Button
-              type="button"
-              size="sm"
-              variant="link"
-              className="h-auto p-0"
-              onClick={() => setChanging(true)}
-            >
-              Change
-            </Button>
-          </>
-        )}
+      <dd className="min-w-0">
+        <PaidFromToggle
+          card={card}
+          value={draft.paidFromId ?? usualId}
+          labelled={false}
+          onChange={(accountId) => editOrWarn(draft.id, { paidFromId: accountId })}
+        />
       </dd>
     </>
   );
@@ -293,9 +271,6 @@ function DraftFields({
   categories: CategoryList;
 }) {
   const choices = categoryChoices(categories, card, draft.categoryId);
-  const shownCategoryId = isCategoryChoice(choices, draft.categoryId)
-    ? (draft.categoryId ?? UNASSIGNED)
-    : UNASSIGNED;
   const edit = (changes: DraftChanges) => editOrWarn(draft.id, changes);
 
   return (
@@ -343,7 +318,7 @@ function DraftFields({
         <CategorySelect
           id="draft-category"
           choices={choices}
-          value={shownCategoryId}
+          value={shownCategory(choices, draft.categoryId)}
           onValueChange={(value) => edit({ categoryId: value === UNASSIGNED ? null : value })}
         />
       </div>

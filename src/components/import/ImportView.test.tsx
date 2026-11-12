@@ -82,6 +82,9 @@ async function chooseOption(trigger: HTMLElement, option: string) {
   fireEvent.keyDown(await screen.findByRole("option", { name: option }), { key: "Enter" });
 }
 
+// Radix opens a menu on pointerdown, which jsdom lacks; Enter opens it too.
+const openMoreActions = (trigger: HTMLElement) => fireEvent.keyDown(trigger, { key: "Enter" });
+
 const paidFromIds = async () =>
   ((await readImportReview())[0]?.drafts ?? []).map((draft) => draft.paidFromId);
 
@@ -142,8 +145,8 @@ describe("ImportView", () => {
     const card = await addCard();
     await importStatement(card.id);
     renderImport("/import");
-    fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Discard 1 draft" }));
+    openMoreActions(await screen.findByRole("button", { name: "More actions" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Discard 1 draft" }));
     await screen.findByText("No open imports.");
 
     await importStatement(card.id);
@@ -151,9 +154,9 @@ describe("ImportView", () => {
     const drafts = await screen.findByRole("list", { name: "Drafts" });
     expect(await within(drafts).findByText("Discarded before")).toBeInTheDocument();
     expect(within(drafts).getByRole("checkbox", { name: "Select MERALCO" })).not.toBeChecked();
-    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    openMoreActions(screen.getByRole("button", { name: "More actions" }));
     expect(
-      await screen.findByRole("button", { name: "Discard 1 already recorded" })
+      await screen.findByRole("menuitem", { name: "Discard 1 already recorded" })
     ).toBeInTheDocument();
   });
 
@@ -200,7 +203,7 @@ describe("ImportView, Paid from", () => {
     fireEvent.click(within(fact).getByRole("button", { name: "Change" }));
     await chooseOption(within(pane).getByRole("combobox", { name: "Paid from" }), "GCash");
 
-    await waitFor(() => expect(fact).toHaveTextContent(/^GCashChange$/));
+    await waitFor(() => expect(fact).toHaveTextContent(/^GCash·Change$/));
     const gcash = (await listAccounts()).find((account) => account.name === "GCash");
     expect(await paidFromIds()).toEqual([gcash?.id]);
   });
@@ -212,14 +215,28 @@ describe("ImportView, Paid from", () => {
     const drafts = await screen.findByRole("list", { name: "Drafts" });
     expect(drafts).not.toHaveTextContent("Paid from");
 
-    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
-    expect(await screen.findByRole("button", { name: "Discard 2 drafts" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Paid from…" }));
+    openMoreActions(screen.getByRole("button", { name: "More actions" }));
+    expect(await screen.findByRole("menuitem", { name: "Discard 2 drafts" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Paid from…" }));
     const sheet = await screen.findByRole("dialog", { name: "Paid from" });
     await chooseOption(within(sheet).getByRole("combobox", { name: "Paid from" }), "GCash");
     fireEvent.click(within(sheet).getByRole("button", { name: "Set on 2 drafts" }));
 
     await waitFor(() => expect(within(drafts).getAllByText("· Paid from GCash")).toHaveLength(2));
+  });
+
+  it("asks for an account when Set is pressed with none chosen", async () => {
+    const card = await addCard();
+    await importStatement(card.id);
+    renderImport("/import");
+    openMoreActions(await screen.findByRole("button", { name: "More actions" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Paid from…" }));
+    const sheet = await screen.findByRole("dialog", { name: "Paid from" });
+
+    fireEvent.click(within(sheet).getByRole("button", { name: "Set on 1 draft" }));
+
+    expect(await within(sheet).findByText("Choose an account.")).toBeInTheDocument();
+    expect(await paidFromIds()).toEqual([undefined]);
   });
 
   it("marks the usual Paying Account among the choices", async () => {
@@ -228,8 +245,8 @@ describe("ImportView, Paid from", () => {
     renderImport("/import");
     await screen.findByRole("list", { name: "Drafts" });
 
-    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Paid from…" }));
+    openMoreActions(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Paid from…" }));
     const sheet = await screen.findByRole("dialog", { name: "Paid from" });
     fireEvent.keyDown(within(sheet).getByRole("combobox", { name: "Paid from" }), { key: "Enter" });
 

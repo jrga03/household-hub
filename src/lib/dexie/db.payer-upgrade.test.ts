@@ -58,7 +58,12 @@ describe("upgrading a store from before out-of-pocket payers", () => {
     const { readOwed } = await import("@/lib/review/count");
     await openLocalDatabase();
 
-    expect(await db.transactions.get("t-old")).toEqual({ ...version12Row, paidByUserId: null });
+    expect(await db.transactions.get("t-old")).toEqual({
+      ...version12Row,
+      paidByUserId: null,
+      statementText: null,
+      pinned: false,
+    });
     expect(await db.transactions.where("paidByUserId").equals("user-ana").count()).toBe(0);
     expect((await readOwed()).size).toBe(0);
   });

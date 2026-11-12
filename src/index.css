@@ -295,6 +295,7 @@
 
     /* Menu/select rows share the same ~32px geometry; lift them to 44px */
     [data-slot="select-item"],
+    [data-slot="dropdown-menu-item"],
     [data-slot="command-item"] {
       min-height: 44px;
     }

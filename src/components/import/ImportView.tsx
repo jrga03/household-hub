@@ -199,7 +199,7 @@ function ImportSection({
           Save {draftsLabel(savable.length)}
         </Button>
         <MoreActions
-          paidFromIds={ids(savable)}
+          draftIds={ids(savable)}
           card={card}
           actions={[
             {
