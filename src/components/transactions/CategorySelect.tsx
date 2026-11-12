@@ -1,4 +1,4 @@
-import { Combobox } from "@/components/app/Combobox";
+import { Combobox, type ComboboxGroup } from "@/components/app/Combobox";
 import type { AccountRow } from "@/lib/accounts/projection";
 import { canHoldMoneyIn, type CategoryList, type CategoryRow } from "@/lib/categories/projection";
 
@@ -33,6 +33,15 @@ export function categoryChoices(
   return groups.filter((group) => group.categories.length > 0);
 }
 
+/** The Combobox props for category choices; an empty field is Unassigned. */
+export const categoryComboboxChoices = (choices: CategoryChoiceGroup[]) => ({
+  empty: { value: UNASSIGNED, label: "Unassigned" },
+  groups: choices.map((group): ComboboxGroup => ({
+    label: group.label,
+    options: group.categories.map((category) => ({ value: category.id, label: category.name })),
+  })),
+});
+
 export const isCategoryChoice = (choices: CategoryChoiceGroup[], id: string | null) =>
   choices.some((group) => group.categories.some((category) => category.id === id));
 
@@ -52,18 +61,5 @@ export function CategorySelect({
   value: string;
   onValueChange: (value: string) => void;
 }) {
-  return (
-    <Combobox
-      {...combobox}
-      className="w-full"
-      empty={{ value: UNASSIGNED, label: "Unassigned" }}
-      groups={choices.map((group) => ({
-        label: group.label,
-        options: group.categories.map((category) => ({
-          value: category.id,
-          label: category.name,
-        })),
-      }))}
-    />
-  );
+  return <Combobox {...combobox} className="w-full" {...categoryComboboxChoices(choices)} />;
 }

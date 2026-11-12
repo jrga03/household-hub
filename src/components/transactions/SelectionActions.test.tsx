@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { toast } from "sonner";
+import { getAccount } from "@/lib/accounts/projection";
+import { readCategoryList } from "@/lib/categories/projection";
 import { createAccount } from "@/lib/commands/accounts";
+import { createCategory, createGroup } from "@/lib/commands/categories";
 import { addTransaction, type NewTransactionInput } from "@/lib/commands/transactions";
 import { parsePHP } from "@/lib/currency";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
@@ -81,5 +84,47 @@ describe("Mark paid back", () => {
 
     expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mark paid back" })).toBeNull();
+  });
+});
+
+describe("Change category", () => {
+  it("finds a category by search and moves every selected transaction into it", async () => {
+    const group = await createGroup(MEMBER, { name: "Food" });
+    const groceries = await createCategory(MEMBER, { name: "Groceries", groupId: group.id });
+    await createCategory(MEMBER, { name: "Dining out", groupId: group.id });
+    await record("Market");
+    await record("Bakery");
+    const bank = await getAccount(bankId);
+    render(
+      <SelectionActions
+        actor={MEMBER}
+        selected={await listTransactions()}
+        accountsById={new Map(bank ? [[bankId, bank]] : [])}
+        categories={await readCategoryList()}
+        onDone={() => {}}
+      />
+    );
+    const picker = screen.getByRole("combobox", { name: "Change category" });
+    expect(picker).toHaveTextContent("Category");
+
+    fireEvent.click(picker);
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "Unassigned",
+      "Dining out",
+      "Groceries",
+    ]);
+    fireEvent.change(screen.getByRole("combobox", { name: "Search" }), {
+      target: { value: "groc" },
+    });
+    fireEvent.click(screen.getByRole("option", { name: "Groceries Food" }));
+
+    await waitFor(async () =>
+      expect((await listTransactions()).map((row) => row.categoryId)).toEqual([
+        groceries.id,
+        groceries.id,
+      ])
+    );
+    expect(toast.success).toHaveBeenCalledWith("Changed the category of 2 transactions");
+    expect(picker).toHaveTextContent("Category");
   });
 });
