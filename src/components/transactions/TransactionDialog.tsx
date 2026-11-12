@@ -2,19 +2,13 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { ListPlusIcon } from "lucide-react";
+import { AccountSelect } from "@/components/accounts/AccountSelect";
 import { ActionForm, useActionFormPending } from "@/components/app/ActionForm";
 import { Button } from "@/components/app/Button";
 import { Field } from "@/components/app/Field";
 import { FormError } from "@/components/app/FormError";
 import { FormFooter, FormSheet, FULL_ROW } from "@/components/app/FormSheet";
 import { Input } from "@/components/app/Input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/app/Select";
 import { SubmitButton } from "@/components/app/SubmitButton";
 import { Textarea } from "@/components/app/Textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/app/Tooltip";
@@ -388,20 +382,13 @@ function TransactionForm({
         </Field>
         <Field label="Account">
           {(control) => (
-            <Select name="accountId" value={accountId} onValueChange={setAccountId}>
-              <SelectTrigger {...control} className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts.map((choice) => (
-                  <SelectItem key={choice.id} value={choice.id}>
-                    {choice.name}
-                    {choice.visibility === "personal" && " (Personal)"}
-                    {choice.retired && " (retired)"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <AccountSelect
+              {...control}
+              name="accountId"
+              accounts={accounts}
+              value={accountId}
+              onValueChange={setAccountId}
+            />
           )}
         </Field>
         {card && (
