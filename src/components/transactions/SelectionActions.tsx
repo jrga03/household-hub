@@ -2,15 +2,8 @@ import { useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/app/Button";
 import { undoToast } from "@/components/app/withUndo";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/app/Select";
+import { Combobox } from "@/components/app/Combobox";
+import { UNASSIGNED } from "@/components/transactions/CategorySelect";
 import type { AccountRow } from "@/lib/accounts/projection";
 import { canHoldMoneyIn, type CategoryList, type CategoryRow } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
@@ -29,9 +22,6 @@ import { isCorrection, isTransaction, isTransfer, type ListRow } from "@/lib/tra
 import { isOpenOutOfPocket } from "@/lib/transactions/owed";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import { countOf, errorMessage } from "@/lib/utils";
-
-// Radix Select can't hold an empty value.
-const UNASSIGNED = "unassigned";
 
 const conjunction = new Intl.ListFormat("en", { type: "conjunction" });
 
@@ -211,29 +201,24 @@ export function SelectionActions({
       aria-label="Selected transactions"
       className="flex h-[var(--tab-bar-height)] items-center gap-2 px-4"
     >
-      {/* Keyed by the selection, so it shows its placeholder again after each change. */}
-      <Select
-        key={ids.join()}
+      {/* Holds no value, so it shows its placeholder again after each change. */}
+      <Combobox
+        aria-label="Change category"
+        className="min-w-0 flex-1"
         disabled={acting || transactions.length === 0}
+        value=""
         onValueChange={changeCategory}
+        empty={{ value: UNASSIGNED, label: "Unassigned" }}
+        groups={choices.map((group) => ({
+          label: group.label,
+          options: group.categories.map((category) => ({
+            value: category.id,
+            label: category.name,
+          })),
+        }))}
       >
-        <SelectTrigger aria-label="Change category" className="min-w-0 flex-1">
-          <SelectValue placeholder="Category" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-          {choices.map((group) => (
-            <SelectGroup key={group.label}>
-              <SelectLabel>{group.label}</SelectLabel>
-              {group.categories.map((category) => (
-                <SelectItem key={category.id} value={category.id}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          ))}
-        </SelectContent>
-      </Select>
+        <span className="truncate">Category</span>
+      </Combobox>
       {allOwed && (
         <Button variant="secondary" disabled={acting} onClick={payBack}>
           Mark paid back
