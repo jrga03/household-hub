@@ -1,5 +1,6 @@
 import { useActionState, useRef, useState } from "react";
 import { toast } from "sonner";
+import { accountLabel } from "@/components/accounts/AccountSelect";
 import { ActionForm } from "@/components/app/ActionForm";
 import { Combobox, type ComboboxGroup, type ComboboxOption } from "@/components/app/Combobox";
 import { Field } from "@/components/app/Field";
@@ -123,9 +124,6 @@ export function TransferEditor({
     />
   );
 }
-
-const accountLabel = (account: AccountRow) =>
-  `${account.name}${account.visibility === "personal" ? " (Personal)" : ""}${account.retired ? " (retired)" : ""}`;
 
 /**
  * Unassigned (the empty choice) and the categories in use the account's people hold

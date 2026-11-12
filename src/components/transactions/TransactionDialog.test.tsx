@@ -65,8 +65,8 @@ describe("TransactionEditor", () => {
     renderEditor(onClose);
 
     const account = await screen.findByLabelText("Account");
-    fireEvent.keyDown(account, { key: "Enter" });
-    fireEvent.keyDown(await screen.findByRole("option", { name: "GCash" }), { key: "Enter" });
+    fireEvent.click(account);
+    fireEvent.click(await screen.findByRole("option", { name: "GCash" }));
     fireEvent.change(screen.getByLabelText(/Amount/), { target: { value: "abc" } });
     fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Jollibee" } });
     fireEvent.click(screen.getByRole("button", { name: "Add transaction" }));
@@ -104,8 +104,8 @@ describe("TransactionEditor", () => {
     const onClose = vi.fn();
     const first = renderEditor(onClose);
 
-    fireEvent.keyDown(await screen.findByLabelText("Account"), { key: "Enter" });
-    fireEvent.keyDown(await screen.findByRole("option", { name: "GCash" }), { key: "Enter" });
+    fireEvent.click(await screen.findByLabelText("Account"));
+    fireEvent.click(await screen.findByRole("option", { name: "GCash" }));
     fireEvent.click(screen.getByLabelText("Category (optional)"));
     fireEvent.click(await screen.findByRole("option", { name: "Groceries" }));
     fireEvent.change(screen.getByLabelText(/Amount/), { target: { value: "125" } });
@@ -284,8 +284,8 @@ describe("TransactionEditor", () => {
     const outOfPocket = () => screen.queryByRole("radio", { name: "Out-of-pocket" });
 
     async function chooseAccount(name: string) {
-      fireEvent.keyDown(await screen.findByLabelText("Account"), { key: "Enter" });
-      fireEvent.keyDown(await screen.findByRole("option", { name }), { key: "Enter" });
+      fireEvent.click(await screen.findByLabelText("Account"));
+      fireEvent.click(await screen.findByRole("option", { name }));
     }
 
     it("records an expense on a Household account as pending, paid by the member", async () => {
@@ -393,7 +393,7 @@ describe("TransactionEditor", () => {
         renderEditor(vi.fn(), await recorded(MEMBER.userId));
 
         expect(await screen.findByText("Out-of-pocket, paid by you")).toBeVisible();
-        fireEvent.keyDown(screen.getByLabelText("Account"), { key: "Enter" });
+        fireEvent.click(screen.getByLabelText("Account"));
         expect(await screen.findByRole("option", { name: "BPI" })).toBeVisible();
         expect(screen.queryByRole("option", { name: "Visa" })).toBeNull();
       });
@@ -445,8 +445,8 @@ describe("TransactionEditor", () => {
     }
 
     const chooseAccount = async (name: string) => {
-      fireEvent.keyDown(screen.getByLabelText("Account"), { key: "Enter" });
-      fireEvent.keyDown(await screen.findByRole("option", { name }), { key: "Enter" });
+      fireEvent.click(screen.getByLabelText("Account"));
+      fireEvent.click(await screen.findByRole("option", { name }));
     };
 
     it("reads the usual account under Account, and Change saves another", async () => {

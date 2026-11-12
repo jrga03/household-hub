@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { Search } from "lucide-react";
+import { accountComboboxGroups } from "@/components/accounts/AccountSelect";
 import { Button } from "@/components/app/Button";
 import { Field } from "@/components/app/Field";
 import {
@@ -117,16 +118,12 @@ export function TransactionFilters({
       value: filter.account,
       label: "Account",
       anyLabel: "All accounts",
-      groups: [
-        {
-          label: "Accounts",
-          choices: accounts.map((account) => ({
-            value: account.id,
-            label: account.retired ? `${account.name} (retired)` : account.name,
-          })),
-        },
-      ],
+      groups: accountComboboxGroups(accounts).map(({ label, options }) => ({
+        label,
+        choices: options,
+      })),
       read: (account) => ({ account }),
+      searchable: true,
     },
     {
       key: "category",
