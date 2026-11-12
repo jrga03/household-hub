@@ -252,6 +252,8 @@ describe("month figures", () => {
       recordedHlc: String(index),
       importKey: null,
       paidByUserId: null,
+      statementText: null,
+      pinned: false,
     }));
 
     const summarizeJune = () =>

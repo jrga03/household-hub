@@ -1,6 +1,7 @@
 import type { CategoryRow } from "@/lib/categories/projection";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import type { DraftRow, SuggestionSource } from "./drafts";
+import { normalizeStatementText } from "./statement";
 
 export interface Suggestion {
   draftId: string;
@@ -26,10 +27,6 @@ export type DraftSuggester = (
   context: SuggestionContext
 ) => Promise<Suggestion[]>;
 
-/** Uppercased, digits stripped, spaces squeezed: reference numbers change, merchants don't. */
-const normalizeDescription = (description: string) =>
-  description.toUpperCase().replace(/\d/g, "").replace(/\s+/g, " ").trim();
-
 const newestFirst = (a: TransactionRow, b: TransactionRow) =>
   a.date !== b.date ? (a.date < b.date ? 1 : -1) : a.recordedHlc < b.recordedHlc ? 1 : -1;
 
@@ -38,7 +35,7 @@ export const historySuggester: DraftSuggester = (drafts, { transactions, categor
   const usable = new Set(categories.map((category) => category.id));
   const latestCategory = new Map<string, string>();
   for (const transaction of [...transactions].sort(newestFirst)) {
-    const key = normalizeDescription(transaction.description);
+    const key = normalizeStatementText(transaction.description);
     if (transaction.removed || key === "" || latestCategory.has(key)) continue;
     if (transaction.categoryId !== null && usable.has(transaction.categoryId)) {
       latestCategory.set(key, transaction.categoryId);
@@ -46,7 +43,7 @@ export const historySuggester: DraftSuggester = (drafts, { transactions, categor
   }
   const suggestions = drafts.flatMap((draft): Suggestion[] => {
     if (draft.line.isCardPayment) return [];
-    const categoryId = latestCategory.get(normalizeDescription(draft.line.description));
+    const categoryId = latestCategory.get(normalizeStatementText(draft.line.description));
     return categoryId ? [{ draftId: draft.id, categoryId, source: "history" }] : [];
   });
   return Promise.resolve(suggestions);

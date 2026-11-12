@@ -21,6 +21,7 @@ import type { CategoryList } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { saveDrafts } from "@/lib/commands/drafts";
 import { deleteDrafts, discardDrafts, editDraft, type DraftChanges } from "@/lib/import/drafts";
+import { normalizeStatementText } from "@/lib/import/statement";
 import { needsDescription, type DraftFlag, type ReviewedDraft } from "@/lib/import/review";
 import { DESCRIPTION_MAX_LENGTH, isTransactionType } from "@/lib/transactions/events";
 import { cn, errorMessage } from "@/lib/utils";
@@ -47,7 +48,9 @@ export function DraftDetail({
   const [keepAnyway, setKeepAnyway] = useState(false);
   const { busy, run } = useDraftAction();
   const [paying, setPaying] = useState(false);
+  const [pinned, setPinned] = useState(false);
   const { line, flag } = draft;
+  const statementText = normalizeStatementText(line.description);
   const isCardPayment = line.isCardPayment;
   const recordedPayment = flag?.kind === "card-payment" && flag.transfer !== null;
   const blockedAsImported = flag?.kind === "already-imported" && !keepAnyway;
@@ -88,6 +91,24 @@ export function DraftDetail({
 
       {!isCardPayment && <DraftFields draft={draft} card={card} categories={categories} />}
 
+      {!isCardPayment && statementText !== "" && (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="draft-pin"
+              checked={pinned}
+              onCheckedChange={(checked) => setPinned(checked === true)}
+            />
+            <Label htmlFor="draft-pin" className="font-normal">
+              Use these details next time
+            </Label>
+          </div>
+          <p className="pl-6 text-caption text-muted-foreground">
+            The next “{statementText}” gets this description and category, until newer saves differ.
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2">
         {isCardPayment ? (
           !recordedPayment &&
@@ -102,7 +123,7 @@ export function DraftDetail({
             disabled={busy || blockedAsImported || needsDescription(draft)}
             onClick={() =>
               void act(
-                () => saveDrafts(actor, [draft.id]),
+                () => saveDrafts(actor, [draft.id], pinned),
                 "Saved as a transaction",
                 "Couldn't save the draft."
               )

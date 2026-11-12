@@ -52,6 +52,8 @@ function transaction(
     recordedHlc: `hlc-${String(nextId).padStart(4, "0")}`,
     importKey: null,
     paidByUserId: null,
+    statementText: null,
+    pinned: false,
     ...overrides,
   };
 }

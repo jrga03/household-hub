@@ -252,3 +252,47 @@ describe("payer", () => {
     expect(await listTransactions()).toMatchObject([{ paidByUserId: null }]);
   });
 });
+
+describe("statement text and pin", () => {
+  it("keeps a v5 create's statement text and pin", async () => {
+    const pinnedCreate = {
+      ...transactionEvent("e-pinned", "transaction.created", 1000, {
+        ...lunchDetails,
+        payingAccountId: null,
+        status: "cleared",
+        importKey: "a1b2c3",
+        paidByUserId: null,
+        statementText: "JOLLIBEE QC",
+        pinned: true,
+      }),
+      eventVersion: 5,
+    };
+    await receiveEvents([pinnedCreate], 0);
+
+    expect(await listTransactions()).toMatchObject([
+      { statementText: "JOLLIBEE QC", pinned: true },
+    ]);
+  });
+
+  it.each([
+    ["v1", 1, {}],
+    ["v2", 2, { payingAccountId: null }],
+    ["v3", 3, { payingAccountId: null, importKey: null }],
+    ["v4", 4, { payingAccountId: null, importKey: null, paidByUserId: null }],
+  ])(
+    "reads a %s create as having no statement text and no pin",
+    async (_name, eventVersion, extra) => {
+      const old = {
+        ...transactionEvent("e-old", "transaction.created", 1000, {
+          ...lunchDetails,
+          ...extra,
+          status: "cleared",
+        }),
+        eventVersion,
+      };
+      await receiveEvents([old], 0);
+
+      expect(await listTransactions()).toMatchObject([{ statementText: null, pinned: false }]);
+    }
+  );
+});
