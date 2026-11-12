@@ -201,7 +201,7 @@ export function SelectionActions({
       aria-label="Selected transactions"
       className="flex h-[var(--tab-bar-height)] items-center gap-2 px-4"
     >
-      {/* Holds no value, so it shows its placeholder again after each change. */}
+      {/* Holds no value, so no row is checked and the trigger always reads Category. */}
       <Combobox
         aria-label="Change category"
         className="min-w-0 flex-1"
