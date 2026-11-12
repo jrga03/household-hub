@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-router";
 import { readOpenItem } from "@/components/layout/DetailPane";
 import { PageShell } from "@/components/layout/PageShell";
+import { listAccounts } from "@/lib/accounts/projection";
 import { createAccount } from "@/lib/commands/accounts";
 import { saveDrafts } from "@/lib/commands/drafts";
 import { parsePHP } from "@/lib/currency";
@@ -57,29 +58,42 @@ function renderImport(initialEntry: string) {
   return history;
 }
 
-async function importStatement(accountId: string) {
+const purchase = (description: string, amount: string) => ({
+  purchaseDate: "2026-09-03",
+  postingDate: "2026-09-05",
+  description,
+  amount: parsePHP(amount),
+  type: "expense" as const,
+  isCardPayment: false,
+});
+
+async function importStatement(accountId: string, lines = [purchase("MERALCO", "3200")]) {
   return createImport({
     formatId: "bdo-credit-card-pdf",
     fileName: "september.pdf",
     accountId,
-    lines: [
-      {
-        purchaseDate: "2026-09-03",
-        postingDate: "2026-09-05",
-        description: "MERALCO",
-        amount: parsePHP("3200"),
-        type: "expense",
-        isCardPayment: false,
-      },
-    ],
+    lines,
   });
 }
+
+async function chooseOption(trigger: HTMLElement, option: string) {
+  fireEvent.keyDown(trigger, { key: "Enter" });
+  fireEvent.keyDown(await screen.findByRole("option", { name: option }), { key: "Enter" });
+}
+
+const paidFromIds = async () =>
+  ((await readImportReview())[0]?.drafts ?? []).map((draft) => draft.paidFromId);
 
 async function addCard() {
   const bank = await createAccount(MEMBER, {
     name: "BPI",
     type: "bank",
     startingBalanceCents: parsePHP("1000"),
+  });
+  await createAccount(MEMBER, {
+    name: "GCash",
+    type: "e_wallet",
+    startingBalanceCents: parsePHP("0"),
   });
   return createAccount(MEMBER, {
     name: "BDO Visa",
@@ -127,6 +141,7 @@ describe("ImportView", () => {
     const card = await addCard();
     await importStatement(card.id);
     renderImport("/import");
+    fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
     fireEvent.click(await screen.findByRole("button", { name: "Discard 1 draft" }));
     await screen.findByText("No open imports.");
 
@@ -135,7 +150,10 @@ describe("ImportView", () => {
     const drafts = await screen.findByRole("list", { name: "Drafts" });
     expect(await within(drafts).findByText("Discarded before")).toBeInTheDocument();
     expect(within(drafts).getByRole("checkbox", { name: "Select MERALCO" })).not.toBeChecked();
-    expect(screen.getByRole("button", { name: "Discard 1 already recorded" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    expect(
+      await screen.findByRole("button", { name: "Discard 1 already recorded" })
+    ).toBeInTheDocument();
   });
 
   it("saves the draft as a pin when the member ticks Use these details next time", async () => {
@@ -164,5 +182,58 @@ describe("ImportView", () => {
     renderImport("/import");
 
     await waitFor(() => expect(screen.getByText("No open imports.")).toBeInTheDocument());
+  });
+});
+
+describe("ImportView, Paid from", () => {
+  it("shows the draft's Paid from under Amount, and Change sets it at once", async () => {
+    const card = await addCard();
+    await importStatement(card.id);
+    renderImport("/import");
+    const drafts = await screen.findByRole("list", { name: "Drafts" });
+    fireEvent.click(within(drafts).getByRole("button", { name: /^MERALCO/ }));
+    const pane = await screen.findByRole("region", { name: "MERALCO" });
+
+    const fact = within(pane).getByText("Paid from").nextElementSibling as HTMLElement;
+    await waitFor(() => expect(fact).toHaveTextContent("BPI (usual)"));
+    fireEvent.click(within(fact).getByRole("button", { name: "Change" }));
+    await chooseOption(within(pane).getByRole("combobox", { name: "Paid from" }), "GCash");
+
+    await waitFor(() => expect(fact).toHaveTextContent(/^GCashChange$/));
+    const gcash = (await listAccounts()).find((account) => account.name === "GCash");
+    expect(await paidFromIds()).toEqual([gcash?.id]);
+  });
+
+  it("sets Paid from on the selected drafts from the More actions menu, and the rows say so", async () => {
+    const card = await addCard();
+    await importStatement(card.id, [purchase("MERALCO", "3200"), purchase("SHELL", "1500")]);
+    renderImport("/import");
+    const drafts = await screen.findByRole("list", { name: "Drafts" });
+    expect(drafts).not.toHaveTextContent("Paid from");
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    expect(await screen.findByRole("button", { name: "Discard 2 drafts" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Paid from…" }));
+    const sheet = await screen.findByRole("dialog", { name: "Paid from" });
+    await chooseOption(within(sheet).getByRole("combobox", { name: "Paid from" }), "GCash");
+    fireEvent.click(within(sheet).getByRole("button", { name: "Set on 2 drafts" }));
+
+    await waitFor(() => expect(within(drafts).getAllByText("· Paid from GCash")).toHaveLength(2));
+  });
+
+  it("marks the usual Paying Account among the choices", async () => {
+    const card = await addCard();
+    await importStatement(card.id);
+    renderImport("/import");
+    await screen.findByRole("list", { name: "Drafts" });
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Paid from…" }));
+    const sheet = await screen.findByRole("dialog", { name: "Paid from" });
+    fireEvent.keyDown(within(sheet).getByRole("combobox", { name: "Paid from" }), { key: "Enter" });
+
+    expect(await screen.findByRole("option", { name: "BPI (usual)" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "GCash" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /BDO Visa/ })).not.toBeInTheDocument();
   });
 });

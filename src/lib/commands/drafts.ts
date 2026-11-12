@@ -31,6 +31,7 @@ export function saveDrafts(actor: Actor, draftIds: string[], pinned = false): Pr
         description: draft.description,
         status: "cleared",
         importKey: draft.importKey,
+        payingAccountId: draft.paidFromId,
         statementLine: draft.line.description,
         pinned: pinned && draftIds.length === 1,
       });

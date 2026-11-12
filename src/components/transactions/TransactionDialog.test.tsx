@@ -407,4 +407,76 @@ describe("TransactionEditor", () => {
       });
     });
   });
+
+  describe("Paid from, editing a card transaction", () => {
+    async function onCard() {
+      const bpi = await createAccount(MEMBER, {
+        name: "BPI",
+        type: "bank",
+        startingBalanceCents: parsePHP("0"),
+      });
+      const gcash = await createAccount(MEMBER, {
+        name: "GCash",
+        type: "e_wallet",
+        startingBalanceCents: parsePHP("0"),
+      });
+      await createAccount(MEMBER, {
+        name: "Mastercard",
+        type: "credit_card",
+        startingBalanceCents: parsePHP("0"),
+        payingAccountId: gcash.id,
+      });
+      const visa = await createAccount(MEMBER, {
+        name: "Visa",
+        type: "credit_card",
+        startingBalanceCents: parsePHP("0"),
+        payingAccountId: bpi.id,
+      });
+      await addTransaction(MEMBER, {
+        date: "2026-10-12",
+        type: "expense",
+        amountCents: parsePHP("300"),
+        accountId: visa.id,
+        categoryId: null,
+        description: "Groceries",
+      });
+      const [transaction] = await listTransactions();
+      return { transaction, bpi, gcash };
+    }
+
+    const chooseAccount = async (name: string) => {
+      fireEvent.keyDown(screen.getByLabelText("Account"), { key: "Enter" });
+      fireEvent.keyDown(await screen.findByRole("option", { name }), { key: "Enter" });
+    };
+
+    it("reads the usual account under Account, and Change saves another", async () => {
+      const { transaction, gcash } = await onCard();
+      const onClose = vi.fn();
+      renderEditor(onClose, transaction);
+
+      const line = await screen.findByText(/^Paid from BPI/);
+      expect(line).toHaveTextContent("Paid from BPI (usual)");
+      fireEvent.click(screen.getByRole("button", { name: "Change" }));
+      fireEvent.keyDown(screen.getByLabelText("Paid from"), { key: "Enter" });
+      fireEvent.keyDown(await screen.findByRole("option", { name: "GCash" }), { key: "Enter" });
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() => expect(onClose).toHaveBeenCalled());
+      expect(await listTransactions()).toMatchObject([{ payingAccountId: gcash.id }]);
+    });
+
+    it("resets to the new card's usual account, and hides off a card", async () => {
+      const { transaction } = await onCard();
+      renderEditor(vi.fn(), transaction);
+      await screen.findByText(/^Paid from BPI/);
+
+      await chooseAccount("Mastercard");
+      expect(await screen.findByText(/^Paid from GCash/)).toHaveTextContent(
+        "Paid from GCash (usual)"
+      );
+
+      await chooseAccount("BPI");
+      await waitFor(() => expect(screen.queryByText(/^Paid from/)).toBeNull());
+    });
+  });
 });

@@ -16,6 +16,7 @@ import {
   UNASSIGNED,
 } from "@/components/transactions/CategorySelect";
 import { DirectionChoice } from "@/components/transactions/EntryFields";
+import { PaidFromSelect, usePaidFrom } from "@/components/transactions/PaidFromSelect";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { CategoryList } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
@@ -72,6 +73,7 @@ export function DraftDetail({
         <dd>
           <Money kind={line.type} cents={line.amount} />
         </dd>
+        {!isCardPayment && <PaidFromFact draft={draft} card={card} />}
       </dl>
 
       {flag && <FlagNote flag={flag} />}
@@ -201,6 +203,51 @@ function FlagNote({ flag }: { flag: DraftFlag }) {
   }
 }
 
+const editOrWarn = (draftId: string, changes: DraftChanges) =>
+  void editDraft(draftId, changes).catch((error: unknown) =>
+    toast.error(errorMessage(error, "Couldn't change the draft."))
+  );
+
+/** The account that pays the line; a choice applies at once, like the other draft fields. */
+function PaidFromFact({ draft, card }: { draft: ReviewedDraft; card: AccountRow | undefined }) {
+  const { usualId, nameOf } = usePaidFrom(card);
+  const [changing, setChanging] = useState(false);
+  const paidFromId = draft.paidFromId ?? usualId;
+  return (
+    <>
+      <dt className="self-center text-muted-foreground">Paid from</dt>
+      <dd className="flex min-w-0 items-center gap-2">
+        {changing ? (
+          <PaidFromSelect
+            card={card}
+            value={paidFromId ?? undefined}
+            onChange={(accountId) => {
+              editOrWarn(draft.id, { paidFromId: accountId });
+              setChanging(false);
+            }}
+          />
+        ) : (
+          <>
+            <span>
+              {nameOf(paidFromId)}
+              {paidFromId === usualId && <span className="text-muted-foreground"> (usual)</span>}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="link"
+              className="h-auto p-0"
+              onClick={() => setChanging(true)}
+            >
+              Change
+            </Button>
+          </>
+        )}
+      </dd>
+    </>
+  );
+}
+
 /** Edits apply as they're made; what the member sets is no longer marked suggested. */
 function DraftFields({
   draft,
@@ -215,10 +262,7 @@ function DraftFields({
   const shownCategoryId = isCategoryChoice(choices, draft.categoryId)
     ? (draft.categoryId ?? UNASSIGNED)
     : UNASSIGNED;
-  const edit = (changes: DraftChanges) =>
-    void editDraft(draft.id, changes).catch((error: unknown) =>
-      toast.error(errorMessage(error, "Couldn't change the draft."))
-    );
+  const edit = (changes: DraftChanges) => editOrWarn(draft.id, changes);
 
   return (
     <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
