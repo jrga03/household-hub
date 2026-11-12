@@ -1,6 +1,6 @@
 /**
- * MobileNav drawer tests. The drawer lists every destination, Home and
- * Transactions too (they are also on the BottomTabBar), with the profile and
+ * MobileNav drawer tests. The drawer lists every destination, the
+ * BottomTabBar ones too, with the profile and
  * sign out at the bottom. The menu button carries a dot while anything waits for review.
  *
  * Rendered inside a real memory-history RouterProvider because the
@@ -125,12 +125,12 @@ describe("MobileNav drawer", () => {
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/",
       "/transactions",
-      "/budget",
-      "/reports",
-      "/review",
       "/accounts",
-      "/import",
       "/categories",
+      "/review",
+      "/budget",
+      "/import",
+      "/reports",
       "/settings",
     ]);
 

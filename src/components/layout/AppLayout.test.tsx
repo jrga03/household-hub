@@ -149,6 +149,27 @@ describe("AppLayout navigation per window size class", () => {
     }
   });
 
+  it("lists every destination in one group, in nav order, with no group label", () => {
+    setViewportWidth(LARGE);
+    render(<AppLayout />);
+
+    const element = rail();
+    if (!element) throw new Error("no rail");
+    const items = within(element).getAllByRole("link", { name: /g [a-z]$/ });
+    expect(items.map((link) => link.getAttribute("href"))).toEqual([
+      "/",
+      "/transactions",
+      "/accounts",
+      "/categories",
+      "/review",
+      "/budget",
+      "/import",
+      "/reports",
+      "/settings",
+    ]);
+    expect(within(element).queryByText("Manage")).not.toBeInTheDocument();
+  });
+
   it("lets the remembered toggle expand the rail at an expanded window", () => {
     document.cookie = "sidebar_state=true; path=/";
     setViewportWidth(EXPANDED);

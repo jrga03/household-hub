@@ -67,7 +67,7 @@ export async function chooseOption(page: Page, field: Locator, option: string) {
   await page.getByRole("option", { name: option, exact: true }).click();
 }
 
-const TAB_LABELS = ["Home", "Transactions"];
+const TAB_LABELS = ["Home", "Transactions", "Accounts", "Categories"];
 
 /**
  * Follows a navigation link: the tab bar or drawer at phone widths, the sidebar

@@ -25,7 +25,16 @@ async function renderAt(initialPath: string) {
       </>
     ),
   });
-  const routes = ["/", "/transactions", "/transactions/$id", "/settings"].map((path) =>
+  const routes = [
+    "/",
+    "/transactions",
+    "/transactions/$id",
+    "/accounts",
+    "/accounts/$id",
+    "/categories",
+    "/categories/$id",
+    "/settings",
+  ].map((path) =>
     createRoute({
       getParentRoute: () => rootRoute,
       path,
@@ -40,7 +49,7 @@ async function renderAt(initialPath: string) {
   await screen.findByRole("navigation", { name: "Primary navigation" });
 }
 
-const TAB_NAMES = ["Home", "Transactions"] as const;
+const TAB_NAMES = ["Home", "Transactions", "Accounts", "Categories"] as const;
 
 function activeTabNames(): string[] {
   return TAB_NAMES.filter(
@@ -49,7 +58,7 @@ function activeTabNames(): string[] {
 }
 
 describe("BottomTabBar (review R42)", () => {
-  it("renders Home and Transactions as links", async () => {
+  it("renders Home, Transactions, Accounts and Categories as links", async () => {
     await renderAt("/");
 
     expect(
@@ -57,6 +66,8 @@ describe("BottomTabBar (review R42)", () => {
     ).toEqual([
       ["Home", "/"],
       ["Transactions", "/transactions"],
+      ["Accounts", "/accounts"],
+      ["Categories", "/categories"],
     ]);
   });
 
@@ -66,10 +77,16 @@ describe("BottomTabBar (review R42)", () => {
     expect(activeTabNames()).toEqual(["Home"]);
   });
 
-  it("keeps Transactions lit on a child route via prefix matching", async () => {
-    await renderAt("/transactions/abc");
+  it.each([
+    ["Transactions", "/transactions/abc"],
+    ["Accounts", "/accounts"],
+    ["Accounts", "/accounts/abc"],
+    ["Categories", "/categories"],
+    ["Categories", "/categories/abc"],
+  ])("lights only %s at %s via prefix matching", async (name, path) => {
+    await renderAt(path);
 
-    expect(activeTabNames()).toEqual(["Transactions"]);
+    expect(activeTabNames()).toEqual([name]);
   });
 
   it("lights no tab on a drawer destination", async () => {

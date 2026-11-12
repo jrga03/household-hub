@@ -7,7 +7,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -20,14 +19,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuthStore } from "@/stores/authStore";
 import { signOutWithToast } from "@/lib/sign-out";
 import { cn } from "@/lib/utils";
-import { DAILY_NAV, useIsNavItemActive, MANAGE_NAV, type NavItem } from "./nav";
+import { NAV, useIsNavItemActive } from "./nav";
 import { ReviewCountBadge, ReviewDot, reviewLabel } from "./ReviewCount";
 import { useReviewCount } from "@/hooks/useReviewCount";
 import { AppMark } from "@/components/app/AppMark";
 
 /**
- * The rail from the medium window class up: the daily and manage
- * groups, collapsible to icon-only mode, with the user profile and sign out.
+ * The rail from the medium window class up: every destination in one group,
+ * collapsible to icon-only mode, with the user profile and sign out.
  *
  * @see src/components/layout/AppLayout.tsx - Parent layout component
  */
@@ -54,46 +53,45 @@ function SidebarBody() {
 
   const isActiveRoute = useIsNavItemActive();
 
-  const renderItems = (items: NavItem[]) =>
-    items.map((item) => (
-      <SidebarMenuItem key={item.to}>
-        <SidebarMenuButton asChild isActive={isActiveRoute(item.to)} tooltip={item.label}>
-          <Link
-            to={item.to}
-            className="relative"
-            // A collapsed rail shows only the icon, so the link names itself.
-            aria-label={
-              (item.reviewCount && reviewLabel(item.label, reviewCount)) ||
-              (open ? undefined : item.label)
-            }
-          >
-            <item.icon className="h-4 w-4" />
-            {open ? (
-              <>
-                <span>{item.label}</span>
-                <span className="ml-auto flex items-center gap-2">
-                  {item.reviewCount && <ReviewCountBadge count={reviewCount} />}
-                  {item.shortcut && (
-                    <span
-                      className={cn(
-                        "text-caption",
-                        isActiveRoute(item.to)
-                          ? "text-sidebar-accent-foreground"
-                          : "text-muted-foreground"
-                      )}
-                    >
-                      {item.shortcut}
-                    </span>
-                  )}
-                </span>
-              </>
-            ) : (
-              item.reviewCount && <ReviewDot className="right-1 top-1" />
-            )}
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-    ));
+  const navItems = NAV.map((item) => (
+    <SidebarMenuItem key={item.to}>
+      <SidebarMenuButton asChild isActive={isActiveRoute(item.to)} tooltip={item.label}>
+        <Link
+          to={item.to}
+          className="relative"
+          // A collapsed rail shows only the icon, so the link names itself.
+          aria-label={
+            (item.reviewCount && reviewLabel(item.label, reviewCount)) ||
+            (open ? undefined : item.label)
+          }
+        >
+          <item.icon className="h-4 w-4" />
+          {open ? (
+            <>
+              <span>{item.label}</span>
+              <span className="ml-auto flex items-center gap-2">
+                {item.reviewCount && <ReviewCountBadge count={reviewCount} />}
+                {item.shortcut && (
+                  <span
+                    className={cn(
+                      "text-caption",
+                      isActiveRoute(item.to)
+                        ? "text-sidebar-accent-foreground"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {item.shortcut}
+                  </span>
+                )}
+              </span>
+            </>
+          ) : (
+            item.reviewCount && <ReviewDot className="right-1 top-1" />
+          )}
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  ));
 
   return (
     <>
@@ -116,13 +114,7 @@ function SidebarBody() {
         <ScrollArea className="h-full">
           <SidebarGroup>
             <SidebarGroupContent>
-              <SidebarMenu>{renderItems(DAILY_NAV)}</SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-          <SidebarGroup>
-            <SidebarGroupLabel>Manage</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>{renderItems(MANAGE_NAV)}</SidebarMenu>
+              <SidebarMenu>{navItems}</SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         </ScrollArea>
