@@ -122,6 +122,21 @@ describe("ImportView", () => {
     expect(badge).not.toHaveClass("bg-destructive");
   });
 
+  it("brings a discarded line back as Discarded before, unselected and among the already recorded", async () => {
+    const card = await addCard();
+    await importStatement(card.id);
+    renderImport("/import");
+    fireEvent.click(await screen.findByRole("button", { name: "Discard 1 draft" }));
+    await screen.findByText("No open imports.");
+
+    await importStatement(card.id);
+
+    const drafts = await screen.findByRole("list", { name: "Drafts" });
+    expect(await within(drafts).findByText("Discarded before")).toBeInTheDocument();
+    expect(within(drafts).getByRole("checkbox", { name: "Select MERALCO" })).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "Discard 1 already recorded" })).toBeInTheDocument();
+  });
+
   it("says when no imports are open", async () => {
     renderImport("/import");
 

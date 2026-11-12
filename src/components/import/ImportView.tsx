@@ -16,7 +16,7 @@ import { isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { saveDrafts } from "@/lib/commands/drafts";
-import { deleteDrafts } from "@/lib/import/drafts";
+import { discardDrafts } from "@/lib/import/drafts";
 import {
   discardedByDefault,
   needsDescription,
@@ -138,7 +138,7 @@ function ImportSection({
   const isSelected = (draft: ReviewedDraft) =>
     choices.get(draft.id) ?? selectedByDefault(draft.flag);
   const selected = drafts.filter(isSelected);
-  const savable = selected.filter((draft) => draft.flag?.kind !== "card-payment");
+  const savable = selected.filter((draft) => !draft.line.isCardPayment);
   const alreadyRecorded = drafts.filter((draft) => discardedByDefault(draft.flag));
   const undescribed = savable.filter(needsDescription);
   const allSelected = selected.length === drafts.length;
@@ -155,7 +155,7 @@ function ImportSection({
     );
   const discard = (list: ReviewedDraft[]) =>
     run(
-      () => deleteDrafts(ids(list)),
+      () => discardDrafts(ids(list)),
       `Discarded ${draftsLabel(list.length)}`,
       "Couldn't discard the drafts."
     );
@@ -277,9 +277,7 @@ function DraftItem({
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1 whitespace-normal">
             <span>{format(parseLocalDate(line.purchaseDate), "MMM d")}</span>
             {flag && <FlagBadge flag={flag} />}
-            {flag?.kind !== "card-payment" && (
-              <CategoryLabel draft={draft} categoryName={categoryName} />
-            )}
+            {!line.isCardPayment && <CategoryLabel draft={draft} categoryName={categoryName} />}
           </span>
         }
       />

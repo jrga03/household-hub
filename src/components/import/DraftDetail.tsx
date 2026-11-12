@@ -20,7 +20,7 @@ import type { AccountRow } from "@/lib/accounts/projection";
 import type { CategoryList } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { saveDrafts } from "@/lib/commands/drafts";
-import { deleteDrafts, editDraft, type DraftChanges } from "@/lib/import/drafts";
+import { deleteDrafts, discardDrafts, editDraft, type DraftChanges } from "@/lib/import/drafts";
 import { needsDescription, type DraftFlag, type ReviewedDraft } from "@/lib/import/review";
 import { DESCRIPTION_MAX_LENGTH, isTransactionType } from "@/lib/transactions/events";
 import { cn, errorMessage } from "@/lib/utils";
@@ -48,7 +48,8 @@ export function DraftDetail({
   const { busy, run } = useDraftAction();
   const [paying, setPaying] = useState(false);
   const { line, flag } = draft;
-  const isCardPayment = flag?.kind === "card-payment";
+  const isCardPayment = line.isCardPayment;
+  const recordedPayment = flag?.kind === "card-payment" && flag.transfer !== null;
   const blockedAsImported = flag?.kind === "already-imported" && !keepAnyway;
 
   const act = async (action: () => Promise<void>, done: string, failed: string) => {
@@ -89,7 +90,7 @@ export function DraftDetail({
 
       <div className="flex flex-wrap gap-2">
         {isCardPayment ? (
-          flag.transfer === null &&
+          !recordedPayment &&
           card && (
             <Button type="button" disabled={busy} onClick={() => setPaying(true)}>
               Record as card payment
@@ -115,7 +116,7 @@ export function DraftDetail({
           variant="outline"
           disabled={busy}
           onClick={() =>
-            void act(() => deleteDrafts([draft.id]), "Draft discarded", "Couldn't discard it.")
+            void act(() => discardDrafts([draft.id]), "Draft discarded", "Couldn't discard it.")
           }
         >
           Discard
@@ -145,6 +146,13 @@ function FlagNote({ flag }: { flag: DraftFlag }) {
             <Money kind={flag.transaction.type} cents={flag.transaction.amountCents} />
           )}{" "}
           on {longDate(flag.transaction.date)}. Saving it again would count it twice.
+        </Notice>
+      );
+    case "discarded-before":
+      return (
+        <Notice tone="warning" title="Discarded before">
+          You discarded this line on this device in the last 6 months. Save it only if that was a
+          mistake.
         </Notice>
       );
     case "might-be-recorded":

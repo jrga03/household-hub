@@ -47,12 +47,14 @@ export interface StoredEvent extends LoggedEvent {
 
 export type EventDraft = Omit<LoggedEvent, "id" | "hlc" | "deviceId">;
 
-// Drafts join the log's transactions so saving them and deleting them is one change.
+// Drafts join the log's transactions so saving them and deleting them is one change;
+// discards join so a household switch forgets them in the same change.
 const logTables = () => [
   db.events.name,
   db.meta.name,
   db.imports.name,
   db.drafts.name,
+  db.discards.name,
   ...projectionTableNames(),
 ];
 
