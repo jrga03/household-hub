@@ -17,6 +17,7 @@ import {
   type TransactionDetails,
   type TransactionStatus,
 } from "@/lib/transactions/events";
+import { normalizeStatementText } from "@/lib/import/statement";
 import { getTransaction, type TransactionRow } from "@/lib/transactions/projection";
 import type { Actor } from "./accounts";
 import { appenderFor } from "./append";
@@ -41,6 +42,10 @@ export interface NewTransactionInput extends PaidFromInput {
   importKey?: string;
   /** The member recording an Out-of-pocket expense (ADR 0012); it is always pending. */
   paidByUserId?: string | null;
+  /** A saved draft's statement line; only its normalized Statement Text is recorded. */
+  statementLine?: string;
+  /** Whether a saved draft is a Pin (GLOSSARY). */
+  pinned?: boolean;
 }
 
 export interface TransactionInput {
@@ -131,6 +136,8 @@ async function appendCreated(actor: Actor, id: string, input: NewTransactionInpu
     status,
     importKey: input.importKey ?? null,
     paidByUserId,
+    statementText: normalizeStatementText(input.statementLine ?? "") || null,
+    pinned: input.pinned ?? false,
   });
 }
 

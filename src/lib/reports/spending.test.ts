@@ -25,6 +25,8 @@ const row = (details: Partial<TransactionRow>): TransactionRow => ({
   recordedHlc: "",
   importKey: null,
   paidByUserId: null,
+  statementText: null,
+  pinned: false,
   ...details,
 });
 

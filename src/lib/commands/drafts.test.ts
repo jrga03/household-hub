@@ -86,7 +86,7 @@ describe("saveDrafts", () => {
     const created = (await listUnpushed(100)).find(
       (event) => event.eventType === "transaction.created"
     );
-    expect(created).toMatchObject({ eventVersion: 4, payload: { importKey: market!.importKey } });
+    expect(created).toMatchObject({ eventVersion: 5, payload: { importKey: market!.importKey } });
   });
 
   it("deletes saved drafts, and the import once nothing is left", async () => {
@@ -156,6 +156,65 @@ describe("saveDrafts", () => {
 
     expect(await listTransactions()).toEqual([]);
     expect(await listDrafts(importId)).toHaveLength(2);
+  });
+
+  describe("Statement Text and Pin", () => {
+    const createdPayloads = async () =>
+      (await listUnpushed(100))
+        .filter((event) => event.eventType === "transaction.created")
+        .map((event) => event.payload);
+
+    it("stamps the line's normalized Statement Text, and the pin, on a single save", async () => {
+      const { drafts } = await importLines([line("Jollibee  QC 1234", "250")]);
+      const [jollibee] = drafts;
+      await editDraft(jollibee!.id, { description: "Jollibee" });
+
+      await saveDrafts(MEMBER, [jollibee!.id], true);
+
+      expect(await listTransactions()).toMatchObject([
+        { description: "Jollibee", statementText: "JOLLIBEE QC", pinned: true },
+      ]);
+      const payloads = await createdPayloads();
+      expect(JSON.stringify(payloads)).not.toContain("1234");
+    });
+
+    it("saves without a pin unless the member ticks it", async () => {
+      const { drafts } = await importLines([line("JOLLIBEE QC 1234", "250")]);
+
+      await saveDrafts(MEMBER, [drafts[0]!.id]);
+
+      expect(await listTransactions()).toMatchObject([
+        { statementText: "JOLLIBEE QC", pinned: false },
+      ]);
+    });
+
+    it("never pins a bulk save", async () => {
+      const { drafts } = await importLines([line("JOLLIBEE 1", "1"), line("MCDO 2", "2")]);
+
+      await saveDrafts(
+        MEMBER,
+        drafts.map((draft) => draft.id),
+        true
+      );
+
+      expect(
+        (await listTransactions()).map(({ statementText, pinned }) => ({ statementText, pinned }))
+      ).toEqual(
+        expect.arrayContaining([
+          { statementText: "JOLLIBEE", pinned: false },
+          { statementText: "MCDO", pinned: false },
+        ])
+      );
+    });
+
+    it("records no Statement Text for a line that is only numbers or blank", async () => {
+      const { drafts } = await importLines([line("12345", "2")]);
+      await editDraft(drafts[0]!.id, { description: "Parking" });
+
+      await saveDrafts(MEMBER, [drafts[0]!.id]);
+
+      expect(await listTransactions()).toMatchObject([{ statementText: null }]);
+    });
   });
 });
 

@@ -54,6 +54,8 @@ function transaction(overrides: Partial<TransactionRow> = {}): TransactionRow {
     recordedHlc: `hlc-${nextId}`,
     importKey: null,
     paidByUserId: null,
+    statementText: null,
+    pinned: false,
     ...overrides,
   };
 }
@@ -81,8 +83,14 @@ function transfer(overrides: Partial<TransferRow> = {}): TransferRow {
 
 const flagFor = (
   subject: DraftRow,
-  records: { transactions?: TransactionRow[]; transfers?: TransferRow[] }
-) => draftFlagger(CARD, records.transactions ?? [], records.transfers ?? [])(subject);
+  records: { transactions?: TransactionRow[]; transfers?: TransferRow[]; discarded?: string[] }
+) =>
+  draftFlagger(
+    CARD,
+    records.transactions ?? [],
+    records.transfers ?? [],
+    new Set(records.discarded)
+  )(subject);
 
 describe("Already imported", () => {
   it("matches a transaction with the same import key", () => {
@@ -105,6 +113,48 @@ describe("Already imported", () => {
     const typed = transaction();
 
     expect(flagFor(draft(), { transactions: [typed, imported] })?.kind).toBe("already-imported");
+  });
+});
+
+describe("Discarded before", () => {
+  const payment = draft(
+    { type: "income" },
+    { description: "PAYMENT RECEIVED", amount: cents(500000), isCardPayment: true, type: "income" }
+  );
+
+  it("flags a line discarded on this device", () => {
+    expect(flagFor(draft(), { discarded: ["key-1"] })).toEqual({ kind: "discarded-before" });
+  });
+
+  it("ignores a discard of another line", () => {
+    expect(flagFor(draft(), { discarded: ["key-2"] })).toBeNull();
+  });
+
+  it("yields to Already imported", () => {
+    const imported = transaction({ importKey: "key-1" });
+
+    expect(flagFor(draft(), { transactions: [imported], discarded: ["key-1"] })?.kind).toBe(
+      "already-imported"
+    );
+  });
+
+  it("wins over a hand-typed look-alike", () => {
+    expect(flagFor(draft(), { transactions: [transaction()], discarded: ["key-1"] })?.kind).toBe(
+      "discarded-before"
+    );
+  });
+
+  it("yields to a recorded card payment", () => {
+    const paid = transfer();
+
+    expect(flagFor(payment, { transfers: [paid], discarded: ["key-1"] })).toEqual({
+      kind: "card-payment",
+      transfer: paid,
+    });
+  });
+
+  it("flags an unmatched card payment discarded before", () => {
+    expect(flagFor(payment, { discarded: ["key-1"] })).toEqual({ kind: "discarded-before" });
   });
 });
 
@@ -194,6 +244,7 @@ describe("selectedByDefault", () => {
       false
     );
     expect(selectedByDefault({ kind: "card-payment", transfer: null })).toBe(false);
+    expect(selectedByDefault({ kind: "discarded-before" })).toBe(false);
   });
 });
 
@@ -206,6 +257,10 @@ describe("discardedByDefault", () => {
       false
     );
     expect(discardedByDefault(null)).toBe(false);
+  });
+
+  it("discards a line discarded before", () => {
+    expect(discardedByDefault({ kind: "discarded-before" })).toBe(true);
   });
 });
 

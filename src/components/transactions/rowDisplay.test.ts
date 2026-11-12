@@ -30,6 +30,8 @@ const transaction = (overrides: Partial<TransactionRow> = {}): TransactionRow =>
   recordedHlc: "hlc-1",
   importKey: null,
   paidByUserId: null,
+  statementText: null,
+  pinned: false,
   ...overrides,
 });
 

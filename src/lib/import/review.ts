@@ -11,6 +11,8 @@ const MATCH_WINDOW_DAYS = 3;
 export type DraftFlag =
   | { kind: "already-imported"; transaction: TransactionRow }
   | { kind: "might-be-recorded"; transaction: TransactionRow }
+  /** Discarded on this device within the last 6 months. */
+  | { kind: "discarded-before" }
   /** A payment towards the card; `transfer` is the recorded payment it matches, if any. */
   | { kind: "card-payment"; transfer: TransferRow | null };
 
@@ -35,7 +37,8 @@ function closest<Row extends { date: string }>(date: string, rows: Row[]): Row |
 export function draftFlagger(
   accountId: string,
   transactions: TransactionRow[],
-  transfers: TransferRow[]
+  transfers: TransferRow[],
+  discardedKeys: ReadonlySet<string>
 ): (draft: DraftRow) => DraftFlag | null {
   const kept = transactions.filter((transaction) => !transaction.removed);
   const byImportKey = new Map(
@@ -52,12 +55,17 @@ export function draftFlagger(
 
   return (draft) => {
     const { purchaseDate, amount } = draft.line;
+    const discarded = discardedKeys.has(draft.importKey);
     if (draft.line.isCardPayment) {
       const sameAmount = paymentsIn.filter((transfer) => transfer.amountCents === amount);
-      return { kind: "card-payment", transfer: closest(purchaseDate, sameAmount) };
+      const transfer = closest(purchaseDate, sameAmount);
+      return !transfer && discarded
+        ? { kind: "discarded-before" }
+        : { kind: "card-payment", transfer };
     }
     const imported = byImportKey.get(draft.importKey);
     if (imported) return { kind: "already-imported", transaction: imported };
+    if (discarded) return { kind: "discarded-before" };
     const lookAlike = closest(
       purchaseDate,
       typedIn.filter(
@@ -68,9 +76,11 @@ export function draftFlagger(
   };
 }
 
-/** A line already imported, or a card payment already recorded, is discarded unless kept on purpose. */
+/** A line already imported or discarded before, or a card payment already recorded, is discarded unless kept on purpose. */
 export const discardedByDefault = (flag: DraftFlag | null) =>
-  flag?.kind === "already-imported" || (flag?.kind === "card-payment" && flag.transfer !== null);
+  flag?.kind === "already-imported" ||
+  flag?.kind === "discarded-before" ||
+  (flag?.kind === "card-payment" && flag.transfer !== null);
 
 /** A draft saved as a transaction must be named first; a card payment isn't saved as one. */
 export const needsDescription = (draft: DraftRow) =>
@@ -90,14 +100,16 @@ export interface ReviewedImport extends ImportRow {
 
 /** Every open import, newest first, with its drafts flagged against what this device holds now. */
 export async function readImportReview(): Promise<ReviewedImport[]> {
-  const [imports, drafts, transactions, transfers] = await Promise.all([
+  const [imports, drafts, transactions, transfers, discardedKeys] = await Promise.all([
     listImports(),
     db.drafts.toArray(),
     db.transactions.toArray(),
     db.transfers.toArray(),
+    db.discards.toCollection().primaryKeys(),
   ]);
+  const discarded = new Set(discardedKeys);
   return imports.map((statement) => {
-    const flagOf = draftFlagger(statement.accountId, transactions, transfers);
+    const flagOf = draftFlagger(statement.accountId, transactions, transfers, discarded);
     return {
       ...statement,
       drafts: drafts

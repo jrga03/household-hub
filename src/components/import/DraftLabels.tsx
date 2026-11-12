@@ -15,6 +15,7 @@ export function SuggestedBadge() {
 
 const FLAG_BADGES: Record<DraftFlag["kind"], { label: string; tone: StatusTone }> = {
   "already-imported": { label: "Already imported", tone: "warning" },
+  "discarded-before": { label: "Discarded before", tone: "outline" },
   "might-be-recorded": { label: "Might already be recorded", tone: "outline" },
   "card-payment": { label: "Card payment", tone: "neutral" },
 };

@@ -21,7 +21,8 @@ import type { AccountRow } from "@/lib/accounts/projection";
 import type { CategoryList } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { saveDrafts } from "@/lib/commands/drafts";
-import { deleteDrafts, editDraft, type DraftChanges } from "@/lib/import/drafts";
+import { deleteDrafts, discardDrafts, editDraft, type DraftChanges } from "@/lib/import/drafts";
+import { normalizeStatementText } from "@/lib/import/statement";
 import { needsDescription, type DraftFlag, type ReviewedDraft } from "@/lib/import/review";
 import { DESCRIPTION_MAX_LENGTH, isTransactionType } from "@/lib/transactions/events";
 import { cn, errorMessage } from "@/lib/utils";
@@ -48,8 +49,11 @@ export function DraftDetail({
   const [keepAnyway, setKeepAnyway] = useState(false);
   const { busy, run } = useDraftAction();
   const [paying, setPaying] = useState(false);
+  const [pinned, setPinned] = useState(false);
   const { line, flag } = draft;
-  const isCardPayment = flag?.kind === "card-payment";
+  const statementText = normalizeStatementText(line.description);
+  const isCardPayment = line.isCardPayment;
+  const recordedPayment = flag?.kind === "card-payment" && flag.transfer !== null;
   const blockedAsImported = flag?.kind === "already-imported" && !keepAnyway;
 
   const act = async (action: () => Promise<void>, done: string, failed: string) => {
@@ -89,9 +93,27 @@ export function DraftDetail({
 
       {!isCardPayment && <DraftFields draft={draft} card={card} categories={categories} />}
 
+      {!isCardPayment && statementText !== "" && (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="draft-pin"
+              checked={pinned}
+              onCheckedChange={(checked) => setPinned(checked === true)}
+            />
+            <Label htmlFor="draft-pin" className="font-normal">
+              Use these details next time
+            </Label>
+          </div>
+          <p className="pl-6 text-caption text-muted-foreground">
+            The next “{statementText}” gets this description and category, until newer saves differ.
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2">
         {isCardPayment ? (
-          flag.transfer === null &&
+          !recordedPayment &&
           card && (
             <Button type="button" disabled={busy} onClick={() => setPaying(true)}>
               Record as card payment
@@ -103,7 +125,7 @@ export function DraftDetail({
             disabled={busy || blockedAsImported || needsDescription(draft)}
             onClick={() =>
               void act(
-                () => saveDrafts(actor, [draft.id]),
+                () => saveDrafts(actor, [draft.id], pinned),
                 "Saved as a transaction",
                 "Couldn't save the draft."
               )
@@ -117,7 +139,7 @@ export function DraftDetail({
           variant="outline"
           disabled={busy}
           onClick={() =>
-            void act(() => deleteDrafts([draft.id]), "Draft discarded", "Couldn't discard it.")
+            void act(() => discardDrafts([draft.id]), "Draft discarded", "Couldn't discard it.")
           }
         >
           Discard
@@ -147,6 +169,13 @@ function FlagNote({ flag }: { flag: DraftFlag }) {
             <Money kind={flag.transaction.type} cents={flag.transaction.amountCents} />
           )}{" "}
           on {longDate(flag.transaction.date)}. Saving it again would count it twice.
+        </Notice>
+      );
+    case "discarded-before":
+      return (
+        <Notice tone="warning" title="Discarded before">
+          You discarded this line on this device in the last 6 months. Save it only if that was a
+          mistake.
         </Notice>
       );
     case "might-be-recorded":

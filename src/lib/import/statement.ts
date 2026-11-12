@@ -15,6 +15,13 @@ export interface StatementLine {
   isCardPayment: boolean;
 }
 
+/**
+ * A line's Statement Text (GLOSSARY): uppercased, digits stripped, spaces
+ * squeezed, so changing reference numbers still match and stay on the device.
+ */
+export const normalizeStatementText = (description: string) =>
+  description.toUpperCase().replace(/\d/g, "").replace(/\s+/g, " ").trim();
+
 export type StatementFormatId = "bdo-credit-card-pdf" | "unionbank-credit-card-xlsx";
 
 export interface StatementFormat {
