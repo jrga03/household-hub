@@ -115,6 +115,11 @@ export async function editDraft(draftId: string, changes: DraftChanges): Promise
   await db.drafts.update(draftId, update);
 }
 
+/** A bulk draft edit: these drafts are paid from the account. */
+export async function setDraftsPaidFrom(draftIds: string[], paidFromId: string): Promise<void> {
+  await db.drafts.where(":id").anyOf(draftIds).modify({ paidFromId });
+}
+
 /**
  * Deletes drafts, saved or discarded, and any import left empty. Saving calls
  * it inside its change, so the drafts go only if the transactions are kept.
