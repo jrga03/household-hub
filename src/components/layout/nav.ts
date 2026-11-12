@@ -29,26 +29,21 @@ export interface NavItem {
   reviewCount?: boolean;
 }
 
-export const DAILY_NAV: NavItem[] = [
+/** Every destination, in rail and drawer order. */
+export const NAV: NavItem[] = [
   { to: "/", label: "Home", icon: Home, shortcut: "g h", tab: true },
   { to: "/transactions", label: "Transactions", icon: Receipt, shortcut: "g t", tab: true },
-  { to: "/budget", label: "Budget", icon: PiggyBank, shortcut: "g b" },
-  { to: "/reports", label: "Reports", icon: BarChart3, shortcut: "g p" },
+  { to: "/accounts", label: "Accounts", icon: Wallet, shortcut: "g a", tab: true },
+  { to: "/categories", label: "Categories", icon: Layers, shortcut: "g c", tab: true },
   { to: "/review", label: "Review", icon: ClipboardCheck, shortcut: "g r", reviewCount: true },
+  { to: "/budget", label: "Budget", icon: PiggyBank, shortcut: "g b" },
   ...(ASSISTANT_URL ? [{ to: "/assistant", label: "Assistant", icon: Sparkles } as const] : []),
-];
-
-export const MANAGE_NAV: NavItem[] = [
-  { to: "/accounts", label: "Accounts", icon: Wallet, shortcut: "g a" },
   { to: "/import", label: "Import", icon: FileUp, shortcut: "g i" },
-  { to: "/categories", label: "Categories", icon: Layers, shortcut: "g c" },
+  { to: "/reports", label: "Reports", icon: BarChart3, shortcut: "g p" },
   { to: "/settings", label: "Settings", icon: Settings, shortcut: "g s" },
 ];
 
-/** The drawer lists every destination, daily first. */
-export const DRAWER_NAV = [...DAILY_NAV, ...MANAGE_NAV];
-
-export const TAB_NAV = DRAWER_NAV.filter((item) => item.tab);
+export const TAB_NAV = NAV.filter((item) => item.tab);
 
 const matchesPath = (to: string, pathname: string) =>
   to === "/" ? pathname === to : pathname === to || pathname.startsWith(to + "/");

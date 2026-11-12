@@ -7,7 +7,7 @@ import { useReviewCount } from "@/hooks/useReviewCount";
 import { useAuthStore } from "@/stores/authStore";
 import { signOutWithToast } from "@/lib/sign-out";
 import { cn } from "@/lib/utils";
-import { DRAWER_NAV, useIsNavItemActive } from "./nav";
+import { NAV, useIsNavItemActive } from "./nav";
 import { ReviewCountBadge, ReviewDot, reviewLabel } from "./ReviewCount";
 import { AppMark } from "@/components/app/AppMark";
 
@@ -60,7 +60,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
 
         <ScrollArea className="flex-1 min-h-0">
           <div className="space-y-1 px-3 py-2">
-            {DRAWER_NAV.map((item) => {
+            {NAV.map((item) => {
               const active = isActive(item.to);
               return (
                 <Link
