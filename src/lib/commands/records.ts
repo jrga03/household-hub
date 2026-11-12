@@ -1,5 +1,6 @@
 import { sameOwnership, VISIBILITY_LABELS, type Ownership } from "@/lib/events/ownership";
 import { isCreditCard } from "@/lib/accounts/events";
+import { payingAccountChoices } from "@/lib/accounts/paying-account";
 import { getAccount, type AccountRow } from "@/lib/accounts/projection";
 import { canHoldMoneyIn, getCategory, type CategoryRow } from "@/lib/categories/projection";
 
@@ -71,4 +72,14 @@ export async function refusePaidElsewhere(card: AccountRow, account: AccountRow)
   throw new Error(
     `${card.name} is paid from ${paying?.name ?? "another account"}. Choose a card paid from ${account.name}.`
   );
+}
+
+/** Checked against this device's accounts; the pickers offer the same choices. */
+export async function checkPayingAccount(payingAccountId: string, card: Ownership): Promise<void> {
+  const paying = await getAccount(payingAccountId);
+  if (!paying || payingAccountChoices([paying], card).length === 0) {
+    throw new Error(
+      `Choose a ${VISIBILITY_LABELS[card.visibility]} account in use, other than a credit card, to pay this card from.`
+    );
+  }
 }

@@ -4,6 +4,7 @@ import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { listUnpushed } from "@/lib/events/log";
 import { createImport, editDraft, listDrafts, listImports } from "@/lib/import/drafts";
 import type { StatementLine } from "@/lib/import/statement";
+import { readAccountMoney } from "@/lib/transactions/money";
 import { listTransactions } from "@/lib/transactions/projection";
 import { createAccount } from "./accounts";
 import { createCategory, createGroup, retireCategory } from "./categories";
@@ -24,6 +25,8 @@ const line = (description: string, amount: string, overrides: Partial<StatementL
   ...overrides,
 });
 
+let bankId: string;
+let walletId: string;
 let cardId: string;
 let groceriesId: string;
 
@@ -34,6 +37,10 @@ beforeEach(async () => {
     type: "bank",
     startingBalanceCents: peso("1000"),
   });
+  bankId = bank.id;
+  walletId = (
+    await createAccount(MEMBER, { name: "Wallet", type: "cash", startingBalanceCents: peso("0") })
+  ).id;
   cardId = (
     await createAccount(MEMBER, {
       name: "Visa",
@@ -149,5 +156,48 @@ describe("saveDrafts", () => {
 
     expect(await listTransactions()).toEqual([]);
     expect(await listDrafts(importId)).toHaveLength(2);
+  });
+});
+
+describe("saveDrafts, Paid from", () => {
+  it("records each draft's Paid from, the card's usual Paying Account unless changed", async () => {
+    const { drafts } = await importLines([line("A", "100"), line("B", "40")]);
+    const [first, second] = drafts;
+    await editDraft(first!.id, { paidFromId: walletId });
+
+    await saveDrafts(MEMBER, [first!.id, second!.id]);
+
+    const transactions = await listTransactions();
+    expect(transactions.find((row) => row.description === "A")).toMatchObject({
+      accountId: cardId,
+      payingAccountId: walletId,
+    });
+    expect(transactions.find((row) => row.description === "B")).toMatchObject({
+      accountId: cardId,
+      payingAccountId: bankId,
+    });
+  });
+
+  it("holds the line in the chosen account's Card Payment money", async () => {
+    const { drafts } = await importLines([line("A", "100")]);
+    const [first] = drafts;
+    await editDraft(first!.id, { paidFromId: walletId });
+
+    await saveDrafts(MEMBER, [first!.id]);
+
+    const money = await readAccountMoney();
+    expect(money.get(walletId)?.envelopes?.cardPayments.get(cardId)).toBe(peso("100"));
+    expect(money.get(bankId)?.envelopes?.cardPayments.get(cardId)).toBeUndefined();
+  });
+
+  it("keeps nothing when a draft's Paid from can't pay the card", async () => {
+    const { importId, drafts } = await importLines([line("A", "100")]);
+    const [first] = drafts;
+    await editDraft(first!.id, { paidFromId: cardId });
+
+    await expect(saveDrafts(MEMBER, [first!.id])).rejects.toThrow(/to pay this card from/);
+
+    expect(await listTransactions()).toEqual([]);
+    expect(await listDrafts(importId)).toHaveLength(1);
   });
 });

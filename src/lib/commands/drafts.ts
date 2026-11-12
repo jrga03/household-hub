@@ -30,6 +30,7 @@ export function saveDrafts(actor: Actor, draftIds: string[]): Promise<void> {
         description: draft.description,
         status: "cleared",
         importKey: draft.importKey,
+        payingAccountId: draft.paidFromId,
       });
     }
     await deleteDrafts(draftIds);

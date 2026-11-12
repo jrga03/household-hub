@@ -36,6 +36,8 @@ export interface DraftRow {
   /** Null while nothing chose it; a suggestion never replaces the member's choice. */
   categorySource: "member" | SuggestionSource | null;
   type: TransactionType;
+  /** Paid from, when the member chose it; otherwise the card's usual Paying Account pays the line. */
+  paidFromId?: string;
 }
 
 const LAST_CARD_PREFIX = "importCard:";
@@ -94,6 +96,7 @@ export interface DraftChanges {
   description?: string;
   categoryId?: string | null;
   type?: TransactionType;
+  paidFromId?: string;
 }
 
 /** What the member sets is theirs: no suggestion replaces it, and it's no longer marked suggested. */
@@ -108,6 +111,7 @@ export async function editDraft(draftId: string, changes: DraftChanges): Promise
     update.categorySource = "member";
   }
   if (changes.type !== undefined) update.type = changes.type;
+  if (changes.paidFromId !== undefined) update.paidFromId = changes.paidFromId;
   await db.drafts.update(draftId, update);
 }
 

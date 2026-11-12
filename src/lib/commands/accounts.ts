@@ -1,4 +1,4 @@
-import { isVisibility, VISIBILITY_LABELS, type Ownership } from "@/lib/events/ownership";
+import { isVisibility } from "@/lib/events/ownership";
 import { requestSync } from "@/lib/sync/triggers";
 import {
   ACCOUNT_CREATED,
@@ -14,12 +14,11 @@ import {
   type AccountChangeType,
   type AccountDetails,
 } from "@/lib/accounts/events";
-import { payingAccountChoices } from "@/lib/accounts/paying-account";
 import { getAccount, listAccounts, type AccountRow } from "@/lib/accounts/projection";
 import type { Cents } from "@/lib/currency";
 import { readAccountHistory } from "@/lib/history/history";
 import { appenderFor } from "./append";
-import { refuseDelete } from "./records";
+import { checkPayingAccount, refuseDelete } from "./records";
 
 export interface Actor {
   householdId: string;
@@ -47,24 +46,15 @@ function checkedDetails(input: AccountDetailsInput): AccountDetails {
   return details;
 }
 
-/** Checked against this device's accounts; the picker offers the same choices. */
-async function checkPayingAccount(details: AccountDetails, card: Ownership): Promise<void> {
-  if (details.payingAccountId === null) return;
-  const paying = await getAccount(details.payingAccountId);
-  if (!paying || payingAccountChoices([paying], card).length === 0) {
-    throw new Error(
-      `Choose a ${VISIBILITY_LABELS[card.visibility]} account in use, other than a credit card, to pay this card from.`
-    );
-  }
-}
-
 /** Works offline: the account shows at once and syncs when the device can reach the server. */
 export async function createAccount(actor: Actor, input: NewAccountInput): Promise<{ id: string }> {
   const details = checkedDetails(input);
   const visibility = input.visibility ?? "household";
   if (!isVisibility(visibility)) throw new Error("Choose Household or Personal.");
   const ownerUserId = visibility === "personal" ? actor.userId : null;
-  await checkPayingAccount(details, { visibility, ownerUserId });
+  if (details.payingAccountId !== null) {
+    await checkPayingAccount(details.payingAccountId, { visibility, ownerUserId });
+  }
 
   const id = crypto.randomUUID();
   await appendAccountEvent(actor, { id, visibility, ownerUserId }, ACCOUNT_CREATED, { ...details });
@@ -109,7 +99,7 @@ export async function editAccount(
   if (!isCreditCard(account) && isCreditCard(details)) {
     throw new Error("An account can't become a credit card. Add the card as a new account.");
   }
-  await checkPayingAccount(details, account);
+  if (details.payingAccountId !== null) await checkPayingAccount(details.payingAccountId, account);
   await appendAccountChange(actor, account, ACCOUNT_EDITED, { ...details });
 }
 
