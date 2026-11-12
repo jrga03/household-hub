@@ -80,7 +80,7 @@ export function DraftDetail({
         <dt className="text-muted-foreground">Amount</dt>
         <dd className="flex items-baseline gap-3">
           <Money kind={line.type} cents={line.amount} />
-          {!isCardPayment && (
+          {!isCardPayment && !blockedAsImported && (
             <Button
               type="button"
               size="sm"

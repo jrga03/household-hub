@@ -16,9 +16,10 @@ import { PaidFromSelect, usePaidFrom } from "@/components/transactions/PaidFromS
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { CategoryList } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
-import { breakApartDraft, type DraftPart } from "@/lib/commands/drafts";
+import { breakApartDraft, breakApartProblem, type DraftPart } from "@/lib/commands/drafts";
 import { diffCents, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
 import type { ReviewedDraft } from "@/lib/import/review";
+import { normalizeStatementText } from "@/lib/import/statement";
 import { DESCRIPTION_MAX_LENGTH } from "@/lib/transactions/events";
 import { cn, countOf } from "@/lib/utils";
 import { useDraftAction } from "./useDraftAction";
@@ -27,7 +28,7 @@ interface Part extends DraftPart {
   key: number;
 }
 
-/** Splits a draft into Parts that total its line; closing it drops the parts. */
+/** Breaks a draft apart into Parts that total its line; closing it drops the parts. */
 export function BreakApartSheet({
   actor,
   draft,
@@ -54,14 +55,7 @@ export function BreakApartSheet({
   });
   const [parts, setParts] = useState(() => [copyOfDraft(1, draft.line.amount)]);
   const remaining = diffCents(draft.line.amount, sumCents(parts.map((part) => part.amountCents)));
-  const problem =
-    parts.length < 2
-      ? "Add a second part to break this line apart."
-      : parts.some((part) => part.amountCents <= 0)
-        ? "Every part needs an amount above ₱0.00."
-        : remaining !== 0
-          ? "The parts must total the line."
-          : null;
+  const problem = breakApartProblem(draft.line.amount, parts);
 
   const change = (key: number, changes: Partial<DraftPart>) =>
     setParts(parts.map((part) => (part.key === key ? { ...part, ...changes } : part)));
@@ -90,7 +84,7 @@ export function BreakApartSheet({
           <Money kind={draft.type} cents={draft.line.amount} />
         </span>
       }
-      description={draft.line.description}
+      description={normalizeStatementText(draft.line.description)}
       onClose={onClose}
     >
       <div className="space-y-6">

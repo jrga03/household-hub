@@ -54,6 +54,19 @@ export interface DraftPart {
   paidFromId: string | undefined;
 }
 
+/** Why these parts can't be saved yet, or null when they can. */
+export function breakApartProblem(lineAmount: Cents, parts: DraftPart[]): string | null {
+  if (parts.length < 2) return "Add a second part to break this line apart.";
+  if (parts.some((part) => part.amountCents <= 0)) return "Every part needs an amount above ₱0.00.";
+  if (parts.some((part) => part.description.trim() === "")) {
+    return "Every part needs a description.";
+  }
+  if (sumCents(parts.map((part) => part.amountCents)) !== lineAmount) {
+    return "The parts must total the line.";
+  }
+  return null;
+}
+
 /**
  * Works offline. Each Part becomes its own cleared transaction with the line's
  * import key and type, and the draft is deleted, all as one change. Parts carry
@@ -62,13 +75,8 @@ export interface DraftPart {
 export function breakApartDraft(actor: Actor, draftId: string, parts: DraftPart[]): Promise<void> {
   return appendTogether(async () => {
     const { draft, statement } = await requireSavableDraft(draftId);
-    if (parts.length < 2) throw new Error("Add a second part to break this line apart.");
-    if (parts.some((part) => part.amountCents <= 0)) {
-      throw new Error("Every part needs an amount above ₱0.00.");
-    }
-    if (sumCents(parts.map((part) => part.amountCents)) !== draft.line.amount) {
-      throw new Error("The parts must total the line.");
-    }
+    const problem = breakApartProblem(draft.line.amount, parts);
+    if (problem) throw new Error(problem);
     for (const part of parts) {
       await addTransaction(actor, {
         date: draft.line.purchaseDate,

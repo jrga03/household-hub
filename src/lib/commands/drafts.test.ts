@@ -322,6 +322,11 @@ describe("breakApartDraft", () => {
     ["fewer than 2 parts", [part("2500", "A")], "Add a second part"],
     ["a zero part", [part("2500", "A"), part("0", "B")], "above ₱0.00"],
     ["a wrong total", [part("1800", "A"), part("600", "B")], "must total the line"],
+    [
+      "a part with no description",
+      [part("1800", "A"), part("700", " ")],
+      "Every part needs a description.",
+    ],
   ])("refuses %s and keeps the draft", async (_case, parts, message) => {
     const { importId, drafts } = await importLines([line("SM", "2500")]);
 

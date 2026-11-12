@@ -317,6 +317,49 @@ describe("ImportView, Break apart", () => {
     expect(draft).toMatchObject({ description: "MERALCO", line: { amount: 320000 } });
   });
 
+  it("describes the sheet with the line's Statement Text", async () => {
+    const card = await addCard();
+    await importStatement(card.id, [purchase("Sm Supermarket 0142", "2500")]);
+    renderImport("/import");
+    const drafts = await screen.findByRole("list", { name: "Drafts" });
+    fireEvent.click(within(drafts).getByRole("button", { name: /^Sm Supermarket/ }));
+    const pane = await screen.findByRole("region", { name: "Sm Supermarket 0142" });
+    fireEvent.click(within(pane).getByRole("button", { name: "Break apart" }));
+    const sheet = await screen.findByRole("dialog", { name: /^Break apart/ });
+
+    expect(sheet).toHaveAccessibleDescription("SM SUPERMARKET");
+  });
+
+  it("keeps Save off while a part has no description, and says why", async () => {
+    const sheet = await openBreakApart();
+    setAmount(amountOf(sheet, 1), "2000");
+    fireEvent.click(within(sheet).getByRole("button", { name: "Add part" }));
+    const part2 = within(sheet).getByRole("group", { name: /^Part 2/ });
+    fireEvent.change(within(part2).getByRole("textbox", { name: "Description" }), {
+      target: { value: "" },
+    });
+
+    expect(within(sheet).getByText("Every part needs a description.")).toBeInTheDocument();
+    expect(within(sheet).getByRole("button", { name: "Save 2 parts" })).toBeDisabled();
+  });
+
+  it("offers Break apart on an already imported line only once kept anyway", async () => {
+    const card = await addCard();
+    await importStatement(card.id);
+    const [first] = await readImportReview();
+    await saveDrafts(MEMBER, first?.drafts.map((draft) => draft.id) ?? []);
+    await importStatement(card.id);
+    renderImport("/import");
+    const drafts = await screen.findByRole("list", { name: "Drafts" });
+    fireEvent.click(within(drafts).getByRole("button", { name: /^MERALCO/ }));
+    const pane = await screen.findByRole("region", { name: "MERALCO" });
+    await within(pane).findByText("Already imported");
+
+    expect(within(pane).queryByRole("button", { name: "Break apart" })).not.toBeInTheDocument();
+    fireEvent.click(within(pane).getByRole("checkbox", { name: /^Save it anyway/ }));
+    expect(within(pane).getByRole("button", { name: "Break apart" })).toBeInTheDocument();
+  });
+
   it("offers no Break apart on a card-payment line", async () => {
     const card = await addCard();
     await importStatement(card.id, [

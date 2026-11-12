@@ -1,5 +1,6 @@
 import { useActionState, useRef, useState } from "react";
 import { toast } from "sonner";
+import { OVERDRAWN_UNASSIGNED } from "@/components/allocations/NegativeNote";
 import { ActionForm } from "@/components/app/ActionForm";
 import { Checkbox } from "@/components/app/Checkbox";
 import { CurrencyInput } from "@/components/app/CurrencyInput";
@@ -258,9 +259,8 @@ function PaymentNote({
         {coverShortfall ? (
           unassignedLeft < 0 && (
             <p className="text-shortfall">
-              This leaves {payer.name}&apos;s Unassigned at{" "}
-              <Money kind="balance" cents={unassignedLeft} />. You can still pay; it shows in red
-              until money comes in.
+              {payer.name}&apos;s Unassigned <Money kind="balance" cents={unassignedLeft} />:{" "}
+              {OVERDRAWN_UNASSIGNED}
             </p>
           )
         ) : (
