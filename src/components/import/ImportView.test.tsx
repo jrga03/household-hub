@@ -16,6 +16,7 @@ import { parsePHP } from "@/lib/currency";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { createImport } from "@/lib/import/drafts";
 import { readImportReview } from "@/lib/import/review";
+import type { StatementLine } from "@/lib/import/statement";
 import { listTransactions } from "@/lib/transactions/projection";
 import { ImportView } from "./ImportView";
 
@@ -58,12 +59,12 @@ function renderImport(initialEntry: string) {
   return history;
 }
 
-const purchase = (description: string, amount: string) => ({
+const purchase = (description: string, amount: string): StatementLine => ({
   purchaseDate: "2026-09-03",
   postingDate: "2026-09-05",
   description,
   amount: parsePHP(amount),
-  type: "expense" as const,
+  type: "expense",
   isCardPayment: false,
 });
 
@@ -235,5 +236,97 @@ describe("ImportView, Paid from", () => {
     expect(await screen.findByRole("option", { name: "BPI (usual)" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "GCash" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /BDO Visa/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("ImportView, Break apart", () => {
+  async function openBreakApart(lines = [purchase("MERALCO", "3200")]) {
+    const card = await addCard();
+    await importStatement(card.id, lines);
+    renderImport("/import");
+    const drafts = await screen.findByRole("list", { name: "Drafts" });
+    fireEvent.click(within(drafts).getByRole("button", { name: /^MERALCO/ }));
+    const pane = await screen.findByRole("region", { name: "MERALCO" });
+    fireEvent.click(within(pane).getByRole("button", { name: "Break apart" }));
+    return screen.findByRole("dialog", { name: /^Break apart/ });
+  }
+
+  const amountOf = (sheet: HTMLElement, part: number) =>
+    within(within(sheet).getByRole("group", { name: new RegExp(`^Part ${part}`) })).getByRole(
+      "textbox",
+      { name: "Amount" }
+    );
+
+  const setAmount = (input: HTMLElement, amount: string) => {
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: amount } });
+    fireEvent.blur(input);
+  };
+
+  it("opens with one part at the full amount, and asks for a second part", async () => {
+    const sheet = await openBreakApart();
+
+    expect(within(sheet).getByText("MERALCO")).toBeInTheDocument();
+    expect((amountOf(sheet, 1) as HTMLInputElement).value).toMatch(/^3,?200\.00$/);
+    expect(within(sheet).getByText(/^Add a second part/)).toBeInTheDocument();
+    expect(within(sheet).getByRole("button", { name: "Save 1 part" })).toBeDisabled();
+  });
+
+  it("shows Remaining, adds a part at Remaining, and saves the parts", async () => {
+    const sheet = await openBreakApart();
+
+    setAmount(amountOf(sheet, 1), "2000");
+    expect(within(sheet).getByRole("status")).toHaveTextContent("Remaining₱1,200.00");
+    expect(within(sheet).getByRole("status").firstElementChild).toHaveClass("text-warning");
+    fireEvent.click(within(sheet).getByRole("button", { name: "Add part" }));
+    expect((amountOf(sheet, 2) as HTMLInputElement).value).toMatch(/^1,?200\.00$/);
+    fireEvent.click(within(sheet).getByRole("button", { name: "Save 2 parts" }));
+
+    await waitFor(async () =>
+      expect((await listTransactions()).map((row) => row.amountCents).sort()).toEqual([
+        120000, 200000,
+      ])
+    );
+    expect(await readImportReview()).toEqual([]);
+  });
+
+  it("says Over by when the parts pass the line, and why Save is off", async () => {
+    const sheet = await openBreakApart();
+    fireEvent.click(within(sheet).getByRole("button", { name: "Add part" }));
+    expect(within(sheet).getByText("Every part needs an amount above ₱0.00.")).toBeInTheDocument();
+
+    setAmount(amountOf(sheet, 2), "500");
+
+    expect(within(sheet).getByRole("status")).toHaveTextContent("Over by₱500.00");
+    expect(within(sheet).getByText("The parts must total the line.")).toBeInTheDocument();
+    expect(within(sheet).getByRole("button", { name: "Save 2 parts" })).toBeDisabled();
+  });
+
+  it("leaves the draft unchanged on Cancel", async () => {
+    const sheet = await openBreakApart();
+    setAmount(amountOf(sheet, 1), "2000");
+    fireEvent.click(within(sheet).getByRole("button", { name: "Add part" }));
+
+    fireEvent.click(within(sheet).getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: /^Break apart/ })).not.toBeInTheDocument()
+    );
+    expect(await listTransactions()).toEqual([]);
+    const [draft] = (await readImportReview())[0]?.drafts ?? [];
+    expect(draft).toMatchObject({ description: "MERALCO", line: { amount: 320000 } });
+  });
+
+  it("offers no Break apart on a card-payment line", async () => {
+    const card = await addCard();
+    await importStatement(card.id, [
+      { ...purchase("PAYMENT RECEIVED", "5000"), type: "income", isCardPayment: true },
+    ]);
+    renderImport("/import");
+    const drafts = await screen.findByRole("list", { name: "Drafts" });
+    fireEvent.click(within(drafts).getByRole("button", { name: /^PAYMENT RECEIVED/ }));
+    const pane = await screen.findByRole("region", { name: "PAYMENT RECEIVED" });
+
+    expect(within(pane).queryByRole("button", { name: "Break apart" })).not.toBeInTheDocument();
   });
 });

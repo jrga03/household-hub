@@ -27,6 +27,7 @@ import { needsDescription, type DraftFlag, type ReviewedDraft } from "@/lib/impo
 import { DESCRIPTION_MAX_LENGTH, isTransactionType } from "@/lib/transactions/events";
 import { cn, errorMessage } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
+import { BreakApartSheet } from "./BreakApartSheet";
 import { isSuggested, SuggestedBadge } from "./DraftLabels";
 import { useDraftAction } from "./useDraftAction";
 
@@ -50,6 +51,7 @@ export function DraftDetail({
   const { busy, run } = useDraftAction();
   const [paying, setPaying] = useState(false);
   const [pinned, setPinned] = useState(false);
+  const [breaking, setBreaking] = useState(false);
   const { line, flag } = draft;
   const statementText = normalizeStatementText(line.description);
   const isCardPayment = line.isCardPayment;
@@ -70,8 +72,19 @@ export function DraftDetail({
         <dt className="text-muted-foreground">Posted</dt>
         <dd>{longDate(line.postingDate)}</dd>
         <dt className="text-muted-foreground">Amount</dt>
-        <dd>
+        <dd className="flex items-baseline gap-3">
           <Money kind={line.type} cents={line.amount} />
+          {!isCardPayment && (
+            <Button
+              type="button"
+              size="sm"
+              variant="link"
+              className="h-auto p-0"
+              onClick={() => setBreaking(true)}
+            >
+              Break apart
+            </Button>
+          )}
         </dd>
         {!isCardPayment && <PaidFromFact draft={draft} card={card} />}
       </dl>
@@ -145,6 +158,17 @@ export function DraftDetail({
           Discard
         </Button>
       </div>
+
+      {breaking && (
+        <BreakApartSheet
+          actor={actor}
+          draft={draft}
+          card={card}
+          categories={categories}
+          onSaved={onDone}
+          onClose={() => setBreaking(false)}
+        />
+      )}
 
       {paying && card && (
         <PayCardDialog

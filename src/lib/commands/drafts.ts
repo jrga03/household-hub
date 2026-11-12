@@ -1,3 +1,4 @@
+import { sumCents, type Cents } from "@/lib/currency";
 import { appendTogether } from "@/lib/events/log";
 import { db } from "@/lib/dexie/db";
 import { deleteDrafts } from "@/lib/import/drafts";
@@ -13,15 +14,7 @@ import { addTransaction } from "./transactions";
 export function saveDrafts(actor: Actor, draftIds: string[], pinned = false): Promise<void> {
   return appendTogether(async () => {
     for (const draftId of draftIds) {
-      const draft = await db.drafts.get(draftId);
-      if (!draft) throw new Error("A draft was saved or discarded elsewhere. Try again.");
-      if (draft.line.isCardPayment) {
-        throw new Error(
-          `${draft.description} is a card payment. Record it as a card payment, or discard it.`
-        );
-      }
-      const statement = await db.imports.get(draft.importId);
-      if (!statement) throw new Error("That import no longer exists.");
+      const { draft, statement } = await requireSavableDraft(draftId);
       await addTransaction(actor, {
         date: draft.line.purchaseDate,
         type: draft.type,
@@ -37,5 +30,58 @@ export function saveDrafts(actor: Actor, draftIds: string[], pinned = false): Pr
       });
     }
     await deleteDrafts(draftIds);
+  });
+}
+
+async function requireSavableDraft(draftId: string) {
+  const draft = await db.drafts.get(draftId);
+  if (!draft) throw new Error("A draft was saved or discarded elsewhere. Try again.");
+  if (draft.line.isCardPayment) {
+    throw new Error(
+      `${draft.description} is a card payment. Record it as a card payment, or discard it.`
+    );
+  }
+  const statement = await db.imports.get(draft.importId);
+  if (!statement) throw new Error("That import no longer exists.");
+  return { draft, statement };
+}
+
+export interface DraftPart {
+  amountCents: Cents;
+  description: string;
+  /** Null for Unassigned. */
+  categoryId: string | null;
+  paidFromId: string | undefined;
+}
+
+/**
+ * Works offline. Each Part becomes its own cleared transaction with the line's
+ * import key and type, and the draft is deleted, all as one change. Parts carry
+ * no Statement Text, so they teach no learned suggestion, and nothing links them.
+ */
+export function breakApartDraft(actor: Actor, draftId: string, parts: DraftPart[]): Promise<void> {
+  return appendTogether(async () => {
+    const { draft, statement } = await requireSavableDraft(draftId);
+    if (parts.length < 2) throw new Error("Add a second part to break this line apart.");
+    if (parts.some((part) => part.amountCents <= 0)) {
+      throw new Error("Every part needs an amount above ₱0.00.");
+    }
+    if (sumCents(parts.map((part) => part.amountCents)) !== draft.line.amount) {
+      throw new Error("The parts must total the line.");
+    }
+    for (const part of parts) {
+      await addTransaction(actor, {
+        date: draft.line.purchaseDate,
+        type: draft.type,
+        amountCents: part.amountCents,
+        accountId: statement.accountId,
+        categoryId: part.categoryId,
+        description: part.description,
+        status: "cleared",
+        importKey: draft.importKey,
+        payingAccountId: part.paidFromId,
+      });
+    }
+    await deleteDrafts([draftId]);
   });
 }
