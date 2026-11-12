@@ -41,8 +41,13 @@ async function renderAt(initialPath: string) {
       component: () => <div data-testid={`route-${path}`} />,
     })
   );
+  const pushedUnderAccounts = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/pay-card",
+    staticData: { parent: "/accounts" },
+  });
   const router = createRouter({
-    routeTree: rootRoute.addChildren(routes),
+    routeTree: rootRoute.addChildren([...routes, pushedUnderAccounts]),
     history: createMemoryHistory({ initialEntries: [initialPath] }),
   });
   render(<RouterProvider router={router} />);
@@ -87,6 +92,12 @@ describe("BottomTabBar (review R42)", () => {
     await renderAt(path);
 
     expect(activeTabNames()).toEqual([name]);
+  });
+
+  it("lights the tab a pushed screen declares as its parent", async () => {
+    await renderAt("/pay-card");
+
+    expect(activeTabNames()).toEqual(["Accounts"]);
   });
 
   it("lights no tab on a drawer destination", async () => {
