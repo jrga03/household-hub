@@ -247,6 +247,27 @@ describe("TransactionEditor", () => {
     });
   });
 
+  it("finds an account by its type's name", async () => {
+    await createAccount(MEMBER, { name: "BPI", type: "bank", startingBalanceCents: parsePHP("0") });
+    await createAccount(MEMBER, {
+      name: "GCash",
+      type: "e_wallet",
+      startingBalanceCents: parsePHP("0"),
+    });
+    renderEditor(vi.fn());
+
+    const account = await screen.findByLabelText("Account");
+    fireEvent.click(account);
+    fireEvent.change(await screen.findByRole("combobox", { name: "Search" }), {
+      target: { value: "wallet" },
+    });
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "GCash E-wallet",
+    ]);
+    fireEvent.click(screen.getByRole("option"));
+    expect(account).toHaveTextContent("GCash");
+  });
+
   it("files a transfer under a category found by search", async () => {
     await createAccount(MEMBER, { name: "BPI", type: "bank", startingBalanceCents: parsePHP("0") });
     await createAccount(MEMBER, {
