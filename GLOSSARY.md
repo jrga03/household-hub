@@ -35,11 +35,11 @@ Whether an account is **Household** (every member sees it and it counts toward h
 _Avoid_: Private, shared, scope
 
 **Retired**:
-An account, group or category no longer in use. It leaves the main list and the pickers but keeps its history, stays under a Retired view, and can be unretired. A group retires only once its categories are retired. A category holding money retires only after its money moves into another category.
+An account, group, category or payday no longer in use. It leaves the main list and the pickers but keeps its history, stays under a Retired view, and can be unretired. A group retires only once its categories are retired. A payday retires only once no budget in force from this month has a portion on it. A category holding money retires only after its money moves into another category.
 _Avoid_: Archived, closed, deleted
 
 **Deleted**:
-A retired account, group or category that nothing ever used, gone from every list and the Retired view. Only a record with no history can be deleted; a record with history stays retired, and history recorded on another device turns a deleted record back into a retired one.
+A retired account, group or category that nothing ever used, gone from every list and the Retired view; a payday no budget ever named is deleted directly, without retiring first. Only a record with no history can be deleted; a record with history stays retired, and history recorded on another device turns a deleted record back into a retired one.
 _Avoid_: Removed (that is for transactions), purged
 
 **Transaction**:
@@ -89,7 +89,7 @@ The part of an account's money not yet in any category. A transaction that names
 _Avoid_: To assign, ready to assign, free money
 
 **Distribute**:
-Giving one account's Unassigned to several categories in one step. Each line names a category, the account that will hold the money, and an amount; money for another account moves there as a transfer first. A category can take lines in several accounts.
+Giving one account's Unassigned to several categories in one step, for one or more paydays. Each line names a category, the account that will hold the money, and an amount; money for another account moves there as a transfer first. A category can take lines in several accounts. Before saving, it shows how much goes to each account, which is what a member sends at the bank.
 _Avoid_: Assign, budget (as a verb)
 
 **Allocation**:
@@ -101,8 +101,16 @@ Changing where money sits: its account, its category, or both. A move between ac
 _Avoid_: Transfer (for a change of category)
 
 **Budget**:
-A monthly target amount for a category, compared against what was spent that month, naming its funding account. Set from a month, it stands until a later month replaces it, so a category keeps a budget history. It never goes down as money is spent; the category's money does.
+A monthly target amount for a category, compared against what was spent that month, naming its funding account. Set from a month, it stands until a later month replaces it, so a category keeps a budget history. Its amount is either paid by any payday, or made of portions, one per payday; never both. It never goes down as money is spent; the category's money does.
 _Avoid_: Envelope, allocation, pot
+
+**Payday**:
+A named income the household expects each month, such as "15th salary", that pays for a set of budgets. It has only a name and a place in the order. It has no date and no expected amount, and its plan is the total of the budgets it pays for. Money is distributed one payday at a time, or for several at once.
+_Avoid_: Income 1, wave, paycheck, income (that is a transaction's direction)
+
+**Portion**:
+The part of a budget one payday pays for, such as ₱4,000 of an ₱8,000 Groceries budget from the 15th salary. A budget's portions add up to its amount. When that payday is distributed, it asks for its portion or what is left of the whole budget this month, whichever is smaller.
+_Avoid_: Share, split, part, payday amount, allotment
 
 **Spending**:
 What a category's expenses came to over a period, less the income recorded in it (refunds, cashback). A card purchase is spending on its own date; paying the card is a transfer and never spending.
