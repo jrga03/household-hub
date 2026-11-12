@@ -4,7 +4,13 @@ import { cardPaymentEnvelope } from "@/lib/allocations/events";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import type { TransferRow } from "@/lib/transfers/projection";
 import type { DraftRow } from "./drafts";
-import { discardedByDefault, draftFlagger, needsDescription, selectedByDefault } from "./review";
+import {
+  discardedByDefault,
+  draftFlagger,
+  keptTotalNote,
+  needsDescription,
+  selectedByDefault,
+} from "./review";
 
 const CARD = "card";
 const BANK = "bank";
@@ -54,6 +60,8 @@ function transaction(overrides: Partial<TransactionRow> = {}): TransactionRow {
     recordedHlc: `hlc-${nextId}`,
     importKey: null,
     paidByUserId: null,
+    statementText: null,
+    pinned: false,
     ...overrides,
   };
 }
@@ -81,8 +89,14 @@ function transfer(overrides: Partial<TransferRow> = {}): TransferRow {
 
 const flagFor = (
   subject: DraftRow,
-  records: { transactions?: TransactionRow[]; transfers?: TransferRow[] }
-) => draftFlagger(CARD, records.transactions ?? [], records.transfers ?? [])(subject);
+  records: { transactions?: TransactionRow[]; transfers?: TransferRow[]; discarded?: string[] }
+) =>
+  draftFlagger(
+    CARD,
+    records.transactions ?? [],
+    records.transfers ?? [],
+    new Set(records.discarded)
+  )(subject);
 
 describe("Already imported", () => {
   it("matches a transaction with the same import key", () => {
@@ -90,8 +104,28 @@ describe("Already imported", () => {
 
     expect(flagFor(draft(), { transactions: [imported] })).toEqual({
       kind: "already-imported",
-      transaction: imported,
+      transactions: [imported],
     });
+  });
+
+  it("matches every kept part of a broken-apart line", () => {
+    const groceries = transaction({ importKey: "key-1", amountCents: cents(10000) });
+    const removed = transaction({ importKey: "key-1", amountCents: cents(3000), removed: true });
+    const supplies = transaction({ importKey: "key-1", amountCents: cents(5000) });
+
+    expect(flagFor(draft(), { transactions: [groceries, removed, supplies] })).toEqual({
+      kind: "already-imported",
+      transactions: [groceries, supplies],
+    });
+  });
+
+  it("imports again once every part is removed", () => {
+    const parts = [
+      transaction({ importKey: "key-1", amountCents: cents(10000), removed: true }),
+      transaction({ importKey: "key-1", amountCents: cents(5000), removed: true }),
+    ];
+
+    expect(flagFor(draft(), { transactions: parts })).toBeNull();
   });
 
   it("ignores a removed transaction with the same key", () => {
@@ -105,6 +139,48 @@ describe("Already imported", () => {
     const typed = transaction();
 
     expect(flagFor(draft(), { transactions: [typed, imported] })?.kind).toBe("already-imported");
+  });
+});
+
+describe("Discarded before", () => {
+  const payment = draft(
+    { type: "income" },
+    { description: "PAYMENT RECEIVED", amount: cents(500000), isCardPayment: true, type: "income" }
+  );
+
+  it("flags a line discarded on this device", () => {
+    expect(flagFor(draft(), { discarded: ["key-1"] })).toEqual({ kind: "discarded-before" });
+  });
+
+  it("ignores a discard of another line", () => {
+    expect(flagFor(draft(), { discarded: ["key-2"] })).toBeNull();
+  });
+
+  it("yields to Already imported", () => {
+    const imported = transaction({ importKey: "key-1" });
+
+    expect(flagFor(draft(), { transactions: [imported], discarded: ["key-1"] })?.kind).toBe(
+      "already-imported"
+    );
+  });
+
+  it("wins over a hand-typed look-alike", () => {
+    expect(flagFor(draft(), { transactions: [transaction()], discarded: ["key-1"] })?.kind).toBe(
+      "discarded-before"
+    );
+  });
+
+  it("yields to a recorded card payment", () => {
+    const paid = transfer();
+
+    expect(flagFor(payment, { transfers: [paid], discarded: ["key-1"] })).toEqual({
+      kind: "card-payment",
+      transfer: paid,
+    });
+  });
+
+  it("flags an unmatched card payment discarded before", () => {
+    expect(flagFor(payment, { discarded: ["key-1"] })).toEqual({ kind: "discarded-before" });
   });
 });
 
@@ -189,23 +265,32 @@ describe("Card payment", () => {
 describe("selectedByDefault", () => {
   it("selects a plain draft, and leaves every flagged one for the member", () => {
     expect(selectedByDefault(null)).toBe(true);
-    expect(selectedByDefault({ kind: "already-imported", transaction: transaction() })).toBe(false);
+    expect(selectedByDefault({ kind: "already-imported", transactions: [transaction()] })).toBe(
+      false
+    );
     expect(selectedByDefault({ kind: "might-be-recorded", transaction: transaction() })).toBe(
       false
     );
     expect(selectedByDefault({ kind: "card-payment", transfer: null })).toBe(false);
+    expect(selectedByDefault({ kind: "discarded-before" })).toBe(false);
   });
 });
 
 describe("discardedByDefault", () => {
   it("discards a line already imported or a card payment already recorded, never a look-alike", () => {
-    expect(discardedByDefault({ kind: "already-imported", transaction: transaction() })).toBe(true);
+    expect(discardedByDefault({ kind: "already-imported", transactions: [transaction()] })).toBe(
+      true
+    );
     expect(discardedByDefault({ kind: "card-payment", transfer: transfer() })).toBe(true);
     expect(discardedByDefault({ kind: "card-payment", transfer: null })).toBe(false);
     expect(discardedByDefault({ kind: "might-be-recorded", transaction: transaction() })).toBe(
       false
     );
     expect(discardedByDefault(null)).toBe(false);
+  });
+
+  it("discards a line discarded before", () => {
+    expect(discardedByDefault({ kind: "discarded-before" })).toBe(true);
   });
 });
 
@@ -218,5 +303,30 @@ describe("needsDescription", () => {
   it("passes a described draft, and a card payment, which isn't saved as a transaction", () => {
     expect(needsDescription(draft())).toBe(false);
     expect(needsDescription(draft({ description: "" }, { isCardPayment: true }))).toBe(false);
+  });
+});
+
+describe("keptTotalNote", () => {
+  const line = cents(250000);
+
+  it("says nothing when the kept parts total the line", () => {
+    const parts = [
+      transaction({ amountCents: cents(180000) }),
+      transaction({ amountCents: cents(70000) }),
+    ];
+
+    expect(keptTotalNote(parts, line)).toBeNull();
+  });
+
+  it("names the kept total when a part was removed", () => {
+    expect(keptTotalNote([transaction({ amountCents: cents(180000) })], line)).toBe(
+      "The kept parts total ₱1,800.00 of this line's ₱2,500.00."
+    );
+  });
+
+  it("names the kept total when a whole line's amount was edited", () => {
+    expect(keptTotalNote([transaction({ amountCents: cents(240000) })], line)).toBe(
+      "The kept parts total ₱2,400.00 of this line's ₱2,500.00."
+    );
   });
 });

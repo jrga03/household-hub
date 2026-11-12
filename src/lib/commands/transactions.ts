@@ -17,13 +17,20 @@ import {
   type TransactionDetails,
   type TransactionStatus,
 } from "@/lib/transactions/events";
+import { normalizeStatementText } from "@/lib/import/statement";
 import { getTransaction, type TransactionRow } from "@/lib/transactions/projection";
 import type { Actor } from "./accounts";
 import { appenderFor } from "./append";
 import { changeEach } from "./bulk";
-import { checkMove, refuseRetired, requireAccount, requireCategoryFor } from "./records";
+import {
+  checkMove,
+  checkPayingAccount,
+  refuseRetired,
+  requireAccount,
+  requireCategoryFor,
+} from "./records";
 
-export interface NewTransactionInput extends TransactionInput {
+export interface NewTransactionInput extends PaidFromInput {
   /**
    * Chosen by the caller so a retry records nothing new: a transaction already
    * recorded under it, even one since removed or edited, is left as it is.
@@ -35,6 +42,10 @@ export interface NewTransactionInput extends TransactionInput {
   importKey?: string;
   /** The member recording an Out-of-pocket expense (ADR 0012); it is always pending. */
   paidByUserId?: string | null;
+  /** A saved draft's statement line; only its normalized Statement Text is recorded. */
+  statementLine?: string;
+  /** Whether a saved draft is a Pin (GLOSSARY). */
+  pinned?: boolean;
 }
 
 export interface TransactionInput {
@@ -46,6 +57,11 @@ export interface TransactionInput {
   categoryId: string | null;
   description?: string;
   notes?: string;
+}
+
+export interface PaidFromInput extends TransactionInput {
+  /** Paid from: for a card transaction, an account other than the card's usual one pays the line. */
+  payingAccountId?: string;
 }
 
 const appendTransactionEvent = appenderFor(TRANSACTION_ENTITY, TRANSACTION_VERSIONS);
@@ -60,6 +76,18 @@ function checkedDetails(input: TransactionInput): TransactionDetails {
 /** The card's Paying Account right now, which the transaction keeps from then on. */
 const payingAccountOf = (account: AccountRow) =>
   isCreditCard(account) ? account.payingAccountId : null;
+
+/** `usual` unless the member chose another account that can pay the card; none off a card. */
+async function payingAccountFor(
+  account: AccountRow,
+  chosen: string | undefined,
+  usual: string | null
+): Promise<string | null> {
+  if (!isCreditCard(account)) return null;
+  if (chosen === undefined || chosen === usual) return usual;
+  await checkPayingAccount(chosen, account);
+  return chosen;
+}
 
 /** Every transaction is named, an imported statement line included; old ones without a name still decode. */
 function requireDescription(details: TransactionDetails): void {
@@ -100,10 +128,16 @@ async function appendCreated(actor: Actor, id: string, input: NewTransactionInpu
 
   await appendTransactionEvent(actor, { ...account, id }, TRANSACTION_CREATED, {
     ...details,
-    payingAccountId: payingAccountOf(account),
+    payingAccountId: await payingAccountFor(
+      account,
+      input.payingAccountId,
+      payingAccountOf(account)
+    ),
     status,
     importKey: input.importKey ?? null,
     paidByUserId,
+    statementText: normalizeStatementText(input.statementLine ?? "") || null,
+    pinned: input.pinned ?? false,
   });
 }
 
@@ -145,34 +179,42 @@ async function requireTransaction(transactionId: string): Promise<TransactionRow
 export async function editTransaction(
   actor: Actor,
   transactionId: string,
-  input: TransactionInput
+  input: PaidFromInput
 ): Promise<void> {
   const entered = checkedDetails(input);
   requireDescription(entered);
-  await appendEdit(actor, await requireTransaction(transactionId), entered);
+  await appendEdit(actor, await requireTransaction(transactionId), entered, input.payingAccountId);
 }
 
 async function appendEdit(
   actor: Actor,
   transaction: TransactionRow,
-  entered: TransactionDetails
+  entered: TransactionDetails,
+  chosenPayingId?: string
 ): Promise<void> {
   const accountChanged = entered.accountId !== transaction.accountId;
-  // The reservation stays where it was recorded unless the transaction changes account.
+  const choosesPaying =
+    chosenPayingId !== undefined && chosenPayingId !== transaction.payingAccountId;
+  // The reservation stays where it was recorded unless the member moves it or the transaction changes account.
   const details = { ...entered, payingAccountId: transaction.payingAccountId };
   // A re-sent unchanged edit would carry a later HLC and undo another device's edit.
-  if (sameDetails(details, transaction)) return;
+  if (!choosesPaying && sameDetails(details, transaction)) return;
   const outOfPocket = transaction.paidByUserId !== null;
   if (outOfPocket) checkOutOfPocketType(details);
-  if (accountChanged || details.categoryId !== transaction.categoryId) {
+  if (accountChanged || choosesPaying || details.categoryId !== transaction.categoryId) {
     const account = await requireAccount(details.accountId);
     if (accountChanged) {
       if (outOfPocket) checkOutOfPocketAccount(account);
       checkMove(account, transaction);
-      details.payingAccountId = payingAccountOf(account);
+    }
+    if (accountChanged || choosesPaying) {
+      // A different card resets it to that card's usual account.
+      const usual = accountChanged ? payingAccountOf(account) : transaction.payingAccountId;
+      details.payingAccountId = await payingAccountFor(account, chosenPayingId, usual);
     }
     await checkCategory(details.categoryId, account);
   }
+  if (sameDetails(details, transaction)) return;
   await appendTransactionEvent(actor, transaction, TRANSACTION_EDITED, { ...details });
   requestSync();
 }

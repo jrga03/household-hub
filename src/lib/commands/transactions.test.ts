@@ -18,7 +18,7 @@ import {
   restoreTransaction,
   restoreTransactions,
   setTransactionStatus,
-  type TransactionInput,
+  type PaidFromInput,
 } from "./transactions";
 import { retireOnAnotherDevice } from "@/test/anotherDevice";
 import { HOUSEHOLD, loggedEvent } from "@/test/events";
@@ -53,7 +53,7 @@ function oldEventWithoutDescription(details: Record<string, unknown> = {}): Logg
 let bankId: string;
 let groceriesId: string;
 
-const expense = (overrides: Partial<TransactionInput> = {}): TransactionInput => ({
+const expense = (overrides: Partial<PaidFromInput> = {}): PaidFromInput => ({
   date: "2026-10-12",
   type: "expense",
   amountCents: peso("250"),
@@ -79,7 +79,7 @@ beforeEach(async () => {
 });
 
 describe("addTransaction, out-of-pocket", () => {
-  const outOfPocket = (overrides: Partial<TransactionInput> = {}) => ({
+  const outOfPocket = (overrides: Partial<PaidFromInput> = {}) => ({
     ...expense(overrides),
     paidByUserId: MEMBER.userId,
   });
@@ -523,6 +523,54 @@ describe("the Paying Account of a card transaction", () => {
 
     await editTransaction(MEMBER, id, expense({ accountId: walletId }));
     expect(await listTransactions()).toMatchObject([{ payingAccountId: null }]);
+  });
+
+  it("moves the line to a Paid from the member chose, and its Card Payment money with it", async () => {
+    const { id } = await addTransaction(MEMBER, expense({ accountId: cardId }));
+
+    await editTransaction(MEMBER, id, expense({ accountId: cardId, payingAccountId: walletId }));
+
+    expect(await listTransactions()).toMatchObject([{ payingAccountId: walletId }]);
+    const money = await readAccountMoney();
+    expect(money.get(walletId)?.envelopes?.cardPayments.get(cardId)).toBe(peso("250"));
+    expect(money.get(bankId)?.envelopes?.cardPayments.get(cardId) ?? 0).toBe(0);
+  });
+
+  it("refuses a card or an account of another visibility as Paid from", async () => {
+    const { id } = await addTransaction(MEMBER, expense({ accountId: cardId }));
+    const personal = await createAccount(MEMBER, {
+      name: "My savings",
+      type: "bank",
+      startingBalanceCents: peso("0"),
+      visibility: "personal",
+    });
+    const refusal =
+      "Choose a Household account in use, other than a credit card, to pay this card from.";
+
+    await expect(
+      editTransaction(MEMBER, id, expense({ accountId: cardId, payingAccountId: cardId }))
+    ).rejects.toThrow(refusal);
+    await expect(
+      editTransaction(MEMBER, id, expense({ accountId: cardId, payingAccountId: personal.id }))
+    ).rejects.toThrow(refusal);
+    expect(await listTransactions()).toMatchObject([{ payingAccountId: bankId }]);
+  });
+
+  it("resets Paid from to the new card's usual account when the card changes", async () => {
+    const mastercard = await createAccount(MEMBER, {
+      name: "Mastercard",
+      type: "credit_card",
+      startingBalanceCents: peso("0"),
+      payingAccountId: bankId,
+    });
+    const { id } = await addTransaction(MEMBER, expense({ accountId: cardId }));
+    await editTransaction(MEMBER, id, expense({ accountId: cardId, payingAccountId: walletId }));
+
+    await editTransaction(MEMBER, id, expense({ accountId: mastercard.id }));
+
+    expect(await listTransactions()).toMatchObject([
+      { accountId: mastercard.id, payingAccountId: bankId },
+    ]);
   });
 
   it("appends nothing for an unchanged card transaction after the card's default changes", async () => {

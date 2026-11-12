@@ -17,7 +17,7 @@ import type { AccountRow } from "@/lib/accounts/projection";
 import type { AllocationRow } from "@/lib/allocations/projection";
 import type { BudgetRow } from "@/lib/budgets/projection";
 import type { BalanceCorrectionRow } from "@/lib/corrections/projection";
-import type { DraftRow, ImportRow } from "@/lib/import/drafts";
+import type { DiscardRow, DraftRow, ImportRow } from "@/lib/import/drafts";
 import type { CategoryRow, GroupRow } from "@/lib/categories/projection";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import type { TransferRow } from "@/lib/transfers/projection";
@@ -50,6 +50,7 @@ export class HouseholdHubDB extends Dexie {
   balanceCorrections!: Table<BalanceCorrectionRow, string>;
   imports!: Table<ImportRow, string>;
   drafts!: Table<DraftRow, string>;
+  discards!: Table<DiscardRow, string>;
   meta!: Table<MetaRow, MetaRow["key"]>;
   assistantChats!: Table<SavedChatRow, string>;
 
@@ -109,6 +110,18 @@ export class HouseholdHubDB extends Dexie {
           .toCollection()
           .modify((row: Record<string, unknown>) => {
             row.paidByUserId ??= null;
+          })
+      );
+    // Discarded statement lines stay on this device, outside the event log (ADR 0008).
+    this.version(14)
+      .stores({ discards: "importKey, discardedAt" })
+      .upgrade((transaction) =>
+        transaction
+          .table("transactions")
+          .toCollection()
+          .modify((row: Record<string, unknown>) => {
+            row.statementText ??= null;
+            row.pinned ??= false;
           })
       );
   }

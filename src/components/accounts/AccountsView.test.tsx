@@ -18,6 +18,7 @@ import { UNASSIGNED_ENVELOPE } from "@/lib/allocations/events";
 import { parsePHP } from "@/lib/currency";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { listTransfers } from "@/lib/transfers/projection";
+import { readAccountMoney } from "@/lib/transactions/money";
 import { AccountsView } from "./AccountsView";
 
 const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
@@ -210,6 +211,47 @@ describe("AccountsView", () => {
     fireEvent.submit(form);
 
     await waitFor(async () => expect(await listTransfers()).toHaveLength(1));
+  });
+
+  it("offers to cover a Card Payment shortfall from Unassigned, ticked, and pays with it", async () => {
+    const { bank, card } = await bankAndCard();
+    await record(card.id, "800");
+    renderAccounts();
+
+    fireEvent.click(await screen.findByRole("button", { name: /^Visa/ }));
+    const details = await screen.findByRole("dialog", { name: "Visa" });
+    fireEvent.click(within(details).getByRole("button", { name: "Pay Visa" }));
+    const form = await screen.findByRole("form", { name: "Pay Visa" });
+    const cover = /^Move the other/;
+    expect(within(form).queryByRole("checkbox", { name: cover })).toBeNull();
+
+    fireEvent.change(within(form).getByLabelText("Amount (₱)"), { target: { value: "1000" } });
+    const checkbox = await within(form).findByRole("checkbox", {
+      name: "Move the other ₱200.00 from BPI's Unassigned first",
+    });
+    expect(checkbox).toBeChecked();
+    fireEvent.submit(form);
+
+    await waitFor(async () => expect(await listTransfers()).toHaveLength(1));
+    const envelopes = (await readAccountMoney()).get(bank.id)?.envelopes;
+    expect(envelopes?.cardPayments.get(card.id)).toBe(parsePHP("0"));
+    expect(envelopes?.unassigned).toBe(parsePHP("0"));
+  });
+
+  it("says Unassigned is allocated past the account when covering the shortfall overdraws it", async () => {
+    const { card } = await bankAndCard();
+    await record(card.id, "800");
+    renderAccounts();
+
+    fireEvent.click(await screen.findByRole("button", { name: /^Visa/ }));
+    const details = await screen.findByRole("dialog", { name: "Visa" });
+    fireEvent.click(within(details).getByRole("button", { name: "Pay Visa" }));
+    const form = await screen.findByRole("form", { name: "Pay Visa" });
+    fireEvent.change(within(form).getByLabelText("Amount (₱)"), { target: { value: "1500" } });
+
+    const note = await within(form).findByText(/Allocated more than this account has/);
+    expect(note).toHaveClass("text-shortfall");
+    expect(note).toHaveTextContent("−₱500.00");
   });
 
   it("breaks an open account's balance down, its categories collapsed and largest first", async () => {

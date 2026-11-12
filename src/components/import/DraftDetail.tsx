@@ -12,19 +12,28 @@ import { Notice } from "@/components/app/Notice";
 import {
   categoryChoices,
   CategorySelect,
-  isCategoryChoice,
+  shownCategory,
   UNASSIGNED,
 } from "@/components/transactions/CategorySelect";
 import { DirectionChoice } from "@/components/transactions/EntryFields";
+import { PaidFromToggle, usePaidFrom } from "@/components/transactions/PaidFromSelect";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { CategoryList } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { saveDrafts } from "@/lib/commands/drafts";
-import { deleteDrafts, editDraft, type DraftChanges } from "@/lib/import/drafts";
-import { needsDescription, type DraftFlag, type ReviewedDraft } from "@/lib/import/review";
+import { deleteDrafts, discardDrafts, editDraft, type DraftChanges } from "@/lib/import/drafts";
+import { normalizeStatementText } from "@/lib/import/statement";
+import type { Cents } from "@/lib/currency";
+import {
+  keptTotalNote,
+  needsDescription,
+  type DraftFlag,
+  type ReviewedDraft,
+} from "@/lib/import/review";
 import { DESCRIPTION_MAX_LENGTH, isTransactionType } from "@/lib/transactions/events";
 import { cn, errorMessage } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
+import { BreakApartSheet } from "./BreakApartSheet";
 import { isSuggested, SuggestedBadge } from "./DraftLabels";
 import { useDraftAction } from "./useDraftAction";
 
@@ -47,8 +56,12 @@ export function DraftDetail({
   const [keepAnyway, setKeepAnyway] = useState(false);
   const { busy, run } = useDraftAction();
   const [paying, setPaying] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  const [breaking, setBreaking] = useState(false);
   const { line, flag } = draft;
-  const isCardPayment = flag?.kind === "card-payment";
+  const statementText = normalizeStatementText(line.description);
+  const isCardPayment = line.isCardPayment;
+  const recordedPayment = flag?.kind === "card-payment" && flag.transfer !== null;
   const blockedAsImported = flag?.kind === "already-imported" && !keepAnyway;
 
   const act = async (action: () => Promise<void>, done: string, failed: string) => {
@@ -65,12 +78,24 @@ export function DraftDetail({
         <dt className="text-muted-foreground">Posted</dt>
         <dd>{longDate(line.postingDate)}</dd>
         <dt className="text-muted-foreground">Amount</dt>
-        <dd>
+        <dd className="flex items-baseline gap-3">
           <Money kind={line.type} cents={line.amount} />
+          {!isCardPayment && !blockedAsImported && (
+            <Button
+              type="button"
+              size="sm"
+              variant="link"
+              className="h-auto p-0"
+              onClick={() => setBreaking(true)}
+            >
+              Break apart
+            </Button>
+          )}
         </dd>
+        {!isCardPayment && <PaidFromFact draft={draft} card={card} />}
       </dl>
 
-      {flag && <FlagNote flag={flag} />}
+      {flag && <FlagNote flag={flag} lineAmount={line.amount} />}
 
       {flag?.kind === "already-imported" && (
         <div className="flex items-center gap-2">
@@ -87,9 +112,27 @@ export function DraftDetail({
 
       {!isCardPayment && <DraftFields draft={draft} card={card} categories={categories} />}
 
+      {!isCardPayment && statementText !== "" && (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="draft-pin"
+              checked={pinned}
+              onCheckedChange={(checked) => setPinned(checked === true)}
+            />
+            <Label htmlFor="draft-pin" className="font-normal">
+              Use these details next time
+            </Label>
+          </div>
+          <p className="pl-6 text-caption text-muted-foreground">
+            The next “{statementText}” gets this description and category, until newer saves differ.
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2">
         {isCardPayment ? (
-          flag.transfer === null &&
+          !recordedPayment &&
           card && (
             <Button type="button" disabled={busy} onClick={() => setPaying(true)}>
               Record as card payment
@@ -101,7 +144,7 @@ export function DraftDetail({
             disabled={busy || blockedAsImported || needsDescription(draft)}
             onClick={() =>
               void act(
-                () => saveDrafts(actor, [draft.id]),
+                () => saveDrafts(actor, [draft.id], pinned),
                 "Saved as a transaction",
                 "Couldn't save the draft."
               )
@@ -115,12 +158,23 @@ export function DraftDetail({
           variant="outline"
           disabled={busy}
           onClick={() =>
-            void act(() => deleteDrafts([draft.id]), "Draft discarded", "Couldn't discard it.")
+            void act(() => discardDrafts([draft.id]), "Draft discarded", "Couldn't discard it.")
           }
         >
           Discard
         </Button>
       </div>
+
+      {breaking && (
+        <BreakApartSheet
+          actor={actor}
+          draft={draft}
+          card={card}
+          categories={categories}
+          onSaved={onDone}
+          onClose={() => setBreaking(false)}
+        />
+      )}
 
       {paying && card && (
         <PayCardDialog
@@ -135,16 +189,27 @@ export function DraftDetail({
   );
 }
 
-function FlagNote({ flag }: { flag: DraftFlag }) {
+function FlagNote({ flag, lineAmount }: { flag: DraftFlag; lineAmount: Cents }) {
   switch (flag.kind) {
-    case "already-imported":
+    case "already-imported": {
+      const [first, ...others] = flag.transactions;
+      const keptNote = keptTotalNote(flag.transactions, lineAmount);
       return (
         <Notice tone="warning" title="Already imported">
           As{" "}
-          {flag.transaction.description || (
-            <Money kind={flag.transaction.type} cents={flag.transaction.amountCents} />
-          )}{" "}
-          on {longDate(flag.transaction.date)}. Saving it again would count it twice.
+          {others.length > 0
+            ? `${flag.transactions.length} parts`
+            : first.description || <Money kind={first.type} cents={first.amountCents} />}{" "}
+          on {longDate(first.date)}. Saving it again would count it twice.
+          {keptNote && ` ${keptNote}`}
+        </Notice>
+      );
+    }
+    case "discarded-before":
+      return (
+        <Notice tone="warning" title="Discarded before">
+          You discarded this line on this device in the last 6 months. Save it only if that was a
+          mistake.
         </Notice>
       );
     case "might-be-recorded":
@@ -172,6 +237,29 @@ function FlagNote({ flag }: { flag: DraftFlag }) {
   }
 }
 
+const editOrWarn = (draftId: string, changes: DraftChanges) =>
+  void editDraft(draftId, changes).catch((error: unknown) =>
+    toast.error(errorMessage(error, "Couldn't change the draft."))
+  );
+
+/** The account that pays the line; a choice applies at once, like the other draft fields. */
+function PaidFromFact({ draft, card }: { draft: ReviewedDraft; card: AccountRow | undefined }) {
+  const { usualId } = usePaidFrom(card);
+  return (
+    <>
+      <dt className="self-center text-muted-foreground">Paid from</dt>
+      <dd className="min-w-0">
+        <PaidFromToggle
+          card={card}
+          value={draft.paidFromId ?? usualId}
+          labelled={false}
+          onChange={(accountId) => editOrWarn(draft.id, { paidFromId: accountId })}
+        />
+      </dd>
+    </>
+  );
+}
+
 /** Edits apply as they're made; what the member sets is no longer marked suggested. */
 function DraftFields({
   draft,
@@ -183,13 +271,7 @@ function DraftFields({
   categories: CategoryList;
 }) {
   const choices = categoryChoices(categories, card, draft.categoryId);
-  const shownCategoryId = isCategoryChoice(choices, draft.categoryId)
-    ? (draft.categoryId ?? UNASSIGNED)
-    : UNASSIGNED;
-  const edit = (changes: DraftChanges) =>
-    void editDraft(draft.id, changes).catch((error: unknown) =>
-      toast.error(errorMessage(error, "Couldn't change the draft."))
-    );
+  const edit = (changes: DraftChanges) => editOrWarn(draft.id, changes);
 
   return (
     <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
@@ -236,7 +318,7 @@ function DraftFields({
         <CategorySelect
           id="draft-category"
           choices={choices}
-          value={shownCategoryId}
+          value={shownCategory(choices, draft.categoryId)}
           onValueChange={(value) => edit({ categoryId: value === UNASSIGNED ? null : value })}
         />
       </div>

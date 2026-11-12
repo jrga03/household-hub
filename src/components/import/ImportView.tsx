@@ -16,7 +16,7 @@ import { isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { saveDrafts } from "@/lib/commands/drafts";
-import { deleteDrafts } from "@/lib/import/drafts";
+import { discardDrafts } from "@/lib/import/drafts";
 import {
   discardedByDefault,
   needsDescription,
@@ -28,6 +28,7 @@ import { cn, countOf } from "@/lib/utils";
 import { parseLocalDate } from "@/lib/utils/dates";
 import { DraftDetail } from "./DraftDetail";
 import { FlagBadge, isSuggested, SuggestedBadge } from "./DraftLabels";
+import { MoreActions } from "./MoreActions";
 import { ReadStatement } from "./ReadStatement";
 import { useDraftAction } from "./useDraftAction";
 
@@ -77,7 +78,8 @@ export function ImportView({ actor }: { actor: Actor }) {
               key={statement.id}
               actor={actor}
               statement={statement}
-              cardName={cardLabel(accountsById.get(statement.accountId))}
+              card={accountsById.get(statement.accountId)}
+              accountsById={accountsById}
               categoryNames={names}
               openId={openId}
               onOpen={open}
@@ -119,14 +121,16 @@ function findDraft(imports: ReviewedImport[], draftId: string) {
 function ImportSection({
   actor,
   statement,
-  cardName,
+  card,
+  accountsById,
   categoryNames,
   openId,
   onOpen,
 }: {
   actor: Actor;
   statement: ReviewedImport;
-  cardName: string;
+  card: AccountRow | undefined;
+  accountsById: Map<string, AccountRow>;
   categoryNames: Map<string, string>;
   openId: string | null;
   onOpen: (draftId: string) => void;
@@ -138,10 +142,15 @@ function ImportSection({
   const isSelected = (draft: ReviewedDraft) =>
     choices.get(draft.id) ?? selectedByDefault(draft.flag);
   const selected = drafts.filter(isSelected);
-  const savable = selected.filter((draft) => draft.flag?.kind !== "card-payment");
+  const savable = selected.filter((draft) => !draft.line.isCardPayment);
   const alreadyRecorded = drafts.filter((draft) => discardedByDefault(draft.flag));
   const undescribed = savable.filter(needsDescription);
   const allSelected = selected.length === drafts.length;
+  // Only an exception to the card's usual Paying Account is worth a mention.
+  const paidFromLabel = (draft: ReviewedDraft) =>
+    draft.paidFromId === undefined || draft.paidFromId === card?.payingAccountId
+      ? undefined
+      : `· Paid from ${accountsById.get(draft.paidFromId)?.name ?? "an account not on this device"}`;
 
   const choose = (entries: [string, boolean][]) =>
     setChoices((current) => new Map([...current, ...entries]));
@@ -155,7 +164,7 @@ function ImportSection({
     );
   const discard = (list: ReviewedDraft[]) =>
     run(
-      () => deleteDrafts(ids(list)),
+      () => discardDrafts(ids(list)),
       `Discarded ${draftsLabel(list.length)}`,
       "Couldn't discard the drafts."
     );
@@ -165,7 +174,7 @@ function ImportSection({
       <div className="space-y-1">
         <SectionHeader title={statement.fileName} />
         <p className="text-body text-muted-foreground">
-          {cardName} · read {format(new Date(statement.importedAt), "MMM d, h:mm a")} ·{" "}
+          {cardLabel(card)} · read {format(new Date(statement.importedAt), "MMM d, h:mm a")} ·{" "}
           {draftsLabel(drafts.length)}
         </p>
       </div>
@@ -189,24 +198,26 @@ function ImportSection({
         >
           Save {draftsLabel(savable.length)}
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={busy || selected.length === 0}
-          onClick={() => void discard(selected)}
-        >
-          Discard {draftsLabel(selected.length)}
-        </Button>
-        {alreadyRecorded.length > 0 && (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={busy}
-            onClick={() => void discard(alreadyRecorded)}
-          >
-            Discard {alreadyRecorded.length} already recorded
-          </Button>
-        )}
+        <MoreActions
+          draftIds={ids(savable)}
+          card={card}
+          actions={[
+            {
+              label: `Discard ${draftsLabel(selected.length)}`,
+              disabled: busy || selected.length === 0,
+              onClick: () => void discard(selected),
+            },
+            ...(alreadyRecorded.length > 0
+              ? [
+                  {
+                    label: `Discard ${alreadyRecorded.length} already recorded`,
+                    disabled: busy,
+                    onClick: () => void discard(alreadyRecorded),
+                  },
+                ]
+              : []),
+          ]}
+        />
       </div>
 
       {undescribed.length > 0 && (
@@ -222,6 +233,7 @@ function ImportSection({
             key={draft.id}
             draft={draft}
             categoryName={draft.categoryId ? categoryNames.get(draft.categoryId) : undefined}
+            paidFromLabel={paidFromLabel(draft)}
             selected={isSelected(draft)}
             open={draft.id === openId}
             onSelect={(next) => choose([[draft.id, next]])}
@@ -236,6 +248,7 @@ function ImportSection({
 function DraftItem({
   draft,
   categoryName,
+  paidFromLabel,
   selected,
   open,
   onSelect,
@@ -243,6 +256,7 @@ function DraftItem({
 }: {
   draft: ReviewedDraft;
   categoryName: string | undefined;
+  paidFromLabel: string | undefined;
   selected: boolean;
   open: boolean;
   onSelect: (selected: boolean) => void;
@@ -277,9 +291,8 @@ function DraftItem({
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1 whitespace-normal">
             <span>{format(parseLocalDate(line.purchaseDate), "MMM d")}</span>
             {flag && <FlagBadge flag={flag} />}
-            {flag?.kind !== "card-payment" && (
-              <CategoryLabel draft={draft} categoryName={categoryName} />
-            )}
+            {!line.isCardPayment && <CategoryLabel draft={draft} categoryName={categoryName} />}
+            {!line.isCardPayment && paidFromLabel && <span>{paidFromLabel}</span>}
           </span>
         }
       />

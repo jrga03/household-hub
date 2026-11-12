@@ -4,10 +4,11 @@ import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { listUnpushed } from "@/lib/events/log";
 import { createImport, editDraft, listDrafts, listImports } from "@/lib/import/drafts";
 import type { StatementLine } from "@/lib/import/statement";
+import { readAccountMoney } from "@/lib/transactions/money";
 import { listTransactions } from "@/lib/transactions/projection";
 import { createAccount } from "./accounts";
 import { createCategory, createGroup, retireCategory } from "./categories";
-import { saveDrafts } from "./drafts";
+import { breakApartDraft, saveDrafts } from "./drafts";
 import { HOUSEHOLD } from "@/test/events";
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
@@ -24,6 +25,8 @@ const line = (description: string, amount: string, overrides: Partial<StatementL
   ...overrides,
 });
 
+let bankId: string;
+let walletId: string;
 let cardId: string;
 let groceriesId: string;
 
@@ -34,6 +37,10 @@ beforeEach(async () => {
     type: "bank",
     startingBalanceCents: peso("1000"),
   });
+  bankId = bank.id;
+  walletId = (
+    await createAccount(MEMBER, { name: "Wallet", type: "cash", startingBalanceCents: peso("0") })
+  ).id;
   cardId = (
     await createAccount(MEMBER, {
       name: "Visa",
@@ -79,7 +86,7 @@ describe("saveDrafts", () => {
     const created = (await listUnpushed(100)).find(
       (event) => event.eventType === "transaction.created"
     );
-    expect(created).toMatchObject({ eventVersion: 4, payload: { importKey: market!.importKey } });
+    expect(created).toMatchObject({ eventVersion: 5, payload: { importKey: market!.importKey } });
   });
 
   it("deletes saved drafts, and the import once nothing is left", async () => {
@@ -149,5 +156,196 @@ describe("saveDrafts", () => {
 
     expect(await listTransactions()).toEqual([]);
     expect(await listDrafts(importId)).toHaveLength(2);
+  });
+
+  describe("Statement Text and Pin", () => {
+    const createdPayloads = async () =>
+      (await listUnpushed(100))
+        .filter((event) => event.eventType === "transaction.created")
+        .map((event) => event.payload);
+
+    it("stamps the line's normalized Statement Text, and the pin, on a single save", async () => {
+      const { drafts } = await importLines([line("Jollibee  QC 1234", "250")]);
+      const [jollibee] = drafts;
+      await editDraft(jollibee!.id, { description: "Jollibee" });
+
+      await saveDrafts(MEMBER, [jollibee!.id], true);
+
+      expect(await listTransactions()).toMatchObject([
+        { description: "Jollibee", statementText: "JOLLIBEE QC", pinned: true },
+      ]);
+      const payloads = await createdPayloads();
+      expect(JSON.stringify(payloads)).not.toContain("1234");
+    });
+
+    it("saves without a pin unless the member ticks it", async () => {
+      const { drafts } = await importLines([line("JOLLIBEE QC 1234", "250")]);
+
+      await saveDrafts(MEMBER, [drafts[0]!.id]);
+
+      expect(await listTransactions()).toMatchObject([
+        { statementText: "JOLLIBEE QC", pinned: false },
+      ]);
+    });
+
+    it("never pins a bulk save", async () => {
+      const { drafts } = await importLines([line("JOLLIBEE 1", "1"), line("MCDO 2", "2")]);
+
+      await saveDrafts(
+        MEMBER,
+        drafts.map((draft) => draft.id),
+        true
+      );
+
+      expect(
+        (await listTransactions()).map(({ statementText, pinned }) => ({ statementText, pinned }))
+      ).toEqual(
+        expect.arrayContaining([
+          { statementText: "JOLLIBEE", pinned: false },
+          { statementText: "MCDO", pinned: false },
+        ])
+      );
+    });
+
+    it("records no Statement Text for a line that is only numbers or blank", async () => {
+      const { drafts } = await importLines([line("12345", "2")]);
+      await editDraft(drafts[0]!.id, { description: "Parking" });
+
+      await saveDrafts(MEMBER, [drafts[0]!.id]);
+
+      expect(await listTransactions()).toMatchObject([{ statementText: null }]);
+    });
+  });
+});
+
+describe("saveDrafts, Paid from", () => {
+  it("records each draft's Paid from, the card's usual Paying Account unless changed", async () => {
+    const { drafts } = await importLines([line("A", "100"), line("B", "40")]);
+    const [first, second] = drafts;
+    await editDraft(first!.id, { paidFromId: walletId });
+
+    await saveDrafts(MEMBER, [first!.id, second!.id]);
+
+    const transactions = await listTransactions();
+    expect(transactions.find((row) => row.description === "A")).toMatchObject({
+      accountId: cardId,
+      payingAccountId: walletId,
+    });
+    expect(transactions.find((row) => row.description === "B")).toMatchObject({
+      accountId: cardId,
+      payingAccountId: bankId,
+    });
+  });
+
+  it("holds the line in the chosen account's Card Payment money", async () => {
+    const { drafts } = await importLines([line("A", "100")]);
+    const [first] = drafts;
+    await editDraft(first!.id, { paidFromId: walletId });
+
+    await saveDrafts(MEMBER, [first!.id]);
+
+    const money = await readAccountMoney();
+    expect(money.get(walletId)?.envelopes?.cardPayments.get(cardId)).toBe(peso("100"));
+    expect(money.get(bankId)?.envelopes?.cardPayments.get(cardId)).toBeUndefined();
+  });
+
+  it("keeps nothing when a draft's Paid from can't pay the card", async () => {
+    const { importId, drafts } = await importLines([line("A", "100")]);
+    const [first] = drafts;
+    await editDraft(first!.id, { paidFromId: cardId });
+
+    await expect(saveDrafts(MEMBER, [first!.id])).rejects.toThrow(/to pay this card from/);
+
+    expect(await listTransactions()).toEqual([]);
+    expect(await listDrafts(importId)).toHaveLength(1);
+  });
+});
+
+describe("breakApartDraft", () => {
+  const part = (amount: string, description: string, overrides = {}) => ({
+    amountCents: peso(amount),
+    description,
+    categoryId: null,
+    paidFromId: bankId,
+    ...overrides,
+  });
+
+  it("records each part as a transaction with the line's import key and type, and removes the draft", async () => {
+    const { importId, drafts } = await importLines([
+      line("SM SUPERMARKET 01", "2500"),
+      line("B", "1"),
+    ]);
+    const [market] = drafts;
+
+    await breakApartDraft(MEMBER, market!.id, [
+      part("1800", "Groceries", { categoryId: groceriesId }),
+      part("700", "Household supplies", { paidFromId: walletId }),
+    ]);
+
+    const transactions = await listTransactions();
+    expect(transactions).toHaveLength(2);
+    expect(transactions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          amountCents: 180000,
+          type: "expense",
+          date: "2026-09-03",
+          accountId: cardId,
+          categoryId: groceriesId,
+          description: "Groceries",
+          importKey: market!.importKey,
+          payingAccountId: bankId,
+          statementText: null,
+          pinned: false,
+        }),
+        expect.objectContaining({
+          amountCents: 70000,
+          description: "Household supplies",
+          importKey: market!.importKey,
+          payingAccountId: walletId,
+          statementText: null,
+        }),
+      ])
+    );
+    expect((await listDrafts(importId)).map((draft) => draft.id)).not.toContain(market!.id);
+  });
+
+  it("gives every part the line's type", async () => {
+    const { drafts } = await importLines([line("REFUND", "300", { type: "income" })]);
+
+    await breakApartDraft(MEMBER, drafts[0]!.id, [part("100", "A"), part("200", "B")]);
+
+    expect((await listTransactions()).map((row) => row.type)).toEqual(["income", "income"]);
+  });
+
+  it.each([
+    ["fewer than 2 parts", [part("2500", "A")], "Add a second part"],
+    ["a zero part", [part("2500", "A"), part("0", "B")], "above ₱0.00"],
+    ["a wrong total", [part("1800", "A"), part("600", "B")], "must total the line"],
+    [
+      "a part with no description",
+      [part("1800", "A"), part("700", " ")],
+      "Every part needs a description.",
+    ],
+  ])("refuses %s and keeps the draft", async (_case, parts, message) => {
+    const { importId, drafts } = await importLines([line("SM", "2500")]);
+
+    await expect(breakApartDraft(MEMBER, drafts[0]!.id, parts)).rejects.toThrow(message);
+
+    expect(await listTransactions()).toEqual([]);
+    expect(await listDrafts(importId)).toHaveLength(1);
+  });
+
+  it("refuses a card-payment line", async () => {
+    const { importId, drafts } = await importLines([
+      line("PAYMENT RECEIVED", "5000", { type: "income", isCardPayment: true }),
+    ]);
+
+    await expect(
+      breakApartDraft(MEMBER, drafts[0]!.id, [part("2500", "A"), part("2500", "B")])
+    ).rejects.toThrow(/card payment/i);
+
+    expect(await listTransactions()).toEqual([]);
+    expect(await listDrafts(importId)).toHaveLength(1);
   });
 });

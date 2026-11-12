@@ -3,12 +3,13 @@
  * review, outside the event log. Only a saved draft becomes a record, through
  * the save-drafts command.
  */
+import { subMonths } from "date-fns";
 import { db } from "@/lib/dexie/db";
 import { DESCRIPTION_MAX_LENGTH, type TransactionType } from "@/lib/transactions/events";
 import { withImportKeys } from "./import-key";
 import type { StatementFormatId, StatementLine } from "./statement";
 
-export const SUGGESTION_SOURCES = ["history", "llm"] as const;
+export const SUGGESTION_SOURCES = ["learned", "history", "llm"] as const;
 export type SuggestionSource = (typeof SUGGESTION_SOURCES)[number];
 
 /** The drafts read from one statement file, all for one account. */
@@ -36,7 +37,18 @@ export interface DraftRow {
   /** Null while nothing chose it; a suggestion never replaces the member's choice. */
   categorySource: "member" | SuggestionSource | null;
   type: TransactionType;
+  /** Paid from, when the member chose it; otherwise the card's usual Paying Account pays the line. */
+  paidFromId?: string;
 }
+
+/** A discarded line, remembered so a re-import doesn't bring it back as new work. */
+export interface DiscardRow {
+  importKey: string;
+  /** ISO timestamp of the latest discard. */
+  discardedAt: string;
+}
+
+const DISCARD_MEMORY_MONTHS = 6;
 
 const LAST_CARD_PREFIX = "importCard:";
 const lastCardKey = (formatId: StatementFormatId) => `${LAST_CARD_PREFIX}${formatId}` as const;
@@ -70,7 +82,9 @@ export async function createImport({
     categorySource: null,
     type: line.type,
   }));
-  await db.transaction("rw", [db.imports, db.drafts, db.meta], async () => {
+  const expired = subMonths(new Date(), DISCARD_MEMORY_MONTHS).toISOString();
+  await db.transaction("rw", [db.imports, db.drafts, db.meta, db.discards], async () => {
+    await db.discards.where("discardedAt").below(expired).delete();
     await db.imports.add({
       id: importId,
       formatId,
@@ -94,6 +108,7 @@ export interface DraftChanges {
   description?: string;
   categoryId?: string | null;
   type?: TransactionType;
+  paidFromId?: string;
 }
 
 /** What the member sets is theirs: no suggestion replaces it, and it's no longer marked suggested. */
@@ -108,7 +123,13 @@ export async function editDraft(draftId: string, changes: DraftChanges): Promise
     update.categorySource = "member";
   }
   if (changes.type !== undefined) update.type = changes.type;
+  if (changes.paidFromId !== undefined) update.paidFromId = changes.paidFromId;
   await db.drafts.update(draftId, update);
+}
+
+/** A bulk draft edit: these drafts are paid from the account. */
+export async function setDraftsPaidFrom(draftIds: string[], paidFromId: string): Promise<void> {
+  await db.drafts.where(":id").anyOf(draftIds).modify({ paidFromId });
 }
 
 /**
@@ -128,6 +149,18 @@ export function deleteDrafts(draftIds: string[]): Promise<void> {
   });
 }
 
+/** Deletes drafts and remembers their lines for 6 months, restarting any earlier discard's. */
+export function discardDrafts(draftIds: string[]): Promise<void> {
+  return db.transaction("rw", [db.imports, db.drafts, db.discards], async () => {
+    const discardedAt = new Date().toISOString();
+    const drafts = await db.drafts.bulkGet(draftIds);
+    await db.discards.bulkPut(
+      drafts.flatMap((draft) => (draft ? [{ importKey: draft.importKey, discardedAt }] : []))
+    );
+    await deleteDrafts(draftIds);
+  });
+}
+
 /** Statement order. */
 export const listDrafts = (importId: string) =>
   db.drafts.where("importId").equals(importId).sortBy("position");
@@ -138,12 +171,13 @@ export async function listImports(): Promise<ImportRow[]> {
   return imports.sort((a, b) => (a.importedAt < b.importedAt ? 1 : -1));
 }
 
-/** For the sign-out warning: drafts are lost with the device's data. */
+/** For the sign-out warning: drafts are lost with the device's data. Discards aren't work to lose. */
 export const countDrafts = () => db.drafts.count();
 
-/** A household switch forgets every draft and remembered card, like remembered passwords. */
+/** A household switch forgets every draft, discard and remembered card, like remembered passwords. */
 export async function forgetAllDrafts(): Promise<void> {
   await db.drafts.clear();
+  await db.discards.clear();
   await db.imports.clear();
   await db.meta.where("key").startsWith(LAST_CARD_PREFIX).delete();
 }

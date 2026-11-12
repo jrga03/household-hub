@@ -10,6 +10,7 @@ const controls = [
   ["Label", "label"],
   ["Tooltip", "tooltip"],
   ["Popover", "popover"],
+  ["DropdownMenu", "dropdown-menu"],
   ["Tabs", "tabs"],
   ["Toaster", "sonner"],
   ["FormError", "form-error"],
