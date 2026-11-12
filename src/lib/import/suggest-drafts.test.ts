@@ -84,6 +84,45 @@ describe("suggestDrafts", () => {
     ]);
   });
 
+  it("fills from learned saves first, with history as the fallback", async () => {
+    await addTransaction(MEMBER, {
+      date: "2026-08-20",
+      type: "expense",
+      amountCents: parsePHP("3100"),
+      accountId: cardId,
+      categoryId: diningId,
+      description: "Electricity",
+      statementLine: "MERALCO 0820",
+      pinned: true,
+    });
+    await addTransaction(MEMBER, {
+      date: "2026-08-21",
+      type: "expense",
+      amountCents: parsePHP("1500"),
+      accountId: cardId,
+      categoryId: utilitiesId,
+      description: "PLDT",
+    });
+    const importId = await createImport({
+      formatId: "bdo-credit-card-pdf",
+      fileName: "september.pdf",
+      accountId: cardId,
+      lines: [statementLine("MERALCO 0912"), statementLine("PLDT 0912")],
+    });
+
+    await suggestDrafts(importId);
+
+    expect(await listDrafts(importId)).toMatchObject([
+      {
+        categoryId: diningId,
+        categorySource: "learned",
+        description: "Electricity",
+        descriptionSource: "learned",
+      },
+      { categoryId: utilitiesId, categorySource: "history", descriptionSource: "statement" },
+    ]);
+  });
+
   it("lets an earlier suggester's value stand, and fills only what's still open", async () => {
     const importId = await importMeralco();
 
