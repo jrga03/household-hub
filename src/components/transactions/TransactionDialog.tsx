@@ -29,7 +29,7 @@ import {
   addTransaction,
   editTransaction,
   setTransactionStatus,
-  type TransactionInput,
+  type PaidFromInput,
 } from "@/lib/commands/transactions";
 import { formatPHPInput, type Cents } from "@/lib/currency";
 import { sameOwnership } from "@/lib/events/ownership";
@@ -192,7 +192,7 @@ function NewEntryForm({
 }
 
 type ReadForm =
-  | { input: TransactionInput; status: TransactionStatus; outOfPocket: boolean; problems: null }
+  | { input: PaidFromInput; status: TransactionStatus; outOfPocket: boolean; problems: null }
   | { input: null; status: null; outOfPocket: null; problems: EntryProblems };
 
 function readTransactionForm(formData: FormData): ReadForm {

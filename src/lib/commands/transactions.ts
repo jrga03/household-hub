@@ -29,7 +29,7 @@ import {
   requireCategoryFor,
 } from "./records";
 
-export interface NewTransactionInput extends TransactionInput {
+export interface NewTransactionInput extends PaidFromInput {
   /**
    * Chosen by the caller so a retry records nothing new: a transaction already
    * recorded under it, even one since removed or edited, is left as it is.
@@ -52,7 +52,10 @@ export interface TransactionInput {
   categoryId: string | null;
   description?: string;
   notes?: string;
-  /** Paid from: for a card transaction, another account than the usual one that pays the line. */
+}
+
+export interface PaidFromInput extends TransactionInput {
+  /** Paid from: for a card transaction, an account other than the card's usual one pays the line. */
   payingAccountId?: string;
 }
 
@@ -169,7 +172,7 @@ async function requireTransaction(transactionId: string): Promise<TransactionRow
 export async function editTransaction(
   actor: Actor,
   transactionId: string,
-  input: TransactionInput
+  input: PaidFromInput
 ): Promise<void> {
   const entered = checkedDetails(input);
   requireDescription(entered);

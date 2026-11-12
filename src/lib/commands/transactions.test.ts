@@ -18,7 +18,7 @@ import {
   restoreTransaction,
   restoreTransactions,
   setTransactionStatus,
-  type TransactionInput,
+  type PaidFromInput,
 } from "./transactions";
 import { retireOnAnotherDevice } from "@/test/anotherDevice";
 import { HOUSEHOLD, loggedEvent } from "@/test/events";
@@ -53,7 +53,7 @@ function oldEventWithoutDescription(details: Record<string, unknown> = {}): Logg
 let bankId: string;
 let groceriesId: string;
 
-const expense = (overrides: Partial<TransactionInput> = {}): TransactionInput => ({
+const expense = (overrides: Partial<PaidFromInput> = {}): PaidFromInput => ({
   date: "2026-10-12",
   type: "expense",
   amountCents: peso("250"),
@@ -79,7 +79,7 @@ beforeEach(async () => {
 });
 
 describe("addTransaction, out-of-pocket", () => {
-  const outOfPocket = (overrides: Partial<TransactionInput> = {}) => ({
+  const outOfPocket = (overrides: Partial<PaidFromInput> = {}) => ({
     ...expense(overrides),
     paidByUserId: MEMBER.userId,
   });
