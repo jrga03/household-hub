@@ -3,7 +3,12 @@ import { canHoldMoneyIn } from "@/lib/categories/projection";
 import { db } from "@/lib/dexie/db";
 import { reportError } from "@/lib/sentry";
 import { listDrafts } from "./drafts";
-import { historySuggester, type DraftSuggester, type Suggestion } from "./suggestions";
+import {
+  historySuggester,
+  learnedSuggester,
+  type DraftSuggester,
+  type Suggestion,
+} from "./suggestions";
 
 /** Fills only what nothing has chosen yet: the member's edits and earlier suggestions stand. */
 function applySuggestions(suggestions: Suggestion[]): Promise<void> {
@@ -28,7 +33,7 @@ function applySuggestions(suggestions: Suggestion[]): Promise<void> {
  */
 export async function suggestDrafts(
   importId: string,
-  suggesters: DraftSuggester[] = [historySuggester]
+  suggesters: DraftSuggester[] = [learnedSuggester, historySuggester]
 ): Promise<void> {
   for (const suggester of suggesters) {
     try {
