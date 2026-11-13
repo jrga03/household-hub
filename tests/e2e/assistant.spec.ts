@@ -1,5 +1,6 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
 import {
+  addAccount,
   chooseOption,
   expectChosen,
   navigateTo,
@@ -80,12 +81,8 @@ async function setUpHousehold(page: Page, householdName: string) {
   await page.getByRole("button", { name: "Create household" }).click();
 
   await navigateTo(page, "Accounts");
-  const addAccount = page.getByRole("form", { name: "Add an account" });
-  for (const name of ["BPI", "GCash"]) {
-    await addAccount.getByLabel("Account name").fill(name);
-    await addAccount.getByRole("button", { name: "Add account" }).click();
-    await expect(page.getByRole("list", { name: "Accounts" })).toContainText(name);
-  }
+  await addAccount(page, "BPI");
+  await addAccount(page, "GCash");
   await navigateTo(page, "Categories");
   await page.getByRole("button", { name: "Use suggested categories" }).click();
   await expect(page.getByRole("list", { name: "Food categories" })).toContainText("Groceries");

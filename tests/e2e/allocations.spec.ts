@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { chooseOption, signUpNewPerson, navigateTo } from "./fixtures/helpers";
+import { chooseOption, closeSheet, signUpNewPerson, navigateTo } from "./fixtures/helpers";
 import { VIEWPORTS } from "./fixtures/viewports";
 
 const unassignedItem = (page: Page) =>
@@ -73,6 +73,8 @@ test("moving money between envelopes, past Unassigned, with an undoable removal"
   await page.getByRole("button", { name: "Undo" }).click();
   await expect(ledger.getByRole("listitem")).toHaveCount(1);
 
+  // On a phone the ledger is a sheet, and Undo leaves it open.
+  await closeSheet(page);
   await page.getByRole("link", { name: "Set budgets" }).click();
   await expect(holds(page, "Groceries")).toContainText("Holds ₱8,000.00");
   await page.getByRole("button", { name: "Back" }).click();
@@ -86,6 +88,7 @@ test("moving money between envelopes, past Unassigned, with an undoable removal"
   await chooseOption(page, retire.getByLabel("Move its money into"), "Restaurants");
   await retire.getByRole("button", { name: "Move and retire" }).click();
   await expect(retire).toBeHidden();
+  await closeSheet(page);
   await expect(page.getByRole("list", { name: "Food categories" })).not.toContainText("Groceries");
 
   await page.goto("/set-budgets");
