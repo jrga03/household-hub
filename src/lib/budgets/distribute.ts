@@ -104,28 +104,32 @@ export async function readDistributeLines(
 export interface PaydayChoices {
   paydays: PaydayRow[];
   /** The first payday with money left this month; null when there is none. */
-  preselected: string | null;
+  preselectedPaydayId: string | null;
 }
 
 /**
  * The household's paydays, and the first one in order whose portions, with
- * the earlier paydays' portions, ask a budget in use for more than was
- * allocated to it this month.
+ * the earlier paydays' portions, ask a budget the source can hold for more
+ * than was allocated to it this month.
  */
-export async function readPaydayChoices(month: string): Promise<PaydayChoices> {
-  const [paydays, categories, view] = await Promise.all([
+export async function readPaydayChoices(
+  sourceAccountId: string,
+  month: string
+): Promise<PaydayChoices> {
+  const [paydays, source, categories, view] = await Promise.all([
     readPaydays(),
+    getAccount(sourceAccountId),
     readCategoryList(),
     readMonthView(month, month),
   ]);
-  const budgets = categoriesInUse(categories).flatMap((category) => {
+  const budgets = (source ? categoriesHeldBy(categories, source) : []).flatMap((category) => {
     const { budget, allocated } = categoryMonth(view, category.id);
     return budget ? [{ portions: budget.portions, allocated }] : [];
   });
   const paidSoFar = new Set<string>();
-  const hasMoneyLeft = (payday: PaydayRow) => {
+  for (const payday of paydays) {
     paidSoFar.add(payday.id);
-    return budgets.some(
+    const moneyLeft = budgets.some(
       ({ portions, allocated }) =>
         portions.some((portion) => portion.paydayId === payday.id) &&
         sumCents(
@@ -134,8 +138,9 @@ export async function readPaydayChoices(month: string): Promise<PaydayChoices> {
             .map((portion) => portion.amountCents)
         ) > allocated
     );
-  };
-  return { paydays, preselected: paydays.find(hasMoneyLeft)?.id ?? null };
+    if (moneyLeft) return { paydays, preselectedPaydayId: payday.id };
+  }
+  return { paydays, preselectedPaydayId: null };
 }
 
 export interface AccountTotal {

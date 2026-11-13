@@ -61,10 +61,11 @@ export function useDistributeLines(
 }
 
 /** The paydays Distribute offers for the month; undefined while loading. */
-export function usePaydayChoices(month: string) {
+export function usePaydayChoices(sourceAccountId: string, month: string) {
+  const key = `${sourceAccountId}:${month}`;
   const read = useLiveQuery(
-    async () => ({ month, choices: await readPaydayChoices(month) }),
-    [month]
+    async () => ({ key, choices: await readPaydayChoices(sourceAccountId, month) }),
+    [sourceAccountId, month]
   );
-  return read?.month === month ? read.choices : undefined;
+  return read?.key === key ? read.choices : undefined;
 }

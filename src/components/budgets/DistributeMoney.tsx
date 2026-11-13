@@ -107,10 +107,10 @@ function DistributeForm({
   });
   const source = sources.find((account) => account.id === sourceId);
   const month = isLocalDate(date) ? monthOfDate(date) : localMonth(new Date());
-  const paydayChoices = usePaydayChoices(month);
-  // Null until the member taps a chip, so the preselection follows the month.
+  const paydayChoices = usePaydayChoices(sourceId, month);
+  // Null until the member taps a chip, so the preselection follows the source and month.
   const [chosenPaydayIds, setChosenPaydayIds] = useState<string[] | null>(null);
-  const preselected = paydayChoices?.preselected;
+  const preselected = paydayChoices?.preselectedPaydayId;
   const paydayIds = chosenPaydayIds ?? (preselected ? [preselected] : []);
   const togglePayday = (paydayId: string) =>
     setChosenPaydayIds(
@@ -324,7 +324,7 @@ function LinesForm({
   );
   const indexed = [...lines.entries()];
   const toFund = indexed.filter(([, line]) => !line.alreadyFunded);
-  const funded = indexed.filter(([, line]) => line.alreadyFunded);
+  const alreadyFunded = indexed.filter(([, line]) => line.alreadyFunded);
 
   const [error, submit] = useActionState(async () => {
     const funded: DistributeLineInput[] = [];
@@ -366,7 +366,7 @@ function LinesForm({
         )
       )}
 
-      {funded.length > 0 && (
+      {alreadyFunded.length > 0 && (
         <section aria-label="Already funded" className="space-y-2">
           <SectionHeader
             level={3}
@@ -378,7 +378,7 @@ function LinesForm({
             }}
           />
           <ul id={fundedId} hidden={!fundedOpen} className="divide-y border-y">
-            {fundedOpen && funded.map(([index, line]) => rowFor(line, index))}
+            {fundedOpen && alreadyFunded.map(([index, line]) => rowFor(line, index))}
           </ul>
         </section>
       )}
