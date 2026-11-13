@@ -6,7 +6,7 @@ import { FormError } from "@/components/app/FormError";
 import { Input } from "@/components/app/Input";
 import { SubmitButton } from "@/components/app/SubmitButton";
 import { VisibilityField } from "@/components/app/VisibilityField";
-import { CATEGORY_NAME_MAX_LENGTH } from "@/lib/categories/events";
+import { RECORD_NAME_MAX_LENGTH } from "@/lib/events/names";
 import type { GroupRow } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { createCategory, createGroup } from "@/lib/commands/categories";
@@ -46,7 +46,7 @@ function NameField({ placeholder }: { placeholder: string }) {
       <Input
         name="name"
         required
-        maxLength={CATEGORY_NAME_MAX_LENGTH}
+        maxLength={RECORD_NAME_MAX_LENGTH}
         placeholder={placeholder}
         autoComplete="off"
       />

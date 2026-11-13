@@ -19,6 +19,7 @@ import type { BudgetRow } from "@/lib/budgets/projection";
 import type { BalanceCorrectionRow } from "@/lib/corrections/projection";
 import type { DiscardRow, DraftRow, ImportRow } from "@/lib/import/drafts";
 import type { CategoryRow, GroupRow } from "@/lib/categories/projection";
+import type { PaydayRow } from "@/lib/paydays/projection";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import type { TransferRow } from "@/lib/transfers/projection";
 
@@ -47,6 +48,7 @@ export class HouseholdHubDB extends Dexie {
   allocations!: Table<AllocationRow, string>;
   transfers!: Table<TransferRow, string>;
   budgets!: Table<BudgetRow, string>;
+  paydays!: Table<PaydayRow, string>;
   balanceCorrections!: Table<BalanceCorrectionRow, string>;
   imports!: Table<ImportRow, string>;
   drafts!: Table<DraftRow, string>;
@@ -135,6 +137,7 @@ export class HouseholdHubDB extends Dexie {
           delete row.envelope;
         })
     );
+    this.version(16).stores({ paydays: "id" });
   }
 }
 

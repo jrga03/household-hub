@@ -11,7 +11,7 @@ import { Money } from "@/components/app/Money";
 import { RecordName } from "@/components/categories/RecordName";
 import { PageShell } from "@/components/layout/PageShell";
 import { useAccounts } from "@/hooks/useAccounts";
-import { useMonthView } from "@/hooks/useBudgets";
+import { useMonthView, usePaydays } from "@/hooks/useBudgets";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 import type { AccountRow } from "@/lib/accounts/projection";
@@ -26,6 +26,7 @@ import { ZERO_CENTS } from "@/lib/currency";
 import { errorMessage } from "@/lib/utils";
 import { parseLocalDate, shiftMonth } from "@/lib/utils/dates";
 import { CollapsibleGroup, UNGROUPED } from "./CollapsibleGroup";
+import { PaydaysSection } from "./PaydaysSection";
 import { useCollapsedGroupsStore } from "@/stores/collapsedGroupsStore";
 import { SetBudgetDialog } from "./SetBudgetDialog";
 
@@ -45,13 +46,14 @@ export function SetBudgetsView({
   const accounts = useAccounts();
   const thisMonth = useMonthView(month, currentMonth);
   const lastMonth = useMonthView(shiftMonth(month, -1), currentMonth);
+  const paydays = usePaydays();
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const inUse = list && categoriesInUse(list);
   const details = inUse?.find((category) => category.id === detailsId);
   useCloseWhenGone(detailsId, inUse && (details ?? null), () => setDetailsId(null));
   const collapsedGroupIds = useCollapsedGroupsStore((state) => state.collapsedGroupIds);
 
-  if (!list || !inUse || !accounts || !thisMonth || !lastMonth) return null;
+  if (!list || !inUse || !accounts || !thisMonth || !lastMonth || !paydays) return null;
   const shownGroups = list.groups.filter((group) => !collapsedGroupIds.includes(group.id));
   const shownUngrouped = collapsedGroupIds.includes(UNGROUPED) ? [] : list.ungrouped;
   const lastId = [...shownGroups.flatMap((group) => group.categories), ...shownUngrouped].at(
@@ -93,6 +95,7 @@ export function SetBudgetsView({
 
   return (
     <PageShell.Main className="space-y-8">
+      <PaydaysSection actor={actor} paydays={paydays} />
       {inUse.length === 0 ? (
         <EmptyState>
           No categories yet. Set them up on <Link to="/categories">Categories</Link> first.

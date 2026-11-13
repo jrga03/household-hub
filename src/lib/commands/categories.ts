@@ -1,6 +1,7 @@
 import type { Envelope } from "@/lib/allocations/events";
 import { absCents, formatPHP, sumCents, type Cents } from "@/lib/currency";
 import { appendTogether } from "@/lib/events/log";
+import { checkedName } from "@/lib/events/names";
 import { isVisibility, VISIBILITY_LABELS, type Ownership } from "@/lib/events/ownership";
 import { readAccountMoney, sumCategoryMoney } from "@/lib/transactions/money";
 import { requestSync } from "@/lib/sync/triggers";
@@ -14,8 +15,6 @@ import {
   CATEGORY_RETIRED,
   CATEGORY_UNRETIRED,
   CATEGORY_VERSIONS,
-  checkCategoryName,
-  type RecordNoun,
   GROUP_CREATED,
   GROUP_DELETED,
   GROUP_ENTITY,
@@ -72,12 +71,6 @@ export async function seedDefaultCategories(actor: Actor): Promise<void> {
     }
   });
   requestSync();
-}
-
-function checkedName(input: string, noun: RecordNoun): string {
-  const { name, problem } = checkCategoryName(input, noun);
-  if (problem !== null) throw new Error(problem);
-  return name;
 }
 
 async function requireGroup(groupId: string): Promise<GroupRow> {

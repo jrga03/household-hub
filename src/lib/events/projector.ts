@@ -10,6 +10,7 @@ import { allocationProjection } from "@/lib/allocations/projection";
 import { budgetProjection } from "@/lib/budgets/projection";
 import { categoryProjection, groupProjection } from "@/lib/categories/projection";
 import { balanceCorrectionProjection } from "@/lib/corrections/projection";
+import { paydayProjection } from "@/lib/paydays/projection";
 import { transactionProjection } from "@/lib/transactions/projection";
 import { transferProjection } from "@/lib/transfers/projection";
 import type { LoggedEvent } from "./log";
@@ -82,6 +83,7 @@ registerProjection(allocationProjection);
 registerProjection(transferProjection);
 registerProjection(budgetProjection);
 registerProjection(balanceCorrectionProjection);
+registerProjection(paydayProjection);
 
 /** Every projection table's name, for the log's transactions. */
 export const projectionTableNames = () =>

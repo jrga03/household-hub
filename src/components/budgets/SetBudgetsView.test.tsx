@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -191,5 +191,65 @@ describe("SetBudgetsView", () => {
     expect(amount).toHaveAttribute("enterkeyhint", "next");
     fireEvent.click(screen.getByRole("button", { name: "Savings" }));
     expect(amount).toHaveAttribute("enterkeyhint", "done");
+  });
+});
+
+describe("SetBudgetsView paydays", () => {
+  const paydayNames = () =>
+    within(screen.getByRole("list", { name: "Paydays" }))
+      .getAllByRole("listitem")
+      .map((item) => item.textContent);
+
+  async function savePayday(dialogName: string, name: string) {
+    const dialog = await screen.findByRole("dialog", { name: dialogName });
+    fireEvent.change(within(dialog).getByRole("textbox", { name: "Name" }), {
+      target: { value: name },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  }
+
+  it("adds, renames, reorders and deletes a payday", async () => {
+    await groceries();
+    renderSetBudgets();
+    expect(await screen.findByText("No paydays yet.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add payday" }));
+    await savePayday("Add payday", "  15th ");
+    fireEvent.click(screen.getByRole("button", { name: "Add payday" }));
+    await savePayday("Add payday", "30th salary");
+    await waitFor(() => expect(paydayNames()).toEqual(["15th", "30th salary"]));
+    expect(screen.getByRole("button", { name: "Move 15th up" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Move 30th salary down" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit 15th" }));
+    await savePayday("Edit payday", "15th salary");
+    await waitFor(() => expect(paydayNames()).toEqual(["15th salary", "30th salary"]));
+
+    fireEvent.click(screen.getByRole("button", { name: "Move 30th salary up" }));
+    await waitFor(() => expect(paydayNames()).toEqual(["30th salary", "15th salary"]));
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit 30th salary" }));
+    fireEvent.click(
+      within(await screen.findByRole("dialog", { name: "Edit payday" })).getByRole("button", {
+        name: "Delete payday",
+      })
+    );
+    await waitFor(() => expect(paydayNames()).toEqual(["15th salary"]));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("keeps the dialog open with the reason when the name is blank", async () => {
+    await groceries();
+    renderSetBudgets();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add payday" }));
+    const dialog = await screen.findByRole("dialog", { name: "Add payday" });
+    fireEvent.change(within(dialog).getByRole("textbox", { name: "Name" }), {
+      target: { value: "   " },
+    });
+    fireEvent.submit(within(dialog).getByRole("form"));
+
+    expect(await within(dialog).findByText("A payday needs a name.")).toBeInTheDocument();
   });
 });

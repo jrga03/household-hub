@@ -3,10 +3,16 @@ import { readCategoryLedger, readLedgerRecord, type LedgerRecordId } from "@/lib
 import { readDistributeLines, type DistributeMode } from "@/lib/budgets/distribute";
 import { readMonthView } from "@/lib/budgets/month";
 import { listBudgets } from "@/lib/budgets/projection";
+import { readPaydays } from "@/lib/paydays/projection";
 
 /** Every budget version on this device; undefined while loading. */
 export function useBudgets() {
   return useLiveQuery(listBudgets, []);
+}
+
+/** The household's paydays in order; undefined while loading. */
+export function usePaydays() {
+  return useLiveQuery(readPaydays, []);
 }
 
 /** Each category's budget, spent, allocated and money for the month; undefined while loading. */

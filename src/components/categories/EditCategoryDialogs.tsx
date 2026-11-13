@@ -19,7 +19,7 @@ import {
 } from "@/components/app/Select";
 import { SubmitButton } from "@/components/app/SubmitButton";
 import { useAccountMoney } from "@/hooks/useTransactions";
-import { CATEGORY_NAME_MAX_LENGTH } from "@/lib/categories/events";
+import { RECORD_NAME_MAX_LENGTH } from "@/lib/events/names";
 import {
   canHold,
   type CategoryRow,
@@ -107,7 +107,7 @@ function EditDialog({
           <Input
             name="name"
             required
-            maxLength={CATEGORY_NAME_MAX_LENGTH}
+            maxLength={RECORD_NAME_MAX_LENGTH}
             autoComplete="off"
             enterKeyHint="done"
             defaultValue={record.name}
