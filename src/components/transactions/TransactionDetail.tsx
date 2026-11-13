@@ -5,6 +5,7 @@ import { Button } from "@/components/app/Button";
 import { Fact, Facts } from "@/components/app/Facts";
 import { Money } from "@/components/app/Money";
 import { StatusBadge } from "@/components/app/StatusBadge";
+import { MoveMoneyDialog } from "@/components/moves/MoveMoneyDialog";
 import type { Actor } from "@/lib/commands/accounts";
 import { isTransfer, statusOf } from "@/lib/transactions/filter";
 import type { TransactionRow } from "@/lib/transactions/projection";
@@ -14,7 +15,6 @@ import { parseLocalDate } from "@/lib/utils/dates";
 import { removeRow, useStatusToggle } from "./rowActions";
 import type { RowDisplay } from "./rowDisplay";
 import { TransactionDialog } from "./TransactionDialog";
-import { TransferDialog } from "./TransferDialog";
 
 /**
  * A transaction or transfer as the detail pane shows it: the amount, where
@@ -86,7 +86,7 @@ export function TransactionDetail({
       </div>
       {editing &&
         (isTransfer(row) ? (
-          <TransferDialog actor={actor} transfer={row} onClose={() => setEditing(false)} />
+          <MoveMoneyDialog actor={actor} transfer={row} onClose={() => setEditing(false)} />
         ) : (
           <TransactionDialog actor={actor} transaction={row} onClose={() => setEditing(false)} />
         ))}

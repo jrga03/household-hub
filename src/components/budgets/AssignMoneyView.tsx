@@ -3,7 +3,6 @@ import { ChevronDown, Info } from "lucide-react";
 import { PayCardDialog } from "@/components/accounts/PayCardDialog";
 import { namedAmounts } from "@/components/allocations/envelopes";
 import { NegativeNote, OVERDRAWN_UNASSIGNED } from "@/components/allocations/NegativeNote";
-import { MoveMoneyDialog } from "@/components/allocations/MoveMoneyDialog";
 import { Button } from "@/components/app/Button";
 import { EmptyState } from "@/components/app/EmptyState";
 import { FormSheet } from "@/components/app/FormSheet";
@@ -12,6 +11,7 @@ import { Money } from "@/components/app/Money";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/app/Popover";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { PageShell } from "@/components/layout/PageShell";
+import { MoveMoneyDialog } from "@/components/moves/MoveMoneyDialog";
 import { useAccountNames, useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 import { useAccountMoney } from "@/hooks/useTransactions";
@@ -65,6 +65,7 @@ export function AssignMoneyView({
       {moving && (
         <MoveMoneyDialog
           actor={actor}
+          initialType="categories"
           initialAccountId={initialAccountId}
           onClose={() => setMoving(false)}
         />

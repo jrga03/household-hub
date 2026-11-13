@@ -1,4 +1,4 @@
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { AccountSelect } from "@/components/accounts/AccountSelect";
 import { ActionForm } from "@/components/app/ActionForm";
@@ -6,13 +6,11 @@ import { Combobox, type ComboboxGroup, type ComboboxOption } from "@/components/
 import { Field } from "@/components/app/Field";
 import { FormError } from "@/components/app/FormError";
 import { changeWithUndo } from "@/components/app/withUndo";
-import { FormFooter, FormSheet, FULL_ROW } from "@/components/app/FormSheet";
+import { FormFooter, FULL_ROW } from "@/components/app/FormSheet";
 import { Input } from "@/components/app/Input";
 import { SubmitButton } from "@/components/app/SubmitButton";
 import { Textarea } from "@/components/app/Textarea";
 import { categoryNames, envelopeFromKey, envelopeKey } from "@/components/allocations/envelopes";
-import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
-import { useCategoryList } from "@/hooks/useCategories";
 import { isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
 import { envelopeLabel } from "@/lib/allocations/envelope";
@@ -35,7 +33,6 @@ import {
   NOTES_MAX_LENGTH,
   type TransactionStatus,
 } from "@/lib/transactions/events";
-import { TRANSFER_TYPE, type EntryDirection } from "@/lib/transactions/filter";
 import { transferLabel } from "@/lib/transfers/events";
 import type { TransferRow } from "@/lib/transfers/projection";
 import { errorMessage } from "@/lib/utils";
@@ -44,7 +41,6 @@ import { useQuickEntryStore } from "@/stores/quickEntryStore";
 import { confirmRemoval } from "./confirmRemoval";
 import {
   AmountField,
-  DirectionChoice,
   formProblem,
   hasFieldProblems,
   NO_PROBLEMS,
@@ -74,48 +70,6 @@ export async function removeTransferWithUndo(
     failed: "Couldn't remove the transfer.",
     undoFailed: "Couldn't restore the transfer.",
   });
-}
-
-export function TransferDialog({
-  actor,
-  transfer,
-  onClose,
-}: {
-  actor: Actor;
-  transfer: TransferRow;
-  onClose: () => void;
-}) {
-  return (
-    <FormSheet title="Edit transfer" onClose={onClose}>
-      <TransferEditor actor={actor} transfer={transfer} onClose={onClose} />
-    </FormSheet>
-  );
-}
-
-/** The edit form alone, for the dialog and the wide-screen detail pane. */
-export function TransferEditor({
-  actor,
-  transfer,
-  onClose,
-}: {
-  actor: Actor;
-  transfer: TransferRow;
-  onClose: () => void;
-}) {
-  const accounts = useAccounts();
-  const retiredAccounts = useRetiredAccounts();
-  const categories = useCategoryList();
-  if (!accounts || !retiredAccounts || !categories) return null;
-  return (
-    <TransferForm
-      actor={actor}
-      transfer={transfer}
-      accounts={accounts}
-      retiredAccounts={retiredAccounts}
-      categories={categories}
-      onClose={onClose}
-    />
-  );
 }
 
 /**
@@ -219,9 +173,8 @@ function readTransferForm(formData: FormData): ReadForm {
 }
 
 /**
- * Add when `transfer` is left out (from the Add transaction dialog's Transfer
- * choice); edit otherwise. A transfer stays within one visibility (ADR 0002),
- * never out of a card; paying a card is offered by its own action.
+ * Add when `transfer` is left out; edit otherwise. A transfer stays within one
+ * visibility (ADR 0002), never out of a card; paying a card is offered by its own action.
  */
 export function TransferForm({
   actor,
@@ -229,8 +182,9 @@ export function TransferForm({
   accounts,
   retiredAccounts,
   categories,
-  draftAmount,
-  onDirectionChange,
+  amount,
+  onAmountChange,
+  choices,
   onClose,
 }: {
   actor: Actor;
@@ -239,13 +193,13 @@ export function TransferForm({
   accounts: AccountRow[];
   retiredAccounts: AccountRow[];
   categories: CategoryList;
-  draftAmount?: Cents;
-  /** Offered for a new entry, so it can become an expense or income, carrying the amount typed. */
-  onDirectionChange?: (direction: EntryDirection, amount: Cents | undefined) => void;
+  amount: Cents | undefined;
+  onAmountChange: (amount: Cents | undefined) => void;
+  /** The switches a new entry offers, under the amount. */
+  choices?: ReactNode;
   onClose: () => void;
 }) {
   const lastUsedAccountId = useQuickEntryStore((state) => state.lastUsed.accountId);
-  const [amount, setAmount] = useState(transfer?.amountCents ?? draftAmount);
   const [statusChoice, setStatusChoice] = useState<TransactionStatus>(
     transfer?.status ?? "cleared"
   );
@@ -335,18 +289,10 @@ export function TransferForm({
   );
   const formRef = useFocusFirstProblem(problems);
 
-  const directionChoice = onDirectionChange && (
-    <DirectionChoice
-      value={TRANSFER_TYPE}
-      withTransfer
-      onChange={(next) => next !== TRANSFER_TYPE && onDirectionChange(next, amount)}
-    />
-  );
-
   if (fromChoices.length < 2 && !transfer) {
     return (
       <div className="space-y-4">
-        {directionChoice}
+        {choices}
         <p className="text-body text-muted-foreground">
           A transfer needs two accounts in use, other than credit cards. Add another on Home.
         </p>
@@ -373,12 +319,12 @@ export function TransferForm({
       <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
         <AmountField
           value={amount}
-          onChange={setAmount}
+          onChange={onAmountChange}
           error={problems.fields.amount}
           inputRef={amountRef}
-          className={onDirectionChange && FULL_ROW}
+          className={choices ? FULL_ROW : undefined}
         />
-        {directionChoice}
+        {choices}
         <Field label="Date" error={problems.fields.date}>
           <Input
             name="date"

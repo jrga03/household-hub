@@ -12,6 +12,7 @@ import { Input } from "@/components/app/Input";
 import { SubmitButton } from "@/components/app/SubmitButton";
 import { Textarea } from "@/components/app/Textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/app/Tooltip";
+import { MoveMoneyForm } from "@/components/moves/MoveMoneyDialog";
 import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useMemberNames } from "@/hooks/useMemberNames";
@@ -54,7 +55,6 @@ import {
 import { categoryChoices, CategorySelect, isCategoryChoice, UNASSIGNED } from "./CategorySelect";
 import { PaidFromLine } from "./PaidFromSelect";
 import { removeWithUndo } from "./removeWithUndo";
-import { TransferForm } from "./TransferDialog";
 import { useFocusFirstProblem } from "@/hooks/useFocusFirstProblem";
 
 const OUT_OF_POCKET = "out-of-pocket";
@@ -129,7 +129,6 @@ export function TransactionEditor({
     <NewEntryForm
       actor={actor}
       accounts={accountChoices}
-      retiredAccounts={retiredAccounts}
       categories={categories}
       onClose={onClose}
     />
@@ -140,13 +139,11 @@ export function TransactionEditor({
 function NewEntryForm({
   actor,
   accounts,
-  retiredAccounts,
   categories,
   onClose,
 }: {
   actor: Actor;
   accounts: AccountRow[];
-  retiredAccounts: AccountRow[];
   categories: CategoryList;
   onClose: () => void;
 }) {
@@ -160,11 +157,8 @@ function NewEntryForm({
   const { direction } = draft;
   if (direction === TRANSFER_TYPE) {
     return (
-      <TransferForm
+      <MoveMoneyForm
         actor={actor}
-        accounts={accounts}
-        retiredAccounts={retiredAccounts}
-        categories={categories}
         draftAmount={draft.amount}
         onDirectionChange={switchTo}
         onClose={onClose}

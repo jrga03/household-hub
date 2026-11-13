@@ -8,7 +8,6 @@ import { Money } from "@/components/app/Money";
 import { ProgressBar } from "@/components/app/ProgressBar";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { categoryNames } from "@/components/allocations/envelopes";
-import { MoveMoneyDialog } from "@/components/allocations/MoveMoneyDialog";
 import { CategoryLedger } from "@/components/categories/CategoryLedger";
 import { BUDGET_STATUS_STYLE } from "./budgetStatusStyle";
 import { CollapsibleGroup, UNGROUPED } from "./CollapsibleGroup";
@@ -16,8 +15,8 @@ import { CorrectionDialog } from "@/components/corrections/CorrectionDialog";
 import { RecordName } from "@/components/categories/RecordName";
 import { DetailPane, resolveOpenItem, useOpenItem } from "@/components/layout/DetailPane";
 import { PageShell } from "@/components/layout/PageShell";
+import { MoveMoneyDialog } from "@/components/moves/MoveMoneyDialog";
 import { TransactionDialog } from "@/components/transactions/TransactionDialog";
-import { TransferDialog } from "@/components/transactions/TransferDialog";
 import { useAccountNames } from "@/hooks/useAccounts";
 import { useLedgerRecord, useMonthView } from "@/hooks/useBudgets";
 import { useCategoryList } from "@/hooks/useCategories";
@@ -151,7 +150,7 @@ export function BudgetView({
         />
       )}
       {opened?.kind === "transfer" && (
-        <TransferDialog actor={actor} transfer={opened.record} onClose={() => setOpenedId(null)} />
+        <MoveMoneyDialog actor={actor} transfer={opened.record} onClose={() => setOpenedId(null)} />
       )}
       {opened?.kind === "allocation" && (
         <MoveMoneyDialog
