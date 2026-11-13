@@ -23,6 +23,7 @@ import type { AccountRow } from "@/lib/accounts/projection";
 import {
   canReceive,
   categoriesHeldBy,
+  summarizeByAccount,
   type DistributeLine,
   type DistributeMode,
 } from "@/lib/budgets/distribute";
@@ -274,6 +275,11 @@ function LinesForm({
 
   const total = sumCents(lines.map((line) => lineAmount(line) ?? ZERO_CENTS));
   const left = diffCents(available.cents, total);
+  const accountTotals = summarizeByAccount(
+    lines.map((line) => ({ accountId: line.accountId, amountCents: lineAmount(line) })),
+    source.id
+  );
+  const accountNames = new Map(accounts.map((account) => [account.id, account.name]));
 
   const [error, submit] = useActionState(async () => {
     const funded: DistributeLineInput[] = [];
@@ -362,6 +368,21 @@ function LinesForm({
           </p>
         )}
       </div>
+
+      {accountTotals.length > 0 && (
+        <ul aria-label="Where the money goes" className="space-y-1 text-body">
+          {accountTotals.map(({ accountId, amountCents }) => (
+            <li key={accountId} className="flex justify-between gap-4">
+              <span className="text-muted-foreground">
+                {accountId === source.id
+                  ? `Stays in ${source.name}`
+                  : (accountNames.get(accountId) ?? "Account")}
+              </span>
+              <Money kind="balance" cents={amountCents} />
+            </li>
+          ))}
+        </ul>
+      )}
 
       <FormError>{error}</FormError>
       <FormFooter>

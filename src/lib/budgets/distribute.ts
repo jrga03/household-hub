@@ -14,7 +14,7 @@ import {
   type CategoryList,
   type CategoryRow,
 } from "@/lib/categories/projection";
-import { diffCents, ZERO_CENTS, type Cents } from "@/lib/currency";
+import { diffCents, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import { sameOwnership } from "@/lib/events/ownership";
 import { categoryMonth, readMonthView } from "./month";
@@ -91,4 +91,30 @@ export async function readDistributeLines(
       },
     ];
   });
+}
+
+export interface AccountTotal {
+  accountId: string;
+  amountCents: Cents;
+}
+
+/**
+ * How much the lines send to each account other than the source, in the
+ * order the accounts first appear, then what stays in the source. Blank
+ * lines count as zero; accounts with a zero total are left out.
+ */
+export function summarizeByAccount(
+  lines: { accountId: string; amountCents: Cents | null }[],
+  sourceAccountId: string
+): AccountTotal[] {
+  const totals = new Map<string, Cents>([[sourceAccountId, ZERO_CENTS]]);
+  for (const line of lines) {
+    totals.set(
+      line.accountId,
+      sumCents([totals.get(line.accountId) ?? ZERO_CENTS, line.amountCents ?? ZERO_CENTS])
+    );
+  }
+  const rows = [...totals].map(([accountId, amountCents]) => ({ accountId, amountCents }));
+  const [stays, ...destinations] = rows;
+  return [...destinations, ...(stays ? [stays] : [])].filter((row) => row.amountCents > 0);
 }

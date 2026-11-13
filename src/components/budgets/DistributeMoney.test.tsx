@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -234,6 +234,38 @@ describe("DistributeMoney", () => {
     fireEvent.change(screen.getByLabelText("Income (₱)"), { target: { value: "9000" } });
 
     expect(screen.getByLabelText("Groceries")).toHaveValue("500.00");
+  });
+
+  it("shows how much goes to each account and updates as amounts and accounts change", async () => {
+    const groceries = await householdCategory("Groceries");
+    const transportation = await householdCategory("Transportation");
+    const bpi = await householdAccount();
+    const bdo = await secondHouseholdAccount();
+    const budget = (categoryId: string, amount: string, accountId: string) =>
+      setBudget(MEMBER, {
+        categoryId,
+        fromMonth: "2026-10",
+        amountCents: parsePHP(amount),
+        accountId,
+      });
+    await budget(groceries.id, "3000", bpi.id);
+    await budget(transportation.id, "1000", bdo.id);
+    renderDistribute("income", bpi.id);
+    const summary = await screen.findByRole("list", { name: "Where the money goes" });
+    const expectRows = (expected: string[]) => {
+      const rows = within(summary).getAllByRole("listitem");
+      expect(rows).toHaveLength(expected.length);
+      expected.forEach((text, index) => expect(rows[index]).toHaveTextContent(text));
+    };
+
+    expectRows(["BDO₱1,000.00", "Stays in BPI₱3,000.00"]);
+
+    fireEvent.change(screen.getByLabelText("Transportation"), { target: { value: "400" } });
+    expectRows(["BDO₱400.00", "Stays in BPI₱3,000.00"]);
+
+    fireEvent.click(screen.getByLabelText("Groceries goes to"));
+    fireEvent.click(await screen.findByRole("option", { name: "BDO" }));
+    await waitFor(() => expectRows(["BDO₱3,400.00"]));
   });
 
   describe("one category in several accounts", () => {
