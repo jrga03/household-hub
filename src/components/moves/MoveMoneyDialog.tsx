@@ -52,9 +52,13 @@ type FormProps = MoveProps & {
   onDirectionChange?: (direction: EntryDirection, amount: Cents | undefined) => void;
 };
 
+const initialTypeOf = ({ transfer, allocation, initialType = "accounts" }: MoveProps): MoveType =>
+  transfer ? "accounts" : allocation ? "categories" : initialType;
+
 /** Opens once its reads have arrived, so the sheet never fills in after it shows. */
 export function MoveMoneyDialog(props: MoveProps) {
   const data = useMoveMoneyData();
+  const [type, setType] = useState(initialTypeOf(props));
   if (!data) return null;
   const title = props.transfer
     ? "Edit transfer"
@@ -62,8 +66,15 @@ export function MoveMoneyDialog(props: MoveProps) {
       ? "Edit allocation"
       : "Move money";
   return (
-    <FormSheet title={title} onClose={props.onClose}>
-      <MoveMoneyFields {...props} data={data} />
+    <FormSheet
+      title={title}
+      description={
+        type === "categories" &&
+        "Moves money between categories, Card Payments and Unassigned inside one account. The balance doesn't change."
+      }
+      onClose={props.onClose}
+    >
+      <MoveMoneyFields {...props} data={data} type={type} onTypeChange={setType} />
     </FormSheet>
   );
 }
@@ -71,23 +82,26 @@ export function MoveMoneyDialog(props: MoveProps) {
 /** The form alone, for the Add transaction dialog's Transfer choice. */
 export function MoveMoneyForm(props: FormProps) {
   const data = useMoveMoneyData();
-  return data && <MoveMoneyFields {...props} data={data} />;
+  const [type, setType] = useState(initialTypeOf(props));
+  return data && <MoveMoneyFields {...props} data={data} type={type} onTypeChange={setType} />;
 }
 
 function MoveMoneyFields({
   actor,
   transfer,
   allocation,
-  initialType = "accounts",
   initialAccountId,
   draftAmount,
   onDirectionChange,
   onClose,
   data: { accounts, retiredAccounts, categories, money },
-}: FormProps & { data: MoveMoneyData }) {
-  const [type, setType] = useState<MoveType>(
-    transfer ? "accounts" : allocation ? "categories" : initialType
-  );
+  type,
+  onTypeChange,
+}: FormProps & {
+  data: MoveMoneyData;
+  type: MoveType;
+  onTypeChange: (type: MoveType) => void;
+}) {
   // The amount typed so far follows a switch of type.
   const [amount, setAmount] = useState(
     transfer?.amountCents ?? allocation?.amountCents ?? draftAmount
@@ -107,7 +121,7 @@ function MoveMoneyFields({
           label="Between accounts or categories"
           options={MOVE_TYPES}
           value={type}
-          onChange={setType}
+          onChange={onTypeChange}
           className="grid w-full grid-cols-2"
         />
       </div>

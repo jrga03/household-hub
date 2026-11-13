@@ -43,6 +43,7 @@ describe("MoveMoneyDialog", () => {
 
     await typeSwitch();
     expect(screen.getByRole("radio", { name: "Between categories" })).toBeChecked();
+    expect(screen.getByRole("dialog")).toHaveAccessibleDescription(/The balance doesn't change/);
     expect(screen.getByLabelText("Account")).toBeInTheDocument();
     expect(screen.queryByRole("radiogroup", { name: "Status" })).not.toBeInTheDocument();
   });

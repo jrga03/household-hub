@@ -124,7 +124,6 @@ export function AllocationForm({
   allocation?: AllocationRow;
   /** A new move's account, when it's one of the choices; ignored by an edit. */
   initialAccountId?: string;
-  /** The accounts in use. */
   accounts: AccountRow[];
   retiredAccounts: AccountRow[];
   categories: CategoryList;
