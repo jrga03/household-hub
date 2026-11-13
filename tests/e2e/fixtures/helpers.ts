@@ -34,6 +34,22 @@ export async function signUpNewPerson(page: Page) {
   return person;
 }
 
+/**
+ * Adds an account from the Accounts page's form. Waits for the "Account added"
+ * toast to leave: on a phone it covers the form's button, so the next add can't tap it.
+ */
+export async function addAccount(page: Page, name: string, startingBalance?: string) {
+  const form = page.getByRole("form", { name: "Add an account" });
+  await form.getByLabel("Account name").fill(name);
+  if (startingBalance !== undefined)
+    await form.getByLabel("Starting balance (₱)").fill(startingBalance);
+  await form.getByRole("button", { name: "Add account" }).click();
+  await expect(page.getByRole("list", { name: "Accounts" })).toContainText(name);
+  // The toast shows under the pointer, and Sonner keeps a hovered toast open.
+  await page.mouse.move(0, 0);
+  await expect(page.getByText("Account added")).toBeHidden();
+}
+
 /** The Transactions page's rows: the phone list's items, or the laptop table's body rows. */
 export function transactionRows(page: Page): Locator {
   return page

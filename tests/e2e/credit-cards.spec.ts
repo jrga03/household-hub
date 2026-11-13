@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import {
+  addAccount,
   chooseOption,
   closeSheet,
   navigateTo,
@@ -16,9 +17,7 @@ test("a household credit card shows the bank account it is paid from", async ({ 
   await navigateTo(page, "Accounts");
 
   const addForm = page.getByRole("form", { name: "Add an account" });
-  await addForm.getByLabel("Account name").fill("BDO Savings");
-  await addForm.getByRole("button", { name: "Add account" }).click();
-  await expect(accountsList(page)).toContainText("BDO Savings");
+  await addAccount(page, "BDO Savings");
 
   await addForm.getByLabel("Account name").fill("Visa");
   await chooseOption(page, addForm.getByLabel("Type"), "Credit card");

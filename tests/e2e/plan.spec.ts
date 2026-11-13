@@ -1,5 +1,12 @@
 import { test, expect, type Page } from "@playwright/test";
-import { chooseOption, expectChosen, login, navigateTo, signUpNewPerson } from "./fixtures/helpers";
+import {
+  addAccount,
+  chooseOption,
+  expectChosen,
+  login,
+  navigateTo,
+  signUpNewPerson,
+} from "./fixtures/helpers";
 import { VIEWPORTS } from "./fixtures/viewports";
 
 const unassignedItem = (page: Page, account: string) =>
@@ -23,14 +30,6 @@ const barIndicator = (page: Page, name: string) =>
     .getByRole("progressbar", { name: `${name} spent` })
     .locator("[data-slot=progress-indicator]");
 
-async function addAccount(page: Page, name: string) {
-  const form = page.getByRole("form", { name: "Add an account" });
-  await form.getByLabel("Account name").fill(name);
-  await form.getByLabel("Starting balance (₱)").fill("0");
-  await form.getByRole("button", { name: "Add account" }).click();
-  await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
-}
-
 /** Types the amount into the category's Set budgets row; leaving the field saves it. */
 async function planAmount(page: Page, category: string, amount: string) {
   const field = page.getByRole("textbox", { name: category, exact: true });
@@ -46,8 +45,8 @@ test("a payroll distribution from Assign money leaves the source account's Unass
   await page.getByLabel("Household name").fill("Payday home");
   await page.getByRole("button", { name: "Create household" }).click();
   await navigateTo(page, "Accounts");
-  await addAccount(page, "BPI");
-  await addAccount(page, "GCash");
+  await addAccount(page, "BPI", "0");
+  await addAccount(page, "GCash", "0");
 
   await page.goto("/categories");
   await page.getByRole("button", { name: "Use suggested categories" }).click();
@@ -182,10 +181,7 @@ test("closing Distribute and then going back leaves Assign money for Budget", as
   await page.getByLabel("Household name").fill("Back home");
   await page.getByRole("button", { name: "Create household" }).click();
   await navigateTo(page, "Accounts");
-  const form = page.getByRole("form", { name: "Add an account" });
-  await form.getByLabel("Account name").fill("BDO Savings");
-  await form.getByLabel("Starting balance (₱)").fill("20000");
-  await form.getByRole("button", { name: "Add account" }).click();
+  await addAccount(page, "BDO Savings", "20000");
   await navigateTo(page, "Categories");
   await page.getByRole("button", { name: "Use suggested categories" }).click();
   await expect(page.getByRole("list", { name: "Food categories" })).toContainText("Groceries");

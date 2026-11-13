@@ -1,16 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { test, expect, type Page } from "@playwright/test";
-import { signUpNewPerson, navigateTo } from "./fixtures/helpers";
+import { addAccount, signUpNewPerson, navigateTo } from "./fixtures/helpers";
 
 const accountsList = (page: Page) => page.getByRole("list", { name: "Accounts" });
 const syncStatus = (page: Page) => page.getByRole("button", { name: /^Sync status:/ });
-
-async function addAccount(page: Page, name: string) {
-  const form = page.getByRole("form", { name: "Add an account" });
-  await form.getByLabel("Account name").fill(name);
-  await form.getByRole("button", { name: "Add account" }).click();
-  await expect(accountsList(page)).toContainText(name);
-}
 
 /** On phones, Sign Out is in the navigation drawer. */
 async function clickSignOut(page: Page) {

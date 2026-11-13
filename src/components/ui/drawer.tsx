@@ -4,6 +4,7 @@ import { Drawer as DrawerPrimitive } from "vaul";
 
 import { cn } from "@/lib/utils";
 import { useHistoryBackClose } from "@/hooks/useHistoryBackClose";
+import { keepOpenForToasts } from "./sonner";
 
 function Drawer({ ...props }: React.ComponentProps<typeof DrawerPrimitive.Root>) {
   // Back closes a controlled drawer instead of navigating, as for Dialog and Sheet (review R37).
@@ -36,12 +37,17 @@ function DrawerOverlay({
 function DrawerContent({
   className,
   children,
+  onInteractOutside,
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Content>) {
   return (
     <DrawerPortal>
       <DrawerOverlay />
       <DrawerPrimitive.Content
+        onInteractOutside={(event) => {
+          onInteractOutside?.(event);
+          keepOpenForToasts(event);
+        }}
         data-slot="drawer-content"
         className={cn(
           "bg-background fixed inset-x-0 bottom-0 z-50 flex h-auto max-h-[90dvh] flex-col rounded-t-lg border-t",

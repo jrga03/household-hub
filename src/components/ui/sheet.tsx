@@ -4,6 +4,7 @@ import { XIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useHistoryBackClose } from "@/hooks/useHistoryBackClose";
+import { keepOpenForToasts } from "./sonner";
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   // Hardware/gesture back closes an open sheet instead of navigating the
@@ -47,6 +48,7 @@ function SheetContent({
   className,
   children,
   side = "right",
+  onInteractOutside,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left";
@@ -55,6 +57,10 @@ function SheetContent({
     <SheetPortal>
       <SheetOverlay />
       <SheetPrimitive.Content
+        onInteractOutside={(event) => {
+          onInteractOutside?.(event);
+          keepOpenForToasts(event);
+        }}
         data-slot="sheet-content"
         className={cn(
           "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 ease-out data-[state=closed]:duration-quick data-[state=open]:duration-move",

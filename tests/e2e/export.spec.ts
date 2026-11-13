@@ -1,6 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { test, expect, type Page } from "@playwright/test";
-import { chooseOption, navigateTo, openSettingsSection, signUpNewPerson } from "./fixtures/helpers";
+import {
+  addAccount,
+  chooseOption,
+  navigateTo,
+  openSettingsSection,
+  signUpNewPerson,
+} from "./fixtures/helpers";
 
 async function downloadText(page: Page, buttonName: string) {
   const [download] = await Promise.all([
@@ -19,11 +25,7 @@ test("exports transactions and the event log offline, from what the device holds
   await page.getByRole("button", { name: "Create household" }).click();
   await navigateTo(page, "Accounts");
 
-  const addAccount = page.getByRole("form", { name: "Add an account" });
-  await addAccount.getByLabel("Account name").fill("BPI");
-  await addAccount.getByLabel("Starting balance (₱)").fill("1000");
-  await addAccount.getByRole("button", { name: "Add account" }).click();
-  await expect(page.getByRole("list", { name: "Accounts" })).toContainText("BPI");
+  await addAccount(page, "BPI", "1000");
 
   await navigateTo(page, "Categories");
   await page.getByRole("button", { name: "Use suggested categories" }).click();

@@ -1,5 +1,6 @@
 import { test, expect, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import {
+  addAccount,
   chooseOption,
   loginAs,
   signUpNewPerson,
@@ -30,14 +31,9 @@ test("a transfer recorded offline moves both balances on another device", async 
   await pageA.getByRole("button", { name: "Create household" }).click();
   await navigateTo(pageA, "Accounts");
 
-  const addAccount = pageA.getByRole("form", { name: "Add an account" });
-  await addAccount.getByLabel("Account name").fill("BPI");
-  await addAccount.getByLabel("Starting balance (₱)").fill("10000");
-  await addAccount.getByRole("button", { name: "Add account" }).click();
+  await addAccount(pageA, "BPI", "10000");
   await expect(accountItem(pageA, "BPI")).toContainText("₱10,000.00");
-  await addAccount.getByLabel("Account name").fill("GCash");
-  await addAccount.getByLabel("Starting balance (₱)").fill("0");
-  await addAccount.getByRole("button", { name: "Add account" }).click();
+  await addAccount(pageA, "GCash", "0");
   await expect(accountItem(pageA, "GCash")).toBeVisible();
 
   await navigateTo(pageA, "Categories");
@@ -57,9 +53,9 @@ test("a transfer recorded offline moves both balances on another device", async 
   await dialog.getByLabel("Amount (₱)").fill("2000");
   await dialog.getByRole("radio", { name: "Transfer" }).click();
   await expect(dialog.getByLabel("Amount (₱)")).toHaveValue("2000.00");
-  await chooseOption(pageA, dialog.getByLabel("From"), "BPI");
-  await chooseOption(pageA, dialog.getByLabel("To"), "GCash");
-  await chooseOption(pageA, dialog.getByLabel("Category"), "Groceries");
+  await chooseOption(pageA, dialog.getByLabel("From", { exact: true }), "BPI");
+  await chooseOption(pageA, dialog.getByLabel("To", { exact: true }), "GCash");
+  await chooseOption(pageA, dialog.getByLabel("From category"), "Groceries");
   await dialog.getByRole("button", { name: "Add transfer" }).click();
   await expect(dialog).toBeHidden();
   await expect(accountItem(pageA, "GCash")).toContainText("₱2,000.00");
