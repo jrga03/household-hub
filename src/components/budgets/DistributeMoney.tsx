@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useActionState, useState } from "react";
+import { useActionState, useId, useState } from "react";
 import { toast } from "sonner";
 import { categoryNames } from "@/components/allocations/envelopes";
 import { AccountSelect } from "@/components/accounts/AccountSelect";
@@ -9,13 +9,15 @@ import { CurrencyInput } from "@/components/app/CurrencyInput";
 import { EmptyState } from "@/components/app/EmptyState";
 import { Field } from "@/components/app/Field";
 import { advanceOnEnter, FormFooter } from "@/components/app/FormSheet";
+import { FilterChip, FilterChips } from "@/components/app/FilterChips";
 import { FormError } from "@/components/app/FormError";
 import { Input } from "@/components/app/Input";
 import { Label } from "@/components/app/Label";
 import { Money } from "@/components/app/Money";
+import { SectionHeader } from "@/components/app/SectionHeader";
 import { SubmitButton } from "@/components/app/SubmitButton";
 import { useAccounts } from "@/hooks/useAccounts";
-import { useDistributeLines } from "@/hooks/useBudgets";
+import { useDistributeLines, usePaydayChoices } from "@/hooks/useBudgets";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useAccountMoney } from "@/hooks/useTransactions";
 import { isCreditCard } from "@/lib/accounts/events";
@@ -105,7 +107,18 @@ function DistributeForm({
   });
   const source = sources.find((account) => account.id === sourceId);
   const month = isLocalDate(date) ? monthOfDate(date) : localMonth(new Date());
-  const lines = useDistributeLines(sourceId, month, mode);
+  const paydayChoices = usePaydayChoices(month);
+  // Null until the member taps a chip, so the preselection follows the month.
+  const [chosenPaydayIds, setChosenPaydayIds] = useState<string[] | null>(null);
+  const preselected = paydayChoices?.preselected;
+  const paydayIds = chosenPaydayIds ?? (preselected ? [preselected] : []);
+  const togglePayday = (paydayId: string) =>
+    setChosenPaydayIds(
+      paydayIds.includes(paydayId)
+        ? paydayIds.filter((id) => id !== paydayId)
+        : [...paydayIds, paydayId]
+    );
+  const lines = useDistributeLines(sourceId, month, mode, paydayIds);
   const holdsCategories = source !== undefined && categoriesHeldBy(categories, source).length > 0;
 
   const unassigned = unassignedIn(sourceId);
@@ -153,13 +166,27 @@ function DistributeForm({
         </Field>
       </div>
 
+      {mode === "income" && paydayChoices && paydayChoices.paydays.length > 0 && (
+        <FilterChips label="Paydays">
+          {paydayChoices.paydays.map((payday) => (
+            <FilterChip
+              key={payday.id}
+              pressed={paydayIds.includes(payday.id)}
+              onPressedChange={() => togglePayday(payday.id)}
+            >
+              {payday.name}
+            </FilterChip>
+          ))}
+        </FilterChips>
+      )}
+
       {source && !holdsCategories && (
         <NoCategories source={source} offerSuggested={!hasHouseholdGroup(categories)} />
       )}
-      {source && lines && holdsCategories && (
-        // Edits reset only when the source or month changes the lines themselves.
+      {source && lines && paydayChoices && holdsCategories && (
+        // Edits reset only when the source, month or paydays change the lines themselves.
         <LinesForm
-          key={`${source.id}:${month}`}
+          key={`${source.id}:${month}:${paydayIds.join()}`}
           actor={actor}
           source={source}
           date={date}
@@ -202,6 +229,8 @@ interface LineDraft {
   amountCents: Cents;
   budgetCents: Cents | null;
   fundingAccountRetired: boolean;
+  /** Prefilled at zero, so it opens under Already funded and stays there. */
+  alreadyFunded: boolean;
 }
 
 const toDraft = (line: DistributeLine): LineDraft => ({
@@ -211,6 +240,7 @@ const toDraft = (line: DistributeLine): LineDraft => ({
   amountCents: line.amountCents ?? ZERO_CENTS,
   budgetCents: line.budgetCents,
   fundingAccountRetired: line.fundingAccountRetired,
+  alreadyFunded: line.amountCents === ZERO_CENTS,
 });
 
 const DUPLICATE_LINE = "Already on a line for this account";
@@ -280,6 +310,21 @@ function LinesForm({
     source.id
   );
   const accountNames = accountNamesOf(accounts);
+  const [fundedOpen, setFundedOpen] = useState(false);
+  const fundedId = useId();
+  const rowFor = (line: LineDraft, index: number) => (
+    <DistributeLineRow
+      key={line.key}
+      line={line}
+      name={names.get(line.categoryId) ?? "Category"}
+      destinations={destinations}
+      error={isDuplicate(lines.slice(0, index), line) ? DUPLICATE_LINE : undefined}
+      onChange={(update) => change(line.key, update)}
+    />
+  );
+  const indexed = [...lines.entries()];
+  const toFund = indexed.filter(([, line]) => !line.alreadyFunded);
+  const funded = indexed.filter(([, line]) => line.alreadyFunded);
 
   const [error, submit] = useActionState(async () => {
     const funded: DistributeLineInput[] = [];
@@ -314,18 +359,28 @@ function LinesForm({
           No budgets this month for {source.name}&apos;s categories. Add a category below.
         </p>
       ) : (
-        <ul className="divide-y border-y">
-          {lines.map((line, index) => (
-            <DistributeLineRow
-              key={line.key}
-              line={line}
-              name={names.get(line.categoryId) ?? "Category"}
-              destinations={destinations}
-              error={isDuplicate(lines.slice(0, index), line) ? DUPLICATE_LINE : undefined}
-              onChange={(update) => change(line.key, update)}
-            />
-          ))}
-        </ul>
+        toFund.length > 0 && (
+          <ul className="divide-y border-y">
+            {toFund.map(([index, line]) => rowFor(line, index))}
+          </ul>
+        )
+      )}
+
+      {funded.length > 0 && (
+        <section aria-label="Already funded" className="space-y-2">
+          <SectionHeader
+            level={3}
+            title="Already funded"
+            toggle={{
+              expanded: fundedOpen,
+              controls: fundedId,
+              onToggle: () => setFundedOpen((open) => !open),
+            }}
+          />
+          <ul id={fundedId} hidden={!fundedOpen} className="divide-y border-y">
+            {fundedOpen && funded.map(([index, line]) => rowFor(line, index))}
+          </ul>
+        </section>
       )}
 
       {choices.length > 0 && (

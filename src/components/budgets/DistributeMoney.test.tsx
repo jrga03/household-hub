@@ -9,11 +9,13 @@ import {
 } from "@tanstack/react-router";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { createAccount, retireAccount } from "@/lib/commands/accounts";
+import { addAllocation } from "@/lib/commands/allocations";
 import { setBudget } from "@/lib/commands/budgets";
 import { createCategory, createGroup } from "@/lib/commands/categories";
 import type { DistributeMode } from "@/lib/budgets/distribute";
 import { distributeMoney } from "@/lib/commands/distribute";
-import { parsePHP } from "@/lib/currency";
+import { addPayday } from "@/lib/commands/paydays";
+import { parsePHP, sumCents } from "@/lib/currency";
 import { DistributeMoney } from "./DistributeMoney";
 import { HOUSEHOLD } from "@/test/events";
 
@@ -266,6 +268,94 @@ describe("DistributeMoney", () => {
     fireEvent.click(screen.getByLabelText("Groceries goes to"));
     fireEvent.click(await screen.findByRole("option", { name: "BDO" }));
     await waitFor(() => expectRows(["BDO₱3,400.00"]));
+  });
+
+  describe("paydays", () => {
+    async function groceriesInPortions() {
+      const groceries = await householdCategory("Groceries");
+      const utilities = await householdCategory("Utilities");
+      const bpi = await householdAccount();
+      const fifteenth = await addPayday(MEMBER, "15th salary");
+      const thirtieth = await addPayday(MEMBER, "30th salary");
+      const inPortions = (categoryId: string, portions: [string, string][]) =>
+        setBudget(MEMBER, {
+          categoryId,
+          fromMonth: "2026-10",
+          amountCents: sumCents(portions.map(([, amount]) => parsePHP(amount))),
+          accountId: bpi.id,
+          portions: portions.map(([paydayId, amount]) => ({
+            paydayId,
+            amountCents: parsePHP(amount),
+          })),
+        });
+      await inPortions(groceries.id, [
+        [fifteenth.id, "4000"],
+        [thirtieth.id, "4000"],
+      ]);
+      await inPortions(utilities.id, [[thirtieth.id, "6000"]]);
+      const fund = (categoryId: string, amount: string) =>
+        addAllocation(MEMBER, {
+          date: "2026-10-05",
+          accountId: bpi.id,
+          from: { kind: "unassigned" },
+          to: { kind: "category", id: categoryId },
+          amountCents: parsePHP(amount),
+        });
+      return { groceries, utilities, bpi, fund };
+    }
+
+    const chip = (name: string) => screen.findByRole("button", { name });
+
+    it("preselects the first payday with money left and fills only its budgets", async () => {
+      const { bpi } = await groceriesInPortions();
+      renderDistribute("income", bpi.id);
+
+      expect(await chip("15th salary")).toHaveAttribute("aria-pressed", "true");
+      expect(await chip("30th salary")).toHaveAttribute("aria-pressed", "false");
+      expect(await screen.findByLabelText("Groceries")).toHaveValue("4,000.00");
+      expect(screen.queryByLabelText("Utilities")).not.toBeInTheDocument();
+    });
+
+    it("preselects a later payday once the earlier one's portions are funded", async () => {
+      const { groceries, bpi, fund } = await groceriesInPortions();
+      await fund(groceries.id, "4000");
+      renderDistribute("income", bpi.id);
+
+      expect(await chip("30th salary")).toHaveAttribute("aria-pressed", "true");
+      expect(await chip("15th salary")).toHaveAttribute("aria-pressed", "false");
+      expect(await screen.findByLabelText("Utilities")).toHaveValue("6,000.00");
+    });
+
+    it("lets a member choose several paydays", async () => {
+      const { bpi } = await groceriesInPortions();
+      renderDistribute("income", bpi.id);
+
+      fireEvent.click(await chip("30th salary"));
+
+      await waitFor(() => expect(screen.getByLabelText("Groceries")).toHaveValue("8,000.00"));
+      expect(screen.getByLabelText("Utilities")).toHaveValue("6,000.00");
+    });
+
+    it("collapses fully funded lines under Already funded, counted once given an amount", async () => {
+      const { groceries, bpi, fund } = await groceriesInPortions();
+      await fund(groceries.id, "8000");
+      renderDistribute("income", bpi.id);
+      expect(await chip("30th salary")).toHaveAttribute("aria-pressed", "true");
+      fireEvent.click(await chip("15th salary"));
+
+      const toggle = await screen.findByRole("button", { name: "Already funded" });
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByLabelText("Groceries")).not.toBeInTheDocument();
+      expect(await screen.findByLabelText("Utilities")).toHaveValue("6,000.00");
+      const summary = screen.getByRole("list", { name: "Where the money goes" });
+      expect(summary).toHaveTextContent("Stays in BPI₱6,000.00");
+
+      fireEvent.click(toggle);
+      fireEvent.change(screen.getByLabelText("Groceries"), { target: { value: "500" } });
+
+      expect(summary).toHaveTextContent("Stays in BPI₱6,500.00");
+      expect(screen.getByLabelText("Groceries")).toBeInTheDocument();
+    });
   });
 
   describe("one category in several accounts", () => {

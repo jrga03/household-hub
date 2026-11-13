@@ -17,6 +17,7 @@ import {
 import { diffCents, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import { sameOwnership } from "@/lib/events/ownership";
+import { readPaydays, type PaydayRow } from "@/lib/paydays/projection";
 import { categoryMonth, readMonthView } from "./month";
 
 /** After recording income, prefilled from the budgets; or the opening balance, blank. */
@@ -46,15 +47,18 @@ export const categoriesHeldBy = (list: CategoryList, account: AccountRow): Categ
   categoriesInUse(list).filter((category) => canHoldMoneyIn(category, account));
 
 /**
- * In income mode, a line per budget in force for `month` ("yyyy-MM"),
- * prefilled with what is left of it, floored at zero; in opening mode, a
+ * In income mode, a line per budget in force for `month` ("yyyy-MM") that
+ * any payday pays or that has a portion on one of `paydayIds`. It asks for
+ * what is left of the budget this month, capped by those portions, floored at
+ * zero (ADR 0014); in opening mode, a
  * blank line per category, kept in the source. Only categories in use that
  * the source can hold, in the Categories screen's order.
  */
 export async function readDistributeLines(
   sourceAccountId: string,
   month: string,
-  mode: DistributeMode
+  mode: DistributeMode,
+  paydayIds: string[] = []
 ): Promise<DistributeLine[]> {
   const source = await getAccount(sourceAccountId);
   if (!source) return [];
@@ -79,18 +83,59 @@ export async function readDistributeLines(
   return inUse.flatMap((category) => {
     const { budget, allocated } = categoryMonth(view, category.id);
     if (!budget) return [];
+    const portions = budget.portions.filter((portion) => paydayIds.includes(portion.paydayId));
+    if (budget.portions.length > 0 && portions.length === 0) return [];
     const funding = accountById.get(budget.accountId);
     const left = diffCents(budget.amountCents, allocated);
+    const onPaydays = sumCents(portions.map((portion) => portion.amountCents));
+    const asked = portions.length > 0 && onPaydays < left ? onPaydays : left;
     return [
       {
         categoryId: category.id,
         accountId: canReceive(funding, source) ? budget.accountId : source.id,
-        amountCents: left > 0 ? left : ZERO_CENTS,
+        amountCents: asked > 0 ? asked : ZERO_CENTS,
         budgetCents: budget.amountCents,
         fundingAccountRetired: funding?.retired === true,
       },
     ];
   });
+}
+
+export interface PaydayChoices {
+  paydays: PaydayRow[];
+  /** The first payday with money left this month; null when there is none. */
+  preselected: string | null;
+}
+
+/**
+ * The household's paydays, and the first one in order whose portions, with
+ * the earlier paydays' portions, ask a budget in use for more than was
+ * allocated to it this month.
+ */
+export async function readPaydayChoices(month: string): Promise<PaydayChoices> {
+  const [paydays, categories, view] = await Promise.all([
+    readPaydays(),
+    readCategoryList(),
+    readMonthView(month, month),
+  ]);
+  const budgets = categoriesInUse(categories).flatMap((category) => {
+    const { budget, allocated } = categoryMonth(view, category.id);
+    return budget ? [{ portions: budget.portions, allocated }] : [];
+  });
+  const paidSoFar = new Set<string>();
+  const hasMoneyLeft = (payday: PaydayRow) => {
+    paidSoFar.add(payday.id);
+    return budgets.some(
+      ({ portions, allocated }) =>
+        portions.some((portion) => portion.paydayId === payday.id) &&
+        sumCents(
+          portions
+            .filter((portion) => paidSoFar.has(portion.paydayId))
+            .map((portion) => portion.amountCents)
+        ) > allocated
+    );
+  };
+  return { paydays, preselected: paydays.find(hasMoneyLeft)?.id ?? null };
 }
 
 export interface AccountTotal {
