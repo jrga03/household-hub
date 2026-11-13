@@ -36,7 +36,7 @@ import {
   type TransactionType,
 } from "@/lib/transactions/events";
 import type { TransactionRow } from "@/lib/transactions/projection";
-import { TRANSFER_TYPE, type EntryDirection } from "@/lib/transactions/filter";
+import { MOVE_DIRECTION, type EntryDirection } from "@/lib/transactions/filter";
 import { errorMessage } from "@/lib/utils";
 import { todayLocalDate } from "@/lib/utils/dates";
 import { useQuickEntryStore } from "@/stores/quickEntryStore";
@@ -47,6 +47,7 @@ import {
   hasFieldProblems,
   NO_PROBLEMS,
   readEntryBasics,
+  saveEditAndStatus,
   StatusChoice,
   STATUSES,
   useFocusNewEntry,
@@ -167,10 +168,10 @@ function NewEntryForm({
   });
   const switchTo = (direction: EntryDirection, amount: Cents | undefined) => {
     setDraft({ direction, amount });
-    onMovingChange?.(direction === TRANSFER_TYPE);
+    onMovingChange?.(direction === MOVE_DIRECTION);
   };
   const { direction } = draft;
-  if (direction === TRANSFER_TYPE) {
+  if (direction === MOVE_DIRECTION) {
     return (
       <MoveMoneyForm
         actor={actor}
@@ -300,10 +301,13 @@ function TransactionForm({
       if (readProblems !== null) return readProblems;
       try {
         if (transaction) {
-          const edited = await editTransaction(actor, transaction.id, input);
-          const statusChanged = status !== transaction.status;
-          if (statusChanged) await setTransactionStatus(actor, transaction.id, status);
-          if (edited || statusChanged) toast.success("Transaction saved");
+          await saveEditAndStatus({
+            edit: () => editTransaction(actor, transaction.id, input),
+            status,
+            previousStatus: transaction.status,
+            setStatus: (changed) => setTransactionStatus(actor, transaction.id, changed),
+            saved: "Transaction saved",
+          });
         } else {
           await addTransaction(actor, {
             ...input,
@@ -369,9 +373,9 @@ function TransactionForm({
         />
         <DirectionChoice
           value={type}
-          withTransfer={onDirectionChange !== undefined}
+          withMove={onDirectionChange !== undefined}
           onChange={(next) => {
-            if (next === TRANSFER_TYPE) {
+            if (next === MOVE_DIRECTION) {
               onDirectionChange?.(next, amount);
               return;
             }
