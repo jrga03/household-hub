@@ -82,6 +82,26 @@ describe("transactions CSV", () => {
     );
   });
 
+  it("reads a transfer between categories as from → to in the Category column", async () => {
+    const bankId = await account("BDO");
+    const walletId = await account("Wallet");
+    const { id: groupId } = await createGroup(MEMBER, { name: "Needs" });
+    const { id: groceriesId } = await createCategory(MEMBER, { name: "Groceries", groupId });
+    const { id: diningId } = await createCategory(MEMBER, { name: "Dining", groupId });
+    await addTransfer(MEMBER, {
+      date: "2026-10-03",
+      amountCents: parsePHP("500"),
+      fromAccountId: bankId,
+      toAccountId: walletId,
+      fromEnvelope: { kind: "category", id: groceriesId },
+      toEnvelope: { kind: "category", id: diningId },
+    });
+
+    expect(await readTransactionsCsv()).toContain(
+      "2026-10-03,Transfer,500.00,BDO,Wallet,Groceries → Dining,Cleared,,"
+    );
+  });
+
   it("lists balance corrections with a signed amount and their envelope", async () => {
     const bankId = await account("BDO");
     const { id: groupId } = await createGroup(MEMBER, { name: "Needs" });

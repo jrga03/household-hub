@@ -1,5 +1,5 @@
 import { readAccountNames } from "@/lib/accounts/projection";
-import { envelopeLabel } from "@/lib/allocations/envelope";
+import { envelopeLabel, transferEnvelopeLabel } from "@/lib/allocations/envelope";
 import { UNASSIGNED_ENVELOPE, type Envelope } from "@/lib/allocations/events";
 import { readCategoryNames } from "@/lib/categories/projection";
 import { cashFlow, CORRECTION_LABEL } from "@/lib/corrections/events";
@@ -90,7 +90,7 @@ export async function readTransactionsCsv(): Promise<string> {
         formatPHPDecimal(transfer.amountCents),
         accountName(transfer.fromAccountId),
         accountName(transfer.toAccountId),
-        envelopeLabel(transfer.fromEnvelope, categoryNames, accountNames),
+        transferEnvelopeLabel(transfer, categoryNames, accountNames),
         STATUS_LABELS[transfer.status],
         transfer.description,
         transfer.notes,
