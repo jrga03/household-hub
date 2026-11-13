@@ -322,30 +322,71 @@ describe("BudgetView", () => {
   });
 
   describe("a record opened from a category's ledger", () => {
-    /** Groceries' ledger, holding an ₱8,000 allocation from Unassigned. */
-    async function groceriesAllocation() {
+    /** BPI, from Food this month, and the Edit dialog of the Groceries ledger row matching `row`. */
+    async function openFromGroceriesLedger(
+      record: (bpiId: string, groceriesId: string) => Promise<{ id: string }>,
+      row: RegExp,
+      dialogName: string
+    ) {
       const { groceries } = await foodThisMonth();
       const [bpi] = await db.accounts.toArray();
       if (!bpi) throw new Error("No account");
-      const { id } = await addAllocation(MEMBER, {
-        date: `${MONTH}-02`,
-        accountId: bpi.id,
-        from: { kind: "unassigned" },
-        to: { kind: "category", id: groceries.id },
-        amountCents: parsePHP("8000"),
-      });
+      const { id } = await record(bpi.id, groceries.id);
       renderBudget();
       fireEvent.click(await screen.findByRole("button", { name: /^Groceries/ }));
       const ledger = await screen.findByRole("list", { name: /^Groceries in / });
-      fireEvent.click(within(ledger).getByRole("button", { name: /Unassigned/ }));
-      const dialog = await screen.findByRole("dialog", { name: "Edit allocation" });
-      return { id, dialog };
+      fireEvent.click(within(ledger).getByRole("button", { name: row }));
+      const dialog = await screen.findByRole("dialog", { name: dialogName });
+      return {
+        id,
+        dialog,
+        save: async () =>
+          fireEvent.click(await within(dialog).findByRole("button", { name: "Save" })),
+      };
     }
 
-    it("closes an allocation saved unchanged with no toast and no event", async () => {
-      const { id, dialog } = await groceriesAllocation();
+    /** Opens the Edit allocation dialog of an ₱8,000 move from Unassigned into Groceries. */
+    const groceriesAllocation = () =>
+      openFromGroceriesLedger(
+        (accountId, groceriesId) =>
+          addAllocation(MEMBER, {
+            date: `${MONTH}-02`,
+            accountId,
+            from: { kind: "unassigned" },
+            to: { kind: "category", id: groceriesId },
+            amountCents: parsePHP("8000"),
+          }),
+        /Unassigned/,
+        "Edit allocation"
+      );
 
-      fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    /** Opens the Edit transfer dialog of a cleared ₱500 Groceries top-up from BPI to GCash. */
+    const groceriesTransfer = () =>
+      openFromGroceriesLedger(
+        async (fromAccountId, groceriesId) => {
+          const gcash = await createAccount(MEMBER, {
+            name: "GCash",
+            type: "e_wallet",
+            startingBalanceCents: parsePHP("0"),
+          });
+          return addTransfer(MEMBER, {
+            date: `${MONTH}-03`,
+            amountCents: parsePHP("500"),
+            fromAccountId,
+            toAccountId: gcash.id,
+            envelope: { kind: "category", id: groceriesId },
+            description: "Top-up",
+            notes: "",
+          });
+        },
+        /Top-up/,
+        "Edit transfer"
+      );
+
+    it("closes an allocation saved unchanged with no toast and no event", async () => {
+      const { id, dialog, save } = await groceriesAllocation();
+
+      await save();
 
       await waitFor(() => expect(dialog).not.toBeInTheDocument());
       expect(toast.success).not.toHaveBeenCalled();
@@ -353,12 +394,12 @@ describe("BudgetView", () => {
     });
 
     it("saves a changed allocation with its toast and one edit", async () => {
-      const { id, dialog } = await groceriesAllocation();
+      const { id, dialog, save } = await groceriesAllocation();
 
       fireEvent.change(within(dialog).getByLabelText("Amount (₱)"), {
         target: { value: "9000" },
       });
-      fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+      await save();
 
       await waitFor(() => expect(dialog).not.toBeInTheDocument());
       expect(toast.success).toHaveBeenCalledWith("Allocation saved");
@@ -366,34 +407,37 @@ describe("BudgetView", () => {
     });
 
     it("closes a transfer saved unchanged with no toast and no event", async () => {
-      const { groceries } = await foodThisMonth();
-      const [bpi] = await db.accounts.toArray();
-      if (!bpi) throw new Error("No account");
-      const gcash = await createAccount(MEMBER, {
-        name: "GCash",
-        type: "e_wallet",
-        startingBalanceCents: parsePHP("0"),
-      });
-      const { id } = await addTransfer(MEMBER, {
-        date: `${MONTH}-03`,
-        amountCents: parsePHP("500"),
-        fromAccountId: bpi.id,
-        toAccountId: gcash.id,
-        envelope: { kind: "category", id: groceries.id },
-        description: "Top-up",
-        notes: "",
-      });
-      renderBudget();
-      fireEvent.click(await screen.findByRole("button", { name: /^Groceries/ }));
-      const ledger = await screen.findByRole("list", { name: /^Groceries in / });
-      fireEvent.click(within(ledger).getByRole("button", { name: /Top-up/ }));
-      const dialog = await screen.findByRole("dialog", { name: "Edit transfer" });
+      const { id, dialog, save } = await groceriesTransfer();
 
-      fireEvent.click(await within(dialog).findByRole("button", { name: "Save" }));
+      await save();
 
       await waitFor(() => expect(dialog).not.toBeInTheDocument());
       expect(toast.success).not.toHaveBeenCalled();
       expect(await eventsFor(id)).toEqual(["transfer.created"]);
+    });
+
+    it("saves a changed transfer with its toast and one edit", async () => {
+      const { id, dialog, save } = await groceriesTransfer();
+
+      fireEvent.change(await within(dialog).findByLabelText("Description (optional)"), {
+        target: { value: "Allowance" },
+      });
+      await save();
+
+      await waitFor(() => expect(dialog).not.toBeInTheDocument());
+      expect(toast.success).toHaveBeenCalledWith("Transfer saved");
+      expect(await eventsFor(id)).toEqual(["transfer.created", "transfer.edited"]);
+    });
+
+    it("saves a transfer's status alone with its toast and one status event", async () => {
+      const { id, dialog, save } = await groceriesTransfer();
+
+      fireEvent.click(await within(dialog).findByRole("radio", { name: "Pending" }));
+      await save();
+
+      await waitFor(() => expect(dialog).not.toBeInTheDocument());
+      expect(toast.success).toHaveBeenCalledWith("Transfer saved");
+      expect(await eventsFor(id)).toEqual(["transfer.created", "transfer.marked_pending"]);
     });
   });
 });
