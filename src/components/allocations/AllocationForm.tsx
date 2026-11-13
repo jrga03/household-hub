@@ -1,21 +1,18 @@
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { AccountSelect } from "@/components/accounts/AccountSelect";
 import { ActionForm } from "@/components/app/ActionForm";
 import { Combobox } from "@/components/app/Combobox";
-import { CurrencyInput } from "@/components/app/CurrencyInput";
 import { Field } from "@/components/app/Field";
-import { FormFooter, FormSheet, FULL_ROW } from "@/components/app/FormSheet";
+import { FormFooter, FULL_ROW } from "@/components/app/FormSheet";
 import { FormError } from "@/components/app/FormError";
 import { changeWithUndo } from "@/components/app/withUndo";
 import { Input } from "@/components/app/Input";
 import { Money } from "@/components/app/Money";
 import { Notice } from "@/components/app/Notice";
 import { SubmitButton } from "@/components/app/SubmitButton";
-import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
+import { AmountField } from "@/components/transactions/EntryFields";
 import { useFocusFirstProblem } from "@/hooks/useFocusFirstProblem";
-import { useCategoryList } from "@/hooks/useCategories";
-import { useAccountMoney } from "@/hooks/useTransactions";
 import { isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
 import { sameEnvelope, type Envelope } from "@/lib/allocations/events";
@@ -35,7 +32,6 @@ import {
   formatPHP,
   isAmount,
   parsePHPSafe,
-  PESO_SIGN,
   sumCents,
   type Cents,
 } from "@/lib/currency";
@@ -110,24 +106,33 @@ function envelopeChoices(
 }
 
 /** Add when `allocation` is left out; edit otherwise. */
-export function MoveMoneyDialog({
+export function AllocationForm({
   actor,
   allocation,
   initialAccountId,
+  accounts,
+  retiredAccounts,
+  categories,
+  money,
+  amount,
+  onAmountChange,
+  choices,
   onClose,
 }: {
   actor: Actor;
   allocation?: AllocationRow;
   /** A new move's account, when it's one of the choices; ignored by an edit. */
   initialAccountId?: string;
+  accounts: AccountRow[];
+  retiredAccounts: AccountRow[];
+  categories: CategoryList;
+  money: Map<string, AccountMoney>;
+  amount: Cents | undefined;
+  onAmountChange: (amount: Cents | undefined) => void;
+  /** The switches a new entry offers, under the amount. */
+  choices?: ReactNode;
   onClose: () => void;
 }) {
-  const accounts = useAccounts();
-  const retiredAccounts = useRetiredAccounts();
-  const categories = useCategoryList();
-  const money = useAccountMoney();
-  if (!accounts || !retiredAccounts || !categories || !money) return null;
-
   const holdsEnvelopes = (account: AccountRow) => !isCreditCard(account);
   // An allocation moves only within its visibility; its own account stays a choice even when retired.
   const accountChoices = allocation
@@ -138,29 +143,30 @@ export function MoveMoneyDialog({
     : accounts.filter(holdsEnvelopes);
   const cards = [...accounts, ...retiredAccounts].filter(isCreditCard);
 
-  return (
-    <FormSheet
-      title={allocation ? "Edit allocation" : "Move money"}
-      description="Moves money between categories, Card Payments and Unassigned inside one account. The balance doesn't change."
-      onClose={onClose}
-    >
-      {accountChoices.length === 0 ? (
+  if (accountChoices.length === 0) {
+    return (
+      <div className="space-y-4">
+        {choices}
         <p className="text-body text-muted-foreground">
           Add a bank, cash or e-wallet account first.
         </p>
-      ) : (
-        <MoveMoneyForm
-          actor={actor}
-          allocation={allocation}
-          initialAccountId={initialAccountId}
-          accounts={accountChoices}
-          cards={cards}
-          categories={categories}
-          money={money}
-          onClose={onClose}
-        />
-      )}
-    </FormSheet>
+      </div>
+    );
+  }
+  return (
+    <AllocationFields
+      actor={actor}
+      allocation={allocation}
+      initialAccountId={initialAccountId}
+      accounts={accountChoices}
+      cards={cards}
+      categories={categories}
+      money={money}
+      amount={amount}
+      onAmountChange={onAmountChange}
+      choices={choices}
+      onClose={onClose}
+    />
   );
 }
 
@@ -186,7 +192,7 @@ function moneyLeft(
   return diffCents(held, amount);
 }
 
-function MoveMoneyForm({
+function AllocationFields({
   actor,
   allocation,
   initialAccountId,
@@ -194,6 +200,9 @@ function MoveMoneyForm({
   cards,
   categories,
   money,
+  amount,
+  onAmountChange,
+  choices,
   onClose,
 }: {
   actor: Actor;
@@ -203,6 +212,9 @@ function MoveMoneyForm({
   cards: AccountRow[];
   categories: CategoryList;
   money: Map<string, AccountMoney>;
+  amount: Cents | undefined;
+  onAmountChange: (amount: Cents | undefined) => void;
+  choices?: ReactNode;
   onClose: () => void;
 }) {
   const [accountId, setAccountId] = useState(
@@ -212,8 +224,8 @@ function MoveMoneyForm({
       ""
   );
   const [fromKey, setFromKey] = useState(allocation ? envelopeKey(allocation.from) : "unassigned");
+  const amountRef = useRef<HTMLInputElement>(null);
   const [toKey, setToKey] = useState(allocation ? envelopeKey(allocation.to) : UNCHOSEN);
-  const [amount, setAmount] = useState<Cents | undefined>(allocation?.amountCents);
   const account = accounts.find((choice) => choice.id === accountId);
   const envelopes = money.get(accountId)?.envelopes;
 
@@ -293,16 +305,14 @@ function MoveMoneyForm({
       aria-label={allocation ? "Edit allocation" : "Move money"}
     >
       <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
-        <Field label={`Amount (${PESO_SIGN})`} error={problems.amount}>
-          <CurrencyInput
-            name="amount"
-            placeholder="0.00"
-            autoComplete="off"
-            enterKeyHint="done"
-            value={amount}
-            onChange={setAmount}
-          />
-        </Field>
+        <AmountField
+          value={amount}
+          onChange={onAmountChange}
+          error={problems.amount}
+          inputRef={amountRef}
+          className={choices ? FULL_ROW : undefined}
+        />
+        {choices}
         <Field label="Date">
           <Input
             name="date"

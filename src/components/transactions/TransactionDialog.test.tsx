@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { toast } from "sonner";
@@ -17,7 +18,7 @@ import { parsePHP } from "@/lib/currency";
 import { listTransactions, type TransactionRow } from "@/lib/transactions/projection";
 import { listTransfers } from "@/lib/transfers/projection";
 import { listUnpushed } from "@/lib/events/log";
-import { TransactionEditor } from "./TransactionDialog";
+import { TransactionDialog, TransactionEditor } from "./TransactionDialog";
 import { HOUSEHOLD } from "@/test/events";
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
@@ -34,13 +35,17 @@ vi.mock("@/lib/household-members", () => ({
 }));
 
 function renderEditor(onClose: () => void, transaction?: TransactionRow) {
+  return renderOnTransactions(
+    <TransactionEditor actor={MEMBER} transaction={transaction} onClose={onClose} />
+  );
+}
+
+function renderOnTransactions(page: ReactNode) {
   const rootRoute = createRootRoute();
   const route = createRoute({
     getParentRoute: () => rootRoute,
     path: "/transactions",
-    component: () => (
-      <TransactionEditor actor={MEMBER} transaction={transaction} onClose={onClose} />
-    ),
+    component: () => page,
   });
   const router = createRouter({
     routeTree: rootRoute.addChildren([route]),
@@ -185,7 +190,7 @@ describe("TransactionEditor", () => {
         startingBalanceCents: parsePHP("0"),
       });
       const view = renderEditor(vi.fn());
-      fireEvent.click(await screen.findByRole("radio", { name: "Transfer" }));
+      fireEvent.click(await screen.findByRole("radio", { name: "Move money" }));
       expect(await screen.findByRole("form", { name: "Add transfer" })).toBeInTheDocument();
       expect(addAnother()).toBeNull();
       view.unmount();
@@ -220,6 +225,16 @@ describe("TransactionEditor", () => {
     expect(await listTransactions()).toHaveLength(0);
   });
 
+  it("becomes Move money, between accounts, when Move money is chosen", async () => {
+    await createAccount(MEMBER, { name: "BPI", type: "bank", startingBalanceCents: parsePHP("0") });
+    renderOnTransactions(<TransactionDialog actor={MEMBER} onClose={vi.fn()} />);
+
+    fireEvent.click(await screen.findByRole("radio", { name: "Move money" }));
+
+    expect(await screen.findByRole("dialog", { name: "Move money" })).toBeInTheDocument();
+    expect(await screen.findByRole("radio", { name: "Between accounts" })).toBeChecked();
+  });
+
   it("carries the amount into a transfer and records it as pending", async () => {
     const bpi = await createAccount(MEMBER, {
       name: "BPI",
@@ -235,7 +250,7 @@ describe("TransactionEditor", () => {
     renderEditor(onClose);
 
     fireEvent.change(await screen.findByLabelText(/Amount/), { target: { value: "2000" } });
-    fireEvent.click(screen.getByRole("radio", { name: "Transfer" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Move money" }));
 
     expect(await screen.findByRole("form", { name: "Add transfer" })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText(/Amount/)).toHaveValue("2000.00"));
@@ -287,7 +302,7 @@ describe("TransactionEditor", () => {
     renderEditor(onClose);
 
     fireEvent.change(await screen.findByLabelText(/Amount/), { target: { value: "500" } });
-    fireEvent.click(screen.getByRole("radio", { name: "Transfer" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Move money" }));
     const category = await screen.findByLabelText("From category (optional)");
     expect(category).toHaveTextContent("Unassigned");
     fireEvent.click(category);
@@ -321,7 +336,7 @@ describe("TransactionEditor", () => {
     renderEditor(onClose);
 
     fireEvent.change(await screen.findByLabelText(/Amount/), { target: { value: "500" } });
-    fireEvent.click(screen.getByRole("radio", { name: "Transfer" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Move money" }));
     fireEvent.click(await screen.findByLabelText("From category (optional)"));
     fireEvent.click(await screen.findByRole("option", { name: /Groceries/ }));
     const arrival = screen.getByLabelText("To category (optional)");

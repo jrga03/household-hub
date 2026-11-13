@@ -51,13 +51,14 @@ test("a transfer recorded offline moves both balances on another device", async 
   await pageA.keyboard.press("n");
   const dialog = pageA.getByRole("dialog", { name: "Add transaction" });
   await dialog.getByLabel("Amount (₱)").fill("2000");
-  await dialog.getByRole("radio", { name: "Transfer" }).click();
-  await expect(dialog.getByLabel("Amount (₱)")).toHaveValue("2000.00");
-  await chooseOption(pageA, dialog.getByLabel("From", { exact: true }), "BPI");
-  await chooseOption(pageA, dialog.getByLabel("To", { exact: true }), "GCash");
-  await chooseOption(pageA, dialog.getByLabel("From category"), "Groceries");
-  await dialog.getByRole("button", { name: "Add transfer" }).click();
-  await expect(dialog).toBeHidden();
+  await dialog.getByRole("radio", { name: "Move money" }).click();
+  const move = pageA.getByRole("dialog", { name: "Move money" });
+  await expect(move.getByLabel("Amount (₱)")).toHaveValue("2000.00");
+  await chooseOption(pageA, move.getByLabel("From", { exact: true }), "BPI");
+  await chooseOption(pageA, move.getByLabel("To", { exact: true }), "GCash");
+  await chooseOption(pageA, move.getByLabel("From category"), "Groceries");
+  await move.getByRole("button", { name: "Add transfer" }).click();
+  await expect(move).toBeHidden();
   await expect(accountItem(pageA, "GCash")).toContainText("₱2,000.00");
   await deviceA.setOffline(false);
 

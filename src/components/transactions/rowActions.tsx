@@ -10,7 +10,7 @@ import type { TransactionStatus } from "@/lib/transactions/events";
 import { isCorrection, isTransfer, statusOf, type ListRow } from "@/lib/transactions/filter";
 import { errorMessage } from "@/lib/utils";
 import { removeWithUndo } from "./removeWithUndo";
-import { removeTransferWithUndo } from "./TransferDialog";
+import { removeTransferWithUndo } from "./TransferForm";
 
 const OTHER_STATUS: Record<TransactionStatus, TransactionStatus> = {
   cleared: "pending",

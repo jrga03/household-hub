@@ -372,15 +372,16 @@ test.describe("a transfer's route", () => {
       await page.getByRole("button", { name: "Add transaction" }).click();
       const dialog = page.getByRole("dialog", { name: "Add transaction" });
       await dialog.getByLabel("Amount (₱)").fill("2000");
-      await dialog.getByRole("radio", { name: "Transfer" }).click();
-      await chooseOption(page, dialog.getByLabel("From", { exact: true }), "BPI");
+      await dialog.getByRole("radio", { name: "Move money" }).click();
+      const move = page.getByRole("dialog", { name: "Move money" });
+      await chooseOption(page, move.getByLabel("From", { exact: true }), "BPI");
       await chooseOption(
         page,
-        dialog.getByLabel("To", { exact: true }),
+        move.getByLabel("To", { exact: true }),
         "Metrobank Savings for the Holidays"
       );
-      await dialog.getByRole("button", { name: "Add transfer" }).click();
-      await expect(dialog).toBeHidden();
+      await move.getByRole("button", { name: "Add transfer" }).click();
+      await expect(move).toBeHidden();
 
       await navigateTo(page, "Transactions");
       const route = transactionRows(page).getByRole("cell", {

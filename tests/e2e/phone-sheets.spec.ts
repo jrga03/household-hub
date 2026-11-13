@@ -284,12 +284,13 @@ test.describe("phone forms", () => {
     await page.getByRole("button", { name: "Add transaction" }).click();
     const add = page.getByRole("dialog", { name: "Add transaction" });
     await add.getByLabel("Amount (₱)").fill("500");
-    await add.getByRole("radio", { name: "Transfer" }).click();
-    await chooseOption(page, add.getByLabel("From", { exact: true }), "BPI");
-    await chooseOption(page, add.getByLabel("To", { exact: true }), "GCash");
-    await add.getByLabel("Description (optional)").fill("Top up");
-    await add.getByRole("button", { name: "Add transfer" }).click();
-    await expect(add).toBeHidden();
+    await add.getByRole("radio", { name: "Move money" }).click();
+    const move = page.getByRole("dialog", { name: "Move money" });
+    await chooseOption(page, move.getByLabel("From", { exact: true }), "BPI");
+    await chooseOption(page, move.getByLabel("To", { exact: true }), "GCash");
+    await move.getByLabel("Description (optional)").fill("Top up");
+    await move.getByRole("button", { name: "Add transfer" }).click();
+    await expect(move).toBeHidden();
 
     await navigateTo(page, "Transactions");
     await page
