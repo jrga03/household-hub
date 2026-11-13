@@ -1,5 +1,11 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
-import { chooseOption, expectChosen, signUpNewPerson, navigateTo } from "./fixtures/helpers";
+import {
+  addAccount,
+  chooseOption,
+  expectChosen,
+  signUpNewPerson,
+  navigateTo,
+} from "./fixtures/helpers";
 
 const SYNTHETIC_BDO = "tests/fixtures/statements/bdo-credit-card.pdf";
 const SYNTHETIC_UNIONBANK = "tests/fixtures/statements/unionbank-credit-card.xlsx";
@@ -18,14 +24,12 @@ async function openImportOffline(page: Page, context: BrowserContext, cardName: 
   await page.getByRole("button", { name: "Create household" }).click();
   await navigateTo(page, "Accounts");
 
-  const addAccount = page.getByRole("form", { name: "Add an account" });
-  await addAccount.getByLabel("Account name").fill("Savings");
-  await addAccount.getByRole("button", { name: "Add account" }).click();
-  await expect(page.getByRole("list", { name: "Accounts" })).toContainText("Savings");
-  await addAccount.getByLabel("Account name").fill(cardName);
-  await chooseOption(page, addAccount.getByLabel("Type"), "Credit card");
-  await chooseOption(page, addAccount.getByLabel("Paid from"), "Savings");
-  await addAccount.getByRole("button", { name: "Add account" }).click();
+  const accountForm = page.getByRole("form", { name: "Add an account" });
+  await addAccount(page, "Savings");
+  await accountForm.getByLabel("Account name").fill(cardName);
+  await chooseOption(page, accountForm.getByLabel("Type"), "Credit card");
+  await chooseOption(page, accountForm.getByLabel("Paid from"), "Savings");
+  await accountForm.getByRole("button", { name: "Add account" }).click();
   await expect(page.getByRole("list", { name: "Accounts" })).toContainText(cardName);
 
   // Installed: the service worker controls the page, so everything it precached is offline.

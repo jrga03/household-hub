@@ -1,5 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
-import { chooseOption, closeSheet, signUpNewPerson, navigateTo } from "./fixtures/helpers";
+import {
+  addAccount,
+  chooseOption,
+  closeSheet,
+  signUpNewPerson,
+  navigateTo,
+} from "./fixtures/helpers";
 import { VIEWPORTS } from "./fixtures/viewports";
 
 const unassignedItem = (page: Page) =>
@@ -23,10 +29,7 @@ test("moving money between envelopes, past Unassigned, with an undoable removal"
   await page.getByRole("button", { name: "Create household" }).click();
   await navigateTo(page, "Accounts");
 
-  const addAccount = page.getByRole("form", { name: "Add an account" });
-  await addAccount.getByLabel("Account name").fill("BDO Savings");
-  await addAccount.getByLabel("Starting balance (₱)").fill("20000");
-  await addAccount.getByRole("button", { name: "Add account" }).click();
+  await addAccount(page, "BDO Savings", "20000");
 
   await navigateTo(page, "Categories");
   await page.getByRole("button", { name: "Use suggested categories" }).click();
@@ -104,10 +107,7 @@ test.describe("on a laptop", () => {
     await page.getByLabel("Household name").fill("Keyboard home");
     await page.getByRole("button", { name: "Create household" }).click();
     await navigateTo(page, "Accounts");
-    const addAccount = page.getByRole("form", { name: "Add an account" });
-    await addAccount.getByLabel("Account name").fill("BDO Savings");
-    await addAccount.getByLabel("Starting balance (₱)").fill("20000");
-    await addAccount.getByRole("button", { name: "Add account" }).click();
+    await addAccount(page, "BDO Savings", "20000");
     await navigateTo(page, "Categories");
     await page.getByRole("button", { name: "Use suggested categories" }).click();
     await expect(page.getByRole("list", { name: "Food categories" })).toContainText("Groceries");

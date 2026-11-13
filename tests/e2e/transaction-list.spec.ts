@@ -1,6 +1,12 @@
 import { test, expect, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { format } from "date-fns";
-import { chooseOption, signUpNewPerson, navigateTo, transactionRows } from "./fixtures/helpers";
+import {
+  addAccount,
+  chooseOption,
+  signUpNewPerson,
+  navigateTo,
+  transactionRows,
+} from "./fixtures/helpers";
 
 interface Entry {
   amount: string;
@@ -28,10 +34,7 @@ async function startHousehold(page: Page) {
   await page.getByRole("button", { name: "Create household" }).click();
   await navigateTo(page, "Accounts");
 
-  const addAccount = page.getByRole("form", { name: "Add an account" });
-  await addAccount.getByLabel("Account name").fill("BPI");
-  await addAccount.getByLabel("Starting balance (₱)").fill("10000");
-  await addAccount.getByRole("button", { name: "Add account" }).click();
+  await addAccount(page, "BPI", "10000");
 }
 
 /** Real touches through CDP, so the browser's own touch-action and scroll handling run (Chromium only). */
@@ -361,10 +364,7 @@ test.describe("a transfer's route", () => {
       await page.setViewportSize({ width, height: 768 });
       await startHousehold(page);
       await expect(page.getByRole("list", { name: "Accounts" })).toContainText("BPI");
-      const addAccount = page.getByRole("form", { name: "Add an account" });
-      await addAccount.getByLabel("Account name").fill("Metrobank Savings for the Holidays");
-      await addAccount.getByLabel("Starting balance (₱)").fill("0");
-      await addAccount.getByRole("button", { name: "Add account" }).click();
+      await addAccount(page, "Metrobank Savings for the Holidays", "0");
       await expect(
         page.getByRole("list", { name: "Accounts" }).getByText("Metrobank Savings for the Holidays")
       ).toBeVisible();

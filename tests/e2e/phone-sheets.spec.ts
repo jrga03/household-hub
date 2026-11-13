@@ -1,5 +1,5 @@
 import { test, expect, type BrowserContext, type Locator, type Page } from "@playwright/test";
-import { chooseOption, navigateTo, signUpNewPerson } from "./fixtures/helpers";
+import { addAccount, chooseOption, navigateTo, signUpNewPerson } from "./fixtures/helpers";
 
 /** An iPhone keyboard with its suggestion bar, in CSS px. */
 const KEYBOARD_HEIGHT = 336;
@@ -82,10 +82,7 @@ async function openAddTransaction(page: Page, slot = "drawer-content", accountNa
   await page.getByLabel("Household name").fill("Sheet home");
   await page.getByRole("button", { name: "Create household" }).click();
   await navigateTo(page, "Accounts");
-  const addAccount = page.getByRole("form", { name: "Add an account" });
-  await addAccount.getByLabel("Account name").fill(accountName);
-  await addAccount.getByRole("button", { name: "Add account" }).click();
-  await expect(page.getByRole("list", { name: "Accounts" })).toContainText(accountName);
+  await addAccount(page, accountName);
 
   // A phone floats Add transaction on Home and Transactions only
   await navigateTo(page, "Home");
@@ -281,10 +278,7 @@ test.describe("phone forms", () => {
     const sheet = await openAddTransaction(page);
     await sheet.getByRole("button", { name: "Close" }).click();
     await navigateTo(page, "Accounts");
-    const addAccount = page.getByRole("form", { name: "Add an account" });
-    await addAccount.getByLabel("Account name").fill("GCash");
-    await addAccount.getByRole("button", { name: "Add account" }).click();
-    await expect(page.getByRole("list", { name: "Accounts" })).toContainText("GCash");
+    await addAccount(page, "GCash");
 
     await navigateTo(page, "Home");
     await page.getByRole("button", { name: "Add transaction" }).click();

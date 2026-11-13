@@ -1,5 +1,5 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
-import { loginAs, signUpNewPerson, navigateTo } from "./fixtures/helpers";
+import { addAccount, loginAs, signUpNewPerson, navigateTo } from "./fixtures/helpers";
 import { AUTH_STORAGE_KEY } from "../../src/lib/auth-storage";
 
 const accountsList = (page: Page) => page.getByRole("list", { name: "Accounts" });
@@ -65,10 +65,7 @@ test("back online, the token refreshes and changes made offline sync without sig
   ).toBeVisible();
   await navigateTo(page, "Accounts");
 
-  const form = page.getByRole("form", { name: "Add an account" });
-  await form.getByLabel("Account name").fill("Offline wallet");
-  await form.getByRole("button", { name: "Add account" }).click();
-  await expect(accountsList(page)).toContainText("Offline wallet");
+  await addAccount(page, "Offline wallet");
 
   await context.setOffline(false);
   await expect(page.getByRole("button", { name: /^Sync status:/ })).toHaveAccessibleName(

@@ -1,15 +1,12 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
-import { navigateTo, openSettingsSection, signUpNewPerson } from "./fixtures/helpers";
+import { addAccount, navigateTo, openSettingsSection, signUpNewPerson } from "./fixtures/helpers";
 
 async function startHousehold(page: Page, name: string) {
   await signUpNewPerson(page);
   await page.getByLabel("Household name").fill(name);
   await page.getByRole("button", { name: "Create household" }).click();
   await navigateTo(page, "Accounts");
-  const addAccount = page.getByRole("form", { name: "Add an account" });
-  await addAccount.getByLabel("Account name").fill("BPI");
-  await addAccount.getByLabel("Starting balance (₱)").fill("10000");
-  await addAccount.getByRole("button", { name: "Add account" }).click();
+  await addAccount(page, "BPI", "10000");
   await expect(page.getByRole("main").getByText("BPI")).toBeVisible();
 }
 

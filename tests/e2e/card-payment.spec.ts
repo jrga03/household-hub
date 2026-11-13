@@ -1,5 +1,6 @@
 import { test, expect, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import {
+  addAccount,
   chooseOption,
   loginAs,
   signUpNewPerson,
@@ -41,15 +42,13 @@ test("a card purchase recorded offline reserves its amount in the Paying Account
   await pageA.getByRole("button", { name: "Create household" }).click();
   await navigateTo(pageA, "Accounts");
 
-  const addAccount = pageA.getByRole("form", { name: "Add an account" });
-  await addAccount.getByLabel("Account name").fill("BDO Savings");
-  await addAccount.getByLabel("Starting balance (₱)").fill("5000");
-  await addAccount.getByRole("button", { name: "Add account" }).click();
+  const accountForm = pageA.getByRole("form", { name: "Add an account" });
+  await addAccount(pageA, "BDO Savings", "5000");
   await expect(accountItem(pageA, "BDO Savings")).toContainText("₱5,000.00");
-  await addAccount.getByLabel("Account name").fill("Visa");
-  await chooseOption(pageA, addAccount.getByLabel("Type"), "Credit card");
-  await chooseOption(pageA, addAccount.getByLabel("Paid from"), "BDO Savings");
-  await addAccount.getByRole("button", { name: "Add account" }).click();
+  await accountForm.getByLabel("Account name").fill("Visa");
+  await chooseOption(pageA, accountForm.getByLabel("Type"), "Credit card");
+  await chooseOption(pageA, accountForm.getByLabel("Paid from"), "BDO Savings");
+  await accountForm.getByRole("button", { name: "Add account" }).click();
   await expect(accountItem(pageA, "Visa")).toContainText("Paid from BDO Savings");
 
   await navigateTo(pageA, "Categories");
@@ -101,15 +100,13 @@ test("a card is paid and a balance corrected by keyboard alone", async ({ page, 
   await page.getByLabel("Household name").fill("Keyboard home");
   await page.getByRole("button", { name: "Create household" }).click();
   await navigateTo(page, "Accounts");
-  const addAccount = page.getByRole("form", { name: "Add an account" });
-  await addAccount.getByLabel("Account name").fill("BPI");
-  await addAccount.getByLabel("Starting balance (₱)").fill("5000");
-  await addAccount.getByRole("button", { name: "Add account" }).click();
+  const accountForm = page.getByRole("form", { name: "Add an account" });
+  await addAccount(page, "BPI", "5000");
   await expect(accountItem(page, "BPI")).toBeVisible();
-  await addAccount.getByLabel("Account name").fill("Visa");
-  await chooseOption(page, addAccount.getByLabel("Type"), "Credit card");
-  await chooseOption(page, addAccount.getByLabel("Paid from"), "BPI");
-  await addAccount.getByRole("button", { name: "Add account" }).click();
+  await accountForm.getByLabel("Account name").fill("Visa");
+  await chooseOption(page, accountForm.getByLabel("Type"), "Credit card");
+  await chooseOption(page, accountForm.getByLabel("Paid from"), "BPI");
+  await accountForm.getByRole("button", { name: "Add account" }).click();
   await expect(accountItem(page, "Visa")).toContainText("Paid from BPI");
 
   await page.getByRole("heading", { name: "Bank accounts" }).click();

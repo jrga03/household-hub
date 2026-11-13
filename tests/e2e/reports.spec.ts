@@ -1,5 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { chooseOption, navigateTo, signUpNewPerson, transactionRows } from "./fixtures/helpers";
+import {
+  addAccount,
+  chooseOption,
+  navigateTo,
+  signUpNewPerson,
+  transactionRows,
+} from "./fixtures/helpers";
 
 test("Reports opens from the nav, switches the period and steps the end month back", async ({
   page,
@@ -41,10 +47,7 @@ test("a category's month bar opens its transactions with the same Spent, and bac
   await page.reload();
 
   await navigateTo(page, "Accounts");
-  const addAccount = page.getByRole("form", { name: "Add an account" });
-  await addAccount.getByLabel("Account name").fill("BPI");
-  await addAccount.getByLabel("Starting balance (₱)").fill("5000");
-  await addAccount.getByRole("button", { name: "Add account" }).click();
+  await addAccount(page, "BPI", "5000");
   await navigateTo(page, "Categories");
   await page.getByRole("button", { name: "Use suggested categories" }).click();
   await expect(page.getByRole("list", { name: "Food categories" })).toContainText("Groceries");

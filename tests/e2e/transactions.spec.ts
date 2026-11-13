@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import {
+  addAccount,
   chooseOption,
   expectChosen,
   closeSheet,
@@ -20,10 +21,7 @@ test("transactions recorded offline move the balance, and a removal can be undon
   await page.getByRole("button", { name: "Create household" }).click();
   await navigateTo(page, "Accounts");
 
-  const addAccount = page.getByRole("form", { name: "Add an account" });
-  await addAccount.getByLabel("Account name").fill("BPI");
-  await addAccount.getByLabel("Starting balance (₱)").fill("1000");
-  await addAccount.getByRole("button", { name: "Add account" }).click();
+  await addAccount(page, "BPI", "1000");
   await expect(bankItem(page)).toContainText("₱1,000.00");
 
   await navigateTo(page, "Categories");

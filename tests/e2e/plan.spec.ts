@@ -181,10 +181,7 @@ test("closing Distribute and then going back leaves Assign money for Budget", as
   await page.getByLabel("Household name").fill("Back home");
   await page.getByRole("button", { name: "Create household" }).click();
   await navigateTo(page, "Accounts");
-  const form = page.getByRole("form", { name: "Add an account" });
-  await form.getByLabel("Account name").fill("BDO Savings");
-  await form.getByLabel("Starting balance (₱)").fill("20000");
-  await form.getByRole("button", { name: "Add account" }).click();
+  await addAccount(page, "BDO Savings", "20000");
   await navigateTo(page, "Categories");
   await page.getByRole("button", { name: "Use suggested categories" }).click();
   await expect(page.getByRole("list", { name: "Food categories" })).toContainText("Groceries");

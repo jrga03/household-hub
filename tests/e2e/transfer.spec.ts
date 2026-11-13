@@ -1,5 +1,6 @@
 import { test, expect, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import {
+  addAccount,
   chooseOption,
   loginAs,
   signUpNewPerson,
@@ -30,14 +31,9 @@ test("a transfer recorded offline moves both balances on another device", async 
   await pageA.getByRole("button", { name: "Create household" }).click();
   await navigateTo(pageA, "Accounts");
 
-  const addAccount = pageA.getByRole("form", { name: "Add an account" });
-  await addAccount.getByLabel("Account name").fill("BPI");
-  await addAccount.getByLabel("Starting balance (₱)").fill("10000");
-  await addAccount.getByRole("button", { name: "Add account" }).click();
+  await addAccount(pageA, "BPI", "10000");
   await expect(accountItem(pageA, "BPI")).toContainText("₱10,000.00");
-  await addAccount.getByLabel("Account name").fill("GCash");
-  await addAccount.getByLabel("Starting balance (₱)").fill("0");
-  await addAccount.getByRole("button", { name: "Add account" }).click();
+  await addAccount(pageA, "GCash", "0");
   await expect(accountItem(pageA, "GCash")).toBeVisible();
 
   await navigateTo(pageA, "Categories");
