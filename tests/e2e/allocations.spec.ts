@@ -60,21 +60,19 @@ test("moving money between envelopes, past Unassigned, with an undoable removal"
   await expect(unassignedItem(page)).toContainText("−₱3,000.00");
   await expect(unassignedItem(page)).toContainText("Allocated more than this account has");
 
-  const allocations = page.getByRole("list", { name: "Allocations" });
-  await expect(allocations.getByRole("listitem")).toHaveCount(2);
-  await allocations.getByRole("button", { name: /→ Forever House ₱15,000\.00/ }).click();
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page).toHaveURL(/\/budget$/);
+  await page.getByRole("button", { name: /^Forever House/ }).click();
+  const ledger = page.getByRole("list", { name: /^Forever House in / });
+  await ledger.getByRole("button", { name: /Unassigned/ }).click();
   await page
     .getByRole("dialog", { name: "Edit allocation" })
     .getByRole("button", { name: "Remove" })
     .click();
-  await expect(allocations.getByRole("listitem")).toHaveCount(1);
-  await expect(unassignedItem(page)).toContainText("₱12,000.00");
+  await expect(page.getByText("Nothing recorded in Forever House this month.")).toBeVisible();
   await page.getByRole("button", { name: "Undo" }).click();
-  await expect(allocations.getByRole("listitem")).toHaveCount(2);
-  await expect(unassignedItem(page)).toContainText("−₱3,000.00");
+  await expect(ledger.getByRole("listitem")).toHaveCount(1);
 
-  await page.getByRole("button", { name: "Back" }).click();
-  await expect(page).toHaveURL(/\/budget$/);
   await page.getByRole("link", { name: "Set budgets" }).click();
   await expect(holds(page, "Groceries")).toContainText("Holds ₱8,000.00");
   await page.getByRole("button", { name: "Back" }).click();

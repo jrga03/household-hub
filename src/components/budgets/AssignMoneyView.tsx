@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { ChevronDown, Info } from "lucide-react";
 import { PayCardDialog } from "@/components/accounts/PayCardDialog";
-import { AllocationList } from "@/components/allocations/AllocationList";
-import { categoryNames, namedAmounts } from "@/components/allocations/envelopes";
+import { namedAmounts } from "@/components/allocations/envelopes";
 import { NegativeNote, OVERDRAWN_UNASSIGNED } from "@/components/allocations/NegativeNote";
 import { MoveMoneyDialog } from "@/components/allocations/MoveMoneyDialog";
 import { Button } from "@/components/app/Button";
@@ -14,12 +13,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/app/Popove
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { PageShell } from "@/components/layout/PageShell";
 import { useAccountNames, useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
-import { useCategoryList } from "@/hooks/useCategories";
 import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 import { useAccountMoney } from "@/hooks/useTransactions";
 import { isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
-import type { AllocationRow } from "@/lib/allocations/projection";
 import type { DistributeMode } from "@/lib/budgets/distribute";
 import type { Actor } from "@/lib/commands/accounts";
 import { ZERO_CENTS } from "@/lib/currency";
@@ -51,11 +48,10 @@ export function AssignMoneyView({
   distribute: DistributeRequest | null;
   onDistribute: (mode: DistributeMode | null) => void;
 }) {
-  const list = useCategoryList();
   const accountNames = useAccountNames();
-  const [moving, setMoving] = useState<AllocationRow | "new" | null>(null);
+  const [moving, setMoving] = useState(false);
 
-  if (!list || !accountNames) return null;
+  if (!accountNames) return null;
 
   return (
     <PageShell.Main className="space-y-8">
@@ -63,21 +59,14 @@ export function AssignMoneyView({
         actor={actor}
         accountNames={accountNames}
         onDistribute={() => onDistribute("income")}
-        onMove={() => setMoving("new")}
-      />
-
-      <AllocationList
-        categoryNames={categoryNames(list)}
-        accountNames={accountNames}
-        onEdit={setMoving}
+        onMove={() => setMoving(true)}
       />
 
       {moving && (
         <MoveMoneyDialog
           actor={actor}
-          allocation={moving === "new" ? undefined : moving}
           initialAccountId={initialAccountId}
-          onClose={() => setMoving(null)}
+          onClose={() => setMoving(false)}
         />
       )}
       {distribute && (

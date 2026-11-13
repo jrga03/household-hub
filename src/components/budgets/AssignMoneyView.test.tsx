@@ -94,7 +94,7 @@ describe("AssignMoneyView", () => {
     expect(within(sheet).getByLabelText("Groceries")).toBeInTheDocument();
   });
 
-  it("opens an allocation for editing from its row", async () => {
+  it("lists no allocations; they open from each category's ledger on Budget", async () => {
     const { bpi, category } = await groceries();
     await addAllocation(MEMBER, {
       date: "2026-10-05",
@@ -105,13 +105,8 @@ describe("AssignMoneyView", () => {
     });
     renderAssignMoney();
 
-    const allocations = await screen.findByRole("list", { name: "Allocations" });
-    const row = within(allocations).getByRole("button", { name: /^Unassigned → Groceries/ });
-    expect(row).toHaveAccessibleName(/₱8,000\.00\s*Oct 5, 2026 · BPI$/);
-    fireEvent.click(row);
-
-    const dialog = await screen.findByRole("dialog", { name: "Edit allocation" });
-    expect(within(dialog).getByLabelText("Amount (₱)")).toHaveDisplayValue(/^8,?000\.00$/);
+    expect(await screen.findByRole("region", { name: "Unassigned" })).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Allocations" })).not.toBeInTheDocument();
   });
 
   it("starts Move money on the account chosen on Accounts", async () => {
