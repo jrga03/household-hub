@@ -285,8 +285,8 @@ test.describe("phone forms", () => {
     const add = page.getByRole("dialog", { name: "Add transaction" });
     await add.getByLabel("Amount (₱)").fill("500");
     await add.getByRole("radio", { name: "Transfer" }).click();
-    await chooseOption(page, add.getByLabel("From"), "BPI");
-    await chooseOption(page, add.getByLabel("To"), "GCash");
+    await chooseOption(page, add.getByLabel("From", { exact: true }), "BPI");
+    await chooseOption(page, add.getByLabel("To", { exact: true }), "GCash");
     await add.getByLabel("Description (optional)").fill("Top up");
     await add.getByRole("button", { name: "Add transfer" }).click();
     await expect(add).toBeHidden();

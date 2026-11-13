@@ -373,8 +373,12 @@ test.describe("a transfer's route", () => {
       const dialog = page.getByRole("dialog", { name: "Add transaction" });
       await dialog.getByLabel("Amount (₱)").fill("2000");
       await dialog.getByRole("radio", { name: "Transfer" }).click();
-      await chooseOption(page, dialog.getByLabel("From"), "BPI");
-      await chooseOption(page, dialog.getByLabel("To"), "Metrobank Savings for the Holidays");
+      await chooseOption(page, dialog.getByLabel("From", { exact: true }), "BPI");
+      await chooseOption(
+        page,
+        dialog.getByLabel("To", { exact: true }),
+        "Metrobank Savings for the Holidays"
+      );
       await dialog.getByRole("button", { name: "Add transfer" }).click();
       await expect(dialog).toBeHidden();
 
