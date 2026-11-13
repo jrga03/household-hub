@@ -110,7 +110,8 @@ export const needsCategory = (row: ListRow) =>
 const isOwedTo = (row: ListRow, payer: string) =>
   isTransaction(row) && isOpenOutOfPocket(row) && row.paidByUserId === payer;
 
-function envelopeKey(envelope: Envelope): string | null {
+/** The category filter's value an envelope matches, or null for a Card Payment. */
+function categoryFilterKey(envelope: Envelope): string | null {
   if (envelope.kind === "unassigned") return UNASSIGNED_FILTER;
   return envelope.kind === "category" ? envelope.id : null;
 }
@@ -118,8 +119,11 @@ function envelopeKey(envelope: Envelope): string | null {
 /** Whether the category filter's value matches a row; a transfer matches on either envelope. */
 function matchesCategory(row: ListRow, category: string): boolean {
   if (isTransaction(row)) return (row.categoryId ?? UNASSIGNED_FILTER) === category;
-  if (isCorrection(row)) return envelopeKey(row.envelope) === category;
-  return envelopeKey(row.fromEnvelope) === category || envelopeKey(row.toEnvelope) === category;
+  if (isCorrection(row)) return categoryFilterKey(row.envelope) === category;
+  return (
+    categoryFilterKey(row.fromEnvelope) === category ||
+    categoryFilterKey(row.toEnvelope) === category
+  );
 }
 
 const touchesAccount = (row: ListRow, accountId: string) =>
