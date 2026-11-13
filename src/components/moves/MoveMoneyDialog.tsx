@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { AllocationForm } from "@/components/allocations/AllocationForm";
 import { FormSheet, FULL_ROW } from "@/components/app/FormSheet";
 import { SegmentedControl } from "@/components/app/SegmentedControl";
@@ -57,33 +57,39 @@ const initialTypeOf = ({ transfer, allocation, initialType = "accounts" }: MoveP
 
 /** Opens once its reads have arrived, so the sheet never fills in after it shows. */
 export function MoveMoneyDialog(props: MoveProps) {
-  const data = useMoveMoneyData();
-  const [type, setType] = useState(initialTypeOf(props));
-  if (!data) return null;
   const title = props.transfer
     ? "Edit transfer"
     : props.allocation
       ? "Edit allocation"
       : "Move money";
   return (
-    <FormSheet
-      title={title}
-      description={
-        type === "categories" &&
-        "Moves money between categories, Card Payments and Unassigned inside one account. The balance doesn't change."
-      }
-      onClose={props.onClose}
-    >
-      <MoveMoneyFields {...props} data={data} type={type} onTypeChange={setType} />
-    </FormSheet>
+    <MoveMoneyForm
+      {...props}
+      frame={(form, type) => (
+        <FormSheet
+          title={title}
+          description={
+            type === "categories" &&
+            "Moves money between categories, Card Payments and Unassigned inside one account. The balance doesn't change."
+          }
+          onClose={props.onClose}
+        >
+          {form}
+        </FormSheet>
+      )}
+    />
   );
 }
 
-/** The form alone, for the Add transaction dialog's Transfer choice. */
-export function MoveMoneyForm(props: FormProps) {
+/** The form alone, for the Add transaction dialog's Move money choice; `frame` wraps it. */
+export function MoveMoneyForm({
+  frame = (form) => form,
+  ...props
+}: FormProps & { frame?: (form: ReactNode, type: MoveType) => ReactNode }) {
   const data = useMoveMoneyData();
   const [type, setType] = useState(initialTypeOf(props));
-  return data && <MoveMoneyFields {...props} data={data} type={type} onTypeChange={setType} />;
+  if (!data) return null;
+  return frame(<MoveMoneyFields {...props} data={data} type={type} onTypeChange={setType} />, type);
 }
 
 function MoveMoneyFields({
