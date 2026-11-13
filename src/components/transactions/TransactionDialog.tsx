@@ -36,7 +36,7 @@ import {
   type TransactionType,
 } from "@/lib/transactions/events";
 import type { TransactionRow } from "@/lib/transactions/projection";
-import { TRANSFER_TYPE, type EntryDirection } from "@/lib/transactions/filter";
+import { MOVE_DIRECTION, type EntryDirection } from "@/lib/transactions/filter";
 import { errorMessage } from "@/lib/utils";
 import { todayLocalDate } from "@/lib/utils/dates";
 import { useQuickEntryStore } from "@/stores/quickEntryStore";
@@ -168,10 +168,10 @@ function NewEntryForm({
   });
   const switchTo = (direction: EntryDirection, amount: Cents | undefined) => {
     setDraft({ direction, amount });
-    onMovingChange?.(direction === TRANSFER_TYPE);
+    onMovingChange?.(direction === MOVE_DIRECTION);
   };
   const { direction } = draft;
-  if (direction === TRANSFER_TYPE) {
+  if (direction === MOVE_DIRECTION) {
     return (
       <MoveMoneyForm
         actor={actor}
@@ -373,9 +373,9 @@ function TransactionForm({
         />
         <DirectionChoice
           value={type}
-          withTransfer={onDirectionChange !== undefined}
+          withMove={onDirectionChange !== undefined}
           onChange={(next) => {
-            if (next === TRANSFER_TYPE) {
+            if (next === MOVE_DIRECTION) {
               onDirectionChange?.(next, amount);
               return;
             }

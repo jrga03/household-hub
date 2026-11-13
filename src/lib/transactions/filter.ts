@@ -23,10 +23,13 @@ export const TRANSFER_TYPE = "transfer";
 /** The type filter's value for balance corrections. */
 export const CORRECTION_TYPE = "correction";
 
-/** What a new entry is: Expense, Income or Transfer. */
-export type EntryDirection = TransactionType | typeof TRANSFER_TYPE;
+/** The new-entry choice for Move money; it keeps the value it had when it only made transfers. */
+export const MOVE_DIRECTION = "transfer";
 
-export type ListType = EntryDirection | typeof CORRECTION_TYPE;
+/** What a new entry is: Expense, Income or Move money. */
+export type EntryDirection = TransactionType | typeof MOVE_DIRECTION;
+
+export type ListType = TransactionType | typeof TRANSFER_TYPE | typeof CORRECTION_TYPE;
 
 /**
  * One row of the transaction list: a transaction, a transfer shown once for
@@ -69,11 +72,8 @@ export interface TransactionFilter {
 const nonEmpty = (value: unknown) =>
   typeof value === "string" && value !== "" ? value : undefined;
 
-const isEntryDirection = (value: unknown): value is EntryDirection =>
-  value === TRANSFER_TYPE || isTransactionType(value);
-
 export const isListType = (value: unknown): value is ListType =>
-  value === CORRECTION_TYPE || isEntryDirection(value);
+  value === TRANSFER_TYPE || value === CORRECTION_TYPE || isTransactionType(value);
 
 /** The route's search params as a filter; anything unusable is left out. */
 export function readTransactionFilter(search: Record<string, unknown>): TransactionFilter {

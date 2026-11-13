@@ -10,7 +10,7 @@ import { useAccountMoney } from "@/hooks/useTransactions";
 import type { AllocationRow } from "@/lib/allocations/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import type { Cents } from "@/lib/currency";
-import { TRANSFER_TYPE, type EntryDirection } from "@/lib/transactions/filter";
+import { MOVE_DIRECTION, type EntryDirection } from "@/lib/transactions/filter";
 import type { TransferRow } from "@/lib/transfers/projection";
 
 /** A transfer moves money between accounts; an allocation, between categories in one account. */
@@ -111,9 +111,9 @@ function MoveMoneyFields({
     <>
       {onDirectionChange && (
         <DirectionChoice
-          value={TRANSFER_TYPE}
-          withTransfer
-          onChange={(next) => next !== TRANSFER_TYPE && onDirectionChange(next, amount)}
+          value={MOVE_DIRECTION}
+          withMove
+          onChange={(next) => next !== MOVE_DIRECTION && onDirectionChange(next, amount)}
         />
       )}
       <div className={FULL_ROW}>

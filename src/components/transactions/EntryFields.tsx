@@ -13,7 +13,7 @@ import {
   type Cents,
 } from "@/lib/currency";
 import { isLocalDate, type TransactionStatus } from "@/lib/transactions/events";
-import { TRANSFER_TYPE, type EntryDirection } from "@/lib/transactions/filter";
+import { MOVE_DIRECTION, type EntryDirection } from "@/lib/transactions/filter";
 import { cn } from "@/lib/utils";
 
 /**
@@ -93,30 +93,30 @@ const DIRECTIONS = [
   { value: "income", label: "Income" },
 ] as const satisfies readonly { value: EntryDirection; label: string }[];
 
-const DIRECTIONS_WITH_TRANSFER = [
+const DIRECTIONS_WITH_MOVE = [
   ...DIRECTIONS,
-  { value: TRANSFER_TYPE, label: "Move money" },
+  { value: MOVE_DIRECTION, label: "Move money" },
 ] as const satisfies readonly { value: EntryDirection; label: string }[];
 
 /** Expense, Income and, for a new entry, Move money. Inside a form it submits as `type`. */
 export function DirectionChoice({
   value,
   onChange,
-  withTransfer,
+  withMove,
 }: {
   value: EntryDirection;
   onChange: (direction: EntryDirection) => void;
-  withTransfer: boolean;
+  withMove: boolean;
 }) {
   return (
-    <div className={cn("self-end", withTransfer && FULL_ROW)}>
+    <div className={cn("self-end", withMove && FULL_ROW)}>
       <input type="hidden" name="type" value={value} />
       <SegmentedControl<EntryDirection>
-        label={withTransfer ? "Expense, income or move money" : "Expense or income"}
-        options={withTransfer ? DIRECTIONS_WITH_TRANSFER : DIRECTIONS}
+        label={withMove ? "Expense, income or move money" : "Expense or income"}
+        options={withMove ? DIRECTIONS_WITH_MOVE : DIRECTIONS}
         value={value}
         onChange={onChange}
-        className={cn("grid w-full", withTransfer ? "grid-cols-3" : "grid-cols-2")}
+        className={cn("grid w-full", withMove ? "grid-cols-3" : "grid-cols-2")}
       />
     </div>
   );

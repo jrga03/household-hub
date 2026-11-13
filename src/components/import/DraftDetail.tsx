@@ -307,7 +307,7 @@ function DraftFields({
       )}
       <DirectionChoice
         value={draft.type}
-        withTransfer={false}
+        withMove={false}
         onChange={(type) => isTransactionType(type) && edit({ type })}
       />
       <div className="space-y-2">
