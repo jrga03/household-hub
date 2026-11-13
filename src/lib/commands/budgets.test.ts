@@ -209,6 +209,22 @@ describe("setBudget", () => {
     ).rejects.toThrow("Bonus is retired. Choose one in use.");
   });
 
+  it("keeps a portion on a retired payday the budget already had", async () => {
+    const bonus = await addPayday(MEMBER, "Bonus");
+    const onBonus = [{ paydayId: bonus.id, amountCents: peso("8000") }];
+    await setBudget(MEMBER, budget({ portions: onBonus }));
+    await setBudget(MEMBER, { ...budget({ portions: [] }), fromMonth: "2026-11" });
+    await retirePayday(MEMBER, bonus.id, "2026-11");
+    const gcashId = (await account(MEMBER, "GCash")).id;
+
+    await setBudget(MEMBER, budget({ portions: onBonus, accountId: gcashId }));
+
+    expect(budgetInForce(await listBudgets(), groceriesId, "2026-10")).toMatchObject({
+      accountId: gcashId,
+      portions: onBonus,
+    });
+  });
+
   it("refuses portions that don't add up to the budget", async () => {
     const fifteenth = await addPayday(MEMBER, "15th salary");
 

@@ -234,7 +234,10 @@ function SetBudgetForm({
             </p>
             <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
               {paydays.map((payday) => (
-                <Field key={payday.id} label={payday.name}>
+                <Field
+                  key={payday.id}
+                  label={payday.retired ? `${payday.name} (retired)` : payday.name}
+                >
                   {(control) => (
                     <CurrencyInput
                       {...control}

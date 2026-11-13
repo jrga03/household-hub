@@ -114,7 +114,7 @@ export interface PaydayChoices {
 }
 
 /**
- * The paydays in use, plus retired ones a budget in force still names, and
+ * The paydays in use, plus retired ones a budget in force still names; and
  * the first one in order whose portions, with
  * the earlier paydays' portions, ask a budget the source can hold for more
  * than was allocated to it this month.

@@ -45,7 +45,7 @@ export function PaydaysSection({
   // "new" opens the add dialog; a payday's ID opens its edit dialog.
   const [openId, setOpenId] = useState<string | null>(null);
   const editing = paydays.find((payday) => payday.id === openId);
-  const named = (paydayId: string) =>
+  const namedByBudget = (paydayId: string) =>
     budgets.some((budget) => budget.portions.some((portion) => portion.paydayId === paydayId));
   useCloseWhenGone(openId === "new" ? null : openId, editing ?? null, () => setOpenId(null));
 
@@ -118,7 +118,7 @@ export function PaydaysSection({
           actor={actor}
           currentMonth={currentMonth}
           payday={editing}
-          named={named(editing.id)}
+          namedByBudget={namedByBudget(editing.id)}
           onClose={() => setOpenId(null)}
         />
       )}
@@ -187,13 +187,13 @@ function PaydayDialog({
   actor,
   currentMonth,
   payday,
-  named = false,
+  namedByBudget = false,
   onClose,
 }: {
   actor: Actor;
   currentMonth: string;
   payday?: PaydayRow;
-  named?: boolean;
+  namedByBudget?: boolean;
   onClose: () => void;
 }) {
   const title = payday ? "Edit payday" : "Add payday";
@@ -212,9 +212,9 @@ function PaydayDialog({
   const [removing, startRemoving] = useTransition();
   const remove = (target: PaydayRow) =>
     startRemoving(async () => {
-      const verb = named ? "retire" : "delete";
+      const verb = namedByBudget ? "retire" : "delete";
       try {
-        if (named) await retirePayday(actor, target.id, currentMonth);
+        if (namedByBudget) await retirePayday(actor, target.id, currentMonth);
         else await deletePayday(actor, target.id);
         toast.success(`${target.name} ${verb}d`);
         onClose();
@@ -245,7 +245,7 @@ function PaydayDialog({
         <FormFooter
           destructive={
             payday && {
-              label: named ? "Retire payday" : "Delete payday",
+              label: namedByBudget ? "Retire payday" : "Delete payday",
               onClick: () => remove(payday),
               disabled: removing,
             }

@@ -148,6 +148,18 @@ describe("payday projection", () => {
     }
   );
 
+  // Device A deletes the bonus; device B, later, unretires it after seeing it retired.
+  const unretiredOnDeviceB = paydayEvent("e-unretired-bonus", BONUS, "payday.unretired", 8000);
+
+  it.each(orders([bonus, deleted, namedOnDeviceB, unretiredOnDeviceB]))(
+    "puts a deleted payday back in use when a later unretire follows, in the order %j",
+    async (_ids, order) => {
+      for (const event of order) await receiveEvents([event], 0);
+
+      expect(await readPaydays()).toMatchObject([{ id: BONUS, retired: false, deleted: false }]);
+    }
+  );
+
   it("ignores a duplicate event", async () => {
     await receiveEvents([fifteenth, renamed], 0);
     await receiveEvents([renamed, fifteenth, fifteenth], 0);

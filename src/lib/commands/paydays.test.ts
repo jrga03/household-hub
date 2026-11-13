@@ -5,7 +5,7 @@ import { HOUSEHOLD } from "@/test/events";
 import { parsePHP } from "@/lib/currency";
 import { createAccount } from "./accounts";
 import { setBudget } from "./budgets";
-import { createCategory, createGroup } from "./categories";
+import { createCategory, createGroup, retireCategory } from "./categories";
 import {
   addPayday,
   deletePayday,
@@ -19,7 +19,7 @@ const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
 const names = async () => (await readPaydays()).map((payday) => payday.name);
 
-/** Adds Groceries; the setter budgets it from `fromMonth`, all on `paydayId`, or on any payday without one. */
+/** Adds Groceries; `setGroceries` budgets it from `fromMonth`, all on `paydayId`, or on any payday without one. */
 async function groceriesBudget() {
   const bpi = await createAccount(MEMBER, {
     name: "BPI",
@@ -29,7 +29,7 @@ async function groceriesBudget() {
   const food = await createGroup(MEMBER, { name: "Food" });
   const groceries = await createCategory(MEMBER, { name: "Groceries", groupId: food.id });
   const amountCents = parsePHP("8000");
-  return (fromMonth: string, paydayId?: string) =>
+  const set = (fromMonth: string, paydayId?: string) =>
     setBudget(MEMBER, {
       categoryId: groceries.id,
       amountCents,
@@ -37,6 +37,7 @@ async function groceriesBudget() {
       fromMonth,
       portions: paydayId ? [{ paydayId, amountCents }] : [],
     });
+  return { groceriesId: groceries.id, setGroceries: set };
 }
 
 beforeEach(async () => {
@@ -102,7 +103,7 @@ describe("payday commands", () => {
 
   it("refuses to delete a payday that any budget version names", async () => {
     const { id } = await addPayday(MEMBER, "15th salary");
-    const setGroceries = await groceriesBudget();
+    const { setGroceries } = await groceriesBudget();
     await setGroceries("2026-10", id);
     await setGroceries("2026-11");
 
@@ -114,7 +115,7 @@ describe("payday commands", () => {
 
   it("retires a payday only earlier months' budgets name, keeping its name", async () => {
     const { id } = await addPayday(MEMBER, "15th salary");
-    const setGroceries = await groceriesBudget();
+    const { setGroceries } = await groceriesBudget();
     await setGroceries("2026-10", id);
     await setGroceries("2026-11");
 
@@ -128,13 +129,24 @@ describe("payday commands", () => {
     ["set from a later month", "2026-12"],
   ])("refuses to retire a payday a budget %s has a portion on", async (_case, fromMonth) => {
     const { id } = await addPayday(MEMBER, "15th salary");
-    const setGroceries = await groceriesBudget();
+    const { setGroceries } = await groceriesBudget();
     await setGroceries(fromMonth, id);
 
     await expect(retirePayday(MEMBER, id, "2026-11")).rejects.toThrow(
       "Groceries has a portion on 15th salary from this month on. Move it to another payday first."
     );
     expect(await readPaydays()).toMatchObject([{ retired: false }]);
+  });
+
+  it("retires a payday only a retired category's budget names this month", async () => {
+    const { id } = await addPayday(MEMBER, "15th salary");
+    const { groceriesId, setGroceries } = await groceriesBudget();
+    await setGroceries("2026-11", id);
+    await retireCategory(MEMBER, groceriesId);
+
+    await retirePayday(MEMBER, id, "2026-11");
+
+    expect(await readPaydays()).toMatchObject([{ retired: true }]);
   });
 
   it("unretires a payday", async () => {

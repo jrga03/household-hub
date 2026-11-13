@@ -98,14 +98,17 @@ export async function retirePayday(
   currentMonth: string
 ): Promise<void> {
   const payday = await requirePayday(paydayId);
-  const paid = categoriesPaidOn(await listBudgets(), paydayId, currentMonth);
-  if (paid.length > 0) {
-    const names = await Promise.all(
-      paid.map(async (categoryId) => (await getCategory(categoryId))?.name ?? "A category")
-    );
-    const verb = names.length === 1 ? "has" : "have";
+  const paid = await Promise.all(
+    categoriesPaidOn(await listBudgets(), paydayId, currentMonth).map(getCategory)
+  );
+  // A retired category's budget can't change, so it doesn't hold the payday back.
+  const names = paid.flatMap((category) =>
+    category?.retired ? [] : [category?.name ?? "A category"]
+  );
+  if (names.length > 0) {
+    const [verb, pronoun] = names.length === 1 ? ["has", "it"] : ["have", "them"];
     throw new Error(
-      `${conjunction.format(names)} ${verb} a portion on ${payday.name} from this month on. Move it to another payday first.`
+      `${conjunction.format(names)} ${verb} a portion on ${payday.name} from this month on. Move ${pronoun} to another payday first.`
     );
   }
   await appendPaydayEvent(actor, { ...HOUSEHOLD, id: paydayId }, PAYDAY_RETIRED, {});
