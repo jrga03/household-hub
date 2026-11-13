@@ -1,8 +1,7 @@
 import type { LoggedEvent } from "@/lib/events/log";
+import { checkRecordName, type RecordNoun } from "@/lib/events/names";
 import type { EventVersions } from "@/lib/events/versions";
 import { DELETED, RESTORED, RETIRED, UNRETIRED, type Retirement } from "@/lib/events/retirement";
-
-export const CATEGORY_NAME_MAX_LENGTH = 40;
 
 export const GROUP_ENTITY = "category_group";
 export const GROUP_CREATED = "category_group.created";
@@ -39,23 +38,6 @@ export const CATEGORY_VERSIONS = {
   [CATEGORY_DELETED]: { current: 1, upcasts: {} },
   [CATEGORY_RESTORED]: { current: 1, upcasts: {} },
 } satisfies EventVersions;
-
-export type RecordNoun = "group" | "category" | "payday";
-
-type NameCheck = { name: string; problem: null } | { name: null; problem: string };
-
-/** Validates a group, category or payday name from a form or from another device's event. */
-export function checkRecordName(input: unknown, noun: RecordNoun): NameCheck {
-  const name = typeof input === "string" ? input.trim() : "";
-  if (name === "") return { name: null, problem: `A ${noun} needs a name.` };
-  if (name.length > CATEGORY_NAME_MAX_LENGTH) {
-    return {
-      name: null,
-      problem: `A ${noun} name can be at most ${CATEGORY_NAME_MAX_LENGTH} characters.`,
-    };
-  }
-  return { name, problem: null };
-}
 
 const decodeName = (event: LoggedEvent, noun: RecordNoun) =>
   checkRecordName(event.payload.name, noun).name;

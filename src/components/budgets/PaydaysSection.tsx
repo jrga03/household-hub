@@ -11,7 +11,7 @@ import { Input } from "@/components/app/Input";
 import { SectionHeader } from "@/components/app/SectionHeader";
 import { SubmitButton } from "@/components/app/SubmitButton";
 import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
-import { CATEGORY_NAME_MAX_LENGTH } from "@/lib/categories/events";
+import { RECORD_NAME_MAX_LENGTH } from "@/lib/events/names";
 import type { Actor } from "@/lib/commands/accounts";
 import { addPayday, deletePayday, movePayday, renamePayday } from "@/lib/commands/paydays";
 import type { PaydayRow } from "@/lib/paydays/projection";
@@ -135,7 +135,7 @@ function PaydayDialog({
           <Input
             name="name"
             required
-            maxLength={CATEGORY_NAME_MAX_LENGTH}
+            maxLength={RECORD_NAME_MAX_LENGTH}
             placeholder="15th salary"
             autoComplete="off"
             enterKeyHint="done"

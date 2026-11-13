@@ -1,4 +1,4 @@
-import { checkRecordName } from "@/lib/categories/events";
+import { checkRecordName } from "@/lib/events/names";
 import type { LoggedEvent } from "@/lib/events/log";
 import type { EventVersions } from "@/lib/events/versions";
 

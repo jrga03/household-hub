@@ -1,4 +1,5 @@
 import { appendTogether } from "@/lib/events/log";
+import { checkedName } from "@/lib/events/names";
 import type { Ownership } from "@/lib/events/ownership";
 import {
   PAYDAY_CREATED,
@@ -12,7 +13,6 @@ import { readPaydays, type PaydayRow } from "@/lib/paydays/projection";
 import { requestSync } from "@/lib/sync/triggers";
 import type { Actor } from "./accounts";
 import { appenderFor } from "./append";
-import { checkedName } from "./categories";
 
 const HOUSEHOLD: Ownership = { visibility: "household", ownerUserId: null };
 
