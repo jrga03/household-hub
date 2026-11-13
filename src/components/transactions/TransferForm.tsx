@@ -14,7 +14,12 @@ import { categoryNames, envelopeFromKey, envelopeKey } from "@/components/alloca
 import { isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
 import { envelopeLabel } from "@/lib/allocations/envelope";
-import { sameEnvelope, UNASSIGNED_ENVELOPE, type Envelope } from "@/lib/allocations/events";
+import {
+  cardPaymentEnvelope,
+  sameEnvelope,
+  UNASSIGNED_ENVELOPE,
+  type Envelope,
+} from "@/lib/allocations/events";
 import { canHoldMoneyIn, type CategoryList, type CategoryRow } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import {
@@ -45,6 +50,7 @@ import {
   hasFieldProblems,
   NO_PROBLEMS,
   readEntryBasics,
+  saveEditAndStatus,
   StatusChoice,
   STATUSES,
   useFocusNewEntry,
@@ -75,17 +81,17 @@ export async function removeTransferWithUndo(
 /**
  * Unassigned (the empty choice) and the categories in use the account's people hold
  * money in, plus the envelope the transfer already has (a retired category or a Card
- * Payment). Into a card, only its own Card Payment: that is paying it.
+ * Payment). When paying a card, only its own Card Payment.
  */
 function envelopeChoices(
   list: CategoryList,
   account: AccountRow | undefined,
-  destination: AccountRow | undefined,
+  paidCard: AccountRow | undefined,
   current: Envelope | undefined,
   accountNames: Map<string, string>
 ): { empty?: ComboboxOption; groups: ComboboxGroup[] } {
-  if (destination && isCreditCard(destination)) {
-    const cardPayment: Envelope = { kind: "card_payment", id: destination.id };
+  if (paidCard) {
+    const cardPayment = cardPaymentEnvelope(paidCard.id);
     const label = envelopeLabel(cardPayment, new Map(), accountNames);
     return {
       groups: [{ label: "Card Payment", options: [{ value: envelopeKey(cardPayment), label }] }],
@@ -246,7 +252,14 @@ export function TransferForm({
     : (toChoices[0]?.id ?? "");
   const to = allAccounts.find((account) => account.id === shownToId);
 
-  const envelopes = envelopeChoices(categories, from, to, transfer?.fromEnvelope, accountNames);
+  const paidCard = to && isCreditCard(to) ? to : undefined;
+  const envelopes = envelopeChoices(
+    categories,
+    from,
+    paidCard,
+    transfer?.fromEnvelope,
+    accountNames
+  );
   const [envelope, setEnvelope] = useState(
     transfer ? envelopeKey(transfer.fromEnvelope) : envelopeKey(UNASSIGNED_ENVELOPE)
   );
@@ -254,9 +267,8 @@ export function TransferForm({
 
   // Into a card, or out of a Card Payment, the money arrives in the Card Payment it left.
   const arrivesAsLeft =
-    (to !== undefined && isCreditCard(to)) ||
-    envelopeFromKey(shownEnvelope)?.kind === "card_payment";
-  const arrivals = envelopeChoices(categories, to, to, transfer?.toEnvelope, accountNames);
+    paidCard !== undefined || envelopeFromKey(shownEnvelope)?.kind === "card_payment";
+  const arrivals = envelopeChoices(categories, to, paidCard, transfer?.toEnvelope, accountNames);
   // Null while the arrival follows the leaving envelope; the member's choice once made.
   const [arrival, setArrival] = useState(
     transfer && !sameEnvelope(transfer.fromEnvelope, transfer.toEnvelope)
@@ -271,10 +283,13 @@ export function TransferForm({
       if (readProblems !== null) return readProblems;
       try {
         if (transfer) {
-          const edited = await editTransfer(actor, transfer.id, input);
-          const statusChanged = status !== transfer.status;
-          if (statusChanged) await setTransferStatus(actor, transfer.id, status);
-          if (edited || statusChanged) toast.success("Transfer saved");
+          await saveEditAndStatus({
+            edit: () => editTransfer(actor, transfer.id, input),
+            status,
+            previousStatus: transfer.status,
+            setStatus: (changed) => setTransferStatus(actor, transfer.id, changed),
+            saved: "Transfer saved",
+          });
         } else {
           await addTransfer(actor, { ...input, status });
           toast.success("Transfer added");

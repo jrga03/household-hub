@@ -47,6 +47,7 @@ import {
   hasFieldProblems,
   NO_PROBLEMS,
   readEntryBasics,
+  saveEditAndStatus,
   StatusChoice,
   STATUSES,
   useFocusNewEntry,
@@ -300,10 +301,13 @@ function TransactionForm({
       if (readProblems !== null) return readProblems;
       try {
         if (transaction) {
-          const edited = await editTransaction(actor, transaction.id, input);
-          const statusChanged = status !== transaction.status;
-          if (statusChanged) await setTransactionStatus(actor, transaction.id, status);
-          if (edited || statusChanged) toast.success("Transaction saved");
+          await saveEditAndStatus({
+            edit: () => editTransaction(actor, transaction.id, input),
+            status,
+            previousStatus: transaction.status,
+            setStatus: (changed) => setTransactionStatus(actor, transaction.id, changed),
+            saved: "Transaction saved",
+          });
         } else {
           await addTransaction(actor, {
             ...input,

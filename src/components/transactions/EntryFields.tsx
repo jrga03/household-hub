@@ -1,4 +1,5 @@
 import { useEffect, useId, type RefObject } from "react";
+import { toast } from "sonner";
 import { CurrencyInput } from "@/components/app/CurrencyInput";
 import { Field } from "@/components/app/Field";
 import { FULL_ROW } from "@/components/app/FormSheet";
@@ -119,6 +120,26 @@ export function DirectionChoice({
       />
     </div>
   );
+}
+
+/** Saves an edit, then its status apart from it; says so only when something changed. */
+export async function saveEditAndStatus({
+  edit,
+  status,
+  previousStatus,
+  setStatus,
+  saved,
+}: {
+  edit: () => Promise<boolean>;
+  status: TransactionStatus;
+  previousStatus: TransactionStatus;
+  setStatus: (status: TransactionStatus) => Promise<unknown>;
+  saved: string;
+}): Promise<void> {
+  const edited = await edit();
+  const statusChanged = status !== previousStatus;
+  if (statusChanged) await setStatus(status);
+  if (edited || statusChanged) toast.success(saved);
 }
 
 export const STATUSES = [
