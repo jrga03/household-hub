@@ -11,6 +11,8 @@ const BUDGET = "bbbbbbbb-0000-4000-8000-000000000001";
 const BPI = "aaaaaaaa-0000-4000-8000-000000000001";
 const GCASH = "aaaaaaaa-0000-4000-8000-000000000002";
 const GROCERIES = "cccccccc-0000-4000-8000-000000000001";
+const FIFTEENTH = "dddddddd-0000-4000-8000-000000000001";
+const THIRTIETH = "dddddddd-0000-4000-8000-000000000002";
 
 const event = (
   id: string,
@@ -25,6 +27,7 @@ const event = (
     eventType: "budget.set",
     millis,
     payload,
+    eventVersion: 2,
     ...overrides,
   });
 
@@ -33,8 +36,14 @@ const set = (overrides: Record<string, unknown> = {}) => ({
   fromMonth: "2026-10",
   amountCents: 800000,
   accountId: BPI,
+  portions: [],
   ...overrides,
 });
+
+const halves = [
+  { paydayId: FIFTEENTH, amountCents: 400000 },
+  { paydayId: THIRTIETH, amountCents: 400000 },
+];
 
 const onDeviceA = event("e-a", 1000, set(), { device: "device-a" });
 const onDeviceB = event("e-b", 2000, set({ amountCents: 900000, accountId: GCASH }));
@@ -59,6 +68,7 @@ describe("budget projection", () => {
         fromMonth: "2026-10",
         amountCents: 900000,
         accountId: GCASH,
+        portions: [],
       });
     }
   );
@@ -118,6 +128,49 @@ describe("budget projection", () => {
     await receiveEvents([event("e-broken", 1000, set(broken))], 0);
 
     expect(await getBudget(BUDGET)).toBeUndefined();
+  });
+
+  it("projects a version 1 set as paid by any payday", async () => {
+    const { portions: _none, ...versionOne } = set();
+    await receiveEvents([event("e-v1", 1000, versionOne, { eventVersion: 1 })], 0);
+
+    expect(await getBudget(BUDGET)).toMatchObject({ amountCents: 800000, portions: [] });
+  });
+
+  it("keeps the portions of the latest set", async () => {
+    await receiveEvents([onDeviceA, event("e-portions", 2000, set({ portions: halves }))], 0);
+
+    expect(await getBudget(BUDGET)).toMatchObject({ amountCents: 800000, portions: halves });
+  });
+
+  it("drops the portions of a clear", async () => {
+    await receiveEvents([event("e-clear", 1000, set({ amountCents: 0, portions: halves }))], 0);
+
+    expect(await getBudget(BUDGET)).toMatchObject({ amountCents: null, portions: [] });
+  });
+
+  it.each([
+    ["portions that don't add up to the amount", [{ paydayId: FIFTEENTH, amountCents: 400000 }]],
+    ["a payday named twice", [halves[0], { ...halves[1], paydayId: FIFTEENTH }]],
+    [
+      "a zero portion",
+      [
+        { paydayId: FIFTEENTH, amountCents: 800000 },
+        { paydayId: THIRTIETH, amountCents: 0 },
+      ],
+    ],
+    ["a portion with no payday", [{ paydayId: "", amountCents: 800000 }]],
+    ["portions that aren't a list", "half"],
+  ])("projects nothing from a set with %s", async (_case, portions) => {
+    await receiveEvents([event("e-broken", 1000, set({ portions }))], 0);
+
+    expect(await getBudget(BUDGET)).toBeUndefined();
+  });
+
+  it("explains portions that don't add up", () => {
+    expect(
+      checkBudgetDetails(set({ portions: [{ paydayId: FIFTEENTH, amountCents: 300000 }] })).problem
+    ).toBe("The portions add up to ₱3,000.00, not the budget’s ₱8,000.00.");
   });
 
   it("explains a negative amount", () => {

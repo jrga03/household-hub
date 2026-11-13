@@ -7,6 +7,7 @@ import { budgetInForce } from "@/lib/budgets/inForce";
 import { getBudget, listBudgets } from "@/lib/budgets/projection";
 import { createAccount, retireAccount } from "./accounts";
 import { createCategory, createGroup, retireCategory } from "./categories";
+import { addPayday, deletePayday } from "./paydays";
 import { setBudget, type BudgetInput } from "./budgets";
 import { HOUSEHOLD } from "@/test/events";
 
@@ -171,5 +172,39 @@ describe("setBudget", () => {
     await expect(setBudget(MEMBER, budget({ fromMonth: "2026-13" }))).rejects.toThrow(
       "Choose a month."
     );
+  });
+
+  it("records portions by payday, and replaces them with a later set", async () => {
+    const fifteenth = await addPayday(MEMBER, "15th salary");
+    const thirtieth = await addPayday(MEMBER, "30th salary");
+    const halves = [
+      { paydayId: fifteenth.id, amountCents: peso("4000") },
+      { paydayId: thirtieth.id, amountCents: peso("4000") },
+    ];
+
+    await setBudget(MEMBER, budget({ portions: halves }));
+    await setBudget(MEMBER, budget({ portions: halves }));
+    expect(budgetInForce(await listBudgets(), groceriesId, "2026-10")?.portions).toEqual(halves);
+    expect(await budgetEvents()).toHaveLength(1);
+
+    await setBudget(MEMBER, budget({ portions: [] }));
+    expect(budgetInForce(await listBudgets(), groceriesId, "2026-10")?.portions).toEqual([]);
+  });
+
+  it("refuses a portion on a payday that doesn't exist", async () => {
+    const bonus = await addPayday(MEMBER, "Bonus");
+    await deletePayday(MEMBER, bonus.id);
+
+    await expect(
+      setBudget(MEMBER, budget({ portions: [{ paydayId: bonus.id, amountCents: peso("8000") }] }))
+    ).rejects.toThrow("That payday no longer exists.");
+  });
+
+  it("refuses portions that don't add up to the budget", async () => {
+    const fifteenth = await addPayday(MEMBER, "15th salary");
+
+    await expect(
+      setBudget(MEMBER, budget({ portions: [{ paydayId: fifteenth.id, amountCents: peso("1") }] }))
+    ).rejects.toThrow("The portions add up to ₱1.00, not the budget’s ₱8,000.00.");
   });
 });

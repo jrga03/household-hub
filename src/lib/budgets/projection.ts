@@ -38,7 +38,8 @@ function applyBudgetEvent(budget: BudgetRow | null, event: LoggedEvent): BudgetR
   const sameVersion =
     details.categoryId === budget.categoryId && details.fromMonth === budget.fromMonth;
   if (!sameVersion || !sameOwnership(event, budget)) return budget;
-  return { ...budget, amountCents: details.amountCents, accountId: details.accountId };
+  const { amountCents, accountId, portions } = details;
+  return { ...budget, amountCents, accountId, portions };
 }
 
 export const budgetProjection: EntityProjection<BudgetRow> = {

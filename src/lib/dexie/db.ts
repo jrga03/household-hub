@@ -138,6 +138,15 @@ export class HouseholdHubDB extends Dexie {
         })
     );
     this.version(16).stores({ paydays: "id" });
+    // A budget can be paid in portions by payday (ADR 0014); an older one is paid by any payday.
+    this.version(17).upgrade((transaction) =>
+      transaction
+        .table("budgets")
+        .toCollection()
+        .modify((row: Record<string, unknown>) => {
+          row.portions ??= [];
+        })
+    );
   }
 }
 

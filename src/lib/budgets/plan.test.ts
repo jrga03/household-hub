@@ -4,7 +4,12 @@ import { planChange } from "./plan";
 
 const BPI = { id: "bpi", name: "BPI" };
 const GCASH = { id: "gcash", name: "GCash" };
-const groceries = { amountCents: parsePHP("8000"), accountId: "gcash", fromMonth: "2026-09" };
+const groceries = {
+  amountCents: parsePHP("8000"),
+  accountId: "gcash",
+  fromMonth: "2026-09",
+  portions: [],
+};
 
 describe("planChange", () => {
   it("sets a new budget funded by the first account that can fund it", () => {
@@ -29,6 +34,19 @@ describe("planChange", () => {
 
   it("leaves an unchanged amount alone", () => {
     expect(planChange("8,000.00", groceries, [BPI, GCASH])).toEqual({ kind: "unchanged" });
+  });
+
+  it("sends a budget paid in portions to its details, unless clearing it", () => {
+    const inPortions = {
+      ...groceries,
+      portions: [{ paydayId: "15th", amountCents: parsePHP("8000") }],
+    };
+
+    expect(planChange("9000", inPortions, [GCASH])).toEqual({
+      kind: "problem",
+      message: "It's paid in portions. Change it in its budget details.",
+    });
+    expect(planChange("0", inPortions, [GCASH])).toMatchObject({ kind: "set", accountId: null });
   });
 
   it("clears the budget when emptied or set to 0", () => {

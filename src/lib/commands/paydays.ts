@@ -1,3 +1,4 @@
+import { listBudgets } from "@/lib/budgets/projection";
 import { appendTogether } from "@/lib/events/log";
 import { checkedName } from "@/lib/events/names";
 import type { Ownership } from "@/lib/events/ownership";
@@ -18,7 +19,7 @@ const HOUSEHOLD: Ownership = { visibility: "household", ownerUserId: null };
 
 const appendPaydayEvent = appenderFor(PAYDAY_ENTITY, PAYDAY_VERSIONS);
 
-async function requirePayday(paydayId: string): Promise<PaydayRow> {
+export async function requirePayday(paydayId: string): Promise<PaydayRow> {
   const payday = (await readPaydays()).find((candidate) => candidate.id === paydayId);
   if (!payday) throw new Error("That payday no longer exists.");
   return payday;
@@ -72,7 +73,11 @@ export async function movePayday(
 
 /** A payday no budget ever named deletes directly (ADR 0014). */
 export async function deletePayday(actor: Actor, paydayId: string): Promise<void> {
-  await requirePayday(paydayId);
+  const payday = await requirePayday(paydayId);
+  const named = (await listBudgets()).some((budget) =>
+    budget.portions.some((portion) => portion.paydayId === paydayId)
+  );
+  if (named) throw new Error(`A budget is paid in part by ${payday.name}, so it can't be deleted.`);
   await appendPaydayEvent(actor, { ...HOUSEHOLD, id: paydayId }, PAYDAY_DELETED, {});
   requestSync();
 }
