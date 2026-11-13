@@ -291,11 +291,10 @@ function TransactionForm({
       if (readProblems !== null) return readProblems;
       try {
         if (transaction) {
-          await editTransaction(actor, transaction.id, input);
-          if (status !== transaction.status) {
-            await setTransactionStatus(actor, transaction.id, status);
-          }
-          toast.success("Transaction saved");
+          const edited = await editTransaction(actor, transaction.id, input);
+          const statusChanged = status !== transaction.status;
+          if (statusChanged) await setTransactionStatus(actor, transaction.id, status);
+          if (edited || statusChanged) toast.success("Transaction saved");
         } else {
           await addTransaction(actor, {
             ...input,

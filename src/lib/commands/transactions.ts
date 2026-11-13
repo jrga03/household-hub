@@ -175,15 +175,16 @@ async function requireTransaction(transactionId: string): Promise<TransactionRow
  * A transaction on a retired account or category stays editable; only a move
  * onto a retired one is refused. An out-of-pocket expense keeps its payer and
  * stays an expense on a Household account that isn't a card (ADR 0012).
+ * False when nothing changed, so nothing was saved.
  */
 export async function editTransaction(
   actor: Actor,
   transactionId: string,
   input: PaidFromInput
-): Promise<void> {
+): Promise<boolean> {
   const entered = checkedDetails(input);
   requireDescription(entered);
-  await appendEdit(actor, await requireTransaction(transactionId), entered, input.payingAccountId);
+  return appendEdit(actor, await requireTransaction(transactionId), entered, input.payingAccountId);
 }
 
 async function appendEdit(
@@ -191,14 +192,14 @@ async function appendEdit(
   transaction: TransactionRow,
   entered: TransactionDetails,
   chosenPayingId?: string
-): Promise<void> {
+): Promise<boolean> {
   const accountChanged = entered.accountId !== transaction.accountId;
   const choosesPaying =
     chosenPayingId !== undefined && chosenPayingId !== transaction.payingAccountId;
   // The reservation stays where it was recorded unless the member moves it or the transaction changes account.
   const details = { ...entered, payingAccountId: transaction.payingAccountId };
   // A re-sent unchanged edit would carry a later HLC and undo another device's edit.
-  if (!choosesPaying && sameDetails(details, transaction)) return;
+  if (!choosesPaying && sameDetails(details, transaction)) return false;
   const outOfPocket = transaction.paidByUserId !== null;
   if (outOfPocket) checkOutOfPocketType(details);
   if (accountChanged || choosesPaying || details.categoryId !== transaction.categoryId) {
@@ -214,9 +215,10 @@ async function appendEdit(
     }
     await checkCategory(details.categoryId, account);
   }
-  if (sameDetails(details, transaction)) return;
+  if (sameDetails(details, transaction)) return false;
   await appendTransactionEvent(actor, transaction, TRANSACTION_EDITED, { ...details });
   requestSync();
+  return true;
 }
 
 const sameDetails = (a: TransactionDetails, b: TransactionDetails) =>
@@ -279,7 +281,9 @@ export const changeTransactionsCategory = (
     transactionIds,
     (transaction) => transaction.categoryId === categoryId,
     // Not an edit of the description, so an old transaction without one can still move.
-    (transaction) => appendEdit(actor, transaction, checkedDetails({ ...transaction, categoryId }))
+    async (transaction) => {
+      await appendEdit(actor, transaction, checkedDetails({ ...transaction, categoryId }));
+    }
   );
 
 export const removeTransactions = (actor: Actor, transactionIds: string[]) =>

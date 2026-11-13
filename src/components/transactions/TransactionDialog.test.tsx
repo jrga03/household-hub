@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { toast } from "sonner";
 import { QueryClient, QueryClientProvider, queryOptions } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -15,11 +16,14 @@ import { addTransaction } from "@/lib/commands/transactions";
 import { parsePHP } from "@/lib/currency";
 import { listTransactions, type TransactionRow } from "@/lib/transactions/projection";
 import { listTransfers } from "@/lib/transfers/projection";
+import { listUnpushed } from "@/lib/events/log";
 import { TransactionEditor } from "./TransactionDialog";
 import { HOUSEHOLD } from "@/test/events";
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 const OTHER_MEMBER = { householdId: HOUSEHOLD, userId: "user-b" };
+
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 vi.mock("@/lib/household-members", () => ({
   householdMembersQueryOptions: (householdId: string) =>
@@ -50,6 +54,7 @@ function renderEditor(onClose: () => void, transaction?: TransactionRow) {
 }
 
 beforeEach(async () => {
+  vi.clearAllMocks();
   await resetLocalDatabase();
 });
 
@@ -408,6 +413,22 @@ describe("TransactionEditor", () => {
         expect(await listTransactions()).toMatchObject([
           { status: "cleared", paidByUserId: OTHER_MEMBER.userId },
         ]);
+      });
+
+      it("closes a transaction saved unchanged with no toast and no event", async () => {
+        const onClose = vi.fn();
+        const transaction = await recorded(null);
+        if (!transaction) throw new Error("No transaction");
+        renderEditor(onClose, transaction);
+
+        fireEvent.click(await screen.findByRole("button", { name: "Save" }));
+
+        await waitFor(() => expect(onClose).toHaveBeenCalled());
+        expect(toast.success).not.toHaveBeenCalled();
+        const events = (await listUnpushed(100)).filter(
+          (logged) => logged.entityId === transaction.id
+        );
+        expect(events.map((logged) => logged.eventType)).toEqual(["transaction.created"]);
       });
 
       it("offers only Household accounts that aren't cards", async () => {
