@@ -21,6 +21,13 @@ function subscribeToScrollLock(onChange: () => void) {
 
 const isScrollLocked = () => document.body.hasAttribute(SCROLL_LOCK);
 
+const TOASTER = "[data-sonner-toaster]";
+
+/** A modal layer's outside handler: a tap on a toast (its Undo) leaves the layer open. */
+function keepOpenForToasts(event: { target: EventTarget | null; preventDefault: () => void }) {
+  if (event.target instanceof Element && event.target.closest(TOASTER)) event.preventDefault();
+}
+
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme();
   const isCompact = useIsCompact();
@@ -50,6 +57,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
       offset={{ bottom: "var(--toast-bottom)", top: "var(--toast-top)" }}
       style={
         {
+          // An open modal sets pointer-events: none on the body; toasts stay tappable above it.
+          pointerEvents: "auto",
           "--normal-bg": "var(--popover)",
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
@@ -61,4 +70,4 @@ const Toaster = ({ ...props }: ToasterProps) => {
   );
 };
 
-export { Toaster };
+export { keepOpenForToasts, Toaster };

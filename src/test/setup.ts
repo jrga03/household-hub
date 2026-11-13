@@ -74,3 +74,4 @@ globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof globalThis.R
 Element.prototype.scrollIntoView = () => {};
 Element.prototype.hasPointerCapture = () => false;
 Element.prototype.releasePointerCapture = () => {};
+Element.prototype.setPointerCapture = () => {};
