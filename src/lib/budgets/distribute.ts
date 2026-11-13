@@ -104,17 +104,20 @@ export interface AccountTotal {
  * lines count as zero; accounts with a zero total are left out.
  */
 export function summarizeByAccount(
-  lines: { accountId: string; amountCents: Cents | null }[],
+  lines: Pick<DistributeLine, "accountId" | "amountCents">[],
   sourceAccountId: string
 ): AccountTotal[] {
-  const totals = new Map<string, Cents>([[sourceAccountId, ZERO_CENTS]]);
+  const totals = new Map<string, Cents>();
   for (const line of lines) {
-    totals.set(
-      line.accountId,
-      sumCents([totals.get(line.accountId) ?? ZERO_CENTS, line.amountCents ?? ZERO_CENTS])
-    );
+    const sum = sumCents([
+      totals.get(line.accountId) ?? ZERO_CENTS,
+      line.amountCents ?? ZERO_CENTS,
+    ]);
+    totals.set(line.accountId, sum);
   }
   const rows = [...totals].map(([accountId, amountCents]) => ({ accountId, amountCents }));
-  const [stays, ...destinations] = rows;
-  return [...destinations, ...(stays ? [stays] : [])].filter((row) => row.amountCents > 0);
+  return [
+    ...rows.filter((row) => row.accountId !== sourceAccountId),
+    ...rows.filter((row) => row.accountId === sourceAccountId),
+  ].filter((row) => row.amountCents > 0);
 }
