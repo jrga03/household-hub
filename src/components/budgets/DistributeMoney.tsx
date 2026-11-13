@@ -19,7 +19,7 @@ import { useDistributeLines } from "@/hooks/useBudgets";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useAccountMoney } from "@/hooks/useTransactions";
 import { isCreditCard } from "@/lib/accounts/events";
-import type { AccountRow } from "@/lib/accounts/projection";
+import { accountNamesOf, type AccountRow } from "@/lib/accounts/projection";
 import {
   canReceive,
   categoriesHeldBy,
@@ -279,7 +279,7 @@ function LinesForm({
     lines.map((line) => ({ accountId: line.accountId, amountCents: lineAmount(line) })),
     source.id
   );
-  const accountNames = new Map(accounts.map((account) => [account.id, account.name]));
+  const accountNames = accountNamesOf(accounts);
 
   const [error, submit] = useActionState(async () => {
     const funded: DistributeLineInput[] = [];

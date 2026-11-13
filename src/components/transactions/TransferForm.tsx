@@ -12,7 +12,7 @@ import { SubmitButton } from "@/components/app/SubmitButton";
 import { Textarea } from "@/components/app/Textarea";
 import { categoryNames, envelopeFromKey, envelopeKey } from "@/components/allocations/envelopes";
 import { isCreditCard } from "@/lib/accounts/events";
-import type { AccountRow } from "@/lib/accounts/projection";
+import { accountNamesOf, type AccountRow } from "@/lib/accounts/projection";
 import { envelopeLabel } from "@/lib/allocations/envelope";
 import {
   cardPaymentEnvelope,
@@ -212,7 +212,7 @@ export function TransferForm({
   const amountRef = useRef<HTMLInputElement>(null);
   useFocusNewEntry(amountRef, !transfer);
   const allAccounts = [...accounts, ...retiredAccounts];
-  const accountNames = new Map(allAccounts.map((account) => [account.id, account.name]));
+  const accountNames = accountNamesOf(allAccounts);
   // An existing transfer keeps its own accounts as choices, even a retired one or a card.
   const isOwn = (account: AccountRow) =>
     account.id === transfer?.fromAccountId || account.id === transfer?.toAccountId;
