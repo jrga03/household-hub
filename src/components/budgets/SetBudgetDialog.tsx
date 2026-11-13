@@ -34,6 +34,8 @@ import { monthLabel, shiftMonth } from "@/lib/utils/dates";
 
 type BudgetProblems = Partial<Record<"amount" | "portions" | "form", string>>;
 
+const PORTIONS_ERROR_ID = "budget-portions-error";
+
 /** How far either side of the chosen month a budget can be set from. */
 const MONTHS_AROUND = 12;
 
@@ -229,24 +231,31 @@ function SetBudgetForm({
               Leave them all blank so any payday pays it.
             </p>
             <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
-              {paydays.map((payday, index) => (
-                <Field
-                  key={payday.id}
-                  label={payday.name}
-                  error={index === 0 ? problems.portions : undefined}
-                >
-                  <CurrencyInput
-                    name={`portion-${payday.id}`}
-                    placeholder="0.00"
-                    autoComplete="off"
-                    value={portions.get(payday.id)}
-                    onChange={(cents) =>
-                      setPortions((before) => new Map(before).set(payday.id, cents))
-                    }
-                  />
+              {paydays.map((payday) => (
+                <Field key={payday.id} label={payday.name}>
+                  {(control) => (
+                    <CurrencyInput
+                      {...control}
+                      // The sum is one problem for the whole set, so every portion points at it.
+                      aria-invalid={problems.portions ? true : undefined}
+                      aria-describedby={problems.portions ? PORTIONS_ERROR_ID : undefined}
+                      name={`portion-${payday.id}`}
+                      placeholder="0.00"
+                      autoComplete="off"
+                      value={portions.get(payday.id)}
+                      onChange={(cents) =>
+                        setPortions((before) => new Map(before).set(payday.id, cents))
+                      }
+                    />
+                  )}
                 </Field>
               ))}
             </div>
+            {problems.portions && (
+              <p id={PORTIONS_ERROR_ID} className="text-caption text-destructive">
+                {problems.portions}
+              </p>
+            )}
           </fieldset>
         )}
       </div>

@@ -1,4 +1,11 @@
-import { asCents, formatPHP, MAX_AMOUNT_CENTS, sumCents, type Cents } from "@/lib/currency";
+import {
+  asCents,
+  formatPHP,
+  isAmount,
+  MAX_AMOUNT_CENTS,
+  sumCents,
+  type Cents,
+} from "@/lib/currency";
 import type { LoggedEvent } from "@/lib/events/log";
 import type { EventVersions } from "@/lib/events/versions";
 import { isLocalMonth, monthLabel } from "@/lib/utils/dates";
@@ -37,12 +44,6 @@ export const budgetId = (categoryId: string, fromMonth: string) =>
 type DetailsCheck = { details: BudgetDetails; problem: null } | { details: null; problem: string };
 
 const rejected = (problem: string): DetailsCheck => ({ details: null, problem });
-
-const isAmount = (value: unknown): value is number =>
-  typeof value === "number" &&
-  Number.isSafeInteger(value) &&
-  value > 0 &&
-  value <= MAX_AMOUNT_CENTS;
 
 /** The portions, or the problem: each names a payday once, is more than zero, and they add up to the amount. */
 function checkPortions(input: unknown, amountCents: Cents): Portion[] | string {

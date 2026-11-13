@@ -77,7 +77,7 @@ export async function deletePayday(actor: Actor, paydayId: string): Promise<void
   const named = (await listBudgets()).some((budget) =>
     budget.portions.some((portion) => portion.paydayId === paydayId)
   );
-  if (named) throw new Error(`A budget is paid in part by ${payday.name}, so it can't be deleted.`);
+  if (named) throw new Error(`A budget has a portion on ${payday.name}, so it can't be deleted.`);
   await appendPaydayEvent(actor, { ...HOUSEHOLD, id: paydayId }, PAYDAY_DELETED, {});
   requestSync();
 }

@@ -91,7 +91,7 @@ describe("payday commands", () => {
     await setBudget(MEMBER, { ...budget, fromMonth: "2026-11" });
 
     await expect(deletePayday(MEMBER, id)).rejects.toThrow(
-      "A budget is paid in part by 15th salary, so it can't be deleted."
+      "A budget has a portion on 15th salary, so it can't be deleted."
     );
     expect(await names()).toEqual(["15th salary"]);
   });

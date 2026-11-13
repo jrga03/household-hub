@@ -137,11 +137,14 @@ describe("budget projection", () => {
     expect(await getBudget(BUDGET)).toMatchObject({ amountCents: 800000, portions: [] });
   });
 
-  it("keeps the portions of the latest set", async () => {
-    await receiveEvents([onDeviceA, event("e-portions", 2000, set({ portions: halves }))], 0);
+  it.each(orders([onDeviceA, event("e-portions", 2000, set({ portions: halves }))]))(
+    "keeps the portions of the latest set for the order %j",
+    async (_ids, order) => {
+      for (const arriving of order) await receiveEvents([arriving], 0);
 
-    expect(await getBudget(BUDGET)).toMatchObject({ amountCents: 800000, portions: halves });
-  });
+      expect(await getBudget(BUDGET)).toMatchObject({ amountCents: 800000, portions: halves });
+    }
+  );
 
   it("drops the portions of a clear", async () => {
     await receiveEvents([event("e-clear", 1000, set({ amountCents: 0, portions: halves }))], 0);
