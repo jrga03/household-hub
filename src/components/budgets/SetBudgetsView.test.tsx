@@ -11,6 +11,7 @@ import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { createAccount } from "@/lib/commands/accounts";
 import { createCategory, createGroup } from "@/lib/commands/categories";
 import { setBudget } from "@/lib/commands/budgets";
+import { addPayday } from "@/lib/commands/paydays";
 import { addTransaction } from "@/lib/commands/transactions";
 import { categoryMonth, readMonthView } from "@/lib/budgets/month";
 import { parsePHP } from "@/lib/currency";
@@ -76,6 +77,7 @@ describe("SetBudgetsView", () => {
         amountCents: parsePHP("8000"),
         accountId: bpi.id,
         fromMonth: MONTH,
+        portions: [],
       })
     );
     expect(await screen.findByDisplayValue("8,000.00")).toBe(amount);
@@ -251,5 +253,114 @@ describe("SetBudgetsView paydays", () => {
     fireEvent.submit(within(dialog).getByRole("form"));
 
     expect(await within(dialog).findByText("A payday needs a name.")).toBeInTheDocument();
+  });
+});
+
+describe("SetBudgetsView by payday", () => {
+  const section = (name: string) => screen.getByRole("region", { name });
+  // The text as shown: each amount's spoken twin is left out.
+  const shown = (element: HTMLElement) => {
+    const copy = element.cloneNode(true) as HTMLElement;
+    for (const spoken of copy.querySelectorAll(".sr-only")) spoken.remove();
+    return copy.textContent;
+  };
+  const items = (name: string) =>
+    within(screen.getByRole("list", { name })).getAllByRole("listitem").map(shown);
+
+  it("groups this month's budgets under each payday, then any payday, with totals by account", async () => {
+    const { bpi, food, category: groceryCategory } = await groceries();
+    const gcash = await createAccount(MEMBER, {
+      name: "GCash",
+      type: "e_wallet",
+      startingBalanceCents: parsePHP("0"),
+    });
+    const rent = await createCategory(MEMBER, { name: "Rent", groupId: food.id });
+    const fun = await createCategory(MEMBER, { name: "Fun", groupId: food.id });
+    const fifteenth = await addPayday(MEMBER, "15th salary");
+    const thirtieth = await addPayday(MEMBER, "30th salary");
+    const set = (categoryId: string, amount: string, accountId: string, portions = {}) =>
+      setBudget(MEMBER, {
+        categoryId,
+        fromMonth: MONTH,
+        amountCents: parsePHP(amount),
+        accountId,
+        portions: Object.entries(portions).map(([paydayId, portion]) => ({
+          paydayId,
+          amountCents: parsePHP(String(portion)),
+        })),
+      });
+    await set(groceryCategory.id, "8000", bpi.id, {
+      [fifteenth.id]: "4000",
+      [thirtieth.id]: "4000",
+    });
+    await set(rent.id, "5000", gcash.id, { [fifteenth.id]: "5000" });
+    await set(fun.id, "2000", gcash.id);
+    renderSetBudgets();
+
+    await screen.findByRole("region", { name: "15th salary" });
+    expect(section("15th salary")).toHaveTextContent("₱9,000.00");
+    expect(items("15th salary budgets")).toEqual(["Groceries₱4,000.00", "Rent₱5,000.00"]);
+    expect(items("15th salary by account")).toEqual(["To BPI₱4,000.00", "To GCash₱5,000.00"]);
+    expect(items("30th salary budgets")).toEqual(["Groceries₱4,000.00"]);
+    expect(items("30th salary by account")).toEqual(["To BPI₱4,000.00"]);
+    expect(section("Any payday")).toHaveTextContent("₱2,000.00");
+    expect(items("Any payday budgets")).toEqual(["Fun₱2,000.00"]);
+    expect(items("Any payday by account")).toEqual(["To GCash₱2,000.00"]);
+  });
+
+  it("shows no plan by payday until the household has paydays", async () => {
+    await groceries();
+    renderSetBudgets();
+
+    await screen.findByText("No paydays yet.");
+    expect(screen.queryByRole("region", { name: "Any payday" })).not.toBeInTheDocument();
+  });
+});
+
+describe("SetBudgetsView portions", () => {
+  async function openDetails() {
+    fireEvent.click(await screen.findByRole("button", { name: "Groceries budget details" }));
+    return screen.findByRole("dialog", { name: "Budget for Groceries" });
+  }
+  const type = (dialog: HTMLElement, name: string, value: string) =>
+    fireEvent.change(within(dialog).getByRole("textbox", { name }), { target: { value } });
+
+  it("splits a budget into portions that add up to it, then removes them", async () => {
+    const { category } = await groceries();
+    const fifteenth = await addPayday(MEMBER, "15th salary");
+    const thirtieth = await addPayday(MEMBER, "30th salary");
+    renderSetBudgets();
+
+    let dialog = await openDetails();
+    type(dialog, "Amount (₱)", "8000");
+    type(dialog, "15th salary", "3000");
+    type(dialog, "30th salary", "4000");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save budget" }));
+
+    expect(
+      await within(dialog).findByText(
+        "These add up to ₱7,000.00. Make them add up to ₱8,000.00, or leave them all blank."
+      )
+    ).toBeInTheDocument();
+    expect(await budgetIn(MONTH, category.id)).toBeNull();
+
+    type(dialog, "30th salary", "5000");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save budget" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect((await budgetIn(MONTH, category.id))?.portions).toEqual([
+      { paydayId: fifteenth.id, amountCents: parsePHP("3000") },
+      { paydayId: thirtieth.id, amountCents: parsePHP("5000") },
+    ]);
+
+    dialog = await openDetails();
+    expect(within(dialog).getByRole("textbox", { name: "15th salary" })).toHaveValue("3,000.00");
+    type(dialog, "15th salary", "");
+    type(dialog, "30th salary", "");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save budget" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(await budgetIn(MONTH, category.id)).toMatchObject({
+      amountCents: parsePHP("8000"),
+      portions: [],
+    });
   });
 });
