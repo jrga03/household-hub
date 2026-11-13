@@ -17,6 +17,8 @@ import {
 import { diffCents, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import { sameOwnership } from "@/lib/events/ownership";
+import { readPaydays, type PaydayRow } from "@/lib/paydays/projection";
+import type { Portion } from "./events";
 import { categoryMonth, readMonthView } from "./month";
 
 /** After recording income, prefilled from the budgets; or the opening balance, blank. */
@@ -45,16 +47,25 @@ export const canReceive = (account: AccountRow | undefined, source: AccountRow) 
 export const categoriesHeldBy = (list: CategoryList, account: AccountRow): CategoryRow[] =>
   categoriesInUse(list).filter((category) => canHoldMoneyIn(category, account));
 
+/** The portions on the paydays, summed; null when none is on them. */
+function portionsOn(portions: Portion[], paydayIds: string[]): Cents | null {
+  const on = portions.filter((portion) => paydayIds.includes(portion.paydayId));
+  return on.length > 0 ? sumCents(on.map((portion) => portion.amountCents)) : null;
+}
+
 /**
- * In income mode, a line per budget in force for `month` ("yyyy-MM"),
- * prefilled with what is left of it, floored at zero; in opening mode, a
+ * In income mode, a line per budget in force for `month` ("yyyy-MM") that
+ * any payday pays or that has a portion on one of `paydayIds`. It asks for
+ * what is left of the budget this month, capped by those portions, floored at
+ * zero (ADR 0014); in opening mode, a
  * blank line per category, kept in the source. Only categories in use that
  * the source can hold, in the Categories screen's order.
  */
 export async function readDistributeLines(
   sourceAccountId: string,
   month: string,
-  mode: DistributeMode
+  mode: DistributeMode,
+  paydayIds: string[] = []
 ): Promise<DistributeLine[]> {
   const source = await getAccount(sourceAccountId);
   if (!source) return [];
@@ -79,18 +90,59 @@ export async function readDistributeLines(
   return inUse.flatMap((category) => {
     const { budget, allocated } = categoryMonth(view, category.id);
     if (!budget) return [];
+    const onPaydays = portionsOn(budget.portions, paydayIds);
+    if (budget.portions.length > 0 && onPaydays === null) return [];
     const funding = accountById.get(budget.accountId);
     const left = diffCents(budget.amountCents, allocated);
+    const asked = onPaydays !== null && onPaydays < left ? onPaydays : left;
     return [
       {
         categoryId: category.id,
         accountId: canReceive(funding, source) ? budget.accountId : source.id,
-        amountCents: left > 0 ? left : ZERO_CENTS,
+        amountCents: asked > 0 ? asked : ZERO_CENTS,
         budgetCents: budget.amountCents,
         fundingAccountRetired: funding?.retired === true,
       },
     ];
   });
+}
+
+export interface PaydayChoices {
+  paydays: PaydayRow[];
+  /** The first payday with money left this month; null when there is none. */
+  preselectedPaydayId: string | null;
+}
+
+/**
+ * The household's paydays, and the first one in order whose portions, with
+ * the earlier paydays' portions, ask a budget the source can hold for more
+ * than was allocated to it this month.
+ */
+export async function readPaydayChoices(
+  sourceAccountId: string,
+  month: string
+): Promise<PaydayChoices> {
+  const [paydays, source, categories, view] = await Promise.all([
+    readPaydays(),
+    getAccount(sourceAccountId),
+    readCategoryList(),
+    readMonthView(month, month),
+  ]);
+  const budgets = (source ? categoriesHeldBy(categories, source) : []).flatMap((category) => {
+    const { budget, allocated } = categoryMonth(view, category.id);
+    return budget ? [{ portions: budget.portions, allocated }] : [];
+  });
+  const paidSoFar: string[] = [];
+  for (const payday of paydays) {
+    paidSoFar.push(payday.id);
+    const moneyLeft = budgets.some(
+      ({ portions, allocated }) =>
+        portions.some((portion) => portion.paydayId === payday.id) &&
+        (portionsOn(portions, paidSoFar) ?? ZERO_CENTS) > allocated
+    );
+    if (moneyLeft) return { paydays, preselectedPaydayId: payday.id };
+  }
+  return { paydays, preselectedPaydayId: null };
 }
 
 export interface AccountTotal {

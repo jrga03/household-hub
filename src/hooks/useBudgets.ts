@@ -1,6 +1,10 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { readCategoryLedger, readLedgerRecord, type LedgerRecordId } from "@/lib/budgets/ledger";
-import { readDistributeLines, type DistributeMode } from "@/lib/budgets/distribute";
+import {
+  readDistributeLines,
+  readPaydayChoices,
+  type DistributeMode,
+} from "@/lib/budgets/distribute";
 import { readMonthView } from "@/lib/budgets/month";
 import { listBudgets } from "@/lib/budgets/projection";
 import { readPaydays } from "@/lib/paydays/projection";
@@ -35,17 +39,33 @@ export function useLedgerRecord(opened: LedgerRecordId | null) {
 
 /**
  * The lines Distribute money opens with; undefined while loading. A changed
- * source, month or mode reads as loading: useLiveQuery keeps the previous
+ * source, month, mode or payday choice reads as loading: useLiveQuery keeps the previous
  * result until the new read resolves, and those lines belong to the old source.
  */
-export function useDistributeLines(sourceAccountId: string, month: string, mode: DistributeMode) {
-  const key = `${sourceAccountId}:${month}:${mode}`;
+export function useDistributeLines(
+  sourceAccountId: string,
+  month: string,
+  mode: DistributeMode,
+  paydayIds: string[]
+) {
+  const key = `${sourceAccountId}:${month}:${mode}:${paydayIds.join()}`;
   const read = useLiveQuery(
     async () => ({
       key,
-      lines: await readDistributeLines(sourceAccountId, month, mode),
+      lines: await readDistributeLines(sourceAccountId, month, mode, paydayIds),
     }),
-    [sourceAccountId, month, mode]
+    // paydayIds is a new array each render; the key holds its value.
+    [key]
   );
   return read?.key === key ? read.lines : undefined;
+}
+
+/** The paydays Distribute offers for the month; undefined while loading. */
+export function usePaydayChoices(sourceAccountId: string, month: string) {
+  const key = `${sourceAccountId}:${month}`;
+  const read = useLiveQuery(
+    async () => ({ key, choices: await readPaydayChoices(sourceAccountId, month) }),
+    [sourceAccountId, month]
+  );
+  return read?.key === key ? read.choices : undefined;
 }

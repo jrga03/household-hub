@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { parsePHP, type Cents } from "@/lib/currency";
+import { parsePHP, sumCents, type Cents } from "@/lib/currency";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { createAccount, retireAccount } from "@/lib/commands/accounts";
 import { setBudget } from "@/lib/commands/budgets";
 import { createCategory, createGroup, retireCategory } from "@/lib/commands/categories";
+import { distributeMoney } from "@/lib/commands/distribute";
+import { addPayday } from "@/lib/commands/paydays";
 import { readDistributeLines, summarizeByAccount } from "./distribute";
 import { HOUSEHOLD } from "@/test/events";
 
@@ -27,6 +29,32 @@ const budget = (categoryId: string, amount: string, accountId: string) =>
     amountCents: peso(amount),
     accountId,
   });
+
+const inPortions = (
+  categoryId: string,
+  accountId: string,
+  portions: [paydayId: string, amount: string][]
+) =>
+  setBudget(MEMBER, {
+    categoryId,
+    fromMonth: "2026-10",
+    amountCents: sumCents(portions.map(([, amount]) => peso(amount))),
+    accountId,
+    portions: portions.map(([paydayId, amount]) => ({ paydayId, amountCents: peso(amount) })),
+  });
+
+const fund = (categoryId: string, amount: string) =>
+  distributeMoney(MEMBER, {
+    sourceAccountId: bpi,
+    date: "2026-10-15",
+    lines: [{ categoryId, accountId: bpi, amountCents: peso(amount) }],
+  });
+
+const prefills = async (paydayIds: string[]) =>
+  (await readDistributeLines(bpi, "2026-10", "income", paydayIds)).map((line) => [
+    line.categoryId,
+    line.amountCents,
+  ]);
 
 beforeEach(async () => {
   await resetLocalDatabase();
@@ -115,6 +143,78 @@ describe("readDistributeLines", () => {
         fundingAccountRetired: false,
       },
     ]);
+  });
+});
+
+describe("readDistributeLines for paydays", () => {
+  let fifteenth: string;
+  let thirtieth: string;
+
+  beforeEach(async () => {
+    fifteenth = (await addPayday(MEMBER, "15th salary")).id;
+    thirtieth = (await addPayday(MEMBER, "30th salary")).id;
+  });
+
+  it("asks only for the chosen payday's portions", async () => {
+    await inPortions(groceries, bpi, [
+      [fifteenth, "4000"],
+      [thirtieth, "4000"],
+    ]);
+    await inPortions(utilities, bpi, [[thirtieth, "6000"]]);
+
+    expect(await prefills([fifteenth])).toEqual([[groceries, 400000]]);
+  });
+
+  it("sums the portions on several paydays", async () => {
+    await inPortions(groceries, bpi, [
+      [fifteenth, "4000"],
+      [thirtieth, "4000"],
+    ]);
+    await inPortions(utilities, bpi, [[thirtieth, "6000"]]);
+
+    expect(await prefills([fifteenth, thirtieth])).toEqual([
+      [utilities, 600000],
+      [groceries, 800000],
+    ]);
+  });
+
+  it("asks for what is left of the budget when that is less than the portion", async () => {
+    await inPortions(groceries, bpi, [
+      [fifteenth, "4000"],
+      [thirtieth, "4000"],
+    ]);
+    await fund(groceries, "5000");
+
+    expect(await prefills([thirtieth])).toEqual([[groceries, 300000]]);
+  });
+
+  it("still asks for the earlier payday's full portion after a later payday went first", async () => {
+    await inPortions(groceries, bpi, [
+      [fifteenth, "3000"],
+      [thirtieth, "5000"],
+    ]);
+    await fund(groceries, "5000");
+
+    expect(await prefills([fifteenth])).toEqual([[groceries, 300000]]);
+  });
+
+  it("prefills zero for a fully funded budget", async () => {
+    await inPortions(groceries, bpi, [
+      [fifteenth, "4000"],
+      [thirtieth, "4000"],
+    ]);
+    await fund(groceries, "8000");
+
+    expect(await prefills([thirtieth])).toEqual([[groceries, 0]]);
+  });
+
+  it("always includes budgets any payday pays, with what is left of them", async () => {
+    await budget(transportation, "3000", gcash);
+    await inPortions(groceries, bpi, [[fifteenth, "8000"]]);
+    await fund(transportation, "1000");
+
+    expect(await prefills([thirtieth])).toEqual([[transportation, 200000]]);
+    expect(await prefills([])).toEqual([[transportation, 200000]]);
   });
 });
 
