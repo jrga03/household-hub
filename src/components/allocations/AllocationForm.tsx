@@ -1,9 +1,8 @@
-import { useActionState, useState, type ReactNode } from "react";
+import { useActionState, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { AccountSelect } from "@/components/accounts/AccountSelect";
 import { ActionForm } from "@/components/app/ActionForm";
 import { Combobox } from "@/components/app/Combobox";
-import { CurrencyInput } from "@/components/app/CurrencyInput";
 import { Field } from "@/components/app/Field";
 import { FormFooter, FULL_ROW } from "@/components/app/FormSheet";
 import { FormError } from "@/components/app/FormError";
@@ -12,6 +11,7 @@ import { Input } from "@/components/app/Input";
 import { Money } from "@/components/app/Money";
 import { Notice } from "@/components/app/Notice";
 import { SubmitButton } from "@/components/app/SubmitButton";
+import { AmountField } from "@/components/transactions/EntryFields";
 import { useFocusFirstProblem } from "@/hooks/useFocusFirstProblem";
 import { isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
@@ -32,7 +32,6 @@ import {
   formatPHP,
   isAmount,
   parsePHPSafe,
-  PESO_SIGN,
   sumCents,
   type Cents,
 } from "@/lib/currency";
@@ -225,6 +224,7 @@ function AllocationFields({
       ""
   );
   const [fromKey, setFromKey] = useState(allocation ? envelopeKey(allocation.from) : "unassigned");
+  const amountRef = useRef<HTMLInputElement>(null);
   const [toKey, setToKey] = useState(allocation ? envelopeKey(allocation.to) : UNCHOSEN);
   const account = accounts.find((choice) => choice.id === accountId);
   const envelopes = money.get(accountId)?.envelopes;
@@ -305,18 +305,13 @@ function AllocationFields({
       aria-label={allocation ? "Edit allocation" : "Move money"}
     >
       <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
-        <div className={choices ? FULL_ROW : undefined}>
-          <Field label={`Amount (${PESO_SIGN})`} error={problems.amount}>
-            <CurrencyInput
-              name="amount"
-              placeholder="0.00"
-              autoComplete="off"
-              enterKeyHint="done"
-              value={amount}
-              onChange={onAmountChange}
-            />
-          </Field>
-        </div>
+        <AmountField
+          value={amount}
+          onChange={onAmountChange}
+          error={problems.amount}
+          inputRef={amountRef}
+          className={choices ? FULL_ROW : undefined}
+        />
         {choices}
         <Field label="Date">
           <Input

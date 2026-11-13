@@ -76,9 +76,16 @@ export function TransactionDialog({
   transaction?: TransactionRow;
   onClose: () => void;
 }) {
+  const [moving, setMoving] = useState(false);
+  const title = transaction ? "Edit transaction" : moving ? "Move money" : "Add transaction";
   return (
-    <FormSheet title={transaction ? "Edit transaction" : "Add transaction"} onClose={onClose}>
-      <TransactionEditor actor={actor} transaction={transaction} onClose={onClose} />
+    <FormSheet title={title} onClose={onClose}>
+      <TransactionEditor
+        actor={actor}
+        transaction={transaction}
+        onMovingChange={setMoving}
+        onClose={onClose}
+      />
     </FormSheet>
   );
 }
@@ -87,10 +94,13 @@ export function TransactionDialog({
 export function TransactionEditor({
   actor,
   transaction,
+  onMovingChange,
   onClose,
 }: {
   actor: Actor;
   transaction?: TransactionRow;
+  /** Told when a new entry switches to or from Move money, so the title can follow. */
+  onMovingChange?: (moving: boolean) => void;
   onClose: () => void;
 }) {
   const accounts = useAccounts();
@@ -130,21 +140,24 @@ export function TransactionEditor({
       actor={actor}
       accounts={accountChoices}
       categories={categories}
+      onMovingChange={onMovingChange}
       onClose={onClose}
     />
   );
 }
 
-/** A new entry is an expense, income or a transfer; switching to or from Transfer swaps the form. */
+/** A new entry is an expense, income or a move; switching to or from Move money swaps the form. */
 function NewEntryForm({
   actor,
   accounts,
   categories,
+  onMovingChange,
   onClose,
 }: {
   actor: Actor;
   accounts: AccountRow[];
   categories: CategoryList;
+  onMovingChange?: (moving: boolean) => void;
   onClose: () => void;
 }) {
   // The amount typed so far follows a switch between forms.
@@ -152,8 +165,10 @@ function NewEntryForm({
     direction: "expense",
     amount: undefined,
   });
-  const switchTo = (direction: EntryDirection, amount: Cents | undefined) =>
+  const switchTo = (direction: EntryDirection, amount: Cents | undefined) => {
     setDraft({ direction, amount });
+    onMovingChange?.(direction === TRANSFER_TYPE);
+  };
   const { direction } = draft;
   if (direction === TRANSFER_TYPE) {
     return (

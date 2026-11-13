@@ -94,10 +94,10 @@ const DIRECTIONS = [
 
 const DIRECTIONS_WITH_TRANSFER = [
   ...DIRECTIONS,
-  { value: TRANSFER_TYPE, label: "Transfer" },
+  { value: TRANSFER_TYPE, label: "Move money" },
 ] as const satisfies readonly { value: EntryDirection; label: string }[];
 
-/** Expense, Income and, for a new entry, Transfer. Inside a form it submits as `type`. */
+/** Expense, Income and, for a new entry, Move money. Inside a form it submits as `type`. */
 export function DirectionChoice({
   value,
   onChange,
@@ -111,7 +111,7 @@ export function DirectionChoice({
     <div className={cn("self-end", withTransfer && FULL_ROW)}>
       <input type="hidden" name="type" value={value} />
       <SegmentedControl<EntryDirection>
-        label={withTransfer ? "Expense, income or transfer" : "Expense or income"}
+        label={withTransfer ? "Expense, income or move money" : "Expense or income"}
         options={withTransfer ? DIRECTIONS_WITH_TRANSFER : DIRECTIONS}
         value={value}
         onChange={onChange}
