@@ -14,4 +14,5 @@ We chose this because members move money as one thought ("BPI Groceries to GCash
 - Transfer events gain a version; the decoder reads older transfers as arriving in the envelope they left.
 - A transfer between categories adds to one category's money and takes from another's, so it shows in both ledgers. It still never counts as income, spending, or against a budget.
 - A move inside one account stays an allocation. A transfer into a credit card still arrives in that card's Card Payment.
+- Money that leaves a Card Payment arrives in the same Card Payment, in the card's Paying Account. Freeing bill money for another job is an allocation, a deliberate step, never a side effect of a transfer.
 - The accounts must still differ and share visibility (ADR 0002), and the arrival category must be able to hold money in the to account (ADR 0005).

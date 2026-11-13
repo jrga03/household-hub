@@ -65,8 +65,8 @@ function refuseOutOfCard(from: AccountRow): void {
 /**
  * Money into a card can only leave and arrive as its own Card Payment: that is
  * paying it. Otherwise each envelope must fit its own account: a category in
- * use of its visibility, Unassigned, or a Card Payment. Money goes into a Card
- * Payment only where the card is paid from (ADR 0013).
+ * use of its visibility, Unassigned, or a Card Payment. Card Payment money
+ * arrives only as the same Card Payment, where the card is paid from (ADR 0013).
  */
 async function checkEnvelopes(details: TransferDetails, from: AccountRow, to: AccountRow) {
   if (isCreditCard(to)) {
@@ -79,7 +79,13 @@ async function checkEnvelopes(details: TransferDetails, from: AccountRow, to: Ac
     }
     return;
   }
-  await requireEnvelopeIn(details.fromEnvelope, from);
+  const leavingCard = await requireEnvelopeIn(details.fromEnvelope, from);
+  // Freeing bill money is a deliberate allocation, never a side effect of a transfer.
+  if (leavingCard && !sameEnvelope(details.fromEnvelope, details.toEnvelope)) {
+    throw new Error(
+      `Money from ${leavingCard.name}'s Card Payment must arrive in ${leavingCard.name}'s Card Payment. To use it for something else, move it to Unassigned first.`
+    );
+  }
   const card = await requireEnvelopeIn(details.toEnvelope, to);
   if (card) await refusePaidElsewhere(card, to);
 }

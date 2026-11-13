@@ -198,7 +198,7 @@ function readTransferForm(formData: FormData): ReadForm {
   if (!fromEnvelope) {
     return { input: null, status: null, problems: formProblem("Choose a category or Unassigned.") };
   }
-  // Into a card the form has no arrival field: the money arrives in the Card Payment it left.
+  // With no arrival field, the money arrives in the envelope it left.
   const arrival = formData.get("toEnvelope");
   const toEnvelope = arrival === null ? fromEnvelope : envelopeFromKey(String(arrival));
   if (!toEnvelope) {
@@ -305,7 +305,10 @@ export function TransferForm({
   );
   const shownEnvelope = shownChoice(envelopes, envelope);
 
-  const intoCard = to !== undefined && isCreditCard(to);
+  // Into a card, or out of a Card Payment, the money arrives in the Card Payment it left.
+  const arrivesAsLeft =
+    (to !== undefined && isCreditCard(to)) ||
+    envelopeFromKey(shownEnvelope)?.kind === "card_payment";
   const arrivals = envelopeChoices(categories, to, to, transfer?.toEnvelope, accountNames);
   // Null while the arrival follows the leaving envelope; the member's choice once made.
   const [arrival, setArrival] = useState(
@@ -436,7 +439,7 @@ export function TransferForm({
             />
           )}
         </Field>
-        {!intoCard && (
+        {!arrivesAsLeft && (
           <Field label="To category (optional)">
             {(control) => (
               <Combobox

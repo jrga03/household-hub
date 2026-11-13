@@ -349,6 +349,20 @@ describe("addTransfer", () => {
       ).rejects.toThrow("Visa is paid from BPI. Choose a card paid from GCash.");
     });
 
+    it("refuses to turn Card Payment money into another envelope", async () => {
+      const cardId = await cardPaidFrom(walletId);
+
+      await expect(
+        addTransfer(
+          MEMBER,
+          transfer({
+            fromEnvelope: { kind: "card_payment", id: cardId },
+            toEnvelope: category(groceriesId),
+          })
+        )
+      ).rejects.toThrow("Money from Visa's Card Payment must arrive in Visa's Card Payment.");
+    });
+
     it("refuses a card that isn't on this device", async () => {
       await expect(
         addTransfer(
