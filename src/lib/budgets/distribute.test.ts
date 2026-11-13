@@ -4,7 +4,7 @@ import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { createAccount, retireAccount } from "@/lib/commands/accounts";
 import { setBudget } from "@/lib/commands/budgets";
 import { createCategory, createGroup, retireCategory } from "@/lib/commands/categories";
-import { readDistributeLines } from "./distribute";
+import { readDistributeLines, summarizeByAccount } from "./distribute";
 import { HOUSEHOLD } from "@/test/events";
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
@@ -114,6 +114,32 @@ describe("readDistributeLines", () => {
         budgetCents: 300000,
         fundingAccountRetired: false,
       },
+    ]);
+  });
+});
+
+describe("summarizeByAccount", () => {
+  it("sums lines per destination account, keeps the source last, and leaves out zero totals", () => {
+    const lines = [
+      { accountId: "bpi", amountCents: peso("6000") },
+      { accountId: "gcash", amountCents: peso("3000") },
+      { accountId: "bdo", amountCents: null },
+      { accountId: "bpi", amountCents: peso("8000") },
+      { accountId: "maya", amountCents: peso("1500") },
+      { accountId: "gcash", amountCents: peso("500") },
+      { accountId: "bdo", amountCents: peso("0") },
+    ];
+
+    expect(summarizeByAccount(lines, "bpi")).toEqual([
+      { accountId: "gcash", amountCents: 350000 },
+      { accountId: "maya", amountCents: 150000 },
+      { accountId: "bpi", amountCents: 1400000 },
+    ]);
+  });
+
+  it("leaves out the source row when nothing stays in it", () => {
+    expect(summarizeByAccount([{ accountId: "gcash", amountCents: peso("200") }], "bpi")).toEqual([
+      { accountId: "gcash", amountCents: 20000 },
     ]);
   });
 });
