@@ -1,6 +1,7 @@
 import { useActionState, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
+import { AccountSelect } from "@/components/accounts/AccountSelect";
 import { ActionForm } from "@/components/app/ActionForm";
 import { Checkbox } from "@/components/app/Checkbox";
 import { Field } from "@/components/app/Field";
@@ -125,18 +126,12 @@ export function ReadStatement({ cards }: { cards: AccountListItem[] }) {
         </Field>
         <Field label="Card">
           {(control) => (
-            <Select value={chosenCardId} onValueChange={setCardId}>
-              <SelectTrigger {...control} className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {cards.map((card) => (
-                  <SelectItem key={card.id} value={card.id}>
-                    {card.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <AccountSelect
+              {...control}
+              accounts={cards}
+              value={chosenCardId}
+              onValueChange={setCardId}
+            />
           )}
         </Field>
         <Field label="Statement file">

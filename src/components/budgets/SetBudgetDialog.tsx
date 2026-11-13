@@ -1,5 +1,6 @@
 import { useActionState, useState } from "react";
 import { toast } from "sonner";
+import { AccountSelect } from "@/components/accounts/AccountSelect";
 import { ActionForm } from "@/components/app/ActionForm";
 import { CurrencyInput } from "@/components/app/CurrencyInput";
 import { Field } from "@/components/app/Field";
@@ -19,6 +20,7 @@ import { useBudgets } from "@/hooks/useBudgets";
 import { useFocusFirstProblem } from "@/hooks/useFocusFirstProblem";
 import { budgetInForce } from "@/lib/budgets/inForce";
 import { canFundBudget } from "@/lib/budgets/projection";
+import type { AccountRow } from "@/lib/accounts/projection";
 import type { CategoryRow } from "@/lib/categories/projection";
 import type { BudgetRow } from "@/lib/budgets/projection";
 import type { Actor } from "@/lib/commands/accounts";
@@ -80,7 +82,7 @@ function SetBudgetForm({
   category: CategoryRow;
   month: string;
   budgets: BudgetRow[];
-  fundingChoices: { id: string; name: string }[];
+  fundingChoices: AccountRow[];
   onClose: () => void;
 }) {
   const inForceFrom = (from: string) => budgetInForce(budgets, category.id, from);
@@ -182,18 +184,12 @@ function SetBudgetForm({
               hint="Where this budget’s money goes when you distribute a payday."
             >
               {(control) => (
-                <Select value={accountId} onValueChange={setAccountId}>
-                  <SelectTrigger {...control} className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {fundingChoices.map((account) => (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <AccountSelect
+                  {...control}
+                  accounts={fundingChoices}
+                  value={accountId}
+                  onValueChange={setAccountId}
+                />
               )}
             </Field>
           )}

@@ -1,5 +1,5 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
-import { chooseOption, signUpNewPerson, navigateTo } from "./fixtures/helpers";
+import { chooseOption, expectChosen, signUpNewPerson, navigateTo } from "./fixtures/helpers";
 
 const SYNTHETIC_BDO = "tests/fixtures/statements/bdo-credit-card.pdf";
 const SYNTHETIC_UNIONBANK = "tests/fixtures/statements/unionbank-credit-card.xlsx";
@@ -39,7 +39,7 @@ async function openImportOffline(page: Page, context: BrowserContext, cardName: 
   await page.goto("/import");
 
   const form = page.getByRole("form", { name: "Read a statement" });
-  await expect(form.getByLabel("Card")).toHaveText(cardName);
+  await expectChosen(form.getByLabel("Card"), cardName);
   return form;
 }
 

@@ -1,15 +1,9 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { AccountSelect } from "@/components/accounts/AccountSelect";
 import { ActionForm } from "@/components/app/ActionForm";
 import { Button } from "@/components/app/Button";
 import { Input } from "@/components/app/Input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/app/Select";
 import { SubmitButton } from "@/components/app/SubmitButton";
 import { Field } from "@/components/app/Field";
 import { FormError } from "@/components/app/FormError";
@@ -149,19 +143,13 @@ function ProposalForm({
       <fieldset disabled={decided} className="grid grid-cols-1 gap-4 @[480px]:grid-cols-3">
         <Field label="Account">
           {(control) => (
-            <Select value={accountId} onValueChange={setAccountId} disabled={decided}>
-              <SelectTrigger {...control} className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts.map((choice) => (
-                  <SelectItem key={choice.id} value={choice.id}>
-                    {choice.name}
-                    {choice.visibility === "personal" && " (Personal)"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <AccountSelect
+              {...control}
+              disabled={decided}
+              accounts={accounts}
+              value={accountId}
+              onValueChange={setAccountId}
+            />
           )}
         </Field>
         <Field label="Category (optional)">

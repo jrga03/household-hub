@@ -1,5 +1,6 @@
 import { useActionState, useState } from "react";
 import { toast } from "sonner";
+import { AccountSelect } from "@/components/accounts/AccountSelect";
 import { ActionForm } from "@/components/app/ActionForm";
 import { Combobox } from "@/components/app/Combobox";
 import { CurrencyInput } from "@/components/app/CurrencyInput";
@@ -10,13 +11,6 @@ import { changeWithUndo } from "@/components/app/withUndo";
 import { Input } from "@/components/app/Input";
 import { Money } from "@/components/app/Money";
 import { Notice } from "@/components/app/Notice";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/app/Select";
 import { SubmitButton } from "@/components/app/SubmitButton";
 import { useAccounts, useRetiredAccounts } from "@/hooks/useAccounts";
 import { useFocusFirstProblem } from "@/hooks/useFocusFirstProblem";
@@ -321,20 +315,13 @@ function MoveMoneyForm({
         <div className={FULL_ROW}>
           <Field label="Account">
             {(control) => (
-              <Select name="accountId" value={accountId} onValueChange={setAccountId}>
-                <SelectTrigger {...control} className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {accounts.map((choice) => (
-                    <SelectItem key={choice.id} value={choice.id}>
-                      {choice.name}
-                      {choice.visibility === "personal" && " (Personal)"}
-                      {choice.retired && " (retired)"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <AccountSelect
+                {...control}
+                name="accountId"
+                accounts={accounts}
+                value={accountId}
+                onValueChange={setAccountId}
+              />
             )}
           </Field>
         </div>

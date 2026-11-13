@@ -64,7 +64,10 @@ export async function expectChosen(field: Locator, name: string) {
 /** Opens a select field and picks the option with exactly that name. */
 export async function chooseOption(page: Page, field: Locator, option: string) {
   await field.click();
-  await page.getByRole("option", { name: option, exact: true }).click();
+  // Only this field's list: the last picker's list can still be fading out.
+  await expect(field).toHaveAttribute("aria-controls", /.+/);
+  const list = page.locator(`[id="${await field.getAttribute("aria-controls")}"]`);
+  await list.getByRole("option", { name: option, exact: true }).click();
 }
 
 const TAB_LABELS = ["Home", "Transactions", "Accounts", "Categories"];

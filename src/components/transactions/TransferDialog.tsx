@@ -1,6 +1,6 @@
 import { useActionState, useRef, useState } from "react";
 import { toast } from "sonner";
-import { accountLabel } from "@/components/accounts/AccountSelect";
+import { AccountSelect } from "@/components/accounts/AccountSelect";
 import { ActionForm } from "@/components/app/ActionForm";
 import { Combobox, type ComboboxGroup, type ComboboxOption } from "@/components/app/Combobox";
 import { Field } from "@/components/app/Field";
@@ -8,13 +8,6 @@ import { FormError } from "@/components/app/FormError";
 import { changeWithUndo } from "@/components/app/withUndo";
 import { FormFooter, FormSheet, FULL_ROW } from "@/components/app/FormSheet";
 import { Input } from "@/components/app/Input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/app/Select";
 import { SubmitButton } from "@/components/app/SubmitButton";
 import { Textarea } from "@/components/app/Textarea";
 import { categoryNames, envelopeFromKey, envelopeKey } from "@/components/allocations/envelopes";
@@ -365,34 +358,25 @@ export function TransferForm({
         </Field>
         <Field label="From">
           {(control) => (
-            <Select name="fromAccountId" value={fromId} onValueChange={chooseFrom}>
-              <SelectTrigger {...control} className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {fromChoices.map((choice) => (
-                  <SelectItem key={choice.id} value={choice.id}>
-                    {accountLabel(choice)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <AccountSelect
+              {...control}
+              name="fromAccountId"
+              accounts={fromChoices}
+              value={fromId}
+              onValueChange={chooseFrom}
+            />
           )}
         </Field>
         <Field label="To">
           {(control) => (
-            <Select name="toAccountId" value={shownToId} onValueChange={setToId}>
-              <SelectTrigger {...control} className="w-full">
-                <SelectValue placeholder="No other account" />
-              </SelectTrigger>
-              <SelectContent>
-                {toChoices.map((choice) => (
-                  <SelectItem key={choice.id} value={choice.id}>
-                    {accountLabel(choice)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <AccountSelect
+              {...control}
+              name="toAccountId"
+              placeholder="No other account"
+              accounts={toChoices}
+              value={shownToId}
+              onValueChange={setToId}
+            />
           )}
         </Field>
         <Field label={envelopes.empty ? "Category (optional)" : "Category"}>

@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useActionState, useState } from "react";
 import { toast } from "sonner";
 import { categoryNames } from "@/components/allocations/envelopes";
+import { AccountSelect } from "@/components/accounts/AccountSelect";
 import { ActionForm } from "@/components/app/ActionForm";
 import { Combobox } from "@/components/app/Combobox";
 import { CurrencyInput } from "@/components/app/CurrencyInput";
@@ -12,13 +13,6 @@ import { FormError } from "@/components/app/FormError";
 import { Input } from "@/components/app/Input";
 import { Label } from "@/components/app/Label";
 import { Money } from "@/components/app/Money";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/app/Select";
 import { SubmitButton } from "@/components/app/SubmitButton";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useDistributeLines } from "@/hooks/useBudgets";
@@ -125,19 +119,12 @@ function DistributeForm({
         <div className="space-y-1">
           <Field label="From">
             {(control) => (
-              <Select value={sourceId} onValueChange={setSourceId}>
-                <SelectTrigger {...control} className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {sources.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name}
-                      {account.visibility === "personal" && " (Personal)"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <AccountSelect
+                {...control}
+                accounts={sources}
+                value={sourceId}
+                onValueChange={setSourceId}
+              />
             )}
           </Field>
           <p className="text-caption text-muted-foreground">
@@ -425,23 +412,14 @@ function DistributeLineRow({
           value={line.amountCents}
           onChange={(amountCents) => onChange({ amountCents })}
         />
-        <Select value={line.accountId} onValueChange={(accountId) => onChange({ accountId })}>
-          <SelectTrigger
-            aria-label={`${name} goes to`}
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? errorId : undefined}
-            className="w-full"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {destinations.map((account) => (
-              <SelectItem key={account.id} value={account.id}>
-                {account.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <AccountSelect
+          aria-label={`${name} goes to`}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
+          accounts={destinations}
+          value={line.accountId}
+          onValueChange={(accountId) => onChange({ accountId })}
+        />
       </div>
       {error && (
         <p id={errorId} className="text-caption text-destructive">
