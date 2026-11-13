@@ -19,24 +19,33 @@ export const TRANSFER_MARKED_PENDING = "transfer.marked_pending";
 export const TRANSFER_REMOVED = "transfer.removed";
 export const TRANSFER_RESTORED = "transfer.restored";
 
+// v2 can arrive in another envelope (ADR 0013); a v1 transfer arrives in the one it left.
+const arrivingWhereItLeft = ({ envelope, ...payload }: Record<string, unknown>) => ({
+  ...payload,
+  fromEnvelope: envelope,
+  toEnvelope: envelope,
+});
+
 export const TRANSFER_VERSIONS = {
-  [TRANSFER_CREATED]: { current: 1, upcasts: {} },
-  [TRANSFER_EDITED]: { current: 1, upcasts: {} },
+  [TRANSFER_CREATED]: { current: 2, upcasts: { 1: arrivingWhereItLeft } },
+  [TRANSFER_EDITED]: { current: 2, upcasts: { 1: arrivingWhereItLeft } },
   [TRANSFER_MARKED_CLEARED]: { current: 1, upcasts: {} },
   [TRANSFER_MARKED_PENDING]: { current: 1, upcasts: {} },
   [TRANSFER_REMOVED]: { current: 1, upcasts: {} },
   [TRANSFER_RESTORED]: { current: 1, upcasts: {} },
 } satisfies EventVersions;
 
-/** What a member can edit; status and removal resolve apart from these (ADR 0006). */
+/** What a member can edit; status and removal resolve apart from these (ADR 0006, 0013). */
 export interface TransferDetails {
   /** The member's local calendar date, "yyyy-MM-dd". */
   date: string;
   amountCents: Cents;
   fromAccountId: string;
   toAccountId: string;
-  /** The same on both sides: the money keeps what it is for. */
-  envelope: Envelope;
+  /** Where the money leaves in the from account. */
+  fromEnvelope: Envelope;
+  /** Where it arrives in the to account; usually the same as `fromEnvelope`. */
+  toEnvelope: Envelope;
   description: string;
   notes: string;
 }
@@ -60,8 +69,10 @@ export function checkTransferDetails(input: Record<string, unknown>): DetailsChe
   if (!isId(fromAccountId)) return rejected("Choose the account the money leaves.");
   if (!isId(toAccountId)) return rejected("Choose the account the money goes to.");
   if (fromAccountId === toAccountId) return rejected("Choose two different accounts.");
-  const envelope = decodeEnvelope(input.envelope);
-  if (!envelope) return rejected("Choose a category or Unassigned.");
+  const fromEnvelope = decodeEnvelope(input.fromEnvelope);
+  if (!fromEnvelope) return rejected("Choose a category or Unassigned.");
+  const toEnvelope = decodeEnvelope(input.toEnvelope);
+  if (!toEnvelope) return rejected("Choose the category the money goes to, or Unassigned.");
   const description = optionalText(input.description);
   if (description.length > DESCRIPTION_MAX_LENGTH) {
     return rejected(`A description can be at most ${DESCRIPTION_MAX_LENGTH} characters.`);
@@ -76,7 +87,8 @@ export function checkTransferDetails(input: Record<string, unknown>): DetailsChe
       amountCents: asCents(amountCents),
       fromAccountId,
       toAccountId,
-      envelope,
+      fromEnvelope,
+      toEnvelope,
       description,
       notes,
     },

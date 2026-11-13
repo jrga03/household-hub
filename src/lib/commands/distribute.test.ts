@@ -76,7 +76,8 @@ describe("distributeMoney", () => {
         fromAccountId: bpi,
         toAccountId: gcash,
         amountCents: 300000,
-        envelope: { kind: "unassigned" },
+        fromEnvelope: { kind: "unassigned" },
+        toEnvelope: { kind: "unassigned" },
         date: "2026-10-15",
       },
     ]);

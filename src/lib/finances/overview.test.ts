@@ -89,7 +89,8 @@ describe("this month's money", () => {
       amountCents: peso("2000"),
       fromAccountId: bpiId,
       toAccountId: gcashId,
-      envelope: { kind: "category", id: groceriesId },
+      fromEnvelope: { kind: "category", id: groceriesId },
+      toEnvelope: { kind: "category", id: groceriesId },
     });
 
     expect(await october()).toMatchObject({ in: 3000000, out: 200000, left: 2800000 });
@@ -206,7 +207,8 @@ describe("latest transactions", () => {
       amountCents: peso("5"),
       fromAccountId: bpiId,
       toAccountId: gcashId,
-      envelope: { kind: "category", id: groceriesId },
+      fromEnvelope: { kind: "category", id: groceriesId },
+      toEnvelope: { kind: "category", id: groceriesId },
     });
     await record("2026-10-06", "6");
     await recordPersonal(MEMBER, walletId, "7", "expense");

@@ -26,6 +26,7 @@ import {
   unretireGroup,
 } from "./categories";
 import { addTransaction, removeTransaction } from "./transactions";
+import { addTransfer, removeTransfer } from "./transfers";
 import { HOUSEHOLD } from "@/test/events";
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
@@ -393,6 +394,25 @@ describe("deleting", () => {
       "Groceries has 1 transaction, so it stays retired."
     );
     expect((await readCategoryList()).retiredCategories).toMatchObject([{ id: groceriesId }]);
+  });
+
+  it("keeps a category a transfer arrived in retired", async () => {
+    const accountNamed = async (name: string) =>
+      (await createAccount(MEMBER, { name, type: "bank", startingBalanceCents: parsePHP("0") })).id;
+    const topUp = await addTransfer(MEMBER, {
+      date: "2026-10-05",
+      amountCents: parsePHP("500"),
+      fromAccountId: await accountNamed("BPI"),
+      toAccountId: await accountNamed("GCash"),
+      fromEnvelope: UNASSIGNED_ENVELOPE,
+      toEnvelope: { kind: "category", id: groceriesId },
+    });
+    await removeTransfer(MEMBER, topUp.id);
+    await retireCategory(MEMBER, groceriesId);
+
+    await expect(deleteCategory(MEMBER, groceriesId)).rejects.toThrow(
+      "Groceries has 1 transfer, so it stays retired."
+    );
   });
 
   it("refuses a category in use", async () => {

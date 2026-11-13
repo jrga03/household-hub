@@ -51,7 +51,8 @@ function transferRow(overrides: Partial<TransferRow> = {}): TransferRow {
     amountCents: asCents(200000),
     fromAccountId: "bpi",
     toAccountId: "gcash",
-    envelope: { kind: "category", id: "groceries" },
+    fromEnvelope: { kind: "category", id: "groceries" },
+    toEnvelope: { kind: "category", id: "groceries" },
     description: "",
     notes: "",
     status: "cleared",
@@ -417,8 +418,14 @@ describe("transfers in the list", () => {
   });
 
   it("matches the category filter by the transfer's envelope", () => {
-    const unassigned = transferRow({ envelope: { kind: "unassigned" } });
-    const cardPayment = transferRow({ envelope: { kind: "card_payment", id: "visa" } });
+    const unassigned = transferRow({
+      fromEnvelope: { kind: "unassigned" },
+      toEnvelope: { kind: "unassigned" },
+    });
+    const cardPayment = transferRow({
+      fromEnvelope: { kind: "card_payment", id: "visa" },
+      toEnvelope: { kind: "card_payment", id: "visa" },
+    });
     const all = [toGcash, unassigned, cardPayment];
 
     expect(ids(filterTransactions(all, { category: "groceries" }))).toEqual([toGcash.id]);
@@ -427,7 +434,10 @@ describe("transfers in the list", () => {
   });
 
   it("never counts a transfer as needing a category", () => {
-    const unassigned = transferRow({ envelope: { kind: "unassigned" } });
+    const unassigned = transferRow({
+      fromEnvelope: { kind: "unassigned" },
+      toEnvelope: { kind: "unassigned" },
+    });
 
     expect(filterTransactions([unassigned], { needsCategory: true })).toEqual([]);
   });

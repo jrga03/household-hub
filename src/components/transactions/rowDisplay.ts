@@ -64,7 +64,7 @@ export function rowDisplay(row: ListRow, names: RowNames, filteredAccount?: stri
     const direction = transferDirection(row, filteredAccount);
     const route = { from: accountNameOf(row.fromAccountId), to: accountNameOf(row.toAccountId) };
     const path = `${route.from} → ${route.to}`;
-    const envelope = envelopeLabel(row.envelope, names.categories, names.accounts);
+    const envelope = envelopeLabel(row.fromEnvelope, names.categories, names.accounts);
     return {
       label: transferName(row, accountNameOf, direction),
       detail: `${envelope} · ${path}`,

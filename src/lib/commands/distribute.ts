@@ -51,7 +51,8 @@ export async function distributeMoney(
         amountCents,
         fromAccountId: sourceAccountId,
         toAccountId: accountId,
-        envelope: UNASSIGNED_ENVELOPE,
+        fromEnvelope: UNASSIGNED_ENVELOPE,
+        toEnvelope: UNASSIGNED_ENVELOPE,
         description: "Distribute money",
       });
     }

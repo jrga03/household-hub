@@ -11,6 +11,7 @@ const BANK = "aaaaaaaa-0000-4000-8000-000000000001";
 const WALLET = "aaaaaaaa-0000-4000-8000-000000000002";
 const SAVINGS = "aaaaaaaa-0000-4000-8000-000000000003";
 const GROCERIES = "cccccccc-0000-4000-8000-000000000001";
+const DINING = "cccccccc-0000-4000-8000-000000000002";
 
 const event = (
   id: string,
@@ -34,21 +35,32 @@ const details = (overrides: Record<string, unknown> = {}) => ({
   amountCents: 200000,
   fromAccountId: BANK,
   toAccountId: WALLET,
-  envelope: { kind: "category", id: GROCERIES },
+  fromEnvelope: { kind: "category", id: GROCERIES },
+  toEnvelope: { kind: "unassigned" },
   description: "",
   notes: "",
   ...overrides,
 });
 
-const created = event("e-created", "transfer.created", 1000, {
-  ...details(),
-  status: "cleared",
-});
+const v2 = { eventVersion: 2 };
+const created = event(
+  "e-created",
+  "transfer.created",
+  1000,
+  { ...details(), status: "cleared" },
+  v2
+);
 const edited = event(
   "e-edited",
   "transfer.edited",
   2000,
-  details({ amountCents: 150000, toAccountId: SAVINGS, description: "Top up" })
+  details({
+    amountCents: 150000,
+    toAccountId: SAVINGS,
+    toEnvelope: { kind: "category", id: DINING },
+    description: "Top up",
+  }),
+  v2
 );
 const pending = event("e-pending", "transfer.marked_pending", 2500);
 const removed = event("e-removed", "transfer.removed", 3000);
@@ -73,7 +85,8 @@ describe("transfer projection", () => {
         amountCents: 150000,
         fromAccountId: BANK,
         toAccountId: SAVINGS,
-        envelope: { kind: "category", id: GROCERIES },
+        fromEnvelope: { kind: "category", id: GROCERIES },
+        toEnvelope: { kind: "category", id: DINING },
         description: "Top up",
         notes: "",
         status: "pending",
@@ -83,8 +96,23 @@ describe("transfer projection", () => {
     }
   );
 
+  it("reads a version 1 transfer as arriving in the envelope it left", async () => {
+    const { fromEnvelope, toEnvelope: _toEnvelope, ...v1Details } = details();
+    const createdV1 = event("e-created-v1", "transfer.created", 1000, {
+      ...v1Details,
+      envelope: fromEnvelope,
+      status: "cleared",
+    });
+    await receiveEvents([createdV1], 0);
+
+    expect(await getTransfer(TRANSFER)).toMatchObject({
+      fromEnvelope: { kind: "category", id: GROCERIES },
+      toEnvelope: { kind: "category", id: GROCERIES },
+    });
+  });
+
   it("keeps a status change made before a later edit on another device", async () => {
-    const editedLater = event("e-edited-later", "transfer.edited", 5000, details());
+    const editedLater = event("e-edited-later", "transfer.edited", 5000, details(), v2);
     await receiveEvents([editedLater, pending, created], 0);
 
     expect(await getTransfer(TRANSFER)).toMatchObject({ amountCents: 200000, status: "pending" });
@@ -107,6 +135,7 @@ describe("transfer projection", () => {
 
   it("ignores a change carrying another visibility", async () => {
     const crossing = event("e-crossing", "transfer.edited", 2500, details({ amountCents: 1 }), {
+      ...v2,
       visibility: "personal",
       ownerUserId: "user-b",
     });
@@ -118,12 +147,13 @@ describe("transfer projection", () => {
   it.each([
     ["the same account on both sides", { toAccountId: BANK }],
     ["no destination account", { toAccountId: "" }],
-    ["an unknown envelope kind", { envelope: { kind: "budget", id: GROCERIES } }],
+    ["an unknown envelope kind", { fromEnvelope: { kind: "budget", id: GROCERIES } }],
+    ["no arrival envelope", { toEnvelope: undefined }],
     ["a zero amount", { amountCents: 0 }],
     ["an impossible date", { date: "2026-02-30" }],
   ])("projects nothing from a create with %s", async (_case, broken) => {
     await receiveEvents(
-      [event("e-broken", "transfer.created", 1000, { ...details(broken), status: "cleared" })],
+      [event("e-broken", "transfer.created", 1000, { ...details(broken), status: "cleared" }, v2)],
       0
     );
 
@@ -131,7 +161,7 @@ describe("transfer projection", () => {
   });
 
   it("projects nothing from a create without a status", async () => {
-    await receiveEvents([event("e-no-status", "transfer.created", 1000, details())], 0);
+    await receiveEvents([event("e-no-status", "transfer.created", 1000, details(), v2)], 0);
 
     expect(await getTransfer(TRANSFER)).toBeUndefined();
   });
@@ -145,7 +175,7 @@ describe("transfer projection", () => {
         "transfer.created",
         millis,
         { ...details({ date }), status: "cleared" },
-        { entityId }
+        { ...v2, entityId }
       );
     await receiveEvents([created, createdAs(second, 1500), createdAs(third, 900, "2026-10-13")], 0);
 

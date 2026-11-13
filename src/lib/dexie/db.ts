@@ -124,6 +124,17 @@ export class HouseholdHubDB extends Dexie {
             row.pinned ??= false;
           })
       );
+    // A transfer can arrive in another envelope (ADR 0013); an older one arrives where it left.
+    this.version(15).upgrade((transaction) =>
+      transaction
+        .table("transfers")
+        .toCollection()
+        .modify((row: Record<string, unknown>) => {
+          row.fromEnvelope ??= row.envelope;
+          row.toEnvelope ??= row.envelope;
+          delete row.envelope;
+        })
+    );
   }
 }
 

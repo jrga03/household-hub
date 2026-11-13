@@ -30,7 +30,8 @@ describe("transactions CSV", () => {
       amountCents: parsePHP("2000"),
       fromAccountId: bankId,
       toAccountId: walletId,
-      envelope: { kind: "category", id: groceriesId },
+      fromEnvelope: { kind: "category", id: groceriesId },
+      toEnvelope: { kind: "category", id: groceriesId },
       description: "Cash for the market",
     });
     await addTransaction(MEMBER, {
@@ -65,7 +66,8 @@ describe("transactions CSV", () => {
       amountCents: parsePHP("5"),
       fromAccountId: bankId,
       toAccountId: walletId,
-      envelope: { kind: "unassigned" },
+      fromEnvelope: { kind: "unassigned" },
+      toEnvelope: { kind: "unassigned" },
     });
     await removeTransfer(MEMBER, removedTransfer.id);
 

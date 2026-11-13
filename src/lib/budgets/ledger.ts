@@ -25,7 +25,7 @@ export type LedgerRecord =
   | { kind: "correction"; record: BalanceCorrectionRow };
 
 export type LedgerRow = LedgerRecord & {
-  /** What the record adds to the category's money; zero for a transfer between two accounts. */
+  /** What the record adds to the category's money; zero for a transfer that keeps its category. */
   change: Cents;
   /** The category's money after the record. */
   balance: Cents;
@@ -75,8 +75,9 @@ function touches(categoryId: string, entry: LedgerRecord): boolean {
   const isCategory = (envelope: AllocationRow["from"]) =>
     envelope.kind === "category" && envelope.id === categoryId;
   if (entry.kind === "transaction") return entry.record.categoryId === categoryId;
-  if (entry.kind === "transfer" || entry.kind === "correction") {
-    return isCategory(entry.record.envelope);
+  if (entry.kind === "correction") return isCategory(entry.record.envelope);
+  if (entry.kind === "transfer") {
+    return isCategory(entry.record.fromEnvelope) || isCategory(entry.record.toEnvelope);
   }
   return isCategory(entry.record.from) || isCategory(entry.record.to);
 }

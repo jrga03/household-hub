@@ -90,7 +90,7 @@ export async function readTransactionsCsv(): Promise<string> {
         formatPHPDecimal(transfer.amountCents),
         accountName(transfer.fromAccountId),
         accountName(transfer.toAccountId),
-        envelopeLabel(transfer.envelope, categoryNames, accountNames),
+        envelopeLabel(transfer.fromEnvelope, categoryNames, accountNames),
         STATUS_LABELS[transfer.status],
         transfer.description,
         transfer.notes,

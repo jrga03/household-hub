@@ -16,7 +16,7 @@ import { useCategoryList } from "@/hooks/useCategories";
 import { isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
 import { envelopeLabel } from "@/lib/allocations/envelope";
-import { UNASSIGNED_ENVELOPE, type Envelope } from "@/lib/allocations/events";
+import { sameEnvelope, UNASSIGNED_ENVELOPE, type Envelope } from "@/lib/allocations/events";
 import { canHoldMoneyIn, type CategoryList, type CategoryRow } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import {
@@ -125,20 +125,21 @@ export function TransferEditor({
  */
 function envelopeChoices(
   list: CategoryList,
-  from: AccountRow | undefined,
-  to: AccountRow | undefined,
+  account: AccountRow | undefined,
+  destination: AccountRow | undefined,
   current: Envelope | undefined,
   accountNames: Map<string, string>
 ): { empty?: ComboboxOption; groups: ComboboxGroup[] } {
-  if (to && isCreditCard(to)) {
-    const cardPayment: Envelope = { kind: "card_payment", id: to.id };
+  if (destination && isCreditCard(destination)) {
+    const cardPayment: Envelope = { kind: "card_payment", id: destination.id };
     const label = envelopeLabel(cardPayment, new Map(), accountNames);
     return {
       groups: [{ label: "Card Payment", options: [{ value: envelopeKey(cardPayment), label }] }],
     };
   }
   const empty = { value: envelopeKey(UNASSIGNED_ENVELOPE), label: "Unassigned" };
-  const fits = (category: CategoryRow) => from !== undefined && canHoldMoneyIn(category, from);
+  const fits = (category: CategoryRow) =>
+    account !== undefined && canHoldMoneyIn(category, account);
   const toOption = (category: CategoryRow) => ({
     value: envelopeKey({ kind: "category", id: category.id }),
     label: category.name,
@@ -167,6 +168,16 @@ function envelopeChoices(
   return { empty, groups: groups.filter((group) => group.options.length > 0) };
 }
 
+type EnvelopeChoices = ReturnType<typeof envelopeChoices>;
+
+/** The chosen envelope while it is still offered, else the first choice. */
+function shownChoice(choices: EnvelopeChoices, key: string): string {
+  const offered =
+    key === choices.empty?.value ||
+    choices.groups.some((group) => group.options.some((option) => option.value === key));
+  return offered ? key : (choices.empty?.value ?? choices.groups[0]?.options[0]?.value ?? "");
+}
+
 type ReadForm =
   | { input: TransferInput; status: TransactionStatus; problems: null }
   | { input: null; status: null; problems: EntryProblems };
@@ -176,9 +187,19 @@ function readTransferForm(formData: FormData): ReadForm {
   if (hasFieldProblems(fields)) {
     return { input: null, status: null, problems: { fields, form: null } };
   }
-  const envelope = envelopeFromKey(String(formData.get("envelope") ?? ""));
-  if (!envelope) {
+  const fromEnvelope = envelopeFromKey(String(formData.get("fromEnvelope") ?? ""));
+  if (!fromEnvelope) {
     return { input: null, status: null, problems: formProblem("Choose a category or Unassigned.") };
+  }
+  // With no arrival field, the money arrives in the envelope it left.
+  const arrival = formData.get("toEnvelope");
+  const toEnvelope = arrival === null ? fromEnvelope : envelopeFromKey(String(arrival));
+  if (!toEnvelope) {
+    return {
+      input: null,
+      status: null,
+      problems: formProblem("Choose the category the money goes to, or Unassigned."),
+    };
   }
   const status = formData.get("status");
   return {
@@ -187,7 +208,8 @@ function readTransferForm(formData: FormData): ReadForm {
       amountCents,
       fromAccountId: String(formData.get("fromAccountId") ?? ""),
       toAccountId: String(formData.get("toAccountId") ?? ""),
-      envelope,
+      fromEnvelope,
+      toEnvelope,
       description: String(formData.get("description") ?? ""),
       notes: String(formData.get("notes") ?? ""),
     },
@@ -270,16 +292,24 @@ export function TransferForm({
     : (toChoices[0]?.id ?? "");
   const to = allAccounts.find((account) => account.id === shownToId);
 
-  const envelopes = envelopeChoices(categories, from, to, transfer?.envelope, accountNames);
+  const envelopes = envelopeChoices(categories, from, to, transfer?.fromEnvelope, accountNames);
   const [envelope, setEnvelope] = useState(
-    transfer ? envelopeKey(transfer.envelope) : envelopeKey(UNASSIGNED_ENVELOPE)
+    transfer ? envelopeKey(transfer.fromEnvelope) : envelopeKey(UNASSIGNED_ENVELOPE)
   );
-  const isEnvelopeChoice = (key: string) =>
-    key === envelopes.empty?.value ||
-    envelopes.groups.some((group) => group.options.some((option) => option.value === key));
-  const shownEnvelope = isEnvelopeChoice(envelope)
-    ? envelope
-    : (envelopes.empty?.value ?? envelopes.groups[0]?.options[0]?.value ?? "");
+  const shownEnvelope = shownChoice(envelopes, envelope);
+
+  // Into a card, or out of a Card Payment, the money arrives in the Card Payment it left.
+  const arrivesAsLeft =
+    (to !== undefined && isCreditCard(to)) ||
+    envelopeFromKey(shownEnvelope)?.kind === "card_payment";
+  const arrivals = envelopeChoices(categories, to, to, transfer?.toEnvelope, accountNames);
+  // Null while the arrival follows the leaving envelope; the member's choice once made.
+  const [arrival, setArrival] = useState(
+    transfer && !sameEnvelope(transfer.fromEnvelope, transfer.toEnvelope)
+      ? envelopeKey(transfer.toEnvelope)
+      : null
+  );
+  const shownArrival = shownChoice(arrivals, arrival ?? shownEnvelope);
 
   const [problems, saveAction] = useActionState(
     async (_previous: EntryProblems, formData: FormData) => {
@@ -380,11 +410,11 @@ export function TransferForm({
             />
           )}
         </Field>
-        <Field label={envelopes.empty ? "Category (optional)" : "Category"}>
+        <Field label={envelopes.empty ? "From category (optional)" : "From category"}>
           {(control) => (
             <Combobox
               {...control}
-              name="envelope"
+              name="fromEnvelope"
               className="w-full"
               value={shownEnvelope}
               onValueChange={setEnvelope}
@@ -393,6 +423,21 @@ export function TransferForm({
             />
           )}
         </Field>
+        {!arrivesAsLeft && (
+          <Field label="To category (optional)">
+            {(control) => (
+              <Combobox
+                {...control}
+                name="toEnvelope"
+                className="w-full"
+                value={shownArrival}
+                onValueChange={setArrival}
+                empty={arrivals.empty}
+                groups={arrivals.groups}
+              />
+            )}
+          </Field>
+        )}
       </div>
 
       <Field label="Description (optional)">
