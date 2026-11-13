@@ -288,7 +288,7 @@ describe("TransactionEditor", () => {
 
     fireEvent.change(await screen.findByLabelText(/Amount/), { target: { value: "500" } });
     fireEvent.click(screen.getByRole("radio", { name: "Transfer" }));
-    const category = await screen.findByLabelText("Category (optional)");
+    const category = await screen.findByLabelText("From category (optional)");
     expect(category).toHaveTextContent("Unassigned");
     fireEvent.click(category);
     fireEvent.change(await screen.findByRole("combobox", { name: "Search" }), {
@@ -303,7 +303,39 @@ describe("TransactionEditor", () => {
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     const [saved] = await listTransfers();
-    expect(saved?.envelope).toEqual({ kind: "category", id: groceries.id });
+    expect(saved?.fromEnvelope).toEqual({ kind: "category", id: groceries.id });
+    expect(saved?.toEnvelope).toEqual({ kind: "category", id: groceries.id });
+  });
+
+  it("moves a transfer into another category when the member picks one", async () => {
+    await createAccount(MEMBER, { name: "BPI", type: "bank", startingBalanceCents: parsePHP("0") });
+    await createAccount(MEMBER, {
+      name: "GCash",
+      type: "e_wallet",
+      startingBalanceCents: parsePHP("0"),
+    });
+    const { id: groupId } = await createGroup(MEMBER, { name: "Food" });
+    const dining = await createCategory(MEMBER, { name: "Dining", groupId });
+    const groceries = await createCategory(MEMBER, { name: "Groceries", groupId });
+    const onClose = vi.fn();
+    renderEditor(onClose);
+
+    fireEvent.change(await screen.findByLabelText(/Amount/), { target: { value: "500" } });
+    fireEvent.click(screen.getByRole("radio", { name: "Transfer" }));
+    fireEvent.click(await screen.findByLabelText("From category (optional)"));
+    fireEvent.click(await screen.findByRole("option", { name: /Groceries/ }));
+    const arrival = screen.getByLabelText("To category (optional)");
+    expect(arrival).toHaveTextContent("Groceries");
+    fireEvent.click(arrival);
+    fireEvent.click(await screen.findByRole("option", { name: /Dining/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Add transfer" }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    const [saved] = await listTransfers();
+    expect(saved).toMatchObject({
+      fromEnvelope: { kind: "category", id: groceries.id },
+      toEnvelope: { kind: "category", id: dining.id },
+    });
   });
 
   describe("Out-of-pocket", () => {
