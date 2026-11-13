@@ -111,6 +111,52 @@ describe("transfer projection", () => {
     });
   });
 
+  const v1Payload = (overrides: Record<string, unknown> = {}) => {
+    const { fromEnvelope, toEnvelope: _toEnvelope, ...v1Details } = details(overrides);
+    return { ...v1Details, envelope: fromEnvelope };
+  };
+  const createdV1 = event("e-created-v1", "transfer.created", 1000, {
+    ...v1Payload(),
+    status: "cleared",
+  });
+  const editedV1 = event(
+    "e-edited-v1",
+    "transfer.edited",
+    2000,
+    v1Payload({ amountCents: 150000, fromEnvelope: { kind: "category", id: DINING } })
+  );
+
+  it.each(orders([createdV1, edited, pending]))(
+    "gives the same transfer from a version 1 create and a version 2 edit for the order %j",
+    async (_ids, order) => {
+      for (const arriving of order) await receiveEvents([arriving], 0);
+
+      expect(await getTransfer(TRANSFER)).toMatchObject({
+        amountCents: 150000,
+        toAccountId: SAVINGS,
+        fromEnvelope: { kind: "category", id: GROCERIES },
+        toEnvelope: { kind: "category", id: DINING },
+        status: "pending",
+        recordedHlc: createdV1.hlc,
+      });
+    }
+  );
+
+  it.each(orders([created, editedV1, pending]))(
+    "gives the same transfer from a version 2 create and a version 1 edit for the order %j",
+    async (_ids, order) => {
+      for (const arriving of order) await receiveEvents([arriving], 0);
+
+      expect(await getTransfer(TRANSFER)).toMatchObject({
+        amountCents: 150000,
+        fromEnvelope: { kind: "category", id: DINING },
+        toEnvelope: { kind: "category", id: DINING },
+        status: "pending",
+        recordedHlc: created.hlc,
+      });
+    }
+  );
+
   it("keeps a status change made before a later edit on another device", async () => {
     const editedLater = event("e-edited-later", "transfer.edited", 5000, details(), v2);
     await receiveEvents([editedLater, pending, created], 0);
