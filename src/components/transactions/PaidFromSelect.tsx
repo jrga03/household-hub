@@ -1,13 +1,7 @@
 import { useState } from "react";
+import { AccountSelect, accountLabel } from "@/components/accounts/AccountSelect";
 import { Button } from "@/components/app/Button";
 import { Field } from "@/components/app/Field";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/app/Select";
 import { useAllAccounts } from "@/hooks/useAccounts";
 import { payingAccountChoices } from "@/lib/accounts/paying-account";
 import type { AccountRow } from "@/lib/accounts/projection";
@@ -47,23 +41,16 @@ export function PaidFromSelect({
 }) {
   const { choices, usualId } = usePaidFrom(card);
   return (
-    <Select name={name} value={value} onValueChange={onChange}>
-      <SelectTrigger
-        {...control}
-        aria-label={control.id ? undefined : "Paid from"}
-        className="w-full"
-      >
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {choices.map((account) => (
-          <SelectItem key={account.id} value={account.id}>
-            {account.name}
-            {account.id === usualId && " (usual)"}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <AccountSelect
+      {...control}
+      aria-label={control.id ? undefined : "Paid from"}
+      name={name}
+      placeholder={placeholder}
+      accounts={choices}
+      label={(account) => `${accountLabel(account)}${account.id === usualId ? " (usual)" : ""}`}
+      value={value ?? ""}
+      onValueChange={onChange}
+    />
   );
 }
 

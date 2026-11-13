@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { CurrencyInput } from "@/components/app/CurrencyInput";
 import { Field } from "@/components/app/Field";
+import { AccountSelect } from "./AccountSelect";
 import { Input } from "@/components/app/Input";
 import {
   Select,
@@ -124,8 +125,9 @@ function PayingAccountField({
 }) {
   const choices = payingAccountChoices(useAccounts() ?? [], ownership);
   const visibility = VISIBILITY_LABELS[ownership.visibility];
+  const [payingId, setPayingId] = useState(defaultValue ?? "");
   // A Paying Account retired on another device is no longer a choice; the member picks again.
-  const stillChoosable = choices.some((choice) => choice.id === defaultValue);
+  const shownId = choices.some((choice) => choice.id === payingId) ? payingId : "";
 
   if (choices.length === 0) {
     return (
@@ -140,22 +142,14 @@ function PayingAccountField({
   return (
     <Field label="Paid from">
       {(control) => (
-        <Select
+        <AccountSelect
+          {...control}
           name="payingAccountId"
-          required
-          defaultValue={stillChoosable ? defaultValue : undefined}
-        >
-          <SelectTrigger {...control} className="w-full">
-            <SelectValue placeholder={`Choose a ${visibility} account`} />
-          </SelectTrigger>
-          <SelectContent>
-            {choices.map((choice) => (
-              <SelectItem key={choice.id} value={choice.id}>
-                {choice.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          placeholder={`Choose a ${visibility} account`}
+          accounts={choices}
+          value={shownId}
+          onValueChange={setPayingId}
+        />
       )}
     </Field>
   );

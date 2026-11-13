@@ -478,8 +478,8 @@ describe("TransactionEditor", () => {
       const line = await screen.findByText(/^Paid from BPI/);
       expect(line).toHaveTextContent("Paid from BPI (usual)");
       fireEvent.click(screen.getByRole("button", { name: "Change" }));
-      fireEvent.keyDown(screen.getByLabelText("Paid from"), { key: "Enter" });
-      fireEvent.keyDown(await screen.findByRole("option", { name: "GCash" }), { key: "Enter" });
+      fireEvent.click(screen.getByLabelText("Paid from"));
+      fireEvent.click(await screen.findByRole("option", { name: "GCash" }));
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
       await waitFor(() => expect(onClose).toHaveBeenCalled());
