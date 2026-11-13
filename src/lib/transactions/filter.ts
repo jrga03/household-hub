@@ -112,7 +112,7 @@ const isOwedTo = (row: ListRow, payer: string) =>
 /** The category filter's value a row matches, or null for a Card Payment transfer. */
 function categoryKey(row: ListRow): string | null {
   if (isTransaction(row)) return row.categoryId ?? UNASSIGNED_FILTER;
-  const { envelope } = row;
+  const envelope = isTransfer(row) ? row.fromEnvelope : row.envelope;
   if (envelope.kind === "unassigned") return UNASSIGNED_FILTER;
   return envelope.kind === "category" ? envelope.id : null;
 }

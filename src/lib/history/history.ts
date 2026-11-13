@@ -45,7 +45,7 @@ async function readHistoryRecords(): Promise<HistoryRecords> {
       ...transfers.map((transfer) => ({
         noun: "transfer",
         accountIds: [transfer.fromAccountId, transfer.toAccountId],
-        categoryIds: categoryIdOf(transfer.envelope),
+        categoryIds: [...categoryIdOf(transfer.fromEnvelope), ...categoryIdOf(transfer.toEnvelope)],
       })),
       ...allocations.map((allocation) => ({
         noun: "allocation",

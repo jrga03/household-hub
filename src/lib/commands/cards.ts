@@ -86,7 +86,8 @@ export function payCard(actor: Actor, input: PayCardInput): Promise<{ id: string
       amountCents: input.amountCents,
       fromAccountId: payer.id,
       toAccountId: card.id,
-      envelope: cardPaymentEnvelope(card.id),
+      fromEnvelope: cardPaymentEnvelope(card.id),
+      toEnvelope: cardPaymentEnvelope(card.id),
     });
   });
 }

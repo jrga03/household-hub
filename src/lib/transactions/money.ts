@@ -166,21 +166,29 @@ export function sumAccountMoney({
     addToAllocated(account.envelopes, allocation.to, allocation.amountCents);
   }
 
-  // A transfer moves its envelope's money out of one account and into the other.
+  // A transfer moves money out of one account's envelope and into the other's (ADR 0013).
   // A card holds no envelopes: money in lowers what it owes, money out raises it.
   for (const transfer of transfers) {
     if (transfer.removed) continue;
     const legs = [
-      { accountId: transfer.fromAccountId, amount: negateCents(transfer.amountCents) },
-      { accountId: transfer.toAccountId, amount: transfer.amountCents },
+      {
+        accountId: transfer.fromAccountId,
+        envelope: transfer.fromEnvelope,
+        amount: negateCents(transfer.amountCents),
+      },
+      {
+        accountId: transfer.toAccountId,
+        envelope: transfer.toEnvelope,
+        amount: transfer.amountCents,
+      },
     ];
-    for (const { accountId, amount } of legs) {
+    for (const { accountId, envelope, amount } of legs) {
       const account = totals.get(accountId);
       if (!account) continue;
       const isCard = cards.has(accountId);
       const change = isCard ? negateCents(amount) : amount;
       account[transfer.status] = sumCents([account[transfer.status], change]);
-      if (!isCard) addToAllocated(account.envelopes, transfer.envelope, amount);
+      if (!isCard) addToAllocated(account.envelopes, envelope, amount);
     }
   }
 

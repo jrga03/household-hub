@@ -2,7 +2,7 @@ import { sameOwnership } from "@/lib/events/ownership";
 import { requestSync } from "@/lib/sync/triggers";
 import { isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
-import { sameEnvelope, type Envelope } from "@/lib/allocations/events";
+import { cardPaymentEnvelope, sameEnvelope, type Envelope } from "@/lib/allocations/events";
 import type { Cents } from "@/lib/currency";
 import { isTransactionStatus, type TransactionStatus } from "@/lib/transactions/events";
 import {
@@ -35,7 +35,8 @@ export interface TransferInput {
   amountCents: Cents;
   fromAccountId: string;
   toAccountId: string;
-  envelope: Envelope;
+  fromEnvelope: Envelope;
+  toEnvelope: Envelope;
   description?: string;
   notes?: string;
 }
@@ -62,25 +63,37 @@ function refuseOutOfCard(from: AccountRow): void {
 }
 
 /**
- * The envelope must fit both accounts: a category in use of their visibility,
- * Unassigned, or a Card Payment going where the card is paid from. Money into
- * a card can only be its own Card Payment: that is paying the card.
+ * Money into a card can only leave and arrive as its own Card Payment: that is
+ * paying it. Otherwise each envelope must fit its own account: a category in
+ * use of its visibility, Unassigned, or a Card Payment. Money goes into a Card
+ * Payment only where the card is paid from (ADR 0013).
  */
-async function checkEnvelope(envelope: Envelope, from: AccountRow, to: AccountRow) {
+async function checkEnvelopes(details: TransferDetails, from: AccountRow, to: AccountRow) {
   if (isCreditCard(to)) {
-    if (envelope.kind !== "card_payment" || envelope.id !== to.id) {
+    const cardPayment = cardPaymentEnvelope(to.id);
+    if (
+      !sameEnvelope(details.fromEnvelope, cardPayment) ||
+      !sameEnvelope(details.toEnvelope, cardPayment)
+    ) {
       throw new Error(`Pay ${to.name} from its Card Payment.`);
     }
     return;
   }
-  if (envelope.kind === "unassigned") return;
+  await requireEnvelopeIn(details.fromEnvelope, from);
+  const card = await requireEnvelopeIn(details.toEnvelope, to);
+  if (card) await refusePaidElsewhere(card, to);
+}
+
+/** The envelope's card, once the envelope fits the account; null for a category or Unassigned. */
+async function requireEnvelopeIn(envelope: Envelope, account: AccountRow) {
+  if (envelope.kind === "unassigned") return null;
   if (envelope.kind === "category") {
-    refuseRetired(await requireCategoryFor(envelope.id, from));
-    return;
+    refuseRetired(await requireCategoryFor(envelope.id, account));
+    return null;
   }
-  const card = await requireCardFor(envelope.id, from);
+  const card = await requireCardFor(envelope.id, account);
   refuseRetired(card);
-  await refusePaidElsewhere(card, to);
+  return card;
 }
 
 /** Works offline; the transfer is seen by the same people as its two accounts (ADR 0006). */
@@ -96,7 +109,7 @@ export async function addTransfer(actor: Actor, input: NewTransferInput): Promis
   if (!sameOwnership(from, to)) {
     throw new Error(`Choose an account seen by the same people as ${from.name}.`);
   }
-  await checkEnvelope(details.envelope, from, to);
+  await checkEnvelopes(details, from, to);
 
   const id = crypto.randomUUID();
   await appendTransferEvent(actor, { ...from, id }, TRANSFER_CREATED, { ...details, status });
@@ -115,7 +128,8 @@ const sameDetails = (a: TransferDetails, b: TransferDetails) =>
   a.amountCents === b.amountCents &&
   a.fromAccountId === b.fromAccountId &&
   a.toAccountId === b.toAccountId &&
-  sameEnvelope(a.envelope, b.envelope) &&
+  sameEnvelope(a.fromEnvelope, b.fromEnvelope) &&
+  sameEnvelope(a.toEnvelope, b.toEnvelope) &&
   a.description === b.description &&
   a.notes === b.notes;
 
@@ -135,7 +149,10 @@ export async function editTransfer(
   if (sameDetails(details, transfer)) return false;
   const fromChanged = details.fromAccountId !== transfer.fromAccountId;
   const toChanged = details.toAccountId !== transfer.toAccountId;
-  if (fromChanged || toChanged || !sameEnvelope(details.envelope, transfer.envelope)) {
+  const envelopesChanged =
+    !sameEnvelope(details.fromEnvelope, transfer.fromEnvelope) ||
+    !sameEnvelope(details.toEnvelope, transfer.toEnvelope);
+  if (fromChanged || toChanged || envelopesChanged) {
     const from = await requireAccount(details.fromAccountId);
     const to = await requireAccount(details.toAccountId);
     if (fromChanged) {
@@ -143,7 +160,7 @@ export async function editTransfer(
       refuseOutOfCard(from);
     }
     if (toChanged) checkMove(to, transfer);
-    await checkEnvelope(details.envelope, from, to);
+    await checkEnvelopes(details, from, to);
   }
   await appendTransferEvent(actor, transfer, TRANSFER_EDITED, { ...details });
   requestSync();

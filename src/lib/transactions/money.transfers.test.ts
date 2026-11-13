@@ -7,6 +7,7 @@ import {
   BANK,
   CARD,
   GROCERIES,
+  RENT,
   WALLET,
   bank,
   card,
@@ -163,6 +164,36 @@ describe("account money", () => {
       const money = await readAccountMoney();
       expect(money.get(CARD)?.balance).toBe(60000);
       expect(money.get(WALLET)?.envelopes?.unassigned).toBe(10000);
+      expectBalanceEqualsEnvelopes(money, [BANK, WALLET]);
+    });
+
+    it("moves money out of the leaving category and into the arrival category", async () => {
+      const groceriesToRent = event(
+        "x-groceries-to-rent",
+        "transfer",
+        transferId(6),
+        "transfer.created",
+        1000,
+        {
+          date: "2026-10-12",
+          description: "",
+          notes: "",
+          status: "cleared",
+          amountCents: 20000,
+          fromAccountId: BANK,
+          toAccountId: WALLET,
+          fromEnvelope: groceriesEnvelope,
+          toEnvelope: { kind: "category", id: RENT },
+        },
+        2
+      );
+      await receiveEvents([bank, wallet, intoGroceries, groceriesToRent], 0);
+
+      const money = await readAccountMoney();
+      expect(money.get(BANK)?.balance).toBe(80000);
+      expect(money.get(WALLET)?.balance).toBe(20000);
+      expect(money.get(BANK)?.envelopes?.categories).toEqual(new Map([[GROCERIES, 30000]]));
+      expect(money.get(WALLET)?.envelopes?.categories).toEqual(new Map([[RENT, 20000]]));
       expectBalanceEqualsEnvelopes(money, [BANK, WALLET]);
     });
 

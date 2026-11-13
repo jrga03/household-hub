@@ -340,7 +340,8 @@ describe("get_budget_status", () => {
       amountCents: parsePHP("300"),
       fromAccountId: gcashId,
       toAccountId: wallet.id,
-      envelope: { kind: "category", id: groceriesId },
+      fromEnvelope: { kind: "category", id: groceriesId },
+      toEnvelope: { kind: "category", id: groceriesId },
     });
 
     const { result } = await run("get_budget_status");

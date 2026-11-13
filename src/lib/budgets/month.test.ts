@@ -144,7 +144,8 @@ describe("month figures", () => {
         amountCents: peso(amount),
         fromAccountId: bpiId,
         toAccountId: gcashId,
-        envelope: { kind: "category", id: groceriesId },
+        fromEnvelope: { kind: "category", id: groceriesId },
+        toEnvelope: { kind: "category", id: groceriesId },
       });
     await groceriesTransfer("2026-10-10", "2000");
     await groceriesTransfer("2026-11-02", "500");

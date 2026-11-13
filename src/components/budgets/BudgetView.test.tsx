@@ -374,7 +374,8 @@ describe("BudgetView", () => {
             amountCents: parsePHP("500"),
             fromAccountId,
             toAccountId: gcash.id,
-            envelope: { kind: "category", id: groceriesId },
+            fromEnvelope: { kind: "category", id: groceriesId },
+            toEnvelope: { kind: "category", id: groceriesId },
             description: "Top-up",
             notes: "",
           });

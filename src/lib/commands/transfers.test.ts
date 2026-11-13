@@ -37,7 +37,8 @@ const transfer = (overrides: Partial<TransferInput> = {}): TransferInput => ({
   amountCents: peso("2000"),
   fromAccountId: bankId,
   toAccountId: walletId,
-  envelope: category(groceriesId),
+  fromEnvelope: category(groceriesId),
+  toEnvelope: category(groceriesId),
   description: "",
   notes: "",
   ...overrides,
@@ -93,7 +94,8 @@ describe("addTransfer", () => {
         amountCents: 200000,
         fromAccountId: bankId,
         toAccountId: walletId,
-        envelope: category(groceriesId),
+        fromEnvelope: category(groceriesId),
+        toEnvelope: category(groceriesId),
         status: "cleared",
         visibility: "household",
         ownerUserId: null,
@@ -121,7 +123,10 @@ describe("addTransfer", () => {
   });
 
   it("moves Unassigned money", async () => {
-    await addTransfer(MEMBER, transfer({ envelope: UNASSIGNED_ENVELOPE }));
+    await addTransfer(
+      MEMBER,
+      transfer({ fromEnvelope: UNASSIGNED_ENVELOPE, toEnvelope: UNASSIGNED_ENVELOPE })
+    );
 
     expect((await readAccountMoney()).get(walletId)?.envelopes?.unassigned).toBe(200000);
   });
@@ -133,7 +138,12 @@ describe("addTransfer", () => {
 
     const { id } = await addTransfer(
       MEMBER,
-      transfer({ fromAccountId: mine, toAccountId: savings, envelope: category(travelId) })
+      transfer({
+        fromAccountId: mine,
+        toAccountId: savings,
+        fromEnvelope: category(travelId),
+        toEnvelope: category(travelId),
+      })
     );
 
     expect(await getTransfer(id)).toMatchObject({ visibility: "personal", ownerUserId: "user-a" });
@@ -173,7 +183,12 @@ describe("addTransfer", () => {
     await expect(
       addTransfer(
         MEMBER,
-        transfer({ fromAccountId: mine, toAccountId: theirs, envelope: UNASSIGNED_ENVELOPE })
+        transfer({
+          fromAccountId: mine,
+          toAccountId: theirs,
+          fromEnvelope: UNASSIGNED_ENVELOPE,
+          toEnvelope: UNASSIGNED_ENVELOPE,
+        })
       )
     ).rejects.toThrow("Choose an account seen by the same people as My wallet.");
   });
@@ -197,7 +212,14 @@ describe("addTransfer", () => {
     const cardId = await cardPaidFrom(bankId);
 
     await expect(
-      addTransfer(MEMBER, transfer({ fromAccountId: cardId, envelope: UNASSIGNED_ENVELOPE }))
+      addTransfer(
+        MEMBER,
+        transfer({
+          fromAccountId: cardId,
+          fromEnvelope: UNASSIGNED_ENVELOPE,
+          toEnvelope: UNASSIGNED_ENVELOPE,
+        })
+      )
     ).rejects.toThrow("Money can't be transferred out of a credit card.");
   });
 
@@ -210,9 +232,52 @@ describe("addTransfer", () => {
   it("refuses a category of another visibility", async () => {
     const travelId = await personalCategory();
 
-    await expect(addTransfer(MEMBER, transfer({ envelope: category(travelId) }))).rejects.toThrow(
-      "Choose a Household category for BPI."
-    );
+    await expect(
+      addTransfer(
+        MEMBER,
+        transfer({ fromEnvelope: category(travelId), toEnvelope: category(travelId) })
+      )
+    ).rejects.toThrow("Choose a Household category for BPI.");
+  });
+
+  describe("arriving in another envelope", () => {
+    it("takes money from the leaving category and adds it to the arrival one", async () => {
+      await addTransfer(MEMBER, transfer({ toEnvelope: UNASSIGNED_ENVELOPE }));
+
+      const money = await readAccountMoney();
+      expect(money.get(bankId)?.envelopes?.categories.get(groceriesId)).toBe(-200000);
+      expect(money.get(walletId)?.envelopes).toMatchObject({
+        unassigned: 200000,
+        categories: new Map(),
+      });
+    });
+
+    it("refuses an arrival category the to account can't hold money in", async () => {
+      const travelId = await personalCategory();
+
+      await expect(
+        addTransfer(MEMBER, transfer({ toEnvelope: category(travelId) }))
+      ).rejects.toThrow("Choose a Household category for GCash.");
+    });
+
+    it("refuses a retired arrival category", async () => {
+      const group = await createGroup(MEMBER, { name: "Eating out" });
+      const diningId = (await createCategory(MEMBER, { name: "Dining", groupId: group.id })).id;
+      await retireCategory(MEMBER, diningId);
+
+      await expect(
+        addTransfer(MEMBER, transfer({ toEnvelope: category(diningId) }))
+      ).rejects.toThrow("Dining is retired.");
+    });
+
+    it("saves an edit that changes only the arrival envelope", async () => {
+      const { id } = await addTransfer(MEMBER, transfer());
+
+      expect(await editTransfer(MEMBER, id, transfer({ toEnvelope: UNASSIGNED_ENVELOPE }))).toBe(
+        true
+      );
+      expect(await getTransfer(id)).toMatchObject({ toEnvelope: UNASSIGNED_ENVELOPE });
+    });
   });
 
   describe("into a credit card", () => {
@@ -221,7 +286,11 @@ describe("addTransfer", () => {
 
       await addTransfer(
         MEMBER,
-        transfer({ toAccountId: cardId, envelope: { kind: "card_payment", id: cardId } })
+        transfer({
+          toAccountId: cardId,
+          fromEnvelope: { kind: "card_payment", id: cardId },
+          toEnvelope: { kind: "card_payment", id: cardId },
+        })
       );
 
       const money = await readAccountMoney();
@@ -240,7 +309,11 @@ describe("addTransfer", () => {
       await expect(
         addTransfer(
           MEMBER,
-          transfer({ toAccountId: cardId, envelope: { kind: "card_payment", id: otherCardId } })
+          transfer({
+            toAccountId: cardId,
+            fromEnvelope: { kind: "card_payment", id: otherCardId },
+            toEnvelope: { kind: "card_payment", id: otherCardId },
+          })
         )
       ).rejects.toThrow("Pay Visa from its Card Payment.");
     });
@@ -250,7 +323,13 @@ describe("addTransfer", () => {
     it("moves a reservation into the card's Paying Account", async () => {
       const cardId = await cardPaidFrom(walletId);
 
-      await addTransfer(MEMBER, transfer({ envelope: { kind: "card_payment", id: cardId } }));
+      await addTransfer(
+        MEMBER,
+        transfer({
+          fromEnvelope: { kind: "card_payment", id: cardId },
+          toEnvelope: { kind: "card_payment", id: cardId },
+        })
+      );
 
       const money = await readAccountMoney();
       expect(money.get(walletId)?.envelopes?.cardPayments.get(cardId)).toBe(200000);
@@ -260,7 +339,13 @@ describe("addTransfer", () => {
       const cardId = await cardPaidFrom(bankId);
 
       await expect(
-        addTransfer(MEMBER, transfer({ envelope: { kind: "card_payment", id: cardId } }))
+        addTransfer(
+          MEMBER,
+          transfer({
+            fromEnvelope: { kind: "card_payment", id: cardId },
+            toEnvelope: { kind: "card_payment", id: cardId },
+          })
+        )
       ).rejects.toThrow("Visa is paid from BPI. Choose a card paid from GCash.");
     });
 
@@ -269,7 +354,8 @@ describe("addTransfer", () => {
         addTransfer(
           MEMBER,
           transfer({
-            envelope: { kind: "card_payment", id: "aaaaaaaa-0000-4000-8000-00000000000f" },
+            fromEnvelope: { kind: "card_payment", id: "aaaaaaaa-0000-4000-8000-00000000000f" },
+            toEnvelope: { kind: "card_payment", id: "aaaaaaaa-0000-4000-8000-00000000000f" },
           })
         )
       ).rejects.toThrow("That card no longer exists.");
@@ -340,7 +426,15 @@ describe("editTransfer", () => {
     const { id } = await addTransfer(MEMBER, transfer());
 
     await expect(
-      editTransfer(MEMBER, id, transfer({ fromAccountId: cardId, envelope: UNASSIGNED_ENVELOPE }))
+      editTransfer(
+        MEMBER,
+        id,
+        transfer({
+          fromAccountId: cardId,
+          fromEnvelope: UNASSIGNED_ENVELOPE,
+          toEnvelope: UNASSIGNED_ENVELOPE,
+        })
+      )
     ).rejects.toThrow("Money can't be transferred out of a credit card.");
   });
 
@@ -349,7 +443,11 @@ describe("editTransfer", () => {
     const { id } = await addTransfer(MEMBER, transfer());
 
     await expect(
-      editTransfer(MEMBER, id, transfer({ envelope: category(travelId) }))
+      editTransfer(
+        MEMBER,
+        id,
+        transfer({ fromEnvelope: category(travelId), toEnvelope: category(travelId) })
+      )
     ).rejects.toThrow("Choose a Household category for BPI.");
   });
 

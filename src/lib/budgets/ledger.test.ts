@@ -68,7 +68,8 @@ describe("category ledger", () => {
       amountCents: peso("500"),
       fromAccountId: bpiId,
       toAccountId: gcashId,
-      envelope: { kind: "category", id: groceriesId },
+      fromEnvelope: { kind: "category", id: groceriesId },
+      toEnvelope: { kind: "category", id: groceriesId },
     });
     await spendOnGroceries("2026-10-05", "1200");
     await allocateToGroceries("2026-10-01", "8000");
@@ -136,6 +137,32 @@ describe("category ledger", () => {
     ]);
   });
 
+  it("shows a transfer between categories in both ledgers, with opposite changes", async () => {
+    const diningId = (
+      await createCategory(MEMBER, {
+        name: "Dining",
+        groupId: (await createGroup(MEMBER, { name: "Eating out" })).id,
+      })
+    ).id;
+    await allocateToGroceries("2026-10-01", "3000");
+    await addTransfer(MEMBER, {
+      date: "2026-10-12",
+      amountCents: peso("1000"),
+      fromAccountId: bpiId,
+      toAccountId: gcashId,
+      fromEnvelope: { kind: "category", id: groceriesId },
+      toEnvelope: { kind: "category", id: diningId },
+    });
+
+    expect(steps(await october())).toEqual([
+      { kind: "allocation", change: 300000, balance: 300000 },
+      { kind: "transfer", change: -100000, balance: 200000 },
+    ]);
+    const dining = await readCategoryLedger(diningId, "2026-10");
+    expect(steps(dining)).toEqual([{ kind: "transfer", change: 100000, balance: 100000 }]);
+    expect(dining.closingByAccount).toEqual(new Map([[gcashId, 100000]]));
+  });
+
   it("leaves out other months, other categories and removed records", async () => {
     await allocateToGroceries("2026-09-30", "1000");
     await allocateToGroceries("2026-11-01", "700");
@@ -192,7 +219,8 @@ describe("category ledger", () => {
       amountCents: peso("200"),
       fromAccountId: bpiId,
       toAccountId: gcashId,
-      envelope: { kind: "category", id: groceriesId },
+      fromEnvelope: { kind: "category", id: groceriesId },
+      toEnvelope: { kind: "category", id: groceriesId },
     });
     await spendOnGroceries("2026-10-03", "300", mayaId);
     await addAllocation(MEMBER, {
