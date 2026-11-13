@@ -65,8 +65,11 @@ export async function expectChosen(field: Locator, name: string) {
 export async function chooseOption(page: Page, field: Locator, option: string) {
   await field.click();
   // Only this field's list: the last picker's list can still be fading out.
-  await expect(field).toHaveAttribute("aria-controls", /.+/);
-  const list = page.locator(`[id="${await field.getAttribute("aria-controls")}"]`);
+  // A CSS locator, since an open Select hides the rest of the page from getByLabel.
+  const opened = page.locator(
+    '[role="combobox"][aria-expanded="true"][aria-controls]:not([cmdk-input])'
+  );
+  const list = page.locator(`[id="${await opened.getAttribute("aria-controls")}"]`);
   await list.getByRole("option", { name: option, exact: true }).click();
 }
 
