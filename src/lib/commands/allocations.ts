@@ -131,17 +131,18 @@ const sameDetails = (a: AllocationDetails, b: AllocationDetails) =>
  * Any detail, including the account, within the same visibility (ADR 0002).
  * An allocation on a retired account or into a retired category stays
  * editable, but can't move onto a retired one or put more money into it.
+ * False when nothing changed, so nothing was saved.
  */
 export async function editAllocation(
   actor: Actor,
   allocationId: string,
   input: AllocationInput
-): Promise<void> {
+): Promise<boolean> {
   const details = checkedDetails(input);
   const allocation = await requireAllocation(allocationId);
   if (allocation.removed) throw new Error("That allocation was removed.");
   // A re-sent unchanged edit would carry a later HLC and undo another device's edit.
-  if (sameDetails(details, allocation)) return;
+  if (sameDetails(details, allocation)) return false;
   const account = await requireAccount(details.accountId);
   const accountChanged = details.accountId !== allocation.accountId;
   if (accountChanged) {
@@ -156,6 +157,7 @@ export async function editAllocation(
 
   await appendAllocationEvent(actor, allocation, ALLOCATION_EDITED, { ...details });
   requestSync();
+  return true;
 }
 
 async function appendChange(

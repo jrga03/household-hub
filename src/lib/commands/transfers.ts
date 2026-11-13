@@ -122,17 +122,17 @@ const sameDetails = (a: TransferDetails, b: TransferDetails) =>
 /**
  * Any detail, as a whole, within the transfer's visibility (ADR 0002). One on
  * a retired account or category stays editable; only a move onto a retired
- * one is refused.
+ * one is refused. False when nothing changed, so nothing was saved.
  */
 export async function editTransfer(
   actor: Actor,
   transferId: string,
   input: TransferInput
-): Promise<void> {
+): Promise<boolean> {
   const details = checkedDetails(input);
   const transfer = await requireTransfer(transferId);
   // A re-sent unchanged edit would carry a later HLC and undo another device's edit.
-  if (sameDetails(details, transfer)) return;
+  if (sameDetails(details, transfer)) return false;
   const fromChanged = details.fromAccountId !== transfer.fromAccountId;
   const toChanged = details.toAccountId !== transfer.toAccountId;
   if (fromChanged || toChanged || !sameEnvelope(details.envelope, transfer.envelope)) {
@@ -147,6 +147,7 @@ export async function editTransfer(
   }
   await appendTransferEvent(actor, transfer, TRANSFER_EDITED, { ...details });
   requestSync();
+  return true;
 }
 
 async function appendChange(

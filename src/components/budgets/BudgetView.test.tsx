@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { toast } from "sonner";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -17,12 +18,17 @@ import {
   retireGroup,
 } from "@/lib/commands/categories";
 import { db } from "@/lib/dexie/db";
+import { addAllocation } from "@/lib/commands/allocations";
+import { addTransfer } from "@/lib/commands/transfers";
+import { listUnpushed } from "@/lib/events/log";
 import { addTransaction } from "@/lib/commands/transactions";
 import { readFinanceOverview } from "@/lib/finances/overview";
 import { parsePHP } from "@/lib/currency";
 import { useCollapsedGroupsStore } from "@/stores/collapsedGroupsStore";
 import { BudgetView } from "./BudgetView";
 import { HOUSEHOLD } from "@/test/events";
+
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 const MONTH = "2026-10";
@@ -103,7 +109,13 @@ const barTone = (name: string) => {
   return indicator?.classList.contains("bg-primary") ? "primary" : "none";
 };
 
+const eventsFor = async (id: string) =>
+  (await listUnpushed(100))
+    .filter((logged) => logged.entityId === id)
+    .map((logged) => logged.eventType);
+
 beforeEach(async () => {
+  vi.clearAllMocks();
   await resetLocalDatabase();
   localStorage.clear();
   useCollapsedGroupsStore.setState({ collapsedGroupIds: [] });
@@ -307,5 +319,125 @@ describe("BudgetView", () => {
       "href",
       "/categories"
     );
+  });
+
+  describe("a record opened from a category's ledger", () => {
+    /** BPI, from Food this month, and the Edit dialog of the Groceries ledger row matching `row`. */
+    async function openFromGroceriesLedger(
+      record: (bpiId: string, groceriesId: string) => Promise<{ id: string }>,
+      row: RegExp,
+      dialogName: string
+    ) {
+      const { groceries } = await foodThisMonth();
+      const [bpi] = await db.accounts.toArray();
+      if (!bpi) throw new Error("No account");
+      const { id } = await record(bpi.id, groceries.id);
+      renderBudget();
+      fireEvent.click(await screen.findByRole("button", { name: /^Groceries/ }));
+      const ledger = await screen.findByRole("list", { name: /^Groceries in / });
+      fireEvent.click(within(ledger).getByRole("button", { name: row }));
+      const dialog = await screen.findByRole("dialog", { name: dialogName });
+      return {
+        id,
+        dialog,
+        save: async () =>
+          fireEvent.click(await within(dialog).findByRole("button", { name: "Save" })),
+      };
+    }
+
+    /** Opens the Edit allocation dialog of an ₱8,000 move from Unassigned into Groceries. */
+    const groceriesAllocation = () =>
+      openFromGroceriesLedger(
+        (accountId, groceriesId) =>
+          addAllocation(MEMBER, {
+            date: `${MONTH}-02`,
+            accountId,
+            from: { kind: "unassigned" },
+            to: { kind: "category", id: groceriesId },
+            amountCents: parsePHP("8000"),
+          }),
+        /Unassigned/,
+        "Edit allocation"
+      );
+
+    /** Opens the Edit transfer dialog of a cleared ₱500 Groceries top-up from BPI to GCash. */
+    const groceriesTransfer = () =>
+      openFromGroceriesLedger(
+        async (fromAccountId, groceriesId) => {
+          const gcash = await createAccount(MEMBER, {
+            name: "GCash",
+            type: "e_wallet",
+            startingBalanceCents: parsePHP("0"),
+          });
+          return addTransfer(MEMBER, {
+            date: `${MONTH}-03`,
+            amountCents: parsePHP("500"),
+            fromAccountId,
+            toAccountId: gcash.id,
+            envelope: { kind: "category", id: groceriesId },
+            description: "Top-up",
+            notes: "",
+          });
+        },
+        /Top-up/,
+        "Edit transfer"
+      );
+
+    it("closes an allocation saved unchanged with no toast and no event", async () => {
+      const { id, dialog, save } = await groceriesAllocation();
+
+      await save();
+
+      await waitFor(() => expect(dialog).not.toBeInTheDocument());
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(await eventsFor(id)).toEqual(["allocation.created"]);
+    });
+
+    it("saves a changed allocation with its toast and one edit", async () => {
+      const { id, dialog, save } = await groceriesAllocation();
+
+      fireEvent.change(within(dialog).getByLabelText("Amount (₱)"), {
+        target: { value: "9000" },
+      });
+      await save();
+
+      await waitFor(() => expect(dialog).not.toBeInTheDocument());
+      expect(toast.success).toHaveBeenCalledWith("Allocation saved");
+      expect(await eventsFor(id)).toEqual(["allocation.created", "allocation.edited"]);
+    });
+
+    it("closes a transfer saved unchanged with no toast and no event", async () => {
+      const { id, dialog, save } = await groceriesTransfer();
+
+      await save();
+
+      await waitFor(() => expect(dialog).not.toBeInTheDocument());
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(await eventsFor(id)).toEqual(["transfer.created"]);
+    });
+
+    it("saves a changed transfer with its toast and one edit", async () => {
+      const { id, dialog, save } = await groceriesTransfer();
+
+      fireEvent.change(await within(dialog).findByLabelText("Description (optional)"), {
+        target: { value: "Allowance" },
+      });
+      await save();
+
+      await waitFor(() => expect(dialog).not.toBeInTheDocument());
+      expect(toast.success).toHaveBeenCalledWith("Transfer saved");
+      expect(await eventsFor(id)).toEqual(["transfer.created", "transfer.edited"]);
+    });
+
+    it("saves a transfer's status alone with its toast and one status event", async () => {
+      const { id, dialog, save } = await groceriesTransfer();
+
+      fireEvent.click(await within(dialog).findByRole("radio", { name: "Pending" }));
+      await save();
+
+      await waitFor(() => expect(dialog).not.toBeInTheDocument());
+      expect(toast.success).toHaveBeenCalledWith("Transfer saved");
+      expect(await eventsFor(id)).toEqual(["transfer.created", "transfer.marked_pending"]);
+    });
   });
 });
