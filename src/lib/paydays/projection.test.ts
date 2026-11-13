@@ -75,6 +75,26 @@ describe("payday projection", () => {
     }
   );
 
+  // Device A swaps the two paydays; device B, later, swaps them back.
+  const swapA = [
+    paydayEvent("e-a15", FIFTEENTH, "payday.reordered", 4000, { position: 1 }),
+    paydayEvent("e-a30", THIRTIETH, "payday.reordered", 4000, { position: 0 }),
+  ];
+  const swapB = [
+    paydayEvent("e-b15", FIFTEENTH, "payday.reordered", 5000, { position: 0 }),
+    paydayEvent("e-b30", THIRTIETH, "payday.reordered", 5000, { position: 1 }),
+  ];
+
+  it.each(orders([fifteenth, thirtieth, ...swapA, ...swapB]))(
+    "keeps the later of two devices' reorders, even with every event twice, in the order %j",
+    async (_ids, order) => {
+      for (const event of order) await receiveEvents([event], 0);
+      await receiveEvents(order.toReversed(), 0);
+
+      expect((await readPaydays()).map((payday) => payday.id)).toEqual([FIFTEENTH, THIRTIETH]);
+    }
+  );
+
   it("ignores a duplicate event", async () => {
     await receiveEvents([fifteenth, renamed], 0);
     await receiveEvents([renamed, fifteenth, fifteenth], 0);

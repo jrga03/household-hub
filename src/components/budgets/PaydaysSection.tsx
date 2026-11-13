@@ -148,7 +148,7 @@ function PaydayDialog({
             payday && { label: "Delete payday", onClick: () => remove(payday), disabled: deleting }
           }
         >
-          <SubmitButton pendingText="Saving...">Save</SubmitButton>
+          <SubmitButton pendingText="Saving…">Save</SubmitButton>
         </FormFooter>
       </ActionForm>
     </FormSheet>

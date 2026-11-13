@@ -70,7 +70,7 @@ export async function movePayday(
   requestSync();
 }
 
-/** No budget can name a payday yet, so every payday deletes directly. */
+/** A payday no budget ever named deletes directly (ADR 0014). */
 export async function deletePayday(actor: Actor, paydayId: string): Promise<void> {
   await requirePayday(paydayId);
   await appendPaydayEvent(actor, { ...HOUSEHOLD, id: paydayId }, PAYDAY_DELETED, {});
