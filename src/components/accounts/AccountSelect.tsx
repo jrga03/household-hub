@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import { Combobox, type ComboboxGroup } from "@/components/app/Combobox";
 import { ACCOUNT_TYPES } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
@@ -20,19 +21,10 @@ export function AccountSelect({
   accounts,
   label,
   ...combobox
-}: {
-  id?: string;
-  "aria-label"?: string;
-  "aria-describedby"?: string;
-  "aria-invalid"?: true;
-  name?: string;
-  placeholder?: string;
-  disabled?: boolean;
+}: Omit<ComponentProps<typeof Combobox>, "groups" | "className" | "children" | "empty"> & {
   accounts: AccountRow[];
   /** Replaces `accountLabel`, to add a tag such as "(Paying Account)". */
   label?: (account: AccountRow) => string;
-  value: string;
-  onValueChange: (value: string) => void;
 }) {
   return (
     <Combobox {...combobox} className="w-full" groups={accountComboboxGroups(accounts, label)} />
