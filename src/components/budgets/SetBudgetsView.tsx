@@ -14,7 +14,7 @@ import { useAccounts } from "@/hooks/useAccounts";
 import { useMonthView, usePaydays } from "@/hooks/useBudgets";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
-import type { AccountRow } from "@/lib/accounts/projection";
+import { accountNamesOf, type AccountRow } from "@/lib/accounts/projection";
 import type { Budget } from "@/lib/budgets/inForce";
 import { categoryMonth, sumMonthFigures, type MonthView } from "@/lib/budgets/month";
 import { planChange } from "@/lib/budgets/plan";
@@ -26,6 +26,7 @@ import { ZERO_CENTS } from "@/lib/currency";
 import { errorMessage } from "@/lib/utils";
 import { parseLocalDate, shiftMonth } from "@/lib/utils/dates";
 import { CollapsibleGroup, UNGROUPED } from "./CollapsibleGroup";
+import { PaydayPlan } from "./PaydayPlan";
 import { PaydaysSection } from "./PaydaysSection";
 import { useCollapsedGroupsStore } from "@/stores/collapsedGroupsStore";
 import { SetBudgetDialog } from "./SetBudgetDialog";
@@ -59,6 +60,13 @@ export function SetBudgetsView({
   const lastId = [...shownGroups.flatMap((group) => group.categories), ...shownUngrouped].at(
     -1
   )?.id;
+
+  const budgets = [...list.groups.flatMap((group) => group.categories), ...list.ungrouped].flatMap(
+    (category) => {
+      const budget = categoryMonth(thisMonth, category.id).budget;
+      return budget ? [[category.id, budget] as [string, Budget]] : [];
+    }
+  );
 
   const rows = (categories: CategoryRow[]) =>
     categories.length === 0 ? (
@@ -96,6 +104,14 @@ export function SetBudgetsView({
   return (
     <PageShell.Main className="space-y-8">
       <PaydaysSection actor={actor} paydays={paydays} />
+      {paydays.length > 0 && (
+        <PaydayPlan
+          paydays={paydays}
+          budgets={budgets}
+          categoryNames={new Map(inUse.map((category) => [category.id, category.name]))}
+          accountNames={accountNamesOf(accounts)}
+        />
+      )}
       {inUse.length === 0 ? (
         <EmptyState>
           No categories yet. Set them up on <Link to="/categories">Categories</Link> first.

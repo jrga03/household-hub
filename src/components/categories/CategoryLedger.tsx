@@ -4,7 +4,7 @@ import { ListRow } from "@/components/app/ListRow";
 import { Money } from "@/components/app/Money";
 import { SectionHeader } from "@/components/app/SectionHeader";
 import { envelopeLabel } from "@/lib/allocations/envelope";
-import { useBudgets, useCategoryLedger } from "@/hooks/useBudgets";
+import { useBudgets, useCategoryLedger, usePaydays } from "@/hooks/useBudgets";
 import { budgetHistory } from "@/lib/budgets/inForce";
 import type { LedgerRecord, LedgerRow } from "@/lib/budgets/ledger";
 import type { Cents } from "@/lib/currency";
@@ -88,7 +88,9 @@ export function CategoryLedger({
 }) {
   const ledger = useCategoryLedger(categoryId, month);
   const budgets = useBudgets();
-  if (!ledger || !budgets) return null;
+  const paydays = usePaydays();
+  if (!ledger || !budgets || !paydays) return null;
+  const paydayNames = new Map(paydays.map((payday) => [payday.id, payday.name]));
   const versions = budgetHistory(budgets, categoryId);
 
   return (
@@ -166,6 +168,17 @@ export function CategoryLedger({
                   {version.accountId !== null && (
                     <span className="block truncate text-muted-foreground">
                       {accountName(names, version.accountId)}
+                    </span>
+                  )}
+                  {version.portions.length > 0 && (
+                    <span className="block text-muted-foreground">
+                      {version.portions.map((portion, index) => (
+                        <span key={portion.paydayId}>
+                          {index > 0 && " · "}
+                          {paydayNames.get(portion.paydayId) ?? "Deleted payday"}{" "}
+                          <Money kind="balance" cents={portion.amountCents} />
+                        </span>
+                      ))}
                     </span>
                   )}
                 </span>

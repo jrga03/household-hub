@@ -34,6 +34,9 @@ export function planChange(
       : { kind: "unchanged" };
   }
   if (inForce?.amountCents === amountCents) return { kind: "unchanged" };
+  if (inForce && inForce.portions.length > 0) {
+    return { kind: "problem", message: "It's paid in portions. Change it in its budget details." };
+  }
 
   const keeps = fundingChoices.some((account) => account.id === inForce?.accountId);
   const accountId = keeps ? inForce?.accountId : fundingChoices[0]?.id;

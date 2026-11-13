@@ -8,6 +8,7 @@ import {
   budgetId,
   checkBudgetDetails,
   type BudgetDetails,
+  type Portion,
 } from "@/lib/budgets/events";
 import { budgetInForce } from "@/lib/budgets/inForce";
 import { canFundBudget, getBudget, listBudgets } from "@/lib/budgets/projection";
@@ -15,6 +16,7 @@ import type { CategoryRow } from "@/lib/categories/projection";
 import type { Cents } from "@/lib/currency";
 import type { Actor } from "./accounts";
 import { appenderFor } from "./append";
+import { requirePayday } from "./paydays";
 import { refuseRetired, requireAccount, requireCategory } from "./records";
 
 export interface BudgetInput {
@@ -25,6 +27,8 @@ export interface BudgetInput {
   amountCents: Cents | null;
   /** The funding account; ignored when clearing. */
   accountId: string | null;
+  /** One per payday, adding up to the amount; left out or empty when any payday pays it. */
+  portions?: Portion[];
 }
 
 const appendBudgetEvent = appenderFor(BUDGET_ENTITY, BUDGET_VERSIONS);
@@ -41,6 +45,13 @@ async function checkFundingAccount(accountId: string, category: CategoryRow): Pr
   refuseRetired(account);
 }
 
+const samePortions = (a: Portion[], b: Portion[]) =>
+  a.length === b.length &&
+  a.every((portion, index) => {
+    const other = b[index];
+    return other?.paydayId === portion.paydayId && other.amountCents === portion.amountCents;
+  });
+
 /**
  * Whether the month's own version already says this, or a clear meets no
  * budget at all. A set matching an earlier month's budget is still recorded:
@@ -48,7 +59,13 @@ async function checkFundingAccount(accountId: string, category: CategoryRow): Pr
  */
 async function alreadySet(id: string, details: BudgetDetails): Promise<boolean> {
   const own = await getBudget(id);
-  if (own) return own.amountCents === details.amountCents && own.accountId === details.accountId;
+  if (own) {
+    return (
+      own.amountCents === details.amountCents &&
+      own.accountId === details.accountId &&
+      samePortions(own.portions, details.portions)
+    );
+  }
   return (
     details.amountCents === null &&
     budgetInForce(await listBudgets(), details.categoryId, details.fromMonth) === null
@@ -66,6 +83,7 @@ export async function setBudget(actor: Actor, input: BudgetInput): Promise<void>
   const category = await requireCategory(details.categoryId);
   refuseRetired(category);
   if (details.accountId !== null) await checkFundingAccount(details.accountId, category);
+  for (const portion of details.portions) await requirePayday(portion.paydayId);
   const id = await budgetId(details.categoryId, details.fromMonth);
   // A re-sent unchanged set would carry a later HLC and undo another device's change.
   if (await alreadySet(id, details)) return;

@@ -16,7 +16,7 @@ import {
 } from "@/components/app/Select";
 import { SubmitButton } from "@/components/app/SubmitButton";
 import { useAccounts } from "@/hooks/useAccounts";
-import { useBudgets } from "@/hooks/useBudgets";
+import { useBudgets, usePaydays } from "@/hooks/useBudgets";
 import { useFocusFirstProblem } from "@/hooks/useFocusFirstProblem";
 import { budgetInForce } from "@/lib/budgets/inForce";
 import { canFundBudget } from "@/lib/budgets/projection";
@@ -25,12 +25,16 @@ import type { CategoryRow } from "@/lib/categories/projection";
 import type { BudgetRow } from "@/lib/budgets/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { setBudget } from "@/lib/commands/budgets";
-import { parsePHPSafe, PESO_SIGN, type Cents } from "@/lib/currency";
+import { formatPHP, parsePHPSafe, PESO_SIGN, sumCents, type Cents } from "@/lib/currency";
+import type { Portion } from "@/lib/budgets/events";
+import type { PaydayRow } from "@/lib/paydays/projection";
 import { VISIBILITY_LABELS } from "@/lib/events/ownership";
 import { cn, errorMessage } from "@/lib/utils";
 import { monthLabel, shiftMonth } from "@/lib/utils/dates";
 
-type BudgetProblems = Partial<Record<"amount" | "form", string>>;
+type BudgetProblems = Partial<Record<"amount" | "portions" | "form", string>>;
+
+const PORTIONS_ERROR_ID = "budget-portions-error";
 
 /** How far either side of the chosen month a budget can be set from. */
 const MONTHS_AROUND = 12;
@@ -49,7 +53,8 @@ export function SetBudgetDialog({
 }) {
   const accounts = useAccounts();
   const budgets = useBudgets();
-  if (!accounts || !budgets) return null;
+  const paydays = usePaydays();
+  if (!accounts || !budgets || !paydays) return null;
   const fundingChoices = accounts.filter((account) => canFundBudget(account, category));
 
   return (
@@ -63,6 +68,7 @@ export function SetBudgetDialog({
         category={category}
         month={month}
         budgets={budgets}
+        paydays={paydays}
         fundingChoices={fundingChoices}
         onClose={onClose}
       />
@@ -75,6 +81,7 @@ function SetBudgetForm({
   category,
   month,
   budgets,
+  paydays,
   fundingChoices,
   onClose,
 }: {
@@ -82,6 +89,7 @@ function SetBudgetForm({
   category: CategoryRow;
   month: string;
   budgets: BudgetRow[];
+  paydays: PaydayRow[];
   fundingChoices: AccountRow[];
   onClose: () => void;
 }) {
@@ -93,9 +101,12 @@ function SetBudgetForm({
       : (fundingChoices[0]?.id ?? "");
   };
   const amountFor = (from: string) => inForceFrom(from)?.amountCents;
+  const portionsFor = (from: string) =>
+    new Map(inForceFrom(from)?.portions.map((portion) => [portion.paydayId, portion.amountCents]));
   const [fromMonth, setFromMonth] = useState(month);
   const [accountId, setAccountId] = useState(() => accountFor(month));
   const [amount, setAmount] = useState<Cents | undefined>(() => amountFor(month));
+  const [portions, setPortions] = useState(() => portionsFor(month));
   const budget = inForceFrom(fromMonth);
   // A retired or no longer fitting funding account isn't a choice; say so rather than switch silently.
   const fundingGone =
@@ -105,6 +116,7 @@ function SetBudgetForm({
     setFromMonth(from);
     setAccountId(accountFor(from));
     setAmount(amountFor(from));
+    setPortions(portionsFor(from));
   };
   const months = Array.from({ length: MONTHS_AROUND * 2 + 1 }, (_, index) =>
     shiftMonth(month, index - MONTHS_AROUND)
@@ -115,12 +127,25 @@ function SetBudgetForm({
       const parsed = parsePHPSafe(String(formData.get("amount") ?? ""));
       if (!parsed.success) return { amount: parsed.error.message };
       const clearing = parsed.value === 0;
+      const split: Portion[] = [];
+      for (const payday of paydays) {
+        const portion = parsePHPSafe(String(formData.get(`portion-${payday.id}`) ?? "") || "0");
+        if (!portion.success) return { portions: `${payday.name}: ${portion.error.message}` };
+        if (portion.value > 0) split.push({ paydayId: payday.id, amountCents: portion.value });
+      }
+      const total = sumCents(split.map((portion) => portion.amountCents));
+      if (!clearing && split.length > 0 && total !== parsed.value) {
+        return {
+          portions: `These add up to ${formatPHP(total)}. Make them add up to ${formatPHP(parsed.value)}, or leave them all blank.`,
+        };
+      }
       try {
         await setBudget(actor, {
           categoryId: category.id,
           fromMonth,
           amountCents: parsed.value,
           accountId: clearing || accountId === "" ? null : accountId,
+          portions: split,
         });
         toast.success(clearing ? "Budget cleared" : "Budget set");
         onClose();
@@ -199,6 +224,40 @@ function SetBudgetForm({
             </Notice>
           )}
         </div>
+        {paydays.length > 0 && (
+          <fieldset className={cn("space-y-2", FULL_ROW)}>
+            <legend className="text-label font-medium">Portions by payday</legend>
+            <p className="text-caption text-muted-foreground">
+              Leave them all blank so any payday pays it.
+            </p>
+            <div className="grid grid-cols-1 gap-4 @[480px]:grid-cols-2">
+              {paydays.map((payday) => (
+                <Field key={payday.id} label={payday.name}>
+                  {(control) => (
+                    <CurrencyInput
+                      {...control}
+                      // The sum is one problem for the whole set, so every portion points at it.
+                      aria-invalid={problems.portions ? true : undefined}
+                      aria-describedby={problems.portions ? PORTIONS_ERROR_ID : undefined}
+                      name={`portion-${payday.id}`}
+                      placeholder="0.00"
+                      autoComplete="off"
+                      value={portions.get(payday.id)}
+                      onChange={(cents) =>
+                        setPortions((before) => new Map(before).set(payday.id, cents))
+                      }
+                    />
+                  )}
+                </Field>
+              ))}
+            </div>
+            {problems.portions && (
+              <p id={PORTIONS_ERROR_ID} className="text-caption text-destructive">
+                {problems.portions}
+              </p>
+            )}
+          </fieldset>
+        )}
       </div>
 
       <FormError>{problems.form ?? null}</FormError>

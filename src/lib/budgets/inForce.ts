@@ -1,4 +1,5 @@
 import type { Cents } from "@/lib/currency";
+import type { Portion } from "./events";
 import type { BudgetRow } from "./projection";
 
 export interface Budget {
@@ -7,12 +8,15 @@ export interface Budget {
   accountId: string;
   /** The month this version was set from. */
   fromMonth: string;
+  /** Empty when any payday pays it. */
+  portions: Portion[];
 }
 
 /** A row's budget, or null when it clears one. */
 function asBudget(row: BudgetRow): Budget | null {
   if (row.amountCents === null || row.accountId === null) return null;
-  return { amountCents: row.amountCents, accountId: row.accountId, fromMonth: row.fromMonth };
+  const { amountCents, accountId, fromMonth, portions } = row;
+  return { amountCents, accountId, fromMonth, portions };
 }
 
 /** The version with the latest month at or before the given one ("yyyy-MM" sorts as text). */

@@ -16,6 +16,7 @@ const version = (fromMonth: string, amount: number | null, categoryId = GROCERIE
   fromMonth,
   amountCents: amount === null ? null : cents(amount),
   accountId: amount === null ? null : BPI,
+  portions: [],
 });
 
 const history = [
@@ -43,6 +44,7 @@ describe("budgetInForce", () => {
       amountCents: 800000,
       accountId: BPI,
       fromMonth: "2026-10",
+      portions: [],
     });
   });
 
