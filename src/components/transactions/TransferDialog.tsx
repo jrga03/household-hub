@@ -133,12 +133,12 @@ export function TransferEditor({
 function envelopeChoices(
   list: CategoryList,
   account: AccountRow | undefined,
-  to: AccountRow | undefined,
+  destination: AccountRow | undefined,
   current: Envelope | undefined,
   accountNames: Map<string, string>
 ): { empty?: ComboboxOption; groups: ComboboxGroup[] } {
-  if (to && isCreditCard(to)) {
-    const cardPayment: Envelope = { kind: "card_payment", id: to.id };
+  if (destination && isCreditCard(destination)) {
+    const cardPayment: Envelope = { kind: "card_payment", id: destination.id };
     const label = envelopeLabel(cardPayment, new Map(), accountNames);
     return {
       groups: [{ label: "Card Payment", options: [{ value: envelopeKey(cardPayment), label }] }],

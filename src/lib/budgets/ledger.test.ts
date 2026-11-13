@@ -9,7 +9,8 @@ import { addTransaction, removeTransaction } from "@/lib/commands/transactions";
 import { addTransfer } from "@/lib/commands/transfers";
 import { recordBalanceCorrection, removeBalanceCorrection } from "@/lib/commands/corrections";
 import { readCategoryLedger, readLedgerRecord } from "./ledger";
-import { HOUSEHOLD } from "@/test/events";
+import { receiveEvents } from "@/lib/events/log";
+import { HOUSEHOLD, loggedEvent } from "@/test/events";
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 
@@ -161,6 +162,45 @@ describe("category ledger", () => {
     const dining = await readCategoryLedger(diningId, "2026-10");
     expect(steps(dining)).toEqual([{ kind: "transfer", change: 100000, balance: 100000 }]);
     expect(dining.closingByAccount).toEqual(new Map([[gcashId, 100000]]));
+  });
+
+  it("reads a version 1 transfer as keeping its category", async () => {
+    await allocateToGroceries("2026-10-01", "3000");
+    const groceries = { kind: "category", id: groceriesId };
+    await receiveEvents(
+      [
+        loggedEvent({
+          id: "e-v1-transfer",
+          entityType: "transfer",
+          entityId: "ffffffff-0000-4000-8000-000000000001",
+          eventType: "transfer.created",
+          millis: Date.now(),
+          payload: {
+            date: "2026-10-12",
+            amountCents: 100000,
+            fromAccountId: bpiId,
+            toAccountId: gcashId,
+            envelope: groceries,
+            description: "",
+            notes: "",
+            status: "cleared",
+          },
+        }),
+      ],
+      0
+    );
+
+    const ledger = await october();
+    expect(steps(ledger)).toEqual([
+      { kind: "allocation", change: 300000, balance: 300000 },
+      { kind: "transfer", change: 0, balance: 300000 },
+    ]);
+    expect(ledger.closingByAccount).toEqual(
+      new Map([
+        [bpiId, 200000],
+        [gcashId, 100000],
+      ])
+    );
   });
 
   it("leaves out other months, other categories and removed records", async () => {
