@@ -83,7 +83,7 @@ export async function setBudget(actor: Actor, input: BudgetInput): Promise<void>
   const category = await requireCategory(details.categoryId);
   refuseRetired(category);
   if (details.accountId !== null) await checkFundingAccount(details.accountId, category);
-  for (const portion of details.portions) await requirePayday(portion.paydayId);
+  for (const portion of details.portions) refuseRetired(await requirePayday(portion.paydayId));
   const id = await budgetId(details.categoryId, details.fromMonth);
   // A re-sent unchanged set would carry a later HLC and undo another device's change.
   if (await alreadySet(id, details)) return;

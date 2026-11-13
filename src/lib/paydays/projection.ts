@@ -1,3 +1,4 @@
+import type { Portion } from "@/lib/budgets/events";
 import { db } from "@/lib/dexie/db";
 import type { LoggedEvent } from "@/lib/events/log";
 import type { Visibility } from "@/lib/events/ownership";
@@ -5,9 +6,9 @@ import type { EntityProjection } from "@/lib/events/projector";
 import {
   decodePaydayName,
   decodePaydayPosition,
+  decodePaydayRetirement,
   describePaydayEvent,
   PAYDAY_CREATED,
-  PAYDAY_DELETED,
   PAYDAY_ENTITY,
   PAYDAY_VERSIONS,
 } from "./events";
@@ -19,7 +20,9 @@ export interface PaydayRow {
   visibility: Visibility;
   name: string;
   position: number;
-  /** Kept so a later event can't bring the payday back. */
+  /** Left out of the pickers and kept under Retired; a deleted payday is retired too. */
+  retired: boolean;
+  /** Hidden unless a budget has a portion on it, which brings it back retired. */
   deleted: boolean;
 }
 
@@ -33,6 +36,7 @@ function create(event: LoggedEvent): PaydayRow | null {
     visibility: event.visibility,
     name,
     position,
+    retired: false,
     deleted: false,
   };
 }
@@ -41,7 +45,8 @@ function create(event: LoggedEvent): PaydayRow | null {
 function applyPaydayEvent(row: PaydayRow | null, event: LoggedEvent): PaydayRow | null {
   if (!row) return event.eventType === PAYDAY_CREATED ? create(event) : null;
   if (event.eventType === PAYDAY_CREATED) return row;
-  if (event.eventType === PAYDAY_DELETED) return { ...row, deleted: true };
+  const retirement = decodePaydayRetirement(event);
+  if (retirement) return { ...row, ...retirement };
   return {
     ...row,
     name: decodePaydayName(event) ?? row.name,
@@ -62,8 +67,22 @@ export const paydayProjection: EntityProjection<PaydayRow> = {
 const byPosition = (a: PaydayRow, b: PaydayRow) =>
   a.position - b.position || (a.id < b.id ? -1 : 1);
 
-/** The household's paydays in their order, deleted ones left out. */
+/**
+ * The household's paydays in their order, retired ones included. A deleted
+ * one is left out until a budget recorded on another device has a portion on it.
+ */
 export async function readPaydays(): Promise<PaydayRow[]> {
-  const paydays = await db.paydays.filter((payday) => !payday.deleted).toArray();
-  return paydays.sort(byPosition);
+  const [paydays, budgets] = await Promise.all([db.paydays.toArray(), db.budgets.toArray()]);
+  const named = new Set(
+    budgets.flatMap((budget) => budget.portions.map((portion) => portion.paydayId))
+  );
+  return paydays.filter((payday) => !payday.deleted || named.has(payday.id)).sort(byPosition);
 }
+
+/** Paydays in use, plus retired ones these budgets still have a portion on. */
+export const paydaysNamedOrInUse = (paydays: PaydayRow[], budgets: { portions: Portion[] }[]) =>
+  paydays.filter(
+    (payday) =>
+      !payday.retired ||
+      budgets.some((budget) => budget.portions.some((portion) => portion.paydayId === payday.id))
+  );

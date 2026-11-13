@@ -52,3 +52,15 @@ export const budgetHistory = (budgets: BudgetRow[], categoryId: string): BudgetR
   budgets
     .filter((row) => row.categoryId === categoryId)
     .sort((a, b) => b.fromMonth.localeCompare(a.fromMonth));
+
+/** Categories whose budget in force in `month`, or set from a later one, has a portion on the payday. */
+export function categoriesPaidOn(budgets: BudgetRow[], paydayId: string, month: string): string[] {
+  const fromMonthOn = [
+    ...budgetsInForce(budgets, month),
+    ...budgets.filter((row) => row.fromMonth > month).map((row) => [row.categoryId, row] as const),
+  ];
+  const paid = fromMonthOn.filter(([, budget]) =>
+    budget.portions.some((portion) => portion.paydayId === paydayId)
+  );
+  return [...new Set(paid.map(([categoryId]) => categoryId))];
+}

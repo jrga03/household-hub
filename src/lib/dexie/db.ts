@@ -147,6 +147,15 @@ export class HouseholdHubDB extends Dexie {
           row.portions ??= [];
         })
     );
+    // A payday can retire (#448); one deleted before then was hidden, so it reads as retired.
+    this.version(18).upgrade((transaction) =>
+      transaction
+        .table("paydays")
+        .toCollection()
+        .modify((row: Record<string, unknown>) => {
+          row.retired ??= row.deleted === true;
+        })
+    );
   }
 }
 

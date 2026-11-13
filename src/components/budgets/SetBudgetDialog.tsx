@@ -27,7 +27,7 @@ import type { Actor } from "@/lib/commands/accounts";
 import { setBudget } from "@/lib/commands/budgets";
 import { formatPHP, parsePHPSafe, PESO_SIGN, sumCents, type Cents } from "@/lib/currency";
 import type { Portion } from "@/lib/budgets/events";
-import type { PaydayRow } from "@/lib/paydays/projection";
+import { paydaysNamedOrInUse, type PaydayRow } from "@/lib/paydays/projection";
 import { VISIBILITY_LABELS } from "@/lib/events/ownership";
 import { cn, errorMessage } from "@/lib/utils";
 import { monthLabel, shiftMonth } from "@/lib/utils/dates";
@@ -81,7 +81,7 @@ function SetBudgetForm({
   category,
   month,
   budgets,
-  paydays,
+  paydays: allPaydays,
   fundingChoices,
   onClose,
 }: {
@@ -108,6 +108,8 @@ function SetBudgetForm({
   const [amount, setAmount] = useState<Cents | undefined>(() => amountFor(month));
   const [portions, setPortions] = useState(() => portionsFor(month));
   const budget = inForceFrom(fromMonth);
+  // A retired payday the budget still names stays, so the member sees where that portion went.
+  const paydays = paydaysNamedOrInUse(allPaydays, budget ? [budget] : []);
   // A retired or no longer fitting funding account isn't a choice; say so rather than switch silently.
   const fundingGone =
     budget !== null && !fundingChoices.some((account) => account.id === budget.accountId);

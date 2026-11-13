@@ -18,7 +18,6 @@ export function PaydayPlan({
   categoryNames: Map<string, string>;
   accountNames: Map<string, string>;
 }) {
-  // shortcut: a portion on a payday deleted on another device shows nowhere; #448 brings it back as retired.
   const sections = paydayPlan(
     paydays.map((payday) => payday.id),
     budgets

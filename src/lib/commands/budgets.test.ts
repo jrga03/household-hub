@@ -7,7 +7,7 @@ import { budgetInForce } from "@/lib/budgets/inForce";
 import { getBudget, listBudgets } from "@/lib/budgets/projection";
 import { createAccount, retireAccount } from "./accounts";
 import { createCategory, createGroup, retireCategory } from "./categories";
-import { addPayday, deletePayday } from "./paydays";
+import { addPayday, deletePayday, retirePayday } from "./paydays";
 import { setBudget, type BudgetInput } from "./budgets";
 import { HOUSEHOLD } from "@/test/events";
 
@@ -198,6 +198,15 @@ describe("setBudget", () => {
     await expect(
       setBudget(MEMBER, budget({ portions: [{ paydayId: bonus.id, amountCents: peso("8000") }] }))
     ).rejects.toThrow("That payday no longer exists.");
+  });
+
+  it("refuses a portion on a retired payday", async () => {
+    const bonus = await addPayday(MEMBER, "Bonus");
+    await retirePayday(MEMBER, bonus.id, "2026-10");
+
+    await expect(
+      setBudget(MEMBER, budget({ portions: [{ paydayId: bonus.id, amountCents: peso("8000") }] }))
+    ).rejects.toThrow("Bonus is retired. Choose one in use.");
   });
 
   it("refuses portions that don't add up to the budget", async () => {

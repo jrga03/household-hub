@@ -5,8 +5,8 @@ import { createAccount, retireAccount } from "@/lib/commands/accounts";
 import { setBudget } from "@/lib/commands/budgets";
 import { createCategory, createGroup, retireCategory } from "@/lib/commands/categories";
 import { distributeMoney } from "@/lib/commands/distribute";
-import { addPayday } from "@/lib/commands/paydays";
-import { readDistributeLines, summarizeByAccount } from "./distribute";
+import { addPayday, retirePayday } from "@/lib/commands/paydays";
+import { readDistributeLines, readPaydayChoices, summarizeByAccount } from "./distribute";
 import { HOUSEHOLD } from "@/test/events";
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
@@ -215,6 +215,29 @@ describe("readDistributeLines for paydays", () => {
 
     expect(await prefills([thirtieth])).toEqual([[transportation, 200000]]);
     expect(await prefills([])).toEqual([[transportation, 200000]]);
+  });
+});
+
+describe("readPaydayChoices", () => {
+  it("offers a retired payday only while a budget in force names it", async () => {
+    const fifteenth = (await addPayday(MEMBER, "15th salary")).id;
+    const bonus = (await addPayday(MEMBER, "Bonus")).id;
+    const unused = (await addPayday(MEMBER, "Unused")).id;
+    await inPortions(groceries, bpi, [[bonus, "8000"]]);
+    await setBudget(MEMBER, {
+      categoryId: groceries,
+      fromMonth: "2026-11",
+      amountCents: peso("8000"),
+      accountId: bpi,
+      portions: [{ paydayId: fifteenth, amountCents: peso("8000") }],
+    });
+    await retirePayday(MEMBER, bonus, "2026-11");
+    await retirePayday(MEMBER, unused, "2026-11");
+
+    const chips = async (month: string) =>
+      (await readPaydayChoices(bpi, month)).paydays.map((payday) => payday.name);
+    expect(await chips("2026-10")).toEqual(["15th salary", "Bonus"]);
+    expect(await chips("2026-11")).toEqual(["15th salary"]);
   });
 });
 

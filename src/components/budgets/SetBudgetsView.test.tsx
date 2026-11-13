@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import {
   createMemoryHistory,
@@ -7,6 +7,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { createAccount } from "@/lib/commands/accounts";
 import { createCategory, createGroup } from "@/lib/commands/categories";
@@ -19,6 +20,8 @@ import { useCollapsedGroupsStore } from "@/stores/collapsedGroupsStore";
 import { BudgetView } from "./BudgetView";
 import { SetBudgetsView } from "./SetBudgetsView";
 import { HOUSEHOLD } from "@/test/events";
+
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 const MONTH = "2026-10";
@@ -239,6 +242,64 @@ describe("SetBudgetsView paydays", () => {
     );
     await waitFor(() => expect(paydayNames()).toEqual(["15th salary"]));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  /** A ₱8,000 budget from `fromMonth`, all of it on the payday. */
+  const onPayday = (categoryId: string, accountId: string, fromMonth: string, paydayId: string) =>
+    setBudget(MEMBER, {
+      categoryId,
+      fromMonth,
+      amountCents: parsePHP("8000"),
+      accountId,
+      portions: [{ paydayId, amountCents: parsePHP("8000") }],
+    });
+
+  const retireFromDialog = async (name: string) => {
+    fireEvent.click(await screen.findByRole("button", { name: `Edit ${name}` }));
+    const dialog = await screen.findByRole("dialog", { name: "Edit payday" });
+    expect(within(dialog).queryByRole("button", { name: "Delete payday" })).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Retire payday" }));
+  };
+
+  it("retires a payday an earlier month's budget names, lists it under Retired, and unretires it", async () => {
+    const { bpi, category } = await groceries();
+    const fifteenth = await addPayday(MEMBER, "15th salary");
+    await addPayday(MEMBER, "30th salary");
+    await onPayday(category.id, bpi.id, "2026-09", fifteenth.id);
+    await setBudget(MEMBER, {
+      categoryId: category.id,
+      fromMonth: MONTH,
+      amountCents: parsePHP("8000"),
+      accountId: bpi.id,
+    });
+    renderSetBudgets();
+
+    await retireFromDialog("15th salary");
+    await waitFor(() => expect(paydayNames()).toEqual(["30th salary"]));
+    expect(screen.queryByRole("list", { name: "Retired paydays" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show retired (1)" }));
+    const retired = screen.getByRole("list", { name: "Retired paydays" });
+    expect(retired).toHaveTextContent("15th salary");
+
+    fireEvent.click(within(retired).getByRole("button", { name: "Unretire 15th salary" }));
+    await waitFor(() => expect(paydayNames()).toEqual(["15th salary", "30th salary"]));
+  });
+
+  it("keeps a payday this month's budget has a portion on, and says why", async () => {
+    const { bpi, category } = await groceries();
+    const fifteenth = await addPayday(MEMBER, "15th salary");
+    await onPayday(category.id, bpi.id, MONTH, fifteenth.id);
+    renderSetBudgets();
+
+    await retireFromDialog("15th salary");
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Groceries has a portion on 15th salary from this month on. Move it to another payday first."
+      )
+    );
+    expect(screen.getByRole("dialog", { name: "Edit payday" })).toBeInTheDocument();
   });
 
   it("keeps the dialog open with the reason when the name is blank", async () => {

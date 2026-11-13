@@ -12,16 +12,41 @@ import { SectionHeader } from "@/components/app/SectionHeader";
 import { SubmitButton } from "@/components/app/SubmitButton";
 import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 import { RECORD_NAME_MAX_LENGTH } from "@/lib/events/names";
+import type { BudgetRow } from "@/lib/budgets/projection";
 import type { Actor } from "@/lib/commands/accounts";
-import { addPayday, deletePayday, movePayday, renamePayday } from "@/lib/commands/paydays";
+import {
+  addPayday,
+  deletePayday,
+  movePayday,
+  renamePayday,
+  retirePayday,
+  unretirePayday,
+} from "@/lib/commands/paydays";
 import type { PaydayRow } from "@/lib/paydays/projection";
 import { errorMessage } from "@/lib/utils";
 
-/** The household's paydays in order, added, renamed, reordered and deleted in place (ADR 0014). */
-export function PaydaysSection({ actor, paydays }: { actor: Actor; paydays: PaydayRow[] }) {
+/**
+ * The household's paydays in order, added, renamed, reordered, retired and
+ * deleted in place, then the retired ones (ADR 0014). `currentMonth` is "yyyy-MM".
+ */
+export function PaydaysSection({
+  actor,
+  paydays: allPaydays,
+  budgets,
+  currentMonth,
+}: {
+  actor: Actor;
+  paydays: PaydayRow[];
+  /** Every budget version, to tell a payday to delete from one to retire. */
+  budgets: BudgetRow[];
+  currentMonth: string;
+}) {
+  const paydays = allPaydays.filter((payday) => !payday.retired);
   // "new" opens the add dialog; a payday's ID opens its edit dialog.
   const [openId, setOpenId] = useState<string | null>(null);
   const editing = paydays.find((payday) => payday.id === openId);
+  const named = (paydayId: string) =>
+    budgets.some((budget) => budget.portions.some((portion) => portion.paydayId === paydayId));
   useCloseWhenGone(openId === "new" ? null : openId, editing ?? null, () => setOpenId(null));
 
   const move = async (payday: PaydayRow, direction: "up" | "down") => {
@@ -83,20 +108,92 @@ export function PaydaysSection({ actor, paydays }: { actor: Actor; paydays: Payd
         </ul>
       )}
 
-      {openId === "new" && <PaydayDialog actor={actor} onClose={() => setOpenId(null)} />}
-      {editing && <PaydayDialog actor={actor} payday={editing} onClose={() => setOpenId(null)} />}
+      <RetiredPaydays actor={actor} retired={allPaydays.filter((payday) => payday.retired)} />
+
+      {openId === "new" && (
+        <PaydayDialog actor={actor} currentMonth={currentMonth} onClose={() => setOpenId(null)} />
+      )}
+      {editing && (
+        <PaydayDialog
+          actor={actor}
+          currentMonth={currentMonth}
+          payday={editing}
+          named={named(editing.id)}
+          onClose={() => setOpenId(null)}
+        />
+      )}
     </section>
   );
 }
 
-/** Adds a payday, or renames or deletes one when given. */
+function RetiredPaydays({ actor, retired }: { actor: Actor; retired: PaydayRow[] }) {
+  const [shown, setShown] = useState(false);
+  const [busy, startAction] = useTransition();
+  if (retired.length === 0) return null;
+
+  const unretire = (payday: PaydayRow) =>
+    startAction(async () => {
+      try {
+        await unretirePayday(actor, payday.id);
+        toast.success(`${payday.name} is back in use`);
+      } catch (caught) {
+        toast.error(errorMessage(caught, `Couldn't unretire ${payday.name}.`));
+      }
+    });
+
+  return (
+    <div className="space-y-1">
+      <SectionHeader
+        level={3}
+        title="Retired"
+        action={
+          <Button
+            variant="link"
+            className="h-auto p-0"
+            aria-expanded={shown}
+            onClick={() => setShown(!shown)}
+          >
+            {shown ? "Hide retired" : `Show retired (${retired.length})`}
+          </Button>
+        }
+      />
+      {shown && (
+        <ul aria-label="Retired paydays" className="divide-y border-y">
+          {retired.map((payday) => (
+            <li key={payday.id} className="flex items-center gap-3 py-1 pr-2 pl-4">
+              <span className="min-w-0 flex-1 truncate">{payday.name}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                aria-label={`Unretire ${payday.name}`}
+                disabled={busy}
+                onClick={() => unretire(payday)}
+              >
+                Unretire
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Adds a payday, or renames one when given. A payday no budget ever named
+ * deletes; one a budget names retires, so the budget history keeps its name.
+ */
 function PaydayDialog({
   actor,
+  currentMonth,
   payday,
+  named = false,
   onClose,
 }: {
   actor: Actor;
+  currentMonth: string;
   payday?: PaydayRow;
+  named?: boolean;
   onClose: () => void;
 }) {
   const title = payday ? "Edit payday" : "Add payday";
@@ -112,15 +209,17 @@ function PaydayDialog({
       return errorMessage(caught, "Couldn't save.");
     }
   }, null);
-  const [deleting, startDeleting] = useTransition();
+  const [removing, startRemoving] = useTransition();
   const remove = (target: PaydayRow) =>
-    startDeleting(async () => {
+    startRemoving(async () => {
+      const verb = named ? "retire" : "delete";
       try {
-        await deletePayday(actor, target.id);
-        toast.success(`${target.name} deleted`);
+        if (named) await retirePayday(actor, target.id, currentMonth);
+        else await deletePayday(actor, target.id);
+        toast.success(`${target.name} ${verb}d`);
         onClose();
       } catch (caught) {
-        toast.error(errorMessage(caught, `Couldn't delete ${target.name}.`));
+        toast.error(errorMessage(caught, `Couldn't ${verb} ${target.name}.`));
       }
     });
 
@@ -145,7 +244,11 @@ function PaydayDialog({
         <FormError>{error}</FormError>
         <FormFooter
           destructive={
-            payday && { label: "Delete payday", onClick: () => remove(payday), disabled: deleting }
+            payday && {
+              label: named ? "Retire payday" : "Delete payday",
+              onClick: () => remove(payday),
+              disabled: removing,
+            }
           }
         >
           <SubmitButton pendingText="Saving…">Save</SubmitButton>
