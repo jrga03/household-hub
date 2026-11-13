@@ -17,8 +17,8 @@ const DISMISSED_DECISION: ProposalDecision = { outcome: "dismissed", content: "{
 const TRANSACTION_ID = "eeeeeeee-0000-4000-8000-000000000001";
 
 async function chooseOption(label: string, option: string) {
-  fireEvent.keyDown(screen.getByLabelText(label), { key: "Enter" });
-  fireEvent.keyDown(await screen.findByRole("option", { name: option }), { key: "Enter" });
+  fireEvent.click(screen.getByLabelText(label));
+  fireEvent.click(await screen.findByRole("option", { name: option }));
 }
 
 async function setUp() {

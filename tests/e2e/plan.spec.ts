@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { chooseOption, login, navigateTo, signUpNewPerson } from "./fixtures/helpers";
+import { chooseOption, expectChosen, login, navigateTo, signUpNewPerson } from "./fixtures/helpers";
 import { VIEWPORTS } from "./fixtures/viewports";
 
 const unassignedItem = (page: Page, account: string) =>
@@ -83,7 +83,7 @@ test("a payroll distribution from Assign money leaves the source account's Unass
   const form = page.getByRole("form", { name: "Distribute money" });
   await expect(page.getByLabel("Income (₱)")).toHaveValue("40,000.00");
   await expect(form.getByRole("textbox", { name: "Groceries" })).toHaveValue("8,000.00");
-  await expect(form.getByRole("combobox", { name: "Transportation goes to" })).toHaveText("GCash");
+  await expectChosen(form.getByRole("combobox", { name: "Transportation goes to" }), "GCash");
   await expect(form).toContainText("₱0.00 stays in Unassigned");
   await page.screenshot({ path: test.info().outputPath("distribute.png") });
   await form.getByRole("button", { name: "Distribute" }).click();

@@ -1,5 +1,6 @@
 import { useActionState, useRef, useState } from "react";
 import { toast } from "sonner";
+import { AccountSelect, accountLabel } from "./AccountSelect";
 import { OVERDRAWN_UNASSIGNED } from "@/components/allocations/NegativeNote";
 import { ActionForm } from "@/components/app/ActionForm";
 import { Checkbox } from "@/components/app/Checkbox";
@@ -10,13 +11,6 @@ import { FormFooter, FormSheet, FULL_ROW } from "@/components/app/FormSheet";
 import { Input } from "@/components/app/Input";
 import { Label } from "@/components/app/Label";
 import { Money } from "@/components/app/Money";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/app/Select";
 import { SubmitButton } from "@/components/app/SubmitButton";
 import {
   hasFieldProblems,
@@ -178,19 +172,16 @@ function PayCardForm({
         <div className={FULL_ROW}>
           <Field label="Pay from">
             {(control) => (
-              <Select name="fromAccountId" value={payerId} onValueChange={setPayerId}>
-                <SelectTrigger {...control} className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {payers.map((choice) => (
-                    <SelectItem key={choice.id} value={choice.id}>
-                      {choice.name}
-                      {choice.id === card.payingAccountId && " (Paying Account)"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <AccountSelect
+                {...control}
+                name="fromAccountId"
+                accounts={payers}
+                label={(choice) =>
+                  `${accountLabel(choice)}${choice.id === card.payingAccountId ? " (Paying Account)" : ""}`
+                }
+                value={payerId}
+                onValueChange={setPayerId}
+              />
             )}
           </Field>
         </div>

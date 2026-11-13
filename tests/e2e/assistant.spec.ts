@@ -101,7 +101,7 @@ test("a line typed to the assistant is recorded after Confirm", async ({ page, i
 
   const card = page.getByRole("form", { name: "Confirm transaction" });
   await expect(card).toContainText("₱250.00");
-  await expect(card.getByLabel("Account")).toHaveText("GCash");
+  await expectChosen(card.getByLabel("Account"), "GCash");
   await expectChosen(card.getByLabel("Category"), "Restaurants");
   await chooseOption(page, card.getByLabel("Category"), "Groceries");
   await card.getByRole("button", { name: "Confirm" }).click();

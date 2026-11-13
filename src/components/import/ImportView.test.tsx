@@ -78,8 +78,8 @@ async function importStatement(accountId: string, lines = [purchase("MERALCO", "
 }
 
 async function chooseOption(trigger: HTMLElement, option: string) {
-  fireEvent.keyDown(trigger, { key: "Enter" });
-  fireEvent.keyDown(await screen.findByRole("option", { name: option }), { key: "Enter" });
+  fireEvent.click(trigger);
+  fireEvent.click(await screen.findByRole("option", { name: option }));
 }
 
 // Radix opens a menu on pointerdown, which jsdom lacks; Enter opens it too.
@@ -248,7 +248,7 @@ describe("ImportView, Paid from", () => {
     openMoreActions(screen.getByRole("button", { name: "More actions" }));
     fireEvent.click(await screen.findByRole("menuitem", { name: "Paid from…" }));
     const sheet = await screen.findByRole("dialog", { name: "Paid from" });
-    fireEvent.keyDown(within(sheet).getByRole("combobox", { name: "Paid from" }), { key: "Enter" });
+    fireEvent.click(within(sheet).getByRole("combobox", { name: "Paid from" }));
 
     expect(await screen.findByRole("option", { name: "BPI (usual)" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "GCash" })).toBeInTheDocument();

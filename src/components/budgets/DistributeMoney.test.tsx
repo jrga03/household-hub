@@ -74,8 +74,8 @@ const secondHouseholdAccount = () =>
   createAccount(MEMBER, { name: "BDO", type: "bank", startingBalanceCents: parsePHP("20000") });
 
 async function chooseFrom(name: string) {
-  fireEvent.keyDown(screen.getByLabelText("From"), { key: "Enter" });
-  fireEvent.keyDown(await screen.findByRole("option", { name }), { key: "Enter" });
+  fireEvent.click(screen.getByLabelText("From"));
+  fireEvent.click(await screen.findByRole("option", { name }));
 }
 
 async function expectLineGoesTo(name: string) {
@@ -156,10 +156,8 @@ describe("DistributeMoney", () => {
     renderDistribute("opening", bpi.id);
     await screen.findByText(/BPI has no categories yet/);
 
-    fireEvent.keyDown(screen.getByLabelText("From"), { key: "Enter" });
-    fireEvent.keyDown(await screen.findByRole("option", { name: "GCash (Personal)" }), {
-      key: "Enter",
-    });
+    fireEvent.click(screen.getByLabelText("From"));
+    fireEvent.click(await screen.findByRole("option", { name: "GCash (Personal)" }));
 
     expect(await screen.findByText(/GCash has no categories yet/)).toHaveTextContent(
       "Add a personal category on Categories."
@@ -247,8 +245,8 @@ describe("DistributeMoney", () => {
     async function sendSecondLineTo(name: string) {
       const accounts = screen.getAllByLabelText("Groceries goes to");
       expect(accounts).toHaveLength(2);
-      fireEvent.keyDown(accounts[1]!, { key: "Enter" });
-      fireEvent.keyDown(await screen.findByRole("option", { name }), { key: "Enter" });
+      fireEvent.click(accounts[1]!);
+      fireEvent.click(await screen.findByRole("option", { name }));
     }
 
     async function twoGroceriesLines() {
