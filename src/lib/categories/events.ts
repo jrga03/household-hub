@@ -40,12 +40,12 @@ export const CATEGORY_VERSIONS = {
   [CATEGORY_RESTORED]: { current: 1, upcasts: {} },
 } satisfies EventVersions;
 
-export type RecordNoun = "group" | "category";
+export type RecordNoun = "group" | "category" | "payday";
 
 type NameCheck = { name: string; problem: null } | { name: null; problem: string };
 
-/** Validates a group or category name from a form or from another device's event. */
-export function checkCategoryName(input: unknown, noun: RecordNoun): NameCheck {
+/** Validates a group, category or payday name from a form or from another device's event. */
+export function checkRecordName(input: unknown, noun: RecordNoun): NameCheck {
   const name = typeof input === "string" ? input.trim() : "";
   if (name === "") return { name: null, problem: `A ${noun} needs a name.` };
   if (name.length > CATEGORY_NAME_MAX_LENGTH) {
@@ -58,7 +58,7 @@ export function checkCategoryName(input: unknown, noun: RecordNoun): NameCheck {
 }
 
 const decodeName = (event: LoggedEvent, noun: RecordNoun) =>
-  checkCategoryName(event.payload.name, noun).name;
+  checkRecordName(event.payload.name, noun).name;
 
 const decodeGroupId = (event: LoggedEvent) => {
   const { groupId } = event.payload;

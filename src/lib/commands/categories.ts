@@ -14,7 +14,7 @@ import {
   CATEGORY_RETIRED,
   CATEGORY_UNRETIRED,
   CATEGORY_VERSIONS,
-  checkCategoryName,
+  checkRecordName,
   type RecordNoun,
   GROUP_CREATED,
   GROUP_DELETED,
@@ -74,8 +74,8 @@ export async function seedDefaultCategories(actor: Actor): Promise<void> {
   requestSync();
 }
 
-function checkedName(input: string, noun: RecordNoun): string {
-  const { name, problem } = checkCategoryName(input, noun);
+export function checkedName(input: string, noun: RecordNoun): string {
+  const { name, problem } = checkRecordName(input, noun);
   if (problem !== null) throw new Error(problem);
   return name;
 }
