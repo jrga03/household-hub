@@ -1,4 +1,5 @@
 import uFuzzy from "@leeoniya/ufuzzy";
+import type { Envelope } from "@/lib/allocations/events";
 import { diffCents, parsePHPUnbounded, sumCents, type Cents } from "@/lib/currency";
 import type { BalanceCorrectionRow } from "@/lib/corrections/projection";
 import { isVisibility, type Visibility } from "@/lib/events/ownership";
@@ -54,7 +55,7 @@ export interface TransactionFilter {
   visibility?: Visibility;
   /** A transfer matches on either side. */
   account?: string;
-  /** A category ID, or UNASSIGNED_FILTER; a transfer or correction matches by its envelope. */
+  /** A category ID, or UNASSIGNED_FILTER; a correction matches by its envelope, a transfer by either. */
   category?: string;
   type?: ListType;
   status?: TransactionStatus;
@@ -109,12 +110,16 @@ export const needsCategory = (row: ListRow) =>
 const isOwedTo = (row: ListRow, payer: string) =>
   isTransaction(row) && isOpenOutOfPocket(row) && row.paidByUserId === payer;
 
-/** The category filter's value a row matches, or null for a Card Payment transfer. */
-function categoryKey(row: ListRow): string | null {
-  if (isTransaction(row)) return row.categoryId ?? UNASSIGNED_FILTER;
-  const envelope = isTransfer(row) ? row.fromEnvelope : row.envelope;
+function envelopeKey(envelope: Envelope): string | null {
   if (envelope.kind === "unassigned") return UNASSIGNED_FILTER;
   return envelope.kind === "category" ? envelope.id : null;
+}
+
+/** Whether the category filter's value matches a row; a transfer matches on either envelope. */
+function matchesCategory(row: ListRow, category: string): boolean {
+  if (isTransaction(row)) return (row.categoryId ?? UNASSIGNED_FILTER) === category;
+  if (isCorrection(row)) return envelopeKey(row.envelope) === category;
+  return envelopeKey(row.fromEnvelope) === category || envelopeKey(row.toEnvelope) === category;
 }
 
 const touchesAccount = (row: ListRow, accountId: string) =>
@@ -133,7 +138,7 @@ function matchesFilter(row: ListRow, filter: TransactionFilter): boolean {
   if (filter.to !== undefined && monthOfDate(row.date) > filter.to) return false;
   if (filter.visibility !== undefined && row.visibility !== filter.visibility) return false;
   if (filter.account !== undefined && !touchesAccount(row, filter.account)) return false;
-  if (filter.category !== undefined && categoryKey(row) !== filter.category) return false;
+  if (filter.category !== undefined && !matchesCategory(row, filter.category)) return false;
   if (filter.type !== undefined && typeOf(row) !== filter.type) return false;
   if (filter.status !== undefined && statusOf(row) !== filter.status) return false;
   if (filter.needsCategory && !needsCategory(row)) return false;

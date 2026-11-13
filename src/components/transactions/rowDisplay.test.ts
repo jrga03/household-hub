@@ -5,7 +5,10 @@ import type { TransferRow } from "@/lib/transfers/projection";
 import { rowDisplay, totalKind } from "./rowDisplay";
 
 const names = {
-  categories: new Map([["groceries", "Groceries"]]),
+  categories: new Map([
+    ["groceries", "Groceries"],
+    ["dining", "Dining"],
+  ]),
   accounts: new Map([
     ["bpi", "BPI"],
     ["gcash", "GCash"],
@@ -84,6 +87,14 @@ describe("rowDisplay", () => {
       category: "Groceries",
       account: "BPI → GCash",
       route: { from: "BPI", to: "GCash" },
+    });
+  });
+
+  it("reads a transfer between categories as from → to", () => {
+    const changed = transfer({ toEnvelope: { kind: "category", id: "dining" } });
+    expect(rowDisplay(changed, names)).toMatchObject({
+      detail: "Groceries → Dining · BPI → GCash",
+      category: "Groceries → Dining",
     });
   });
 

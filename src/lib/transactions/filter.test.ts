@@ -433,6 +433,17 @@ describe("transfers in the list", () => {
     expect(ids(filterTransactions(all, { category: "visa" }))).toEqual([]);
   });
 
+  it("matches the category filter on either envelope of a transfer between categories", () => {
+    const toDining = transferRow({ toEnvelope: { kind: "category", id: "dining" } });
+    const all = [toGcash, toDining];
+
+    expect(ids(filterTransactions(all, { category: "groceries" }))).toEqual([
+      toGcash.id,
+      toDining.id,
+    ]);
+    expect(ids(filterTransactions(all, { category: "dining" }))).toEqual([toDining.id]);
+  });
+
   it("never counts a transfer as needing a category", () => {
     const unassigned = transferRow({
       fromEnvelope: { kind: "unassigned" },

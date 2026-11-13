@@ -3,7 +3,7 @@ import type { MoneyKind } from "@/components/app/Money";
 import { useAccountNames } from "@/hooks/useAccounts";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useMemberNames } from "@/hooks/useMemberNames";
-import { envelopeLabel } from "@/lib/allocations/envelope";
+import { envelopeLabel, transferEnvelopeLabel } from "@/lib/allocations/envelope";
 import type { Actor } from "@/lib/commands/accounts";
 import type { Cents } from "@/lib/currency";
 import { CORRECTION_LABEL, isMoneyIn } from "@/lib/corrections/events";
@@ -64,7 +64,7 @@ export function rowDisplay(row: ListRow, names: RowNames, filteredAccount?: stri
     const direction = transferDirection(row, filteredAccount);
     const route = { from: accountNameOf(row.fromAccountId), to: accountNameOf(row.toAccountId) };
     const path = `${route.from} → ${route.to}`;
-    const envelope = envelopeLabel(row.fromEnvelope, names.categories, names.accounts);
+    const envelope = transferEnvelopeLabel(row, names.categories, names.accounts);
     return {
       label: transferName(row, accountNameOf, direction),
       detail: `${envelope} · ${path}`,
