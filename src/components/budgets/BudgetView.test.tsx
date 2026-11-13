@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { toast } from "sonner";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -17,12 +18,17 @@ import {
   retireGroup,
 } from "@/lib/commands/categories";
 import { db } from "@/lib/dexie/db";
+import { addAllocation } from "@/lib/commands/allocations";
+import { addTransfer } from "@/lib/commands/transfers";
+import { listUnpushed } from "@/lib/events/log";
 import { addTransaction } from "@/lib/commands/transactions";
 import { readFinanceOverview } from "@/lib/finances/overview";
 import { parsePHP } from "@/lib/currency";
 import { useCollapsedGroupsStore } from "@/stores/collapsedGroupsStore";
 import { BudgetView } from "./BudgetView";
 import { HOUSEHOLD } from "@/test/events";
+
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 const MONTH = "2026-10";
@@ -103,7 +109,13 @@ const barTone = (name: string) => {
   return indicator?.classList.contains("bg-primary") ? "primary" : "none";
 };
 
+const eventsFor = async (id: string) =>
+  (await listUnpushed(100))
+    .filter((logged) => logged.entityId === id)
+    .map((logged) => logged.eventType);
+
 beforeEach(async () => {
+  vi.clearAllMocks();
   await resetLocalDatabase();
   localStorage.clear();
   useCollapsedGroupsStore.setState({ collapsedGroupIds: [] });
@@ -307,5 +319,81 @@ describe("BudgetView", () => {
       "href",
       "/categories"
     );
+  });
+
+  describe("a record opened from a category's ledger", () => {
+    /** Groceries' ledger, holding an ₱8,000 allocation from Unassigned. */
+    async function groceriesAllocation() {
+      const { groceries } = await foodThisMonth();
+      const [bpi] = await db.accounts.toArray();
+      if (!bpi) throw new Error("No account");
+      const { id } = await addAllocation(MEMBER, {
+        date: `${MONTH}-02`,
+        accountId: bpi.id,
+        from: { kind: "unassigned" },
+        to: { kind: "category", id: groceries.id },
+        amountCents: parsePHP("8000"),
+      });
+      renderBudget();
+      fireEvent.click(await screen.findByRole("button", { name: /^Groceries/ }));
+      const ledger = await screen.findByRole("list", { name: /^Groceries in / });
+      fireEvent.click(within(ledger).getByRole("button", { name: /Unassigned/ }));
+      const dialog = await screen.findByRole("dialog", { name: "Edit allocation" });
+      return { id, dialog };
+    }
+
+    it("closes an allocation saved unchanged with no toast and no event", async () => {
+      const { id, dialog } = await groceriesAllocation();
+
+      fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+
+      await waitFor(() => expect(dialog).not.toBeInTheDocument());
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(await eventsFor(id)).toEqual(["allocation.created"]);
+    });
+
+    it("saves a changed allocation with its toast and one edit", async () => {
+      const { id, dialog } = await groceriesAllocation();
+
+      fireEvent.change(within(dialog).getByLabelText("Amount (₱)"), {
+        target: { value: "9000" },
+      });
+      fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+
+      await waitFor(() => expect(dialog).not.toBeInTheDocument());
+      expect(toast.success).toHaveBeenCalledWith("Allocation saved");
+      expect(await eventsFor(id)).toEqual(["allocation.created", "allocation.edited"]);
+    });
+
+    it("closes a transfer saved unchanged with no toast and no event", async () => {
+      const { groceries } = await foodThisMonth();
+      const [bpi] = await db.accounts.toArray();
+      if (!bpi) throw new Error("No account");
+      const gcash = await createAccount(MEMBER, {
+        name: "GCash",
+        type: "e_wallet",
+        startingBalanceCents: parsePHP("0"),
+      });
+      const { id } = await addTransfer(MEMBER, {
+        date: `${MONTH}-03`,
+        amountCents: parsePHP("500"),
+        fromAccountId: bpi.id,
+        toAccountId: gcash.id,
+        envelope: { kind: "category", id: groceries.id },
+        description: "Top-up",
+        notes: "",
+      });
+      renderBudget();
+      fireEvent.click(await screen.findByRole("button", { name: /^Groceries/ }));
+      const ledger = await screen.findByRole("list", { name: /^Groceries in / });
+      fireEvent.click(within(ledger).getByRole("button", { name: /Top-up/ }));
+      const dialog = await screen.findByRole("dialog", { name: "Edit transfer" });
+
+      fireEvent.click(await within(dialog).findByRole("button", { name: "Save" }));
+
+      await waitFor(() => expect(dialog).not.toBeInTheDocument());
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(await eventsFor(id)).toEqual(["transfer.created"]);
+    });
   });
 });

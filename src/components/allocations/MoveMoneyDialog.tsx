@@ -262,8 +262,7 @@ function MoveMoneyForm({
       };
       try {
         if (allocation) {
-          await editAllocation(actor, allocation.id, input);
-          toast.success("Allocation saved");
+          if (await editAllocation(actor, allocation.id, input)) toast.success("Allocation saved");
         } else {
           await addAllocation(actor, input);
           toast.success("Money moved");

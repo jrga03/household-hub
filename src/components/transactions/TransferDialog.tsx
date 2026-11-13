@@ -294,9 +294,10 @@ export function TransferForm({
       if (readProblems !== null) return readProblems;
       try {
         if (transfer) {
-          await editTransfer(actor, transfer.id, input);
-          if (status !== transfer.status) await setTransferStatus(actor, transfer.id, status);
-          toast.success("Transfer saved");
+          const edited = await editTransfer(actor, transfer.id, input);
+          const statusChanged = status !== transfer.status;
+          if (statusChanged) await setTransferStatus(actor, transfer.id, status);
+          if (edited || statusChanged) toast.success("Transfer saved");
         } else {
           await addTransfer(actor, { ...input, status });
           toast.success("Transfer added");
