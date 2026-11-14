@@ -12,6 +12,7 @@ import { Input } from "@/components/app/Input";
 import { SectionHeader } from "@/components/app/SectionHeader";
 import { SubmitButton } from "@/components/app/SubmitButton";
 import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
+import { confirm } from "@/lib/confirm";
 import { RECORD_NAME_MAX_LENGTH } from "@/lib/events/names";
 import { hasPortionOn } from "@/lib/budgets/inForce";
 import type { BudgetRow } from "@/lib/budgets/projection";
@@ -182,7 +183,18 @@ function PaydayDialog({
     }
   }, null);
   const [removing, startRemoving] = useTransition();
-  const remove = (target: PaydayRow) =>
+  const remove = async (target: PaydayRow) => {
+    // A delete has no undo; a retire does (Unretire).
+    if (
+      !namedByBudget &&
+      !(await confirm({
+        title: `Delete ${target.name}?`,
+        description: "You can’t undo this.",
+        confirmLabel: "Delete payday",
+        destructive: true,
+      }))
+    )
+      return;
     startRemoving(async () => {
       const verb = namedByBudget ? "retire" : "delete";
       try {
@@ -194,6 +206,7 @@ function PaydayDialog({
         toast.error(errorMessage(caught, `Couldn't ${verb} ${target.name}.`));
       }
     });
+  };
 
   return (
     <FormSheet
@@ -218,7 +231,7 @@ function PaydayDialog({
           destructive={
             payday && {
               label: namedByBudget ? "Retire payday" : "Delete payday",
-              onClick: () => remove(payday),
+              onClick: () => void remove(payday),
               disabled: removing,
             }
           }

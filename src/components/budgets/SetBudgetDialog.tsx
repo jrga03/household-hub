@@ -44,11 +44,13 @@ export function SetBudgetDialog({
   actor,
   category,
   month,
+  currentMonth,
   onClose,
 }: {
   actor: Actor;
   category: CategoryRow;
   month: string;
+  currentMonth: string;
   onClose: () => void;
 }) {
   const accounts = useAccounts();
@@ -67,6 +69,7 @@ export function SetBudgetDialog({
         actor={actor}
         category={category}
         month={month}
+        currentMonth={currentMonth}
         budgets={budgets}
         paydays={paydays}
         fundingChoices={fundingChoices}
@@ -80,6 +83,7 @@ function SetBudgetForm({
   actor,
   category,
   month,
+  currentMonth,
   budgets,
   paydays: allPaydays,
   fundingChoices,
@@ -88,6 +92,7 @@ function SetBudgetForm({
   actor: Actor;
   category: CategoryRow;
   month: string;
+  currentMonth: string;
   budgets: BudgetRow[];
   paydays: PaydayRow[];
   fundingChoices: AccountRow[];
@@ -142,13 +147,17 @@ function SetBudgetForm({
         };
       }
       try {
-        await setBudget(actor, {
-          categoryId: category.id,
-          fromMonth,
-          amountCents: parsed.value,
-          accountId: clearing || accountId === "" ? null : accountId,
-          portions: split,
-        });
+        await setBudget(
+          actor,
+          {
+            categoryId: category.id,
+            fromMonth,
+            amountCents: parsed.value,
+            accountId: clearing || accountId === "" ? null : accountId,
+            portions: split,
+          },
+          currentMonth
+        );
         toast.success(clearing ? "Budget cleared" : "Budget set");
         onClose();
         return {};

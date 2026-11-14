@@ -110,12 +110,16 @@ const spend = (accountId: string, amount: string, categoryId: string | null = nu
 async function budgetedCategory(name: string, budget: string, spent: string) {
   const group = await createGroup(MEMBER, { name: `${name} group` });
   const { id } = await createCategory(MEMBER, { name, groupId: group.id });
-  await setBudget(MEMBER, {
-    categoryId: id,
-    fromMonth: localMonth(new Date()),
-    amountCents: parsePHP(budget),
-    accountId: bpiId,
-  });
+  await setBudget(
+    MEMBER,
+    {
+      categoryId: id,
+      fromMonth: localMonth(new Date()),
+      amountCents: parsePHP(budget),
+      accountId: bpiId,
+    },
+    "2026-11"
+  );
   await spend(bpiId, spent, id);
   return id;
 }

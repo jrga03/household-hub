@@ -1,4 +1,4 @@
-import { sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
+import { addCentsTo, sumCents, type Cents } from "@/lib/currency";
 import type { Budget } from "./inForce";
 
 export interface PaydayPlanLine {
@@ -19,9 +19,7 @@ export interface PaydayPlanSection {
 
 function section(paydayId: string | null, lines: PaydayPlanLine[]): PaydayPlanSection {
   const byAccount = new Map<string, Cents>();
-  for (const { accountId, amountCents } of lines) {
-    byAccount.set(accountId, sumCents([byAccount.get(accountId) ?? ZERO_CENTS, amountCents]));
-  }
+  for (const { accountId, amountCents } of lines) addCentsTo(byAccount, accountId, amountCents);
   return { paydayId, lines, total: sumCents(lines.map((line) => line.amountCents)), byAccount };
 }
 

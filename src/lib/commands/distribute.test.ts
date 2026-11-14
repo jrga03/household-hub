@@ -128,9 +128,9 @@ describe("distributeMoney", () => {
   });
 
   it("prefills nothing on the second payday once the budgets are met", async () => {
-    await setBudget(MEMBER, budget(groceries, "8000", bpi));
-    await setBudget(MEMBER, budget(transportation, "3000", gcash));
-    await setBudget(MEMBER, budget(utilities, "6000", bpi));
+    await setBudget(MEMBER, budget(groceries, "8000", bpi), "2026-11");
+    await setBudget(MEMBER, budget(transportation, "3000", gcash), "2026-11");
+    await setBudget(MEMBER, budget(utilities, "6000", bpi), "2026-11");
     await payroll("2026-10-15");
     await distributeMoney(MEMBER, { sourceAccountId: bpi, date: "2026-10-15", lines: demoLines() });
 
@@ -141,7 +141,7 @@ describe("distributeMoney", () => {
   });
 
   it("prefills what is left when the first payday covered part of a budget", async () => {
-    await setBudget(MEMBER, budget(groceries, "8000", bpi));
+    await setBudget(MEMBER, budget(groceries, "8000", bpi), "2026-11");
     await payroll("2026-10-15");
     await distributeMoney(MEMBER, {
       sourceAccountId: bpi,

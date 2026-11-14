@@ -23,25 +23,33 @@ let transportation: string;
 let utilities: string;
 
 const budget = (categoryId: string, amount: string, accountId: string) =>
-  setBudget(MEMBER, {
-    categoryId,
-    fromMonth: "2026-10",
-    amountCents: peso(amount),
-    accountId,
-  });
+  setBudget(
+    MEMBER,
+    {
+      categoryId,
+      fromMonth: "2026-10",
+      amountCents: peso(amount),
+      accountId,
+    },
+    "2026-11"
+  );
 
 const inPortions = (
   categoryId: string,
   accountId: string,
   portions: [paydayId: string, amount: string][]
 ) =>
-  setBudget(MEMBER, {
-    categoryId,
-    fromMonth: "2026-10",
-    amountCents: sumCents(portions.map(([, amount]) => peso(amount))),
-    accountId,
-    portions: portions.map(([paydayId, amount]) => ({ paydayId, amountCents: peso(amount) })),
-  });
+  setBudget(
+    MEMBER,
+    {
+      categoryId,
+      fromMonth: "2026-10",
+      amountCents: sumCents(portions.map(([, amount]) => peso(amount))),
+      accountId,
+      portions: portions.map(([paydayId, amount]) => ({ paydayId, amountCents: peso(amount) })),
+    },
+    "2026-11"
+  );
 
 const fund = (categoryId: string, amount: string) =>
   distributeMoney(MEMBER, {
@@ -224,13 +232,17 @@ describe("readPaydayChoices", () => {
     const bonus = (await addPayday(MEMBER, "Bonus")).id;
     const unused = (await addPayday(MEMBER, "Unused")).id;
     await inPortions(groceries, bpi, [[bonus, "8000"]]);
-    await setBudget(MEMBER, {
-      categoryId: groceries,
-      fromMonth: "2026-11",
-      amountCents: peso("8000"),
-      accountId: bpi,
-      portions: [{ paydayId: fifteenth, amountCents: peso("8000") }],
-    });
+    await setBudget(
+      MEMBER,
+      {
+        categoryId: groceries,
+        fromMonth: "2026-11",
+        amountCents: peso("8000"),
+        accountId: bpi,
+        portions: [{ paydayId: fifteenth, amountCents: peso("8000") }],
+      },
+      "2026-11"
+    );
     await retirePayday(MEMBER, bonus, "2026-11");
     await retirePayday(MEMBER, unused, "2026-11");
 

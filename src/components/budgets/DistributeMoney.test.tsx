@@ -187,12 +187,16 @@ describe("DistributeMoney", () => {
       type: "cash",
       startingBalanceCents: parsePHP("0"),
     });
-    await setBudget(MEMBER, {
-      categoryId: groceries.id,
-      fromMonth: "2026-10",
-      amountCents: parsePHP("3000"),
-      accountId: cash.id,
-    });
+    await setBudget(
+      MEMBER,
+      {
+        categoryId: groceries.id,
+        fromMonth: "2026-10",
+        amountCents: parsePHP("3000"),
+        accountId: cash.id,
+      },
+      "2026-11"
+    );
     await retireAccount(MEMBER, cash.id);
     renderDistribute("income", bpi.id);
     expect(await screen.findByLabelText("Groceries goes to")).toHaveTextContent("BPI");
@@ -244,12 +248,16 @@ describe("DistributeMoney", () => {
     const bpi = await householdAccount();
     const bdo = await secondHouseholdAccount();
     const budget = (categoryId: string, amount: string, accountId: string) =>
-      setBudget(MEMBER, {
-        categoryId,
-        fromMonth: "2026-10",
-        amountCents: parsePHP(amount),
-        accountId,
-      });
+      setBudget(
+        MEMBER,
+        {
+          categoryId,
+          fromMonth: "2026-10",
+          amountCents: parsePHP(amount),
+          accountId,
+        },
+        "2026-11"
+      );
     await budget(groceries.id, "3000", bpi.id);
     await budget(transportation.id, "1000", bdo.id);
     renderDistribute("income", bpi.id);
@@ -278,16 +286,20 @@ describe("DistributeMoney", () => {
       const fifteenth = await addPayday(MEMBER, "15th salary");
       const thirtieth = await addPayday(MEMBER, "30th salary");
       const inPortions = (categoryId: string, portions: [string, string][]) =>
-        setBudget(MEMBER, {
-          categoryId,
-          fromMonth: "2026-10",
-          amountCents: sumCents(portions.map(([, amount]) => parsePHP(amount))),
-          accountId: bpi.id,
-          portions: portions.map(([paydayId, amount]) => ({
-            paydayId,
-            amountCents: parsePHP(amount),
-          })),
-        });
+        setBudget(
+          MEMBER,
+          {
+            categoryId,
+            fromMonth: "2026-10",
+            amountCents: sumCents(portions.map(([, amount]) => parsePHP(amount))),
+            accountId: bpi.id,
+            portions: portions.map(([paydayId, amount]) => ({
+              paydayId,
+              amountCents: parsePHP(amount),
+            })),
+          },
+          "2026-11"
+        );
       await inPortions(groceries.id, [
         [fifteenth.id, "4000"],
         [thirtieth.id, "4000"],
@@ -415,12 +427,16 @@ describe("DistributeMoney", () => {
       const groceries = await householdCategory("Groceries");
       const bpi = await householdAccount();
       await secondHouseholdAccount();
-      await setBudget(MEMBER, {
-        categoryId: groceries.id,
-        fromMonth: "2026-10",
-        amountCents: parsePHP("3000"),
-        accountId: bpi.id,
-      });
+      await setBudget(
+        MEMBER,
+        {
+          categoryId: groceries.id,
+          fromMonth: "2026-10",
+          amountCents: parsePHP("3000"),
+          accountId: bpi.id,
+        },
+        "2026-11"
+      );
       renderDistribute("income", bpi.id);
       await screen.findByLabelText("Groceries");
 

@@ -314,6 +314,11 @@ export function sumCents(values: Iterable<Cents>): Cents {
   return asCents(total);
 }
 
+/** Adds the amount to the key's running total in the map. */
+export function addCentsTo<Key>(totals: Map<Key, Cents>, key: Key, amount: Cents): void {
+  totals.set(key, sumCents([totals.get(key) ?? ZERO_CENTS, amount]));
+}
+
 export function diffCents(a: Cents, b: Cents): Cents {
   return asCents(a - b);
 }

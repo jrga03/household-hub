@@ -8,6 +8,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { confirm } from "@/lib/confirm";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { createAccount } from "@/lib/commands/accounts";
 import { createCategory, createGroup } from "@/lib/commands/categories";
@@ -22,6 +23,7 @@ import { SetBudgetsView } from "./SetBudgetsView";
 import { HOUSEHOLD } from "@/test/events";
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("@/lib/confirm", () => ({ confirm: vi.fn() }));
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
 const MONTH = "2026-10";
@@ -88,12 +90,16 @@ describe("SetBudgetsView", () => {
 
   it("clears a budget when its amount is emptied", async () => {
     const { bpi, category } = await groceries();
-    await setBudget(MEMBER, {
-      categoryId: category.id,
-      fromMonth: "2026-09",
-      amountCents: parsePHP("5000"),
-      accountId: bpi.id,
-    });
+    await setBudget(
+      MEMBER,
+      {
+        categoryId: category.id,
+        fromMonth: "2026-09",
+        amountCents: parsePHP("5000"),
+        accountId: bpi.id,
+      },
+      "2026-11"
+    );
     renderSetBudgets();
 
     const amount = await screen.findByDisplayValue("5,000.00");
@@ -137,12 +143,16 @@ describe("SetBudgetsView", () => {
 
   it("leaves out a collapsed group's rows and keeps its budget total", async () => {
     const { bpi, category } = await groceries();
-    await setBudget(MEMBER, {
-      categoryId: category.id,
-      fromMonth: MONTH,
-      amountCents: parsePHP("8000"),
-      accountId: bpi.id,
-    });
+    await setBudget(
+      MEMBER,
+      {
+        categoryId: category.id,
+        fromMonth: MONTH,
+        amountCents: parsePHP("8000"),
+        accountId: bpi.id,
+      },
+      "2026-11"
+    );
     renderSetBudgets();
 
     const header = await screen.findByRole("button", { name: "Food" });
@@ -235,24 +245,38 @@ describe("SetBudgetsView paydays", () => {
     await waitFor(() => expect(paydayNames()).toEqual(["30th salary", "15th salary"]));
 
     fireEvent.click(screen.getByRole("button", { name: "Edit 30th salary" }));
-    fireEvent.click(
-      within(await screen.findByRole("dialog", { name: "Edit payday" })).getByRole("button", {
-        name: "Delete payday",
-      })
+    const editDialog = await screen.findByRole("dialog", { name: "Edit payday" });
+    vi.mocked(confirm).mockResolvedValueOnce(false);
+    fireEvent.click(within(editDialog).getByRole("button", { name: "Delete payday" }));
+    await waitFor(() =>
+      expect(confirm).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Delete 30th salary?", destructive: true })
+      )
     );
+    expect(editDialog).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Paydays", hidden: true })).toHaveTextContent(
+      "30th salary"
+    );
+
+    vi.mocked(confirm).mockResolvedValueOnce(true);
+    fireEvent.click(within(editDialog).getByRole("button", { name: "Delete payday" }));
     await waitFor(() => expect(paydayNames()).toEqual(["15th salary"]));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   /** A ₱8,000 budget from `fromMonth`, all of it on the payday. */
   const onPayday = (categoryId: string, accountId: string, fromMonth: string, paydayId: string) =>
-    setBudget(MEMBER, {
-      categoryId,
-      fromMonth,
-      amountCents: parsePHP("8000"),
-      accountId,
-      portions: [{ paydayId, amountCents: parsePHP("8000") }],
-    });
+    setBudget(
+      MEMBER,
+      {
+        categoryId,
+        fromMonth,
+        amountCents: parsePHP("8000"),
+        accountId,
+        portions: [{ paydayId, amountCents: parsePHP("8000") }],
+      },
+      "2026-11"
+    );
 
   const retireFromDialog = async (name: string) => {
     fireEvent.click(await screen.findByRole("button", { name: `Edit ${name}` }));
@@ -266,12 +290,16 @@ describe("SetBudgetsView paydays", () => {
     const fifteenth = await addPayday(MEMBER, "15th salary");
     await addPayday(MEMBER, "30th salary");
     await onPayday(category.id, bpi.id, "2026-09", fifteenth.id);
-    await setBudget(MEMBER, {
-      categoryId: category.id,
-      fromMonth: MONTH,
-      amountCents: parsePHP("8000"),
-      accountId: bpi.id,
-    });
+    await setBudget(
+      MEMBER,
+      {
+        categoryId: category.id,
+        fromMonth: MONTH,
+        amountCents: parsePHP("8000"),
+        accountId: bpi.id,
+      },
+      "2026-11"
+    );
     renderSetBudgets();
 
     await retireFromDialog("15th salary");
@@ -283,7 +311,7 @@ describe("SetBudgetsView paydays", () => {
     expect(retired).toHaveTextContent("15th salary");
 
     fireEvent.click(within(retired).getByRole("button", { name: "Unretire 15th salary" }));
-    await waitFor(() => expect(paydayNames()).toEqual(["15th salary", "30th salary"]));
+    await waitFor(() => expect(paydayNames()).toEqual(["30th salary", "15th salary"]));
   });
 
   it("keeps a payday this month's budget has a portion on, and says why", async () => {
@@ -340,16 +368,20 @@ describe("SetBudgetsView by payday", () => {
     const fifteenth = await addPayday(MEMBER, "15th salary");
     const thirtieth = await addPayday(MEMBER, "30th salary");
     const set = (categoryId: string, amount: string, accountId: string, portions = {}) =>
-      setBudget(MEMBER, {
-        categoryId,
-        fromMonth: MONTH,
-        amountCents: parsePHP(amount),
-        accountId,
-        portions: Object.entries(portions).map(([paydayId, portion]) => ({
-          paydayId,
-          amountCents: parsePHP(String(portion)),
-        })),
-      });
+      setBudget(
+        MEMBER,
+        {
+          categoryId,
+          fromMonth: MONTH,
+          amountCents: parsePHP(amount),
+          accountId,
+          portions: Object.entries(portions).map(([paydayId, portion]) => ({
+            paydayId,
+            amountCents: parsePHP(String(portion)),
+          })),
+        },
+        "2026-11"
+      );
     await set(groceryCategory.id, "8000", bpi.id, {
       [fifteenth.id]: "4000",
       [thirtieth.id]: "4000",

@@ -73,15 +73,19 @@ describe("CategoryLedger", () => {
     const fifteenth = await addPayday(MEMBER, "15th salary");
     const thirtieth = await addPayday(MEMBER, "30th salary");
     const budget = { categoryId: groceriesId, accountId: bpiId, amountCents: parsePHP("8000") };
-    await setBudget(MEMBER, { ...budget, fromMonth: "2026-09" });
-    await setBudget(MEMBER, {
-      ...budget,
-      fromMonth: "2026-10",
-      portions: [
-        { paydayId: fifteenth.id, amountCents: parsePHP("3000") },
-        { paydayId: thirtieth.id, amountCents: parsePHP("5000") },
-      ],
-    });
+    await setBudget(MEMBER, { ...budget, fromMonth: "2026-09" }, "2026-11");
+    await setBudget(
+      MEMBER,
+      {
+        ...budget,
+        fromMonth: "2026-10",
+        portions: [
+          { paydayId: fifteenth.id, amountCents: parsePHP("3000") },
+          { paydayId: thirtieth.id, amountCents: parsePHP("5000") },
+        ],
+      },
+      "2026-11"
+    );
     render(
       <CategoryLedger
         categoryId={groceriesId}

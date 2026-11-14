@@ -115,12 +115,16 @@ describe("readOpeningSteps", () => {
     let groceries: string;
 
     const budget = (amount: string | null) =>
-      setBudget(MEMBER, {
-        categoryId: groceries,
-        fromMonth: "2026-10",
-        amountCents: amount === null ? null : parsePHP(amount),
-        accountId: bpi,
-      });
+      setBudget(
+        MEMBER,
+        {
+          categoryId: groceries,
+          fromMonth: "2026-10",
+          amountCents: amount === null ? null : parsePHP(amount),
+          accountId: bpi,
+        },
+        "2026-11"
+      );
 
     beforeEach(async () => {
       bpi = (

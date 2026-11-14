@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { EmptyState } from "@/components/app/EmptyState";
 import { Money } from "@/components/app/Money";
 import { SectionHeader } from "@/components/app/SectionHeader";
@@ -18,6 +19,7 @@ export function PaydayPlan({
   categoryNames: Map<string, string>;
   accountNames: Map<string, string>;
 }) {
+  const headingId = useId();
   const sections = paydayPlan(
     paydays.map((payday) => payday.id),
     budgets
@@ -26,8 +28,8 @@ export function PaydayPlan({
     paydays.find((payday) => payday.id === paydayId)?.name ?? "Any payday";
 
   return (
-    <section aria-labelledby="payday-plan-heading" className="space-y-6">
-      <SectionHeader title={<span id="payday-plan-heading">By payday</span>} />
+    <section aria-labelledby={headingId} className="space-y-6">
+      <SectionHeader title={<span id={headingId}>By payday</span>} />
       {sections.map(({ paydayId, lines, total, byAccount }) => {
         const name = paydayName(paydayId);
         return (
@@ -43,7 +45,9 @@ export function PaydayPlan({
                       key={line.categoryId}
                       className="flex items-center justify-between gap-3 px-4 py-2 text-body"
                     >
-                      <span className="min-w-0 truncate">{categoryNames.get(line.categoryId)}</span>
+                      <span className="min-w-0 truncate">
+                        {categoryNames.get(line.categoryId) ?? "Category"}
+                      </span>
                       <Money kind="balance" cents={line.amountCents} />
                     </li>
                   ))}
@@ -54,7 +58,9 @@ export function PaydayPlan({
                       key={accountId}
                       className="flex items-center justify-between gap-3 px-4 py-1 text-body text-muted-foreground"
                     >
-                      <span className="min-w-0 truncate">To {accountNames.get(accountId)}</span>
+                      <span className="min-w-0 truncate">
+                        To {accountNames.get(accountId) ?? "Account"}
+                      </span>
                       <Money kind="balance" cents={cents} />
                     </li>
                   ))}
