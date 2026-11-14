@@ -12,12 +12,13 @@ import { PageShell } from "@/components/layout/PageShell";
 import { listAccounts } from "@/lib/accounts/projection";
 import { createAccount } from "@/lib/commands/accounts";
 import { saveDrafts } from "@/lib/commands/drafts";
-import { parsePHP } from "@/lib/currency";
+import { MAX_AMOUNT_CENTS, parsePHP } from "@/lib/currency";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { createImport } from "@/lib/import/drafts";
 import { readImportReview } from "@/lib/import/review";
 import type { StatementLine } from "@/lib/import/statement";
 import { listTransactions } from "@/lib/transactions/projection";
+import { cents } from "@/test/cents";
 import { ImportView } from "./ImportView";
 
 const MEMBER = { householdId: "11111111-1111-4111-8111-111111111111", userId: "user-a" };
@@ -158,6 +159,26 @@ describe("ImportView", () => {
     expect(
       await screen.findByRole("menuitem", { name: "Discard 1 already recorded" })
     ).toBeInTheDocument();
+  });
+
+  it("flags a line over the amount limit, leaves it unselected, and keeps Save off once ticked", async () => {
+    const card = await addCard();
+    await importStatement(card.id, [
+      { ...purchase("CONDO UNIT", "1"), amount: cents(MAX_AMOUNT_CENTS + 1) },
+    ]);
+    renderImport("/import");
+
+    const drafts = await screen.findByRole("list", { name: "Drafts" });
+    expect(await within(drafts).findByText("Over the limit")).toBeInTheDocument();
+    const select = within(drafts).getByRole("checkbox", { name: "Select CONDO UNIT" });
+    expect(select).not.toBeChecked();
+
+    fireEvent.click(select);
+
+    expect(
+      await screen.findByText(/1 selected draft is over the amount limit/)
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save 1 draft" })).toBeDisabled();
   });
 
   it("saves the draft as a pin when the member ticks Use these details next time", async () => {

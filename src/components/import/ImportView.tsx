@@ -16,6 +16,7 @@ import { isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { saveDrafts } from "@/lib/commands/drafts";
+import { isAmount } from "@/lib/currency";
 import { discardDrafts } from "@/lib/import/drafts";
 import {
   discardedByDefault,
@@ -145,6 +146,7 @@ function ImportSection({
   const savable = selected.filter((draft) => !draft.line.isCardPayment);
   const alreadyRecorded = drafts.filter((draft) => discardedByDefault(draft.flag));
   const undescribed = savable.filter(needsDescription);
+  const overLimit = savable.filter((draft) => !isAmount(draft.line.amount));
   const allSelected = selected.length === drafts.length;
   // Only an exception to the card's usual Paying Account is worth a mention.
   const paidFromLabel = (draft: ReviewedDraft) =>
@@ -193,7 +195,7 @@ function ImportSection({
         </div>
         <Button
           size="sm"
-          disabled={busy || savable.length === 0 || undescribed.length > 0}
+          disabled={busy || savable.length === 0 || undescribed.length > 0 || overLimit.length > 0}
           onClick={() => void save()}
         >
           Save {draftsLabel(savable.length)}
@@ -224,6 +226,12 @@ function ImportSection({
         <p className="text-body text-warning">
           {countOf(undescribed.length, "selected draft needs", "selected drafts need")} a
           description before saving.
+        </p>
+      )}
+      {overLimit.length > 0 && (
+        <p className="text-body text-warning">
+          {countOf(overLimit.length, "selected draft is", "selected drafts are")} over the amount
+          limit. Break apart or discard before saving.
         </p>
       )}
 

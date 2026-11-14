@@ -1,5 +1,5 @@
 import { differenceInCalendarDays } from "date-fns";
-import { formatPHP, sumCents, type Cents } from "@/lib/currency";
+import { formatPHP, isAmount, sumCents, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import type { TransferRow } from "@/lib/transfers/projection";
@@ -16,7 +16,9 @@ export type DraftFlag =
   /** Discarded on this device within the last 6 months. */
   | { kind: "discarded-before" }
   /** A payment towards the card; `transfer` is the recorded payment it matches, if any. */
-  | { kind: "card-payment"; transfer: TransferRow | null };
+  | { kind: "card-payment"; transfer: TransferRow | null }
+  /** Above the most a record can hold, so saving it whole would fail. */
+  | { kind: "over-limit" };
 
 const daysApart = (a: string, b: string) =>
   Math.abs(differenceInCalendarDays(parseLocalDate(a), parseLocalDate(b)));
@@ -32,12 +34,43 @@ function closest<Row extends { date: string }>(date: string, rows: Row[]): Row |
 }
 
 /**
+ * Pairs each recorded payment with at most one payment draft of its amount, nearest-dated pairs first.
+ * shortcut: greedy, so a chain like drafts on the 10th and 13th with payments on the 8th and 11th
+ * matches one pair, not two; upgrade to a best-coverage match if members hit it.
+ */
+function matchPayments(
+  paymentDrafts: DraftRow[],
+  payments: TransferRow[]
+): Map<string, TransferRow> {
+  const pairs = paymentDrafts.flatMap((draft) =>
+    payments
+      .filter((payment) => payment.amountCents === draft.line.amount)
+      .map((payment) => ({
+        draft,
+        payment,
+        apart: daysApart(draft.line.purchaseDate, payment.date),
+      }))
+      .filter((pair) => pair.apart <= MATCH_WINDOW_DAYS)
+  );
+  pairs.sort((a, b) => a.apart - b.apart || a.draft.position - b.draft.position);
+  const paymentOf = new Map<string, TransferRow>();
+  const used = new Set<string>();
+  for (const { draft, payment } of pairs) {
+    if (paymentOf.has(draft.id) || used.has(payment.id)) continue;
+    paymentOf.set(draft.id, payment);
+    used.add(payment.id);
+  }
+  return paymentOf;
+}
+
+/**
  * Flags each draft of an import into `accountId` against what this device
  * holds (ADR 0008). Read live, so a line imported on another device turns
  * "Already imported" once its events arrive.
  */
 export function draftFlagger(
   accountId: string,
+  drafts: DraftRow[],
   transactions: TransactionRow[],
   transfers: TransferRow[],
   discardedKeys: ReadonlySet<string>
@@ -56,20 +89,24 @@ export function draftFlagger(
   const paymentsIn = transfers.filter(
     (transfer) => !transfer.removed && transfer.toAccountId === accountId
   );
+  const paymentOf = matchPayments(
+    drafts.filter((draft) => draft.line.isCardPayment),
+    paymentsIn
+  );
 
   return (draft) => {
     const { purchaseDate, amount } = draft.line;
     const discarded = discardedKeys.has(draft.importKey);
     if (draft.line.isCardPayment) {
-      const sameAmount = paymentsIn.filter((transfer) => transfer.amountCents === amount);
-      const transfer = closest(purchaseDate, sameAmount);
-      return !transfer && discarded
-        ? { kind: "discarded-before" }
-        : { kind: "card-payment", transfer };
+      const transfer = paymentOf.get(draft.id) ?? null;
+      if (transfer) return { kind: "card-payment", transfer };
+      if (discarded) return { kind: "discarded-before" };
+      return isAmount(amount) ? { kind: "card-payment", transfer } : { kind: "over-limit" };
     }
     const imported = byImportKey.get(draft.importKey);
     if (imported) return { kind: "already-imported", transactions: imported };
     if (discarded) return { kind: "discarded-before" };
+    if (!isAmount(amount)) return { kind: "over-limit" };
     const lookAlike = closest(
       purchaseDate,
       typedIn.filter(
@@ -121,13 +158,10 @@ export async function readImportReview(): Promise<ReviewedImport[]> {
   ]);
   const discarded = new Set(discardedKeys);
   return imports.map((statement) => {
-    const flagOf = draftFlagger(statement.accountId, transactions, transfers, discarded);
-    return {
-      ...statement,
-      drafts: drafts
-        .filter((draft) => draft.importId === statement.id)
-        .sort((a, b) => a.position - b.position)
-        .map((draft) => ({ ...draft, flag: flagOf(draft) })),
-    };
+    const ofImport = drafts
+      .filter((draft) => draft.importId === statement.id)
+      .sort((a, b) => a.position - b.position);
+    const flagOf = draftFlagger(statement.accountId, ofImport, transactions, transfers, discarded);
+    return { ...statement, drafts: ofImport.map((draft) => ({ ...draft, flag: flagOf(draft) })) };
   });
 }

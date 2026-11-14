@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { parsePHP, type Cents } from "@/lib/currency";
+import { MAX_AMOUNT_CENTS, parsePHP, type Cents } from "@/lib/currency";
 import { resetLocalDatabase } from "@/lib/dexie/reset";
 import { listUnpushed } from "@/lib/events/log";
 import { createImport, editDraft, listDrafts, listImports } from "@/lib/import/drafts";
@@ -8,7 +8,8 @@ import { readAccountMoney } from "@/lib/transactions/money";
 import { listTransactions } from "@/lib/transactions/projection";
 import { createAccount } from "./accounts";
 import { createCategory, createGroup, retireCategory } from "./categories";
-import { breakApartDraft, saveDrafts } from "./drafts";
+import { breakApartDraft, breakApartProblem, saveDrafts } from "./drafts";
+import { cents } from "@/test/cents";
 import { HOUSEHOLD } from "@/test/events";
 
 const MEMBER = { householdId: HOUSEHOLD, userId: "user-a" };
@@ -334,6 +335,15 @@ describe("breakApartDraft", () => {
 
     expect(await listTransactions()).toEqual([]);
     expect(await listDrafts(importId)).toHaveLength(1);
+  });
+
+  it("refuses a part above the amount limit", () => {
+    const over = cents(MAX_AMOUNT_CENTS + 1);
+    const parts = [part("1", "A", { amountCents: over }), part("1", "B")];
+
+    expect(breakApartProblem(cents(over + 100), parts)).toBe(
+      "Every part needs an amount of at most ₱9,999,999.99."
+    );
   });
 
   it("refuses a card-payment line", async () => {
