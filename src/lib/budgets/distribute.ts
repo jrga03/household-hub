@@ -17,8 +17,9 @@ import {
 import { diffCents, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import { sameOwnership } from "@/lib/events/ownership";
-import { readPaydays, type PaydayRow } from "@/lib/paydays/projection";
+import { paydaysNamedOrInUse, readPaydays, type PaydayRow } from "@/lib/paydays/projection";
 import type { Portion } from "./events";
+import { hasPortionOn } from "./inForce";
 import { categoryMonth, readMonthView } from "./month";
 
 /** After recording income, prefilled from the budgets; or the opening balance, blank. */
@@ -114,7 +115,8 @@ export interface PaydayChoices {
 }
 
 /**
- * The household's paydays, and the first one in order whose portions, with
+ * The paydays in use, plus retired ones a budget in force still names; and
+ * the first one in order whose portions, with
  * the earlier paydays' portions, ask a budget the source can hold for more
  * than was allocated to it this month.
  */
@@ -122,7 +124,7 @@ export async function readPaydayChoices(
   sourceAccountId: string,
   month: string
 ): Promise<PaydayChoices> {
-  const [paydays, source, categories, view] = await Promise.all([
+  const [allPaydays, source, categories, view] = await Promise.all([
     readPaydays(),
     getAccount(sourceAccountId),
     readCategoryList(),
@@ -132,13 +134,14 @@ export async function readPaydayChoices(
     const { budget, allocated } = categoryMonth(view, category.id);
     return budget ? [{ portions: budget.portions, allocated }] : [];
   });
+  const paydays = paydaysNamedOrInUse(allPaydays, budgets);
   const paidSoFar: string[] = [];
   for (const payday of paydays) {
     paidSoFar.push(payday.id);
     const moneyLeft = budgets.some(
-      ({ portions, allocated }) =>
-        portions.some((portion) => portion.paydayId === payday.id) &&
-        (portionsOn(portions, paidSoFar) ?? ZERO_CENTS) > allocated
+      (budget) =>
+        hasPortionOn(budget, payday.id) &&
+        (portionsOn(budget.portions, paidSoFar) ?? ZERO_CENTS) > budget.allocated
     );
     if (moneyLeft) return { paydays, preselectedPaydayId: payday.id };
   }

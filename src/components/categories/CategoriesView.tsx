@@ -11,6 +11,7 @@ import { Fact, Facts } from "@/components/app/Facts";
 import { ListRow } from "@/components/app/ListRow";
 import { Money } from "@/components/app/Money";
 import { SectionHeader } from "@/components/app/SectionHeader";
+import { RetiredSection, useRetiredActions } from "@/components/app/RetiredSection";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { namedAmountsLargestFirst } from "@/components/allocations/envelopes";
 import { useAccountNames } from "@/hooks/useAccounts";
@@ -358,82 +359,55 @@ function RetiredCategories({
   list,
   ...rows
 }: RowsProps & { actor: Actor; list: CategoryList }) {
-  const [shown, setShown] = useState(false);
-  const [busy, startAction] = useTransition();
-  const count = list.retiredGroups.length + list.retiredCategories.length;
-
-  if (count === 0) return null;
-
-  const unretire = (name: string, action: () => Promise<void>) =>
-    startAction(async () => {
-      try {
-        await action();
-        toast.success(`${name} is back in use`);
-      } catch (caught) {
-        toast.error(errorMessage(caught, `Couldn't unretire ${name}.`));
-      }
-    });
+  const { busy, startAction, unretire } = useRetiredActions();
 
   return (
-    <section className="space-y-1">
-      <SectionHeader
-        title="Retired"
-        action={
-          <Button
-            variant="link"
-            className="h-auto p-0"
-            aria-expanded={shown}
-            onClick={() => setShown(!shown)}
-          >
-            {shown ? "Hide retired" : `Show retired (${count})`}
-          </Button>
-        }
-      />
-      {shown && (
-        <ul aria-label="Retired" className="-mx-4 divide-y border-y">
-          {list.retiredGroups.map((group) => (
-            <RetiredItem
-              key={group.id}
-              record={group}
-              detail="Group"
-              recordLabel={`group ${group.name}`}
-              disabled={busy}
-              {...rows}
-              onUnretire={() => unretire(group.name, () => unretireGroup(actor, group.id))}
-              onDelete={() =>
-                startAction(() =>
-                  deleteWithUndo(
-                    group.name,
-                    () => deleteGroup(actor, group.id),
-                    () => restoreGroup(actor, group.id)
-                  )
-                )
-              }
-            />
-          ))}
-          {list.retiredCategories.map((category) => (
-            <RetiredItem
-              key={category.id}
-              record={category}
-              detail={category.group ? `In ${category.group.name}` : "Group not on this device yet"}
-              recordLabel={category.name}
-              disabled={busy}
-              {...rows}
-              onUnretire={() => unretire(category.name, () => unretireCategory(actor, category.id))}
-              onDelete={() =>
-                startAction(() =>
-                  deleteWithUndo(
-                    category.name,
-                    () => deleteCategory(actor, category.id),
-                    () => restoreCategory(actor, category.id)
-                  )
-                )
-              }
-            />
-          ))}
-        </ul>
-      )}
-    </section>
+    <RetiredSection
+      count={list.retiredGroups.length + list.retiredCategories.length}
+      label="Retired"
+      className="-mx-4"
+    >
+      {list.retiredGroups.map((group) => (
+        <RetiredItem
+          key={group.id}
+          record={group}
+          detail="Group"
+          recordLabel={`group ${group.name}`}
+          disabled={busy}
+          {...rows}
+          onUnretire={() => unretire(group.name, () => unretireGroup(actor, group.id))}
+          onDelete={() =>
+            startAction(() =>
+              deleteWithUndo(
+                group.name,
+                () => deleteGroup(actor, group.id),
+                () => restoreGroup(actor, group.id)
+              )
+            )
+          }
+        />
+      ))}
+      {list.retiredCategories.map((category) => (
+        <RetiredItem
+          key={category.id}
+          record={category}
+          detail={category.group ? `In ${category.group.name}` : "Group not on this device yet"}
+          recordLabel={category.name}
+          disabled={busy}
+          {...rows}
+          onUnretire={() => unretire(category.name, () => unretireCategory(actor, category.id))}
+          onDelete={() =>
+            startAction(() =>
+              deleteWithUndo(
+                category.name,
+                () => deleteCategory(actor, category.id),
+                () => restoreCategory(actor, category.id)
+              )
+            )
+          }
+        />
+      ))}
+    </RetiredSection>
   );
 }
 

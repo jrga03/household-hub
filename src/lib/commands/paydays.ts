@@ -1,4 +1,6 @@
+import { categoriesPaidOn, hasPortionOn } from "@/lib/budgets/inForce";
 import { listBudgets } from "@/lib/budgets/projection";
+import { getCategory } from "@/lib/categories/projection";
 import { appendTogether } from "@/lib/events/log";
 import { checkedName } from "@/lib/events/names";
 import type { Ownership } from "@/lib/events/ownership";
@@ -8,6 +10,8 @@ import {
   PAYDAY_ENTITY,
   PAYDAY_RENAMED,
   PAYDAY_REORDERED,
+  PAYDAY_RETIRED,
+  PAYDAY_UNRETIRED,
   PAYDAY_VERSIONS,
 } from "@/lib/paydays/events";
 import { readPaydays, type PaydayRow } from "@/lib/paydays/projection";
@@ -51,7 +55,7 @@ export async function movePayday(
   paydayId: string,
   direction: "up" | "down"
 ): Promise<void> {
-  const paydays = await readPaydays();
+  const paydays = (await readPaydays()).filter((payday) => !payday.retired);
   const from = paydays.findIndex((payday) => payday.id === paydayId);
   if (from === -1) throw new Error("That payday no longer exists.");
   const to = direction === "up" ? from - 1 : from + 1;
@@ -74,10 +78,43 @@ export async function movePayday(
 /** A payday no budget ever named deletes directly (ADR 0014). */
 export async function deletePayday(actor: Actor, paydayId: string): Promise<void> {
   const payday = await requirePayday(paydayId);
-  const named = (await listBudgets()).some((budget) =>
-    budget.portions.some((portion) => portion.paydayId === paydayId)
-  );
-  if (named) throw new Error(`A budget has a portion on ${payday.name}, so it can't be deleted.`);
+  if ((await listBudgets()).some((budget) => hasPortionOn(budget, paydayId)))
+    throw new Error(`A budget has a portion on ${payday.name}, so it can't be deleted.`);
   await appendPaydayEvent(actor, { ...HOUSEHOLD, id: paydayId }, PAYDAY_DELETED, {});
+  requestSync();
+}
+
+const conjunction = new Intl.ListFormat("en", { type: "conjunction" });
+
+/**
+ * Leaves the pickers and keeps its name in the budget history, once no
+ * budget from `currentMonth` ("yyyy-MM") on has a portion on it (ADR 0014).
+ */
+export async function retirePayday(
+  actor: Actor,
+  paydayId: string,
+  currentMonth: string
+): Promise<void> {
+  const payday = await requirePayday(paydayId);
+  const paid = await Promise.all(
+    categoriesPaidOn(await listBudgets(), paydayId, currentMonth).map(getCategory)
+  );
+  // A retired category's budget can't change, so it doesn't hold the payday back.
+  const names = paid.flatMap((category) =>
+    category?.retired ? [] : [category?.name ?? "A category"]
+  );
+  if (names.length > 0) {
+    const [verb, pronoun] = names.length === 1 ? ["has", "it"] : ["have", "them"];
+    throw new Error(
+      `${conjunction.format(names)} ${verb} a portion on ${payday.name} from this month on. Move ${pronoun} to another payday first.`
+    );
+  }
+  await appendPaydayEvent(actor, { ...HOUSEHOLD, id: paydayId }, PAYDAY_RETIRED, {});
+  requestSync();
+}
+
+export async function unretirePayday(actor: Actor, paydayId: string): Promise<void> {
+  await requirePayday(paydayId);
+  await appendPaydayEvent(actor, { ...HOUSEHOLD, id: paydayId }, PAYDAY_UNRETIRED, {});
   requestSync();
 }

@@ -11,7 +11,7 @@ import { Money } from "@/components/app/Money";
 import { RecordName } from "@/components/categories/RecordName";
 import { PageShell } from "@/components/layout/PageShell";
 import { useAccounts } from "@/hooks/useAccounts";
-import { useMonthView, usePaydays } from "@/hooks/useBudgets";
+import { useBudgets, useMonthView, usePaydays } from "@/hooks/useBudgets";
 import { useCategoryList } from "@/hooks/useCategories";
 import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 import { accountNamesOf, type AccountRow } from "@/lib/accounts/projection";
@@ -22,6 +22,7 @@ import { canFundBudget } from "@/lib/budgets/projection";
 import { categoriesInUse, type CategoryRow } from "@/lib/categories/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import { setBudget } from "@/lib/commands/budgets";
+import { paydaysNamedOrInUse } from "@/lib/paydays/projection";
 import { ZERO_CENTS } from "@/lib/currency";
 import { errorMessage } from "@/lib/utils";
 import { parseLocalDate, shiftMonth } from "@/lib/utils/dates";
@@ -48,13 +49,15 @@ export function SetBudgetsView({
   const thisMonth = useMonthView(month, currentMonth);
   const lastMonth = useMonthView(shiftMonth(month, -1), currentMonth);
   const paydays = usePaydays();
+  const budgetVersions = useBudgets();
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const inUse = list && categoriesInUse(list);
   const details = inUse?.find((category) => category.id === detailsId);
   useCloseWhenGone(detailsId, inUse && (details ?? null), () => setDetailsId(null));
   const collapsedGroupIds = useCollapsedGroupsStore((state) => state.collapsedGroupIds);
 
-  if (!list || !inUse || !accounts || !thisMonth || !lastMonth || !paydays) return null;
+  if (!list || !inUse || !accounts || !thisMonth || !lastMonth || !paydays || !budgetVersions)
+    return null;
   const shownGroups = list.groups.filter((group) => !collapsedGroupIds.includes(group.id));
   const shownUngrouped = collapsedGroupIds.includes(UNGROUPED) ? [] : list.ungrouped;
   const lastId = [...shownGroups.flatMap((group) => group.categories), ...shownUngrouped].at(
@@ -66,6 +69,11 @@ export function SetBudgetsView({
       const budget = categoryMonth(thisMonth, category.id).budget;
       return budget ? [[category.id, budget] as [string, Budget]] : [];
     }
+  );
+
+  const planPaydays = paydaysNamedOrInUse(
+    paydays,
+    budgets.map(([, budget]) => budget)
   );
 
   const rows = (categories: CategoryRow[]) =>
@@ -103,10 +111,15 @@ export function SetBudgetsView({
 
   return (
     <PageShell.Main className="space-y-8">
-      <PaydaysSection actor={actor} paydays={paydays} />
-      {paydays.length > 0 && (
+      <PaydaysSection
+        actor={actor}
+        paydays={paydays}
+        budgets={budgetVersions}
+        currentMonth={currentMonth}
+      />
+      {planPaydays.length > 0 && (
         <PaydayPlan
-          paydays={paydays}
+          paydays={planPaydays}
           budgets={budgets}
           categoryNames={new Map(inUse.map((category) => [category.id, category.name]))}
           accountNames={accountNamesOf(accounts)}

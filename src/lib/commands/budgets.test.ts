@@ -7,7 +7,7 @@ import { budgetInForce } from "@/lib/budgets/inForce";
 import { getBudget, listBudgets } from "@/lib/budgets/projection";
 import { createAccount, retireAccount } from "./accounts";
 import { createCategory, createGroup, retireCategory } from "./categories";
-import { addPayday, deletePayday } from "./paydays";
+import { addPayday, deletePayday, retirePayday } from "./paydays";
 import { setBudget, type BudgetInput } from "./budgets";
 import { HOUSEHOLD } from "@/test/events";
 
@@ -198,6 +198,31 @@ describe("setBudget", () => {
     await expect(
       setBudget(MEMBER, budget({ portions: [{ paydayId: bonus.id, amountCents: peso("8000") }] }))
     ).rejects.toThrow("That payday no longer exists.");
+  });
+
+  it("refuses a portion on a retired payday", async () => {
+    const bonus = await addPayday(MEMBER, "Bonus");
+    await retirePayday(MEMBER, bonus.id, "2026-10");
+
+    await expect(
+      setBudget(MEMBER, budget({ portions: [{ paydayId: bonus.id, amountCents: peso("8000") }] }))
+    ).rejects.toThrow("Bonus is retired. Choose one in use.");
+  });
+
+  it("keeps a portion on a retired payday the budget already had", async () => {
+    const bonus = await addPayday(MEMBER, "Bonus");
+    const onBonus = [{ paydayId: bonus.id, amountCents: peso("8000") }];
+    await setBudget(MEMBER, budget({ portions: onBonus }));
+    await setBudget(MEMBER, { ...budget({ portions: [] }), fromMonth: "2026-11" });
+    await retirePayday(MEMBER, bonus.id, "2026-11");
+    const gcashId = (await account(MEMBER, "GCash")).id;
+
+    await setBudget(MEMBER, budget({ portions: onBonus, accountId: gcashId }));
+
+    expect(budgetInForce(await listBudgets(), groceriesId, "2026-10")).toMatchObject({
+      accountId: gcashId,
+      portions: onBonus,
+    });
   });
 
   it("refuses portions that don't add up to the budget", async () => {
