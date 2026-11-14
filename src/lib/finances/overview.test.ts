@@ -142,12 +142,16 @@ describe("budget status", () => {
       visibility: personal ? "personal" : "household",
     });
     const { id } = await createCategory(MEMBER, { name: `Spent ${spent}`, groupId: group.id });
-    await setBudget(MEMBER, {
-      categoryId: id,
-      fromMonth: "2026-09",
-      amountCents: peso("1000"),
-      accountId: actorAccountId,
-    });
+    await setBudget(
+      MEMBER,
+      {
+        categoryId: id,
+        fromMonth: "2026-09",
+        amountCents: peso("1000"),
+        accountId: actorAccountId,
+      },
+      "2026-11"
+    );
     await addTransaction(MEMBER, {
       date: "2026-10-12",
       type: "expense",

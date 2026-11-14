@@ -30,13 +30,17 @@ async function groceriesBudget() {
   const groceries = await createCategory(MEMBER, { name: "Groceries", groupId: food.id });
   const amountCents = parsePHP("8000");
   const set = (fromMonth: string, paydayId?: string) =>
-    setBudget(MEMBER, {
-      categoryId: groceries.id,
-      amountCents,
-      accountId: bpi.id,
-      fromMonth,
-      portions: paydayId ? [{ paydayId, amountCents }] : [],
-    });
+    setBudget(
+      MEMBER,
+      {
+        categoryId: groceries.id,
+        amountCents,
+        accountId: bpi.id,
+        fromMonth,
+        portions: paydayId ? [{ paydayId, amountCents }] : [],
+      },
+      "2026-11"
+    );
   return { groceriesId: groceries.id, setGroceries: set };
 }
 
@@ -156,5 +160,22 @@ describe("payday commands", () => {
     await unretirePayday(MEMBER, id);
 
     expect(await readPaydays()).toMatchObject([{ name: "15th salary", retired: false }]);
+  });
+
+  it("puts an unretired payday after the paydays in use", async () => {
+    const fifteenth = await addPayday(MEMBER, "15th salary");
+    await addPayday(MEMBER, "30th salary");
+    await retirePayday(MEMBER, fifteenth.id, "2026-11");
+    await addPayday(MEMBER, "Bonus");
+
+    await unretirePayday(MEMBER, fifteenth.id);
+
+    expect(await names()).toEqual(["30th salary", "Bonus", "15th salary"]);
+  });
+
+  it("refuses to unretire a payday in use", async () => {
+    const { id } = await addPayday(MEMBER, "15th salary");
+
+    await expect(unretirePayday(MEMBER, id)).rejects.toThrow("15th salary isn't retired.");
   });
 });

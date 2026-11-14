@@ -319,12 +319,16 @@ describe("get_budget_status", () => {
     });
 
   beforeEach(async () => {
-    await setBudget(MEMBER, {
-      categoryId: groceriesId,
-      fromMonth: "2026-10",
-      amountCents: parsePHP("1000"),
-      accountId: gcashId,
-    });
+    await setBudget(
+      MEMBER,
+      {
+        categoryId: groceriesId,
+        fromMonth: "2026-10",
+        amountCents: parsePHP("1000"),
+        accountId: gcashId,
+      },
+      "2026-11"
+    );
   });
 
   it("compares this month's spending with its budget, leaving transfers out", async () => {
@@ -382,12 +386,16 @@ describe("get_budget_status", () => {
       startingBalanceCents: parsePHP("500"),
       visibility: "personal",
     });
-    await setBudget(OTHER_MEMBER, {
-      categoryId: hobbies.id,
-      fromMonth: "2026-10",
-      amountCents: parsePHP("200"),
-      accountId: savings.id,
-    });
+    await setBudget(
+      OTHER_MEMBER,
+      {
+        categoryId: hobbies.id,
+        fromMonth: "2026-10",
+        amountCents: parsePHP("200"),
+        accountId: savings.id,
+      },
+      "2026-11"
+    );
 
     const { result } = await run("get_budget_status");
 

@@ -67,12 +67,16 @@ async function foodThisMonth() {
     [groceries.id, "8000"],
     [restaurants.id, "1000"],
   ] as const) {
-    await setBudget(MEMBER, {
-      categoryId,
-      fromMonth: MONTH,
-      amountCents: parsePHP(amount),
-      accountId: bpi.id,
-    });
+    await setBudget(
+      MEMBER,
+      {
+        categoryId,
+        fromMonth: MONTH,
+        amountCents: parsePHP(amount),
+        accountId: bpi.id,
+      },
+      "2026-11"
+    );
   }
   const spend = (categoryId: string, amount: string) =>
     addTransaction(MEMBER, {
@@ -258,18 +262,26 @@ describe("BudgetView", () => {
     });
     const fun = await createGroup(MEMBER, { name: "Fun" });
     const movies = await createCategory(MEMBER, { name: "Movies", groupId: fun.id });
-    await setBudget(MEMBER, {
-      categoryId: movies.id,
-      fromMonth: "2026-09",
-      amountCents: parsePHP("500"),
-      accountId: bpi.id,
-    });
-    await setBudget(MEMBER, {
-      categoryId: movies.id,
-      fromMonth: MONTH,
-      amountCents: parsePHP("0"),
-      accountId: null,
-    });
+    await setBudget(
+      MEMBER,
+      {
+        categoryId: movies.id,
+        fromMonth: "2026-09",
+        amountCents: parsePHP("500"),
+        accountId: bpi.id,
+      },
+      "2026-11"
+    );
+    await setBudget(
+      MEMBER,
+      {
+        categoryId: movies.id,
+        fromMonth: MONTH,
+        amountCents: parsePHP("0"),
+        accountId: null,
+      },
+      "2026-11"
+    );
     await retireCategory(MEMBER, movies.id);
     await retireGroup(MEMBER, fun.id);
 

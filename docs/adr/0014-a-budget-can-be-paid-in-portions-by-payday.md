@@ -13,6 +13,7 @@ When a payday is distributed, its line asks for the smaller of its portion and w
 ## Consequences
 
 - `budget.set` gains a version; the decoder reads older budgets as paid by any payday.
+- Distribute preselects by payday order, the list order members set rather than a date, assuming paydays earlier in the list are funded first.
 - If a later payday is distributed first, the earlier one still asks for its full portion, capped by what is left of the budget. Moving money out of a category mid-month makes the next payday ask to refill it, as Distribute already does.
 - A payday no budget version ever named is deleted directly. One that history names is retired, and only once no budget in force from this month has a portion on it, so the ledger's budget history keeps its name.
 - A payday's place in the order is a position on the payday itself, and a move renumbers the paydays it changes. Two devices that reorder at the same time end with the same order, but it can match neither member's intent; the next move puts it right.

@@ -57,12 +57,16 @@ beforeEach(async () => {
 
 describe("month figures", () => {
   it("shows the issue's demo: budget ₱8,000 and ₱1,200 spent in October", async () => {
-    await setBudget(MEMBER, {
-      categoryId: groceriesId,
-      fromMonth: "2026-10",
-      amountCents: peso("8000"),
-      accountId: bpiId,
-    });
+    await setBudget(
+      MEMBER,
+      {
+        categoryId: groceriesId,
+        fromMonth: "2026-10",
+        amountCents: peso("8000"),
+        accountId: bpiId,
+      },
+      "2026-11"
+    );
     await groceries("2026-10-05", "1200");
 
     expect(categoryMonth(await october(), groceriesId)).toMatchObject({
@@ -196,18 +200,26 @@ describe("month figures", () => {
   });
 
   it("sums a group's categories, counting no budget as zero", async () => {
-    await setBudget(MEMBER, {
-      categoryId: groceriesId,
-      fromMonth: "2026-10",
-      amountCents: peso("8000"),
-      accountId: bpiId,
-    });
-    await setBudget(MEMBER, {
-      categoryId: restaurantsId,
-      fromMonth: "2026-08",
-      amountCents: peso("2000"),
-      accountId: bpiId,
-    });
+    await setBudget(
+      MEMBER,
+      {
+        categoryId: groceriesId,
+        fromMonth: "2026-10",
+        amountCents: peso("8000"),
+        accountId: bpiId,
+      },
+      "2026-11"
+    );
+    await setBudget(
+      MEMBER,
+      {
+        categoryId: restaurantsId,
+        fromMonth: "2026-08",
+        amountCents: peso("2000"),
+        accountId: bpiId,
+      },
+      "2026-11"
+    );
     await groceries("2026-10-05", "1200");
     await addTransaction(MEMBER, {
       date: "2026-10-06",

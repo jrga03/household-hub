@@ -76,15 +76,23 @@ async function alreadySet(id: string, details: BudgetDetails): Promise<boolean> 
  * Sets a category's budget from a month on, or clears it with 0. Two devices
  * setting the same month write the same record, and the later set wins.
  * Works offline; the budget is seen by the same people as its category.
+ * `currentMonth` is "yyyy-MM".
  */
-export async function setBudget(actor: Actor, input: BudgetInput): Promise<void> {
+export async function setBudget(
+  actor: Actor,
+  input: BudgetInput,
+  currentMonth: string
+): Promise<void> {
   const { details, problem } = checkBudgetDetails({ ...input });
   if (problem !== null) throw new Error(problem);
   const category = await requireCategory(details.categoryId);
   refuseRetired(category);
   if (details.accountId !== null) await checkFundingAccount(details.accountId, category);
-  // A portion the budget already had may stay on a retired payday, so an older budget can still change.
-  const had = budgetInForce(await listBudgets(), details.categoryId, details.fromMonth);
+  // Only an earlier month's budget may keep a portion it had on a retired payday, so history can still change.
+  const had =
+    details.fromMonth < currentMonth
+      ? budgetInForce(await listBudgets(), details.categoryId, details.fromMonth)
+      : null;
   for (const portion of details.portions) {
     const payday = await requirePayday(portion.paydayId);
     if (!had || !hasPortionOn(had, payday.id)) refuseRetired(payday);

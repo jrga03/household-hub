@@ -346,12 +346,16 @@ describe("ReportsView", () => {
 
     it("shows the budget in force in the end month, and how far over it the month is", async () => {
       const { categoryId, accountId, categories } = await seedGroceries();
-      await setBudget(MEMBER, {
-        categoryId,
-        fromMonth: "2026-10",
-        amountCents: parsePHP("2500"),
-        accountId,
-      });
+      await setBudget(
+        MEMBER,
+        {
+          categoryId,
+          fromMonth: "2026-10",
+          amountCents: parsePHP("2500"),
+          accountId,
+        },
+        "2026-11"
+      );
       await renderReports({
         grids: {
           household: grid({
@@ -371,12 +375,16 @@ describe("ReportsView", () => {
 
     it("shows no budget when the end month has none", async () => {
       const { categoryId, accountId, categories } = await seedGroceries();
-      await setBudget(MEMBER, {
-        categoryId,
-        fromMonth: "2026-12",
-        amountCents: parsePHP("2500"),
-        accountId,
-      });
+      await setBudget(
+        MEMBER,
+        {
+          categoryId,
+          fromMonth: "2026-12",
+          amountCents: parsePHP("2500"),
+          accountId,
+        },
+        "2026-11"
+      );
       await renderReports({
         grids: { household: grid({ "2026-11": { [categoryId]: "3000" } }), mine: EMPTY },
         categories,

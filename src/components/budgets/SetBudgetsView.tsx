@@ -88,6 +88,7 @@ export function SetBudgetsView({
           actor={actor}
           category={category}
           month={month}
+          currentMonth={currentMonth}
           spent={{ last: lastMonth, this: thisMonth }}
           budget={categoryMonth(thisMonth, category.id).budget}
           fundingChoices={accounts.filter((account) => canFundBudget(account, category))}
@@ -173,6 +174,7 @@ export function SetBudgetsView({
           actor={actor}
           category={details}
           month={month}
+          currentMonth={currentMonth}
           onClose={() => setDetailsId(null)}
         />
       )}
@@ -185,6 +187,7 @@ function BudgetAmountRow({
   actor,
   category,
   month,
+  currentMonth,
   spent,
   budget,
   fundingChoices,
@@ -194,6 +197,7 @@ function BudgetAmountRow({
   actor: Actor;
   category: CategoryRow;
   month: string;
+  currentMonth: string;
   spent: { last: MonthView; this: MonthView };
   budget: Budget | null;
   fundingChoices: AccountRow[];
@@ -216,7 +220,11 @@ function BudgetAmountRow({
     }
     if (change.kind === "unchanged") return;
     try {
-      await setBudget(actor, { categoryId: category.id, fromMonth: month, ...change });
+      await setBudget(
+        actor,
+        { categoryId: category.id, fromMonth: month, ...change },
+        currentMonth
+      );
     } catch (caught) {
       toast.error(errorMessage(caught, `Couldn't set the budget for ${category.name}.`));
     }

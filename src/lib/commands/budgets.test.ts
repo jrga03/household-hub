@@ -6,7 +6,7 @@ import { budgetId } from "@/lib/budgets/events";
 import { budgetInForce } from "@/lib/budgets/inForce";
 import { getBudget, listBudgets } from "@/lib/budgets/projection";
 import { createAccount, retireAccount } from "./accounts";
-import { createCategory, createGroup, retireCategory } from "./categories";
+import { createCategory, createGroup, retireCategory, unretireCategory } from "./categories";
 import { addPayday, deletePayday, retirePayday } from "./paydays";
 import { setBudget, type BudgetInput } from "./budgets";
 import { HOUSEHOLD } from "@/test/events";
@@ -47,7 +47,7 @@ beforeEach(async () => {
 
 describe("setBudget", () => {
   it("records the month's version under an ID from the category and month", async () => {
-    await setBudget(MEMBER, budget());
+    await setBudget(MEMBER, budget(), "2026-11");
 
     const id = await budgetId(groceriesId, "2026-10");
     expect(await getBudget(id)).toMatchObject({
@@ -64,8 +64,8 @@ describe("setBudget", () => {
   });
 
   it("keeps earlier months when changed from a later one (the issue's demo)", async () => {
-    await setBudget(MEMBER, budget());
-    await setBudget(MEMBER, budget({ fromMonth: "2026-12", amountCents: peso("9000") }));
+    await setBudget(MEMBER, budget(), "2026-11");
+    await setBudget(MEMBER, budget({ fromMonth: "2026-12", amountCents: peso("9000") }), "2026-11");
 
     const budgets = await listBudgets();
     expect(budgetInForce(budgets, groceriesId, "2026-11")?.amountCents).toBe(800000);
@@ -73,17 +73,18 @@ describe("setBudget", () => {
   });
 
   it("replaces the same month's budget in place", async () => {
-    await setBudget(MEMBER, budget());
-    await setBudget(OTHER_MEMBER, budget({ amountCents: peso("8500") }));
+    await setBudget(MEMBER, budget(), "2026-11");
+    await setBudget(OTHER_MEMBER, budget({ amountCents: peso("8500") }), "2026-11");
 
     expect(await listBudgets()).toMatchObject([{ amountCents: 850000 }]);
   });
 
   it("clears it from a month with zero, needing no funding account", async () => {
-    await setBudget(MEMBER, budget());
+    await setBudget(MEMBER, budget(), "2026-11");
     await setBudget(
       MEMBER,
-      budget({ fromMonth: "2027-01", amountCents: peso("0"), accountId: null })
+      budget({ fromMonth: "2027-01", amountCents: peso("0"), accountId: null }),
+      "2026-11"
     );
 
     const budgets = await listBudgets();
@@ -92,17 +93,21 @@ describe("setBudget", () => {
   });
 
   it("appends nothing when the month's own version already says so", async () => {
-    await setBudget(MEMBER, budget());
-    await setBudget(MEMBER, budget());
-    await setBudget(MEMBER, budget({ fromMonth: "2026-09", amountCents: null, accountId: null }));
+    await setBudget(MEMBER, budget(), "2026-11");
+    await setBudget(MEMBER, budget(), "2026-11");
+    await setBudget(
+      MEMBER,
+      budget({ fromMonth: "2026-09", amountCents: null, accountId: null }),
+      "2026-11"
+    );
 
     expect(await budgetEvents()).toHaveLength(1);
   });
 
   it("pins a later month to the same budget, so changing an earlier month leaves it", async () => {
-    await setBudget(MEMBER, budget());
-    await setBudget(MEMBER, budget({ fromMonth: "2026-12" }));
-    await setBudget(MEMBER, budget({ amountCents: peso("7000") }));
+    await setBudget(MEMBER, budget(), "2026-11");
+    await setBudget(MEMBER, budget({ fromMonth: "2026-12" }), "2026-11");
+    await setBudget(MEMBER, budget({ amountCents: peso("7000") }), "2026-11");
 
     const budgets = await listBudgets();
     expect(budgetInForce(budgets, groceriesId, "2026-11")?.amountCents).toBe(700000);
@@ -113,7 +118,7 @@ describe("setBudget", () => {
     const travelId = await personalCategory(MEMBER);
     const walletId = (await account(MEMBER, "Wallet", { visibility: "personal" })).id;
 
-    await setBudget(MEMBER, budget({ categoryId: travelId, accountId: walletId }));
+    await setBudget(MEMBER, budget({ categoryId: travelId, accountId: walletId }), "2026-11");
 
     expect(await budgetEvents()).toMatchObject([{ visibility: "personal", ownerUserId: "user-a" }]);
   });
@@ -121,7 +126,7 @@ describe("setBudget", () => {
   it("refuses a funding account of another visibility", async () => {
     const walletId = (await account(MEMBER, "Wallet", { visibility: "personal" })).id;
 
-    await expect(setBudget(MEMBER, budget({ accountId: walletId }))).rejects.toThrow(
+    await expect(setBudget(MEMBER, budget({ accountId: walletId }), "2026-11")).rejects.toThrow(
       "Choose a Household account to fund Groceries."
     );
   });
@@ -131,7 +136,7 @@ describe("setBudget", () => {
     const theirsId = (await account(OTHER_MEMBER, "Theirs", { visibility: "personal" })).id;
 
     await expect(
-      setBudget(MEMBER, budget({ categoryId: travelId, accountId: theirsId }))
+      setBudget(MEMBER, budget({ categoryId: travelId, accountId: theirsId }), "2026-11")
     ).rejects.toThrow("Choose a Personal account to fund Travel.");
   });
 
@@ -139,7 +144,7 @@ describe("setBudget", () => {
     const cardId = (await account(MEMBER, "Visa", { type: "credit_card", payingAccountId: bpiId }))
       .id;
 
-    await expect(setBudget(MEMBER, budget({ accountId: cardId }))).rejects.toThrow(
+    await expect(setBudget(MEMBER, budget({ accountId: cardId }), "2026-11")).rejects.toThrow(
       "A credit card can't fund a budget."
     );
   });
@@ -147,29 +152,29 @@ describe("setBudget", () => {
   it("refuses a retired account", async () => {
     await retireAccount(MEMBER, bpiId);
 
-    await expect(setBudget(MEMBER, budget())).rejects.toThrow("BPI is retired.");
+    await expect(setBudget(MEMBER, budget(), "2026-11")).rejects.toThrow("BPI is retired.");
   });
 
   it("refuses a retired category", async () => {
     await retireCategory(MEMBER, groceriesId);
 
-    await expect(setBudget(MEMBER, budget())).rejects.toThrow("Groceries is retired.");
+    await expect(setBudget(MEMBER, budget(), "2026-11")).rejects.toThrow("Groceries is retired.");
   });
 
   it("refuses a category or account this device doesn't hold", async () => {
     await expect(
-      setBudget(MEMBER, budget({ categoryId: "cccccccc-0000-4000-8000-00000000dead" }))
+      setBudget(MEMBER, budget({ categoryId: "cccccccc-0000-4000-8000-00000000dead" }), "2026-11")
     ).rejects.toThrow("That category no longer exists.");
     await expect(
-      setBudget(MEMBER, budget({ accountId: "aaaaaaaa-0000-4000-8000-00000000dead" }))
+      setBudget(MEMBER, budget({ accountId: "aaaaaaaa-0000-4000-8000-00000000dead" }), "2026-11")
     ).rejects.toThrow("That account no longer exists.");
   });
 
   it("refuses an amount without a funding account, or a broken month", async () => {
-    await expect(setBudget(MEMBER, budget({ accountId: null }))).rejects.toThrow(
+    await expect(setBudget(MEMBER, budget({ accountId: null }), "2026-11")).rejects.toThrow(
       "Choose the account that funds it."
     );
-    await expect(setBudget(MEMBER, budget({ fromMonth: "2026-13" }))).rejects.toThrow(
+    await expect(setBudget(MEMBER, budget({ fromMonth: "2026-13" }), "2026-11")).rejects.toThrow(
       "Choose a month."
     );
   });
@@ -182,12 +187,12 @@ describe("setBudget", () => {
       { paydayId: thirtieth.id, amountCents: peso("4000") },
     ];
 
-    await setBudget(MEMBER, budget({ portions: halves }));
-    await setBudget(MEMBER, budget({ portions: halves }));
+    await setBudget(MEMBER, budget({ portions: halves }), "2026-11");
+    await setBudget(MEMBER, budget({ portions: halves }), "2026-11");
     expect(budgetInForce(await listBudgets(), groceriesId, "2026-10")?.portions).toEqual(halves);
     expect(await budgetEvents()).toHaveLength(1);
 
-    await setBudget(MEMBER, budget({ portions: [] }));
+    await setBudget(MEMBER, budget({ portions: [] }), "2026-11");
     expect(budgetInForce(await listBudgets(), groceriesId, "2026-10")?.portions).toEqual([]);
   });
 
@@ -196,7 +201,11 @@ describe("setBudget", () => {
     await deletePayday(MEMBER, bonus.id);
 
     await expect(
-      setBudget(MEMBER, budget({ portions: [{ paydayId: bonus.id, amountCents: peso("8000") }] }))
+      setBudget(
+        MEMBER,
+        budget({ portions: [{ paydayId: bonus.id, amountCents: peso("8000") }] }),
+        "2026-11"
+      )
     ).rejects.toThrow("That payday no longer exists.");
   });
 
@@ -205,19 +214,23 @@ describe("setBudget", () => {
     await retirePayday(MEMBER, bonus.id, "2026-10");
 
     await expect(
-      setBudget(MEMBER, budget({ portions: [{ paydayId: bonus.id, amountCents: peso("8000") }] }))
+      setBudget(
+        MEMBER,
+        budget({ portions: [{ paydayId: bonus.id, amountCents: peso("8000") }] }),
+        "2026-11"
+      )
     ).rejects.toThrow("Bonus is retired. Choose one in use.");
   });
 
   it("keeps a portion on a retired payday the budget already had", async () => {
     const bonus = await addPayday(MEMBER, "Bonus");
     const onBonus = [{ paydayId: bonus.id, amountCents: peso("8000") }];
-    await setBudget(MEMBER, budget({ portions: onBonus }));
-    await setBudget(MEMBER, { ...budget({ portions: [] }), fromMonth: "2026-11" });
+    await setBudget(MEMBER, budget({ portions: onBonus }), "2026-11");
+    await setBudget(MEMBER, { ...budget({ portions: [] }), fromMonth: "2026-11" }, "2026-11");
     await retirePayday(MEMBER, bonus.id, "2026-11");
     const gcashId = (await account(MEMBER, "GCash")).id;
 
-    await setBudget(MEMBER, budget({ portions: onBonus, accountId: gcashId }));
+    await setBudget(MEMBER, budget({ portions: onBonus, accountId: gcashId }), "2026-11");
 
     expect(budgetInForce(await listBudgets(), groceriesId, "2026-10")).toMatchObject({
       accountId: gcashId,
@@ -225,11 +238,29 @@ describe("setBudget", () => {
     });
   });
 
+  it("refuses a retired payday's portion from this month on, even one the budget had", async () => {
+    const bonus = await addPayday(MEMBER, "Bonus");
+    const onBonus = [{ paydayId: bonus.id, amountCents: peso("8000") }];
+    await setBudget(MEMBER, budget({ portions: onBonus }), "2026-10");
+    // A retired category doesn't hold the payday back, so it retires with the portion still in force.
+    await retireCategory(MEMBER, groceriesId);
+    await retirePayday(MEMBER, bonus.id, "2026-11");
+    await unretireCategory(MEMBER, groceriesId);
+
+    await expect(
+      setBudget(MEMBER, budget({ fromMonth: "2026-11", portions: onBonus }), "2026-11")
+    ).rejects.toThrow("Bonus is retired. Choose one in use.");
+  });
+
   it("refuses portions that don't add up to the budget", async () => {
     const fifteenth = await addPayday(MEMBER, "15th salary");
 
     await expect(
-      setBudget(MEMBER, budget({ portions: [{ paydayId: fifteenth.id, amountCents: peso("1") }] }))
+      setBudget(
+        MEMBER,
+        budget({ portions: [{ paydayId: fifteenth.id, amountCents: peso("1") }] }),
+        "2026-11"
+      )
     ).rejects.toThrow("The portions add up to ₱1.00, not the budget’s ₱8,000.00.");
   });
 });

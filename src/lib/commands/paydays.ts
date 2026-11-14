@@ -113,8 +113,17 @@ export async function retirePayday(
   requestSync();
 }
 
+/** Brings a retired payday back at the end of the paydays in use. */
 export async function unretirePayday(actor: Actor, paydayId: string): Promise<void> {
-  await requirePayday(paydayId);
-  await appendPaydayEvent(actor, { ...HOUSEHOLD, id: paydayId }, PAYDAY_UNRETIRED, {});
+  const payday = await requirePayday(paydayId);
+  if (!payday.retired) throw new Error(`${payday.name} isn't retired.`);
+  const lastInUse = (await readPaydays()).filter((candidate) => !candidate.retired).at(-1);
+  const record = { ...HOUSEHOLD, id: paydayId };
+  await appendTogether(async () => {
+    await appendPaydayEvent(actor, record, PAYDAY_UNRETIRED, {});
+    await appendPaydayEvent(actor, record, PAYDAY_REORDERED, {
+      position: lastInUse ? lastInUse.position + 1 : 0,
+    });
+  });
   requestSync();
 }
