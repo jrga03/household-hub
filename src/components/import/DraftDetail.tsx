@@ -95,7 +95,7 @@ export function DraftDetail({
         {!isCardPayment && <PaidFromFact draft={draft} card={card} />}
       </dl>
 
-      {flag && <FlagNote flag={flag} lineAmount={line.amount} />}
+      {flag && <FlagNote flag={flag} lineAmount={line.amount} isCardPayment={line.isCardPayment} />}
 
       {flag?.kind === "already-imported" && (
         <div className="flex items-center gap-2">
@@ -189,7 +189,15 @@ export function DraftDetail({
   );
 }
 
-function FlagNote({ flag, lineAmount }: { flag: DraftFlag; lineAmount: Cents }) {
+function FlagNote({
+  flag,
+  lineAmount,
+  isCardPayment,
+}: {
+  flag: DraftFlag;
+  lineAmount: Cents;
+  isCardPayment: boolean;
+}) {
   switch (flag.kind) {
     case "already-imported": {
       const [first, ...others] = flag.transactions;
@@ -237,7 +245,8 @@ function FlagNote({ flag, lineAmount }: { flag: DraftFlag; lineAmount: Cents }) 
     case "over-limit":
       return (
         <Notice tone="warning" title="Over the limit">
-          {AMOUNT_PROBLEM} Break this line apart, or discard it.
+          {AMOUNT_PROBLEM}{" "}
+          {isCardPayment ? "Discard this line." : "Break this line apart, or discard it."}
         </Notice>
       );
   }

@@ -33,20 +33,31 @@ function closest<Row extends { date: string }>(date: string, rows: Row[]): Row |
   return best;
 }
 
-/** Pairs each recorded payment with at most one payment line of its amount, nearest-dated pairs first. */
-function matchPayments(lines: DraftRow[], payments: TransferRow[]): Map<string, TransferRow> {
-  const pairs = lines.flatMap((line) =>
+/**
+ * Pairs each recorded payment with at most one payment draft of its amount, nearest-dated pairs first.
+ * shortcut: greedy, so a chain like drafts on the 10th and 13th with payments on the 8th and 11th
+ * matches one pair, not two; upgrade to a best-coverage match if members hit it.
+ */
+function matchPayments(
+  paymentDrafts: DraftRow[],
+  payments: TransferRow[]
+): Map<string, TransferRow> {
+  const pairs = paymentDrafts.flatMap((draft) =>
     payments
-      .filter((payment) => payment.amountCents === line.line.amount)
-      .map((payment) => ({ line, payment, apart: daysApart(line.line.purchaseDate, payment.date) }))
+      .filter((payment) => payment.amountCents === draft.line.amount)
+      .map((payment) => ({
+        draft,
+        payment,
+        apart: daysApart(draft.line.purchaseDate, payment.date),
+      }))
       .filter((pair) => pair.apart <= MATCH_WINDOW_DAYS)
   );
-  pairs.sort((a, b) => a.apart - b.apart || a.line.position - b.line.position);
+  pairs.sort((a, b) => a.apart - b.apart || a.draft.position - b.draft.position);
   const paymentOf = new Map<string, TransferRow>();
   const used = new Set<string>();
-  for (const { line, payment } of pairs) {
-    if (paymentOf.has(line.id) || used.has(payment.id)) continue;
-    paymentOf.set(line.id, payment);
+  for (const { draft, payment } of pairs) {
+    if (paymentOf.has(draft.id) || used.has(payment.id)) continue;
+    paymentOf.set(draft.id, payment);
     used.add(payment.id);
   }
   return paymentOf;
@@ -85,17 +96,17 @@ export function draftFlagger(
 
   return (draft) => {
     const { purchaseDate, amount } = draft.line;
-    if (!isAmount(amount)) return { kind: "over-limit" };
     const discarded = discardedKeys.has(draft.importKey);
     if (draft.line.isCardPayment) {
       const transfer = paymentOf.get(draft.id) ?? null;
-      return !transfer && discarded
-        ? { kind: "discarded-before" }
-        : { kind: "card-payment", transfer };
+      if (transfer) return { kind: "card-payment", transfer };
+      if (discarded) return { kind: "discarded-before" };
+      return isAmount(amount) ? { kind: "card-payment", transfer } : { kind: "over-limit" };
     }
     const imported = byImportKey.get(draft.importKey);
     if (imported) return { kind: "already-imported", transactions: imported };
     if (discarded) return { kind: "discarded-before" };
+    if (!isAmount(amount)) return { kind: "over-limit" };
     const lookAlike = closest(
       purchaseDate,
       typedIn.filter(

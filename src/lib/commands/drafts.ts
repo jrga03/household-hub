@@ -1,4 +1,4 @@
-import { sumCents, type Cents } from "@/lib/currency";
+import { MAX_AMOUNT_CENTS, sumCents, type Cents } from "@/lib/currency";
 import { appendTogether } from "@/lib/events/log";
 import { db } from "@/lib/dexie/db";
 import { deleteDrafts } from "@/lib/import/drafts";
@@ -58,6 +58,9 @@ export interface DraftPart {
 export function breakApartProblem(lineAmount: Cents, parts: DraftPart[]): string | null {
   if (parts.length < 2) return "Add a second part to break this line apart.";
   if (parts.some((part) => part.amountCents <= 0)) return "Every part needs an amount above ₱0.00.";
+  if (parts.some((part) => part.amountCents > MAX_AMOUNT_CENTS)) {
+    return "Every part needs an amount of at most ₱9,999,999.99.";
+  }
   if (parts.some((part) => part.description.trim() === "")) {
     return "Every part needs a description.";
   }

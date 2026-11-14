@@ -313,8 +313,20 @@ describe("Over the limit", () => {
     expect(flagFor(draft({}, { amount: cents(MAX_AMOUNT_CENTS) }), {})).toBeNull();
   });
 
-  it("wins over Discarded before", () => {
-    expect(flagFor(huge, { discarded: ["key-1"] })).toEqual({ kind: "over-limit" });
+  it("yields to Already imported and Discarded before, which are discarded by default", () => {
+    const part = transaction({ importKey: "key-1" });
+
+    expect(flagFor(huge, { transactions: [part] })).toEqual({
+      kind: "already-imported",
+      transactions: [part],
+    });
+    expect(flagFor(huge, { discarded: ["key-1"] })).toEqual({ kind: "discarded-before" });
+  });
+
+  it("flags an unrecorded card payment above the limit", () => {
+    const payment = draft({}, { amount: cents(MAX_AMOUNT_CENTS + 1), isCardPayment: true });
+
+    expect(flagFor(payment, {})).toEqual({ kind: "over-limit" });
   });
 });
 
