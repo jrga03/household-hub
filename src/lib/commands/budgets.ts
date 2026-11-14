@@ -10,7 +10,7 @@ import {
   type BudgetDetails,
   type Portion,
 } from "@/lib/budgets/events";
-import { budgetInForce } from "@/lib/budgets/inForce";
+import { budgetInForce, hasPortionOn } from "@/lib/budgets/inForce";
 import { canFundBudget, getBudget, listBudgets } from "@/lib/budgets/projection";
 import type { CategoryRow } from "@/lib/categories/projection";
 import type { Cents } from "@/lib/currency";
@@ -84,10 +84,10 @@ export async function setBudget(actor: Actor, input: BudgetInput): Promise<void>
   refuseRetired(category);
   if (details.accountId !== null) await checkFundingAccount(details.accountId, category);
   // A portion the budget already had may stay on a retired payday, so an older budget can still change.
-  const had = budgetInForce(await listBudgets(), details.categoryId, details.fromMonth)?.portions;
+  const had = budgetInForce(await listBudgets(), details.categoryId, details.fromMonth);
   for (const portion of details.portions) {
     const payday = await requirePayday(portion.paydayId);
-    if (!had?.some((kept) => kept.paydayId === payday.id)) refuseRetired(payday);
+    if (!had || !hasPortionOn(had, payday.id)) refuseRetired(payday);
   }
   const id = await budgetId(details.categoryId, details.fromMonth);
   // A re-sent unchanged set would carry a later HLC and undo another device's change.

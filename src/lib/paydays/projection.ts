@@ -1,4 +1,5 @@
 import type { Portion } from "@/lib/budgets/events";
+import { hasPortionOn } from "@/lib/budgets/inForce";
 import { db } from "@/lib/dexie/db";
 import type { LoggedEvent } from "@/lib/events/log";
 import type { Visibility } from "@/lib/events/ownership";
@@ -73,16 +74,15 @@ const byPosition = (a: PaydayRow, b: PaydayRow) =>
  */
 export async function readPaydays(): Promise<PaydayRow[]> {
   const [paydays, budgets] = await Promise.all([db.paydays.toArray(), db.budgets.toArray()]);
-  const named = new Set(
-    budgets.flatMap((budget) => budget.portions.map((portion) => portion.paydayId))
-  );
-  return paydays.filter((payday) => !payday.deleted || named.has(payday.id)).sort(byPosition);
+  return paydays
+    .filter(
+      (payday) => !payday.deleted || budgets.some((budget) => hasPortionOn(budget, payday.id))
+    )
+    .sort(byPosition);
 }
 
 /** Paydays in use, plus retired ones these budgets still have a portion on. */
 export const paydaysNamedOrInUse = (paydays: PaydayRow[], budgets: { portions: Portion[] }[]) =>
   paydays.filter(
-    (payday) =>
-      !payday.retired ||
-      budgets.some((budget) => budget.portions.some((portion) => portion.paydayId === payday.id))
+    (payday) => !payday.retired || budgets.some((budget) => hasPortionOn(budget, payday.id))
   );

@@ -1,4 +1,4 @@
-import { categoriesPaidOn } from "@/lib/budgets/inForce";
+import { categoriesPaidOn, hasPortionOn } from "@/lib/budgets/inForce";
 import { listBudgets } from "@/lib/budgets/projection";
 import { getCategory } from "@/lib/categories/projection";
 import { appendTogether } from "@/lib/events/log";
@@ -78,10 +78,8 @@ export async function movePayday(
 /** A payday no budget ever named deletes directly (ADR 0014). */
 export async function deletePayday(actor: Actor, paydayId: string): Promise<void> {
   const payday = await requirePayday(paydayId);
-  const named = (await listBudgets()).some((budget) =>
-    budget.portions.some((portion) => portion.paydayId === paydayId)
-  );
-  if (named) throw new Error(`A budget has a portion on ${payday.name}, so it can't be deleted.`);
+  if ((await listBudgets()).some((budget) => hasPortionOn(budget, paydayId)))
+    throw new Error(`A budget has a portion on ${payday.name}, so it can't be deleted.`);
   await appendPaydayEvent(actor, { ...HOUSEHOLD, id: paydayId }, PAYDAY_DELETED, {});
   requestSync();
 }

@@ -6,12 +6,14 @@ import { Button } from "@/components/app/Button";
 import { EmptyState } from "@/components/app/EmptyState";
 import { Field } from "@/components/app/Field";
 import { FormError } from "@/components/app/FormError";
+import { RetiredSection, useRetiredActions } from "@/components/app/RetiredSection";
 import { advanceOnEnter, FormFooter, FormSheet } from "@/components/app/FormSheet";
 import { Input } from "@/components/app/Input";
 import { SectionHeader } from "@/components/app/SectionHeader";
 import { SubmitButton } from "@/components/app/SubmitButton";
 import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 import { RECORD_NAME_MAX_LENGTH } from "@/lib/events/names";
+import { hasPortionOn } from "@/lib/budgets/inForce";
 import type { BudgetRow } from "@/lib/budgets/projection";
 import type { Actor } from "@/lib/commands/accounts";
 import {
@@ -46,7 +48,7 @@ export function PaydaysSection({
   const [openId, setOpenId] = useState<string | null>(null);
   const editing = paydays.find((payday) => payday.id === openId);
   const namedByBudget = (paydayId: string) =>
-    budgets.some((budget) => budget.portions.some((portion) => portion.paydayId === paydayId));
+    budgets.some((budget) => hasPortionOn(budget, paydayId));
   useCloseWhenGone(openId === "new" ? null : openId, editing ?? null, () => setOpenId(null));
 
   const move = async (payday: PaydayRow, direction: "up" | "down") => {
@@ -127,55 +129,25 @@ export function PaydaysSection({
 }
 
 function RetiredPaydays({ actor, retired }: { actor: Actor; retired: PaydayRow[] }) {
-  const [shown, setShown] = useState(false);
-  const [busy, startAction] = useTransition();
-  if (retired.length === 0) return null;
-
-  const unretire = (payday: PaydayRow) =>
-    startAction(async () => {
-      try {
-        await unretirePayday(actor, payday.id);
-        toast.success(`${payday.name} is back in use`);
-      } catch (caught) {
-        toast.error(errorMessage(caught, `Couldn't unretire ${payday.name}.`));
-      }
-    });
+  const { busy, unretire } = useRetiredActions();
 
   return (
-    <div className="space-y-1">
-      <SectionHeader
-        level={3}
-        title="Retired"
-        action={
+    <RetiredSection count={retired.length} label="Retired paydays" level={3}>
+      {retired.map((payday) => (
+        <li key={payday.id} className="flex items-center gap-3 py-1 pr-2 pl-4">
+          <span className="min-w-0 flex-1 truncate">{payday.name}</span>
           <Button
-            variant="link"
-            className="h-auto p-0"
-            aria-expanded={shown}
-            onClick={() => setShown(!shown)}
+            variant="outline"
+            size="sm"
+            aria-label={`Unretire ${payday.name}`}
+            disabled={busy}
+            onClick={() => unretire(payday.name, () => unretirePayday(actor, payday.id))}
           >
-            {shown ? "Hide retired" : `Show retired (${retired.length})`}
+            Unretire
           </Button>
-        }
-      />
-      {shown && (
-        <ul aria-label="Retired paydays" className="divide-y border-y">
-          {retired.map((payday) => (
-            <li key={payday.id} className="flex items-center gap-3 py-1 pr-2 pl-4">
-              <span className="min-w-0 flex-1 truncate">{payday.name}</span>
-              <Button
-                variant="outline"
-                size="sm"
-                aria-label={`Unretire ${payday.name}`}
-                disabled={busy}
-                onClick={() => unretire(payday)}
-              >
-                Unretire
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+        </li>
+      ))}
+    </RetiredSection>
   );
 }
 

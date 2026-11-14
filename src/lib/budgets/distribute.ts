@@ -19,6 +19,7 @@ import { db } from "@/lib/dexie/db";
 import { sameOwnership } from "@/lib/events/ownership";
 import { paydaysNamedOrInUse, readPaydays, type PaydayRow } from "@/lib/paydays/projection";
 import type { Portion } from "./events";
+import { hasPortionOn } from "./inForce";
 import { categoryMonth, readMonthView } from "./month";
 
 /** After recording income, prefilled from the budgets; or the opening balance, blank. */
@@ -138,9 +139,9 @@ export async function readPaydayChoices(
   for (const payday of paydays) {
     paidSoFar.push(payday.id);
     const moneyLeft = budgets.some(
-      ({ portions, allocated }) =>
-        portions.some((portion) => portion.paydayId === payday.id) &&
-        (portionsOn(portions, paidSoFar) ?? ZERO_CENTS) > allocated
+      (budget) =>
+        hasPortionOn(budget, payday.id) &&
+        (portionsOn(budget.portions, paidSoFar) ?? ZERO_CENTS) > budget.allocated
     );
     if (moneyLeft) return { paydays, preselectedPaydayId: payday.id };
   }
