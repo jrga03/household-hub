@@ -14,7 +14,7 @@ import {
   type CategoryList,
   type CategoryRow,
 } from "@/lib/categories/projection";
-import { diffCents, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
+import { addCentsTo, diffCents, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import { sameOwnership } from "@/lib/events/ownership";
 import { paydaysNamedOrInUse, readPaydays, type PaydayRow } from "@/lib/paydays/projection";
@@ -163,13 +163,7 @@ export function summarizeByAccount(
   sourceAccountId: string
 ): AccountTotal[] {
   const totals = new Map<string, Cents>();
-  for (const line of lines) {
-    const sum = sumCents([
-      totals.get(line.accountId) ?? ZERO_CENTS,
-      line.amountCents ?? ZERO_CENTS,
-    ]);
-    totals.set(line.accountId, sum);
-  }
+  for (const line of lines) addCentsTo(totals, line.accountId, line.amountCents ?? ZERO_CENTS);
   const rows = [...totals].map(([accountId, amountCents]) => ({ accountId, amountCents }));
   return [
     ...rows.filter((row) => row.accountId !== sourceAccountId),

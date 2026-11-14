@@ -8,7 +8,7 @@ import { isCreditCard } from "@/lib/accounts/events";
 import type { AccountRow } from "@/lib/accounts/projection";
 import { UNASSIGNED_ENVELOPE, type Envelope } from "@/lib/allocations/events";
 import type { AllocationRow } from "@/lib/allocations/projection";
-import { negateCents, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
+import { addCentsTo, negateCents, sumCents, ZERO_CENTS, type Cents } from "@/lib/currency";
 import { balanceChange } from "@/lib/corrections/events";
 import type { BalanceCorrectionRow } from "@/lib/corrections/projection";
 import { db } from "@/lib/dexie/db";
@@ -56,15 +56,12 @@ export interface AccountMoney {
   envelopes: Envelopes | null;
 }
 
-const addToTotal = (held: Map<string, Cents>, key: string, amount: Cents) =>
-  held.set(key, sumCents([held.get(key) ?? ZERO_CENTS, amount]));
-
 /** A positive amount adds money to the envelope; a negative one draws it. */
 function addToAllocated(envelopes: Envelopes, envelope: Envelope, amount: Cents) {
   if (envelope.kind === "unassigned")
     envelopes.unassigned = sumCents([envelopes.unassigned, amount]);
-  else if (envelope.kind === "category") addToTotal(envelopes.categories, envelope.id, amount);
-  else addToTotal(envelopes.cardPayments, envelope.id, amount);
+  else if (envelope.kind === "category") addCentsTo(envelopes.categories, envelope.id, amount);
+  else addCentsTo(envelopes.cardPayments, envelope.id, amount);
 }
 
 export interface MoneyRecords {
@@ -110,7 +107,7 @@ function addRecorded(
     payingAccountId && !cards.has(payingAccountId) ? totals.get(payingAccountId) : undefined;
   if (!paying) return;
   addToAllocated(paying.envelopes, record.envelope, negateCents(amount));
-  addToTotal(paying.envelopes.cardPayments, record.accountId, amount);
+  addCentsTo(paying.envelopes.cardPayments, record.accountId, amount);
 }
 
 const envelopeOfCategory = (categoryId: string | null): Envelope =>
@@ -273,7 +270,7 @@ export function sumGroupMoney(
     if (!category) continue;
     group.total = sumCents([group.total, category.total]);
     for (const [accountId, cents] of category.byAccount)
-      addToTotal(group.byAccount, accountId, cents);
+      addCentsTo(group.byAccount, accountId, cents);
   }
   return group;
 }
