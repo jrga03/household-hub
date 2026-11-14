@@ -23,7 +23,7 @@ import type { Actor } from "@/lib/commands/accounts";
 import { saveDrafts } from "@/lib/commands/drafts";
 import { deleteDrafts, discardDrafts, editDraft, type DraftChanges } from "@/lib/import/drafts";
 import { normalizeStatementText } from "@/lib/import/statement";
-import type { Cents } from "@/lib/currency";
+import { AMOUNT_PROBLEM, type Cents } from "@/lib/currency";
 import {
   keptTotalNote,
   needsDescription,
@@ -232,6 +232,12 @@ function FlagNote({ flag, lineAmount }: { flag: DraftFlag; lineAmount: Cents }) 
         <Notice title="Card payment">
           Not recorded yet. A payment is a transfer into the card, never income: record it as a card
           payment, or discard it if you record it elsewhere.
+        </Notice>
+      );
+    case "over-limit":
+      return (
+        <Notice tone="warning" title="Over the limit">
+          {AMOUNT_PROBLEM} Break this line apart, or discard it.
         </Notice>
       );
   }

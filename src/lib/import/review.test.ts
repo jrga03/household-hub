@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cents } from "@/test/cents";
+import { MAX_AMOUNT_CENTS } from "@/lib/currency";
 import { cardPaymentEnvelope } from "@/lib/allocations/events";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import type { TransferRow } from "@/lib/transfers/projection";
@@ -88,16 +89,22 @@ function transfer(overrides: Partial<TransferRow> = {}): TransferRow {
   };
 }
 
-const flagFor = (
-  subject: DraftRow,
+const flagsFor = (
+  drafts: DraftRow[],
   records: { transactions?: TransactionRow[]; transfers?: TransferRow[]; discarded?: string[] }
-) =>
-  draftFlagger(
+) => {
+  const flagOf = draftFlagger(
     CARD,
+    drafts,
     records.transactions ?? [],
     records.transfers ?? [],
     new Set(records.discarded)
-  )(subject);
+  );
+  return drafts.map(flagOf);
+};
+
+const flagFor = (subject: DraftRow, records: Parameters<typeof flagsFor>[1]) =>
+  flagsFor([subject], records)[0];
 
 describe("Already imported", () => {
   it("matches a transaction with the same import key", () => {
@@ -253,6 +260,34 @@ describe("Card payment", () => {
     });
   });
 
+  it("matches each recorded payment to one line, the nearest-dated", () => {
+    const early = { ...payment, id: "d1", importKey: "key-1" };
+    const late = { ...payment, id: "d2", importKey: "key-2", position: 1 };
+    const later = draft(
+      { id: "d2", importKey: "key-2", position: 1, type: "income" },
+      { ...payment.line, purchaseDate: "2026-09-12" }
+    );
+    const paid = transfer({ date: "2026-09-12" });
+
+    expect(flagsFor([early, later], { transfers: [paid] })).toEqual([
+      { kind: "card-payment", transfer: null },
+      { kind: "card-payment", transfer: paid },
+    ]);
+    const [first, second] = flagsFor([early, late], { transfers: [paid] });
+    expect([first, second].filter((flag) => discardedByDefault(flag ?? null))).toHaveLength(1);
+  });
+
+  it("matches two recorded payments to two lines of the same amount", () => {
+    const second = { ...payment, id: "d2", importKey: "key-2", position: 1 };
+    const paidFirst = transfer({ date: "2026-09-10" });
+    const paidSecond = transfer({ date: "2026-09-11" });
+
+    expect(flagsFor([payment, second], { transfers: [paidFirst, paidSecond] })).toEqual([
+      { kind: "card-payment", transfer: paidFirst },
+      { kind: "card-payment", transfer: paidSecond },
+    ]);
+  });
+
   it("is never read as a typed-in income", () => {
     const income = transaction({ type: "income", amountCents: cents(500000) });
 
@@ -260,6 +295,26 @@ describe("Card payment", () => {
       kind: "card-payment",
       transfer: null,
     });
+  });
+});
+
+describe("Over the limit", () => {
+  const huge = draft({}, { amount: cents(MAX_AMOUNT_CENTS + 1) });
+
+  it("flags a line above the amount limit, and leaves it unselected", () => {
+    const flag = flagFor(huge, {});
+
+    expect(flag).toEqual({ kind: "over-limit" });
+    expect(selectedByDefault(flag ?? null)).toBe(false);
+    expect(discardedByDefault(flag ?? null)).toBe(false);
+  });
+
+  it("passes a line at the limit", () => {
+    expect(flagFor(draft({}, { amount: cents(MAX_AMOUNT_CENTS) }), {})).toBeNull();
+  });
+
+  it("wins over Discarded before", () => {
+    expect(flagFor(huge, { discarded: ["key-1"] })).toEqual({ kind: "over-limit" });
   });
 });
 

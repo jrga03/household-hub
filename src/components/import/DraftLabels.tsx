@@ -18,6 +18,7 @@ const FLAG_BADGES: Record<DraftFlag["kind"], { label: string; tone: StatusTone }
   "discarded-before": { label: "Discarded before", tone: "outline" },
   "might-be-recorded": { label: "Might already be recorded", tone: "outline" },
   "card-payment": { label: "Card payment", tone: "neutral" },
+  "over-limit": { label: "Over the limit", tone: "warning" },
 };
 
 export function FlagBadge({ flag }: { flag: DraftFlag }) {

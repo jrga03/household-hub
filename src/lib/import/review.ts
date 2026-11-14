@@ -1,5 +1,5 @@
 import { differenceInCalendarDays } from "date-fns";
-import { formatPHP, sumCents, type Cents } from "@/lib/currency";
+import { formatPHP, isAmount, sumCents, type Cents } from "@/lib/currency";
 import { db } from "@/lib/dexie/db";
 import type { TransactionRow } from "@/lib/transactions/projection";
 import type { TransferRow } from "@/lib/transfers/projection";
@@ -16,7 +16,9 @@ export type DraftFlag =
   /** Discarded on this device within the last 6 months. */
   | { kind: "discarded-before" }
   /** A payment towards the card; `transfer` is the recorded payment it matches, if any. */
-  | { kind: "card-payment"; transfer: TransferRow | null };
+  | { kind: "card-payment"; transfer: TransferRow | null }
+  /** Above the most a record can hold, so saving it whole would fail. */
+  | { kind: "over-limit" };
 
 const daysApart = (a: string, b: string) =>
   Math.abs(differenceInCalendarDays(parseLocalDate(a), parseLocalDate(b)));
@@ -31,6 +33,25 @@ function closest<Row extends { date: string }>(date: string, rows: Row[]): Row |
   return best;
 }
 
+/** Pairs each recorded payment with at most one payment line of its amount, nearest-dated pairs first. */
+function matchPayments(lines: DraftRow[], payments: TransferRow[]): Map<string, TransferRow> {
+  const pairs = lines.flatMap((line) =>
+    payments
+      .filter((payment) => payment.amountCents === line.line.amount)
+      .map((payment) => ({ line, payment, apart: daysApart(line.line.purchaseDate, payment.date) }))
+      .filter((pair) => pair.apart <= MATCH_WINDOW_DAYS)
+  );
+  pairs.sort((a, b) => a.apart - b.apart || a.line.position - b.line.position);
+  const paymentOf = new Map<string, TransferRow>();
+  const used = new Set<string>();
+  for (const { line, payment } of pairs) {
+    if (paymentOf.has(line.id) || used.has(payment.id)) continue;
+    paymentOf.set(line.id, payment);
+    used.add(payment.id);
+  }
+  return paymentOf;
+}
+
 /**
  * Flags each draft of an import into `accountId` against what this device
  * holds (ADR 0008). Read live, so a line imported on another device turns
@@ -38,6 +59,7 @@ function closest<Row extends { date: string }>(date: string, rows: Row[]): Row |
  */
 export function draftFlagger(
   accountId: string,
+  drafts: DraftRow[],
   transactions: TransactionRow[],
   transfers: TransferRow[],
   discardedKeys: ReadonlySet<string>
@@ -56,13 +78,17 @@ export function draftFlagger(
   const paymentsIn = transfers.filter(
     (transfer) => !transfer.removed && transfer.toAccountId === accountId
   );
+  const paymentOf = matchPayments(
+    drafts.filter((draft) => draft.line.isCardPayment),
+    paymentsIn
+  );
 
   return (draft) => {
     const { purchaseDate, amount } = draft.line;
+    if (!isAmount(amount)) return { kind: "over-limit" };
     const discarded = discardedKeys.has(draft.importKey);
     if (draft.line.isCardPayment) {
-      const sameAmount = paymentsIn.filter((transfer) => transfer.amountCents === amount);
-      const transfer = closest(purchaseDate, sameAmount);
+      const transfer = paymentOf.get(draft.id) ?? null;
       return !transfer && discarded
         ? { kind: "discarded-before" }
         : { kind: "card-payment", transfer };
@@ -121,13 +147,10 @@ export async function readImportReview(): Promise<ReviewedImport[]> {
   ]);
   const discarded = new Set(discardedKeys);
   return imports.map((statement) => {
-    const flagOf = draftFlagger(statement.accountId, transactions, transfers, discarded);
-    return {
-      ...statement,
-      drafts: drafts
-        .filter((draft) => draft.importId === statement.id)
-        .sort((a, b) => a.position - b.position)
-        .map((draft) => ({ ...draft, flag: flagOf(draft) })),
-    };
+    const ofImport = drafts
+      .filter((draft) => draft.importId === statement.id)
+      .sort((a, b) => a.position - b.position);
+    const flagOf = draftFlagger(statement.accountId, ofImport, transactions, transfers, discarded);
+    return { ...statement, drafts: ofImport.map((draft) => ({ ...draft, flag: flagOf(draft) })) };
   });
 }
