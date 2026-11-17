@@ -12,7 +12,7 @@ npm run knip               # unused files, exports, deps; stale ignores fail (kn
 npx vitest run             # unit tests (bare `npm test` is watch mode)
 npm run test:e2e:smoke     # chromium smoke; Playwright builds dist/ before every run
 npm run size               # bundle budget (378 KB gz)
-npx tsc --noEmit -p tsconfig.tests.json    # tests/, playwright config, workers/
+npm run typecheck          # src (tsconfig.json), then tests/, playwright config, workers/ (tsconfig.tests.json)
 npm run gen:types          # regenerate src/types/database.types.ts (commit with each migration)
 supabase test db           # pgTAP (empty-schema check until the #15 baseline)
 ```
@@ -37,7 +37,7 @@ Always ask: what happens offline, and what happens when two devices edit the sam
 - TanStack Router (not react-router-dom); Sonner toasts (not react-hot-toast).
 - `@tanstack/eslint-plugin-query` (strict) applies to any query.
 - Server state in TanStack Query, client state in Zustand (minimal). Projections are read with `useLiveQuery` (dexie-react-hooks), so local writes and synced events re-render on their own. The exception is Reports' Spending: a Web Worker runs its own live query and folds the transactions (`useSpendingGrids`, `src/lib/reports/watch-spending.ts`).
-- Any UI change follows `DESIGN.md`; read it in full first.
+- Any UI change follows `DESIGN.md`; read its "How to use this doc" first.
 - Every route uses `<PageShell variant="…">` (`src/components/layout/PageShell.tsx`). Inside the shell, rails, sheets, and panes, use container queries at 600, 840 or 1200 (`@[600px]:`), plus 480 for form grids, form footers and `DataTable` columns (`FULL_ROW` spans a form grid); the window-class breakpoints `medium:`, `expanded:`, `large:` are for global chrome only.
 - No `any`. No `!` in production code (lint-enforced); narrow with a guard instead. Tests may use `!` after asserting length.
 - No blanket `eslint-disable`; any disable needs a trailing reason.
@@ -65,19 +65,14 @@ Check here before debugging a test or CLI failure you did not cause. A failure i
 
 ## Load on demand
 
-| When working on                                             | Read                                                                                              |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| UI: classes, components, layout, copy                       | `DESIGN.md` (in full)                                                                             |
-| Schema, migrations, query patterns, currency and date specs | `docs/initial plan/DATABASE.md`                                                                   |
-| Event log, sync, projections, membership boundary           | `docs/adr/0001-event-log-is-the-only-synced-data.md`, `docs/adr/0004-membership-is-relational.md` |
-| Why something is the way it is (numbered decisions)         | `docs/initial plan/DECISIONS.md`                                                                  |
-| RLS policies                                                | `docs/initial plan/RLS-POLICIES.md`                                                               |
-| Overall architecture                                        | `docs/initial plan/ARCHITECTURE.md`                                                               |
-| Testing strategy, performance budgets                       | `docs/initial plan/TESTING-PLAN.md`, `docs/initial plan/PERFORMANCE-BUDGET.md`                    |
-| Deployment (Cloudflare)                                     | `DEPLOYMENT.md`                                                                                   |
-| Current roadmap and its decisions                           | `docs/plans/2026-09-30-guardrails-roadmap.md` (Resume state, Decisions & Deferrals)               |
-| Past architecture review findings                           | `docs/reviews/2026-07-02-architecture-review.md`                                                  |
-| Domain specialists                                          | `.claude/agents/*.md` (sync, offline, currency, schema, frontend, UI, Cloudflare)                 |
+| When working on                                                                    | Read                                                        |
+| ---------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| UI: classes, components, layout, copy                                              | `DESIGN.md` (its "How to use this doc" says which sections) |
+| Event log, sync, projections, membership boundary, why things are the way they are | `docs/adr/` (0001 event log, 0004 membership)               |
+| A new record type, event version or projection field                               | `docs/agents/new-record-type.md`                            |
+| Schema and RLS policies                                                            | `supabase/migrations/`                                      |
+| Deployment (Cloudflare)                                                            | `DEPLOYMENT.md`                                             |
+| Current plan and its decisions                                                     | `docs/plans/rearchitecture/plan.md` (Decisions & Deferrals) |
 
 ## Agent skills
 

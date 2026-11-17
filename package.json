@@ -12,6 +12,7 @@
     "dev:vite": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.tests.json",
     "lint:fix": "eslint . --fix",
     "knip": "knip --treat-config-hints-as-errors",
     "format": "prettier --write .",

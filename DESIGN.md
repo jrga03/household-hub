@@ -6,7 +6,7 @@ The rulebook for every screen in Household Hub. The identity is "Ink and paper":
 
 Why: lint checks the tokens, but only this doc covers the judgment calls.
 
-- Read it in full before any UI change: classes, components, layout or copy.
+- Before any UI change (classes, components, layout or copy), read Principles, Interaction and accessibility, and every section your change touches.
 - It names roles and when to use them. Values live only in `src/index.css`. Read them there; never copy one into code or docs.
 - A rule marked _(lint)_ fails `npm run lint`. The [enforcement table](#enforcement) names each rule. Everything else is yours to get right.
 - When a purpose has no role, stop and add a role token in `src/index.css` plus a line here (`docs/adr/0011-semantic-tokens-and-private-primitives.md`). A new type, weight, radius, shadow or duration role also goes in the `cn` tailwind-merge config in `src/lib/utils.ts`, or `cn` drops it when merging. Never reach around the theme.
