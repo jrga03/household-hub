@@ -1,5 +1,7 @@
 # Design Decisions
 
+> **Superseded.** Written before the 2026-10 re-architecture. `docs/adr/` (event log: ADR 0001; membership: ADR 0004) and `supabase/migrations/` replace it. Read it only for history.
+
 ## Overview
 
 This document captures all key decisions made during the planning of Household Hub, providing rationale and context for future reference.

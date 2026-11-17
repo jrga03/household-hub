@@ -1,5 +1,7 @@
 # Database Schema
 
+> **Superseded.** Written before the 2026-10 re-architecture. `docs/adr/` (event log: ADR 0001; membership: ADR 0004) and `supabase/migrations/` replace it. Read it only for history.
+
 ## Overview
 
 The database uses PostgreSQL via Supabase with a focus on data integrity, audit trails, and performance. The schema supports multi-household architecture (initially single household) with multiple users, tracking both household and personal finances with complete version history and event sourcing.

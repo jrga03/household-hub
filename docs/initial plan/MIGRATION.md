@@ -1,5 +1,7 @@
 # Data Migration Guide
 
+> **Superseded.** Written before the 2026-10 re-architecture. `docs/adr/` (event log: ADR 0001; membership: ADR 0004) and `supabase/migrations/` replace it. Read it only for history.
+
 ## Overview
 
 Complete guide for migrating from Google Sheets financial tracker to Household Hub, preserving all data integrity and relationships.

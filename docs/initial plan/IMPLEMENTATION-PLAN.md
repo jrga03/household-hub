@@ -1,5 +1,7 @@
 # Implementation Plan
 
+> **Superseded.** Written before the 2026-10 re-architecture. `docs/adr/` (event log: ADR 0001; membership: ADR 0004) and `supabase/migrations/` replace it. Read it only for history.
+
 ## Overview
 
 15-day phased implementation plan to build the core financial tracking functionality with offline-first architecture and multi-user support. Using a three-phase approach to reduce risk and ensure early MVP delivery.

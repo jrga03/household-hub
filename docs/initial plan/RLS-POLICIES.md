@@ -1,5 +1,7 @@
 # Row Level Security (RLS) Policies
 
+> **Superseded.** Written before the 2026-10 re-architecture. `docs/adr/` (event log: ADR 0001; membership: ADR 0004) and `supabase/migrations/` replace it. Read it only for history.
+
 ## Overview
 
 Row Level Security (RLS) in Supabase ensures data access control at the database level. Our multi-household architecture supports multiple households with a default household for single-household deployments. Access is controlled by both `household_id` and `visibility` fields.

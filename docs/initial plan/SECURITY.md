@@ -1,5 +1,7 @@
 # Security Threat Model
 
+> **Superseded.** Written before the 2026-10 re-architecture. `docs/adr/` (event log: ADR 0001; membership: ADR 0004) and `supabase/migrations/` replace it. Read it only for history.
+
 ## Overview
 
 This document outlines the security threats, attack vectors, mitigations, and security boundaries for Household Hub. Understanding these risks is critical for making informed architectural decisions and implementing appropriate safeguards.

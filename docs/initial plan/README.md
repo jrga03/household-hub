@@ -1,5 +1,7 @@
 # Household Hub
 
+> **Superseded.** Written before the 2026-10 re-architecture. `docs/adr/` (event log: ADR 0001; membership: ADR 0004) and `supabase/migrations/` replace it. Read it only for history.
+
 A comprehensive household management Progressive Web App built with React, TypeScript, and Supabase. Features offline-first financial tracking, document management, and household organization tools.
 
 ## 🎯 Vision
