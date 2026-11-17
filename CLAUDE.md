@@ -13,6 +13,7 @@ npx vitest run             # unit tests (bare `npm test` is watch mode)
 npm run test:e2e:smoke     # chromium smoke; Playwright builds dist/ before every run
 npm run size               # bundle budget (378 KB gz)
 npm run typecheck          # src (tsconfig.json), then tests/, playwright config, workers/ (tsconfig.tests.json)
+node scripts/worktree.mjs new|done <branch>  # issue worktree off origin/main (.env.local, npm ci); done removes it and updates main
 npm run gen:types          # regenerate src/types/database.types.ts (commit with each migration)
 supabase test db           # pgTAP (empty-schema check until the #15 baseline)
 ```
