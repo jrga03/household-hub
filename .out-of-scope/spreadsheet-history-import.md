@@ -12,7 +12,7 @@ Getting outside data in is already covered where it is needed:
 - Drift between logged and real balances: a Balance Correction, not a backfill.
 - Restoring this app's own data: the event-log export and restore (#123, #242).
 
-The decision is recorded in `docs/plans/2026-10-10-rearchitecture.md` ("Go live on a fresh start", and the fresh-start note for M5).
+The decision is recorded in `docs/plans/rearchitecture/decisions-m1-m4.md` ("Go live on a fresh start") and in `docs/plans/rearchitecture/plan.md` (the fresh-start note for M5).
 
 ## When to revisit
 
