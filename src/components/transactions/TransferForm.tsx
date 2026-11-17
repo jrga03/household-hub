@@ -423,7 +423,7 @@ export function TransferForm({
 
       <FormError>{problems.form}</FormError>
       <FormFooter destructive={transfer && { label: "Remove", onClick: () => void remove() }}>
-        <SubmitButton pendingText="Saving...">{transfer ? "Save" : "Add transfer"}</SubmitButton>
+        <SubmitButton pendingText="Saving…">{transfer ? "Save" : "Add transfer"}</SubmitButton>
       </FormFooter>
     </ActionForm>
   );

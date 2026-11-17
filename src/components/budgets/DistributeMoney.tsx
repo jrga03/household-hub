@@ -441,7 +441,7 @@ function LinesForm({
 
       <FormError>{error}</FormError>
       <FormFooter>
-        <SubmitButton pendingText="Distributing...">Distribute</SubmitButton>
+        <SubmitButton pendingText="Distributing…">Distribute</SubmitButton>
       </FormFooter>
     </ActionForm>
   );

@@ -241,6 +241,19 @@ const styleCases = [
       '<div style={{ "--normal-bg": "var(--popover)" } as React.CSSProperties} />',
     ],
   },
+  {
+    rule: "arch/no-three-dot-ellipsis",
+    flagged: [
+      '<SubmitButton pendingText="Saving...">Save</SubmitButton>',
+      "<p>Loading...</p>",
+      "const label = `Adding ${name}...`;",
+    ],
+    allowed: [
+      '<SubmitButton pendingText="Saving…">Save</SubmitButton>',
+      "<Row {...props} />",
+      'import { x } from "../../lib/x";',
+    ],
+  },
 ];
 
 describe.each(styleCases)("$rule", ({ rule, flagged, allowed }) => {

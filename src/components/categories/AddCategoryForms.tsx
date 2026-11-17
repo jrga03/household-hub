@@ -71,7 +71,7 @@ export function AddCategoryForm({ actor, groups }: { actor: Actor; groups: Group
         </Field>
       </div>
       <FormError>{state.error}</FormError>
-      <SubmitButton pendingText="Adding...">Add category</SubmitButton>
+      <SubmitButton pendingText="Adding…">Add category</SubmitButton>
     </ActionForm>
   );
 }
@@ -90,7 +90,7 @@ export function AddGroupForm({ actor }: { actor: Actor }) {
       {/* Keyed so each new group starts as Household again; Personal is a deliberate choice. */}
       <NewGroupFields key={state.added} />
       <FormError>{state.error}</FormError>
-      <SubmitButton pendingText="Adding...">Add group</SubmitButton>
+      <SubmitButton pendingText="Adding…">Add group</SubmitButton>
     </ActionForm>
   );
 }

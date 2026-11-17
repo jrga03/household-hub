@@ -145,7 +145,7 @@ Why: everyone in the household must be able to use every screen by touch, keyboa
 - The start-up screen (`LoadingScreen`) draws the same frame as the iOS splash: only the `AppMark` tile, 25% of the short side with a 22% radius, centered on the app background. Its status is announced once from the start; a spinner shows under the tile only after 1 s. If you change the tile, change `scripts/generate-icons.mjs` with it.
 - When a page's code is slow to download, the router shows `PendingBar` after 500 ms: a thin indeterminate bar at the top of the content area, announced as "Loading page". Navigation and the header stay, and focus does not move. Pages do not set their own pending UI; change the timing in `pendingOptions` (`src/components/layout/PendingBar.tsx`).
 - Underline links inside running text. Color alone fails contrast against the surrounding text (axe `link-in-text-block`).
-- Use the ellipsis character (…) and curly quotes in copy.
+- Use the ellipsis character (…) _(lint)_ and curly quotes in copy.
 - Contrast: WCAG 2 AA in both themes. 4.5:1 for text, 3:1 for large text and UI such as field outlines (see Color roles).
 
 ## Writing in the UI
@@ -288,5 +288,6 @@ Why: an agent that skips this doc still cannot ship an off-system class.
 | No inline color styles                                                                                          | `arch/no-inline-color-style`                    |
 | Routes and features never import `ui/` primitives                                                               | `arch/no-direct-primitive-import`               |
 | Amounts render through `Money`, not `formatPHP` in JSX                                                          | `arch/no-hand-made-amount`                      |
+| The ellipsis character (…) in copy, not three dots                                                              | `arch/no-three-dot-ellipsis`                    |
 | Semantic, accessible markup                                                                                     | `jsx-a11y/*` (recommended set)                  |
 | Contrast pairs pass in both themes                                                                              | `src/theme-contrast.test.ts` (Vitest, not lint) |
