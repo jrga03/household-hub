@@ -10,7 +10,7 @@ interface SubmitButtonProps extends Omit<React.ComponentProps<typeof Button>, "t
   children: React.ReactNode;
   /**
    * Text to display when the form is submitting
-   * @default "Submitting..."
+   * @default "Submitting…"
    */
   pendingText?: React.ReactNode;
   /**
@@ -40,14 +40,14 @@ interface SubmitButtonProps extends Omit<React.ComponentProps<typeof Button>, "t
  * @example
  * <ActionForm action={submitAction}>
  *   <input name="username" />
- *   <SubmitButton pendingText="Creating account..." showSpinner={false}>
+ *   <SubmitButton pendingText="Creating account…" showSpinner={false}>
  *     Sign Up
  *   </SubmitButton>
  * </ActionForm>
  */
 export function SubmitButton({
   children,
-  pendingText = "Submitting...",
+  pendingText = "Submitting…",
   showSpinner = true,
   disabled,
   className,

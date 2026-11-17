@@ -1,5 +1,7 @@
 # Sync Engine Architecture
 
+> **Superseded.** Written before the 2026-10 re-architecture. `docs/adr/` (event log: ADR 0001; membership: ADR 0004) and `supabase/migrations/` replace it. Read it only for history.
+
 ## Overview
 
 The sync engine enables seamless offline-first functionality with automatic conflict resolution, ensuring data consistency across multiple devices and users.
@@ -102,13 +104,7 @@ Every change is stored as an immutable event, enabling:
 interface TransactionEvent {
   id: string;
   entityType:
-    | "transaction"
-    | "account"
-    | "category"
-    | "budget"
-    | "debt"
-    | "internal_debt"
-    | "debt_payment";
+    "transaction" | "account" | "category" | "budget" | "debt" | "internal_debt" | "debt_payment";
   entityId: string; // The specific entity this event applies to
   op: "create" | "update" | "delete";
   payload: any; // Changed fields only for updates
@@ -149,13 +145,7 @@ type SyncState =
 interface SyncQueueItem {
   id: string;
   entityType:
-    | "transaction"
-    | "category"
-    | "account"
-    | "budget"
-    | "debt"
-    | "internal_debt"
-    | "debt_payment";
+    "transaction" | "category" | "account" | "budget" | "debt" | "internal_debt" | "debt_payment";
   entityId: string;
   operation: "create" | "update" | "delete";
   payload: any;

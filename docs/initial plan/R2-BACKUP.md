@@ -1,5 +1,7 @@
 # Cloudflare R2 Backup Architecture
 
+> **Superseded.** Written before the 2026-10 re-architecture. `docs/adr/` (event log: ADR 0001; membership: ADR 0004) and `supabase/migrations/` replace it. Read it only for history.
+
 ## Overview
 
 Cloudflare R2 provides cost-effective object storage for automated backups, snapshots, and data retention. The architecture uses a Cloudflare Worker as a secure proxy to generate signed URLs, preventing direct credential exposure in the client.

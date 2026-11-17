@@ -1,5 +1,7 @@
 # Feature Specifications
 
+> **Superseded.** Written before the 2026-10 re-architecture. `docs/adr/` (event log: ADR 0001; membership: ADR 0004) and `supabase/migrations/` replace it. Read it only for history.
+
 ## Financial Tracker (Phase A - Core MVP)
 
 ### 1. Transaction Management

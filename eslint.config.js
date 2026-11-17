@@ -22,6 +22,7 @@ const architecturePlugin = {
     "no-color-literal": restrictedSyntax,
     "no-inline-color-style": restrictedSyntax,
     "no-hand-made-amount": restrictedSyntax,
+    "no-three-dot-ellipsis": restrictedSyntax,
     // Its own rule ID so it stacks with the no-restricted-imports blocks below
     // instead of replacing them.
     "no-direct-primitive-import": builtinRules.get("no-restricted-imports"),
@@ -626,6 +627,14 @@ export default [
           selector: `Literal[value=/${COLOR_LITERAL}/], TemplateElement[value.raw=/${COLOR_LITERAL}/]`,
           message:
             "Colors come from theme tokens in src/index.css. Use a token class, or read the token with getComputedStyle.",
+        },
+      ],
+      "arch/no-three-dot-ellipsis": [
+        "error",
+        {
+          selector: String.raw`Literal[value=/\.\.\./], TemplateElement[value.raw=/\.\.\./], JSXText[value=/\.\.\./]`,
+          message:
+            "Write the ellipsis character (…) in copy, not three dots (DESIGN.md, Writing in the UI).",
         },
       ],
       "arch/no-inline-color-style": [

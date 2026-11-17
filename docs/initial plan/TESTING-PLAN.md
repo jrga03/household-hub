@@ -1,5 +1,7 @@
 # Testing Plan
 
+> **Superseded.** Written before the 2026-10 re-architecture. `docs/adr/` (event log: ADR 0001; membership: ADR 0004) and `supabase/migrations/` replace it. Read it only for history.
+
 ## Overview
 
 Comprehensive testing strategy using Playwright for E2E tests, Vitest for unit tests, and synthetic data generation for realistic scenarios. Focus on offline functionality, sync reliability, and PHP currency accuracy.

@@ -1,0 +1,62 @@
+# Re-architecture: Milestone 1 to 4 resume log and gotchas
+
+Part of the re-architecture plan: [plan.md](plan.md).
+
+- #16 merged (PR #26, 41f23ee) and CI pin bump merged (PR #27, afdeb7a); CI green on main after #27.
+- #21 merged (PR #28). #18 merged (PR #29).
+- #17 merged (PR #30).
+- #22 merged (PR #31). #23 merged (PR #32). #19 merged (PR #33).
+- #24 merged (PR #34).
+- #25 merged (PR #38, 7f7bf9c). Follow-up: #36 (offline gate retry delay).
+- #20 merged (PR #37, 6eefab2). Deployed 2026-10-11: production reset to the six new migrations (`supabase db reset --linked --no-seed`; old tables held 0 estimated rows), `keep_alive()` returns `true` with the anon key, Worker `household-hub-keep-alive` deployed (version cd146b55). Owes: first run 2026-10-13 00:00 UTC shows `Supabase keep-alive succeeded` in Observability; around 2026-10-18 the Supabase project is still active.
+- #36 merged (PR #41, e294de5).
+- #42 merged (PR #43, 57587d4).
+- Triaged 2026-10-11: #15 closed as completed; #40 updated (deploy steps done; first-run check 2026-10-13, still-active check on or after 2026-10-17).
+- Next: #40's two dashboard checks (human).
+- Milestone 2 scoped 2026-10-12: spec #46, sub-issues #47-#53 (`ready-for-agent`), ADR 0005.
+- #47 merged (PR #56, ca6bba3). #48 merged (PR #57, 22a23d5). #49 merged (PR #58, 0593a29). #50 merged (PR #60, dcf7044). #52 merged (PR #62, efc7c46). #51 merged (PR #64, 791b302). #53 merged (PR #66, 2c28b78). Their worktrees and local branches are removed.
+- #46 closed 2026-10-12. The `household.spec.ts` Owner-badge flake fixed (PR #68).
+- Milestone 3 scoped 2026-10-12: spec #70, sub-issues #71-#77 (`ready-for-agent`, native blocked-by edges), ADRs 0006 and 0007, glossary Transfer, Budget and Funding Account. Export modes deferred to #69 (`needs-triage`).
+- #71 merged (PR #79, 734017b). #73 merged (PR #80, 0becd82); merging it after #71 needed transfers in the month-end money (a type error caught it). Their worktrees and local branches are removed. Follow-up #81 (`transactions.spec.ts` on Mobile Chrome).
+- Pending with the user: whether Unassigned and "Retired, still holding money" should follow the month picker (default: keep current money; see the #73 decisions).
+- Round 2 merged: #74 (PR #85), #76 (PR #84), #72 (PR #86), #75 (PR #87). #77 merged (PR #89, f1eb4c2). Their worktrees and local branches are removed.
+- #70 closed 2026-10-13: Milestone 3 is complete. Follow-ups: #83 (move `envelopeLabel`; merged), #88 (Distribute empty state when the source holds no categories, both modes; #92 folded in and closed; built, PR #94), #69 (export modes, after the first release; `needs-triage`).
+- #83 merged (PR #93, bc59094): `envelopeLabel` now lives in `src/lib/allocations/envelope.ts`.
+- Milestone 4 scoped 2026-10-13: spec #95, sub-issues #96-#99 (`ready-for-agent`, native blocked-by edges), ADR 0008, glossary Import and Import Key.
+- Next: build round 1 (#96, #97). Real statements for #97 and #98 come from the user during the build. Still owed: #40's dashboard checks (human).
+- Decided 2026-10-14: go live on a fresh start. #138 landed 2026-10-14 (PR #142). Building the assistant (#128): #129 landed 2026-10-15 (PR #143), #130 landed and deployed 2026-10-15 (PR #144), #132 landed 2026-10-16 (PR #146), #133 landed 2026-10-17 (PR #147). Live fixes: the Workers AI usage summary (PR #153), failed sends (PR #154). #131 (Groq fallback) landed 2026-10-17 (PR #157). #155 and #156 landed 2026-10-18 (PR #158), closing #128. Next: the maintainer's phone check on prod (reload restores a waiting card, tables scroll sideways, New chat), then the M5 planning session, which #128 closing triggers.
+- M5 charted 2026-10-28 as wayfinder map #256 (Reports). Tickets: chart approach #257 (closed: hand-written SVG/HTML, no library; findings on branch `research/reports-chart-approach`), go-live #258 (task, maintainer), chart color roles #261 (grilling), Reports prototype #259 (closed: variant B, list-detail with the drilldown in the pane), drilldown filters #260 (closed: `from`/`to` month range, `visibility` filter, net Spent in the summary). Go-live #258 closed 2026-10-29 with no friction issues. New tickets: Reports periods and month counts #268 (closed 2026-10-30: rolling windows, an end-month stepper, 12-month pane and sparklines), compute on read or monthly projection #269 (closed: compute on read in a Web Worker). Spec #273 written 2026-10-30 (#272) with build slices #274 to #278; map #256 closed. Next: build #274, #275 and #276 (parallel), then #277, then #278.
+- Gotchas found in #71 and #73:
+  - `sumAccountMoney(accounts, transactions, allocations, transfers)` takes transfers as a required fourth argument; any month or ledger sum must pass the transfers dated in range.
+  - List rows are `ListRow = TransactionRow | TransferRow` (`isTransfer`, `newestFirst`, `transferDirection` in `transactions/filter.ts`); `useTransactionListRows()` replaced `useTransactions()`.
+  - `addTransfer` with `envelope: { kind: "card_payment", id: card }` into the card already pays a card; the command refuses any other envelope into a card and any transfer out of one.
+  - Budgets: `budgetInForce` / `budgetsInForce` (`budgets/inForce.ts`), `readMonthView` / `categoryMonth` / `sumMonthFigures` (`budgets/month.ts`); the month is the Categories route's `?month=yyyy-MM`. Distribute's prefill is `budget - allocated`, floored at 0, from the month view.
+  - Dexie is at version 9 (8 transfers, 9 budgets).
+  - Bulk actions: generic `changeEach(ids, read, isAlready, change)` in `commands/bulk.ts`.
+- Gotchas found in #53:
+  - Sonner toasts sit over the bottom rows on a phone and handle swipes themselves; a swipe check must wait for toasts to clear.
+  - `/transactions` is `rail`: `TransactionList` returns `PageShell.Main` and `PageShell.RightAside` slots, and the page header shares the shell's `@[1100px]` breakpoint so the two stay aligned.
+  - The layout baselines use the seeded user's empty state, so the 2% pixel tolerance hides small shell changes; regenerate with `--update-snapshots=all` and look at the image.
+  - Bulk commands (`setTransactionsStatus`, `changeTransactionsCategory`, `removeTransactions`, `restoreTransactions`) skip rows already as asked and return `{ changed, failed }`; reuse `changeEach` for future bulk actions.
+- Gotchas found in #51:
+  - Sub-issues built in parallel each add a section under Milestone 2 here, so the second PR to merge conflicts in this file; keep both sections, newest first.
+  - Move money's selects name each option with its amount ("Groceries · ₱0.00"), so e2e picks options by that full name.
+  - `sumAccountMoney` takes allocations as a third argument; `sumCategoryMoney` pivots its result per category, and `moneyIn` reads one envelope.
+- Gotchas found in #52:
+  - Filters live in the route's search params (`readTransactionFilter`); #53's selection and detail pane can add params the same way.
+  - The search box keeps its own text and resyncs only when the URL query is cleared; don't drive it from `useSearch` directly (the URL lags a render).
+  - #53 owes: collapsing the filters on phones (they fill the first screen), alongside the swipe row.
+- Gotchas found in #50:
+  - A device that logs in right after another device writes may pull before the push lands; two-browser specs reconnect it until the item shows (`pullUntil` in `tests/e2e/card-payment.spec.ts`).
+  - A card's row on the Accounts card names its Paying Account, so match account rows by their leading name, not `hasText: name`.
+  - `chooseOption(page, field, option)` lives in `tests/e2e/fixtures/helpers.ts`.
+  - #51 owes: category money per account on screen (the #50 demo's Restaurants drop), and the shared `permutations` test helper (#49 deferral). Allocations add to the Card Payment envelopes in `sumAccountMoney` (`cardPayments`).
+- Gotchas found in #49:
+  - A new route fails `tsc -b` until the route tree is regenerated: run `npx vite build` (the router plugin rewrites `src/routeTree.gen.ts`), then type-check.
+  - Shell changes move the laptop/desktop layout baselines; open the `*-diff.png` before `--update-snapshots`. There is no phone baseline, so check phone layout with a screenshot.
+  - #50 adds the Paying Account to `transaction.created` and `transaction.edited` as v2 with a v1 upcaster (`src/lib/transactions/events.ts`); `sumAccountMoney` (`src/lib/transactions/money.ts`) gives cards `envelopes: null` today.
+- Gotchas found in #16:
+  - `src/types/database.types.ts` is in `.prettierignore`: commit raw `npm run gen:types` output; CI diffs it against Supabase CLI 2.119.0 (must match the local CLI).
+  - `supabase test db` exits 1 when `supabase/tests/` has no `.sql` files; `000_empty_baseline.sql` (asserts public has no tables) must be replaced, not just deleted, by #21's baseline tests.
+  - The auto-mode classifier blocks bulk `git rm` of test files; ask the user to run large deletions with `!`.
+- Unverified: nothing outstanding from #16.

@@ -348,7 +348,7 @@ function SuggestedCategories({ actor }: { actor: Actor }) {
         </p>
       </div>
       <Button onClick={seed} disabled={seeding}>
-        {seeding ? "Adding..." : "Use suggested categories"}
+        {seeding ? "Adding…" : "Use suggested categories"}
       </Button>
     </section>
   );

@@ -6,7 +6,7 @@ The rulebook for every screen in Household Hub. The identity is "Ink and paper":
 
 Why: lint checks the tokens, but only this doc covers the judgment calls.
 
-- Read it in full before any UI change: classes, components, layout or copy.
+- Before any UI change (classes, components, layout or copy), read Principles, Interaction and accessibility, and every section your change touches.
 - It names roles and when to use them. Values live only in `src/index.css`. Read them there; never copy one into code or docs.
 - A rule marked _(lint)_ fails `npm run lint`. The [enforcement table](#enforcement) names each rule. Everything else is yours to get right.
 - When a purpose has no role, stop and add a role token in `src/index.css` plus a line here (`docs/adr/0011-semantic-tokens-and-private-primitives.md`). A new type, weight, radius, shadow or duration role also goes in the `cn` tailwind-merge config in `src/lib/utils.ts`, or `cn` drops it when merging. Never reach around the theme.
@@ -145,7 +145,7 @@ Why: everyone in the household must be able to use every screen by touch, keyboa
 - The start-up screen (`LoadingScreen`) draws the same frame as the iOS splash: only the `AppMark` tile, 25% of the short side with a 22% radius, centered on the app background. Its status is announced once from the start; a spinner shows under the tile only after 1 s. If you change the tile, change `scripts/generate-icons.mjs` with it.
 - When a page's code is slow to download, the router shows `PendingBar` after 500 ms: a thin indeterminate bar at the top of the content area, announced as "Loading page". Navigation and the header stay, and focus does not move. Pages do not set their own pending UI; change the timing in `pendingOptions` (`src/components/layout/PendingBar.tsx`).
 - Underline links inside running text. Color alone fails contrast against the surrounding text (axe `link-in-text-block`).
-- Use the ellipsis character (…) and curly quotes in copy.
+- Use the ellipsis character (…) _(lint)_ and curly quotes in copy.
 - Contrast: WCAG 2 AA in both themes. 4.5:1 for text, 3:1 for large text and UI such as field outlines (see Color roles).
 
 ## Writing in the UI
@@ -288,5 +288,6 @@ Why: an agent that skips this doc still cannot ship an off-system class.
 | No inline color styles                                                                                          | `arch/no-inline-color-style`                    |
 | Routes and features never import `ui/` primitives                                                               | `arch/no-direct-primitive-import`               |
 | Amounts render through `Money`, not `formatPHP` in JSX                                                          | `arch/no-hand-made-amount`                      |
+| The ellipsis character (…) in copy, not three dots                                                              | `arch/no-three-dot-ellipsis`                    |
 | Semantic, accessible markup                                                                                     | `jsx-a11y/*` (recommended set)                  |
 | Contrast pairs pass in both themes                                                                              | `src/theme-contrast.test.ts` (Vitest, not lint) |

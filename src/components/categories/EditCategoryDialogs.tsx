@@ -122,7 +122,7 @@ function EditDialog({
         </div>
         <FormError>{error}</FormError>
         <FormFooter destructive={{ label: retireLabel, onClick: onRetire, disabled: retiring }}>
-          <SubmitButton pendingText="Saving...">Save</SubmitButton>
+          <SubmitButton pendingText="Saving…">Save</SubmitButton>
         </FormFooter>
       </ActionForm>
     </FormSheet>
@@ -316,7 +316,7 @@ function RetireMovingMoneyDialog({
           <Button type="button" variant="outline" onClick={onBack}>
             Back
           </Button>
-          <SubmitButton pendingText="Retiring..." disabled={choices.length === 0}>
+          <SubmitButton pendingText="Retiring…" disabled={choices.length === 0}>
             Move and retire
           </SubmitButton>
         </FormFooter>
