@@ -32,12 +32,13 @@ if (command === "new") {
   console.log(path);
 } else {
   if (existsSync(path)) git(["worktree", "remove", path]);
-  git(["branch", "-D", branch]);
   const lock = () => git(["rev-parse", "main:package-lock.json"]);
   const lockBefore = lock();
   git(["fetch", "-q", "--prune"]);
   git(["switch", "-q", "main"]);
   git(["pull", "-q", "--ff-only"]);
+  // After the switch, so a branch checked out here (no worktree) can go too.
+  git(["branch", "-D", branch]);
   if (lock() !== lockBefore) run("npm", ["ci", "--silent"], root);
   console.log(git(["log", "--oneline", "-1"]));
 }
